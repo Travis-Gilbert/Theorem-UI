@@ -1,0 +1,314 @@
+diff --git a/node_modules/@theia/plugin-ext/.bun-tag-21acc2d410494ade b/.bun-tag-21acc2d410494ade
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@theia/plugin-ext/lib/hosted/node/bun-child-stdin-shim.d.ts b/lib/hosted/node/bun-child-stdin-shim.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb0ff5c3b541f646105198ee23ac0fc3d805023e
+--- /dev/null
++++ b/lib/hosted/node/bun-child-stdin-shim.d.ts
+@@ -0,0 +1 @@
++export {};
+diff --git a/node_modules/@theia/plugin-ext/lib/hosted/node/bun-child-stdin-shim.js b/lib/hosted/node/bun-child-stdin-shim.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..265b44f36535faf16c0591e5161360abfc05c2fa
+--- /dev/null
++++ b/lib/hosted/node/bun-child-stdin-shim.js
+@@ -0,0 +1,39 @@
++"use strict";
++// SOURCING: hand-roll — mirrors execa's handling of EPIPE on child stdin; the race is in Bun's spawn, which no library patches.
++// *****************************************************************************
++// Copyright (C) 2026 Theorem UI contributors.
++//
++// This program and the accompanying materials are made available under the
++// terms of the Eclipse Public License v. 2.0 which is available at
++// http://www.eclipse.org/legal/epl-2.0.
++//
++// This Source Code may also be made available under the following Secondary
++// Licenses when the conditions for such availability set forth in the Eclipse
++// Public License v. 2.0 are satisfied: GNU General Public License, version 2
++// with the GNU Classpath Exception which is available at
++// https://www.gnu.org/software/classpath/license.html.
++//
++// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
++// *****************************************************************************
++Object.defineProperty(exports, "__esModule", { value: true });
++/**
++ * Ignores EPIPE on child process stdin under Bun.
++ *
++ * Extensions such as vscode.git spawn a process and immediately `stdin.end(input)` without an
++ * `error` listener. Node's `spawn` returns before the child runs, so the write lands in the pipe
++ * buffer even when the child never reads it. Bun's `spawn` returns later, often after a short-lived
++ * child has exited, so the write fails with EPIPE and, unhandled, crashes into the plugin host's
++ * uncaught exception handler. As execa does, EPIPE on stdin only means the child stopped reading;
++ * any other error still throws when nothing else handles it.
++ */
++const child_process_1 = require("child_process");
++const spawn = child_process_1.ChildProcess.prototype.spawn;
++child_process_1.ChildProcess.prototype.spawn = function (...args) {
++    var _a;
++    spawn.apply(this, args);
++    (_a = this.stdin) === null || _a === void 0 ? void 0 : _a.on('error', function (error) {
++        if (error.code !== 'EPIPE' && this.listenerCount('error') === 1) {
++            throw error;
++        }
++    });
++};
+diff --git a/node_modules/@theia/plugin-ext/lib/hosted/node/bun-module-load-shim.d.ts b/lib/hosted/node/bun-module-load-shim.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb0ff5c3b541f646105198ee23ac0fc3d805023e
+--- /dev/null
++++ b/lib/hosted/node/bun-module-load-shim.d.ts
+@@ -0,0 +1 @@
++export {};
+diff --git a/node_modules/@theia/plugin-ext/lib/hosted/node/bun-module-load-shim.js b/lib/hosted/node/bun-module-load-shim.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..1331174a6e1c9bc228b289c13888c8dbcf43d8e1
+--- /dev/null
++++ b/lib/hosted/node/bun-module-load-shim.js
+@@ -0,0 +1,77 @@
++"use strict";
++// SOURCING: hand-roll — no library bridges Node's Module._load overrides onto Bun's resolver; Bun.plugin onResolve does not fire for bare CommonJS requests.
++// *****************************************************************************
++// Copyright (C) 2026 Theorem UI contributors.
++//
++// This program and the accompanying materials are made available under the
++// terms of the Eclipse Public License v. 2.0 which is available at
++// http://www.eclipse.org/legal/epl-2.0.
++//
++// This Source Code may also be made available under the following Secondary
++// Licenses when the conditions for such availability set forth in the Eclipse
++// Public License v. 2.0 are satisfied: GNU General Public License, version 2
++// with the GNU Classpath Exception which is available at
++// https://www.gnu.org/software/classpath/license.html.
++//
++// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
++// *****************************************************************************
++/* eslint-disable @typescript-eslint/no-explicit-any */
++/**
++ * Makes `Module._load` overrides work under Bun.
++ *
++ * The plugin host injects the `vscode` and `@theia/plugin` APIs, node-pty and the proxy-aware
++ * `http`/`https`/`tls` modules by replacing `Module._load`. Bun's `require` never calls
++ * `Module._load`, but it does call `Module._resolveFilename` for every request, built-ins included.
++ * This shim replays the installed `_load` chain from there: if an override answers the request, its
++ * value is placed in `require.cache` under a synthetic key and that key is returned as the resolved
++ * filename; otherwise resolution proceeds normally.
++ *
++ * Overrides must only call the previous `_load` to fall through (as all of Theia's do); during a
++ * replay that call resolves the request (throwing if it cannot be found) instead of loading it.
++ */
++const Module = require('module');
++const NOT_OVERRIDDEN = Symbol('not overridden');
++const nativeLoad = Module._load;
++const nativeResolve = Module._resolveFilename;
++const replays = [];
++function baseLoad(request, parent, isMain) {
++    const replay = replays[replays.length - 1];
++    if (replay && replay.request === request && replay.parent === parent) {
++        nativeResolve.call(Module, request, parent, isMain);
++        return NOT_OVERRIDDEN;
++    }
++    return nativeLoad.apply(this, arguments);
++}
++let load = baseLoad;
++Object.defineProperty(Module, '_load', {
++    configurable: true,
++    get: () => load,
++    set: (fn) => { load = fn; }
++});
++Module._resolveFilename = function (request, parent, isMain) {
++    if (load === baseLoad) {
++        return nativeResolve.apply(this, arguments);
++    }
++    replays.push({ request, parent });
++    let exports;
++    try {
++        exports = load.call(Module, request, parent, isMain);
++    }
++    finally {
++        replays.pop();
++    }
++    if (exports === NOT_OVERRIDDEN) {
++        return nativeResolve.apply(this, arguments);
++    }
++    // One entry per requiring file and request, refreshed on every require like an uncached `_load`.
++    const key = `${parent?.filename ?? process.cwd()}.theia-module-override/${encodeURIComponent(request)}`;
++    let module = require.cache[key];
++    if (!module) {
++        module = new Module(key, parent);
++        module.filename = key;
++        module.loaded = true;
++        require.cache[key] = module;
++    }
++    module.exports = exports;
++    return key;
++};
+diff --git a/lib/hosted/node/plugin-host.js b/lib/hosted/node/plugin-host.js
+index 8e6a4d046f22022cdc606734ef0fc1af1f78aec4..c2d1817c64348b1591fd08be51795dcb1a929f40 100644
+--- a/lib/hosted/node/plugin-host.js	
++++ b/lib/hosted/node/plugin-host.js
+@@ -1,4 +1,9 @@
+ "use strict";
++// Must run before anything installs a Module._load override.
++if (typeof Bun !== "undefined") {
++    require("./bun-module-load-shim");
++    require("./bun-child-stdin-shim");
++}
+ Object.defineProperty(exports, "__esModule", { value: true });
+ // *****************************************************************************
+ // Copyright (C) 2018 Red Hat, Inc. and others.
+diff --git a/node_modules/@theia/plugin-ext/src/hosted/node/bun-child-stdin-shim.ts b/src/hosted/node/bun-child-stdin-shim.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..07c68d2905f0b3f604c0a55c183878e6f0149258
+--- /dev/null
++++ b/src/hosted/node/bun-child-stdin-shim.ts
+@@ -0,0 +1,39 @@
++// SOURCING: hand-roll — mirrors execa's handling of EPIPE on child stdin; the race is in Bun's spawn, which no library patches.
++// *****************************************************************************
++// Copyright (C) 2026 Theorem UI contributors.
++//
++// This program and the accompanying materials are made available under the
++// terms of the Eclipse Public License v. 2.0 which is available at
++// http://www.eclipse.org/legal/epl-2.0.
++//
++// This Source Code may also be made available under the following Secondary
++// Licenses when the conditions for such availability set forth in the Eclipse
++// Public License v. 2.0 are satisfied: GNU General Public License, version 2
++// with the GNU Classpath Exception which is available at
++// https://www.gnu.org/software/classpath/license.html.
++//
++// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
++// *****************************************************************************
++
++/**
++ * Ignores EPIPE on child process stdin under Bun.
++ *
++ * Extensions such as vscode.git spawn a process and immediately `stdin.end(input)` without an
++ * `error` listener. Node's `spawn` returns before the child runs, so the write lands in the pipe
++ * buffer even when the child never reads it. Bun's `spawn` returns later, often after a short-lived
++ * child has exited, so the write fails with EPIPE and, unhandled, crashes into the plugin host's
++ * uncaught exception handler. As execa does, EPIPE on stdin only means the child stopped reading;
++ * any other error still throws when nothing else handles it.
++ */
++import { ChildProcess } from 'child_process';
++import { Writable } from 'stream';
++
++const spawn = ChildProcess.prototype.spawn;
++ChildProcess.prototype.spawn = function (this: ChildProcess, ...args: Parameters<ChildProcess['spawn']>): void {
++    spawn.apply(this, args);
++    this.stdin?.on('error', function (this: Writable, error: NodeJS.ErrnoException): void {
++        if (error.code !== 'EPIPE' && this.listenerCount('error') === 1) {
++            throw error;
++        }
++    });
++};
+diff --git a/node_modules/@theia/plugin-ext/src/hosted/node/bun-module-load-shim.ts b/src/hosted/node/bun-module-load-shim.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..cf568bc6c107774bc2bf612673853db267af9841
+--- /dev/null
++++ b/src/hosted/node/bun-module-load-shim.ts
+@@ -0,0 +1,86 @@
++// SOURCING: hand-roll — no library bridges Node's Module._load overrides onto Bun's resolver; Bun.plugin onResolve does not fire for bare CommonJS requests.
++// *****************************************************************************
++// Copyright (C) 2026 Theorem UI contributors.
++//
++// This program and the accompanying materials are made available under the
++// terms of the Eclipse Public License v. 2.0 which is available at
++// http://www.eclipse.org/legal/epl-2.0.
++//
++// This Source Code may also be made available under the following Secondary
++// Licenses when the conditions for such availability set forth in the Eclipse
++// Public License v. 2.0 are satisfied: GNU General Public License, version 2
++// with the GNU Classpath Exception which is available at
++// https://www.gnu.org/software/classpath/license.html.
++//
++// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
++// *****************************************************************************
++
++/* eslint-disable @typescript-eslint/no-explicit-any */
++
++/**
++ * Makes `Module._load` overrides work under Bun.
++ *
++ * The plugin host injects the `vscode` and `@theia/plugin` APIs, node-pty and the proxy-aware
++ * `http`/`https`/`tls` modules by replacing `Module._load`. Bun's `require` never calls
++ * `Module._load`, but it does call `Module._resolveFilename` for every request, built-ins included.
++ * This shim replays the installed `_load` chain from there: if an override answers the request, its
++ * value is placed in `require.cache` under a synthetic key and that key is returned as the resolved
++ * filename; otherwise resolution proceeds normally.
++ *
++ * Overrides must only call the previous `_load` to fall through (as all of Theia's do); during a
++ * replay that call resolves the request (throwing if it cannot be found) instead of loading it.
++ */
++const Module = require('module');
++
++interface Replay {
++    request: string;
++    parent: any;
++}
++
++const NOT_OVERRIDDEN = Symbol('not overridden');
++const nativeLoad: Function = Module._load;
++const nativeResolve: Function = Module._resolveFilename;
++const replays: Replay[] = [];
++
++function baseLoad(this: unknown, request: string, parent: any, isMain: boolean): unknown {
++    const replay = replays[replays.length - 1];
++    if (replay && replay.request === request && replay.parent === parent) {
++        nativeResolve.call(Module, request, parent, isMain);
++        return NOT_OVERRIDDEN;
++    }
++    return nativeLoad.apply(this, arguments);
++}
++
++let load: Function = baseLoad;
++Object.defineProperty(Module, '_load', {
++    configurable: true,
++    get: () => load,
++    set: (fn: Function) => { load = fn; }
++});
++
++Module._resolveFilename = function (this: unknown, request: string, parent: any, isMain: boolean): string {
++    if (load === baseLoad) {
++        return nativeResolve.apply(this, arguments);
++    }
++    replays.push({ request, parent });
++    let exports: unknown;
++    try {
++        exports = load.call(Module, request, parent, isMain);
++    } finally {
++        replays.pop();
++    }
++    if (exports === NOT_OVERRIDDEN) {
++        return nativeResolve.apply(this, arguments);
++    }
++    // One entry per requiring file and request, refreshed on every require like an uncached `_load`.
++    const key = `${parent?.filename ?? process.cwd()}.theia-module-override/${encodeURIComponent(request)}`;
++    let module = require.cache[key];
++    if (!module) {
++        module = new Module(key, parent);
++        module.filename = key;
++        module.loaded = true;
++        require.cache[key] = module;
++    }
++    module.exports = exports;
++    return key;
++};
+diff --git a/src/hosted/node/plugin-host.ts b/src/hosted/node/plugin-host.ts
+index c7c4f8b07b64a12c110a323a5a987cda6b608c99..9dbb461c2470aa8f152cb03cc4e1aab5f63d6ae6 100644
+--- a/src/hosted/node/plugin-host.ts	
++++ b/src/hosted/node/plugin-host.ts
+@@ -13,6 +13,13 @@
+ //
+ // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+ // *****************************************************************************
++declare const Bun: unknown;
++// Must run before anything installs a Module._load override.
++if (typeof Bun !== "undefined") {
++    require("./bun-module-load-shim");
++    require("./bun-child-stdin-shim");
++}
++
+ import '@theia/core/shared/reflect-metadata';
+ import { suppressNodeNavigator } from './plugin-host-navigator-override';
+ import { Container } from '@theia/core/shared/inversify';

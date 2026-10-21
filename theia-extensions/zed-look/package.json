@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "name": "theorem-ui-zed-look",
+  "version": "0.1.0",
+  "license": "EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0",
+  "description": "Zed's themes, fonts and layout for Theia",
+  "dependencies": {
+    "@theia/core": "1.76.0",
+    "@theia/monaco": "1.76.0",
+    "@theia/terminal": "1.76.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  },
+  "theiaExtensions": [
+    {
+      "frontend": "lib/browser/zed-look-frontend-module"
+    }
+  ],
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "bun test src"
+  }
+}
