@@ -37,6 +37,7 @@
     "node-pty@1.2.0-beta.12": "patches/node-pty@1.2.0-beta.12.patch",
     "@theia/plugin-ext@1.76.0": "patches/@theia%2Fplugin-ext@1.76.0.patch",
     "@theia/plugin-ext-vscode@1.76.0": "patches/@theia%2Fplugin-ext-vscode@1.76.0.patch",
-    "@theia/terminal@1.76.0": "patches/@theia%2Fterminal@1.76.0.patch"
+    "@theia/terminal@1.76.0": "patches/@theia%2Fterminal@1.76.0.patch",
+    "@theia/plugin-utils@1.76.0": "patches/@theia%2Fplugin-utils@1.76.0.patch"
   }
 }

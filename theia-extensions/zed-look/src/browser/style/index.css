@@ -55,7 +55,8 @@
   font-style: italic;
 }
 
-/* Zed's defaults: a 16px rem, 14px UI text, 12px small labels, 34px title bar, 32px tabs. */
+/* Zed's defaults: a 16px rem, 14px UI text, 12px small labels, 34px title bar, 32px tabs, a status bar of
+   22px buttons in 4px padding, and 6px scrollbar thumbs centred in 14px rails. */
 :root {
   --theia-ui-font-size1: 14px;
   --theia-content-font-size: 14px;
@@ -64,7 +65,9 @@
   --theia-code-font-size: 15px;
   --theia-private-menubar-height: 34px;
   --theia-private-horizontal-tab-height: 32px;
-  --theia-statusBar-height: 28px;
+  --theia-statusBar-height: 30px;
+  --theia-scrollbar-width: 6px;
+  --theia-scrollbar-rail-width: 14px;
   --zed-radius: 6px;
 }
 
@@ -234,11 +237,4 @@
 }
 .lm-Menu-item {
   border-radius: 4px;
-}
-
-/* Thin scrollbars, as in Zed. */
-.lm-TabBar.theia-app-centers .lm-TabBar-content::-webkit-scrollbar,
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
 }

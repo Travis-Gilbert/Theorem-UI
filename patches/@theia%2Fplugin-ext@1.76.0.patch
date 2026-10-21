@@ -1,6 +1,9 @@
 diff --git a/node_modules/@theia/plugin-ext/.bun-tag-21acc2d410494ade b/.bun-tag-21acc2d410494ade
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@theia/plugin-ext/.bun-tag-95cc4b8f68171d0b b/.bun-tag-95cc4b8f68171d0b
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/@theia/plugin-ext/lib/hosted/node/bun-child-stdin-shim.d.ts b/lib/hosted/node/bun-child-stdin-shim.d.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..cb0ff5c3b541f646105198ee23ac0fc3d805023e
@@ -157,6 +160,26 @@ index 8e6a4d046f22022cdc606734ef0fc1af1f78aec4..c2d1817c64348b1591fd08be51795dcb
  Object.defineProperty(exports, "__esModule", { value: true });
  // *****************************************************************************
  // Copyright (C) 2018 Red Hat, Inc. and others.
+diff --git a/lib/main/browser/view/plugin-view-registry.js b/lib/main/browser/view/plugin-view-registry.js
+index 316310138771498832e92105f5593697e0e59d3b..40f58360df901f5576615003c20b26abb3b971bd 100644
+--- a/lib/main/browser/view/plugin-view-registry.js	
++++ b/lib/main/browser/view/plugin-view-registry.js
+@@ -713,10 +713,13 @@ let PluginViewRegistry = class PluginViewRegistry {
+             }
+             const widget = await this.widgetManager.getOrCreateWidget(exports.PLUGIN_VIEW_FACTORY_ID, identifier);
+             if (containerWidget.getTrackableWidgets().indexOf(widget) === -1) {
++                const visibility = this.views.get(viewId)?.[1].visibility;
+                 containerWidget.addWidget(widget, {
+-                    initiallyCollapsed: !!containerWidget.getParts().length,
+-                    initiallyHidden: !this.isViewVisible(viewId)
++                    initiallyCollapsed: !!containerWidget.getParts().length || visibility === 'collapsed',
++                    initiallyHidden: visibility === 'hidden' || !this.isViewVisible(viewId)
+                 });
++                // As in VS Code, a view contributed as hidden stays hidden, whatever its `when` clause, until the user shows it.
++                widget.suppressUpdateViewVisibility = visibility === 'hidden';
+             }
+             this.registerWidgetPartEvents(widget, containerWidget);
+         }
 diff --git a/node_modules/@theia/plugin-ext/src/hosted/node/bun-child-stdin-shim.ts b/src/hosted/node/bun-child-stdin-shim.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..07c68d2905f0b3f604c0a55c183878e6f0149258
@@ -312,3 +335,23 @@ index c7c4f8b07b64a12c110a323a5a987cda6b608c99..9dbb461c2470aa8f152cb03cc4e1aab5
  import '@theia/core/shared/reflect-metadata';
  import { suppressNodeNavigator } from './plugin-host-navigator-override';
  import { Container } from '@theia/core/shared/inversify';
+diff --git a/src/main/browser/view/plugin-view-registry.ts b/src/main/browser/view/plugin-view-registry.ts
+index 01fc35a2d4a1dfe53bfa04d82c0193c5e5b935d0..b3a688055fe7ce0e3c1848a3fc78eb500dff4ba3 100644
+--- a/src/main/browser/view/plugin-view-registry.ts	
++++ b/src/main/browser/view/plugin-view-registry.ts
+@@ -832,10 +832,13 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
+             }
+             const widget = await this.widgetManager.getOrCreateWidget<PluginViewWidget>(PLUGIN_VIEW_FACTORY_ID, identifier);
+             if (containerWidget.getTrackableWidgets().indexOf(widget) === -1) {
++                const visibility = this.views.get(viewId)?.[1].visibility;
+                 containerWidget.addWidget(widget, {
+-                    initiallyCollapsed: !!containerWidget.getParts().length,
+-                    initiallyHidden: !this.isViewVisible(viewId)
++                    initiallyCollapsed: !!containerWidget.getParts().length || visibility === 'collapsed',
++                    initiallyHidden: visibility === 'hidden' || !this.isViewVisible(viewId)
+                 });
++                // As in VS Code, a view contributed as hidden stays hidden, whatever its `when` clause, until the user shows it.
++                widget.suppressUpdateViewVisibility = visibility === 'hidden';
+             }
+             this.registerWidgetPartEvents(widget, containerWidget);
+         }

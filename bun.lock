@@ -62,8 +62,10 @@
       "dependencies": {
         "@theia/core": "1.76.0",
         "@theia/monaco": "1.76.0",
+        "@theia/navigator": "1.76.0",
         "@theia/scm": "1.76.0",
         "@theia/terminal": "1.76.0",
+        "@theia/timeline": "1.76.0",
         "@theia/workspace": "1.76.0",
       },
       "devDependencies": {
@@ -73,10 +75,11 @@
     },
   },
   "patchedDependencies": {
+    "drivelist@12.0.2": "patches/drivelist@12.0.2.patch",
+    "@theia/plugin-utils@1.76.0": "patches/@theia%2Fplugin-utils@1.76.0.patch",
     "node-pty@1.2.0-beta.12": "patches/node-pty@1.2.0-beta.12.patch",
     "@theia/plugin-ext-vscode@1.76.0": "patches/@theia%2Fplugin-ext-vscode@1.76.0.patch",
     "@theia/terminal@1.76.0": "patches/@theia%2Fterminal@1.76.0.patch",
-    "drivelist@12.0.2": "patches/drivelist@12.0.2.patch",
     "@theia/core@1.76.0": "patches/@theia%2Fcore@1.76.0.patch",
     "@theia/plugin-ext@1.76.0": "patches/@theia%2Fplugin-ext@1.76.0.patch",
   },

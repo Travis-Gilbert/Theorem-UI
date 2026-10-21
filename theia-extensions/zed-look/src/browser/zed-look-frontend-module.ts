@@ -13,6 +13,7 @@ import { SidePanelHandler } from '@theia/core/lib/browser/shell/side-panel-handl
 import { BrowserMenuBarContribution } from '@theia/core/lib/browser/menu/browser-menu-plugin';
 import { ScmContribution } from '@theia/scm/lib/browser/scm-contribution';
 import { ZedDockButtons } from './zed-dock-buttons';
+import { ZedExplorer } from './zed-explorer';
 import { ZedSidePanelHandler } from './zed-side-panel-handler';
 import { ZedThemeContribution } from './zed-theme-contribution';
 import { ZedTitleBar } from './zed-title-bar';
@@ -27,4 +28,6 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(FrontendApplicationContribution).toService(ZedThemeContribution);
     bind(ZedDockButtons).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(ZedDockButtons);
+    bind(ZedExplorer).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(ZedExplorer);
 });
