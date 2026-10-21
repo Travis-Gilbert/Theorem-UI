@@ -12,6 +12,7 @@ import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
 import { useScrollLock } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import { ToolTile, toolIdentity } from "@/components/chat/tool-identity";
 import {
   CollapsibleRoot as Collapsible,
   CollapsibleContent,
@@ -92,46 +93,115 @@ function ToolGroupRoot({
   );
 }
 
+const ICON_LIMIT = 5;
+
+/** One tile per kind of tool the group used, fanned like a held hand. */
+function ToolGroupIcons({
+  toolNames,
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { toolNames: readonly string[] }) {
+  const kinds = [
+    ...new Map(
+      toolNames.map((name) => [toolIdentity(name).category, name]),
+    ).values(),
+  ];
+  if (kinds.length === 0) return null;
+  const shown = kinds.slice(0, ICON_LIMIT);
+  const fan = shown.length > 1;
+
+  return (
+    <span
+      data-slot="tool-group-icons"
+      aria-hidden
+      className={cn("flex items-center -space-x-1", className)}
+      {...props}
+    >
+      {shown.map((name, index) => (
+        <ToolTile
+          key={name}
+          toolName={name}
+          style={{ zIndex: index }}
+          // The page-coloured outline cuts each tile from the one beneath it.
+          className={cn(
+            "outline-background size-6 outline-2 transition-transform duration-200 ease-(--ease-structure) motion-reduce:transition-none",
+            fan &&
+              (index % 2 === 0
+                ? "rotate-6 group-hover/trigger:rotate-0"
+                : "-rotate-6 group-hover/trigger:rotate-0"),
+          )}
+        />
+      ))}
+      {kinds.length > ICON_LIMIT && (
+        <span className="bg-muted text-ink-faint flex size-6 items-center justify-center rounded-md text-[11px] tabular-nums">
+          +{kinds.length - ICON_LIMIT}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function ToolGroupTrigger({
   count,
   active = false,
+  toolNames = [],
+  failed = 0,
+  waiting = 0,
+  duration,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   count: number;
   active?: boolean;
+  /** The group's tool names, in order; their kinds become the icon stack. */
+  toolNames?: readonly string[];
+  failed?: number;
+  waiting?: number;
+  /** Shown once the group settles. */
+  duration?: string | undefined;
 }) {
-  const label = `${count} tool ${count === 1 ? "call" : "calls"}`;
+  const tools = `${count} ${count === 1 ? "tool" : "tools"}`;
+  const label = active ? `Using ${tools}` : `Used ${tools}`;
 
   return (
     <CollapsibleTrigger
       data-slot="tool-group-trigger"
       className={cn(
         "aui-tool-group-trigger group/trigger flex origin-left items-center gap-2 text-sm transition-[color,scale] active:scale-[0.98]",
-        "group-data-[variant=ghost]/tool-group-root:text-muted-foreground group-data-[variant=ghost]/tool-group-root:hover:text-foreground group-data-[variant=ghost]/tool-group-root:py-1.5",
+        "group-data-[variant=ghost]/tool-group-root:text-muted-foreground group-data-[variant=ghost]/tool-group-root:hover:text-foreground group-data-[variant=ghost]/tool-group-root:py-1",
         "group-data-[variant=outline]/tool-group-root:w-full group-data-[variant=outline]/tool-group-root:px-4",
         "group-data-[variant=muted]/tool-group-root:w-full group-data-[variant=muted]/tool-group-root:px-4",
         className,
       )}
       {...props}
     >
-      {active && (
-        <Icon.Refresh
-          data-slot="tool-group-trigger-loader"
-          className="aui-tool-group-trigger-loader size-3 shrink-0 animate-spin [animation-duration:0.6s]"
-        />
-      )}
+      <ToolGroupIcons toolNames={toolNames} />
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
-          "aui-tool-group-trigger-label-wrapper inline-block text-start text-xs leading-none font-medium",
-          "group-data-[variant=ghost]/tool-group-root:font-normal",
+          "aui-tool-group-trigger-label-wrapper inline-flex flex-wrap items-baseline gap-x-1 text-start text-xs leading-4 font-medium",
           "group-data-[variant=outline]/tool-group-root:grow",
           "group-data-[variant=muted]/tool-group-root:grow",
-          active && "shimmer motion-reduce:animate-none",
         )}
       >
-        {label}
+        <span className={cn(active && "shimmer motion-reduce:animate-none")}>
+          {label}
+        </span>
+        {waiting > 0 && (
+          <span className="text-ochre-ink before:content-['·_']">
+            {waiting} waiting
+          </span>
+        )}
+        {failed > 0 && (
+          <span className="text-error-ink before:content-['·_']">
+            {failed} failed
+          </span>
+        )}
+        {!active && duration && (
+          <span className="text-ink-faint font-normal tabular-nums before:content-['·_']">
+            {duration}
+          </span>
+        )}
       </span>
       <Icon.Next
         data-slot="tool-group-trigger-chevron"
@@ -169,7 +239,8 @@ function ToolGroupContent({
       <div
         className={cn(
           "mt-2 flex flex-col gap-2",
-          "group-data-[variant=ghost]/tool-group-root:mt-1 group-data-[variant=ghost]/tool-group-root:gap-1",
+          // Ghost groups lay their steps on one timeline, which owns the spacing.
+          "group-data-[variant=ghost]/tool-group-root:mt-1.5 group-data-[variant=ghost]/tool-group-root:mb-1 group-data-[variant=ghost]/tool-group-root:gap-0",
           "group-data-[variant=outline]/tool-group-root:mt-3 group-data-[variant=outline]/tool-group-root:border-t group-data-[variant=outline]/tool-group-root:px-4 group-data-[variant=outline]/tool-group-root:pt-3",
           "group-data-[variant=muted]/tool-group-root:mt-3 group-data-[variant=muted]/tool-group-root:border-t group-data-[variant=muted]/tool-group-root:px-4 group-data-[variant=muted]/tool-group-root:pt-3",
           "[&>*]:animate-in [&>*]:fade-in-0 [&>*]:blur-in-[2px] [&>*]:slide-in-from-top-1 [&>*]:animation-duration-(--animation-duration) [&>*]:ease-[cubic-bezier(0.32,0.72,0,1)]",
@@ -223,6 +294,7 @@ ToolGroup.Content = ToolGroupContent;
 export {
   ToolGroup,
   ToolGroupRoot,
+  ToolGroupIcons,
   ToolGroupTrigger,
   ToolGroupContent,
   toolGroupVariants,

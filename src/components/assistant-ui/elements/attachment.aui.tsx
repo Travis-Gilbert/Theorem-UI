@@ -242,9 +242,16 @@ export const UserMessageAttachments: FC = () => {
   );
 };
 
-export const ComposerAttachments: FC = () => {
+export const ComposerAttachments: FC<{ className?: string }> = ({
+  className,
+}) => {
   return (
-    <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
+    <div
+      className={cn(
+        "aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden",
+        className,
+      )}
+    >
       <ComposerPrimitive.Attachments>
         {() => <AttachmentUI />}
       </ComposerPrimitive.Attachments>
@@ -261,7 +268,7 @@ export const ComposerAddAttachment: FC = () => {
           side="bottom"
           variant="ghost"
           size="icon"
-          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-7 rounded-md p-1.5 active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-composer-add-attachment text-ink-muted hover:bg-ink/[0.06] hover:text-ink size-8 rounded-lg p-1.5 active:scale-[0.96] motion-reduce:transition-none"
           aria-label="Add Attachment"
         />
       }

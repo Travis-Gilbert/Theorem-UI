@@ -82,6 +82,19 @@
 
   --shadow-tint: 48 49 45;
 
+  /* Composer glass: a lighter, warmer pane than the page, a white rim in
+     place of a drawn border, and a sheen that catches the top edge. */
+  --composer-tint: #cdc9c5;
+  --composer-tint-strength: 74%;
+  --composer-sheen: rgb(255 255 255 / 0.22);
+  --composer-rim: rgb(255 255 255 / 0.34);
+  --composer-rim-focus: color-mix(in srgb, var(--focus) 32%, rgb(255 255 255 / 0.4));
+  --composer-focus-ring: color-mix(in srgb, var(--focus) 10%, transparent);
+  --composer-highlight: rgb(255 255 255 / 0.5);
+
+  /* The closing stroke of every Noun mark, in screen pixels. */
+  --icon-stroke: 1px;
+
   /* shadcn / assistant-ui element contract */
   --background: var(--surface-neutral);
   --foreground: var(--ink);
@@ -141,6 +154,17 @@
 
   --shadow-tint: 0 0 0;
   --popover: #202122;
+
+  --composer-tint: #212223;
+  --composer-tint-strength: 76%;
+  --composer-sheen: rgb(255 255 255 / 0.045);
+  --composer-rim: rgb(255 255 255 / 0.08);
+  /* Dark focus is a saturated teal, which reads as a coloured outline on a
+     near-black pane even well mixed down; focus brightens the rim instead,
+     keeping only a trace of the hue. */
+  --composer-rim-focus: color-mix(in srgb, var(--focus) 12%, rgb(255 255 255 / 0.17));
+  --composer-focus-ring: rgb(255 255 255 / 0.03);
+  --composer-highlight: rgb(255 255 255 / 0.07);
   --link: #8fd0c4;
 }
 
@@ -269,7 +293,7 @@
   --radius-artifact: 14px;
   --radius-2xl: 16px;
 
-  --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
+  --shadow-composer: 0 1px 2px rgb(var(--shadow-tint) / 0.06), 0 12px 32px -10px rgb(var(--shadow-tint) / 0.24);
   --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
 
   --spacing-rail: 68px;
@@ -366,12 +390,20 @@
      a wisp at control size. A same-colour stroke closes that hollow and
      leaves the mark with the weight it was drawn with, without touching a byte
      of the licensed assets. The stroked sets declare a fill and are left
-     alone, and the message toolbar marks, which arrive solid, opt out. */
+     alone, and the message toolbar marks, which arrive solid, opt out.
+     The stroke is a fixed screen width rather than viewBox units, which
+     would thin with the mark to under half a pixel at 16px: the smaller the
+     mark, the heavier it is drawn, the correction a type designer gives
+     small text. */
   svg[data-icon]:not([fill]):not(.icon-solid) {
     stroke: currentColor;
-    stroke-width: 3;
+    stroke-width: var(--icon-stroke);
     stroke-linejoin: round;
     stroke-linecap: round;
+
+    & * {
+      vector-effect: non-scaling-stroke;
+    }
   }
 
   code,
@@ -407,6 +439,37 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/* The composer pane. Glass is the platform's backdrop-filter: the composer
+   floats over a thread that streams and scrolls, which a snapshot-based WebGL
+   lens would have to re-rasterise on every token. The blur is kept light and
+   the tint strong, so text passing beneath reads as depth, not as content. */
+@utility composer-glass {
+  border: 1px solid var(--composer-rim);
+  background:
+    linear-gradient(180deg, var(--composer-sheen), transparent 65%),
+    color-mix(in oklab, var(--composer-tint) var(--composer-tint-strength), transparent);
+  box-shadow:
+    inset 0 1px 0 var(--composer-highlight),
+    var(--shadow-composer);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  transition:
+    border-color 150ms var(--ease-structure),
+    box-shadow 150ms var(--ease-structure);
+
+  &:focus-within {
+    border-color: var(--composer-rim-focus);
+    box-shadow:
+      inset 0 1px 0 var(--composer-highlight),
+      0 0 0 3px var(--composer-focus-ring),
+      var(--shadow-composer);
+  }
+
+  &[data-dragging='true'] {
+    border-color: var(--focus);
   }
 }
 

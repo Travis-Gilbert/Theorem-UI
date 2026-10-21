@@ -20,6 +20,7 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
 } from "@/components/assistant-ui/elements/tool-group.aui";
+import { formatToolDuration } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
   isStandaloneToolCall,
@@ -48,7 +49,9 @@ import {
   createContext,
   useContext,
   useLayoutEffect,
-  useRef
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
 
@@ -186,9 +189,9 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
         ["--thread-max-width" as string]: "var(--spacing-reading)",
-        ["--composer-bg" as string]: "var(--surface-composer)",
+        // Controls inside the pane keep its curve: 16 radius - 8 padding = 8.
         ["--composer-radius" as string]: "var(--radius-2xl)",
-        ["--composer-padding" as string]: "10px",
+        ["--composer-padding" as string]: "8px",
       }}
     >
       <ThreadPrimitive.Viewport
@@ -222,9 +225,11 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
 
           <ThreadPrimitive.ViewportFooter
             className={cn(
-              "aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
+              "aui-thread-viewport-footer flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
+              // The thread scrolls beneath the glass; only the gutter under
+              // the composer is opaque, so nothing shows below its edge.
               !isEmpty &&
-                "sticky bottom-0 mt-auto rounded-t-(--composer-radius)",
+                "after:bg-background sticky bottom-0 mt-auto after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:-z-10 after:h-[calc(var(--composer-radius)+1rem)] md:after:h-[calc(var(--composer-radius)+1.5rem)]",
             )}
           >
             <ThreadScrollToBottom />
@@ -455,17 +460,43 @@ const ThreadSuggestionItem: FC = () => {
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-composer relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
-                      placeholder="Message Theorem"
-                      className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-10 w-full resize-none bg-transparent py-2 ps-2.5 pe-14 text-base leading-6 outline-none focus-visible:outline-none"
-                      rows={1}
-                      autoFocus={autoFocus}
-                      enterKeyHint="send"
-                      aria-label="Message input"
-                    /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
+      <ComposerPrimitive.AttachmentDropzone
+        render={
+          <div
+            data-slot="aui_composer-shell"
+            className="composer-glass group/composer relative flex w-full cursor-text flex-col rounded-(--composer-radius) p-(--composer-padding)"
+          />
+        }
+      >
+        <ComposerPrimitive.Input
+          placeholder="Message Theorem"
+          className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-1 text-base leading-6 outline-none focus-visible:outline-none"
+          rows={1}
+          autoFocus={autoFocus}
+          enterKeyHint="send"
+          aria-label="Message input"
+        />
+        <ComposerAction />
+        <ComposerAttachments className="border-ink/10 -mx-(--composer-padding) mt-(--composer-padding) -mb-(--composer-padding) rounded-b-[inherit] border-t bg-black/[0.035] p-(--composer-padding) dark:bg-black/20" />
+        <div
+          aria-hidden
+          className="aui-composer-drop-hint bg-focus/10 text-focus pointer-events-none absolute inset-0 hidden items-center justify-center gap-2 rounded-[inherit] text-sm font-medium group-data-[dragging=true]/composer:flex"
+        >
+          <Icon.Attachment className="size-4" />
+          Drop files to attach
+        </div>
+      </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 };
+
+const composerButton = "size-8 rounded-lg p-1.5";
+const composerPrimary = cn(
+  composerButton,
+  "bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed shadow-[inset_0_1px_0_rgb(255_255_255/0.18)]",
+  // Empty, the send control recedes into the pane instead of fading its accent.
+  "disabled:bg-ink/10 disabled:text-ink-faint disabled:opacity-100 disabled:shadow-none",
+);
 
 const ComposerAction: FC = () => {
   // The stop control only cancels the send while no run it could stop is going.
@@ -476,15 +507,17 @@ const ComposerAction: FC = () => {
   );
 
   return (
-    <div className="aui-composer-action-wrapper flex items-center justify-between">
-      <ComposerAddAttachment />
-      <div className="absolute end-(--composer-padding) top-(--composer-padding) flex items-center gap-1.5">
+    <div className="aui-composer-action-wrapper flex items-center justify-between gap-2">
+      <div className="flex items-center gap-1">
+        <ComposerAddAttachment />
+      </div>
+      <div className="flex items-center gap-1">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
-            <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-10 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
+            <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon" className={cn("aui-composer-dictate text-ink-muted hover:bg-ink/[0.06] hover:text-ink", composerButton)} aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
           </AuiIf>
           <AuiIf condition={(s) => s.composer.dictation != null}>
-            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-stop-dictation text-error-ink size-10 rounded-lg" aria-label="Stop voice input" />}><Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" /></ComposerPrimitive.StopDictation>
+            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" side="bottom" type="button" variant="ghost" size="icon" className={cn("aui-composer-stop-dictation text-error-ink", composerButton)} aria-label="Stop voice input" />}><Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" /></ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
         <AuiIf
@@ -495,10 +528,10 @@ const ComposerAction: FC = () => {
             !shouldShowComposerResume(s)
           }
         >
-          <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="submit" variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Send message" />}><Icon.Send className="aui-composer-send-icon size-5" /></ComposerPrimitive.Send>
+          <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="submit" variant="default" size="icon" className={cn("aui-composer-send", composerPrimary)} aria-label="Send message" />}><Icon.Send className="aui-composer-send-icon size-4" /></ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf condition={shouldShowComposerResume}>
-          <ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" side="bottom" type="button" variant="default" size="icon" className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-5" /></ComposerPrimitive.Resume>
+          <ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" side="bottom" type="button" variant="default" size="icon" className={cn("aui-composer-resume", composerPrimary)} aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-4" /></ComposerPrimitive.Resume>
         </AuiIf>
         <AuiIf
           condition={(s) =>
@@ -507,7 +540,7 @@ const ComposerAction: FC = () => {
               s.composer.submission !== undefined)
           }
         >
-          <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40" aria-label={isSending ? "Cancel sending" : "Stop generating"} />}><Icon.Stop className="aui-composer-cancel-icon size-5" /></ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className={cn("aui-composer-cancel", composerPrimary)} aria-label={isSending ? "Cancel sending" : "Stop generating"} />}><Icon.Stop className="aui-composer-cancel-icon size-4" /></ComposerPrimitive.Cancel>
         </AuiIf>
       </div>
     </div>
@@ -560,15 +593,7 @@ const AssistantMessage: FC = () => {
                 if (ToolGroup) {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
-                return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
-                );
+                return <ThreadToolGroup group={part}>{children}</ThreadToolGroup>;
               case "group-reasoning": {
                 if (ReasoningGroup) {
                   return (
@@ -627,6 +652,63 @@ const AssistantMessage: FC = () => {
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+/**
+ * The tool group as the run sees it: the header names the kinds of tool in
+ * use, says whether they are still running, and counts the ones that failed
+ * or wait on the user. A call that needs an answer opens the group, since a
+ * collapsed group would hide the control that answers it.
+ */
+const ThreadToolGroup: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({
+  group,
+  children,
+}) => {
+  // Select the store's own array; mapping inside the selector would loop it.
+  const parts = useAuiState((s) => s.message.parts);
+  const { toolNames, failed } = useMemo(() => {
+    const calls = group.indices.flatMap((index) => {
+      const part = parts[index];
+      return part?.type === "tool-call" ? [part] : [];
+    });
+    return {
+      toolNames: calls.map((call) => call.toolName),
+      failed: calls.filter(
+        (call) =>
+          call.isError ||
+          (call.status.type === "incomplete" &&
+            call.status.reason !== "cancelled"),
+      ).length,
+    };
+  }, [parts, group.indices]);
+
+  const waiting = group.counts.requiresAction > 0;
+  const [open, setOpen] = useState(waiting);
+  const [wasWaiting, setWasWaiting] = useState(waiting);
+  if (waiting !== wasWaiting) {
+    setWasWaiting(waiting);
+    if (waiting) setOpen(true);
+  }
+
+  const { timing } = group;
+  const duration =
+    timing?.completedAt === undefined
+      ? undefined
+      : formatToolDuration(timing.completedAt - timing.startedAt);
+
+  return (
+    <ToolGroupRoot variant="ghost" open={open} onOpenChange={setOpen}>
+      <ToolGroupTrigger
+        count={group.indices.length}
+        active={group.status.type === "running"}
+        toolNames={toolNames}
+        failed={failed}
+        waiting={group.counts.requiresAction}
+        duration={duration}
+      />
+      <ToolGroupContent>{children}</ToolGroupContent>
+    </ToolGroupRoot>
   );
 };
 
@@ -732,7 +814,7 @@ const EditComposer: FC = () => {
       data-slot="aui_edit-composer-wrapper"
       className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
-      <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-composer ms-auto flex w-full max-w-[70%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
+      <ComposerPrimitive.Root className="aui-edit-composer-root composer-glass ms-auto flex w-full max-w-[70%] cursor-text flex-col rounded-(--composer-radius)">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
           autoFocus
