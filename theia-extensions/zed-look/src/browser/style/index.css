@@ -1,6 +1,7 @@
 /*
  * Zed's look for the Theia workbench: Zed's bundled fonts, its type scale and density, and its layout,
- * which has no activity bar (dock buttons live in the status bar, see zed-dock-buttons.ts).
+ * which has no activity bar (dock buttons live in the status bar, see zed-dock-buttons.ts) and folds the
+ * menu bar into the title bar's application menu (zed-title-bar.tsx).
  * Colors come from the converted Zed themes, so everything here reads Theia's color variables.
  */
 
@@ -75,17 +76,58 @@
   --theia-ui-font-family: "Zed Sans", "IBM Plex Sans", system-ui, sans-serif;
 }
 
-/* Title bar: the menu bar sits in a Zed-height title bar with a bottom border. */
+/* Title bar (zed-title-bar.tsx): Zed's ghost buttons with small labels, the branch muted. */
 #theia-top-panel {
   border-bottom: var(--theia-border-width) solid var(--theia-titleBar-border);
   align-items: center;
 }
-#theia-top-panel .lm-MenuBar-item {
-  height: 26px;
-  line-height: 26px;
-  margin: 0 1px;
-  padding: 0 8px;
+.zed-title-bar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 6px;
+}
+.zed-title-bar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
   border-radius: 4px;
+  background: none;
+  color: var(--theia-titleBar-activeForeground);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.zed-title-bar-button:hover {
+  background-color: var(--theia-toolbar-hoverBackground);
+}
+.zed-title-bar-button:focus-visible {
+  outline: var(--theia-border-width) solid var(--theia-focusBorder);
+}
+.zed-title-bar-button.zed-title-bar-icon {
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+  font-size: 14px;
+}
+.zed-title-bar-muted {
+  color: var(--theia-descriptionForeground);
+}
+/* Zed cuts project and branch names at 40 characters. */
+.zed-title-bar-label {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zed-title-bar-label-icon {
+  font-size: 12px;
 }
 
 /* Docked panels: title in sentence case like Zed's panel headers, a border instead of the activity bar edge. */

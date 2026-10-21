@@ -39,6 +39,9 @@ Then open http://127.0.0.1:3000.
 - Zed's bundled One, Ayu and Gruvbox theme families, converted to VS Code themes and registered
   with Monaco (`zed-theme-converter.ts` inverts Zed's `theme_importer`). The default is
   One Dark (Zed).
+- Zed's title bar in place of the menu bar: an application menu button that holds the main menu, the
+  project name, which opens recent workspaces, and the current branch, which opens git's branch picker
+  (and so leaves the status bar).
 - No activity bar. Each dock's views are toggled from icon buttons at the ends of the status bar,
   as in Zed, with a terminal button on the right.
 - Zed's fonts: IBM Plex Sans for the UI and Lilex for code and the terminal, along with Zed's

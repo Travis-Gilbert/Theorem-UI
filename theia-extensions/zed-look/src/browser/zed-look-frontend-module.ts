@@ -10,12 +10,19 @@ import '../../src/browser/style/index.css';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
 import { SidePanelHandler } from '@theia/core/lib/browser/shell/side-panel-handler';
+import { BrowserMenuBarContribution } from '@theia/core/lib/browser/menu/browser-menu-plugin';
+import { ScmContribution } from '@theia/scm/lib/browser/scm-contribution';
 import { ZedDockButtons } from './zed-dock-buttons';
 import { ZedSidePanelHandler } from './zed-side-panel-handler';
 import { ZedThemeContribution } from './zed-theme-contribution';
+import { ZedTitleBar } from './zed-title-bar';
+import { ZedScmContribution, ZedTitleBarContribution } from './zed-title-bar-contribution';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     rebind(SidePanelHandler).to(ZedSidePanelHandler);
+    bind(ZedTitleBar).toSelf().inSingletonScope();
+    rebind(BrowserMenuBarContribution).to(ZedTitleBarContribution).inSingletonScope();
+    rebind(ScmContribution).to(ZedScmContribution).inSingletonScope();
     bind(ZedThemeContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(ZedThemeContribution);
     bind(ZedDockButtons).toSelf().inSingletonScope();
