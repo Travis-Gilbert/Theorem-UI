@@ -1,0 +1,20 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.env
+.nitro
+.tanstack
+.output
+.vinxi
+__unconfig*
+.env.*
+!.env.example
+
+# Tool and harness state, regenerated locally. skills-lock.json pins the
+# fetched skill payload; the rest is per-machine scratch.
+.agents
+.theorem
+.wrangler
+src/assets/icons/.theorem

@@ -1,0 +1,21 @@
+[install]
+# Only install versions that have been public for three days, so a compromised
+# release has time to be caught before it lands here.
+minimumReleaseAge = 259200
+# Vetted and already in use when the gate was introduced. Direct dependencies
+# are pinned to exact versions in package.json; the rest are packages from the
+# same releases, held to those versions by bun.lock.
+minimumReleaseAgeExcludes = [
+  "@assistant-ui/core",
+  "@assistant-ui/react",
+  "@assistant-ui/store",
+  "@assistant-ui/tap",
+  "@tanstack/query-core",
+  "@tanstack/react-query",
+  "assistant-stream",
+  # Dock shell: 8.6.1 requested explicitly on 2026-10-21, two days after release.
+  "dockview",
+  "dockview-core",
+  "dockview-react",
+  "react-resizable-panels",
+]
