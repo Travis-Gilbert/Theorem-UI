@@ -96,14 +96,27 @@ export const ArtifactInspect: FC<{ artifact: TheoremArtifact }> = ({
   )
 }
 
-/** Right-hand canvas for the open artifact: header actions, revision switcher, rendered body. */
-export function ArtifactPanel({ className }: { className?: string }) {
+/** Canvas for one artifact: header actions, revision switcher, rendered body. */
+export function ArtifactPanel({
+  artifactId,
+  onClose,
+  expanded,
+  onExpandedChange,
+  className,
+}: {
+  artifactId: string
+  onClose: () => void
+  /** Omitted where the canvas cannot expand, as on phones where it is already full screen. */
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
+  className?: string
+}) {
   const artifacts = useThreadArtifacts()
-  const { openId, revision, expanded, select, setExpanded, close } =
-    useArtifactView()
+  const revision = useArtifactView((s) => s.revisions[artifactId])
+  const select = useArtifactView((s) => s.select)
   const { isCopied, copyToClipboard } = useCopyToClipboard()
 
-  const versions = openId ? artifacts.get(openId) : undefined
+  const versions = artifacts.get(artifactId)
   if (!versions?.length) return null
   const index = Math.max(
     0,
@@ -114,7 +127,10 @@ export function ArtifactPanel({ className }: { className?: string }) {
   const artifact = versions[index] ?? versions[versions.length - 1]
   if (!artifact) return null
   const goTo = (next: number) =>
-    select(next >= versions.length - 1 ? undefined : versions[next]?.revision)
+    select(
+      artifactId,
+      next >= versions.length - 1 ? undefined : versions[next]?.revision,
+    )
 
   return (
     <section
@@ -178,18 +194,20 @@ export function ArtifactPanel({ className }: { className?: string }) {
           <Icon.Share className="size-4" />
         </TooltipIconButton>
         <ArtifactInspect artifact={artifact} />
-        <TooltipIconButton
-          tooltip={expanded ? 'Show conversation' : 'Expand'}
-          className={cn('size-8 p-1.5', expanded && 'bg-selected')}
-          aria-pressed={expanded}
-          onClick={() => setExpanded(!expanded)}
-        >
-          <Icon.Expand className="size-4" />
-        </TooltipIconButton>
+        {onExpandedChange && (
+          <TooltipIconButton
+            tooltip={expanded ? 'Restore layout' : 'Expand'}
+            className={cn('size-8 p-1.5', expanded && 'bg-selected')}
+            aria-pressed={expanded}
+            onClick={() => onExpandedChange(!expanded)}
+          >
+            <Icon.Expand className="size-4" />
+          </TooltipIconButton>
+        )}
         <TooltipIconButton
           tooltip="Close"
           className="size-8 p-1.5"
-          onClick={close}
+          onClick={onClose}
         >
           <Icon.Close className="size-4" />
         </TooltipIconButton>

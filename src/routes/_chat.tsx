@@ -46,7 +46,7 @@ function ChatLayout() {
       threadId={threadId}
       onThreadIdChange={onThreadIdChange}
     >
-      <ChatShell />
+      <ChatShell projectId={project.projectId} threadId={threadId} />
       <Outlet />
     </TheoremRuntimeProvider>
   )

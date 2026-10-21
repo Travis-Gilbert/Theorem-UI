@@ -13,5 +13,9 @@ minimumReleaseAgeExcludes = [
   "@tanstack/query-core",
   "@tanstack/react-query",
   "assistant-stream",
+  # Dock shell: 8.6.1 requested explicitly on 2026-10-21, two days after release.
+  "dockview",
+  "dockview-core",
+  "dockview-react",
   "react-resizable-panels",
 ]

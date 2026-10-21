@@ -62,7 +62,7 @@ function str(value: unknown): string | undefined {
 const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifact = readArtifact(data)
   const artifacts = useThreadArtifacts()
-  const { open, setExpanded } = useArtifactView.getState()
+  const { open, expand } = useArtifactView.getState()
   const selected = useArtifactView(
     (s) => s.openId !== undefined && s.openId === artifact?.artifactId,
   )
@@ -123,7 +123,7 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
           className="size-8 p-1.5"
           onClick={() => {
             show()
-            setExpanded(true)
+            expand(artifact.artifactId)
           }}
         >
           <Icon.Expand className="size-4" />

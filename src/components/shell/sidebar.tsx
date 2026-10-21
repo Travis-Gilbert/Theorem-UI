@@ -198,7 +198,8 @@ export function SidebarContents({
   onClose,
   closeLabel = 'Close sidebar',
 }: {
-  onClose: () => void
+  /** Omitted where the sidebar cannot be closed, as when it is docked in the grid. */
+  onClose?: () => void
   closeLabel?: string
 }) {
   const [search, setSearch] = useState('')
@@ -209,13 +210,15 @@ export function SidebarContents({
         <span className="font-heading text-[21px] font-normal tracking-tight leading-none">
           Theorem
         </span>
-        <TooltipIconButton
-          tooltip={closeLabel}
-          className="size-9 p-2"
-          onClick={onClose}
-        >
-          <Icon.Layout className="size-[18px]" />
-        </TooltipIconButton>
+        {onClose && (
+          <TooltipIconButton
+            tooltip={closeLabel}
+            className="size-9 p-2"
+            onClick={onClose}
+          >
+            <Icon.Layout className="size-[18px]" />
+          </TooltipIconButton>
+        )}
       </div>
       <div className="flex shrink-0 flex-col gap-0.5 px-2">
         <ThreadListNew className="w-full" />
