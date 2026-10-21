@@ -3,9 +3,10 @@
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
 // per-thread history is the selected branch from threads.get; turns run through
-// the SDK adapter. Hand-written: live-run resume, which the SDK does not provide
-// (it reuses the SDK's part mapping via toAssistantMessages), and titling a new
-// thread in sequence with its revision-checked first send.
+// the SDK adapter. The hand-written pieces are live-run resume and mid-turn
+// reconnect: an event stream that ends before a terminal event is a disconnect
+// the contract resumes from the last durable sequence, not a completion (it
+// reuses the SDK's part mapping via toAssistantMessages).
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -23,7 +24,6 @@ import type {
   ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
 } from '@assistant-ui/react'
-import { TheoremError } from '@theoremharness/sdk'
 import {
   createTheoremChatAdapter,
   toAssistantMessages,
@@ -32,14 +32,10 @@ import { createAssistantStream } from 'assistant-stream'
 import { useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
-import { describeError, mutate, mutateThread, theorem } from './client'
+import { mutate, mutateThread, theorem } from './client'
 import type { Theorem } from './client'
 
 const TERMINAL = new Set(['RUN.CLOSED', 'RUN.FAILED', 'RUN.CANCELLED'])
-
-// What the authority stores when a thread is created without a title
-// (theorem_chat.rs normalizes a missing or blank title to it).
-const UNTITLED = 'New Chat'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -57,35 +53,12 @@ function toMetadata(thread: Theorem.Thread): RemoteThreadMetadata {
   }
 }
 
-function titleFrom(messages: ChatModelRunOptions['messages']): string {
-  const first = messages.find((message) => message.role === 'user')
-  const text =
-    first?.content
-      .map((part) => (part.type === 'text' ? part.text : ''))
-      .join(' ') ?? ''
+function titleFrom(text: string): string {
   const line = text.replace(/\s+/g, ' ').trim()
   if (line.length <= 60) return line || 'New chat'
   const cut = line.slice(0, 60)
   const space = cut.lastIndexOf(' ')
   return `${space > 30 ? cut.slice(0, space) : cut}...`
-}
-
-/**
- * Name an untitled thread before its turn is sent. The send is revision
- * checked (If-Match on the revision the SDK just read), so a title written
- * from generateTitle, which assistant-ui fires as the user message lands,
- * would race it and fail the turn with a 409.
- */
-async function titleUntitledThread(
-  threadId: string,
-  messages: ChatModelRunOptions['messages'],
-) {
-  const { thread } = await theorem().chat.threads.get({ threadId })
-  if (thread.title && thread.title !== UNTITLED) return
-  const title = titleFrom(messages)
-  await mutateThread(threadId, (headers) =>
-    theorem().chat.threads.update({ threadId, title, ...headers }),
-  )
 }
 
 /** One SDK adapter per durable thread; it remembers local-to-durable message ids. */
@@ -133,46 +106,62 @@ function contentOf(parts: Map<string, Theorem.StoredPart>) {
   return (message?.content ?? []) as ThreadAssistantMessagePart[]
 }
 
-/** Reattach to a run that was live when the thread loaded (reload, tab switch). */
-async function* resumeLiveRun(
+/** Reopen attempts for a run-event stream that died before a terminal event. */
+const RESUME_ATTEMPTS = 8
+const RESUME_BACKOFF_MS = 250
+
+type RunStatus = NonNullable<ChatModelRunResult['status']>
+
+function resumeBackoff(attempt: number): Promise<void> {
+  const ms = Math.min(RESUME_BACKOFF_MS * 2 ** attempt, 2000)
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Tail a run's durable events to a terminal event, rebuilding message parts as
+ * they arrive. A stream that ends or fails before a terminal event is a
+ * disconnect, not a completion: the contract resumes it from the last durable
+ * sequence, so this reopens the tail as a bounded replay from sequence zero
+ * and continues, up to RESUME_ATTEMPTS times. An abort ends silently; the
+ * caller settles the run.
+ */
+async function* tailRun(
   runId: string,
   abortSignal: AbortSignal,
 ): AsyncGenerator<ChatModelRunResult, void> {
   const parts = new Map<string, Theorem.StoredPart>()
-  let terminal = false
-  let interrupted = false
-  try {
-    const stream = await theorem().chat.runs.events(
-      { runId, after_seq: 0 },
-      { abortSignal },
-    )
-    for await (const event of stream) {
-      if (event.sourceEventType === 'CHAT.MESSAGE.PART') {
-        const part = event.payload.part as Record<string, unknown> | undefined
-        if (typeof part?.partId === 'string' && typeof part.type === 'string') {
-          parts.set(part.partId, {
-            partId: part.partId,
-            type: part.type,
-            payload: part,
-          })
-          yield {
-            content: contentOf(parts),
-            metadata: {
-              custom: { theoremRunId: runId, theoremCursor: event.seq },
-            },
+  for (let attempt = 0; ; attempt++) {
+    let interrupted = false
+    let status: RunStatus | undefined
+    try {
+      const stream = await theorem().chat.runs.events(
+        { runId, after_seq: 0 },
+        { abortSignal },
+      )
+      for await (const event of stream) {
+        if (event.sourceEventType === 'CHAT.MESSAGE.PART') {
+          const part = event.payload.part as Record<string, unknown> | undefined
+          if (typeof part?.partId === 'string' && typeof part.type === 'string') {
+            parts.set(part.partId, {
+              partId: part.partId,
+              type: part.type,
+              payload: part,
+            })
+            yield {
+              content: contentOf(parts),
+              metadata: {
+                custom: { theoremRunId: runId, theoremCursor: event.seq },
+              },
+            }
           }
         }
-      }
-      if (
-        event.sourceEventType === 'OUTCOME.RECORDED' &&
-        event.payload.interrupted != null
-      )
-        interrupted = true
-      if (TERMINAL.has(event.sourceEventType)) {
-        terminal = true
-        yield {
-          content: contentOf(parts),
-          status:
+        if (
+          event.sourceEventType === 'OUTCOME.RECORDED' &&
+          event.payload.interrupted != null
+        )
+          interrupted = true
+        if (TERMINAL.has(event.sourceEventType)) {
+          status =
             event.sourceEventType === 'RUN.CANCELLED'
               ? { type: 'incomplete', reason: 'cancelled' }
               : event.sourceEventType === 'RUN.FAILED' || interrupted
@@ -181,13 +170,40 @@ async function* resumeLiveRun(
                     reason: 'error',
                     error: 'The Theorem run failed',
                   }
-                : { type: 'complete', reason: 'stop' },
+                : { type: 'complete', reason: 'stop' }
         }
-        return
       }
+    } catch (error) {
+      if (abortSignal.aborted) return
+      if (attempt + 1 >= RESUME_ATTEMPTS) throw error
+    }
+    if (abortSignal.aborted) return
+    if (status) {
+      yield { content: contentOf(parts), status }
+      return
+    }
+    if (attempt + 1 >= RESUME_ATTEMPTS) {
+      throw new Error(
+        `Theorem run ${runId} disconnected before a terminal event`,
+      )
+    }
+    await resumeBackoff(attempt)
+  }
+}
+
+/** Reattach to a run that was live when the thread loaded (reload, tab switch). */
+async function* resumeLiveRun(
+  runId: string,
+  abortSignal: AbortSignal,
+): AsyncGenerator<ChatModelRunResult, void> {
+  let settled = false
+  try {
+    for await (const result of tailRun(runId, abortSignal)) {
+      if (result.status) settled = true
+      yield result
     }
   } finally {
-    if (!terminal && abortSignal.aborted) {
+    if (!settled && abortSignal.aborted) {
       await mutate((headers) =>
         theorem().chat.runs.cancel({
           runId,
@@ -239,22 +255,38 @@ function useTheoremThreadRuntime() {
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
-        try {
-          const { remoteId } = await aui.threadListItem.initialize()
-          await titleUntitledThread(remoteId, options.messages)
-          const messages = await alignWithDurableBranch(
-            remoteId,
-            options.messages,
-          )
-          const result = chatAdapterFor(remoteId).run({ ...options, messages })
-          if (Symbol.asyncIterator in result) yield* result
-          else yield await result
-        } catch (error) {
-          // The message shows the problem's detail, not the SDK's status dump.
-          if (error instanceof TheoremError)
-            throw new Error(describeError(error), { cause: error })
-          throw error
-        }
+        const { remoteId } = await aui.threadListItem.initialize()
+        const messages = await alignWithDurableBranch(
+          remoteId,
+          options.messages,
+        )
+        const result = chatAdapterFor(remoteId).run({ ...options, messages })
+        if (Symbol.asyncIterator in result) {
+          let runId: string | undefined
+          try {
+            for await (const step of result) {
+              const custom = step.metadata?.custom as
+                | { theoremRunId?: string }
+                | undefined
+              runId = custom?.theoremRunId ?? runId
+              yield step
+            }
+          } catch (error) {
+            // The SDK adapter throws when its event stream dies before a
+            // terminal event; that is a disconnect the contract resumes from
+            // the durable log, so finish the turn from there instead of
+            // surfacing the banner. The run id comes from streamed metadata,
+            // or from the SDK's disconnect message when nothing streamed yet.
+            if (options.abortSignal.aborted) throw error
+            const known =
+              runId ??
+              /^Theorem run (\S+) disconnected before a terminal event/.exec(
+                error instanceof Error ? error.message : '',
+              )?.[1]
+            if (!known) throw error
+            yield* resumeLiveRun(known, options.abortSignal)
+          }
+        } else yield await result
       },
     }),
     [aui],
@@ -315,14 +347,20 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
       const snapshot = await client.chat.threads.get({ threadId: remoteId })
       return toMetadata(snapshot.thread)
     },
-    // Reports the title only; the run writes it (titleUntitledThread), and
-    // both derive it from the same first user message.
     async generateTitle(remoteId, messages) {
-      const { thread } = await client.chat.threads.get({ threadId: remoteId })
-      const title =
-        thread.title && thread.title !== UNTITLED
-          ? thread.title
-          : titleFrom(messages)
+      const snapshot = await client.chat.threads.get({ threadId: remoteId })
+      let title = snapshot.thread.title
+      if (!title) {
+        const first = messages.find((message) => message.role === 'user')
+        const text =
+          first?.content
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join(' ') ?? ''
+        title = titleFrom(text)
+        await mutateThread(remoteId, (headers) =>
+          client.chat.threads.update({ threadId: remoteId, title, ...headers }),
+        )
+      }
       return createAssistantStream((controller) => {
         controller.appendText(title)
       })
