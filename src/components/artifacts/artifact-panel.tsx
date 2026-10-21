@@ -69,7 +69,7 @@ export const ArtifactInspect: FC<{ artifact: TheoremArtifact }> = ({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-heading text-lg font-normal tracking-tight">
+          <DialogTitle className="text-base font-semibold">
             {artifact.title}
           </DialogTitle>
           <DialogDescription>
@@ -143,7 +143,7 @@ export function ArtifactPanel({
           className="size-4 shrink-0 text-ink-muted"
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <h2 className="truncate font-heading text-[16px] font-normal leading-tight tracking-tight">
+          <h2 className="truncate text-[15px] font-semibold leading-tight">
             {artifact.title}
           </h2>
           <p className="truncate text-xs text-ink-faint">

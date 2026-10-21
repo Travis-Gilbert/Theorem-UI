@@ -7,37 +7,6 @@
 @import "dockview-react/dist/styles/dockview.css";
 @plugin "@tailwindcss/typography";
 
-/* Libron ships 400 and 700 with italics only; never synthesize other weights.
-   Licensed under the SIL OFL 1.1 (src/assets/fonts/libron/OFL.txt). */
-@font-face {
-  font-family: "Libron";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Bold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: italic;
-  font-weight: 700;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-BoldItalic.woff2") format("woff2");
-}
-
 @custom-variant dark (&:where(.dark, .dark *));
 
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
@@ -282,7 +251,6 @@
   --color-link: var(--link);
 
   --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Libron", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Geometry: control/row 6, popover 8, artifact 14, frame/composer 16. */
@@ -321,12 +289,16 @@
   }
 }
 
-/* Codex-like scale: chrome sits a step tighter than body copy. Retuning the
-   familiar steps here keeps one rhythm across every component instead of
-   restating sizes in markup. */
+/* Codex's scale and weight for IBM Plex Sans: chrome sits a step tighter
+   than body copy, and the regular weight is 430 rather than 400. Plex's
+   upright 400 renders thin under grayscale antialiasing; the variable axis
+   gives it back a little ink without reaching medium. Retuning the familiar
+   steps here keeps one rhythm across every component instead of restating
+   sizes in markup. */
 @theme {
   --text-sm: 13px;
   --text-base: 15px;
+  --font-weight-normal: 430;
 }
 
 @layer base {
@@ -349,7 +321,7 @@
     scrollbar-color: var(--line-control) transparent;
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   html.dark {
@@ -361,23 +333,11 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    /* Codex's crispness is a treatment, not a family: the font's own kerning
-       and standard ligatures stay on at every size, and IBM Plex Sans's looser
-       default spacing is pulled in to the platform's rhythm. */
-    font-kerning: normal;
-    font-variant-ligatures: common-ligatures contextual;
-    letter-spacing: -0.01em;
-  }
-
-  /* Titles keep the serif. It ships only 400 and 700, so the weight axis is
-     spent on the sans and the hierarchy here comes from size and tracking. */
-  h1,
-  h2,
-  h3,
-  h4 {
-    font-family: var(--font-heading);
-    font-weight: 400;
-    letter-spacing: -0.015em;
+    /* Plex is drawn with its own spacing; tracking stays at zero at every
+       size, titles included, which is how Codex sets it. Chat, composer and
+       chrome share the one 15px base. */
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
   }
 
   /* Noun icons are bare filled contours; Lucide-derived ones declare fill="none" and stroke. */
@@ -411,8 +371,8 @@
   pre,
   samp {
     font-family: var(--font-mono);
-    /* Mono keeps its own metrics; the sans tracking does not reach code. */
-    letter-spacing: normal;
+    /* The 430 regular is tuned for the sans; mono keeps its drawn weight. */
+    font-weight: 400;
   }
 
   ::selection {
@@ -497,9 +457,7 @@
   font-family: var(--font-sans);
 
   & :where(h1, h2, h3, h4):not(:where(.not-prose *)) {
-    font-family: var(--font-heading);
-    font-weight: 400;
-    letter-spacing: -0.015em;
+    font-weight: 600;
   }
 
   & a {

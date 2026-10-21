@@ -299,7 +299,7 @@ function ToolFallbackSection({
 }: React.ComponentProps<"section"> & { label: string }) {
   return (
     <section className={cn("flex min-w-0 flex-col gap-1", className)} {...props}>
-      <h4 className="text-ink-faint font-sans text-[11px] leading-4 font-medium tracking-normal">
+      <h4 className="text-ink-faint text-[11px] leading-4 font-medium">
         {label}
       </h4>
       {children}

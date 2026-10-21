@@ -421,7 +421,7 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <div className="aui-thread-welcome-root mb-8 flex flex-col gap-2 px-2">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-heading text-[28px] font-normal tracking-tight leading-tight duration-200">
+      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium leading-tight duration-200">
         What are we working on?
       </h1>
       <p className="fade-in animate-in fill-mode-both text-ink-muted text-base duration-200 [animation-delay:60ms]">
