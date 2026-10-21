@@ -9,6 +9,7 @@ import '../../src/browser/style/index.css';
 
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { MenuContribution } from '@theia/core/lib/common';
 import { SidePanelHandler } from '@theia/core/lib/browser/shell/side-panel-handler';
 import { BrowserMenuBarContribution } from '@theia/core/lib/browser/menu/browser-menu-plugin';
 import { ScmContribution } from '@theia/scm/lib/browser/scm-contribution';
@@ -30,4 +31,5 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(FrontendApplicationContribution).toService(ZedDockButtons);
     bind(ZedExplorer).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(ZedExplorer);
+    bind(MenuContribution).toService(ZedExplorer);
 });

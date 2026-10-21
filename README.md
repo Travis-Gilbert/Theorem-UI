@@ -32,6 +32,7 @@ Then open http://127.0.0.1:3000.
 | `@theia/plugin-ext` | Bun's `require` never calls `Module._load`, so the plugin host's overrides that inject the `vscode` API, node-pty and the proxy-aware `http`/`https`/`tls` never apply. Bun's `spawn` also returns after short-lived children have exited, so extensions that write to child stdin without an error listener (vscode.git) crash into the uncaught exception handler with EPIPE. | `bun-module-load-shim` replays `_load` overrides from `Module._resolveFilename`; `bun-child-stdin-shim` ignores EPIPE on child stdin, as execa does. Both load first in the plugin host, only under Bun. |
 | `@theia/plugin-ext-vscode` | Node's ESM loader hook, which rewrites `import 'vscode'` in ESM extensions, does not exist in Bun. | A `Bun.plugin` rewrites those imports to a virtual module per extension that exports its API. |
 | `@theia/plugin-utils`, `@theia/plugin-ext` | Not Bun-specific: the scanner drops a view's `"visibility"`, so views that extensions contribute as hidden (npm's NPM Scripts) show up at once. | The scanner keeps `visibility`, and the view registry adds `hidden` views hidden (until the user shows them) and `collapsed` views collapsed. |
+| `@theia/navigator` | Not Bun-specific: context menus pass their anchor as the command argument, which the explorer's commands do not recognise as the navigator, so Collapse All never shows in the tree's context menu. | The explorer's commands fall back to the navigator when the argument is not a widget. |
 | `@theia/terminal` | Not Bun-specific: with the bottom panel collapsed, Toggle Terminal expands it on its last tab rather than the terminal. | Activates the terminal through the shell. |
 | `drivelist` | Not Bun-specific: the native build breaks when the checkout path contains a space. | Uses `node-addon-api`'s unquoted `include_dir`. |
 
@@ -45,8 +46,9 @@ Then open http://127.0.0.1:3000.
   (and so leaves the status bar).
 - No activity bar. Each dock's views are toggled from icon buttons at the ends of the status bar,
   as in Zed, with a terminal button on the right.
-- The explorer is the file tree alone, like Zed's project panel: Open Editors and Timeline start
-  hidden (the Views menu brings them back).
+- The explorer is the file tree alone, like Zed's project panel: no title row, and Open Editors and
+  Timeline start hidden. The title row's actions are in the tree's context menu, whose Views submenu
+  brings the hidden views back. Other panels keep their title rows, as Zed's git and debug panels do.
 - Zed's fonts: IBM Plex Sans for the UI and Lilex for code and the terminal, along with Zed's
   type scale, title bar, tab and status bar heights, scrollbars, flat tabs, and rounded popovers.
 
