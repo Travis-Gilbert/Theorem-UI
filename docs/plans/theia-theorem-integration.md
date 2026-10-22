@@ -80,6 +80,14 @@ dirty-diff gutter, explorer decorations, and host findings in editors and the
 Problems view. Language requests reach the host and are accepted; this host
 has no language server, so they answer empty (see the gaps).
 
+On 2026-10-22 the whole chain ran for real: the product server built from
+`claude/theia-sdk-live-session` on a copy of the local store, the UI's proxy,
+and `theorem-ide-host --http` bound to a clone of this repository. The rail's
+IDE button opened the panel beside the conversation; the explorer listed the
+clone, the title bar showed its branch, and a file opened with `documents.open`,
+`scm.show`, language and diagnostics calls all answering 200. This needed a
+signed session token, because the static token is refused (first gap below).
+
 ## Where the work is
 
 - Theorem: branch `claude/theia-sdk-live-session` (worktree
@@ -92,6 +100,24 @@ has no language server, so they answer empty (see the gaps).
   side and Follow the Agent.
 
 ## Known gaps, recorded as they are found
+
+- **The UI's server credential names no principal, so the product server
+  refuses it execution.** The proxy (`src/server/theorem-proxy.ts`) sends
+  `THEOREM_API_TOKEN`, a static deployment token. A static token carries a
+  tenant and scopes but no user id, and the product server grants a tenant's
+  execution host only to principals listed in its host binding
+  (`theorem_environment.rs`). With the real local server and the real token,
+  bootstrap answers `principalId: null` and opening a workspace answers 403
+  `environment_execution_not_granted`. A signed session token (`thm1.`) for
+  the same tenant carries the principal and passes. Either the UI forwards a
+  signed-in user's session token, or a static token learns to name a principal;
+  both change who the product server believes is calling.
+- A refused workspace shows as an empty explorer. Theia does not surface the
+  product server's environment errors (403, 503), so the person sees no reason.
+- Project ids (`chatproj:sha256-…`) are not host workspace ids, which allow
+  only ASCII letters, digits, `_` and `-`. The frame maps one to the other by
+  replacing every other character with `-` (`src/components/ide/ide-frame.tsx`);
+  the server could instead name the workspace in its bootstrap answer.
 
 - The agent does not edit through the document authority today. Its edits
   reach Theia through the checkout watcher. A native `documents.edit`
