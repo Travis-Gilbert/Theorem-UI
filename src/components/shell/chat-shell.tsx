@@ -1,20 +1,21 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, assistant-ui Thread element
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode)
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { Drawer } from '@base-ui/react/drawer'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useEffect, useState } from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { DockShell } from './dock'
+import { ModeView, modeLabel, useShellMode } from './modes'
 import { SidebarContents } from './sidebar'
 
 const iconButton = 'size-9 p-2'
 
 function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const title = useAuiState((s) => s.threadListItem.title)
+  const mode = useShellMode()
   return (
     <header className="flex h-14 shrink-0 items-center gap-1 px-2">
       <TooltipIconButton
@@ -30,7 +31,7 @@ function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         <Icon.NewChat className="size-[18px]" />
       </ThreadListPrimitive.New>
       <h1 className="min-w-0 truncate px-2 text-sm text-ink-muted">
-        {title || 'New chat'}
+        {mode === 'chat' ? title || 'New chat' : modeLabel(mode)}
       </h1>
     </header>
   )
@@ -45,12 +46,13 @@ function PhoneShell() {
   const threadId = useAuiState((s) => s.threadListItem.id)
   useEffect(() => useArtifactView.getState().reset(), [threadId])
 
-  // The drawer belongs to the thread it was opened from, so picking a chat in
-  // it closes it without an effect.
-  const [drawerThread, setDrawerThread] = useState<string | null>(null)
-  const drawerOpen = drawerThread === threadId
-  const setDrawerOpen = (open: boolean) =>
-    setDrawerThread(open ? threadId : null)
+  // The drawer belongs to the thread and mode it was opened from, so picking a
+  // chat or a mode in it closes it without an effect.
+  const mode = useShellMode()
+  const view = `${mode}:${threadId}`
+  const [drawerView, setDrawerView] = useState<string | null>(null)
+  const drawerOpen = drawerView === view
+  const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
 
   return (
     <>
@@ -76,7 +78,7 @@ function PhoneShell() {
       <div className="flex h-full min-w-0 flex-1 flex-col">
         <ChatHeader onOpenSidebar={() => setDrawerOpen(true)} />
         <div className="min-h-0 flex-1">
-          <Thread />
+          <ModeView />
         </div>
       </div>
 
