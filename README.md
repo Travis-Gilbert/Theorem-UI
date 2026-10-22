@@ -13,7 +13,7 @@ The web frontend for the Theorem agent. It provides a chat interface, artifacts 
 | Thread/artifact split                      | react-resizable-panels                                                                                                        |
 | Markdown, code, diagrams                   | react-markdown + remark-gfm, react-shiki, beautiful-mermaid                                                                   |
 | Theme                                      | next-themes                                                                                                                   |
-| Styling                                    | Tailwind CSS v4 with the Stone tokens in `src/styles.css`                                                                     |
+| Styling                                    | Tailwind CSS v4  `src/styles.css`                                                                     |
 | Runtime and hosting                        | Bun: installs, scripts, dev server, and the production server built by Nitro's `bun` preset, run beside the Theorem authority |
 
 Type: IBM Plex Sans for prose, Libron for titles and headings, JetBrains Mono for code. Icons are owned Noun Project SVGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
