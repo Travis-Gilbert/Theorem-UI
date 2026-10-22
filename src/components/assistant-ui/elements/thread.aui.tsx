@@ -740,22 +740,28 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   return (
+    // No content-visibility here, unlike the message rows: its paint
+    // containment would clip the composer's shadow and glow, and only the
+    // message being edited renders this.
     <MessagePrimitive.Root
       data-slot="aui_edit-composer-wrapper"
-      className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className="flex flex-col px-2"
     >
-      <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-composer ms-auto flex w-full max-w-[70%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
-        <ComposerPrimitive.Input
-          className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
-          autoFocus
-        />
-        <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
-          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" className="h-8 px-3" />}>Cancel
-                              </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" className="bg-redwood text-on-redwood hover:bg-redwood-hover h-8 px-3" />}>Send
-                              </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
+      <div className="relative ms-auto w-full max-w-[70%]">
+        <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
+        <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-sheet relative flex w-full cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
+          <ComposerPrimitive.Input
+            className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
+            autoFocus
+          />
+          <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
+            <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" className="h-8 px-3" />}>Cancel
+                                </ComposerPrimitive.Cancel>
+            <ComposerPrimitive.Send render={<Button size="sm" className="bg-redwood text-on-redwood hover:bg-redwood-hover h-8 px-3" />}>Send
+                                </ComposerPrimitive.Send>
+          </div>
+        </ComposerPrimitive.Root>
+      </div>
     </MessagePrimitive.Root>
   );
 };
