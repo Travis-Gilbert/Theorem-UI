@@ -140,6 +140,12 @@
 #theia-right-side-panel {
   border-left: var(--theia-border-width) solid var(--theia-sideBar-border);
 }
+/* With no activity bar, a collapsed dock has nothing to show. Theia caps it at the activity bar's
+   width; this caps it at its 1px border (Lumino reads a max-width of 0 as no limit). */
+#theia-left-content-panel.theia-mod-collapsed,
+#theia-right-content-panel.theia-mod-collapsed {
+  max-width: 1px;
+}
 .theia-sidepanel-toolbar .theia-sidepanel-title {
   text-transform: none;
   font-size: var(--theia-ui-font-size1);
