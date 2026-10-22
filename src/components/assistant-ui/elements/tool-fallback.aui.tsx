@@ -25,6 +25,7 @@ import {
 } from "./collapsible-root";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ToolTile, toolIdentity } from "@/components/chat/tool-identity";
 
 const ANIMATION_DURATION = 200;
 
@@ -72,7 +73,9 @@ function ToolFallbackRoot({
       open={isOpen}
       onOpenChange={handleOpenChange}
       className={cn(
-        "aui-tool-fallback-root group/tool-fallback-root w-full",
+        // A step on the group's timeline: the tile column carries a rail
+        // down to the next step, so steps sit flush and own their spacing.
+        "aui-tool-fallback-root group/tool-fallback-root group/tool-step relative grid w-full grid-cols-[1.75rem_minmax(0,1fr)] gap-x-2.5 pb-2.5 last:pb-0",
         className,
       )}
       style={
@@ -89,11 +92,15 @@ function ToolFallbackRoot({
 
 type ToolStatus = ToolCallMessagePartStatus["type"];
 
-const statusIconMap: Record<ToolStatus, React.ElementType> = {
-  running: Icon.Refresh,
-  complete: Icon.Check,
-  incomplete: Icon.Close,
-  "requires-action": Icon.Close,
+const statusBadgeMap: Partial<
+  Record<ToolStatus, { Glyph: React.ElementType; className: string }>
+> = {
+  running: {
+    Glyph: Icon.Refresh,
+    className: "text-ink-muted animate-spin [animation-duration:0.6s]",
+  },
+  incomplete: { Glyph: Icon.Close, className: "text-error-ink" },
+  "requires-action": { Glyph: Icon.Stop, className: "text-ochre-ink" },
 };
 
 const formatToolDuration = (ms: number) => {
@@ -115,7 +122,7 @@ function ToolFallbackDuration({
     <span
       data-slot="tool-fallback-duration"
       className={cn(
-        "aui-tool-fallback-duration text-muted-foreground text-xs tabular-nums",
+        "aui-tool-fallback-duration tabular-nums before:content-['·_']",
         className,
       )}
       {...props}
@@ -125,71 +132,127 @@ function ToolFallbackDuration({
   );
 }
 
+/** The tool's tile, its live status, and the rail down to the next step. */
+function ToolFallbackRail({
+  toolName,
+  status,
+  failed,
+}: {
+  toolName: string;
+  status?: ToolCallMessagePartStatus;
+  failed: boolean;
+}) {
+  const badge = failed
+    ? statusBadgeMap.incomplete
+    : statusBadgeMap[status?.type ?? "complete"];
+  const isCancelled =
+    status?.type === "incomplete" && status.reason === "cancelled";
+
+  return (
+    <>
+      <span
+        data-slot="tool-fallback-rail"
+        aria-hidden
+        className="aui-tool-fallback-rail bg-separator absolute start-[0.875rem] top-8 bottom-0.5 w-px -translate-x-1/2 group-last/tool-step:hidden rtl:translate-x-1/2"
+      />
+      <span className="relative row-span-2 self-start">
+        <ToolTile
+          toolName={toolName}
+          className={cn(
+            failed && "ring-error-ink/40 text-error-ink",
+            isCancelled && "opacity-60",
+          )}
+        />
+        {badge && !isCancelled && (
+          <span
+            data-slot="tool-fallback-status"
+            aria-hidden
+            className="bg-background absolute -end-1 -bottom-1 flex size-3.5 items-center justify-center rounded-full"
+          >
+            <badge.Glyph className={cn("size-2.5", badge.className)} />
+          </span>
+        )}
+      </span>
+    </>
+  );
+}
+
 function ToolFallbackTrigger({
   toolName,
   status,
+  failed,
   responseDeliveryStatus,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   toolName: string;
   status?: ToolCallMessagePartStatus;
+  failed: boolean;
   responseDeliveryStatus?: ToolCallMessagePart["responseDeliveryStatus"];
 }) {
   const statusType = status?.type ?? "complete";
   const isRunning = statusType === "running";
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
+  const { label, category } = toolIdentity(toolName);
 
-  const StatusGlyph = statusIconMap[statusType];
-  const label =
+  const note =
     responseDeliveryStatus === "queued"
       ? "Reply queued, not sent yet"
-      : statusType === "running"
-        ? "Running tool"
-        : statusType === "requires-action"
-          ? "Waiting on tool"
-          : statusType === "incomplete"
-            ? `${isCancelled ? "Cancelled" : "Failed"} tool`
-            : "Used tool";
+      : statusType === "requires-action"
+        ? "Waiting"
+        : isCancelled
+          ? "Cancelled"
+          : failed
+            ? "Failed"
+            : undefined;
 
   return (
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
+      title={toolName}
       className={cn(
-        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit max-w-full origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
+        "aui-tool-fallback-trigger group/trigger col-start-2 flex min-h-7 w-fit max-w-full origin-left flex-col items-start justify-center text-start transition-[scale] enabled:active:scale-[0.98] disabled:cursor-default",
         className,
       )}
       {...props}
     >
-      <StatusGlyph
-        data-slot="tool-fallback-trigger-icon"
-        className={cn(
-          "aui-tool-fallback-trigger-icon size-4 shrink-0",
-          isCancelled && "text-muted-foreground",
-          isRunning && "animate-spin [animation-duration:0.6s]",
-        )}
-      />
-      <span
-        data-slot="tool-fallback-trigger-label"
-        className={cn(
-          "aui-tool-fallback-trigger-label-wrapper inline-block min-w-0 text-start leading-none wrap-anywhere",
-          isCancelled && "text-muted-foreground line-through",
-          isRunning && "shimmer motion-reduce:animate-none",
-        )}
-      >
-        {label}: <b>{toolName}</b>
+      <span className="text-ink-muted group-enabled/trigger:group-hover/trigger:text-ink flex max-w-full items-center gap-1 text-sm leading-5 transition-colors duration-100">
+        <span
+          data-slot="tool-fallback-trigger-label"
+          className={cn(
+            "aui-tool-fallback-trigger-label-wrapper min-w-0 font-medium wrap-anywhere",
+            isCancelled && "line-through",
+            isRunning && "shimmer motion-reduce:animate-none",
+          )}
+        >
+          {label}
+        </span>
+        {isRunning && <span className="sr-only">, running</span>}
+        <Icon.Next
+          data-slot="tool-fallback-trigger-chevron"
+          className={cn(
+            "aui-tool-fallback-trigger-chevron size-3 shrink-0 group-disabled/trigger:hidden",
+            "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+            "group-data-open/trigger:rotate-90",
+            "group-data-panel-open/trigger:rotate-90",
+          )}
+        />
       </span>
-      <ToolFallbackDuration />
-      <Icon.Next
-        data-slot="tool-fallback-trigger-chevron"
-        className={cn(
-          "aui-tool-fallback-trigger-chevron size-4 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-          "group-data-open/trigger:rotate-90",
-          "group-data-panel-open/trigger:rotate-90",
+      <span className="text-ink-faint flex flex-wrap items-center gap-x-1 text-xs leading-4">
+        <span>{category}</span>
+        <ToolFallbackDuration />
+        {note && (
+          <span
+            className={cn(
+              "before:content-['·_']",
+              failed && "text-error-ink",
+            )}
+          >
+            {note}
+          </span>
         )}
-      />
+      </span>
     </CollapsibleTrigger>
   );
 }
@@ -203,7 +266,7 @@ function ToolFallbackContent({
     <CollapsibleContent
       data-slot="tool-fallback-content"
       className={cn(
-        "aui-tool-fallback-content relative overflow-hidden text-sm outline-none",
+        "aui-tool-fallback-content relative col-start-2 overflow-hidden text-sm outline-none",
         "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
         "data-closed:animate-collapsible-up",
         "data-open:animate-collapsible-down",
@@ -216,7 +279,7 @@ function ToolFallbackContent({
     >
       <div
         className={cn(
-          "flex flex-col gap-2 ps-6 pt-1 pb-2 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+          "bg-muted/60 ring-separator/60 mt-1.5 mb-0.5 flex w-fit max-w-full min-w-48 flex-col gap-3 rounded-lg p-3 text-xs ring-1 ring-inset ease-[cubic-bezier(0.32,0.72,0,1)] empty:hidden motion-reduce:animate-none",
           "group-data-open/collapsible-content:animate-in group-data-open/collapsible-content:fade-in-0 group-data-open/collapsible-content:blur-in-[2px] group-data-open/collapsible-content:slide-in-from-top-1",
           "group-data-closed/collapsible-content:animate-out group-data-closed/collapsible-content:fade-out-0 group-data-closed/collapsible-content:blur-out-[2px] group-data-closed/collapsible-content:slide-out-to-top-1",
           "group-data-closed/collapsible-content:animation-duration-(--animation-duration) group-data-open/collapsible-content:animation-duration-(--animation-duration)",
@@ -228,25 +291,77 @@ function ToolFallbackContent({
   );
 }
 
+function ToolFallbackSection({
+  label,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"section"> & { label: string }) {
+  return (
+    <section className={cn("flex min-w-0 flex-col gap-1", className)} {...props}>
+      <h4 className="text-ink-faint text-[11px] leading-4 font-medium">
+        {label}
+      </h4>
+      {children}
+    </section>
+  );
+}
+
+const valueClass =
+  "text-ink font-mono text-xs leading-5 wrap-anywhere whitespace-pre-wrap";
+
+/**
+ * Arguments that parse to a flat object read as name/value rows; anything
+ * else, including JSON still streaming in, shows as the raw text.
+ */
+const argEntries = (argsText: string): [string, string][] | undefined => {
+  try {
+    const value: unknown = JSON.parse(argsText);
+    if (value === null || typeof value !== "object" || Array.isArray(value))
+      return undefined;
+    const entries = Object.entries(value);
+    return entries.length === 0
+      ? undefined
+      : entries.map(([key, v]) => [key, formatUnknownValue(v)]);
+  } catch {
+    return undefined;
+  }
+};
+
 function ToolFallbackArgs({
   argsText,
   className,
   ...props
-}: React.ComponentProps<"div"> & {
+}: React.ComponentProps<"section"> & {
   argsText?: string;
 }) {
-  if (!argsText) return null;
+  if (!argsText || argsText === "{}") return null;
+  const entries = argEntries(argsText);
 
   return (
-    <div
+    <ToolFallbackSection
+      label="Input"
       data-slot="tool-fallback-args"
       className={cn("aui-tool-fallback-args", className)}
       {...props}
     >
-      <pre className="aui-tool-fallback-args-value bg-muted/50 text-foreground/90 rounded-md p-2.5 text-xs break-words whitespace-pre-wrap">
-        {argsText}
-      </pre>
-    </div>
+      {entries ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5">
+          {entries.map(([key, value]) => (
+            <div key={key} className="contents">
+              <dt className="text-ink-muted font-mono text-xs leading-5">
+                {key}
+              </dt>
+              <dd className={cn(valueClass, "line-clamp-4")}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <pre className={cn("aui-tool-fallback-args-value", valueClass)}>
+          {argsText}
+        </pre>
+      )}
+    </ToolFallbackSection>
   );
 }
 
@@ -269,26 +384,32 @@ const formatUnknownValue = (value: unknown, space?: number): string => {
 
 function ToolFallbackResult({
   result,
+  isError,
   className,
   ...props
-}: React.ComponentProps<"div"> & {
+}: React.ComponentProps<"section"> & {
   result?: unknown;
+  isError?: boolean;
 }) {
   if (result === undefined) return null;
 
   return (
-    <div
+    <ToolFallbackSection
+      label={isError ? "Error" : "Output"}
       data-slot="tool-fallback-result"
       className={cn("aui-tool-fallback-result", className)}
       {...props}
     >
-      <p className="aui-tool-fallback-result-header text-muted-foreground text-xs font-medium">
-        Result:
-      </p>
-      <pre className="aui-tool-fallback-result-content bg-muted/50 text-foreground/90 mt-1 rounded-md p-2.5 text-xs break-words whitespace-pre-wrap">
+      <pre
+        className={cn(
+          "aui-tool-fallback-result-content max-h-60 overflow-y-auto",
+          valueClass,
+          isError && "text-error-ink",
+        )}
+      >
         {formatUnknownValue(result, 2)}
       </pre>
-    </div>
+    </ToolFallbackSection>
   );
 }
 
@@ -296,7 +417,7 @@ function ToolFallbackError({
   status,
   className,
   ...props
-}: React.ComponentProps<"div"> & {
+}: React.ComponentProps<"section"> & {
   status?: ToolCallMessagePartStatus;
 }) {
   if (status?.type !== "incomplete") return null;
@@ -308,21 +429,23 @@ function ToolFallbackError({
   if (!errorText) return null;
 
   const isCancelled = status.reason === "cancelled";
-  const headerText = isCancelled ? "Cancelled reason:" : "Error:";
 
   return (
-    <div
+    <ToolFallbackSection
+      label={isCancelled ? "Cancelled" : "Error"}
       data-slot="tool-fallback-error"
       className={cn("aui-tool-fallback-error", className)}
       {...props}
     >
-      <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">
-        {headerText}
-      </p>
-      <p className="aui-tool-fallback-error-reason text-muted-foreground break-words whitespace-pre-line">
+      <p
+        className={cn(
+          "aui-tool-fallback-error-reason text-xs leading-5 break-words whitespace-pre-line",
+          isCancelled ? "text-ink-muted" : "text-error-ink",
+        )}
+      >
         {errorText}
       </p>
-    </div>
+    </ToolFallbackSection>
   );
 }
 
@@ -1186,6 +1309,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
   result,
+  isError,
   status,
   responseDeliveryStatus,
   addResult,
@@ -1200,6 +1324,17 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const shouldRenderApproval =
     approval != null ||
     (isRequiresAction && offersInterruptAction(status, approval, interrupt));
+  const hasError =
+    status?.type === "incomplete" &&
+    status.error !== undefined &&
+    status.error !== null;
+  // Theorem reports a failed tool as a settled call whose result is the error.
+  const failed = !!isError || (status?.type === "incomplete" && !isCancelled);
+  const hasDetails =
+    shouldRenderApproval ||
+    hasError ||
+    result !== undefined ||
+    (!!argsText && argsText !== "{}");
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -1236,10 +1371,13 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
+      <ToolFallbackRail toolName={toolName} status={status} failed={failed} />
       <ToolFallbackTrigger
         toolName={toolName}
         status={status}
+        failed={failed}
         responseDeliveryStatus={responseDeliveryStatus}
+        disabled={!hasDetails}
       />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
@@ -1277,7 +1415,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             }}
           />
         )}
-        <ToolFallbackResult result={result} />
+        <ToolFallbackResult result={result} isError={isError} />
       </ToolFallbackContent>
     </ToolFallbackRoot>
   );
@@ -1287,6 +1425,7 @@ const ToolFallback = memo(
   ToolFallbackImpl,
 ) as unknown as ToolCallMessagePartComponent & {
   Root: typeof ToolFallbackRoot;
+  Rail: typeof ToolFallbackRail;
   Trigger: typeof ToolFallbackTrigger;
   Content: typeof ToolFallbackContent;
   Args: typeof ToolFallbackArgs;
@@ -1297,6 +1436,7 @@ const ToolFallback = memo(
 
 ToolFallback.displayName = "ToolFallback";
 ToolFallback.Root = ToolFallbackRoot;
+ToolFallback.Rail = ToolFallbackRail;
 ToolFallback.Trigger = ToolFallbackTrigger;
 ToolFallback.Content = ToolFallbackContent;
 ToolFallback.Args = ToolFallbackArgs;
@@ -1305,10 +1445,12 @@ ToolFallback.Error = ToolFallbackError;
 ToolFallback.Approval = ToolFallbackApproval;
 
 export {
+  formatToolDuration,
   formatUnknownValue,
   offersInterruptAction,
   ToolFallback,
   ToolFallbackRoot,
+  ToolFallbackRail,
   ToolFallbackTrigger,
   ToolFallbackContent,
   ToolFallbackArgs,

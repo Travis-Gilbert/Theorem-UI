@@ -22,7 +22,10 @@ import NextMark from '@/assets/icons/message/theorem-next.svg?react'
 import PreviousMark from '@/assets/icons/message/theorem-previous.svg?react'
 import ReloadMark from '@/assets/icons/message/theorem-reload.svg?react'
 import Chat from '@/assets/icons/rail/noun-chat-8216252.svg?react'
+import Index from '@/assets/icons/rail/noun-database-8408864.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
+import Page from '@/assets/icons/rail/noun-page-7936682.svg?react'
+import Script from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
 import { Trash2 as Delete } from 'lucide-react'
@@ -37,8 +40,10 @@ import Diagram from '@/assets/icons/records/noun-diagram-8269845.svg?react'
 import Expand from '@/assets/icons/records/noun-expand-8086092.svg?react'
 import Eye from '@/assets/icons/records/noun-eye-8086063.svg?react'
 import File from '@/assets/icons/records/noun-file-8259863.svg?react'
+import Hierarchy from '@/assets/icons/records/noun-hierarchy-8259865.svg?react'
 import Layout from '@/assets/icons/records/noun-layout-8176268.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
+import Message from '@/assets/icons/records/noun-message-8086072.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import Search from '@/assets/icons/records/noun-search-8086046.svg?react'
 import Share from '@/assets/icons/records/noun-share-8086062.svg?react'
@@ -91,19 +96,24 @@ export const Icon = {
   Expand,
   Eye,
   File,
+  Hierarchy,
+  Index,
   Layout,
   Link,
   Menu,
+  Message,
   Microphone,
   Moon,
   More,
   NewChat: Writing,
   Next,
+  Page,
   Previous,
   Project: ProjectRow,
   Projects,
   Refresh,
   Reload,
+  Script,
   Search,
   Send,
   Settings,

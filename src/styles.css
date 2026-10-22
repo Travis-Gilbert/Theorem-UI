@@ -7,37 +7,6 @@
 @import "dockview-react/dist/styles/dockview.css";
 @plugin "@tailwindcss/typography";
 
-/* Libron ships 400 and 700 with italics only; never synthesize other weights.
-   Licensed under the SIL OFL 1.1 (src/assets/fonts/libron/OFL.txt). */
-@font-face {
-  font-family: "Libron";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Bold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: italic;
-  font-weight: 700;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-BoldItalic.woff2") format("woff2");
-}
-
 @custom-variant dark (&:where(.dark, .dark *));
 
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
@@ -81,6 +50,19 @@
   --error-ink: #762633;
 
   --shadow-tint: 48 49 45;
+
+  /* Composer glass: a lighter, warmer pane than the page, a white rim in
+     place of a drawn border, and a sheen that catches the top edge. */
+  --composer-tint: #cdc9c5;
+  --composer-tint-strength: 74%;
+  --composer-sheen: rgb(255 255 255 / 0.22);
+  --composer-rim: rgb(255 255 255 / 0.34);
+  --composer-rim-focus: color-mix(in srgb, var(--focus) 32%, rgb(255 255 255 / 0.4));
+  --composer-focus-ring: color-mix(in srgb, var(--focus) 10%, transparent);
+  --composer-highlight: rgb(255 255 255 / 0.5);
+
+  /* The closing stroke of every Noun mark, in screen pixels. */
+  --icon-stroke: 1px;
 
   /* shadcn / assistant-ui element contract */
   --background: var(--surface-neutral);
@@ -141,6 +123,17 @@
 
   --shadow-tint: 0 0 0;
   --popover: #202122;
+
+  --composer-tint: #212223;
+  --composer-tint-strength: 76%;
+  --composer-sheen: rgb(255 255 255 / 0.045);
+  --composer-rim: rgb(255 255 255 / 0.08);
+  /* Dark focus is a saturated teal, which reads as a coloured outline on a
+     near-black pane even well mixed down; focus brightens the rim instead,
+     keeping only a trace of the hue. */
+  --composer-rim-focus: color-mix(in srgb, var(--focus) 12%, rgb(255 255 255 / 0.17));
+  --composer-focus-ring: rgb(255 255 255 / 0.03);
+  --composer-highlight: rgb(255 255 255 / 0.07);
   --link: #8fd0c4;
 }
 
@@ -258,7 +251,6 @@
   --color-link: var(--link);
 
   --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Libron", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Geometry: control/row 6, popover 8, artifact 14, frame/composer 16. */
@@ -269,7 +261,7 @@
   --radius-artifact: 14px;
   --radius-2xl: 16px;
 
-  --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
+  --shadow-composer: 0 1px 2px rgb(var(--shadow-tint) / 0.06), 0 12px 32px -10px rgb(var(--shadow-tint) / 0.24);
   --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
 
   --spacing-rail: 68px;
@@ -297,12 +289,16 @@
   }
 }
 
-/* Codex-like scale: chrome sits a step tighter than body copy. Retuning the
-   familiar steps here keeps one rhythm across every component instead of
-   restating sizes in markup. */
+/* Codex's scale and weight for IBM Plex Sans: chrome sits a step tighter
+   than body copy, and the regular weight is 430 rather than 400. Plex's
+   upright 400 renders thin under grayscale antialiasing; the variable axis
+   gives it back a little ink without reaching medium. Retuning the familiar
+   steps here keeps one rhythm across every component instead of restating
+   sizes in markup. */
 @theme {
   --text-sm: 13px;
   --text-base: 15px;
+  --font-weight-normal: 430;
 }
 
 @layer base {
@@ -325,7 +321,7 @@
     scrollbar-color: var(--line-control) transparent;
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   html.dark {
@@ -337,23 +333,11 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    /* Codex's crispness is a treatment, not a family: the font's own kerning
-       and standard ligatures stay on at every size, and IBM Plex Sans's looser
-       default spacing is pulled in to the platform's rhythm. */
-    font-kerning: normal;
-    font-variant-ligatures: common-ligatures contextual;
-    letter-spacing: -0.01em;
-  }
-
-  /* Titles keep the serif. It ships only 400 and 700, so the weight axis is
-     spent on the sans and the hierarchy here comes from size and tracking. */
-  h1,
-  h2,
-  h3,
-  h4 {
-    font-family: var(--font-heading);
-    font-weight: 400;
-    letter-spacing: -0.015em;
+    /* Plex is drawn with its own spacing; tracking stays at zero at every
+       size, titles included, which is how Codex sets it. Chat, composer and
+       chrome share the one 15px base. */
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
   }
 
   /* Noun icons are bare filled contours; Lucide-derived ones declare fill="none" and stroke. */
@@ -366,12 +350,20 @@
      a wisp at control size. A same-colour stroke closes that hollow and
      leaves the mark with the weight it was drawn with, without touching a byte
      of the licensed assets. The stroked sets declare a fill and are left
-     alone, and the message toolbar marks, which arrive solid, opt out. */
+     alone, and the message toolbar marks, which arrive solid, opt out.
+     The stroke is a fixed screen width rather than viewBox units, which
+     would thin with the mark to under half a pixel at 16px: the smaller the
+     mark, the heavier it is drawn, the correction a type designer gives
+     small text. */
   svg[data-icon]:not([fill]):not(.icon-solid) {
     stroke: currentColor;
-    stroke-width: 3;
+    stroke-width: var(--icon-stroke);
     stroke-linejoin: round;
     stroke-linecap: round;
+
+    & * {
+      vector-effect: non-scaling-stroke;
+    }
   }
 
   code,
@@ -379,8 +371,8 @@
   pre,
   samp {
     font-family: var(--font-mono);
-    /* Mono keeps its own metrics; the sans tracking does not reach code. */
-    letter-spacing: normal;
+    /* The 430 regular is tuned for the sans; mono keeps its drawn weight. */
+    font-weight: 400;
   }
 
   ::selection {
@@ -410,6 +402,37 @@
   }
 }
 
+/* The composer pane. Glass is the platform's backdrop-filter: the composer
+   floats over a thread that streams and scrolls, which a snapshot-based WebGL
+   lens would have to re-rasterise on every token. The blur is kept light and
+   the tint strong, so text passing beneath reads as depth, not as content. */
+@utility composer-glass {
+  border: 1px solid var(--composer-rim);
+  background:
+    linear-gradient(180deg, var(--composer-sheen), transparent 65%),
+    color-mix(in oklab, var(--composer-tint) var(--composer-tint-strength), transparent);
+  box-shadow:
+    inset 0 1px 0 var(--composer-highlight),
+    var(--shadow-composer);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  transition:
+    border-color 150ms var(--ease-structure),
+    box-shadow 150ms var(--ease-structure);
+
+  &:focus-within {
+    border-color: var(--composer-rim-focus);
+    box-shadow:
+      inset 0 1px 0 var(--composer-highlight),
+      0 0 0 3px var(--composer-focus-ring),
+      var(--shadow-composer);
+  }
+
+  &[data-dragging='true'] {
+    border-color: var(--focus);
+  }
+}
+
 /* @tailwindcss/typography, re-pointed at the Stone tokens. A utility rather
    than a component: the plugin's .prose lands in the utilities layer, which
    outranks the components layer and would keep its light-theme grays. The
@@ -434,9 +457,7 @@
   font-family: var(--font-sans);
 
   & :where(h1, h2, h3, h4):not(:where(.not-prose *)) {
-    font-family: var(--font-heading);
-    font-weight: 400;
-    letter-spacing: -0.015em;
+    font-weight: 600;
   }
 
   & a {

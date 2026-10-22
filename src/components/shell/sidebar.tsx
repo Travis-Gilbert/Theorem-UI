@@ -60,7 +60,7 @@ function NewProjectDialog({
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-heading text-lg font-normal tracking-tight">
+            <DialogTitle className="text-base font-semibold">
               New project
             </DialogTitle>
             <DialogDescription>
@@ -207,7 +207,7 @@ export function SidebarContents({
   return (
     <ThreadListRoot className="flex h-full flex-col gap-0">
       <div className="flex h-14 shrink-0 items-center justify-between ps-4 pe-2">
-        <span className="font-heading text-[21px] font-normal tracking-tight leading-none">
+        <span className="text-[17px] font-semibold leading-none">
           Theorem
         </span>
         {onClose && (

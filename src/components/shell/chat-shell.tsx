@@ -121,7 +121,7 @@ export function ShellStatus({
 }) {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-2 bg-background px-6 text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
+      <p className="text-lg font-medium">
         {title}
       </p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}
