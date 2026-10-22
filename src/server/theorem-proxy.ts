@@ -2,9 +2,12 @@
 //
 // Same-origin proxy to the Theorem authority. The backend's CORS policy only
 // admits GET/POST with a few headers, so the browser talks to this origin and
-// the server forwards. The bearer token is injected here and never reaches the
-// browser. Bodies stream in both directions so run-event SSE is not buffered.
+// the server forwards. The bearer is added here and never reaches the browser:
+// the signed-in person's token when sign-in is configured, otherwise the
+// deployment token. Bodies stream in both directions so run-event SSE is not
+// buffered.
 import type { ServerRequest } from 'srvx'
+import { oauthConfigured, personBearer } from './theorem-auth'
 
 const REQUEST_HEADERS_DROPPED = [
   'host',
@@ -65,17 +68,51 @@ function problem(status: number, code: string, title: string, detail: string) {
   )
 }
 
+/** The bearer for this request, or the response that refuses it. */
+async function bearer(): Promise<string | Response> {
+  if (!oauthConfigured()) {
+    return (
+      process.env.THEOREM_API_TOKEN ||
+      problem(
+        503,
+        'theorem_unconfigured',
+        'Theorem backend is not configured',
+        'Set THEOREM_API_TOKEN, or THEOREM_OAUTH_CLIENT_ID for sign-in, in .env (see .env.example).',
+      )
+    )
+  }
+  try {
+    return (
+      (await personBearer()) ??
+      problem(
+        401,
+        'theorem_signed_out',
+        'Sign in to Theorem',
+        'Nobody is signed in.',
+      )
+    )
+  } catch (error) {
+    return problem(
+      503,
+      'theorem_unconfigured',
+      'Sign-in is not configured',
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+}
+
 export async function proxyToTheorem(request: Request): Promise<Response> {
   const base = process.env.THEOREM_API_URL
-  const token = process.env.THEOREM_API_TOKEN
-  if (!base || !token) {
+  if (!base) {
     return problem(
       503,
       'theorem_unconfigured',
       'Theorem backend is not configured',
-      'Set THEOREM_API_URL and THEOREM_API_TOKEN in .env (see .env.example).',
+      'Set THEOREM_API_URL in .env (see .env.example).',
     )
   }
+  const token = await bearer()
+  if (token instanceof Response) return token
 
   const incoming = new URL(request.url)
   const target = new URL(incoming.pathname + incoming.search, base)

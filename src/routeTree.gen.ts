@@ -13,6 +13,9 @@ import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
+import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
@@ -37,6 +40,21 @@ const ChatSpacesRoute = ChatSpacesRouteImport.update({
   id: '/spaces',
   path: '/spaces',
   getParentRoute: () => ChatRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignInRoute = AuthSignInRouteImport.update({
+  id: '/auth/sign-in',
+  path: '/auth/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignOutRoute = AuthSignOutRouteImport.update({
+  id: '/auth/sign-out',
+  path: '/auth/sign-out',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
@@ -69,6 +87,9 @@ export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/sign-in': typeof AuthSignInRoute
+  '/auth/sign-out': typeof AuthSignOutRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
@@ -78,6 +99,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/sign-in': typeof AuthSignInRoute
+  '/auth/sign-out': typeof AuthSignOutRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
@@ -90,6 +114,9 @@ export interface FileRoutesById {
   '/_chat': typeof ChatRouteWithChildren
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/spaces': typeof ChatSpacesRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/sign-in': typeof AuthSignInRoute
+  '/auth/sign-out': typeof AuthSignOutRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
@@ -103,6 +130,9 @@ export interface FileRouteTypes {
     | '/'
     | '/ide'
     | '/spaces'
+    | '/auth/callback'
+    | '/auth/sign-in'
+    | '/auth/sign-out'
     | '/c/$threadId'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
@@ -112,6 +142,9 @@ export interface FileRouteTypes {
   to:
     | '/ide'
     | '/spaces'
+    | '/auth/callback'
+    | '/auth/sign-in'
+    | '/auth/sign-out'
     | '/'
     | '/c/$threadId'
     | '/api/capabilities/v1/$'
@@ -123,6 +156,9 @@ export interface FileRouteTypes {
     | '/_chat'
     | '/_chat/ide'
     | '/_chat/spaces'
+    | '/auth/callback'
+    | '/auth/sign-in'
+    | '/auth/sign-out'
     | '/_chat/'
     | '/_chat/c/$threadId'
     | '/api/capabilities/v1/$'
@@ -133,6 +169,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthSignInRoute: typeof AuthSignInRoute
+  AuthSignOutRoute: typeof AuthSignOutRoute
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiEnvironmentV1SplatRoute: typeof ApiEnvironmentV1SplatRoute
@@ -168,6 +207,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/spaces'
       preLoaderRoute: typeof ChatSpacesRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/sign-in': {
+      id: '/auth/sign-in'
+      path: '/auth/sign-in'
+      fullPath: '/auth/sign-in'
+      preLoaderRoute: typeof AuthSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/sign-out': {
+      id: '/auth/sign-out'
+      path: '/auth/sign-out'
+      fullPath: '/auth/sign-out'
+      preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_chat/c/$threadId': {
       id: '/_chat/c/$threadId'
@@ -225,6 +285,9 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  AuthCallbackRoute: AuthCallbackRoute,
+  AuthSignInRoute: AuthSignInRoute,
+  AuthSignOutRoute: AuthSignOutRoute,
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiEnvironmentV1SplatRoute: ApiEnvironmentV1SplatRoute,

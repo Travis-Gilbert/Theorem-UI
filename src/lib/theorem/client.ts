@@ -75,6 +75,10 @@ export async function mutateThread<T>(
   }
 }
 
+/** The proxy answers 401 when nobody is signed in or the session has lapsed. */
+export const isSignedOut = (error: unknown) =>
+  error instanceof TheoremError && error.statusCode === 401
+
 export function describeError(error: unknown): string {
   if (error instanceof TheoremError) {
     const body = error.body as Partial<Theorem.Problem> | undefined
