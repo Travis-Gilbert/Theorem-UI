@@ -12,7 +12,6 @@ import Microphone from '@/assets/icons/composer/noun-microphone-8216254.svg?reac
 import Refresh from '@/assets/icons/composer/noun-refresh-8086048.svg?react'
 import Settings from '@/assets/icons/composer/noun-settings-8086044.svg?react'
 import Stop from '@/assets/icons/composer/noun-stop-8086088.svg?react'
-import Web from '@/assets/icons/composer/noun-web-8223212.svg?react'
 import CopiedMark from '@/assets/icons/message/theorem-copied.svg?react'
 import EditMark from '@/assets/icons/message/theorem-edit.svg?react'
 import MoreMark from '@/assets/icons/message/theorem-more.svg?react'
@@ -33,7 +32,6 @@ import Archive from '@/assets/icons/records/noun-archive-8315826.svg?react'
 import Article from '@/assets/icons/records/noun-article-8259879.svg?react'
 import Check from '@/assets/icons/records/noun-checkmark-8086058.svg?react'
 import Coding from '@/assets/icons/records/noun-coding-8259870.svg?react'
-import Diagram from '@/assets/icons/records/noun-diagram-8269845.svg?react'
 import Expand from '@/assets/icons/records/noun-expand-8086092.svg?react'
 import Eye from '@/assets/icons/records/noun-eye-8086063.svg?react'
 import File from '@/assets/icons/records/noun-file-8259863.svg?react'
@@ -41,7 +39,9 @@ import Layout from '@/assets/icons/records/noun-layout-8176268.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
+import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
+import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
 import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
 import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
 import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
@@ -90,10 +90,12 @@ const masked = (src: string): SvgMark =>
   }
 
 const Copy = masked(CopyPaste)
+const Diagram = masked(CodeWrite)
 const NewChat = masked(PencilWrite)
 const Search = masked(SearchSquare)
 const Send = masked(SendEmail)
 const Share = masked(ShareBox)
+const Web = masked(CrossRegion)
 
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)

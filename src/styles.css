@@ -301,6 +301,8 @@
   --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
   --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
   --shadow-pill: 0 1px 2px rgb(var(--shadow-tint) / 0.14), 0 2px 8px rgb(var(--shadow-tint) / 0.08);
+  /* The sheet sits on the rail; the junction's tab casts the same shadow. */
+  --shadow-sheet: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
   --spacing-rail: 52px;
   --spacing-sidebar: 256px;
@@ -497,6 +499,10 @@
   inset: 0;
   pointer-events: none;
   transition: --rail-y 180ms var(--ease-structure);
+  /* The tab is part of the sheet, so it casts the sheet's shadow onto the
+     rail. The clip stops at the sheet's edge, where the sheet paints its own. */
+  filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18));
+  clip-path: inset(-24px 0 -24px -24px);
 
   & > * {
     position: absolute;

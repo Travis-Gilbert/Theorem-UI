@@ -74,7 +74,7 @@ function PhoneShell() {
             <Drawer.Popup className="flex h-full w-[min(calc(var(--spacing-rail)+var(--spacing-sidebar)),90vw)] bg-rail outline-none [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-300 ease-(--ease-structure) data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0">
               <Drawer.Title className="sr-only">Navigation</Drawer.Title>
               <Rail />
-              <div className="my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1 overflow-hidden rounded-xl bg-sheet">
+              <div className="my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1 overflow-hidden rounded-xl bg-sheet shadow-sheet">
                 <ContextPanel />
               </div>
             </Drawer.Popup>
@@ -184,7 +184,7 @@ function DesktopShell(route: DockRoute) {
   return (
     <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
       <Rail collapsible />
-      <div className="my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1 overflow-hidden rounded-xl bg-sheet">
+      <div className="my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1 overflow-hidden rounded-xl bg-sheet shadow-sheet">
         <SheetSplit {...route} />
       </div>
     </div>
