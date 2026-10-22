@@ -75,7 +75,7 @@ function PhoneShell() {
               <Drawer.Title className="sr-only">Navigation</Drawer.Title>
               <Rail />
               <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
-                <div aria-hidden="true" className="sheet-glow" />
+                <div aria-hidden="true" className="lift-glow" />
                 <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
                   <ContextPanel />
                 </div>
@@ -189,7 +189,7 @@ function DesktopShell(route: DockRoute) {
     <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
       <Rail collapsible />
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
-        <div aria-hidden="true" className="sheet-glow" />
+        <div aria-hidden="true" className="lift-glow" />
         <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
           <SheetSplit {...route} />
         </div>

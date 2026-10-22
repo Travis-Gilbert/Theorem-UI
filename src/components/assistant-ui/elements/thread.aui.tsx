@@ -462,7 +462,9 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
       onSubmit={applyRequests}
       className="aui-composer-root relative flex w-full flex-col"
     >
-      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-composer relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
+      {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
+      <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
+      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-10 w-full resize-none bg-transparent py-2 ps-2.5 pe-14 text-base leading-6 outline-none focus-visible:outline-none"
                       rows={1}
