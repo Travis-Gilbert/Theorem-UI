@@ -1,4 +1,4 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode)
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe)
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { Drawer } from '@base-ui/react/drawer'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
@@ -6,6 +6,9 @@ import { useEffect, useState } from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { AgentComposer } from '@/components/canvas/agent-composer'
+import { NotePanel } from '@/components/notes/note-panel'
+import { useNoteView } from '@/components/notes/note-view'
 import { Icon } from '@/components/icons'
 import { DockShell } from './dock'
 import { ModeView, modeLabel, useShellMode } from './modes'
@@ -41,6 +44,8 @@ function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 function PhoneShell() {
   const openId = useArtifactView((s) => s.openId)
   const close = useArtifactView((s) => s.close)
+  const noteId = useNoteView((s) => s.openId)
+  const closeNote = useNoteView((s) => s.close)
 
   // A different conversation starts with the artifact closed.
   const threadId = useAuiState((s) => s.threadListItem.id)
@@ -89,6 +94,14 @@ function PhoneShell() {
           className="fixed inset-0 z-40"
         />
       )}
+
+      {noteId && (
+        <NotePanel
+          documentId={noteId}
+          onClose={closeNote}
+          className="fixed inset-0 z-40"
+        />
+      )}
     </>
   )
 }
@@ -109,6 +122,7 @@ export function ChatShell({
       ) : (
         <PhoneShell />
       )}
+      <AgentComposer projectId={projectId} />
     </div>
   )
 }

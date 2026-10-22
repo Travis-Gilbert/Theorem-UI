@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, zustand stores for artifact view and saved layouts
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, NotePanel (Milkdown Crepe), zustand stores for artifact view, note view and saved layouts
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
@@ -15,7 +15,10 @@ import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { NotePanel } from '@/components/notes/note-panel'
+import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
+import { useNote } from '@/lib/theorem/notes'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
 import { SidebarContents } from './sidebar'
@@ -23,6 +26,7 @@ import { SidebarContents } from './sidebar'
 const THREAD = 'thread'
 const SIDEBAR = 'sidebar'
 const ARTIFACT = 'artifact:'
+const NOTE = 'note-panel:'
 
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
 const artifactIdOf = (panelId: string) =>
@@ -116,10 +120,23 @@ function ArtifactDockPanel({
   )
 }
 
+/** A focused note. Notes belong to the project, so they stay across conversations. */
+function NoteDockPanel({
+  api,
+  params,
+}: IDockviewPanelProps<{ documentId: string }>) {
+  const title = useNote(params.documentId).data?.title
+  useEffect(() => {
+    if (title) api.setTitle(title)
+  }, [api, title])
+  return <NotePanel documentId={params.documentId} />
+}
+
 const components = {
   thread: ThreadPanel,
   sidebar: SidebarPanel,
   artifact: ArtifactDockPanel,
+  note: NoteDockPanel,
 }
 
 const tabComponents = {
@@ -219,6 +236,37 @@ function openArtifact(api: DockviewApi, artifactId: string) {
     api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
 }
 
+/** Notes join the open note tabs, else open beside the conversation. */
+function openNote(api: DockviewApi, documentId: string) {
+  const id = `${NOTE}${documentId}`
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  const options = {
+    id,
+    component: 'note',
+    params: { documentId },
+    title: 'Note',
+    minimumWidth: 360,
+  }
+  const sibling = api.panels.find((panel) => panel.id.startsWith(NOTE))
+  if (sibling) {
+    api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
+    return
+  }
+  const initialWidth = Math.round(api.width * 0.4)
+  if (api.getPanel(THREAD)?.api.location.type === 'grid')
+    api.addPanel({
+      ...options,
+      initialWidth,
+      position: { referencePanel: THREAD, direction: 'right' },
+    })
+  else
+    api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
+}
+
 /**
  * Desktop shell: the sidebar in a left edge group, the conversation and each
  * open artifact as dock panels. Panels render always, so moving or hiding one
@@ -269,6 +317,9 @@ export function DockShell({
         },
       },
     })
+    useNoteView.setState({
+      dock: { open: (documentId) => openNote(dock, documentId) },
+    })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -283,6 +334,7 @@ export function DockShell({
     return () => {
       for (const listener of listeners) listener.dispose()
       useArtifactView.setState({ dock: undefined })
+      useNoteView.setState({ dock: undefined })
     }
   }, [dock, projectId])
 

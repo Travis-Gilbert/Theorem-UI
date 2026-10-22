@@ -125,7 +125,7 @@ function resumeBackoff(attempt: number): Promise<void> {
  * and continues, up to RESUME_ATTEMPTS times. An abort ends silently; the
  * caller settles the run.
  */
-async function* tailRun(
+export async function* tailRun(
   runId: string,
   abortSignal: AbortSignal,
 ): AsyncGenerator<ChatModelRunResult, void> {

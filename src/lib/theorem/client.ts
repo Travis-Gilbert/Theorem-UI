@@ -46,7 +46,8 @@ export async function mutate<T>(
       'Idempotency-Key': key,
     })
   } catch (error) {
-    if (!(error instanceof Theorem.ForbiddenError)) throw error
+    // Each API (chat, documents, spaces) has its own error classes; match the status.
+    if (!hasStatus(error, 403)) throw error
     const fresh = await bootstrap(true)
     return run({ 'X-CSRF-Token': fresh.csrfToken, 'Idempotency-Key': key })
   }
@@ -73,6 +74,14 @@ export async function mutateThread<T>(
       return attempt()
     throw error
   }
+}
+
+export function hasStatus(error: unknown, ...codes: number[]): boolean {
+  return (
+    error instanceof TheoremError &&
+    error.statusCode !== undefined &&
+    codes.includes(error.statusCode)
+  )
 }
 
 export function describeError(error: unknown): string {

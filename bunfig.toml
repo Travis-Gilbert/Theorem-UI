@@ -19,3 +19,6 @@ minimumReleaseAgeExcludes = [
   "dockview-react",
   "react-resizable-panels",
 ]
+
+[test]
+preload = ["./test/happy-dom.ts"]

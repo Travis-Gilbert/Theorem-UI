@@ -1,8 +1,9 @@
-// SOURCING: Base UI ToggleGroup + Toggle (mode switch), ui/tooltip over Base UI Tooltip, @tanstack/react-router (each mode is a route), assistant-ui Thread element
+// SOURCING: Base UI ToggleGroup + Toggle (mode switch), ui/tooltip over Base UI Tooltip, @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow)
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { Canvas } from '@/components/canvas/canvas'
 import { Icon } from '@/components/icons'
 import {
   Tooltip,
@@ -111,7 +112,8 @@ export function ModeView() {
       <div hidden={mode !== 'chat'} className="h-full">
         <Thread />
       </div>
-      {mode !== 'chat' && <ModePlaceholder mode={mode} />}
+      {mode === 'spaces' && <Canvas />}
+      {mode === 'ide' && <ModePlaceholder mode={mode} />}
     </>
   )
 }

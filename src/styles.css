@@ -443,3 +443,123 @@
     text-underline-offset: 2px;
   }
 }
+
+/* Milkdown Crepe, re-pointed at the Stone tokens. Only Crepe's common sheet is
+   imported, so these are the whole theme; the tokens switch per theme. */
+.theorem-note .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--ink);
+  --crepe-color-surface: var(--surface-raised);
+  --crepe-color-surface-low: var(--surface-artifact);
+  --crepe-color-on-surface: var(--ink);
+  --crepe-color-on-surface-variant: var(--ink-muted);
+  --crepe-color-outline: var(--line-separator);
+  --crepe-color-primary: var(--redwood);
+  --crepe-color-secondary: var(--redwood-container);
+  --crepe-color-on-secondary: var(--redwood-ink);
+  --crepe-color-inverse: var(--ink);
+  --crepe-color-on-inverse: var(--surface-raised);
+  --crepe-color-inline-code: var(--redwood-ink);
+  --crepe-color-error: var(--error-ink);
+  --crepe-color-hover: var(--surface-hover);
+  --crepe-color-selected: var(--surface-selected);
+  --crepe-color-inline-area: var(--surface-frame);
+
+  --crepe-base-font-size: 15px;
+  --crepe-font-title: var(--font-heading);
+  --crepe-font-default: var(--font-sans);
+  --crepe-font-code: var(--font-mono);
+
+  --crepe-shadow-1: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
+  --crepe-shadow-2: 0 4px 12px rgb(var(--shadow-tint) / 0.22);
+}
+
+/* Crepe's reset pads the editor for a full page; the panel and cards are narrower. */
+.theorem-note .milkdown .ProseMirror {
+  padding: 24px 48px;
+}
+
+/* Canvas cards: a denser editor that fits a small node. */
+.theorem-note-card .milkdown {
+  --crepe-base-font-size: 13px;
+}
+
+.theorem-note-card .milkdown .ProseMirror {
+  padding: 12px 16px 12px 40px;
+}
+
+.theorem-note-card .milkdown .ProseMirror h1 {
+  font-size: 1.75em;
+}
+
+.theorem-note-card .milkdown .ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.theorem-note-card .milkdown .ProseMirror h3 {
+  font-size: 1.25em;
+}
+
+/* An embed fence renders as a card; its language picker and copy bar would
+   only expose the JSON behind it. */
+.theorem-note .milkdown .milkdown-code-block:has(.theorem-embed) {
+  padding: 0;
+  background: transparent;
+}
+
+.theorem-note .milkdown-code-block:has(.theorem-embed) .tools {
+  display: none;
+}
+
+/* Crepe's unlayered reset strips button borders, backgrounds and padding,
+   which would outrank the card's utilities. */
+.theorem-note .milkdown .theorem-embed > [data-theorem-embed] {
+  padding: 12px;
+  border: 1px solid var(--line-separator);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--surface-raised);
+  transition: background-color 150ms;
+}
+
+.theorem-note .milkdown .theorem-embed > [data-theorem-embed]:hover {
+  background: var(--surface-hover);
+}
+
+/* The card's excerpt sits inside the editor, so Crepe's page typography would
+   reach it; an excerpt reads as one flat block. */
+.theorem-note .milkdown .theorem-embed :is(h1, h2, h3, h4, h5, h6, p, li) {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.theorem-note .milkdown .theorem-embed :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* React Flow, re-pointed at the Stone tokens. */
+.react-flow {
+  --xy-background-color: var(--surface-neutral);
+  --xy-background-pattern-color: var(--line-separator);
+  --xy-edge-stroke: var(--ink-faint);
+  --xy-edge-stroke-selected: var(--focus);
+  --xy-connectionline-stroke: var(--focus);
+  --xy-handle-background-color: var(--surface-raised);
+  --xy-handle-border-color: var(--line-control);
+  --xy-selection-background-color: color-mix(in srgb, var(--focus) 10%, transparent);
+  --xy-selection-border: 1px dotted var(--focus);
+  --xy-minimap-background-color: var(--surface-raised);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--surface-frame) 60%, transparent);
+  --xy-minimap-node-background-color: var(--surface-selected);
+  --xy-minimap-node-stroke-color: transparent;
+  --xy-controls-button-background-color: var(--surface-raised);
+  --xy-controls-button-background-color-hover: var(--surface-hover);
+  --xy-controls-button-color: var(--ink-muted);
+  --xy-controls-button-color-hover: var(--ink);
+  --xy-controls-button-border-color: var(--line-separator);
+  --xy-controls-box-shadow: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
+  --xy-attribution-background-color: transparent;
+}

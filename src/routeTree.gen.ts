@@ -15,6 +15,8 @@ import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
+import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
+import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
 
 const ChatRoute = ChatRouteImport.update({
@@ -46,6 +48,16 @@ const ApiChatV1SplatRoute = ApiChatV1SplatRouteImport.update({
   path: '/api/chat/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDocumentsV2SplatRoute = ApiDocumentsV2SplatRouteImport.update({
+  id: '/api/documents/v2/$',
+  path: '/api/documents/v2/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSpacesV1SplatRoute = ApiSpacesV1SplatRouteImport.update({
+  id: '/api/spaces/v1/$',
+  path: '/api/spaces/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1TheoremAgentStreamSplatRoute =
   V1TheoremAgentStreamSplatRouteImport.update({
     id: '/v1/theorem/agent/stream/$',
@@ -59,6 +71,8 @@ export interface FileRoutesByFullPath {
   '/spaces': typeof ChatSpacesRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
+  '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
+  '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesByTo {
@@ -67,6 +81,8 @@ export interface FileRoutesByTo {
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
+  '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
+  '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesById {
@@ -77,6 +93,8 @@ export interface FileRoutesById {
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
+  '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
+  '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRouteTypes {
@@ -87,6 +105,8 @@ export interface FileRouteTypes {
     | '/spaces'
     | '/c/$threadId'
     | '/api/chat/v1/$'
+    | '/api/documents/v2/$'
+    | '/api/spaces/v1/$'
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -95,6 +115,8 @@ export interface FileRouteTypes {
     | '/'
     | '/c/$threadId'
     | '/api/chat/v1/$'
+    | '/api/documents/v2/$'
+    | '/api/spaces/v1/$'
     | '/v1/theorem/agent/stream/$'
   id:
     | '__root__'
@@ -104,12 +126,16 @@ export interface FileRouteTypes {
     | '/_chat/'
     | '/_chat/c/$threadId'
     | '/api/chat/v1/$'
+    | '/api/documents/v2/$'
+    | '/api/spaces/v1/$'
     | '/v1/theorem/agent/stream/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
+  ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
+  ApiSpacesV1SplatRoute: typeof ApiSpacesV1SplatRoute
   V1TheoremAgentStreamSplatRoute: typeof V1TheoremAgentStreamSplatRoute
 }
 
@@ -157,6 +183,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/documents/v2/$': {
+      id: '/api/documents/v2/$'
+      path: '/api/documents/v2/$'
+      fullPath: '/api/documents/v2/$'
+      preLoaderRoute: typeof ApiDocumentsV2SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/spaces/v1/$': {
+      id: '/api/spaces/v1/$'
+      path: '/api/spaces/v1/$'
+      fullPath: '/api/spaces/v1/$'
+      preLoaderRoute: typeof ApiSpacesV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/theorem/agent/stream/$': {
       id: '/v1/theorem/agent/stream/$'
       path: '/v1/theorem/agent/stream/$'
@@ -186,6 +226,8 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
+  ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
+  ApiSpacesV1SplatRoute: ApiSpacesV1SplatRoute,
   V1TheoremAgentStreamSplatRoute: V1TheoremAgentStreamSplatRoute,
 }
 export const routeTree = rootRouteImport
