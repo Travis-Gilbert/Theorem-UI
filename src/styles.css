@@ -55,11 +55,11 @@
   --surface-composer: #c2bebb;
   --surface-artifact: #bab6b2;
   /* The rail is the base the sheet sits on; the active row is cut from it. */
-  --surface-rail: #cfcbc8;
+  --surface-rail: #dbd7d4;
   --surface-pill: var(--surface-rail);
   /* The sheet's vertical field, painted once across its full height. */
-  --sheet-from: #c3bfbc;
-  --sheet-to: #b1ada9;
+  --sheet-from: #d0ccc9;
+  --sheet-to: #aeaaa6;
 
   --ink: #30312d;
   --ink-muted: #3f403c;

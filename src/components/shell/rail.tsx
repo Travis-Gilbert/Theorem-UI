@@ -1,10 +1,9 @@
-// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, ui/avatar over Base UI Avatar, next-themes (theme), the shell's mode routes and tenant hook
+// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Tooltip,
   TooltipContent,
@@ -27,15 +26,7 @@ const THEMES = [
   { value: 'system', label: 'Match system' },
 ]
 
-/** "Travis-Gilbert" reads as TG; a single word gives its first two letters. */
-function initials(name: string) {
-  const [first = '', second] = name.split(/[\s._-]+/).filter(Boolean)
-  return (
-    second ? first.charAt(0) + second.charAt(0) : first.slice(0, 2)
-  ).toUpperCase()
-}
-
-/** The signed-in tenant, with the theme choice behind it. */
+/** The signed-in tenant as a coloured initial, with the theme choice behind it. */
 function AccountMenu() {
   const { theme, setTheme } = useTheme()
   const tenant = useTenant()
@@ -44,13 +35,9 @@ function AccountMenu() {
     <Menu.Root>
       <Menu.Trigger
         aria-label={tenant ? `Account, ${tenant}` : 'Account'}
-        className={`${railButton} data-popup-open:bg-ink/8`}
+        className="flex size-8 items-center justify-center rounded-[9px] bg-redwood pt-px font-heading text-[18px] leading-none text-on-redwood shadow-xs transition-colors duration-100 outline-none hover:bg-redwood-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-popup-open:bg-redwood-pressed"
       >
-        <Avatar size="sm">
-          <AvatarFallback className="bg-selected text-[10px] font-medium text-ink">
-            {tenant ? initials(tenant) : null}
-          </AvatarFallback>
-        </Avatar>
+        {tenant?.charAt(0).toUpperCase()}
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner
@@ -118,8 +105,9 @@ function Junction({ y }: { y: number }) {
 }
 
 /**
- * The global rail: the Theorem mark, one destination per mode and the
- * account. It is the base the sheet sits on. On the desktop the active
+ * The global rail: one destination per mode, and the account at the foot.
+ * It is the base the sheet sits on. The first destination sits low enough
+ * that the junction's upper corner clears the sheet's rounded corner. On the desktop the active
  * destination also shows and hides its mode's panel.
  */
 export function Rail({ collapsible = false }: { collapsible?: boolean }) {
@@ -143,21 +131,11 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   return (
     <div
       ref={railRef}
-      className="relative flex h-full w-rail shrink-0 flex-col items-center pt-(--sheet-inset) pb-3"
+      className="relative flex h-full w-rail shrink-0 flex-col items-center pt-[calc(var(--sheet-inset)+24px)] pb-3"
     >
       {junctionY !== undefined && <Junction y={junctionY} />}
-      <div className="flex h-12 shrink-0 items-center">
-        {/* A stand-in mark until Theorem has one: the wordmark's initial. */}
-        <span
-          role="img"
-          aria-label="Theorem"
-          className="flex size-8 items-center justify-center rounded-[9px] bg-redwood pt-px font-heading text-[18px] leading-none text-on-redwood shadow-xs"
-        >
-          T
-        </span>
-      </div>
       <TooltipProvider>
-        <nav aria-label="Modes" className="mt-2 flex flex-col gap-1">
+        <nav aria-label="Modes" className="flex flex-col gap-1">
           {MODES.map(({ mode: value, label, Mark }) => {
             const active = value === mode
             const toggles = active && collapsible
