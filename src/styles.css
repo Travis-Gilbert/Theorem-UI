@@ -1,0 +1,445 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "tw-shimmer";
+@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource-variable/ibm-plex-sans/wght-italic.css";
+@import "@fontsource-variable/jetbrains-mono";
+@import "dockview-react/dist/styles/dockview.css";
+@plugin "@tailwindcss/typography";
+
+/* Libron ships 400 and 700 with italics only; never synthesize other weights.
+   Licensed under the SIL OFL 1.1 (src/assets/fonts/libron/OFL.txt). */
+@font-face {
+  font-family: "Libron";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/libron/Libron-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Libron";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/libron/Libron-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Libron";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/libron/Libron-Italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Libron";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/libron/Libron-BoldItalic.woff2") format("woff2");
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
+
+/* Stone (DESIGN.md). Light is the authored theme. */
+:root {
+  --surface-neutral: #b4b0ac;
+  --surface-sidebar: #b0aca8;
+  --surface-frame: #a9a4a1;
+  --surface-raised: #c2bebb;
+  --surface-hover: #bcb7b3;
+  --surface-selected: #a49e9a;
+  --surface-composer: #c2bebb;
+  --surface-artifact: #bab6b2;
+
+  --ink: #30312d;
+  --ink-muted: #3f403c;
+  --ink-faint: #5b5a56;
+  --focus: #194d60;
+  --line-control: #524e4b;
+  --line-separator: #9e9995;
+
+  --redwood: #8f3f49;
+  --redwood-hover: #7d3440;
+  --redwood-pressed: #6c2c36;
+  --on-redwood: #f5f0ed;
+  --redwood-container: #cdb8b6;
+  --redwood-ink: #672b35;
+
+  --teal: #24685f;
+  --teal-container: #b8c8c1;
+  --teal-ink: #143c35;
+
+  --ochre: #a17b28;
+  --ochre-container: #cfbf9b;
+  --ochre-ink: #5e4411;
+
+  --error-container: #d3b7ba;
+  --error-ink: #762633;
+
+  --shadow-tint: 48 49 45;
+
+  /* shadcn / assistant-ui element contract */
+  --background: var(--surface-neutral);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--redwood);
+  --primary-foreground: var(--on-redwood);
+  --secondary: var(--teal-container);
+  --secondary-foreground: var(--teal-ink);
+  --muted: var(--surface-hover);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--surface-selected);
+  --accent-foreground: var(--ink);
+  --destructive: var(--error-ink);
+  --destructive-foreground: var(--error-container);
+  --border: var(--line-separator);
+  --input: var(--line-control);
+  --ring: var(--focus);
+  --link: var(--teal-ink);
+
+  --radius: 0.5rem;
+}
+
+/* Legacy dark tokens. */
+.dark {
+  --surface-neutral: #121314;
+  --surface-sidebar: #181919;
+  --surface-frame: #0b0c0d;
+  --surface-raised: #1f2020;
+  --surface-hover: #1b1c1d;
+  --surface-selected: #26282a;
+  --surface-composer: #1e1f20;
+  --surface-artifact: #18191a;
+
+  --ink: #cccccc;
+  --ink-muted: #959595;
+  --ink-faint: #7a7a7a;
+  --focus: #3ca6a8;
+  --line-control: #3a3a3a;
+  --line-separator: #303030;
+
+  --redwood: #26b0d7;
+  --redwood-hover: #3dbde1;
+  --redwood-pressed: #1c95b8;
+  --on-redwood: #0b0c0d;
+  --redwood-container: #1d3a44;
+  --redwood-ink: #7fd3ea;
+
+  --teal-container: #183230;
+  --teal-ink: #8fd0c4;
+  --ochre-container: #3a2f17;
+  --ochre-ink: #e0c27e;
+  --error-container: #3b1d22;
+  --error-ink: #f0a3ad;
+
+  --shadow-tint: 0 0 0;
+  --popover: #202122;
+  --link: #8fd0c4;
+}
+
+/* Dock theme. Structure follows dockview's light theme; colours map to the
+   Stone tokens above, so the one class serves light and dark. */
+.dockview-theme-stone {
+  --dv-paneview-active-outline-color: var(--focus);
+  --dv-tabs-and-actions-container-font-size: 13px;
+  --dv-tabs-and-actions-container-height: 36px;
+  --dv-drag-over-background-color: color-mix(in srgb, var(--focus) 22%, transparent);
+  --dv-drag-over-border-color: transparent;
+  --dv-edge-dock-indicator-color: var(--focus);
+  --dv-tabs-container-scrollbar-color: var(--line-control);
+  --dv-icon-hover-background-color: var(--surface-hover);
+  --dv-overlay-z-index: 999;
+  --dv-tab-font-size: inherit;
+  --dv-border-radius: 0px;
+  --dv-tab-margin: 0;
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--focus);
+  --dv-active-sash-transition-duration: 0.1s;
+  --dv-active-sash-transition-delay: 0.5s;
+  --dv-spacing-padding: 0px;
+  --dv-tab-border-radius: 0px;
+  --dv-sash-border-radius: 0px;
+  --dv-dropdown-border-radius: 6px;
+  --dv-tab-close-icon-size: inherit;
+  --dv-floating-group-border: none;
+  --dv-drag-over-border: none;
+  --dv-floating-group-dragging-opacity: 0.5;
+  --dv-floating-titlebar-height: 22px;
+  --dv-floating-titlebar-background-color: var(--dv-tabs-and-actions-container-background-color);
+  --dv-floating-titlebar-border-bottom: var(--dv-floating-border);
+  --dv-floating-box-shadow: var(--shadow-popover);
+  --dv-floating-border: 1px solid var(--line-separator);
+  --dv-tab-group-color-grey: var(--ink-faint);
+  --dv-tab-group-color-blue: var(--focus);
+  --dv-tab-group-color-red: var(--redwood);
+  --dv-tab-group-color-yellow: var(--ochre);
+  --dv-tab-group-color-green: var(--teal);
+  --dv-tab-group-color-pink: var(--redwood-hover);
+  --dv-tab-group-color-purple: var(--redwood-pressed);
+  --dv-tab-group-color-cyan: var(--teal-ink);
+  --dv-tab-group-color-orange: var(--ochre-ink);
+  --dv-tab-group-chip-padding: 4px 8px;
+  --dv-tab-group-chip-border-radius: 6px;
+  --dv-tab-group-chip-font-size: 11px;
+  --dv-tab-group-line-height: 2px;
+  --dv-tab-group-line-opacity: 0.6;
+
+  --dv-group-view-background-color: var(--background);
+  --dv-tabs-and-actions-container-background-color: var(--surface-frame);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--surface-frame);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface-frame);
+  --dv-tab-divider-color: var(--line-separator);
+  --dv-activegroup-visiblepanel-tab-color: var(--ink);
+  --dv-activegroup-hiddenpanel-tab-color: var(--ink-muted);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--ink-muted);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--ink-faint);
+  --dv-separator-border: var(--line-separator);
+  --dv-paneview-header-border-color: var(--line-separator);
+  --dv-scrollbar-background-color: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--surface-sidebar);
+  --color-frame: var(--surface-frame);
+  --color-raised: var(--surface-raised);
+  --color-hover: var(--surface-hover);
+  --color-selected: var(--surface-selected);
+  --color-composer: var(--surface-composer);
+  --color-artifact: var(--surface-artifact);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-focus: var(--focus);
+  --color-separator: var(--line-separator);
+  --color-control: var(--line-control);
+  --color-redwood: var(--redwood);
+  --color-redwood-hover: var(--redwood-hover);
+  --color-redwood-pressed: var(--redwood-pressed);
+  --color-on-redwood: var(--on-redwood);
+  --color-redwood-container: var(--redwood-container);
+  --color-redwood-ink: var(--redwood-ink);
+  --color-teal: var(--teal);
+  --color-teal-container: var(--teal-container);
+  --color-teal-ink: var(--teal-ink);
+  --color-ochre: var(--ochre);
+  --color-ochre-container: var(--ochre-container);
+  --color-ochre-ink: var(--ochre-ink);
+  --color-error-container: var(--error-container);
+  --color-error-ink: var(--error-ink);
+  --color-link: var(--link);
+
+  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Libron", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Geometry: control/row 6, popover 8, artifact 14, frame/composer 16. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-artifact: 14px;
+  --radius-2xl: 16px;
+
+  --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
+  --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
+
+  --spacing-rail: 68px;
+  --spacing-sidebar: 256px;
+  --spacing-inspector: 304px;
+  --spacing-reading: 720px;
+
+  --ease-structure: cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/* Codex-like scale: chrome sits a step tighter than body copy. Retuning the
+   familiar steps here keeps one rhythm across every component instead of
+   restating sizes in markup. */
+@theme {
+  --text-sm: 13px;
+  --text-base: 15px;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  html {
+    color-scheme: light;
+    /* Inherited by every scroller; the thread viewport always shows its track. */
+    scrollbar-color: var(--line-control) transparent;
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    /* Codex's crispness is a treatment, not a family: the font's own kerning
+       and standard ligatures stay on at every size, and IBM Plex Sans's looser
+       default spacing is pulled in to the platform's rhythm. */
+    font-kerning: normal;
+    font-variant-ligatures: common-ligatures contextual;
+    letter-spacing: -0.01em;
+  }
+
+  /* Titles keep the serif. It ships only 400 and 700, so the weight axis is
+     spent on the sans and the hierarchy here comes from size and tracking. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+
+  /* Noun icons are bare filled contours; Lucide-derived ones declare fill="none" and stroke. */
+  svg[data-icon]:not([fill]) {
+    fill: currentColor;
+  }
+
+  /* A Noun mark is an outline of line art: the API returns each stroke as a
+     pair of thin contours around a hollow centre, so the family washes out to
+     a wisp at control size. A same-colour stroke closes that hollow and
+     leaves the mark with the weight it was drawn with, without touching a byte
+     of the licensed assets. The stroked sets declare a fill and are left
+     alone, and the message toolbar marks, which arrive solid, opt out. */
+  svg[data-icon]:not([fill]):not(.icon-solid) {
+    stroke: currentColor;
+    stroke-width: 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+    /* Mono keeps its own metrics; the sans tracking does not reach code. */
+    letter-spacing: normal;
+  }
+
+  ::selection {
+    background: var(--redwood-container);
+    color: var(--redwood-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* @tailwindcss/typography, re-pointed at the Stone tokens. A utility rather
+   than a component: the plugin's .prose lands in the utilities layer, which
+   outranks the components layer and would keep its light-theme grays. The
+   tokens already switch per theme, so no prose-invert pairing is needed. */
+@utility prose-theorem {
+  --tw-prose-body: var(--ink);
+  --tw-prose-headings: var(--ink);
+  --tw-prose-lead: var(--ink-muted);
+  --tw-prose-links: var(--link);
+  --tw-prose-bold: var(--ink);
+  --tw-prose-counters: var(--ink-faint);
+  --tw-prose-bullets: var(--ink-faint);
+  --tw-prose-hr: var(--line-separator);
+  --tw-prose-quotes: var(--ink-muted);
+  --tw-prose-quote-borders: var(--line-separator);
+  --tw-prose-captions: var(--ink-faint);
+  --tw-prose-code: var(--ink);
+  --tw-prose-pre-code: var(--ink);
+  --tw-prose-pre-bg: transparent;
+  --tw-prose-th-borders: var(--line-control);
+  --tw-prose-td-borders: var(--line-separator);
+  font-family: var(--font-sans);
+
+  & :where(h1, h2, h3, h4):not(:where(.not-prose *)) {
+    font-family: var(--font-heading);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+
+  & a {
+    text-underline-offset: 2px;
+  }
+}
