@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
+import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
+import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
@@ -22,6 +24,16 @@ const ChatRoute = ChatRouteImport.update({
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatIdeRoute = ChatIdeRouteImport.update({
+  id: '/ide',
+  path: '/ide',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatSpacesRoute = ChatSpacesRouteImport.update({
+  id: '/spaces',
+  path: '/spaces',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
@@ -43,11 +55,15 @@ const V1TheoremAgentStreamSplatRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/ide': typeof ChatIdeRoute
+  '/spaces': typeof ChatSpacesRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesByTo {
+  '/ide': typeof ChatIdeRoute
+  '/spaces': typeof ChatSpacesRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
@@ -56,6 +72,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/_chat/ide': typeof ChatIdeRoute
+  '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
@@ -64,12 +82,25 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/c/$threadId' | '/api/chat/v1/$' | '/v1/theorem/agent/stream/$'
+    | '/'
+    | '/ide'
+    | '/spaces'
+    | '/c/$threadId'
+    | '/api/chat/v1/$'
+    | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/c/$threadId' | '/api/chat/v1/$' | '/v1/theorem/agent/stream/$'
+  to:
+    | '/ide'
+    | '/spaces'
+    | '/'
+    | '/c/$threadId'
+    | '/api/chat/v1/$'
+    | '/v1/theorem/agent/stream/$'
   id:
     | '__root__'
     | '/_chat'
+    | '/_chat/ide'
+    | '/_chat/spaces'
     | '/_chat/'
     | '/_chat/c/$threadId'
     | '/api/chat/v1/$'
@@ -98,6 +129,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/ide': {
+      id: '/_chat/ide'
+      path: '/ide'
+      fullPath: '/ide'
+      preLoaderRoute: typeof ChatIdeRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/spaces': {
+      id: '/_chat/spaces'
+      path: '/spaces'
+      fullPath: '/spaces'
+      preLoaderRoute: typeof ChatSpacesRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/c/$threadId': {
       id: '/_chat/c/$threadId'
       path: '/c/$threadId'
@@ -123,11 +168,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface ChatRouteChildren {
+  ChatIdeRoute: typeof ChatIdeRoute
+  ChatSpacesRoute: typeof ChatSpacesRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatCThreadIdRoute: typeof ChatCThreadIdRoute
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatIdeRoute: ChatIdeRoute,
+  ChatSpacesRoute: ChatSpacesRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatCThreadIdRoute: ChatCThreadIdRoute,
 }

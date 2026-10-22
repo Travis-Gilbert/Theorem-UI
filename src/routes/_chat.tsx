@@ -1,13 +1,15 @@
-// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id)
+// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode)
 import {
   createFileRoute,
   Outlet,
   useNavigate,
   useParams,
 } from '@tanstack/react-router'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { ChatShell, ShellStatus } from '@/components/shell/chat-shell'
+import { useShellMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
+import { useShell } from '@/components/shell/shell-state'
 import { describeError } from '@/lib/theorem/client'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 
@@ -21,6 +23,14 @@ function ChatLayout() {
   const { threadId } = useParams({ strict: false })
   const navigate = useNavigate()
   const { project, error } = useActiveProject()
+
+  // Spaces and the IDE keep the last conversation open behind them.
+  const mode = useShellMode()
+  const chatThreadId = useShell((s) => s.chatThreadId)
+  const openThreadId = mode === 'chat' ? threadId : chatThreadId
+  useEffect(() => {
+    if (mode === 'chat') useShell.getState().setChatThreadId(threadId)
+  }, [mode, threadId])
 
   const onThreadIdChange = useCallback(
     (id: string | undefined) => {
@@ -43,10 +53,10 @@ function ChatLayout() {
     <TheoremRuntimeProvider
       key={project.projectId}
       projectId={project.projectId}
-      threadId={threadId}
+      threadId={openThreadId}
       onThreadIdChange={onThreadIdChange}
     >
-      <ChatShell projectId={project.projectId} threadId={threadId} />
+      <ChatShell projectId={project.projectId} threadId={openThreadId} />
       <Outlet />
     </TheoremRuntimeProvider>
   )

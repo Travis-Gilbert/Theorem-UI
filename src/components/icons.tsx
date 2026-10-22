@@ -26,7 +26,9 @@ import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
 import { Trash2 as Delete } from 'lucide-react'
+import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
+import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
 import Writing from '@/assets/icons/rail/noun-writing-8280302.svg?react'
 import Add from '@/assets/icons/records/noun-add-8086054.svg?react'
 import Archive from '@/assets/icons/records/noun-archive-8315826.svg?react'
@@ -91,6 +93,7 @@ export const Icon = {
   Expand,
   Eye,
   File,
+  Ide: Shellfile,
   Layout,
   Link,
   Menu,
@@ -108,6 +111,7 @@ export const Icon = {
   Send,
   Settings,
   Share,
+  Spaces: PenroseTriangle,
   Stop,
   Sun,
   Web,

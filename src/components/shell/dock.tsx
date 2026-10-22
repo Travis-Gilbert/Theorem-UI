@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), assistant-ui Thread element and ThreadListPrimitive.New, zustand stores for artifact view and saved layouts
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, zustand stores for artifact view and saved layouts
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
@@ -13,10 +13,10 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
 import { SidebarContents } from './sidebar'
 
@@ -43,12 +43,17 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
+/** The main panel: the conversation in chat mode, the mode's view otherwise. */
 function ThreadPanel({ api }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
-  useEffect(() => api.setTitle(title || 'New chat'), [api, title])
+  const mode = useShellMode()
+  useEffect(
+    () => api.setTitle(mode === 'chat' ? title || 'New chat' : modeLabel(mode)),
+    [api, mode, title],
+  )
   return (
     <div className="h-full bg-background">
-      <Thread />
+      <ModeView />
     </div>
   )
 }

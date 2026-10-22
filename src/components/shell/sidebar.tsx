@@ -1,5 +1,6 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), next-themes (theme toggle)
+// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher, account menu), Base UI ToggleGroup via ModeSwitch, ui/avatar over Base UI Avatar, ui/dialog over Base UI Dialog (new project), next-themes (theme), @tanstack/react-query (session bootstrap)
 import { Menu } from '@base-ui/react/menu'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import { useState } from 'react'
@@ -12,8 +13,8 @@ import {
 } from '@/components/assistant-ui/elements/thread-list.aui'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { IconTile } from '@/components/ui/icon-tile'
 import {
   Dialog,
   DialogContent,
@@ -23,12 +24,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { describeError } from '@/lib/theorem/client'
+import { bootstrap, describeError } from '@/lib/theorem/client'
+import { ModeSwitch } from './modes'
 import { useActiveProject, useCreateProject } from './projects'
 import { useShell } from './shell-state'
 
 const menuItem =
   'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
+
+const menuPopup =
+  'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+
+/** A top-level sidebar row: New chat and the project switcher. */
+const navRow =
+  'h-8 w-full justify-start gap-2 rounded-md px-2 text-sm font-normal hover:bg-hover'
 
 function NewProjectDialog({
   open,
@@ -113,17 +122,15 @@ function ProjectSwitcher() {
           render={
             <Button
               variant="ghost"
-              className="h-8 w-full justify-start gap-2 rounded-md px-2.5 text-sm font-normal hover:bg-hover data-popup-open:bg-hover"
+              className={`${navRow} data-popup-open:bg-hover`}
             />
           }
         >
-          <IconTile size="md">
-            <Icon.Projects className="size-4" />
-          </IconTile>
+          <Icon.Projects className="size-4 text-ink-muted" />
           <span className="min-w-0 flex-1 truncate text-start">
             {project?.title ?? 'Project'}
           </span>
-          <Icon.Next className="size-3 shrink-0 rotate-90 text-ink-faint" />
+          <Icon.Next className="size-2.5 shrink-0 rotate-90 text-ink-faint" />
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner
@@ -132,7 +139,7 @@ function ProjectSwitcher() {
             sideOffset={4}
             className="z-50"
           >
-            <Menu.Popup className="w-(--anchor-width) min-w-52 origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0">
+            <Menu.Popup className={`w-(--anchor-width) min-w-52 ${menuPopup}`}>
               <Menu.Group>
                 <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
                   Projects
@@ -174,22 +181,84 @@ function ProjectSwitcher() {
   )
 }
 
-function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme()
-  const dark = resolvedTheme === 'dark'
+const THEMES = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'Match system' },
+]
+
+/** "Travis-Gilbert" reads as TG; a single word gives its first two letters. */
+function initials(name: string) {
+  const [first = '', second] = name.split(/[\s._-]+/).filter(Boolean)
   return (
-    <TooltipIconButton
-      tooltip={dark ? 'Light theme' : 'Dark theme'}
-      side="top"
-      className="size-9 p-2"
-      onClick={() => setTheme(dark ? 'light' : 'dark')}
-    >
-      {dark ? (
-        <Icon.Sun className="size-[18px]" />
-      ) : (
-        <Icon.Moon className="size-[18px]" />
-      )}
-    </TooltipIconButton>
+    second ? first.charAt(0) + second.charAt(0) : first.slice(0, 2)
+  ).toUpperCase()
+}
+
+/** The signed-in tenant, with the theme choice behind it. */
+function AccountMenu() {
+  const { theme, setTheme } = useTheme()
+  const { data } = useQuery({
+    queryKey: ['theorem', 'bootstrap'],
+    queryFn: () => bootstrap(),
+    staleTime: Infinity,
+  })
+  const tenant = data?.tenantId
+
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        render={
+          <Button
+            variant="ghost"
+            className="h-10 w-full justify-start gap-2.5 rounded-md px-2 text-sm font-normal hover:bg-hover data-popup-open:bg-hover"
+          />
+        }
+      >
+        <Avatar size="sm">
+          <AvatarFallback className="bg-selected text-[10px] font-medium text-ink">
+            {tenant ? initials(tenant) : null}
+          </AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1 truncate text-start">
+          {tenant ?? 'Theorem'}
+        </span>
+        <Icon.Next className="size-2.5 shrink-0 -rotate-90 text-ink-faint" />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner
+          side="top"
+          align="start"
+          sideOffset={4}
+          className="z-50"
+        >
+          <Menu.Popup className={`w-(--anchor-width) min-w-52 ${menuPopup}`}>
+            <Menu.Group>
+              <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                Theme
+              </Menu.GroupLabel>
+              <Menu.RadioGroup
+                value={theme}
+                onValueChange={(value) => setTheme(String(value))}
+              >
+                {THEMES.map(({ value, label }) => (
+                  <Menu.RadioItem
+                    key={value}
+                    value={value}
+                    className={`${menuItem} data-checked:font-medium`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    <Menu.RadioItemIndicator>
+                      <Icon.Check className="size-3.5" />
+                    </Menu.RadioItemIndicator>
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioGroup>
+            </Menu.Group>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   )
 }
 
@@ -205,25 +274,29 @@ export function SidebarContents({
   const [search, setSearch] = useState('')
 
   return (
-    <ThreadListRoot className="flex h-full flex-col gap-0">
-      <div className="flex h-14 shrink-0 items-center justify-between ps-4 pe-2">
-        <span className="font-heading text-[21px] font-normal tracking-tight leading-none">
-          Theorem
-        </span>
+    <ThreadListRoot className="flex h-full flex-col">
+      <div className="@container/header flex h-12 shrink-0 items-center gap-1 px-2">
         {onClose && (
           <TooltipIconButton
             tooltip={closeLabel}
-            className="size-9 p-2"
+            className="size-7 p-1.5"
             onClick={onClose}
           >
-            <Icon.Layout className="size-[18px]" />
+            <Icon.Layout className="size-4" />
           </TooltipIconButton>
         )}
+        {/* The wordmark gives way to the mode switch in a narrow sidebar. */}
+        <span className="min-w-0 flex-1 truncate ps-1 font-heading text-[19px] leading-none font-normal tracking-tight @max-[12.5rem]/header:invisible">
+          Theorem
+        </span>
+        <ModeSwitch />
       </div>
-      <div className="flex shrink-0 flex-col gap-0.5 px-2">
+      <div className="flex shrink-0 flex-col gap-px px-2 pb-1">
+        <div className="pb-1.5">
+          <ThreadListSearch value={search} onValueChange={setSearch} />
+        </div>
         <ThreadListNew className="w-full" />
         <ProjectSwitcher />
-        <ThreadListSearch value={search} onValueChange={setSearch} />
       </div>
       <nav
         aria-label="Chats"
@@ -231,8 +304,8 @@ export function SidebarContents({
       >
         <ThreadListItems searchQuery={search} />
       </nav>
-      <div className="flex shrink-0 items-center border-t border-separator px-2 py-2">
-        <ThemeToggle />
+      <div className="shrink-0 border-t border-separator p-1.5">
+        <AccountMenu />
       </div>
     </ThreadListRoot>
   )
