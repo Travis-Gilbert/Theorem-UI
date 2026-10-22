@@ -183,7 +183,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
 
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
+      className="aui-root aui-thread-root @container flex h-full flex-col"
       style={{
         ["--thread-max-width" as string]: "var(--spacing-reading)",
         ["--composer-bg" as string]: "var(--surface-composer)",
@@ -222,9 +222,11 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
 
           <ThreadPrimitive.ViewportFooter
             className={cn(
-              "aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
+              "aui-thread-viewport-footer flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
+              // Pinned to the sheet's bottom edge, it covers the messages
+              // scrolling under it with the stretch of gradient it sits on.
               !isEmpty &&
-                "sticky bottom-0 mt-auto rounded-t-(--composer-radius)",
+                "bg-sheet sticky bottom-0 mt-auto rounded-t-(--composer-radius) bg-bottom",
             )}
           >
             <ThreadScrollToBottom />
