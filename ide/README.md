@@ -68,11 +68,24 @@ tooling is removed.
 | `@theia/terminal` | Not Bun-specific: with the bottom panel collapsed, Toggle Terminal expands it on its last tab rather than the terminal. | Activates the terminal through the shell. |
 | `drivelist` | Not Bun-specific: the native build breaks when the checkout path contains a space. | Uses `node-addon-api`'s unquoted `include_dir`. |
 
+## Stone themes (`theia-extensions/theorem-workspace`)
+
+- Theorem Stone Light and Dark (`theorem-stone-light`, `theorem-stone-dark`) are the default, following
+  the OS, and the themes the IDE bridge sets when the Theorem UI switches between light and dark. They
+  are VS Code colour themes (`src/browser/themes/stone/`) built from the UI's Stone tokens in
+  `src/styles.css`, and they `include` GitHub Light/Dark Default for syntax, the themes the UI
+  highlights chat code with.
+- Chrome and editors are transparent, and `style/stone.css` paints the UI's sheet gradient behind the
+  workbench from the contributed `theoremSheet.top` / `theoremSheet.bottom` colours, so the frame and the
+  sheet around it, rail junction included, read as one surface. Monaco keeps `editor.background` opaque,
+  so editors read `theoremSheet.editorBackground` instead. Other themes default all three to their
+  editor background and look as before.
+
 ## Zed look (`theia-extensions/zed-look`)
 
 - Zed's bundled One, Ayu and Gruvbox theme families, converted to VS Code themes and registered
-  with Monaco (`zed-theme-converter.ts` inverts Zed's `theme_importer`). The default is
-  One Dark (Zed).
+  with Monaco (`zed-theme-converter.ts` inverts Zed's `theme_importer`). They stay selectable;
+  the default is Theorem Stone (below).
 - Zed's title bar in place of the menu bar: an application menu button that holds the main menu, the
   project name, which opens recent workspaces, and the current branch, which opens git's branch picker
   (and so leaves the status bar).

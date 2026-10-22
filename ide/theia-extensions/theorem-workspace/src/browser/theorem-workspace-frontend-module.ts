@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import '../../src/browser/style/stone.css';
+
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
 import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
@@ -26,6 +28,7 @@ import { TheoremIdeBridge } from './theorem-ide-bridge';
 import { TheoremFileSystemProvider } from './theorem-file-system-provider';
 import { TheoremLanguageFeatures } from './theorem-language-features';
 import { TheoremScmContribution, TheoremScmResourceResolver } from './theorem-scm';
+import { TheoremStoneTheme } from './theorem-stone-theme';
 import { TheoremTerminalFrontendContribution, TheoremTerminalWidget } from './theorem-terminal';
 import {
     TheiaUserStorageProviderContribution, TheoremUserStorageContribution, TheoremWorkspaceServer, theoremEnvVariablesServer
@@ -71,4 +74,8 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     ]) {
         bind(contribution).toService(TheoremScmContribution);
     }
+
+    bind(TheoremStoneTheme).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(TheoremStoneTheme);
+    bind(ColorContribution).toService(TheoremStoneTheme);
 });

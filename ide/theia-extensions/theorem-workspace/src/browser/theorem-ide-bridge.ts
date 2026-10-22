@@ -24,10 +24,10 @@ import { scalarToUtf16, utf8ToUtf16, type TheoremLocation, type TheoremRange } f
 import { connect, WindowMessenger, type RemoteProxy } from 'penpal';
 import type { IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
 import { TheoremConnection } from './theorem-connection';
+import { STONE_THEMES } from './theorem-stone-theme';
 
 export const ADD_TO_CHAT: Command = { id: 'theorem.addToChat', label: 'Add Selection to Chat', category: 'Theorem' };
 
-const THEMES = { dark: 'zed-one-dark', light: 'zed-one-light' };
 const FOLLOW_ENTRY = 'theorem.follow';
 
 /**
@@ -61,7 +61,7 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             reveal: (location, options) => this.reveal(location, options),
             // Stored as the colour theme preference (browser storage), so Theia's own
             // startup does not put the configured theme back over it.
-            setTheme: dark => this.themes.setCurrentTheme(dark ? THEMES.dark : THEMES.light, true),
+            setTheme: dark => this.themes.setCurrentTheme(dark ? STONE_THEMES.dark : STONE_THEMES.light, true),
             executeCommand: (id, args = []) => this.commands.executeCommand(id, ...args),
             setSidebar: open => this.setSidebar(open),
             setFollowing: following => this.showFollowing(following),

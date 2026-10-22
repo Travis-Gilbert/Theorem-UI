@@ -8,7 +8,10 @@
     "frontend": {
       "config": {
         "applicationName": "Theorem UI",
-        "defaultTheme": "zed-one-dark",
+        "defaultTheme": {
+          "light": "theorem-stone-light",
+          "dark": "theorem-stone-dark"
+        },
         "defaultIconTheme": "theia-file-icons",
         "preferences": {
           "files.enableTrash": false,
