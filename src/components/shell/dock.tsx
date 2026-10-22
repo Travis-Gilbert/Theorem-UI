@@ -9,13 +9,7 @@ import type {
   IDockviewPanelHeaderProps,
   IDockviewPanelProps,
 } from 'dockview-react'
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
@@ -25,11 +19,10 @@ import { useFollow } from '@/components/ide/follow'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { ModeView, modeLabel, useOpenMode, useShellMode } from './modes'
+import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
 
 const THREAD = 'thread'
-const IDE = 'ide'
 const ARTIFACT = 'artifact:'
 
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
@@ -50,7 +43,7 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation in chat and IDE modes, the mode's view otherwise. */
+/** The main panel: the conversation, or the mode's view in Spaces. Theia covers the dock in IDE mode. */
 function ThreadPanel({ api }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
@@ -111,6 +104,7 @@ function ArtifactDockPanel({
 
 const components = {
   thread: ThreadPanel,
+  // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
   ide: IdeFrame,
   artifact: ArtifactDockPanel,
 }
@@ -175,6 +169,9 @@ function restoreLayout(
     api.clear()
     return false
   }
+  // Theia now covers the sheet in IDE mode, so an IDE panel would load it twice.
+  const ide = api.getPanel('ide')
+  if (ide) api.removePanel(ide)
   if (api.getPanel(THREAD)) return true
   api.clear()
   return false
@@ -211,28 +208,6 @@ function openArtifact(api: DockviewApi, artifactId: string) {
     api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
 }
 
-/** The IDE opens once, beside the conversation, and is focused when asked for again. */
-function openIde(api: DockviewApi) {
-  const existing = api.getPanel(IDE)
-  if (existing) {
-    existing.api.setActive()
-    return
-  }
-  const options = {
-    id: IDE,
-    component: 'ide',
-    title: 'IDE',
-    minimumWidth: 480,
-    initialWidth: Math.round(api.width * 0.6),
-  }
-  if (api.getPanel(THREAD)?.api.location.type === 'grid')
-    api.addPanel({
-      ...options,
-      position: { referencePanel: THREAD, direction: 'right' },
-    })
-  else api.addPanel({ ...options, position: { direction: 'right' } })
-}
-
 /**
  * Desktop dock: the conversation and each open artifact as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
@@ -249,16 +224,6 @@ export function DockShell({
   const [dock, setDock] = useState<DockviewApi>()
   /** Conversation the layout's artifact panels belong to. */
   const layoutThread = useRef<string | undefined>(undefined)
-  const mode = useShellMode()
-  const openMode = useOpenMode()
-  const leaveIde = useEffectEvent(() => {
-    if (mode === 'ide') void openMode('chat')
-  })
-
-  // IDE mode is the IDE panel beside the conversation; closing it leaves the mode.
-  useEffect(() => {
-    if (dock && mode === 'ide') openIde(dock)
-  }, [dock, mode])
 
   const onReady = ({ api }: DockviewReadyEvent) => {
     const saved = useShell.getState().layouts[projectId]
@@ -298,7 +263,6 @@ export function DockShell({
         if (artifactId) useArtifactView.getState().focused(artifactId)
       }),
       dock.onDidRemovePanel((panel) => {
-        if (panel.id === IDE) leaveIde()
         const artifactId = artifactIdOf(panel.id)
         if (artifactId) useArtifactView.getState().closed(artifactId)
       }),

@@ -22,13 +22,19 @@ export type IdeFrameMethods = {
     reveal(location: TheoremLocation, options?: RevealOptions): Promise<boolean>;
     setTheme(dark: boolean): void;
     executeCommand(id: string, args?: unknown[]): Promise<unknown>;
+    /** Show or hide the left side panel; the rail's IDE button drives it. */
+    setSidebar(open: boolean): void;
+    /** Whether Follow the Agent is on, for the frame's status bar. */
+    setFollowing(following: boolean): void;
 };
 
 /** What the Theorem UI offers the IDE frame inside it. */
 export type IdeHostMethods = {
-    /** The person's selection in the IDE, or undefined when no editor is current. */
-    selectionChanged(location: TheoremLocation | undefined): void;
     addToChat(reference: TheoremContextReference): void;
     /** The person moved to another place themselves, so Follow pauses. */
     navigated(location: TheoremLocation): void;
+    /** The left side panel opened or closed. */
+    sidebarChanged(open: boolean): void;
+    /** The person turned Follow the Agent on or off from the status bar. */
+    setFollowing(following: boolean): void;
 };

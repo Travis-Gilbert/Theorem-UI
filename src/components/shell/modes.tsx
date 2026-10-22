@@ -64,8 +64,8 @@ function ModePlaceholder({ mode }: { mode: ShellMode }) {
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
- * In the dock the IDE is a panel of its own, so the conversation stays in
- * view beside it; on a phone the IDE takes the screen.
+ * On the desktop Theia covers the whole sheet in IDE mode, so the dock keeps
+ * the conversation laid out beneath it; on a phone the IDE takes the screen.
  */
 export function ModeView({ docked = false }: { docked?: boolean }) {
   const mode = useShellMode()

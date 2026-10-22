@@ -7,7 +7,7 @@ A browser-only [Eclipse Theia](https://theia-ide.org) application (Theia 1.76.0)
 It has no Theia backend: files, shared documents, terminals, language features, problems and
 source control come from the Theorem workspace
 host through `@theoremharness/sdk`, and the Theorem UI at the repo root serves the build at
-`/theia/` and shows it in its IDE panel. The layout follows
+`/theia/` and shows it across the whole sheet in IDE mode. The layout follows
 [eclipse-theia/theia-ide](https://github.com/eclipse-theia/theia-ide): published `@theia/*` packages,
 an application in `applications/browser`, and our own extensions in `theia-extensions/`.
 
@@ -47,8 +47,9 @@ Rebinds the seams Theia's own browser-only modules use:
   served under the `theorem-scm` scheme, which also gives editors Theia's dirty-diff gutter.
 - Theia's own settings and storage stay in the browser under a `theia-user` scheme.
 - `TheoremIdeBridge` links the frame to the Theorem UI with Penpal (contract in
-  `src/common/ide-bridge.ts`): reveal, theme and commands one way, selection, Add Selection to
-  Chat and manual navigation (which pauses Follow the Agent) the other.
+  `src/common/ide-bridge.ts`): reveal, theme, commands, the sidebar and Follow the Agent's state
+  one way; Add Selection to Chat, manual navigation (which pauses Follow the Agent), the sidebar
+  opening or closing and the status bar's Follow switch the other.
 
 ## Patches
 

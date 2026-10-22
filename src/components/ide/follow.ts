@@ -16,8 +16,6 @@ type FollowState = {
   following: boolean
   /** The IDE frame while one is open and linked. */
   ide: RemoteProxy<IdeFrameMethods> | undefined
-  /** The person's selection in the IDE. */
-  selection: TheoremLocation | undefined
   pause: () => void
   resume: () => void
 }
@@ -25,7 +23,6 @@ type FollowState = {
 export const useFollow = create<FollowState>()((set) => ({
   following: true,
   ide: undefined,
-  selection: undefined,
   pause: () => set({ following: false }),
   resume: () => set({ following: true }),
 }))

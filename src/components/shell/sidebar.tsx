@@ -216,10 +216,9 @@ function ModePanel({ mode }: { mode: 'spaces' }) {
 }
 
 /**
- * The panel beside the rail belongs to the active mode. The IDE keeps the
- * conversation in view beside it, so its panel is Chat's. Chat's panel stays
- * mounted behind Spaces, so its search, scroll and open branches survive a
- * switch.
+ * The panel beside the rail belongs to the active mode. Theia covers it in
+ * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
+ * Spaces, so its search, scroll and open branches survive a switch.
  */
 export function ContextPanel() {
   const mode = useShellMode()

@@ -42,10 +42,10 @@ Theorem through `@theoremharness/sdk`. Nothing runs in a Theia Node backend.
 | Shared editing | `ot-text-unicode` transforms pending local edits against accepted remote edits | It works in Unicode scalar offsets, which is the authority's unit |
 | Undo | A per-client undo stack of invertible operations, transformed against remote edits | Monaco's own stack would undo other actors' edits |
 | Theia target | `browser-only` from Theia 1.76, with `FileSystemProvider`, `MonacoEditorModelFactory` and `TerminalFrontendContribution` rebound to Theorem | These are the seams Theia's own browser-only modules use |
-| Embedding | Theia's frontend is served by the Theorem UI at `/theia/` (Nitro `publicAssets`) and shown in a dock panel beside the conversation | Same origin, so the frame's SDK calls go through the UI's proxy, which adds the server token; `/ide` is already the route of the UI's IDE mode |
+| Embedding | Theia's frontend is served by the Theorem UI at `/theia/` (Nitro `publicAssets`). In IDE mode it fills the sheet beside the rail; the rail's IDE button shows and hides Theia's sidebar, and Theia stays loaded behind the other modes | Same origin, so the frame's SDK calls go through the UI's proxy, which adds the server token; `/ide` is already the route of the UI's IDE mode |
 | Bridge | Penpal 8 method calls over `postMessage`, typed by one contract (`ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts`) | Origin-checked, promise-based calls in both directions instead of a hand-written message protocol |
 | Theia's own state | Settings, keymaps and plugin storage live in the browser (OPFS) under a `theia-user` scheme | `file` names the Theorem workspace, so nothing of Theia's is written into the checkout |
-| Follow the Agent | On by default. Files the live run's tool calls name open in Theia's preview editor without focus; artifacts the run writes open in their panel. Moving in the IDE pauses it; the eye button beside New chat and the IDE bar resume it | One switch for every view, so the artifact panel and the IDE behave the same |
+| Follow the Agent | On by default. Files the live run's tool calls name open in Theia's preview editor without focus; artifacts the run writes open in their panel. Moving in the IDE pauses it; the eye button beside New chat and the switch in Theia's status bar resume it | One switch for every view, so the artifact panel and the IDE behave the same |
 
 ## Checklist
 

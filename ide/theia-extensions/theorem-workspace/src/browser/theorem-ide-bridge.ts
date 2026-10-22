@@ -1,5 +1,6 @@
 // SOURCING: penpal (connect + WindowMessenger) links this frame to the Theorem UI around it;
-// @theia/editor EditorManager, @theia/core ThemeService and CommandService do every action,
+// @theia/editor EditorManager, @theia/core ThemeService, CommandService, ApplicationShell and
+// StatusBar do every action,
 // and @theoremharness/sdk converts character units. Only the mapping between Theia's
 // editors and Theorem locations is written here.
 // *****************************************************************************
@@ -9,7 +10,9 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { FrontendApplicationContribution, KeybindingContribution, KeybindingRegistry } from '@theia/core/lib/browser';
+import {
+    ApplicationShell, FrontendApplicationContribution, KeybindingContribution, KeybindingRegistry, StatusBar, StatusBarAlignment
+} from '@theia/core/lib/browser';
 import { ThemeService } from '@theia/core/lib/browser/theming';
 import {
     Command, CommandContribution, CommandRegistry, CommandService, DisposableCollection, MenuContribution, MenuModelRegistry
@@ -25,12 +28,13 @@ import { TheoremConnection } from './theorem-connection';
 export const ADD_TO_CHAT: Command = { id: 'theorem.addToChat', label: 'Add Selection to Chat', category: 'Theorem' };
 
 const THEMES = { dark: 'zed-one-dark', light: 'zed-one-light' };
-const SELECTION_DELAY_MS = 150;
+const FOLLOW_ENTRY = 'theorem.follow';
 
 /**
  * The frame's side of the link with the Theorem UI: it shows the places the
- * UI asks for, reports the person's selection, and says when the person moved
- * somewhere themselves so Follow the Agent can stand aside.
+ * UI asks for, says when the person moved somewhere themselves so Follow the
+ * Agent can stand aside, keeps the left side panel in step with the UI's rail
+ * and shows Follow the Agent in the status bar.
  */
 @injectable()
 export class TheoremIdeBridge implements FrontendApplicationContribution, CommandContribution, MenuContribution, KeybindingContribution {
@@ -39,6 +43,8 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     @inject(EditorManager) protected readonly editors: EditorManager;
     @inject(ThemeService) protected readonly themes: ThemeService;
     @inject(CommandService) protected readonly commands: CommandService;
+    @inject(ApplicationShell) protected readonly shell: ApplicationShell;
+    @inject(StatusBar) protected readonly statusBar: StatusBar;
 
     protected host: RemoteProxy<IdeHostMethods> | undefined;
     /** True while a reveal the UI asked for is moving the editor. */
@@ -57,10 +63,13 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             // startup does not put the configured theme back over it.
             setTheme: dark => this.themes.setCurrentTheme(dark ? THEMES.dark : THEMES.light, true),
             executeCommand: (id, args = []) => this.commands.executeCommand(id, ...args),
+            setSidebar: open => this.setSidebar(open),
+            setFollowing: following => this.showFollowing(following),
         };
         connect<IdeHostMethods>({ messenger: new WindowMessenger({ remoteWindow: window.parent }), methods: { ...methods } })
             .promise.then(host => {
                 this.host = host;
+                this.shell.leftPanelHandler.tabBar.currentChanged.connect(() => void host.sidebarChanged(this.sidebarOpen()));
                 this.editors.onCurrentEditorChanged(() => this.watchCurrentEditor());
                 this.watchCurrentEditor();
             }, error => console.warn('Theorem UI link not established', error));
@@ -108,21 +117,14 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     protected watchCurrentEditor(): void {
         this.toDisposeOnEditor.dispose();
         const editor = this.editors.currentEditor?.editor;
-        const location = this.locationOf(editor);
-        this.reportNavigation(location);
-        void this.host?.selectionChanged(location);
-        if (!editor) {
-            return;
+        this.reportNavigation(this.locationOf(editor));
+        if (editor) {
+            this.toDisposeOnEditor.push(editor.onSelectionChanged(() => {
+                if (editor.isFocused()) {
+                    this.reportNavigation(this.locationOf(editor));
+                }
+            }));
         }
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        this.toDisposeOnEditor.push(editor.onSelectionChanged(() => {
-            if (editor.isFocused()) {
-                this.reportNavigation(this.locationOf(editor));
-            }
-            clearTimeout(timer);
-            timer = setTimeout(() => void this.host?.selectionChanged(this.locationOf(editor)), SELECTION_DELAY_MS);
-        }));
-        this.toDisposeOnEditor.push({ dispose: () => clearTimeout(timer) });
     }
 
     protected reportNavigation(location: TheoremLocation | undefined): void {
@@ -130,6 +132,34 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             this.navigatedSent = true;
             void this.host?.navigated(location);
         }
+    }
+
+    /** Read from the side bar, which changes before the panel it shows. */
+    protected sidebarOpen(): boolean {
+        return this.shell.leftPanelHandler.tabBar.currentTitle !== null;
+    }
+
+    protected setSidebar(open: boolean): void {
+        if (open === this.sidebarOpen()) {
+            return;
+        }
+        if (open) {
+            this.shell.expandPanel('left');
+        } else {
+            void this.shell.collapsePanel('left');
+        }
+    }
+
+    protected showFollowing(following: boolean): void {
+        const label = following ? 'Following the agent' : 'Follow the agent';
+        this.statusBar.setElement(FOLLOW_ENTRY, {
+            text: `$(${following ? 'eye' : 'eye-closed'}) ${label}`,
+            tooltip: following ? 'Pause Follow the Agent' : 'Follow the agent',
+            accessibilityInformation: { label, role: 'button' },
+            alignment: StatusBarAlignment.LEFT,
+            priority: 1,
+            onclick: () => void this.host?.setFollowing(!following),
+        });
     }
 
     protected addToChat(): void {
