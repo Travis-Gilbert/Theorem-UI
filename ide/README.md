@@ -1,4 +1,7 @@
-# Theorem UI
+# Theorem UI IDE
+
+The IDE half of Theorem UI, kept apart from the site at the repo root: its own `package.json`,
+`bun.lock` and patches, so run everything below from `ide/`.
 
 A browser-and-backend [Eclipse Theia](https://theia-ide.org) application (Theia 1.76.0) that runs on
 [Bun](https://bun.sh) instead of Node, with a Zed look. The layout follows
