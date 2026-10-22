@@ -1,20 +1,13 @@
-// SOURCING: Base UI ToggleGroup + Toggle (mode switch), ui/tooltip over Base UI Tooltip, @tanstack/react-router (each mode is a route), assistant-ui Thread element
-import { Toggle } from '@base-ui/react/toggle'
-import { ToggleGroup } from '@base-ui/react/toggle-group'
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { Icon } from '@/components/icons'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useShell } from './shell-state'
 
 export type ShellMode = 'chat' | 'spaces' | 'ide'
 
-const MODES = [
+/** The rail's destinations, in order. */
+export const MODES = [
   { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
   { mode: 'spaces', label: 'Spaces', Mark: Icon.Spaces },
   { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
@@ -40,12 +33,10 @@ export function useShellMode(): ShellMode {
   })
 }
 
-/** Chat, Spaces and IDE as one segmented control. */
-export function ModeSwitch() {
-  const mode = useShellMode()
+/** Navigates to a mode. Chat returns to the conversation it last showed. */
+export function useOpenMode() {
   const navigate = useNavigate()
-
-  const open = (next: ShellMode) => {
+  return (next: ShellMode) => {
     if (next === 'spaces') return navigate({ to: '/spaces' })
     if (next === 'ide') return navigate({ to: '/ide' })
     const threadId = useShell.getState().chatThreadId
@@ -53,37 +44,6 @@ export function ModeSwitch() {
       ? navigate({ to: '/c/$threadId', params: { threadId } })
       : navigate({ to: '/' })
   }
-
-  return (
-    <TooltipProvider>
-      <ToggleGroup
-        aria-label="Mode"
-        value={[mode]}
-        // Pressing the current mode again would leave none pressed; one always is.
-        onValueChange={([next]) => {
-          if (next && next !== mode) void open(next)
-        }}
-        className="flex shrink-0 items-center gap-0.5 rounded-lg bg-frame p-0.5"
-      >
-        {MODES.map(({ mode: value, label, Mark }) => (
-          <Tooltip key={value}>
-            <TooltipTrigger
-              render={
-                <Toggle
-                  value={value}
-                  aria-label={label}
-                  className="flex size-6 items-center justify-center rounded-md text-ink-faint transition-colors outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-pressed:bg-raised data-pressed:text-ink data-pressed:shadow-xs"
-                />
-              }
-            >
-              <Mark className="size-3.5" />
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{label}</TooltipContent>
-          </Tooltip>
-        ))}
-      </ToggleGroup>
-    </TooltipProvider>
-  )
 }
 
 function ModePlaceholder({ mode }: { mode: ShellMode }) {
@@ -93,8 +53,8 @@ function ModePlaceholder({ mode }: { mode: ShellMode }) {
         {modeLabel(mode)}
       </p>
       <p className="max-w-sm text-sm text-ink-muted">
-        {modeLabel(mode)} is not in Theorem UI yet. Conversations stay in the
-        sidebar, and Chat returns to the one you left.
+        {modeLabel(mode)} is not in Theorem UI yet. Chat returns to the
+        conversation you left.
       </p>
     </div>
   )

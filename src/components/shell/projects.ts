@@ -1,6 +1,6 @@
-// SOURCING: @tanstack/react-query (server state for Theorem projects via @theoremharness/sdk)
+// SOURCING: @tanstack/react-query (server state for Theorem projects and the session tenant via @theoremharness/sdk)
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { mutate, theorem } from '@/lib/theorem/client'
+import { bootstrap, mutate, theorem } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
 import { useShell } from './shell-state'
 
@@ -50,4 +50,14 @@ export function useCreateProject() {
       setProjectId(record.projectId)
     },
   })
+}
+
+/** The signed-in tenant, from the session bootstrap the client already holds. */
+export function useTenant() {
+  const { data } = useQuery({
+    queryKey: ['theorem', 'bootstrap'],
+    queryFn: () => bootstrap(),
+    staleTime: Infinity,
+  })
+  return data?.tenantId
 }
