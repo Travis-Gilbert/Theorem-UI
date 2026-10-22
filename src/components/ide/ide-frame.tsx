@@ -16,6 +16,13 @@ import type {
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useFollow, useFollowAgentFiles } from './follow'
 
+/**
+ * The project's workspace on the host. Host workspace ids are directory names
+ * of ASCII letters, digits, `_` and `-`; project ids carry a `:`.
+ */
+const workspaceIdOf = (projectId: string) =>
+  projectId.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80)
+
 /** A reference as composer text: its label, then the excerpt fenced. */
 function referenceText({ label, excerpt, location }: TheoremContextReference) {
   const name =
@@ -64,7 +71,7 @@ export function IdeFrame() {
   const { resolvedTheme } = useTheme()
   const frame = useRef<HTMLIFrameElement>(null)
   const ide = useFollow((s) => s.ide)
-  const workspaceId = project?.projectId
+  const workspaceId = project && workspaceIdOf(project.projectId)
   const src = workspaceId
     ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
     : undefined
