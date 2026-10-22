@@ -4,7 +4,8 @@ The IDE half of Theorem UI, kept apart from the site at the repo root: its own `
 `bun.lock` and patches, so run everything below from `ide/`.
 
 A browser-only [Eclipse Theia](https://theia-ide.org) application (Theia 1.76.0) with a Zed look.
-It has no Theia backend: files, shared documents and terminals come from the Theorem workspace
+It has no Theia backend: files, shared documents, terminals, language features, problems and
+source control come from the Theorem workspace
 host through `@theoremharness/sdk`, and the Theorem UI at the repo root serves the build at
 `/theia/` and shows it in its IDE panel. The layout follows
 [eclipse-theia/theia-ide](https://github.com/eclipse-theia/theia-ide): published `@theia/*` packages,
@@ -36,6 +37,14 @@ Rebinds the seams Theia's own browser-only modules use:
   pending edits, conflicts, save and per-client undo.
 - `TerminalWidget` and `TerminalFrontendContribution`: terminals are SDK `TerminalChannel`s.
   Closing one detaches; the shell stays on the host.
+- Monaco language providers for workspace files call SDK `WorkspaceLanguage` at the revision the
+  editor has flushed. Format, rename and code actions come back as plans the authority applies,
+  so their edits arrive as document revisions like anyone else's.
+- The host's findings for open documents go to `ProblemManager` (owner `theorem`), so editors and
+  the Problems view show them. A snapshot is kept only for the text it was computed against.
+- A Source Control provider over SDK `WorkspaceScm`: staged, unstaged and conflicted groups, stage,
+  unstage, discard with Undo, commit, branch create and switch, fetch and push. Revision text is
+  served under the `theorem-scm` scheme, which also gives editors Theia's dirty-diff gutter.
 - Theia's own settings and storage stay in the browser under a `theia-user` scheme.
 - `TheoremIdeBridge` links the frame to the Theorem UI with Penpal (contract in
   `src/common/ide-bridge.ts`): reveal, theme and commands one way, selection, Add Selection to

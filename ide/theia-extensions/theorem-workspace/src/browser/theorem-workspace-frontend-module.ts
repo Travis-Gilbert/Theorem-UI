@@ -7,8 +7,11 @@
 
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
+import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
+import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
 import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
+import { ResourceResolver } from '@theia/core/lib/common/resource';
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
 import { FileSystemProvider } from '@theia/filesystem/lib/common/files';
 import { MonacoEditorModelFactory } from '@theia/monaco/lib/browser/monaco-text-model-service';
@@ -17,9 +20,12 @@ import { TerminalFrontendContribution } from '@theia/terminal/lib/browser/termin
 import { UserStorageContribution } from '@theia/userstorage/lib/browser/user-storage-contribution';
 import { WorkspaceServer } from '@theia/workspace/lib/common';
 import { TheoremConnection } from './theorem-connection';
+import { TheoremDiagnostics } from './theorem-diagnostics';
 import { TheoremEditorModelFactory } from './theorem-editor-model';
 import { TheoremIdeBridge } from './theorem-ide-bridge';
 import { TheoremFileSystemProvider } from './theorem-file-system-provider';
+import { TheoremLanguageFeatures } from './theorem-language-features';
+import { TheoremScmContribution, TheoremScmResourceResolver } from './theorem-scm';
 import { TheoremTerminalFrontendContribution, TheoremTerminalWidget } from './theorem-terminal';
 import {
     TheiaUserStorageProviderContribution, TheoremUserStorageContribution, TheoremWorkspaceServer, theoremEnvVariablesServer
@@ -49,5 +55,20 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     bind(TheoremIdeBridge).toSelf().inSingletonScope();
     for (const contribution of [FrontendApplicationContribution, CommandContribution, MenuContribution, KeybindingContribution]) {
         bind(contribution).toService(TheoremIdeBridge);
+    }
+
+    bind(TheoremLanguageFeatures).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(TheoremLanguageFeatures);
+    bind(CommandContribution).toService(TheoremLanguageFeatures);
+    bind(TheoremDiagnostics).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(TheoremDiagnostics);
+
+    bind(TheoremScmResourceResolver).toSelf().inSingletonScope();
+    bind(ResourceResolver).toService(TheoremScmResourceResolver);
+    bind(TheoremScmContribution).toSelf().inSingletonScope();
+    for (const contribution of [
+        FrontendApplicationContribution, CommandContribution, MenuContribution, TabBarToolbarContribution, ColorContribution
+    ]) {
+        bind(contribution).toService(TheoremScmContribution);
     }
 });

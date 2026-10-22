@@ -1,6 +1,7 @@
 // SOURCING: @theoremharness/sdk — TheoremClient carries every request, WorkspaceLive the
-// live stream and DocumentSession shared editing; this file only holds one instance of
-// each for the frame and shares document sessions between the editor and the file system.
+// live stream, DocumentSession shared editing, WorkspaceLanguage and WorkspaceScm the typed
+// language and git calls; this file only holds one instance of each for the frame and
+// shares document sessions between the editor and the file system.
 // *****************************************************************************
 // Copyright (C) 2026 Theorem UI contributors.
 //
@@ -9,7 +10,7 @@
 
 import { injectable } from '@theia/core/shared/inversify';
 import URI from '@theia/core/lib/common/uri';
-import { DocumentSession, TheoremClient, WorkspaceLive } from '@theoremharness/sdk';
+import { DocumentSession, TheoremClient, WorkspaceLanguage, WorkspaceLive, WorkspaceScm } from '@theoremharness/sdk';
 
 /** Headers every workspace operation carries. */
 export interface OperationHeaders {
@@ -26,7 +27,7 @@ export interface DocumentLease {
 
 /**
  * The frame's attachment to one Theorem workspace. The Theorem UI serves this
- * frame at `/ide/?workspace=<id>&name=<label>`, so requests go to the same
+ * frame at `/theia/?workspace=<id>&name=<label>`, so requests go to the same
  * origin and carry the session cookie; the token stays on the UI's server.
  */
 @injectable()
@@ -42,6 +43,8 @@ export class TheoremConnection {
 
     protected csrfToken = '';
     protected readonly documents = new Map<string, { session: Promise<DocumentSession>; refs: number }>();
+    protected languageCalls: Promise<WorkspaceLanguage> | undefined;
+    protected scmCalls: Promise<WorkspaceScm> | undefined;
 
     constructor() {
         const params = new URLSearchParams(window.location.search);
@@ -74,6 +77,16 @@ export class TheoremConnection {
     async channelOptions(): Promise<{ client: TheoremClient; live: WorkspaceLive; workspaceId: string; csrfToken: string }> {
         await this.ready;
         return { client: this.client, live: this.live, workspaceId: this.workspaceId, csrfToken: this.csrfToken };
+    }
+
+    /** Language features of the workspace's documents. */
+    language(): Promise<WorkspaceLanguage> {
+        return this.languageCalls ??= this.channelOptions().then(options => new WorkspaceLanguage(options));
+    }
+
+    /** Git on the workspace's checkout. */
+    scm(): Promise<WorkspaceScm> {
+        return this.scmCalls ??= this.channelOptions().then(options => new WorkspaceScm(options));
     }
 
     /** The workspace path of `uri`: `''` for the root, undefined outside it. */

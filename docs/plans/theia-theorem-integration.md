@@ -69,15 +69,23 @@ against this plan at the end of each phase.
 5. **Capabilities and extensions.** Capability search and invocation,
    debugging, testing, extension contribution mappings.
 
-Phases 1, 2 and 4 and the terminal from phase 3 are this session's work. The
-rest of phase 3 and phase 5 build on the live session and follow it; they are
-listed in the checklist as pending so nothing drops silently.
+Phases 1 to 4 are done. Phase 5 builds on the live session and follows it; its
+items are listed in the checklist as pending so nothing drops silently.
+
+Phase 3 was checked in the browser against a real `theorem-ide-host --http` on
+a throwaway git repository, with a small stand-in for the product server's
+environment routes (bootstrap and the host credential): Source Control groups,
+stage, commit, branch switch, the index-against-working-tree diff, the
+dirty-diff gutter, explorer decorations, and host findings in editors and the
+Problems view. Language requests reach the host and are accepted; this host
+has no language server, so they answer empty (see the gaps).
 
 ## Where the work is
 
 - Theorem: branch `claude/theia-sdk-live-session` (worktree
   `theorem-worktrees/theia-sdk-live-session`), on PR 880. Host live session,
-  server forwarding, SDK live, document, terminal and reference modules.
+  server forwarding, SDK live, document, terminal, reference, language and scm
+  modules.
 - Theorem UI: this branch. The SDK is vendored as
   `vendor/theoremharness-sdk-0.4.0.tgz`; `ide/theia-extensions/theorem-workspace`
   is the Theia package; `src/components/ide` is the frame, the bridge's UI
@@ -100,7 +108,25 @@ listed in the checklist as pending so nothing drops silently.
   not know where the host keeps the checkout. A run attribution on document
   events (see the first gap) would replace this.
 - The VS Code built-in extensions are not downloaded (`bun run
-  download:plugins` in `ide/`), so the editor has no grammars yet.
+  download:plugins` in `ide/`), so the editor has no grammars yet. Files then
+  have Theia's `plaintext` language id, which language requests leave out so
+  the host infers the language from the path.
+- The HTTP environment host (`apps/theorem-ide-host`) attaches no language
+  server; only the gpui IDE calls `attach_language_server`. Hover, completion,
+  navigation, rename and formatting therefore answer empty there, and findings
+  come only from the native providers (trailing whitespace). The Theia side
+  needs no change once the host attaches servers.
+- Locations a provider reports as a VS Code `{uri, range}` are mapped into the
+  workspace by path, since the UI does not know where the host keeps the
+  checkout.
+- Conflicted files open with their conflict markers; staging one marks it
+  resolved. There is no merge editor, and the host's `scm.resolve` (take ours
+  or theirs) has no command yet.
+- Fetch and push use the host's defaults: no remote or branch picker.
+- Host test targets that do not build at this branch's base, unrelated to
+  this work: `theorem-ide-host`'s `document_transactions` (calls a
+  `DocumentProduct::transact` that does not exist) and `theorem-ide-runtime`'s
+  `intellij_live` (needs a feature this build leaves out).
 - `ide/patches` holds patches for the Bun-hosted Theia backend that no longer
   runs. They are left in place for whoever removes that backend's tooling.
 - `@theia/notebook` and `@theia/test` stay in the app: their backend modules
