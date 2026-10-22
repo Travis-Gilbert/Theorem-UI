@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -20,7 +21,20 @@ const config = defineConfig({
     }),
     tanstackStart(),
     // Self-hosted on Bun beside the Theorem authority; the proxy reaches it on localhost.
-    nitro({ preset: 'bun' }),
+    // The IDE frame is the browser-only Theia build in ide/, served beside the
+    // app so it shares this origin, its proxy and its session.
+    nitro({
+      preset: 'bun',
+      publicAssets: [
+        {
+          baseURL: '/theia',
+          dir: fileURLToPath(
+            new URL('./ide/applications/browser/lib/frontend', import.meta.url),
+          ),
+          maxAge: 0,
+        },
+      ],
+    }),
     viteReact(),
   ],
 })

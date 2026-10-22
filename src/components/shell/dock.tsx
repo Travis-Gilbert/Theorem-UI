@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, zustand stores for artifact view and saved layouts
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, the IDE frame (browser-only Theia), zustand stores for artifact view and saved layouts
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
@@ -9,19 +9,29 @@ import type {
   IDockviewPanelHeaderProps,
   IDockviewPanelProps,
 } from 'dockview-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { useFollow } from '@/components/ide/follow'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { Button } from '@/components/ui/button'
-import { ModeView, modeLabel, useShellMode } from './modes'
+import { cn } from '@/lib/utils'
+import { ModeView, modeLabel, useOpenMode, useShellMode } from './modes'
 import { useShell } from './shell-state'
 import { SidebarContents } from './sidebar'
 
 const THREAD = 'thread'
 const SIDEBAR = 'sidebar'
+const IDE = 'ide'
 const ARTIFACT = 'artifact:'
 
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
@@ -43,17 +53,18 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation in chat mode, the mode's view otherwise. */
+/** The main panel: the conversation in chat and IDE modes, the mode's view otherwise. */
 function ThreadPanel({ api }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
-    () => api.setTitle(mode === 'chat' ? title || 'New chat' : modeLabel(mode)),
+    () =>
+      api.setTitle(mode === 'spaces' ? modeLabel(mode) : title || 'New chat'),
     [api, mode, title],
   )
   return (
     <div className="h-full bg-background">
-      <ModeView />
+      <ModeView docked />
     </div>
   )
 }
@@ -119,6 +130,7 @@ function ArtifactDockPanel({
 const components = {
   thread: ThreadPanel,
   sidebar: SidebarPanel,
+  ide: IdeFrame,
   artifact: ArtifactDockPanel,
 }
 
@@ -129,10 +141,27 @@ const tabComponents = {
   ),
 }
 
+/** Follow the Agent across the dock: files in the IDE, artifacts in their panels. */
+function FollowToggle() {
+  const following = useFollow((s) => s.following)
+  const { pause, resume } = useFollow.getState()
+  return (
+    <TooltipIconButton
+      tooltip={following ? 'Following the agent' : 'Follow the agent'}
+      aria-pressed={following}
+      onClick={following ? pause : resume}
+      className={cn('size-7 p-1.5', !following && 'text-ink-faint')}
+    >
+      <Icon.Eye className="size-4" />
+    </TooltipIconButton>
+  )
+}
+
 function GroupActions({ panels }: IDockviewHeaderActionsProps) {
   if (!panels.some((panel) => panel.id === THREAD)) return null
   return (
     <div className="flex h-full items-center pe-1">
+      <FollowToggle />
       <ThreadListPrimitive.New
         render={
           <TooltipIconButton tooltip="New chat" className="size-7 p-1.5" />
@@ -219,6 +248,28 @@ function openArtifact(api: DockviewApi, artifactId: string) {
     api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
 }
 
+/** The IDE opens once, beside the conversation, and is focused when asked for again. */
+function openIde(api: DockviewApi) {
+  const existing = api.getPanel(IDE)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  const options = {
+    id: IDE,
+    component: 'ide',
+    title: 'IDE',
+    minimumWidth: 480,
+    initialWidth: Math.round(api.width * 0.6),
+  }
+  if (api.getPanel(THREAD)?.api.location.type === 'grid')
+    api.addPanel({
+      ...options,
+      position: { referencePanel: THREAD, direction: 'right' },
+    })
+  else api.addPanel({ ...options, position: { direction: 'right' } })
+}
+
 /**
  * Desktop shell: the sidebar in a left edge group, the conversation and each
  * open artifact as dock panels. Panels render always, so moving or hiding one
@@ -236,6 +287,16 @@ export function DockShell({
   const [dock, setDock] = useState<DockviewApi>()
   /** Conversation the layout's artifact panels belong to. */
   const layoutThread = useRef<string | undefined>(undefined)
+  const mode = useShellMode()
+  const openMode = useOpenMode()
+  const leaveIde = useEffectEvent(() => {
+    if (mode === 'ide') void openMode('chat')
+  })
+
+  // IDE mode is the IDE panel beside the conversation; closing it leaves the mode.
+  useEffect(() => {
+    if (dock && mode === 'ide') openIde(dock)
+  }, [dock, mode])
 
   const onReady = ({ api }: DockviewReadyEvent) => {
     const saved = useShell.getState().layouts[projectId]
@@ -275,6 +336,7 @@ export function DockShell({
         if (artifactId) useArtifactView.getState().focused(artifactId)
       }),
       dock.onDidRemovePanel((panel) => {
+        if (panel.id === IDE) leaveIde()
         const artifactId = artifactIdOf(panel.id)
         if (artifactId) useArtifactView.getState().closed(artifactId)
       }),

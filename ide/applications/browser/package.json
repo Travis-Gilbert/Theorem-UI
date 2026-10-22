@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "license": "Apache-2.0",
   "theia": {
-    "target": "browser",
+    "target": "browser-only",
     "frontend": {
       "config": {
         "applicationName": "Theorem UI",
@@ -23,14 +23,7 @@
           "terminal.integrated.fontSize": 15,
           "terminal.integrated.lineHeight": 1.618,
           "workbench.tree.indent": 20
-        },
-        "reloadOnReconnect": true
-      }
-    },
-    "backend": {
-      "config": {
-        "frontendConnectionTimeout": 3000,
-        "configurationFolder": ".theorem-ui"
+        }
       }
     }
   },
@@ -72,14 +65,15 @@
     "@theia/workspace": "1.76.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "theorem-ui-zed-look": "0.1.0"
+    "theorem-ui-zed-look": "0.1.0",
+    "theorem-ui-workspace": "0.1.0"
   },
   "devDependencies": {
     "@theia/cli": "1.76.0"
   },
   "scripts": {
-    "build": "theia build --app-target=browser --mode development",
-    "build:prod": "theia build --app-target=browser",
-    "start": "bun lib/backend/main.js --plugins=local-dir:../../plugins --hostname=127.0.0.1 --port=3000"
+    "build": "theia build --app-target=browser-only --mode development",
+    "build:prod": "theia build --app-target=browser-only",
+    "start": "theia start"
   }
 }

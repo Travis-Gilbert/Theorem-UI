@@ -9,17 +9,6 @@
         "dev"
       ],
       "port": 3000
-    },
-    {
-      "name": "theorem-ide",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": [
-        "ide/applications/browser/lib/backend/main.js",
-        "--plugins=local-dir:ide/plugins",
-        "--hostname=127.0.0.1",
-        "--port=3000"
-      ],
-      "port": 3000
     }
   ]
 }

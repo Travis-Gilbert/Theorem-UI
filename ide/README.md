@@ -3,30 +3,49 @@
 The IDE half of Theorem UI, kept apart from the site at the repo root: its own `package.json`,
 `bun.lock` and patches, so run everything below from `ide/`.
 
-A browser-and-backend [Eclipse Theia](https://theia-ide.org) application (Theia 1.76.0) that runs on
-[Bun](https://bun.sh) instead of Node, with a Zed look. The layout follows
+A browser-only [Eclipse Theia](https://theia-ide.org) application (Theia 1.76.0) with a Zed look.
+It has no Theia backend: files, shared documents and terminals come from the Theorem workspace
+host through `@theoremharness/sdk`, and the Theorem UI at the repo root serves the build at
+`/theia/` and shows it in its IDE panel. The layout follows
 [eclipse-theia/theia-ide](https://github.com/eclipse-theia/theia-ide): published `@theia/*` packages,
 an application in `applications/browser`, and our own extensions in `theia-extensions/`.
-Fixes to upstream packages are kept as `bun patch` files rather than a fork.
 
 ## Requirements
 
 Bun 1.4.3 or later, the version this is tested on.
 
-## Running
+## Building
 
 ```sh
 bun install
 bun run build
 bun run download:plugins
-bun run start
 ```
 
-Then open http://127.0.0.1:3000.
+`bun run build` writes `applications/browser/lib/frontend`. Run the Theorem UI from the repo
+root (`bun run dev`) and open its IDE mode, or `/theia/?workspace=<id>&name=<name>` on its origin.
+
+## Theorem workspace (`theia-extensions/theorem-workspace`)
+
+Rebinds the seams Theia's own browser-only modules use:
+
+- `FileSystemProvider`: the `file` scheme is the Theorem workspace, rooted at `file:///<name>`,
+  with change events from the live workspace stream. Writes to existing files go through the
+  shared document, so the authority stays the only writer.
+- `MonacoEditorModelFactory`: every workspace file opens on an SDK `DocumentSession`, with its
+  pending edits, conflicts, save and per-client undo.
+- `TerminalWidget` and `TerminalFrontendContribution`: terminals are SDK `TerminalChannel`s.
+  Closing one detaches; the shell stays on the host.
+- Theia's own settings and storage stay in the browser under a `theia-user` scheme.
+- `TheoremIdeBridge` links the frame to the Theorem UI with Penpal (contract in
+  `src/common/ide-bridge.ts`): reveal, theme and commands one way, selection, Add Selection to
+  Chat and manual navigation (which pauses Follow the Agent) the other.
 
 ## Patches
 
-`bun install` applies these from `patches/` (see `patchedDependencies` in `package.json`).
+`bun install` applies these from `patches/` (see `patchedDependencies` in `package.json`). The
+Bun-specific ones were for the Theia backend this application no longer runs; they stay until that
+tooling is removed.
 
 | Package | Problem under Bun | Fix |
 | --- | --- | --- |

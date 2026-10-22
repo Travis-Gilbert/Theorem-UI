@@ -1,8 +1,9 @@
-// SOURCING: Base UI ToggleGroup + Toggle (mode switch), ui/tooltip over Base UI Tooltip, @tanstack/react-router (each mode is a route), assistant-ui Thread element
+// SOURCING: Base UI ToggleGroup + Toggle (mode switch), ui/tooltip over Base UI Tooltip, @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia)
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { Icon } from '@/components/icons'
 import {
   Tooltip,
@@ -40,12 +41,10 @@ export function useShellMode(): ShellMode {
   })
 }
 
-/** Chat, Spaces and IDE as one segmented control. */
-export function ModeSwitch() {
-  const mode = useShellMode()
+/** Navigates to a mode; chat returns to the conversation last left. */
+export function useOpenMode() {
   const navigate = useNavigate()
-
-  const open = (next: ShellMode) => {
+  return (next: ShellMode) => {
     if (next === 'spaces') return navigate({ to: '/spaces' })
     if (next === 'ide') return navigate({ to: '/ide' })
     const threadId = useShell.getState().chatThreadId
@@ -53,6 +52,12 @@ export function ModeSwitch() {
       ? navigate({ to: '/c/$threadId', params: { threadId } })
       : navigate({ to: '/' })
   }
+}
+
+/** Chat, Spaces and IDE as one segmented control. */
+export function ModeSwitch() {
+  const mode = useShellMode()
+  const open = useOpenMode()
 
   return (
     <TooltipProvider>
@@ -103,15 +108,19 @@ function ModePlaceholder({ mode }: { mode: ShellMode }) {
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
+ * In the dock the IDE is a panel of its own, so the conversation stays in
+ * view beside it; on a phone the IDE takes the screen.
  */
-export function ModeView() {
+export function ModeView({ docked = false }: { docked?: boolean }) {
   const mode = useShellMode()
+  const showThread = mode === 'chat' || (docked && mode === 'ide')
   return (
     <>
-      <div hidden={mode !== 'chat'} className="h-full">
+      <div hidden={!showThread} className="h-full">
         <Thread />
       </div>
-      {mode !== 'chat' && <ModePlaceholder mode={mode} />}
+      {mode === 'ide' && !docked && <IdeFrame />}
+      {mode === 'spaces' && <ModePlaceholder mode={mode} />}
     </>
   )
 }
