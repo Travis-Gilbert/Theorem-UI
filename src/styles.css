@@ -451,6 +451,16 @@
   background-repeat: no-repeat;
 }
 
+/* Streamline marks (icons.tsx): the ink is painted through the PNG's alpha,
+   so the mark follows currentColor. Sizing comes from the caller. */
+@layer components {
+  .icon-mask {
+    flex-shrink: 0;
+    background-color: currentColor;
+    mask: var(--icon-mask) center / contain no-repeat;
+  }
+}
+
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
    clipped to the glyphs, running against the sheet's own, so a label recolours
    as it scrolls and keeps at least 4.5:1 over whatever stretch of the sheet is

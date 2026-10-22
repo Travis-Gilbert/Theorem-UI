@@ -449,3 +449,26 @@ the attachment digest in the table above is the owner's original.
 bytes are unchanged. Its ink runs 17% above the family median at 1x and 13%
 above at 2x. The oracle derives its correction at 2x, where it is inside the
 band, so no correction is recorded and the 1x heavy flag remains.
+
+## Streamline Ultimate Light marks
+
+These five PNGs are from the owner's Streamline download, "streamline-ultimate-light--48x48-PNG.zip"
+(Streamline Ultimate, Light style, 48 x 48, black ink on a transparent ground).
+Each was copied byte for byte and renamed in lowercase with a `streamline-`
+prefix. The app paints them as CSS masks (`.icon-mask` in `styles.css`), so the
+bytes are unchanged and the ink follows `currentColor`. The license is whatever
+covers the owner's Streamline plan. Streamline's free tier requires attribution;
+a paid plan does not.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Copy | `streamline/streamline-copy-paste-1.png` | Copy Paste 1 | `9700385580df9e3fe93d3e16bc22a54d029ed999d28528c0f00ee073473da8fc` |
+| NewChat | `streamline/streamline-pencil-write-2.png` | Pencil Write 2 | `c6a0c709cb22bb6c5e1d4f5fd75494a6546461196d7b368cf7fbc0526f761bf8` |
+| Search | `streamline/streamline-search-square.png` | Search Square | `df992de155819ffba277e44c678ef72058103fe1dbb1b1918c797108a15379f2` |
+| Send | `streamline/streamline-send-email-1.png` | Send Email 1 | `f8f28286ecb00457a400fb6dfd2bc15d0c66c71f2fd4e58d37c0bc5b03e32d17` |
+| Share | `streamline/streamline-share-1.png` | Share 1 | `6dce180df4d355ff4a0597747ac74474aeadc7355ae08c0f312f0ec762586776` |
+
+The Noun files they replace in the registry (`records/noun-search-8086046.svg`,
+`composer/noun-send-8216262.svg`, `records/noun-share-8086062.svg`,
+`message/theorem-copy.svg`) stay on disk. `rail/noun-writing-8280302.svg`
+remains registered with the rail family above but is no longer imported.
