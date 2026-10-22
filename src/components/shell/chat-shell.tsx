@@ -74,8 +74,11 @@ function PhoneShell() {
             <Drawer.Popup className="flex h-full w-[min(calc(var(--spacing-rail)+var(--spacing-sidebar)),90vw)] bg-rail outline-none [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-300 ease-(--ease-structure) data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0">
               <Drawer.Title className="sr-only">Navigation</Drawer.Title>
               <Rail />
-              <div className="my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1 overflow-hidden rounded-xl bg-sheet shadow-sheet">
-                <ContextPanel />
+              <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
+                <div aria-hidden="true" className="sheet-glow" />
+                <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+                  <ContextPanel />
+                </div>
               </div>
             </Drawer.Popup>
           </Drawer.Viewport>
@@ -179,13 +182,17 @@ function SheetSplit(route: DockRoute) {
 /**
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
+ * The sheet lifts off the rail by a shadow in light and a glow in dark.
  */
 function DesktopShell(route: DockRoute) {
   return (
     <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
       <Rail collapsible />
-      <div className="my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1 overflow-hidden rounded-xl bg-sheet shadow-sheet">
-        <SheetSplit {...route} />
+      <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
+        <div aria-hidden="true" className="sheet-glow" />
+        <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+          <SheetSplit {...route} />
+        </div>
       </div>
     </div>
   )

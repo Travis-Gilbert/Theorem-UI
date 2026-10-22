@@ -63,6 +63,10 @@
   /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
   --ink-faint-top: #575652;
   --ink-faint-bottom: #3a3936;
+  /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
+  --glow-opacity: 0;
+  --glow-from: transparent;
+  --glow-to: transparent;
 
   --ink: #30312d;
   --ink-muted: #3f403c;
@@ -132,6 +136,13 @@
   --sheet-to: #151617;
   --ink-faint-top: #8c8c8c;
   --ink-faint-bottom: #808080;
+  /* A shadow cannot show on the near-black rail, so the sheet glows instead:
+     the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
+     read against the rail, warm at the top and teal at the bottom. */
+  --shadow-sheet: 0 0 #0000;
+  --glow-opacity: 1;
+  --glow-from: rgb(205 78 24 / 0.45);
+  --glow-to: rgb(25 142 169 / 0.45);
 
   --ink: #cccccc;
   --ink-muted: #959595;
@@ -483,6 +494,19 @@
   --surface-hover: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
+/* The dark sheet's glow (chat-shell.tsx): the glow gradient, blurred behind
+   the sheet so only its halo shows past the edge. --glow-opacity is 0 in
+   light, where --shadow-sheet does this job. */
+.sheet-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(to bottom, var(--glow-from), var(--glow-to));
+  filter: blur(6px);
+  opacity: var(--glow-opacity);
+  pointer-events: none;
+}
+
 /* The rail's junction (rail.tsx). --rail-y is the active destination's top
    within the rail; registering it lets the tab and its corners slide as one,
    each re-sampling the gradient at its own height as it moves. */
@@ -501,7 +525,8 @@
   transition: --rail-y 180ms var(--ease-structure);
   /* The tab is part of the sheet, so it casts the sheet's shadow onto the
      rail. The clip stops at the sheet's edge, where the sheet paints its own. */
-  filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18));
+  filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18))
+    drop-shadow(0 0 5px color-mix(in srgb, var(--glow-from), var(--glow-to) calc(var(--rail-t, 0) * 100%)));
   clip-path: inset(-24px 0 -24px -24px);
 
   & > * {

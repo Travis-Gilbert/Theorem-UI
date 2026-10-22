@@ -26,7 +26,7 @@ const THEMES = [
   { value: 'system', label: 'Match system' },
 ]
 
-/** The signed-in tenant as a coloured initial, with the theme choice behind it. */
+/** The signed-in tenant as an initial outlined in the accent, with the theme choice behind it. */
 function AccountMenu() {
   const { theme, setTheme } = useTheme()
   const tenant = useTenant()
@@ -35,7 +35,7 @@ function AccountMenu() {
     <Menu.Root>
       <Menu.Trigger
         aria-label={tenant ? `Account, ${tenant}` : 'Account'}
-        className="flex size-8 items-center justify-center rounded-[9px] bg-redwood pt-px font-heading text-[18px] leading-none text-on-redwood shadow-xs transition-colors duration-100 outline-none hover:bg-redwood-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-popup-open:bg-redwood-pressed"
+        className="flex size-8 items-center justify-center rounded-[9px] border-[1.5px] border-redwood pt-px font-heading text-[18px] leading-none text-redwood transition-colors duration-100 outline-none hover:bg-redwood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-popup-open:bg-redwood/15"
       >
         {tenant?.charAt(0).toUpperCase()}
       </Menu.Trigger>
@@ -90,12 +90,12 @@ function AccountMenu() {
  * the sheet's gradient at its own height, so the join has no seam, and slides
  * when the mode changes.
  */
-function Junction({ y }: { y: number }) {
+function Junction({ y, t }: { y: number; t: number }) {
   return (
     <div
       aria-hidden="true"
       className="rail-junction"
-      style={{ '--rail-y': `${y}px` } as CSSProperties}
+      style={{ '--rail-y': `${y}px`, '--rail-t': t } as CSSProperties}
     >
       <span className="rail-junction-tab" />
       <span className="rail-junction-corner" data-edge="top" />
@@ -106,9 +106,11 @@ function Junction({ y }: { y: number }) {
 
 /**
  * The global rail: one destination per mode, and the account at the foot.
- * It is the base the sheet sits on. The first destination sits low enough
- * that the junction's upper corner clears the sheet's rounded corner. On the desktop the active
- * destination also shows and hides its mode's panel.
+ * It is the base the sheet sits on, and stacks above the sheet's shadow and
+ * glow so the junction's tab stays level with the panel it joins. The first
+ * destination sits low enough that the junction's upper corner clears the
+ * sheet's rounded corner. On the desktop the active destination also shows
+ * and hides its mode's panel.
  */
 export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const mode = useShellMode()
@@ -118,22 +120,23 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
-  const [junctionY, setJunctionY] = useState<number>()
+  const [junction, setJunction] = useState<{ y: number; t: number }>()
   useLayoutEffect(() => {
     const rail = railRef.current
     const active = destinations.current.get(mode)
     if (!rail || !active) return
-    setJunctionY(
-      active.getBoundingClientRect().top - rail.getBoundingClientRect().top,
-    )
+    const box = rail.getBoundingClientRect()
+    const y = active.getBoundingClientRect().top - box.top
+    // How far down the rail the tab sits, for the glow colour it takes.
+    setJunction({ y, t: box.height ? y / box.height : 0 })
   }, [mode])
 
   return (
     <div
       ref={railRef}
-      className="relative flex h-full w-rail shrink-0 flex-col items-center pt-[calc(var(--sheet-inset)+24px)] pb-3"
+      className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-[calc(var(--sheet-inset)+24px)] pb-3"
     >
-      {junctionY !== undefined && <Junction y={junctionY} />}
+      {junction && <Junction y={junction.y} t={junction.t} />}
       <TooltipProvider>
         <nav aria-label="Modes" className="flex flex-col gap-1">
           {MODES.map(({ mode: value, label, Mark }) => {
