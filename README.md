@@ -65,6 +65,8 @@ src/
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
 
+`ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The site does not link to it yet.
+
 ## Artifacts
 
 The agent creates artifacts with `create_artifact` and revises them with `update_artifact`. Each revision arrives as a `theorem-artifact-v1` part with the same `artifactId`, a new `artifactRevision` and a higher `patchSequence`.

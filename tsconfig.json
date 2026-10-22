@@ -1,6 +1,6 @@
 {
   "include": ["**/*.ts", "**/*.tsx", "eslint.config.js", "prettier.config.js", "vite.config.js"],
-  "exclude": ["node_modules", "dist", "Theorem-UI"],
+  "exclude": ["node_modules", "dist", "Theorem-UI", "ide"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
