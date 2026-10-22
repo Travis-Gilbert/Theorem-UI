@@ -53,7 +53,9 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     protected navigatedSent = false;
     protected readonly toDisposeOnEditor = new DisposableCollection();
 
-    onStart(): void {
+    // After the layout exists, so the UI's sidebar state is not undone by the
+    // layout Theia restores or creates.
+    onDidInitializeLayout(): void {
         if (window.parent === window) {
             return;
         }
