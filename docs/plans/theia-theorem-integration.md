@@ -42,7 +42,8 @@ Theorem through `@theoremharness/sdk`. Nothing runs in a Theia Node backend.
 | Shared editing | `ot-text-unicode` transforms pending local edits against accepted remote edits | It works in Unicode scalar offsets, which is the authority's unit |
 | Undo | A per-client undo stack of invertible operations, transformed against remote edits | Monaco's own stack would undo other actors' edits |
 | Theia target | `browser-only` from Theia 1.76, with `FileSystemProvider`, `MonacoEditorModelFactory` and `TerminalFrontendContribution` rebound to Theorem | These are the seams Theia's own browser-only modules use |
-| Embedding | Theia's frontend is served by the Theorem UI at `/theia/` (Nitro `publicAssets`). In IDE mode it fills the sheet beside the rail; the rail's IDE button shows and hides Theia's sidebar, and Theia stays loaded behind the other modes | Same origin, so the frame's SDK calls go through the UI's proxy, which adds the server token; `/ide` is already the route of the UI's IDE mode |
+| Embedding | Theia's frontend is served by the Theorem UI at `/theia/` (Nitro `publicAssets`). In IDE mode it fills the sheet beside the rail; the rail's IDE button shows and hides Theia's sidebar, and Theia stays loaded behind the other modes | Same origin, so the frame's SDK calls go through the UI's proxy, which adds the signed-in person's token; `/ide` is already the route of the UI's IDE mode |
+| Who the UI calls Theorem as | The signed-in person. With `THEOREM_OAUTH_CLIENT_ID` set, the UI signs people in against Theorem's OAuth server (authorization code with PKCE, `oauth4webapi`), keeps their tokens in a sealed HttpOnly cookie (`iron-session`), refreshes them before they expire, and the proxy forwards the person's access token. Without it the proxy keeps the static `THEOREM_API_TOKEN` | A static token names no principal, and the product server grants execution hosts and agent bindings to principals only. Theorem allows the UI's client `models:invoke` through a per-client `extra_scopes` entry, so other OAuth clients do not gain it |
 | Bridge | Penpal 8 method calls over `postMessage`, typed by one contract (`ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts`) | Origin-checked, promise-based calls in both directions instead of a hand-written message protocol |
 | Theia's own state | Settings, keymaps and plugin storage live in the browser (OPFS) under a `theia-user` scheme | `file` names the Theorem workspace, so nothing of Theia's is written into the checkout |
 | Follow the Agent | On by default. Files the live run's tool calls name open in Theia's preview editor without focus; artifacts the run writes open in their panel. Moving in the IDE pauses it; the eye button beside New chat and the switch in Theia's status bar resume it | One switch for every view, so the artifact panel and the IDE behave the same |
@@ -88,6 +89,16 @@ clone, the title bar showed its branch, and a file opened with `documents.open`,
 `scm.show`, language and diagnostics calls all answering 200. This needed a
 signed session token, because the static token is refused (first gap below).
 
+Later on 2026-10-22 sign-in ran end to end against the lane server with OAuth
+on and a stand-in OIDC provider: Sign in went through Theorem's authorize page,
+the provider and both callbacks, and returned to the conversation. The
+environment bootstrap named the person's principal (`identity:…`), the IDE
+opened the person's workspace on a host bound to that principal (files, scm,
+`documents.open`, language and diagnostics all answering 200), a run started
+through the proxy with the person's token completed, the session survived a
+server restart, an access token refreshed past its five-minute lifetime, and
+Sign out returned the UI to the sign-in screen.
+
 ## Where the work is
 
 - Theorem: branch `claude/theia-sdk-live-session` (worktree
@@ -101,17 +112,25 @@ signed session token, because the static token is refused (first gap below).
 
 ## Known gaps, recorded as they are found
 
-- **The UI's server credential names no principal, so the product server
-  refuses it execution.** The proxy (`src/server/theorem-proxy.ts`) sends
-  `THEOREM_API_TOKEN`, a static deployment token. A static token carries a
-  tenant and scopes but no user id, and the product server grants a tenant's
-  execution host only to principals listed in its host binding
-  (`theorem_environment.rs`). With the real local server and the real token,
-  bootstrap answers `principalId: null` and opening a workspace answers 403
-  `environment_execution_not_granted`. A signed session token (`thm1.`) for
-  the same tenant carries the principal and passes. Either the UI forwards a
-  signed-in user's session token, or a static token learns to name a principal;
-  both change who the product server believes is calling.
+- **Resolved: the UI's server credential named no principal.** The static
+  `THEOREM_API_TOKEN` carries a tenant and scopes but no user id, so the
+  product server refused it execution (`environment_execution_not_granted`).
+  The UI now signs people in and forwards their token (see Decisions). The
+  static token remains for deployments without sign-in, with the same limit.
+- **A signed-in person cannot start a run in a chat project.** An OAuth
+  token admits one project, the connector's home project
+  (`project:home:<hash>`), and `start_run` refuses any other requested project
+  (`chat_project_scope_refused`). Chat projects are `chatproj_*` records, so a
+  run started from the composer for a chat project is refused; a run with no
+  project starts in the home project. Either the UI's client gets tokens that
+  admit the person's chat projects, or chat projects map onto the admitted
+  project. Both change Theorem's authorization, so it is left for a decision.
+- **This lane's server has no conversational send.** The SDK's
+  `chat.messages.send` posts `{text}`; `claude/theorem-ui-artifact-tools`
+  routes that to `turns::send_message`, but main and PR 880 only accept the
+  low-level append (`parts`), so the composer answers 400 against this lane.
+- The lane server's model catalog declares no credential for Inkling; the
+  end-to-end run used `minimax/MiniMax-M3`.
 - A refused workspace shows as an empty explorer. Theia does not surface the
   product server's environment errors (403, 503), so the person sees no reason.
 - Project ids (`chatproj:sha256-…`) are not host workspace ids, which allow
