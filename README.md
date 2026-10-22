@@ -10,13 +10,13 @@ The web frontend for the Theorem agent. It provides a chat interface, artifacts 
 | Server state                               | TanStack Query                                                                                                                |
 | Conversation runtime and primitives        | assistant-ui (`@assistant-ui/react`), wired through `@theoremharness/sdk/assistant-ui`                                        |
 | Custom components (menus, dialogs, drawer) | Base UI                                                                                                                       |
-| Thread/artifact split                      | react-resizable-panels                                                                                                        |
+| Desktop layout                             | dockview-react: a dock for the conversation and artifacts, and a split view for the context panel beside it                   |
 | Markdown, code, diagrams                   | react-markdown + remark-gfm, react-shiki, beautiful-mermaid                                                                   |
 | Theme                                      | next-themes                                                                                                                   |
 | Styling                                    | Tailwind CSS v4  `src/styles.css`                                                                     |
 | Runtime and hosting                        | Bun: installs, scripts, dev server, and the production server built by Nitro's `bun` preset, run beside the Theorem authority |
 
-Type: IBM Plex Sans for prose, Libron for titles and headings, JetBrains Mono for code. Icons are owned Noun Project SVGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
+Type: IBM Plex Sans for prose, Libron for titles and headings, JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
 
 ## Setup
 
@@ -59,7 +59,7 @@ src/
     client.ts             SDK client, CSRF bootstrap, idempotent mutations
     runtime.tsx           assistant-ui runtime over Theorem threads, history and live-run resume
   components/
-    shell/                sidebar, project switcher, layout
+    shell/                rail, context panel, project switcher, sheet and dock layout
     chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, approvals, progress, citations, errors)
     artifacts/            artifact model, view state, panel, renderers
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone

@@ -21,10 +21,8 @@ import { Button } from '@/components/ui/button'
 import { useNote } from '@/lib/theorem/notes'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
-import { SidebarContents } from './sidebar'
 
 const THREAD = 'thread'
-const SIDEBAR = 'sidebar'
 const ARTIFACT = 'artifact:'
 const NOTE = 'note-panel:'
 
@@ -36,7 +34,6 @@ const artifactIdOf = (panelId: string) =>
 const theme: DockviewTheme = {
   name: 'stone',
   className: 'dockview-theme-stone',
-  edgeGroupCollapsedSize: 36,
 }
 
 /** Subscribes React to a dockview event; dockview events return a disposable. */
@@ -56,27 +53,11 @@ function ThreadPanel({ api }: IDockviewPanelProps) {
     [api, mode, title],
   )
   return (
-    <div className="h-full bg-background">
+    <div className="h-full">
       <ModeView />
     </div>
   )
 }
-
-function SidebarPanel({ api }: IDockviewPanelProps) {
-  // Collapsing only means something while the sidebar sits in an edge group.
-  const docked = useSyncExternalStore(
-    subscribe(api.onDidLocationChange),
-    () => api.location.type === 'edge',
-  )
-  return (
-    <div className="h-full bg-sidebar">
-      <SidebarContents
-        onClose={docked ? () => api.group.api.collapse() : undefined}
-      />
-    </div>
-  )
-}
-
 function ArtifactDockPanel({
   api,
   containerApi,
@@ -134,13 +115,12 @@ function NoteDockPanel({
 
 const components = {
   thread: ThreadPanel,
-  sidebar: SidebarPanel,
   artifact: ArtifactDockPanel,
   note: NoteDockPanel,
 }
 
 const tabComponents = {
-  /** Thread and sidebar are always present, so their tabs have no close button. */
+  /** The thread is always present, so its tab has no close button. */
   fixed: (props: IDockviewPanelHeaderProps) => (
     <DockviewDefaultTab {...props} hideClose />
   ),
@@ -162,30 +142,12 @@ function GroupActions({ panels }: IDockviewHeaderActionsProps) {
 }
 
 function buildDefaultLayout(api: DockviewApi) {
-  // The thread goes in first: a panel added without a position joins the
-  // active group, which would otherwise be the edge group.
   api.addPanel({
     id: THREAD,
     component: 'thread',
     tabComponent: 'fixed',
     title: 'New chat',
     minimumWidth: 360,
-  })
-  const edge =
-    api.getEdgeGroup('left') ??
-    api.addEdgeGroup('left', {
-      id: 'sidebar-group',
-      initialSize: 256,
-      minimumSize: 200,
-      maximumSize: 420,
-    })
-  api.addPanel({
-    id: SIDEBAR,
-    component: 'sidebar',
-    tabComponent: 'fixed',
-    title: 'Chats',
-    position: { referenceGroup: edge.id },
-    inactive: true,
   })
 }
 
@@ -200,7 +162,7 @@ function restoreLayout(
     api.clear()
     return false
   }
-  if (api.getPanel(THREAD) && api.getPanel(SIDEBAR)) return true
+  if (api.getPanel(THREAD)) return true
   api.clear()
   return false
 }
@@ -268,8 +230,7 @@ function openNote(api: DockviewApi, documentId: string) {
 }
 
 /**
- * Desktop shell: the sidebar in a left edge group, the conversation and each
- * open artifact as dock panels. Panels render always, so moving or hiding one
+ * Desktop dock: the conversation and each open artifact as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
  * per project; artifact panels belong to the conversation they came from.
  */
@@ -364,7 +325,6 @@ export function DockShell({
       rightHeaderActionsComponent={GroupActions}
       defaultRenderer="always"
       getTabContextMenuItems={({ panel, api }) => {
-        if (panel.id === SIDEBAR) return []
         // The built-in float opens at 300px, narrower than these panels' minimums.
         const float = {
           label: 'Float',

@@ -1,18 +1,22 @@
 // SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe)
-import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
-import { Drawer } from '@base-ui/react/drawer'
-import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
-import { useEffect, useState } from 'react'
-import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
-import { NotePanel } from '@/components/notes/note-panel'
-import { useNoteView } from '@/components/notes/note-view'
-import { Icon } from '@/components/icons'
+import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
+import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
+import { Drawer } from '@base-ui/react/drawer'
+import { Icon } from '@/components/icons'
+import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import { ModeView, modeLabel, useShellMode } from './modes'
-import { SidebarContents } from './sidebar'
+import { NotePanel } from '@/components/notes/note-panel'
+import { PANEL_WIDTH, useShell } from './shell-state'
+import { Rail } from './rail'
+import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
+import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
+import { useNoteView } from '@/components/notes/note-view'
 
 const iconButton = 'size-9 p-2'
 
@@ -40,7 +44,10 @@ function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   )
 }
 
-/** Phone shell: the sidebar in a drawer, the open artifact over the conversation. */
+/**
+ * Phone shell: the conversation fills the screen and the rail and its panel
+ * open together in a drawer. The open artifact covers the conversation.
+ */
 function PhoneShell() {
   const openId = useArtifactView((s) => s.openId)
   const close = useArtifactView((s) => s.close)
@@ -69,18 +76,21 @@ function PhoneShell() {
         <Drawer.Portal>
           <Drawer.Backdrop className="fixed inset-0 bg-black/30 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-300 data-ending-style:opacity-0 data-starting-style:opacity-0 data-swiping:duration-0" />
           <Drawer.Viewport className="fixed inset-0 flex items-stretch justify-start">
-            <Drawer.Popup className="h-full w-[min(var(--spacing-sidebar),85vw)] border-e border-separator bg-sidebar outline-none [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-300 ease-(--ease-structure) data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0">
-              <Drawer.Title className="sr-only">Chats</Drawer.Title>
-              <SidebarContents
-                onClose={() => setDrawerOpen(false)}
-                closeLabel="Close"
-              />
+            <Drawer.Popup className="flex h-full w-[min(calc(var(--spacing-rail)+var(--spacing-sidebar)),90vw)] bg-rail outline-none [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-300 ease-(--ease-structure) data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0">
+              <Drawer.Title className="sr-only">Navigation</Drawer.Title>
+              <Rail />
+              <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
+                <div aria-hidden="true" className="lift-glow" />
+                <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+                  <ContextPanel />
+                </div>
+              </div>
             </Drawer.Popup>
           </Drawer.Viewport>
         </Drawer.Portal>
       </Drawer.Root>
 
-      <div className="flex h-full min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-w-0 flex-1 flex-col bg-sheet [--sheet-h:100dvh] [--sheet-inset:0px]">
         <ChatHeader onOpenSidebar={() => setDrawerOpen(true)} />
         <div className="min-h-0 flex-1">
           <ModeView />
@@ -106,7 +116,97 @@ function PhoneShell() {
   )
 }
 
-/** Sidebar, conversation and artifacts. Mounted inside TheoremRuntimeProvider. */
+/** What the dock beside the context panel shows. */
+type DockRoute = { projectId: string; threadId: string | undefined }
+const DockRouteContext = createContext<DockRoute | null>(null)
+
+function DockView() {
+  const route = useContext(DockRouteContext)
+  if (!route) throw new Error('DockView renders inside the desktop sheet')
+  return <DockShell projectId={route.projectId} threadId={route.threadId} />
+}
+const PANEL = 'panel'
+
+const splitComponents = {
+  [PANEL]: ContextPanel,
+  dock: DockView,
+}
+
+/**
+ * The sheet's two columns: the active mode's panel and the dock. The panel
+ * keeps its width as the window resizes, can be dragged within its range and
+ * closes per mode from the rail.
+ */
+function SheetSplit(route: DockRoute) {
+  const mode = useShellMode()
+  const panelOpen = useShell((s) => !s.panelCollapsed[mode])
+  const [split, setSplit] = useState<SplitviewApi>()
+
+  const onReady = ({ api }: SplitviewReadyEvent) => {
+    api.addPanel({
+      id: PANEL,
+      component: PANEL,
+      size: useShell.getState().panelWidth,
+      minimumSize: PANEL_WIDTH.min,
+      maximumSize: PANEL_WIDTH.max,
+      priority: LayoutPriority.Low,
+    })
+    api.addPanel({
+      id: 'dock',
+      component: 'dock',
+      minimumSize: 360,
+      priority: LayoutPriority.High,
+    })
+    setSplit(api)
+  }
+
+  useEffect(() => {
+    split?.getPanel(PANEL)?.api.setVisible(panelOpen)
+  }, [split, panelOpen])
+
+  // The width a drag leaves the panel at is the width it reopens with.
+  useEffect(() => {
+    const panel = split?.getPanel(PANEL)
+    if (!panel) return
+    const listener = panel.api.onDidDimensionsChange(({ width }) => {
+      if (panel.api.isVisible && width > 0)
+        useShell.getState().setPanelWidth(width)
+    })
+    return () => listener.dispose()
+  }, [split])
+
+  return (
+    <DockRouteContext.Provider value={route}>
+      <SplitviewReact
+        className="sheet-split dockview-theme-stone h-full w-full"
+        orientation={Orientation.HORIZONTAL}
+        proportionalLayout={false}
+        components={splitComponents}
+        onReady={onReady}
+      />
+    </DockRouteContext.Provider>
+  )
+}
+
+/**
+ * Desktop shell: the rail is the base, and one rounded sheet sits on it,
+ * inset by --sheet-inset from the window, holding the panel and the dock.
+ * The sheet lifts off the rail by a shadow in light and a glow in dark.
+ */
+function DesktopShell(route: DockRoute) {
+  return (
+    <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
+      <Rail collapsible />
+      <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
+        <div aria-hidden="true" className="lift-glow" />
+        <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+          <SheetSplit {...route} />
+        </div>
+      </div>
+    </div>
+  )
+}
+/** Rail, panel, conversation and artifacts. Mounted inside TheoremRuntimeProvider. */
 export function ChatShell({
   projectId,
   threadId,
@@ -116,9 +216,9 @@ export function ChatShell({
 }) {
   const desktop = useMediaQuery('(min-width: 768px)', { noSsr: true })
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-background text-ink">
+    <div className="flex h-dvh w-full overflow-hidden bg-rail text-ink">
       {desktop ? (
-        <DockShell projectId={projectId} threadId={threadId} />
+        <DesktopShell projectId={projectId} threadId={threadId} />
       ) : (
         <PhoneShell />
       )}

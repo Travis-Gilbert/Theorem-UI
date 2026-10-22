@@ -54,6 +54,19 @@
   --surface-selected: #a49e9a;
   --surface-composer: #c2bebb;
   --surface-artifact: #bab6b2;
+  /* The rail is the base the sheet sits on; the active row is cut from it. */
+  --surface-rail: #dbd7d4;
+  --surface-pill: var(--surface-rail);
+  /* The sheet's vertical field, painted once across its full height. */
+  --sheet-from: #d0ccc9;
+  --sheet-to: #aeaaa6;
+  /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
+  --ink-faint-top: #575652;
+  --ink-faint-bottom: #3a3936;
+  /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
+  --glow-opacity: 0;
+  --glow-from: transparent;
+  --glow-to: transparent;
 
   --ink: #30312d;
   --ink-muted: #3f403c;
@@ -117,6 +130,19 @@
   --surface-selected: #26282a;
   --surface-composer: #1e1f20;
   --surface-artifact: #18191a;
+  --surface-rail: #0b0c0d;
+  --surface-pill: var(--surface-rail);
+  --sheet-from: #232425;
+  --sheet-to: #151617;
+  --ink-faint-top: #8c8c8c;
+  --ink-faint-bottom: #808080;
+  /* A shadow cannot show on the near-black rail, so the sheet glows instead:
+     the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
+     read against the rail, warm at the top and teal at the bottom. */
+  --shadow-sheet: 0 0 #0000;
+  --glow-opacity: 1;
+  --glow-from: rgb(205 78 24 / 0.36);
+  --glow-to: rgb(25 142 169 / 0.36);
 
   --ink: #cccccc;
   --ink-muted: #959595;
@@ -191,12 +217,14 @@
   --dv-tab-group-line-height: 2px;
   --dv-tab-group-line-opacity: 0.6;
 
-  --dv-group-view-background-color: var(--background);
-  --dv-tabs-and-actions-container-background-color: var(--surface-frame);
-  --dv-activegroup-visiblepanel-tab-background-color: var(--background);
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--surface-frame);
-  --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface-frame);
+  /* Docked groups are see-through so the sheet's gradient runs behind them;
+     tabs read by their ink. Floating groups get a solid ground below. */
+  --dv-group-view-background-color: transparent;
+  --dv-tabs-and-actions-container-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
   --dv-tab-divider-color: var(--line-separator);
   --dv-activegroup-visiblepanel-tab-color: var(--ink);
   --dv-activegroup-hiddenpanel-tab-color: var(--ink-muted);
@@ -205,6 +233,16 @@
   --dv-separator-border: var(--line-separator);
   --dv-paneview-header-border-color: var(--line-separator);
   --dv-scrollbar-background-color: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.dockview-theme-stone .dv-resize-container {
+  background: var(--sheet-from);
+}
+
+/* The sheet's split (chat-shell.tsx) draws its divider on the dock's edge;
+   with the panel closed the dock meets the rail, and the divider goes too. */
+.sheet-split > .dv-split-view-container > .dv-view-container > .dv-view:not(.visible) + .dv-view::before {
+  display: none;
 }
 
 @theme inline {
@@ -230,6 +268,8 @@
 
   --color-sidebar: var(--surface-sidebar);
   --color-frame: var(--surface-frame);
+  --color-rail: var(--surface-rail);
+  --color-pill: var(--surface-pill);
   --color-raised: var(--surface-raised);
   --color-hover: var(--surface-hover);
   --color-selected: var(--surface-selected);
@@ -261,7 +301,7 @@
   --font-heading: "Libron", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Geometry: control/row 6, popover 8, artifact 14, frame/composer 16. */
+  /* Geometry: control/row 6, popover 8, sheet 12, artifact 14, frame/composer 16. */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -271,8 +311,11 @@
 
   --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
   --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
+  --shadow-pill: 0 1px 2px rgb(var(--shadow-tint) / 0.14), 0 2px 8px rgb(var(--shadow-tint) / 0.08);
+  /* The sheet sits on the rail; the junction's tab casts the same shadow. */
+  --shadow-sheet: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
-  --spacing-rail: 68px;
+  --spacing-rail: 52px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
   --spacing-reading: 720px;
@@ -407,6 +450,119 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/* The sheet's gradient, sized to the whole sheet (--sheet-h, set by the
+   shell) so every element that paints it samples one field. An element below
+   the sheet's top aligns it with bg-bottom when it sits on the sheet's bottom
+   edge, or with an explicit background position. */
+@utility bg-sheet {
+  background-color: var(--sheet-to);
+  background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+  background-size: 100% var(--sheet-h, 100dvh);
+  background-repeat: no-repeat;
+}
+
+/* Streamline marks (icons.tsx): the ink is painted through the PNG's alpha,
+   so the mark follows currentColor. Sizing comes from the caller. */
+@layer components {
+  .icon-mask {
+    flex-shrink: 0;
+    background-color: currentColor;
+    mask: var(--icon-mask) center / contain no-repeat;
+  }
+}
+
+/* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
+   clipped to the glyphs, running against the sheet's own, so a label recolours
+   as it scrolls and keeps at least 4.5:1 over whatever stretch of the sheet is
+   behind it: in light it darkens toward the bottom as the sheet does. Text
+   only, since an icon painted with currentColor inside would go transparent.
+   A hover or state colour set with text-* still paints over the fill. */
+@utility text-ink-faint-sheet {
+  color: transparent;
+  background-image: linear-gradient(to bottom, var(--ink-faint-top), var(--ink-faint-bottom));
+  background-attachment: fixed;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Rows on the sheet sit over a gradient, so their hover is translucent ink
+   rather than an opaque surface step. Popups portal out and keep theirs. */
+.on-sheet {
+  --surface-hover: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+/* The dark glow behind a lifted surface, the sheet (chat-shell.tsx) and the
+   composer (thread.aui.tsx): the glow gradient, blurred behind the surface so
+   only its halo shows past the edge. It fills its positioned parent, and the
+   surface comes after it so it paints on top. --glow-opacity is 0 in light,
+   where --shadow-sheet does this job. */
+.lift-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--glow-radius, var(--radius-xl));
+  background: linear-gradient(to bottom, var(--glow-from), var(--glow-to));
+  filter: blur(6px);
+  opacity: var(--glow-opacity);
+  pointer-events: none;
+}
+
+/* The rail's junction (rail.tsx). --rail-y is the active destination's top
+   within the rail; registering it lets the tab and its corners slide as one,
+   each re-sampling the gradient at its own height as it moves. */
+@property --rail-y {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+.rail-junction {
+  --junction-item: 36px;
+  --junction-corner: 10px;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: --rail-y 180ms var(--ease-structure);
+  /* The tab is part of the sheet, so it casts the sheet's shadow onto the
+     rail. The clip stops at the sheet's edge, where the sheet paints its own. */
+  filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18))
+    drop-shadow(0 0 5px color-mix(in srgb, var(--glow-from), var(--glow-to) calc(var(--rail-t, 0) * 100%)));
+  clip-path: inset(-24px 0 -24px -24px);
+
+  & > * {
+    position: absolute;
+    right: 0;
+    background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+    background-size: 100% var(--sheet-h, 100dvh);
+    background-repeat: no-repeat;
+  }
+}
+
+.rail-junction-tab {
+  top: var(--rail-y);
+  left: 8px;
+  height: var(--junction-item);
+  border-start-start-radius: var(--junction-corner);
+  border-end-start-radius: var(--junction-corner);
+  background-position: 0 calc(var(--sheet-inset) - var(--rail-y));
+}
+
+.rail-junction-corner {
+  width: var(--junction-corner);
+  height: var(--junction-corner);
+
+  &[data-edge="top"] {
+    top: calc(var(--rail-y) - var(--junction-corner));
+    background-position: 0 calc(var(--sheet-inset) - var(--rail-y) + var(--junction-corner));
+    mask: radial-gradient(circle at 0 0, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
+  }
+
+  &[data-edge="bottom"] {
+    top: calc(var(--rail-y) + var(--junction-item));
+    background-position: 0 calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
+    mask: radial-gradient(circle at 0 100%, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
   }
 }
 
