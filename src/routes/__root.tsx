@@ -50,7 +50,9 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        {/* Theia, served from this origin, keeps its own theme under `theme`. */}
         <ThemeProvider
+          storageKey="theorem-ui-theme"
           attribute="class"
           defaultTheme="system"
           enableSystem
