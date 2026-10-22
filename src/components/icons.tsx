@@ -25,7 +25,8 @@ import Chat from '@/assets/icons/rail/noun-chat-8216252.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
-import { Trash2 as Delete } from 'lucide-react'
+// Nor a two-way chevron for switchers; Lucide's stands in the same way.
+import { ChevronsUpDown as UpDown, Trash2 as Delete } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
 import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
@@ -114,6 +115,7 @@ export const Icon = {
   Spaces: PenroseTriangle,
   Stop,
   Sun,
+  UpDown,
   Web,
 }
 
