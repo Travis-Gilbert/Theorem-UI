@@ -11,9 +11,10 @@ import { BoxLayout, Panel } from '@theia/core/shared/@lumino/widgets';
 import { EXPLORER_VIEW_CONTAINER_ID } from '@theia/navigator/lib/browser/navigator-widget-factory';
 
 /**
- * Zed has no activity bar. Hiding the side bar (tab strip and menus) through Lumino, rather than CSS,
- * also removes it from the layout, so a collapsed dock takes no width. Views are switched from the
- * status bar instead (see `ZedDockButtons`).
+ * Zed has no activity bar, so the side bar (tab strip and menus) is taken out of the layout, and views
+ * are switched from the status bar instead (see `ZedDockButtons`). Detaching it rather than hiding it
+ * matters: a hidden tab strip is still attached and measures itself at zero height, so every tab
+ * overflows, and revealing one moves it to the front.
  *
  * Zed's project panel also has no title row, so the explorer's is hidden; its actions are in the
  * tree's context menu (see `ZedExplorer`). Other panels keep theirs, as Zed's git and debug panels do.
@@ -24,7 +25,7 @@ export class ZedSidePanelHandler extends SidePanelHandler {
     protected override createContainer(): Panel {
         const container = super.createContainer();
         const [sideBar] = (container.layout as BoxLayout).widgets;
-        sideBar.hide();
+        sideBar.parent = null;
         return container;
     }
 
