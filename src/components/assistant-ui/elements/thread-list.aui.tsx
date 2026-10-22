@@ -241,7 +241,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
       <>
         <div
           data-slot="aui_thread-list-empty"
-          className="text-ink-faint px-2 py-4 text-sm"
+          className="text-ink-faint-sheet px-2 py-4 text-sm"
         >
           No threads found
         </div>
@@ -271,7 +271,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
         <Fragment key={group.label}>
           <div
             data-slot="aui_thread-list-group-label"
-            className="text-ink-faint px-2 pt-4 pb-1 text-xs"
+            className="text-ink-faint-sheet px-2 pt-4 pb-1 text-xs"
           >
             {group.label}
           </div>
@@ -301,7 +301,7 @@ const ThreadListShowMore: FC = () => {
       data-slot="aui_thread-list-show-more"
       disabled={isLoadingMore}
       onClick={() => void aui.threads.loadMore()}
-      className="text-ink-faint hover:bg-hover hover:text-ink focus-visible:outline-focus mt-2 flex h-7 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-60"
+      className="text-ink-faint-sheet hover:bg-hover hover:text-ink focus-visible:outline-focus mt-2 flex h-7 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-60"
     >
       {isLoadingMore ? "Loading…" : "Show more"}
     </button>

@@ -124,7 +124,7 @@ function ProjectSwitcher() {
             <span className="truncate text-sm leading-tight font-medium">
               {project?.title ?? 'Project'}
             </span>
-            <span className="truncate text-xs leading-tight text-ink-faint">
+            <span className="truncate text-xs leading-tight text-ink-faint-sheet">
               {tenant ?? 'Theorem'}
             </span>
           </span>
@@ -211,7 +211,7 @@ function ModePanel({ mode }: { mode: Exclude<ShellMode, 'chat'> }) {
       <div className="flex h-12 shrink-0 items-center px-3.5 text-sm font-medium">
         {modeLabel(mode)}
       </div>
-      <p className="px-3.5 text-sm text-ink-faint">Nothing here yet.</p>
+      <p className="px-3.5 text-sm text-ink-faint-sheet">Nothing here yet.</p>
     </div>
   )
 }
