@@ -8,6 +8,7 @@ import { ThemeProvider } from 'next-themes'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
+import { isDesktopDocument } from '@/lib/desktop/host'
 import appCss from '../styles.css?url'
 
 interface RouterContext {
@@ -45,7 +46,12 @@ function NotFound() {
 function RootDocument({ children }: { children: ReactNode }) {
   return (
     // next-themes sets the .dark class before paint, so the server markup differs by design.
-    <html lang="en" suppressHydrationWarning>
+    // data-theorem-desktop is DESKTOP_DOCUMENT_ATTRIBUTE: getDesktopHost() reads it.
+    <html
+      lang="en"
+      data-theorem-desktop={isDesktopDocument() ? '' : undefined}
+      suppressHydrationWarning
+    >
       <head>
         <HeadContent />
       </head>
