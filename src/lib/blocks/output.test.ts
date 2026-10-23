@@ -1,3 +1,4 @@
+// SOURCING: bun:test over pinned output Markdown (output.ts, format.ts).
 import { describe, expect, test } from 'bun:test'
 import { liveBlocksIn, serializeLiveBlock } from './format'
 import { outputMarkdown, withPinnedOutput, withoutPinnedOutput } from './output'

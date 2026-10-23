@@ -1,3 +1,5 @@
+// SOURCING: bun:test over block sessions (session.ts) on the fixture
+// workspace in test/fixtures/blocks/.
 import { afterEach, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { visit } from 'unist-util-visit'

@@ -1,3 +1,4 @@
+// SOURCING: bun:test over the Observable Runtime block graph (runtime.ts).
 import { afterEach, describe, expect, test } from 'bun:test'
 import { BlockGraph } from './runtime'
 import type { CellDefinition, CellHandle } from './runtime'

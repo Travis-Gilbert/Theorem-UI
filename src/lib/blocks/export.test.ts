@@ -1,3 +1,5 @@
+// SOURCING: bun:test over the standalone HTML export (export.ts), bundled
+// with esbuild-wasm into a temporary folder.
 import { afterEach, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'

@@ -1,3 +1,5 @@
+// SOURCING: bun:test over the Loro state document (state-document.ts),
+// saved to a temporary folder.
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

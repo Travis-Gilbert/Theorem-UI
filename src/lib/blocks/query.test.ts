@@ -1,3 +1,5 @@
+// SOURCING: bun:test over query blocks (query.ts) against an in-memory
+// workspace and the QuickJS test engine from test/blocks/.
 import { describe, expect, test } from 'bun:test'
 import { memoryWorkspace } from '../../../test/blocks/memory-workspace'
 import { testFormulaEngine } from '../../../test/blocks/formula-engine'

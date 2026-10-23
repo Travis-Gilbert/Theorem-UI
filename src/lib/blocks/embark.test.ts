@@ -1,3 +1,5 @@
+// SOURCING: bun:test over Embark mentions and chained formulas (embark.ts),
+// run in the QuickJS test engine from test/blocks/.
 import { describe, expect, test } from 'bun:test'
 import { testFormulaEngine } from '../../../test/blocks/formula-engine'
 import { computeEmbark, parseEmbark, recordsUnder } from './embark'

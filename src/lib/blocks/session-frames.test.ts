@@ -1,3 +1,5 @@
+// SOURCING: bun:test over a block session driving sandboxed frames
+// (session.ts), with compiled cells from test/blocks/.
 import { afterEach, expect, test } from 'bun:test'
 import path from 'node:path'
 import { testFormulaEngine } from '../../../test/blocks/formula-engine'

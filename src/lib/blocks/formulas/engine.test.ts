@@ -1,3 +1,4 @@
+// SOURCING: bun:test over the QuickJS formula engine (formulas/).
 import { describe, expect, test } from 'bun:test'
 import { testFormulaEngine } from '../../../../test/blocks/formula-engine'
 

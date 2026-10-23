@@ -1,3 +1,4 @@
+// SOURCING: bun:test over agent block parsing (agent.ts).
 import { describe, expect, test } from 'bun:test'
 import { AgentBlockError, agentInputs, agentReads, parseAgent } from './agent'
 

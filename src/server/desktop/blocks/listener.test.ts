@@ -1,3 +1,5 @@
+// SOURCING: bun:test over the block listener (listener.ts) on a real
+// loopback port, with a temporary data folder.
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'

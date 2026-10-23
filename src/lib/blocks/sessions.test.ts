@@ -1,3 +1,5 @@
+// SOURCING: bun:test over shared block sessions and folder trust
+// (sessions.ts), with fetch and EventSource stubbed.
 import {
   afterAll,
   afterEach,

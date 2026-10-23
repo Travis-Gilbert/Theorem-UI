@@ -1,3 +1,5 @@
+// SOURCING: bun:test over the capability bridge (bridge.ts), with a
+// compiled cell and an in-memory workspace from test/blocks/.
 import { afterEach, describe, expect, test } from 'bun:test'
 import { loadCell } from '../../../test/blocks/load-cell'
 import { memoryWorkspace } from '../../../test/blocks/memory-workspace'
