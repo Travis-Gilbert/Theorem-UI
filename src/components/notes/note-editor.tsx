@@ -7,9 +7,10 @@
 // markdownUpdated listener is debounced.
 import { Crepe } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
-import { commandsCtx } from '@milkdown/kit/core'
+import { commandsCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core'
 import { clearTextInCurrentBlockCommand } from '@milkdown/kit/preset/commonmark'
-import { insert, replaceAll } from '@milkdown/kit/utils'
+import type { Serializer } from '@milkdown/kit/transformer'
+import { getMarkdown, insert, replaceAll } from '@milkdown/kit/utils'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
@@ -18,7 +19,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import askIcon from '@/assets/icons/rail/noun-chat-8216252.svg?raw'
 import embedIcon from '@/assets/icons/records/noun-article-8259879.svg?raw'
 import { EMBED_LANGUAGE, embedFence, parseEmbed } from '@/lib/theorem/embeds'
-import { editNote, fetchNote, noteKey } from '@/lib/theorem/notes'
+import { editNote, fetchNote, leavePage, noteKey } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 import { EMBED_ATTR, EmbedCard } from './note-excerpt'
@@ -79,6 +80,12 @@ function CrepeEditor({
   /** The Markdown this editor last showed or serialized. */
   const shown = useRef(note.markdown)
   const crepeRef = useRef<Crepe>(undefined)
+  /** Hands the editor's text to the save queue when it is a new edit. */
+  const report = (markdown: string) => {
+    if (markdown === shown.current) return
+    shown.current = markdown
+    editNote(queryClient, documentId, markdown)
+  }
 
   const { get } = useEditor((root) => {
     const crepe = new Crepe({
@@ -119,14 +126,19 @@ function CrepeEditor({
     })
     crepeRef.current = crepe
     crepe.on((listener) => {
+      // Milkdown removes the serializer before it closes the view, so the
+      // destroy handler below keeps its own.
+      let serialize: Serializer | undefined
       // Normalization on load is not an edit; remember the editor's own form.
-      listener.mounted(() => {
+      listener.mounted((ctx) => {
+        serialize = ctx.get(serializerCtx)
         shown.current = crepe.getMarkdown()
       })
-      listener.markdownUpdated((_ctx, markdown) => {
-        if (markdown === shown.current) return
-        shown.current = markdown
-        editNote(queryClient, documentId, markdown)
+      listener.markdownUpdated((_ctx, markdown) => report(markdown))
+      // markdownUpdated waits 200ms and is dropped when the editor closes, so
+      // a closing editor hands over its last text itself.
+      listener.destroy((ctx) => {
+        if (serialize) report(serialize(ctx.get(editorViewCtx).state.doc))
       })
     })
     onInsertReady((markdown) => crepe.editor.action(insert(markdown)))
@@ -136,6 +148,23 @@ function CrepeEditor({
   useEffect(() => {
     crepeRef.current?.setReadonly(!note.editable)
   }, [note.editable])
+
+  // Leaving the page skips the destroy above, so the editor hands over its
+  // last text before the saves are flushed.
+  useEffect(() => {
+    const leave = (event: Event) => {
+      if (event.type === 'visibilitychange' && !document.hidden) return
+      const markdown = get()?.action(getMarkdown())
+      if (markdown !== undefined) report(markdown)
+      leavePage(event)
+    }
+    window.addEventListener('beforeunload', leave)
+    document.addEventListener('visibilitychange', leave)
+    return () => {
+      window.removeEventListener('beforeunload', leave)
+      document.removeEventListener('visibilitychange', leave)
+    }
+  })
 
   // A change from elsewhere replaces the document.
   useEffect(() => {
