@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { Mutex } from 'async-mutex'
 import debounce from 'lodash-es/debounce'
+import { join } from 'pathe'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { WorkspaceConflictError } from '@/lib/workspace/types'
 import type { WorkspaceClient, WorkspaceEvent } from '@/lib/workspace/types'
@@ -263,4 +264,28 @@ export function useObjectUrl(
     return () => URL.revokeObjectURL(url)
   }, [bytes, type])
   return entry && entry.bytes === bytes ? entry.url : undefined
+}
+
+/**
+ * Writes a new file in `folder` as `name`, or as `name 1`, `name 2` and so on
+ * when that is taken, the way Obsidian names copies. Returns the path written.
+ */
+export async function writeNewFile(
+  client: WorkspaceClient,
+  folder: string,
+  name: string,
+  data: Uint8Array | string,
+): Promise<string> {
+  const dot = name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  for (let n = 0; ; n++) {
+    const path = join(folder, n ? `${stem} ${n}${ext}` : name)
+    try {
+      await client.write(path, data, { expectedHash: null })
+      return path
+    } catch (error) {
+      if (!(error instanceof WorkspaceConflictError)) throw error
+    }
+  }
 }

@@ -192,13 +192,13 @@ export async function settle(turns = 4) {
 export async function waitFor<T>(
   check: () => T,
   { timeout = 2000 }: { timeout?: number } = {},
-): Promise<T> {
+): Promise<Exclude<NonNullable<T>, false>> {
   const start = Date.now()
   for (;;) {
     try {
       const value = check()
       if (value !== undefined && value !== null && value !== false)
-        return value
+        return value as Exclude<NonNullable<T>, false>
     } catch (error) {
       if (Date.now() - start > timeout) throw error
     }

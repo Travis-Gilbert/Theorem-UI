@@ -24,13 +24,13 @@ import {
   useNodeViewFactory,
 } from '@prosemirror-adapter/react'
 import { Info } from 'lucide-react'
-import { dirname, join } from 'pathe'
+import { basename, dirname, join } from 'pathe'
 import { useEffect, useRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { revealDone, useRevealRequest } from '@/lib/handlers/actions'
+import { writeNewFile } from '@/lib/handlers/file-sync'
 import { markdownExtensions, mimeOf } from '@/lib/handlers/registry'
 import type { FileViewProps } from '@/lib/handlers/types'
-import { WorkspaceConflictError } from '@/lib/workspace/types'
 import { cn } from '@/lib/utils'
 import {
   calloutNode,
@@ -91,20 +91,13 @@ function useFolderImages({ client, path }: FileViewProps) {
   /** A pasted or picked image is saved next to the note, under a free name. */
   const onUpload = async (upload: File) => {
     const bytes = new Uint8Array(await upload.arrayBuffer())
-    const dot = upload.name.lastIndexOf('.')
-    const stem = dot > 0 ? upload.name.slice(0, dot) : upload.name || 'image'
-    const ext = dot > 0 ? upload.name.slice(dot) : ''
-    for (let n = 0; ; n++) {
-      const name = n ? `${stem} ${n}${ext}` : `${stem}${ext}`
-      try {
-        await client.write(join(dirname(path), name), bytes, {
-          expectedHash: null,
-        })
-        return encodeURI(name)
-      } catch (error) {
-        if (!(error instanceof WorkspaceConflictError)) throw error
-      }
-    }
+    const written = await writeNewFile(
+      client,
+      dirname(path),
+      upload.name || 'image',
+      bytes,
+    )
+    return encodeURI(basename(written))
   }
 
   return { proxyDomURL, onUpload }
