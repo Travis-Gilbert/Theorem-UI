@@ -3,7 +3,7 @@
 // content-addressed compile store (docs/desktop/workspace-routes.md), so a
 // source compiled once is never compiled again.
 import type { WorkspaceId } from '@/lib/workspace/types'
-import { CompileError, compileCell, compileKey } from './compile'
+import { CompileError, compileKey } from './compile'
 import type { CompileResult, CompiledCell, WorkerMethods } from './compile'
 import { call, rpcOver } from './sandbox/protocol'
 
@@ -13,9 +13,6 @@ const unwrap = (result: CompileResult): CompiledCell => {
   if (result.ok) return result.cell
   throw new CompileError(result.error.message, result.error.line)
 }
-
-/** Compiles on this thread: tests, and pages without workers. */
-export const compileHere: Compiler = compileCell
 
 let worker: Promise<Compiler> | null = null
 
