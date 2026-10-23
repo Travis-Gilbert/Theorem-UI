@@ -17,7 +17,7 @@ use serde_json::Value;
 use theorem_desktop_protocol::{FolderGrant, HostCall, HostEvent, RpcError, ToHost, ToServer};
 use url::Url;
 
-use crate::{capture, editor};
+use crate::{drive, editor};
 use crate::page::PageView;
 use crate::server::{Ports, Server, ServerConfig, new_secret};
 
@@ -98,12 +98,12 @@ impl Host {
             ToHost::Ready { port, block_port } => {
                 let host = cx.global_mut::<Host>();
                 host.ready_at = Some(Instant::now());
-                let page = host.page.clone();
-                if let Ok(webview) = page.update(cx, |page, _| {
-                    page.open_session(port, block_port, secret);
-                    page.webview.clone()
-                }) {
-                    capture::after_load(webview, cx);
+                let (page, window) = (host.page.clone(), host.window);
+                if page
+                    .update(cx, |page, _| page.open_session(port, block_port, secret))
+                    .is_ok()
+                {
+                    drive::after_load(page, window, cx);
                 }
             }
             ToHost::Rpc { id, call } => {

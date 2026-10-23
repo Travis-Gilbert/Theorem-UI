@@ -6,9 +6,9 @@
 extern crate gpui_kit as gpui;
 
 mod bridge;
-mod capture;
 mod controls;
 mod delegate;
+mod drive;
 mod editor;
 mod engine;
 mod keys;
