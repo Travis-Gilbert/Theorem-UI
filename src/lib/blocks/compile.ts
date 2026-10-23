@@ -216,3 +216,32 @@ export async function compileCell(source: string): Promise<CompiledCell> {
     declarationErrors: declarations.errors,
   }
 }
+
+/** A compile that failed, as it crosses from the worker. */
+export interface CompileFailure {
+  message: string
+  line: number | null
+}
+
+export type CompileResult =
+  | { ok: true; cell: CompiledCell }
+  | { ok: false; error: CompileFailure }
+
+export interface WorkerMethods {
+  compile: { params: { source: string }; result: CompileResult }
+}
+
+/** Compiles a source, reporting failure as a value. */
+export async function compileResult(source: string): Promise<CompileResult> {
+  try {
+    return { ok: true, cell: await compileCell(source) }
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        message: (error as Error).message,
+        line: error instanceof CompileError ? error.line : null,
+      },
+    }
+  }
+}
