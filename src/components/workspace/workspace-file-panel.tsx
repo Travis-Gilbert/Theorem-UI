@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { Icon } from '@/components/icons'
+import { openBeside } from '@/components/shell/open-beside'
 import { Button } from '@/components/ui/button'
 import {
   openWorkspaceFile,
@@ -215,15 +216,7 @@ export function openWorkspaceFilePanel(
     api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
     return
   }
-  const initialWidth = Math.round(api.width * 0.4)
-  if (api.getPanel(besidePanelId)?.api.location.type === 'grid')
-    api.addPanel({
-      ...options,
-      initialWidth,
-      position: { referencePanel: besidePanelId, direction: 'right' },
-    })
-  else
-    api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
+  openBeside(api, options, besidePanelId, 0.4)
 }
 
 /** The open workspace file over the conversation, on a phone. */

@@ -26,6 +26,7 @@ import {
 import { useNote } from '@/lib/theorem/notes'
 import { useWorkspaceFileView } from '@/lib/workspace/open'
 import { ModeView, modeLabel, useShellMode } from './modes'
+import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
 
 const THREAD = 'thread'
@@ -194,15 +195,7 @@ function openArtifact(api: DockviewApi, artifactId: string) {
     api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
     return
   }
-  const initialWidth = Math.round(api.width * 0.55)
-  if (api.getPanel(THREAD)?.api.location.type === 'grid')
-    api.addPanel({
-      ...options,
-      initialWidth,
-      position: { referencePanel: THREAD, direction: 'right' },
-    })
-  else
-    api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
+  openBeside(api, options, THREAD, 0.55)
 }
 
 /** Notes join the open note tabs, else open beside the conversation. */
@@ -225,15 +218,7 @@ function openNote(api: DockviewApi, documentId: string) {
     api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
     return
   }
-  const initialWidth = Math.round(api.width * 0.4)
-  if (api.getPanel(THREAD)?.api.location.type === 'grid')
-    api.addPanel({
-      ...options,
-      initialWidth,
-      position: { referencePanel: THREAD, direction: 'right' },
-    })
-  else
-    api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
+  openBeside(api, options, THREAD, 0.4)
 }
 
 /**
