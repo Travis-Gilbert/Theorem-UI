@@ -102,6 +102,24 @@ Measured 2026-10-23.
 | Shiki code blocks | works | works |
 | Mermaid diagrams | works | shapes and labels solid black (gap 1) |
 
+### File handlers (plan Phase 3)
+
+Servo only: workspace folders need the desktop host. A folder of the
+`test/fixtures/handlers` files plus two notes, a TypeScript file, a CSV, a
+JSONC file and 512 random bytes, opened file by file from the tree.
+
+| File | Opens in | Servo |
+| --- | --- | --- |
+| `.md` with properties, a link, a callout and an embed | Crepe | works |
+| `.canvas` | React Flow | works; minimap black (gap 1) |
+| `.ts` | CodeMirror | works |
+| `.csv` | table | works |
+| `.jsonc` | tree | works |
+| `.pdf` | react-pdf | pages draw after fix E; no text layer (gap 12) |
+| `.png` | `img` | works |
+| `.wav`, `.mp4` | `audio`, `video` | elements mount; playback not driven |
+| `.bin` | file info with "Open with" | works |
+
 ## Gaps and dispositions
 
 Fixed in this pass:
@@ -133,6 +151,11 @@ Fixed in this pass:
   Chrome: an edit closed within the debounce and an edit reloaded within it
   both reached the backend. The leave prompt itself did not appear in the
   in-app browser, so it is unverified.
+- **E. PDF text drew as empty boxes in Servo** (Theorem UI, Servo). pdf.js
+  draws text in the PDF's embedded fonts, which it loads through `FontFace`,
+  and Servo's canvas does not draw with loaded fonts (gap 11). The PDF
+  handler sets pdf.js's `disableFontFace`, so glyphs are drawn as paths.
+  Rechecked in Servo: the fixture's text reads correctly.
 - **CSS fallbacks** (Theorem UI). `styles.css` gives Servo something to draw
   where it drops a declaration the page depends on:
   1. `pointer-events: all`, which Servo drops: behind
@@ -199,6 +222,16 @@ then upstream:
 
     Vendor pseudo-elements (`::-webkit-scrollbar`, the date field parts) are
     dropped too. They only style Chrome's own controls, so nothing is lost.
+11. **Canvas text ignores loaded fonts.** `FontFace` exists in the page and
+    pdf.js adds its fonts with it, but canvas text in those families does not
+    come out in them, so pdf.js's remapped glyphs show as boxes. When it is
+    fixed, the PDF handler can drop `disableFontFace` (fix E). Separately,
+    `measureText` reports 0 for `fontBoundingBoxAscent` and
+    `fontBoundingBoxDescent`.
+12. **The PDF text layer stays empty.** react-pdf mounts the layer, but no
+    text spans appear and the page reports no error, so PDF text cannot be
+    selected or found. A plain `ReadableStream`, one with a size strategy, and
+    canvas `measureText` all work in Servo, so the cause is not found yet.
 
 Host, not fixed:
 
