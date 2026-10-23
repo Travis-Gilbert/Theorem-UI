@@ -136,8 +136,8 @@
     {
       "id": "web-deployment-kept",
       "item": "Web deployment still works and never exposes workspace or bridge routes (D4, Phase 1)",
-      "status": "pending",
-      "evidence": null
+      "status": "in_progress",
+      "evidence": "The Worker build leaves out src/routes/desktop and the desktop nitro routes, and loads loro's wasm as a module (vite.config.ts). Run locally under wrangler dev, / and /spaces answer 200 and every /desktop path answers 404. Not yet deployed."
     },
     {
       "id": "folder-open",
