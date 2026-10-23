@@ -11017,23 +11017,26 @@ dependencies = [
  "anyhow",
  "dirs 6.0.0",
  "dpi",
- "env_logger",
  "euclid",
  "futures",
  "getrandom 0.3.4",
  "gpui-kit",
  "hex",
  "log",
+ "notify-rust",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "raw-window-handle",
+ "rustls",
  "security-framework",
  "serde",
  "serde_json",
  "servo",
  "theorem-desktop-protocol",
  "url",
+ "webview-surface",
+ "which",
 ]
 
 [[package]]
@@ -12406,6 +12409,15 @@ checksum = "674538885dba825ee1ddda72ade941fef81364cb843bbb0452fe7d134068ed89"
 dependencies = [
  "bitflags 2.13.2",
  "lazy_static",
+]
+
+[[package]]
+name = "webview-surface"
+version = "0.1.0"
+dependencies = [
+ "dpi",
+ "objc",
+ "raw-window-handle",
 ]
 
 [[package]]
