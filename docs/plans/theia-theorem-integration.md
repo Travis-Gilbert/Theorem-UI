@@ -117,14 +117,14 @@ Sign out returned the UI to the sign-in screen.
   product server refused it execution (`environment_execution_not_granted`).
   The UI now signs people in and forwards their token (see Decisions). The
   static token remains for deployments without sign-in, with the same limit.
-- **A signed-in person cannot start a run in a chat project.** An OAuth
-  token admits one project, the connector's home project
-  (`project:home:<hash>`), and `start_run` refuses any other requested project
-  (`chat_project_scope_refused`). Chat projects are `chatproj_*` records, so a
-  run started from the composer for a chat project is refused; a run with no
-  project starts in the home project. Either the UI's client gets tokens that
-  admit the person's chat projects, or chat projects map onto the admitted
-  project. Both change Theorem's authorization, so it is left for a decision.
+- **Resolved: a signed-in person could not start a run in a chat project.**
+  An OAuth token admits one project, the connector's home project
+  (`project:home:<hash>`), and `start_run` refused any other requested project
+  (`chat_project_scope_refused`), so a run for a `chatproj_*` record was
+  refused. `start_run` now also accepts a chat project the token's tenant owns
+  and has not deleted, the same rule the chat routes already apply to reads
+  and writes. Any other project must still be the admitted one, and a store
+  error counts as not owned.
 - **This lane's server has no conversational send.** The SDK's
   `chat.messages.send` posts `{text}`; `claude/theorem-ui-artifact-tools`
   routes that to `turns::send_message`, but main and PR 880 only accept the
