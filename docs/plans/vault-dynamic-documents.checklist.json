@@ -15,9 +15,9 @@
     },
     {
       "id": "servo-dependency",
-      "item": "Host depends on servo 0.7.0 from crates.io with the webcrypto feature, not Turvo's fork or libtheorem_ide_webview.dylib; Servo and gpui-pre build on one toolchain (D2, Phase 0)",
-      "status": "pending",
-      "evidence": null
+      "item": "Depend on Theorem's Servo 0.7 fork (git rev b9d6db9e, features webcrypto, webgl, brotli-compression-stream), lock seeded from Theorem apps/browser, one toolchain (1.97.1) for Servo and gpui-pre",
+      "status": "in_progress",
+      "evidence": "desktop/Cargo.toml pins the fork rev; cargo resolves after carrying zed-font-kit with freetype-sys 0.23 (desktop/vendor/zed-font-kit/THEOREM-PATCH.md). First full build pending."
     },
     {
       "id": "servo-child-view",

@@ -37,11 +37,11 @@ engine on 2026-10-22: Servo 0.7 renders the main window (D2).
 - **Theorem's repo rules do not bind it.** SPEC-THEOREM-DESKTOP-SHELL-SERVO-RR-1.0
   governs Theorem's own desktop, not Theorem UI. This app uses Servo because
   its owner chose Servo for it, not because that spec requires it.
-- **It uses upstream Servo 0.7.0 from crates.io.** It does not use Turvo's
-  Servo 0.5.0 fork or Theorem's `libtheorem_ide_webview.dylib`. Theorem's own
-  fork is being replayed onto 0.7 in a separate lane
-  (`theorem-servo07-browser-20261013`). That is separate work, and this app
-  does not wait for it.
+- **It uses Theorem's Servo 0.7 fork.** The fork is rebased onto upstream
+  v0.7.0 and adds the IndexedDB, Web Locks and storage work the public
+  embedding API cannot express. The app consumes it as a git dependency,
+  pinned to the same revision as Theorem's own browser. It does not use
+  Turvo's Servo 0.5.0 fork or Theorem's `libtheorem_ide_webview.dylib`.
 
 ## Sources and what they changed
 
@@ -216,7 +216,8 @@ engine on 2026-10-22: Servo 0.7 renders the main window (D2).
 ### D1. The desktop app: a GPUI host around Servo
 
 **What the host is.**
-- A Rust binary on GPUI Kit 0.8 (`gpui-pre` 0.3.9) that embeds Servo 0.7.0.
+- A Rust binary on GPUI Kit 0.8 (`gpui-pre` 0.3.9) that embeds Servo 0.7,
+  from Theorem's fork.
 - macOS comes first. GPUI and Servo both support Windows and Linux.
 
 **The main window.**
@@ -259,17 +260,30 @@ then.
 - **GPUIX for the interface.** This has the same duplication, in React, and
   nested scrolling is unsupported.
 
-### D2. The web engine: Servo 0.7.0
+### D2. The web engine: Servo 0.7, from Theorem's fork
 
 **The dependency.**
-- `servo = "0.7.0"` from crates.io, with the `webcrypto` feature added to
-  the defaults. Note canonicals hash with `crypto.subtle`.
+- `servo` from `https://github.com/Travis-Gilbert/servo` at revision
+  `b9d6db9eb26409c2bebab03cb8845be616d4df92` (branch
+  `servo07-browser-20261013`, based on upstream v0.7.0). It is the same pin
+  and feature set as Theorem's `apps/browser`:
+  - `webcrypto`, because note canonicals hash with `crypto.subtle`;
+  - `webgl`;
+  - `brotli-compression-stream`.
+- `desktop/Cargo.lock` is seeded from Theorem's `apps/browser/Cargo.lock`, so
+  Servo's dependencies resolve to the versions Theorem validated.
 - SpiderMonkey comes from `mozjs_sys`'s prebuilt archive.
-- One `rust-toolchain.toml` in `desktop/` serves both Servo and `gpui-pre`.
-  Phase 0's first build confirms that one toolchain compiles both.
-- If the app ever needs a Servo change before upstream releases it, it takes
-  it through `[patch.crates-io]`, preferably from Theorem's 0.7 fork once
-  that lane lands.
+- One `rust-toolchain.toml` in `desktop/` (Rust 1.97.1, Servo's) serves both
+  Servo and `gpui-pre`.
+- **One carried patch so the two graphs resolve together.** GPUI's
+  `zed-font-kit` requires `freetype-sys` 0.20, and Servo's `servo-fonts`
+  requires 0.23. Both declare `links = "freetype"`, and Cargo allows one such
+  package per graph across every target. The host carries `zed-font-kit` with
+  those two requirements raised, in `desktop/vendor/zed-font-kit`.
+  `open-gpui-font-kit` made the same move upstream. macOS links neither
+  FreeType.
+- A Servo change the app needs goes into Theorem's fork, and the app moves
+  its pin.
 
 **One engine instance.**
 - The host builds one `Servo` at startup and spins its event loop from the
@@ -531,16 +545,18 @@ file paths and the graph is their home. See Backend changes.
 
 **Layout.**
 - `.theorem/` holds user-owned configuration only:
+  - `workspace.json`, which holds the workspace id (`ws_<ULID>`);
   - `ids.json`;
   - workspace settings (attachments folder, daily-note folder and template);
-  - handler settings;
-  - folder trust (D9).
+  - handler settings.
 - These live in the app data directory, keyed by workspace id, so iCloud,
   git or Dropbox never sync caches:
   - the index;
   - the compile cache;
   - last-run values;
-  - per-file Loro documents.
+  - per-file Loro documents;
+  - folder trust (D9). Trust stays out of the folder so that a cloned or
+    synced folder cannot arrive already trusted.
 
 ### D9. Live blocks: format, runtime and sandbox
 
@@ -883,7 +899,7 @@ Web deployment              the same app and server, no workspace or bridge
 |---|---|---|
 | The interface | this repo's React app | shipped |
 | Native app, windows, dialogs, popups | GPUI Kit 0.8 (`gpui-pre` 0.3.9) | published |
-| Web engine | `servo` 0.7.0 with `webcrypto` | crates.io |
+| Web engine | `servo` 0.7 with `webcrypto`, `webgl`, `brotli-compression-stream` | Theorem's fork, git rev `b9d6db9e` |
 | Page frames inside GPUI's scene | `gpui::surface()` with a BGRA path in `gpui-pre-apple`; surfman `IOSurface` | published; renderer patch written and carried by the app |
 | Input translation | servoshell's platform-to-Servo event code | reference, Servo repository |
 | Accessibility | Servo's AccessKit tree, AccessKit macOS adapter | crates.io |
@@ -927,7 +943,8 @@ Each phase says how it is verified.
 
 **Phase 0: the proof** (the attached analysis's milestone, sharpened).
 1. **The app runs.**
-   - The host builds with Servo 0.7.0 and `gpui-pre` 0.3.9 on one toolchain.
+   - The host builds with Theorem's Servo 0.7 fork and `gpui-pre` 0.3.9 on
+     one toolchain.
    - It opens a GPUI window with Servo in a child view (D2, step 1), starts
      the local server and loads Theorem UI through the launch-secret
      handshake.

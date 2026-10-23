@@ -1,0 +1,50 @@
+[package]
+name = "theorem-desktop"
+version = "0.1.0"
+edition = "2024"
+description = "Theorem UI's desktop host: a GPUI Kit app that shows the React app in Servo and runs the local server."
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "theorem"
+path = "src/main.rs"
+
+# Its own workspace: libservo is in this graph, and nothing else should pay for it.
+[workspace]
+members = ["protocol"]
+
+[dependencies]
+gpui-kit = { version = "=0.8.0", features = ["syntect"] }
+# Theorem's fork of Servo 0.7 (branch servo07-browser-20261013, base v0.7.0).
+# Same revision and features as Theorem's own consumer in apps/browser.
+servo = { git = "https://github.com/Travis-Gilbert/servo", rev = "b9d6db9eb26409c2bebab03cb8845be616d4df92", features = ["webcrypto", "webgl", "brotli-compression-stream"] }
+anyhow = "1"
+dirs = "6"
+dpi = "0.1"
+env_logger = "0.11"
+euclid = "0.22"
+futures = "0.3"
+getrandom = "0.3"
+hex = "0.4"
+log = "0.4"
+raw-window-handle = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+theorem-desktop-protocol = { path = "protocol" }
+url = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3.2", features = ["NSView", "NSResponder", "NSWindow", "NSGraphics"] }
+objc2-foundation = { version = "0.3.2", features = ["NSGeometry"] }
+security-framework = "3"
+
+[profile.dev]
+# Servo is unusably slow unoptimized; optimize dependencies, keep the host debuggable.
+[profile.dev.package."*"]
+opt-level = 2
+
+[patch.crates-io]
+# See vendor/zed-font-kit/THEOREM-PATCH.md: freetype-sys 0.23 to match Servo.
+zed-font-kit = { path = "vendor/zed-font-kit" }
