@@ -4,6 +4,7 @@
 import { WorkspaceConflictError } from './types'
 import type {
   FileContent,
+  FolderSettings,
   SearchHit,
   WorkspaceClient,
   WorkspaceEntry,
@@ -180,6 +181,11 @@ export function createDesktopWorkspaceClient(
       }),
     tags: () => json<Array<{ tag: string; count: number }>>('tags'),
     properties: (path) => json<Record<string, unknown>>('properties', { path }),
+    settings: () => json<FolderSettings>('settings'),
+    async setSettings(settings) {
+      const response = await post('settings', settings, 'PUT')
+      return (await response.json()) as FolderSettings
+    },
     async setTrusted(trusted) {
       const response = await post('trust', { trusted }, 'PUT')
       current = (await response.json()) as WorkspaceSummary

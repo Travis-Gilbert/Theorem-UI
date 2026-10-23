@@ -1,8 +1,8 @@
 // SOURCING: dockview-react (the file's dock panel and its placement), the
 // handler registry (plan D13: the file is shown by the Panel of the handler
-// that opens it, or of the one picked in "Open with"), @tanstack/react-query
-// (a Markdown file's properties, which handlers may match on); ui/button.
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+// that opens it, or of the one picked in "Open with"), useIndexQuery
+// (react-query: a Markdown file's properties, which handlers may match on);
+// ui/button; LinksPane beside the file.
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { OpenWith } from '@/components/handlers/open-with'
@@ -23,11 +23,13 @@ import {
 import type { WorkspaceFileRef } from '@/lib/workspace/open'
 import type { WorkspaceClient, WorkspaceEvent } from '@/lib/workspace/types'
 import {
+  useIndexQuery,
   useWorkspaceClient,
   useWorkspaceTree,
   useWorkspaces,
 } from '@/lib/workspace/workspaces'
 import { cn } from '@/lib/utils'
+import { LinksPane, useLinksAside } from './links-pane'
 
 /** The dock's component name for workspace files. */
 export const WORKSPACE_FILE_COMPONENT = 'workspaceFile'
@@ -40,31 +42,10 @@ const within = (path: string, folder: string) =>
  * A Markdown file's frontmatter properties, from the workspace index, for
  * handlers that match on them; null for other files.
  */
-function useMatchProperties(client: WorkspaceClient, path: string) {
-  const queryClient = useQueryClient()
-  const markdown = mimeOf(path) === 'text/markdown'
-  const queryKey = [
-    'desktop',
-    'workspace',
-    client.workspace.id,
-    'file',
-    path,
-    'properties',
-  ]
-  const onEvent = useEffectEvent((event: WorkspaceEvent) => {
-    // The index has the file's new properties once it has caught up.
-    if (event.type === 'indexed' || event.type === 'resync')
-      void queryClient.invalidateQueries({ queryKey })
+const useMatchProperties = (client: WorkspaceClient, path: string) =>
+  useIndexQuery(client, ['properties', path], () => client.properties(path), {
+    enabled: mimeOf(path) === 'text/markdown',
   })
-  useEffect(() => client.subscribe((event) => onEvent(event)), [client])
-  return useQuery({
-    queryKey,
-    queryFn: () => client.properties(path),
-    enabled: markdown,
-    staleTime: Infinity,
-    retry: false,
-  })
-}
 
 function Message({ children }: { children: React.ReactNode }) {
   return <p className="p-6 text-sm text-ink-muted">{children}</p>
@@ -118,6 +99,7 @@ function FileView({
   const properties = useMatchProperties(client, path)
   const handlers = useHandlerRegistry((s) => s.handlers)
   const [deleted, setDeleted] = useState(false)
+  const links = useLinksAside()
 
   const onEvent = useEffectEvent((event: WorkspaceEvent) => {
     switch (event.type) {
@@ -153,20 +135,36 @@ function FileView({
   else if (!handler) body = <Message>Nothing here can show this file.</Message>
   else
     body = (
-      <div className="min-h-0 flex-1">
-        <handler.Panel
-          // Another file or another view is a new view.
-          key={`${handler.id}:${path}`}
-          client={client}
-          path={path}
-          entry={entry}
-        />
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1">
+          <handler.Panel
+            // Another file or another view is a new view.
+            key={`${handler.id}:${path}`}
+            client={client}
+            path={path}
+            entry={entry}
+          />
+        </div>
+        {links.open && <LinksPane client={client} path={path} entry={entry} />}
       </div>
     )
 
   return (
     <>
       <Header path={path} onClose={onClose}>
+        {entry && handler && !deleted && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Links"
+            aria-pressed={links.open}
+            title="Backlinks, links and tags"
+            className="aria-pressed:bg-pill"
+            onClick={links.toggle}
+          >
+            <Icon.Link />
+          </Button>
+        )}
         {entry && handler && !deleted && (
           <OpenWith
             file={{ client, path, entry }}

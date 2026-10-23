@@ -10,15 +10,27 @@
 //   undefined while the list loads or once the folder is closed. Outside React,
 //   `workspaceClient(summary)` returns the same instance.
 // - `useWorkspaceTree(client)` is the workspace's entries, kept current.
+// - `useIndexQuery(client, parts, fn)` is anything the index answers (links,
+//   backlinks, search, tags, properties), fetched again as the index catches up.
+// - `useFolderSettings(client)` and `useSaveFolderSettings(client)` are the
+//   folder's own settings.
 // - `useOpenFolder()` is the "Open folder" action, or null without a host.
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
+import { useEffect, useEffectEvent } from 'react'
 import { getDesktopHost } from '@/lib/desktop/host'
 import {
   createDesktopWorkspaceClient,
   listDesktopWorkspaces,
 } from './desktop-client'
 import type {
+  FolderSettings,
   WorkspaceClient,
   WorkspaceEntry,
   WorkspaceEvent,
@@ -29,6 +41,13 @@ import type {
 export const WORKSPACES_KEY = ['desktop', 'workspaces'] as const
 export const workspaceTreeKey = (id: WorkspaceId) =>
   ['desktop', 'workspace', id, 'tree'] as const
+/** The key of something the workspace index answers; see `useIndexQuery`. */
+export const workspaceIndexKey = (
+  id: WorkspaceId,
+  parts: ReadonlyArray<unknown>,
+) => ['desktop', 'workspace', id, 'index', ...parts] as const
+const settingsKey = (id: WorkspaceId) =>
+  ['desktop', 'workspace', id, 'settings'] as const
 
 /** One client per workspace, so its views share one event stream. */
 const clients = new Map<WorkspaceId, WorkspaceClient>()
@@ -131,7 +150,10 @@ export function applyWorkspaceEvent(
  * current. A view inside one that holds the tree (a file panel, a canvas)
  * reads entries without subscribing again.
  */
-export function useWorkspaceEntry(client: WorkspaceClient, path: string | null) {
+export function useWorkspaceEntry(
+  client: WorkspaceClient,
+  path: string | null,
+) {
   return useQuery({
     queryKey: workspaceTreeKey(client.workspace.id),
     queryFn: () => client.tree(),
@@ -140,35 +162,106 @@ export function useWorkspaceEntry(client: WorkspaceClient, path: string | null) 
   })
 }
 
+/** Keeps a workspace's cached tree current with its events. */
+function followTree(client: WorkspaceClient, queryClient: QueryClient) {
+  const queryKey = workspaceTreeKey(client.workspace.id)
+  return client.subscribe((event) => {
+    if (event.type === 'indexed') return
+    // A tree still on its way may predate the event, so fetch it again.
+    if (
+      event.type === 'resync' ||
+      queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
+    ) {
+      void queryClient.invalidateQueries({ queryKey })
+      return
+    }
+    queryClient.setQueryData<Array<WorkspaceEntry>>(
+      queryKey,
+      (entries) => entries && applyWorkspaceEvent(entries, event),
+    )
+  })
+}
+
 /** A workspace's entries, updated from its events as they arrive. */
 export function useWorkspaceTree(client: WorkspaceClient) {
   const queryClient = useQueryClient()
-  const id = client.workspace.id
-
-  useEffect(
-    () =>
-      client.subscribe((event) => {
-        if (event.type === 'indexed') return
-        const queryKey = workspaceTreeKey(id)
-        // A tree still on its way may predate the event, so fetch it again.
-        if (
-          event.type === 'resync' ||
-          queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
-        ) {
-          void queryClient.invalidateQueries({ queryKey })
-          return
-        }
-        queryClient.setQueryData<Array<WorkspaceEntry>>(
-          queryKey,
-          (entries) => entries && applyWorkspaceEvent(entries, event),
-        )
-      }),
-    [client, id, queryClient],
-  )
-
+  useEffect(() => followTree(client, queryClient), [client, queryClient])
   return useQuery({
-    queryKey: workspaceTreeKey(id),
+    queryKey: workspaceTreeKey(client.workspace.id),
     queryFn: () => client.tree(),
     staleTime: Infinity,
+  })
+}
+
+/** Every open workspace's entries, each with its client, kept current. */
+export function useAllWorkspaceTrees() {
+  const queryClient = useQueryClient()
+  const open = useWorkspaces().workspaces.map(workspaceClient)
+  const key = open.map((client) => client.workspace.id).join(' ')
+  useEffect(() => {
+    const stops = open.map((client) => followTree(client, queryClient))
+    return () => stops.forEach((stop) => stop())
+    // The clients are the same instances while the ids are.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, queryClient])
+  return useQueries({
+    queries: open.map((client) => ({
+      queryKey: workspaceTreeKey(client.workspace.id),
+      queryFn: () => client.tree(),
+      staleTime: Infinity,
+    })),
+    combine: (results) =>
+      open.map((client, i) => ({
+        client,
+        entries: results[i]?.data ?? [],
+        isPending: results[i]?.isPending ?? true,
+      })),
+  })
+}
+
+/**
+ * Something the workspace index answers, keyed by `parts` within the
+ * workspace. It is fetched again once the index has caught up with a change,
+ * and when events may have been missed.
+ */
+export function useIndexQuery<T>(
+  client: WorkspaceClient,
+  parts: ReadonlyArray<unknown>,
+  queryFn: () => Promise<T>,
+  { enabled = true }: { enabled?: boolean } = {},
+) {
+  const queryClient = useQueryClient()
+  const queryKey = workspaceIndexKey(client.workspace.id, parts)
+  const onEvent = useEffectEvent((event: WorkspaceEvent) => {
+    if (event.type === 'indexed' || event.type === 'resync')
+      void queryClient.invalidateQueries({ queryKey })
+  })
+  useEffect(() => client.subscribe((event) => onEvent(event)), [client])
+  return useQuery({
+    queryKey,
+    queryFn,
+    enabled,
+    staleTime: Infinity,
+    // The index is local; an answer that failed once fails again.
+    retry: false,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** The folder's own settings, from `.theorem/settings.json`. */
+export function useFolderSettings(client: WorkspaceClient) {
+  return useQuery({
+    queryKey: settingsKey(client.workspace.id),
+    queryFn: () => client.settings(),
+    staleTime: Infinity,
+  })
+}
+
+export function useSaveFolderSettings(client: WorkspaceClient) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (settings: FolderSettings) => client.setSettings(settings),
+    onSuccess: (saved) =>
+      queryClient.setQueryData(settingsKey(client.workspace.id), saved),
   })
 }

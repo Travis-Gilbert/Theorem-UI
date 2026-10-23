@@ -7,9 +7,11 @@ import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import { parse as parseYaml } from 'yaml'
+import { WorkspaceRequestError } from '#/lib/workspace/desktop-client'
 import { WorkspaceConflictError } from '#/lib/workspace/types'
 import type {
   ChangeOrigin,
+  FolderSettings,
   WorkspaceClient,
   WorkspaceEntry,
   WorkspaceEvent,
@@ -34,11 +36,27 @@ export interface FakeWorkspace {
   writes: Array<{ path: string; expectedHash: string | null | undefined }>
 }
 
+export const DEFAULT_FOLDER_SETTINGS: FolderSettings = {
+  attachments: './',
+  dailyNotes: { folder: '', template: '' },
+}
+
 export function fakeWorkspace(
   files: Record<string, string | Uint8Array>,
-  { path = '/tmp/vault' }: { path?: string } = {},
+  {
+    path = '/tmp/vault',
+    answers = {},
+  }: {
+    path?: string
+    /** Answers for the index's queries, which the fake does not compute. */
+    answers?: Partial<
+      Pick<WorkspaceClient, 'links' | 'backlinks' | 'search' | 'tags'>
+    >
+  } = {},
 ): FakeWorkspace {
   const store = new Map<string, Uint8Array>()
+  const folders = new Set<string>()
+  let settings = DEFAULT_FOLDER_SETTINGS
   const ids = new Map<string, string>()
   let nextId = 1
   const idOf = (p: string) => {
@@ -77,22 +95,28 @@ export function fakeWorkspace(
   }
 
   const directories = () => {
-    const dirs = new Set<string>()
+    const dirs = new Set<string>(folders)
     for (const p of store.keys()) {
       const parts = p.split('/')
       for (let i = 1; i < parts.length; i++)
         dirs.add(parts.slice(0, i).join('/'))
     }
-    return [...dirs].map(
-      (p): WorkspaceEntry => ({
-        id: idOf(p),
-        path: p,
-        kind: 'directory',
-        size: 0,
-        mtimeMs: 1,
-      }),
-    )
+    return [...dirs].map((p): WorkspaceEntry => ({
+      id: idOf(p),
+      path: p,
+      kind: 'directory',
+      size: 0,
+      mtimeMs: 1,
+    }))
   }
+
+  // A name already in use is refused as the server refuses it.
+  const taken = (p: string) =>
+    store.has(p) || directories().some((dir) => dir.path === p)
+  const alreadyExists = (p: string) =>
+    Promise.reject(
+      new WorkspaceRequestError(409, 'already_exists', `${p} already exists`),
+    )
 
   const client: WorkspaceClient = {
     workspace: {
@@ -102,7 +126,8 @@ export function fakeWorkspace(
       trusted: false,
       policy: 'LocalOnly',
     },
-    tree: () => Promise.resolve([...directories(), ...[...store.keys()].map(entry)]),
+    tree: () =>
+      Promise.resolve([...directories(), ...[...store.keys()].map(entry)]),
     read,
     readText: async (p) => {
       const { bytes, hash } = await read(p)
@@ -119,19 +144,36 @@ export function fakeWorkspace(
       }
       return Promise.resolve({ hash: put(p, encode(data), 'app') })
     },
-    mkdir: () => Promise.resolve(),
+    mkdir: (p) => {
+      if (taken(p)) return alreadyExists(p)
+      folders.add(p)
+      emit({
+        type: 'created',
+        entry: { ...entry(p), kind: 'directory', size: 0 },
+        origin: 'app',
+      })
+      return Promise.resolve()
+    },
     rename: (from, to) => {
-      const bytes = store.get(from)
-      if (bytes) {
-        store.delete(from)
-        store.set(to, bytes)
-        ids.set(to, idOf(from))
+      if (from !== to && taken(to)) return alreadyExists(to)
+      const moved = (p: string) => p === from || p.startsWith(`${from}/`)
+      const id = idOf(from)
+      // Everything at or under `from` keeps its id under its new path.
+      for (const p of [...ids.keys()].filter(moved)) {
+        ids.set(to + p.slice(from.length), ids.get(p)!)
+        ids.delete(p)
       }
-      emit({ type: 'renamed', id: idOf(to), from, to, origin: 'app' })
+      for (const p of [...store.keys()].filter(moved)) {
+        store.set(to + p.slice(from.length), store.get(p)!)
+        store.delete(p)
+      }
+      if (folders.delete(from)) folders.add(to)
+      emit({ type: 'renamed', id, from, to, origin: 'app' })
       return Promise.resolve()
     },
     remove: (p) => {
       store.delete(p)
+      folders.delete(p)
       emit({ type: 'deleted', id: idOf(p), path: p, origin: 'app' })
       return Promise.resolve()
     },
@@ -140,9 +182,7 @@ export function fakeWorkspace(
       const found =
         paths.find((p) => p === target || p === `${target}.md`) ??
         paths.find(
-          (p) =>
-            p.endsWith(`/${target}`) ||
-            p.endsWith(`/${target}.md`),
+          (p) => p.endsWith(`/${target}`) || p.endsWith(`/${target}.md`),
         )
       return Promise.resolve(found ?? null)
     },
@@ -155,11 +195,14 @@ export function fakeWorkspace(
       const yaml = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
       return (yaml ? parseYaml(yaml) : {}) as Record<string, unknown>
     },
+    settings: () => Promise.resolve(settings),
+    setSettings: (next) => Promise.resolve((settings = next)),
     setTrusted: () => Promise.resolve(),
     subscribe: (listener) => {
       listeners.add(listener)
       return () => void listeners.delete(listener)
     },
+    ...answers,
   }
 
   return {

@@ -119,6 +119,11 @@ export function memoryWorkspace(
       const match = /^---\n([\s\S]*?)\n---/.exec(text)
       return match ? (parseYaml(match[1] ?? '') as Record<string, unknown>) : {}
     },
+    settings: async () => ({
+      attachments: './',
+      dailyNotes: { folder: '', template: '' },
+    }),
+    setSettings: async (settings) => settings,
     setTrusted: async (value) => {
       summary = { ...summary, trusted: value }
     },

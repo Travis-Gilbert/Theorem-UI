@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -9,6 +9,7 @@ import type {
   WorkspaceEvent,
 } from '@/lib/workspace/types'
 import { useWorkspaceFileView } from '@/lib/workspace/open'
+import { fakeWorkspace, waitFor } from '../../../test/workspace'
 
 // The icon set imports SVGs through a Vite plugin bun does not run.
 void mock.module('@/components/icons', () => ({
@@ -144,5 +145,182 @@ describe('WorkspaceTree', () => {
       '  note 10.md',
       'a.md',
     ])
+  })
+})
+
+/** Presses a key where the focus is, as the tree's hotkeys read it. */
+function press(target: Element, key: string) {
+  act(() => {
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { key, code: key, bubbles: true }),
+    )
+    target.dispatchEvent(
+      new KeyboardEvent('keyup', { key, code: key, bubbles: true }),
+    )
+  })
+}
+
+function type(input: HTMLInputElement, value: string) {
+  act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
+
+/** Right-clicks `element` and chooses `label` from the menu that opens. */
+async function choose(element: Element, label: string) {
+  act(() => {
+    element.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, clientX: 8, clientY: 8 }),
+    )
+  })
+  const item = await waitFor(() =>
+    [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+      (el) => el.textContent === label,
+    ),
+  )
+  await act(async () => item.click())
+  await waitFor(() => !document.querySelector('[role="menu"]'))
+}
+
+/** A drag event; files from Finder come in `dataTransfer`. */
+function drag(element: Element, name: string, dataTransfer?: object) {
+  const event = new Event(name, { bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'dataTransfer', { value: dataTransfer })
+  act(() => {
+    element.dispatchEvent(event)
+  })
+}
+
+const renaming = (container: HTMLElement) =>
+  waitFor(() =>
+    container.querySelector<HTMLInputElement>('[role="treeitem"] input'),
+  )
+
+describe('WorkspaceTree changes', () => {
+  beforeEach(() => useWorkspaceFileView.setState({ file: undefined }))
+
+  test('F2 renames a note from its name without .md, and keeps the .md', async () => {
+    const vault = fakeWorkspace({ 'a.md': 'A', 'b.md': 'B', 'pic.png': 'P' })
+    const container = await render(vault.client)
+
+    await act(async () => row(container, 'a.md').click())
+    press(row(container, 'a.md'), 'F2')
+    const input = await renaming(container)
+    expect(input.value).toBe('a')
+    type(input, 'Plan')
+    press(input, 'Enter')
+    await waitFor(() => rows(container).includes('Plan.md'))
+    expect(vault.text('Plan.md')).toBe('A')
+
+    // Another file keeps the name as typed, and a name in use is refused.
+    await act(async () => row(container, 'pic.png').click())
+    press(row(container, 'pic.png'), 'F2')
+    const other = await renaming(container)
+    expect(other.value).toBe('pic.png')
+    type(other, 'b.md')
+    press(other, 'Enter')
+    const alert = await waitFor(() => container.querySelector('[role="alert"]'))
+    expect(alert.textContent).toBe('There is already a “b.md” here.')
+    expect(rows(container)).toEqual(['b.md', 'pic.png', 'Plan.md'])
+  })
+
+  test('a name is kept when the field loses focus, and Escape leaves it', async () => {
+    const vault = fakeWorkspace({ 'a.md': '' })
+    const container = await render(vault.client)
+
+    await act(async () => row(container, 'a.md').click())
+    press(row(container, 'a.md'), 'F2')
+    const input = await renaming(container)
+    type(input, 'kept')
+    act(() => input.blur())
+    await waitFor(() => rows(container).includes('kept.md'))
+
+    await act(async () => row(container, 'kept.md').click())
+    press(row(container, 'kept.md'), 'F2')
+    const again = await renaming(container)
+    type(again, 'dropped')
+    press(again, 'Escape')
+    await settle()
+    expect(rows(container)).toEqual(['kept.md'])
+    expect(container.querySelector('input')).toBeNull()
+  })
+
+  test('New note in a folder is named in place, then opens', async () => {
+    const vault = fakeWorkspace({ 'docs/b.md': '' })
+    const container = await render(vault.client)
+
+    await choose(row(container, 'docs'), 'New note')
+    const input = await renaming(container)
+    expect(input.value).toBe('Untitled')
+    expect(vault.text('docs/Untitled.md')).toBe('')
+    // Nothing opens until the note has its name.
+    expect(useWorkspaceFileView.getState().file).toBeUndefined()
+    type(input, 'Plan')
+    press(input, 'Enter')
+    await waitFor(
+      () => useWorkspaceFileView.getState().file?.path === 'docs/Plan.md',
+    )
+    expect(rows(container)).toEqual(['docs', '  b.md', '  Plan.md'])
+  })
+
+  test('New folder from an empty spot is made at the top and named', async () => {
+    const vault = fakeWorkspace({ 'a.md': '' })
+    const container = await render(vault.client)
+    const tree = container.querySelector('[role="tree"]')!
+
+    await choose(tree, 'New folder')
+    const input = await renaming(container)
+    type(input, 'Projects')
+    press(input, 'Enter')
+    await waitFor(() => rows(container).includes('Projects'))
+    expect(useWorkspaceFileView.getState().file).toBeUndefined()
+
+    // A second new folder takes the next free name.
+    await choose(tree, 'New folder')
+    const next = await renaming(container)
+    expect(next.value).toBe('Untitled')
+    press(next, 'Escape')
+    await choose(tree, 'New folder')
+    expect((await renaming(container)).value).toBe('Untitled 1')
+  })
+
+  test('Move to Trash removes the entry', async () => {
+    const vault = fakeWorkspace({ 'a.md': '', 'b.md': '' })
+    const container = await render(vault.client)
+
+    await choose(row(container, 'a.md'), 'Move to Trash')
+    await waitFor(() => !rows(container).includes('a.md'))
+    expect(vault.text('a.md')).toBeUndefined()
+    expect(rows(container)).toEqual(['b.md'])
+  })
+
+  test('dragging a file onto a folder moves it there', async () => {
+    const vault = fakeWorkspace({ 'a.md': 'A', 'docs/b.md': '' })
+    const container = await render(vault.client)
+
+    drag(row(container, 'a.md'), 'dragstart')
+    drag(row(container, 'docs'), 'dragover')
+    drag(row(container, 'docs'), 'drop')
+    await waitFor(() => vault.text('docs/a.md') === 'A')
+    await settle()
+    expect(rows(container)).toEqual(['docs'])
+  })
+
+  test("Finder's files dropped on a file are copied into its folder", async () => {
+    const vault = fakeWorkspace({ 'docs/b.md': '' })
+    const container = await render(vault.client)
+    await act(async () => row(container, 'docs').click())
+    const files = [new File(['png'], 'pic.png')]
+    const dataTransfer = { types: ['Files'], files }
+
+    drag(row(container, 'b.md'), 'dragover', dataTransfer)
+    drag(row(container, 'b.md'), 'drop', dataTransfer)
+    await waitFor(() => vault.text('docs/pic.png') === 'png')
+    await settle()
+    expect(rows(container)).toEqual(['docs', '  b.md', '  pic.png'])
   })
 })

@@ -20,10 +20,11 @@ const ENTRY_ID = /^vf_[0-9A-HJKMNP-TV-Z]{26}$/
 export const isEntryId = (value: unknown): value is EntryId =>
   typeof value === 'string' && ENTRY_ID.test(value)
 
-const encode = (value: unknown) =>
+export const encode = (value: unknown) =>
   new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`)
 
-async function readJson(file: string): Promise<unknown> {
+/** A JSON file's value; undefined when there is no file. */
+export async function readJson(file: string): Promise<unknown> {
   try {
     return JSON.parse(await readFile(file, 'utf8'))
   } catch (error) {

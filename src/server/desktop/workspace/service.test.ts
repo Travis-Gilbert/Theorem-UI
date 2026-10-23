@@ -259,6 +259,67 @@ describe('folder workspace service', () => {
     expect(again.status).toBe(304)
   })
 
+  test('search takes tag: terms as Obsidian does, nested tags included', async () => {
+    const { id } = await openFolder({
+      'Alpha.md': '# Alpha\n\nA meeting about the launch #project/alpha\n',
+      'Beta.md': '# Beta\n\nNotes from a meeting #Project\n',
+      'Gamma.md': '---\ntags: [projects]\n---\n# Gamma\n\nA meeting\n',
+      'Delta.md': '# Delta\n\nA_b #a_b\n',
+    })
+    const search = async (q: string) =>
+      (
+        (await (
+          await call('search', 'GET', id, { query: { q } })
+        ).json()) as Array<{ path: string; snippet: string }>
+      ).map((hit) => hit.path)
+
+    // A tag alone lists its notes by title, with its nested tags and any case.
+    expect(await search('tag:#project')).toEqual(['Alpha.md', 'Beta.md'])
+    expect(await search('tag:project/alpha')).toEqual(['Alpha.md'])
+    // With words, the tag narrows the full-text matches.
+    expect((await search('meeting')).toSorted()).toEqual([
+      'Alpha.md',
+      'Beta.md',
+      'Gamma.md',
+    ])
+    expect((await search('tag:#project meeting')).toSorted()).toEqual([
+      'Alpha.md',
+      'Beta.md',
+    ])
+    expect(await search('tag:#projects meet')).toEqual(['Gamma.md'])
+    // LIKE's wildcards in a tag are taken literally.
+    expect(await search('tag:#a_b')).toEqual(['Delta.md'])
+    expect(await search('tag:#a%')).toEqual([])
+  })
+
+  test("a folder's settings are kept in .theorem/settings.json, with defaults", async () => {
+    const { root, id } = await openFolder({ 'a.md': 'a\n' })
+    expect(await (await call('settings', 'GET', id)).json()).toEqual({
+      attachments: './',
+      dailyNotes: { folder: '', template: '' },
+    })
+
+    const response = await call('settings', 'PUT', id, {
+      json: { attachments: 'Attachments', dailyNotes: { folder: 'Daily' } },
+    })
+    const stored = {
+      attachments: 'Attachments',
+      dailyNotes: { folder: 'Daily', template: '' },
+    }
+    expect(await response.json()).toEqual(stored)
+    expect(JSON.parse(await text(root, '.theorem/settings.json'))).toEqual(
+      stored,
+    )
+    expect(await (await call('settings', 'GET', id)).json()).toEqual(stored)
+
+    const invalid = await call('settings', 'PUT', id, {
+      json: { attachments: 3 },
+    })
+    expect(invalid.status).toBe(400)
+    // .theorem/ is not part of the workspace.
+    expect((await tree(id)).map((e) => e.path)).toEqual(['a.md'])
+  })
+
   test('an edit made outside Theorem appears after the debounce as external', async () => {
     const { root, id, events } = await openFolder({ 'a.md': 'one\n' })
     const before = (await tree(id)).find((e) => e.path === 'a.md')!

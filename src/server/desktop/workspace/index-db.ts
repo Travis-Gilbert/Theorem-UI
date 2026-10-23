@@ -124,6 +124,27 @@ const escapeHtml = (text: string) =>
   )
 
 /**
+ * What a person typed, split as Obsidian's search splits it: `tag:#name`
+ * terms (the `#` is optional) and the words to find in titles and bodies.
+ */
+export function parseSearch(input: string): {
+  tags: Array<string>
+  words: Array<string>
+} {
+  const tags: Array<string> = []
+  const words: Array<string> = []
+  for (const term of input.split(/\s+/).filter(Boolean)) {
+    const tag = /^tag:#?(.+)$/i.exec(term)?.[1]?.replace(/\/+$/, '')
+    if (tag) tags.push(tag)
+    else words.push(term)
+  }
+  return { tags, words }
+}
+
+/** LIKE's wildcards in `text`, escaped with `\`. */
+const likeLiteral = (text: string) => text.replace(/[\\%_]/g, '\\$&')
+
+/**
  * The FTS5 query for what a person typed: every word must appear, the last as
  * a prefix so results follow typing. Words are quoted so FTS5 operators and
  * punctuation in them are taken literally.
@@ -366,19 +387,41 @@ export class WorkspaceIndex implements LinkLookup {
       .filter((link) => link.resolved === entryPath)
   }
 
-  /** Full-text search over titles and bodies, best match first. */
+  /**
+   * Full-text search over titles and bodies, best match first. A `tag:#name`
+   * term keeps the notes with that tag or one nested under it (`#name/sub`),
+   * as Obsidian's does; with only tags, the notes come by title.
+   */
   search(input: string, limit = 20): Array<SearchHit> {
-    const match = ftsQuery(input)
-    if (!match) return []
+    const { tags, words } = parseSearch(input)
+    const match = ftsQuery(words.join(' '))
+    if (!match && tags.length === 0) return []
+    const params: Record<string, string | number> = { limit }
+    const tagged = tags.map((tag, i) => {
+      params[`tag${i}`] = tag
+      params[`nested${i}`] = `${likeLiteral(tag)}/%`
+      return `notes.path IN (SELECT path FROM tags WHERE tag = $tag${i} COLLATE NOCASE OR tag LIKE $nested${i} ESCAPE '\\')`
+    })
+    if (!match) {
+      const rows = this.db
+        .query(
+          `SELECT path, title FROM notes WHERE ${tagged.join(' AND ')}
+           ORDER BY title COLLATE NOCASE LIMIT $limit`,
+        )
+        .all(params) as Array<{ path: string; title: string }>
+      return rows.map((row) => ({ ...row, snippet: '', score: 0 }))
+    }
+    params.match = match
     const rows = this.db
       .query(
         `SELECT fts.path AS path, notes.title AS title,
            snippet(fts, -1, char(2), char(3), '…', 16) AS snippet,
            bm25(fts, 0, 5.0, 1.0) AS rank
          FROM fts JOIN notes ON notes.path = fts.path
-         WHERE fts MATCH $match ORDER BY rank LIMIT $limit`,
+         WHERE fts MATCH $match ${tagged.map((t) => `AND ${t}`).join(' ')}
+         ORDER BY rank LIMIT $limit`,
       )
-      .all({ match, limit }) as Array<{
+      .all(params) as Array<{
       path: string
       title: string
       snippet: string

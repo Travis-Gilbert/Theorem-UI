@@ -89,6 +89,22 @@ export interface SearchHit {
   score: number
 }
 
+/** A folder's own settings, kept in it at `.theorem/settings.json` (plan D8). */
+export interface FolderSettings {
+  /**
+   * Where new attachments go, written as Obsidian writes its "Default location
+   * for new attachments": `/` the root, `./` beside the note, `./name` a
+   * folder beside the note, any other path a folder from the root.
+   */
+  attachments: string
+  dailyNotes: {
+    /** The folder daily notes go in; '' is the root. */
+    folder: string
+    /** The note whose text starts each new daily note; '' for none. */
+    template: string
+  }
+}
+
 /** Thrown when a write's `expectedHash` does not match the file on disk. */
 export class WorkspaceConflictError extends Error {
   constructor(
@@ -128,10 +144,17 @@ export interface WorkspaceClient {
   resolve(target: string, fromPath: string): Promise<string | null>
   links(path: string): Promise<Array<WorkspaceLink>>
   backlinks(path: string): Promise<Array<WorkspaceLink>>
+  /**
+   * Full-text search over titles and bodies. `tag:#name` terms keep the notes
+   * with that tag or one nested under it.
+   */
   search(query: string, options?: { limit?: number }): Promise<Array<SearchHit>>
   tags(): Promise<Array<{ tag: string; count: number }>>
   /** Frontmatter properties of a Markdown file. */
   properties(path: string): Promise<Record<string, unknown>>
+  settings(): Promise<FolderSettings>
+  /** Replaces the folder's settings; answers them as stored. */
+  setSettings(settings: FolderSettings): Promise<FolderSettings>
   setTrusted(trusted: boolean): Promise<void>
   /** Returns an unsubscribe function. */
   subscribe(listener: (event: WorkspaceEvent) => void): () => void

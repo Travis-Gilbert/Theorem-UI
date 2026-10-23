@@ -32,6 +32,7 @@ import { Route as DesktopWorkspaceWorkspaceIdPropertiesRouteImport } from './rou
 import { Route as DesktopWorkspaceWorkspaceIdRenameRouteImport } from './routes/desktop/workspace/$workspaceId/rename'
 import { Route as DesktopWorkspaceWorkspaceIdResolveRouteImport } from './routes/desktop/workspace/$workspaceId/resolve'
 import { Route as DesktopWorkspaceWorkspaceIdSearchRouteImport } from './routes/desktop/workspace/$workspaceId/search'
+import { Route as DesktopWorkspaceWorkspaceIdSettingsRouteImport } from './routes/desktop/workspace/$workspaceId/settings'
 import { Route as DesktopWorkspaceWorkspaceIdStateRouteImport } from './routes/desktop/workspace/$workspaceId/state'
 import { Route as DesktopWorkspaceWorkspaceIdStateEventsRouteImport } from './routes/desktop/workspace/$workspaceId/state-events'
 import { Route as DesktopWorkspaceWorkspaceIdTagsRouteImport } from './routes/desktop/workspace/$workspaceId/tags'
@@ -165,6 +166,12 @@ const DesktopWorkspaceWorkspaceIdSearchRoute =
     path: '/desktop/workspace/$workspaceId/search',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DesktopWorkspaceWorkspaceIdSettingsRoute =
+  DesktopWorkspaceWorkspaceIdSettingsRouteImport.update({
+    id: '/desktop/workspace/$workspaceId/settings',
+    path: '/desktop/workspace/$workspaceId/settings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DesktopWorkspaceWorkspaceIdStateRoute =
   DesktopWorkspaceWorkspaceIdStateRouteImport.update({
     id: '/desktop/workspace/$workspaceId/state',
@@ -224,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/desktop/workspace/$workspaceId/rename': typeof DesktopWorkspaceWorkspaceIdRenameRoute
   '/desktop/workspace/$workspaceId/resolve': typeof DesktopWorkspaceWorkspaceIdResolveRoute
   '/desktop/workspace/$workspaceId/search': typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  '/desktop/workspace/$workspaceId/settings': typeof DesktopWorkspaceWorkspaceIdSettingsRoute
   '/desktop/workspace/$workspaceId/state': typeof DesktopWorkspaceWorkspaceIdStateRoute
   '/desktop/workspace/$workspaceId/state-events': typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
@@ -254,6 +262,7 @@ export interface FileRoutesByTo {
   '/desktop/workspace/$workspaceId/rename': typeof DesktopWorkspaceWorkspaceIdRenameRoute
   '/desktop/workspace/$workspaceId/resolve': typeof DesktopWorkspaceWorkspaceIdResolveRoute
   '/desktop/workspace/$workspaceId/search': typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  '/desktop/workspace/$workspaceId/settings': typeof DesktopWorkspaceWorkspaceIdSettingsRoute
   '/desktop/workspace/$workspaceId/state': typeof DesktopWorkspaceWorkspaceIdStateRoute
   '/desktop/workspace/$workspaceId/state-events': typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/desktop/workspace/$workspaceId/rename': typeof DesktopWorkspaceWorkspaceIdRenameRoute
   '/desktop/workspace/$workspaceId/resolve': typeof DesktopWorkspaceWorkspaceIdResolveRoute
   '/desktop/workspace/$workspaceId/search': typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  '/desktop/workspace/$workspaceId/settings': typeof DesktopWorkspaceWorkspaceIdSettingsRoute
   '/desktop/workspace/$workspaceId/state': typeof DesktopWorkspaceWorkspaceIdStateRoute
   '/desktop/workspace/$workspaceId/state-events': typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/rename'
     | '/desktop/workspace/$workspaceId/resolve'
     | '/desktop/workspace/$workspaceId/search'
+    | '/desktop/workspace/$workspaceId/settings'
     | '/desktop/workspace/$workspaceId/state'
     | '/desktop/workspace/$workspaceId/state-events'
     | '/desktop/workspace/$workspaceId/tags'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/rename'
     | '/desktop/workspace/$workspaceId/resolve'
     | '/desktop/workspace/$workspaceId/search'
+    | '/desktop/workspace/$workspaceId/settings'
     | '/desktop/workspace/$workspaceId/state'
     | '/desktop/workspace/$workspaceId/state-events'
     | '/desktop/workspace/$workspaceId/tags'
@@ -379,6 +391,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/rename'
     | '/desktop/workspace/$workspaceId/resolve'
     | '/desktop/workspace/$workspaceId/search'
+    | '/desktop/workspace/$workspaceId/settings'
     | '/desktop/workspace/$workspaceId/state'
     | '/desktop/workspace/$workspaceId/state-events'
     | '/desktop/workspace/$workspaceId/tags'
@@ -407,6 +420,7 @@ export interface RootRouteChildren {
   DesktopWorkspaceWorkspaceIdRenameRoute: typeof DesktopWorkspaceWorkspaceIdRenameRoute
   DesktopWorkspaceWorkspaceIdResolveRoute: typeof DesktopWorkspaceWorkspaceIdResolveRoute
   DesktopWorkspaceWorkspaceIdSearchRoute: typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  DesktopWorkspaceWorkspaceIdSettingsRoute: typeof DesktopWorkspaceWorkspaceIdSettingsRoute
   DesktopWorkspaceWorkspaceIdStateRoute: typeof DesktopWorkspaceWorkspaceIdStateRoute
   DesktopWorkspaceWorkspaceIdStateEventsRoute: typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   DesktopWorkspaceWorkspaceIdTagsRoute: typeof DesktopWorkspaceWorkspaceIdTagsRoute
@@ -579,6 +593,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/desktop/workspace/$workspaceId/settings': {
+      id: '/desktop/workspace/$workspaceId/settings'
+      path: '/desktop/workspace/$workspaceId/settings'
+      fullPath: '/desktop/workspace/$workspaceId/settings'
+      preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/desktop/workspace/$workspaceId/state': {
       id: '/desktop/workspace/$workspaceId/state'
       path: '/desktop/workspace/$workspaceId/state'
@@ -667,6 +688,8 @@ const rootRouteChildren: RootRouteChildren = {
     DesktopWorkspaceWorkspaceIdResolveRoute,
   DesktopWorkspaceWorkspaceIdSearchRoute:
     DesktopWorkspaceWorkspaceIdSearchRoute,
+  DesktopWorkspaceWorkspaceIdSettingsRoute:
+    DesktopWorkspaceWorkspaceIdSettingsRoute,
   DesktopWorkspaceWorkspaceIdStateRoute: DesktopWorkspaceWorkspaceIdStateRoute,
   DesktopWorkspaceWorkspaceIdStateEventsRoute:
     DesktopWorkspaceWorkspaceIdStateEventsRoute,

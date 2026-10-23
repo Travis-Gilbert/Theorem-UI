@@ -257,6 +257,17 @@ export const workspaceRoutes = {
       ),
     ),
   },
+  settings: {
+    GET: route(async ({ params }) =>
+      Response.json(await (await workspace(params)).folderSettings()),
+    ),
+    PUT: route(async ({ request, params }) => {
+      const service = await workspace(params)
+      return Response.json(
+        await service.setFolderSettings(await request.json()),
+      )
+    }),
+  },
   trust: {
     PUT: route(async ({ request, params }) => {
       const service = await workspace(params)

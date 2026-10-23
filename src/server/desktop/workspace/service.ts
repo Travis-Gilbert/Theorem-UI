@@ -16,6 +16,7 @@ import { Mutex } from 'async-mutex'
 import type {
   EntryId,
   FileContent,
+  FolderSettings,
   SearchHit,
   WorkspaceEntry,
   WorkspaceEvent,
@@ -33,6 +34,7 @@ import {
   writeAtomic,
 } from './files'
 import type { DiskEntry } from './files'
+import { readFolderSettings, writeFolderSettings } from './folder-settings'
 import { IDS_FILE, IdStore, isEntryId } from './identity'
 import { WorkspaceIndex } from './index-db'
 import type { IndexedEntry } from './index-db'
@@ -274,6 +276,15 @@ export class WorkspaceService {
 
   properties(input: string): Record<string, unknown> {
     return this.index.properties(this.known(input))
+  }
+
+  /** The folder's own settings (plan D8). */
+  folderSettings(): Promise<FolderSettings> {
+    return readFolderSettings(this.root)
+  }
+
+  setFolderSettings(settings: unknown): Promise<FolderSettings> {
+    return this.exclusive(() => writeFolderSettings(this.root, settings))
   }
 
   // Changes ----------------------------------------------------------------
