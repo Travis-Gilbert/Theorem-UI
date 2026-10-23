@@ -824,7 +824,7 @@ TypeScript:
 - `@parcel/watcher`;
 - the atomic writer;
 - ids and links;
-- the index in `bun:sqlite` with FTS5;
+- the index in embedded Rusty Red (`@rustyred/node`), with its full-text index;
 - per-file Loro documents;
 - sync.
 
@@ -858,7 +858,7 @@ file-handler registration, with generated TypeScript declarations.
 | Authored files (notes, canvases, tools, data) | the file on disk | merged across devices through per-file Loro documents |
 | Revision history and provenance | Theorem, through Documents v2 | `LocalOnly`: local index only |
 | Ids | `.theorem/ids.json` | synced with the folder |
-| Index (links, backlinks, tags, properties, headings, tasks, search) | derived | `bun:sqlite` with FTS5 in app data, rebuildable |
+| Index (links, backlinks, tags, properties, headings, tasks, search) | derived | Rusty Red file (`index.rr`) with its full-text index, in app data, rebuildable |
 | Last-run values | derived | app data, content-hashed |
 | Block shared state | per-workspace Loro state document | follows the workspace's sync policy |
 | Runs | Theorem harness run log | `LocalOnly`: local index |
@@ -911,7 +911,7 @@ Web deployment              the same app and server, no workspace or bridge
 | Bridge typing | `ts-rs`, `json-rpc-2.0` | crates.io, npm |
 | OAuth PKCE | `oauth4webapi` | npm; Theia plan |
 | File watching | `@parcel/watcher` | npm |
-| Index and search | `bun:sqlite` with FTS5 | Bun |
+| Index and search | `@rustyred/node`, the Node-API binding of Rusty Red | RustyRedDB `crates/rustyred-node`; vendored tarball until published |
 | Live-block runtime | `@observablehq/runtime`, `@observablehq/notebook-kit`, Sucrase, `quickjs-emscripten` | npm |
 | Editor node views | `@prosemirror-adapter/react` | npm; core installed through Crepe |
 | Revisions, `If-Match`, change feed | Documents v2 | Theorem main; no paths, no artifact bodies |

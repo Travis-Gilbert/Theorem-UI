@@ -1,16 +1,23 @@
-// SOURCING: bun:sqlite with SQLite's FTS5 (full-text search, bm25 ranking and
-// snippet()). The schema is this app's: the entries a workspace holds and what
-// parseNote() found in each Markdown file. Everything here is derived from the
-// folder and can be rebuilt from it.
-import { mkdirSync } from 'node:fs'
+// SOURCING: @rustyred/node, the Node-API binding of Rusty Red: an embedded
+// graph database in one file, with a BM25 full-text index (ranking, prefix
+// matching and marked snippets) kept in the same file. The graph is this app's:
+// the entries a workspace holds and what parseNote() found in each Markdown
+// file. Everything here is derived from the folder and can be rebuilt from it.
+import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { Database } from 'bun:sqlite'
+import type * as RustyRed from '@rustyred/node'
+import type {
+  Database,
+  Edge,
+  Node as GraphNode,
+  NodeFilter,
+} from '@rustyred/node'
 import type {
   SearchHit,
   WorkspaceEntry,
   WorkspaceLink,
 } from '#/lib/workspace/types'
-import type { ParsedNote } from './markdown'
+import type { ParsedLink, ParsedNote } from './markdown'
 import { nameKey, resolveLink } from './resolve'
 import type { LinkLookup } from './resolve'
 
@@ -22,91 +29,111 @@ export interface IndexedEntry extends WorkspaceEntry {
   normHash: string | null
 }
 
+/*
+ * The graph, one node for each thing a lookup starts from:
+ *
+ * - `entry:<path>` (Entry): a file or folder, with its id, size, time, hashes
+ *   and the name key links to it share.
+ * - `note:<path>` (Note): what parseNote() found in a Markdown file. Its title
+ *   and body are in the full-text index.
+ * - `tag:<key>` (Tag) and `linkkey:<key>` (LinkKey): a tag lowercased, and a
+ *   name key. A note has a TAGGED edge to each of its tags, holding the
+ *   smallest spelling it uses, and a LINKS_TO edge to the key of each of its
+ *   links. A tag or key is deleted with its last edge.
+ * - `meta` (Meta): the schema version.
+ */
+
 // Bump to drop and rebuild every index on its next open.
 const SCHEMA_VERSION = 1
 
-const SCHEMA = `
-CREATE TABLE entries (
-  path TEXT PRIMARY KEY,
-  id TEXT NOT NULL,
-  kind TEXT NOT NULL,
-  size INTEGER NOT NULL,
-  mtime_ms REAL NOT NULL,
-  hash TEXT,
-  norm_hash TEXT,
-  name_key TEXT NOT NULL
-);
-CREATE INDEX entries_name_key ON entries (name_key);
-CREATE TABLE notes (path TEXT PRIMARY KEY, title TEXT NOT NULL);
-CREATE TABLE links (
-  source TEXT NOT NULL,
-  kind TEXT NOT NULL,
-  syntax TEXT NOT NULL,
-  target TEXT NOT NULL,
-  target_key TEXT NOT NULL,
-  heading TEXT,
-  block TEXT,
-  line INTEGER NOT NULL
-);
-CREATE INDEX links_source ON links (source);
-CREATE INDEX links_target_key ON links (target_key);
-CREATE TABLE headings (path TEXT NOT NULL, depth INTEGER NOT NULL, text TEXT NOT NULL, line INTEGER NOT NULL);
-CREATE INDEX headings_path ON headings (path);
-CREATE TABLE tags (path TEXT NOT NULL, tag TEXT NOT NULL, source TEXT NOT NULL, line INTEGER NOT NULL);
-CREATE INDEX tags_path ON tags (path);
-CREATE INDEX tags_tag ON tags (tag COLLATE NOCASE);
-CREATE TABLE properties (path TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL);
-CREATE INDEX properties_path ON properties (path);
-CREATE TABLE tasks (path TEXT NOT NULL, text TEXT NOT NULL, checked INTEGER NOT NULL, line INTEGER NOT NULL);
-CREATE INDEX tasks_path ON tasks (path);
-CREATE TABLE blocks (path TEXT NOT NULL, block_id TEXT NOT NULL, line INTEGER NOT NULL);
-CREATE INDEX blocks_path ON blocks (path);
-CREATE VIRTUAL TABLE fts USING fts5 (path UNINDEXED, title, body, tokenize = 'unicode61 remove_diacritics 2');
-`
+const ENTRY = 'entry:'
+const NOTE = 'note:'
+const TAG = 'tag:'
+const LINK_KEY = 'linkkey:'
+const META = 'meta'
 
-/** Tables holding what was parsed out of a note, each with a `path` column. */
-const NOTE_TABLES = [
-  'notes',
-  'headings',
-  'tags',
-  'properties',
-  'tasks',
-  'blocks',
-  'fts',
-] as const
+// The index is derived data: no ControlEvent per write and no history, so
+// compaction keeps the file near the size of what it holds.
+const OPTIONS = { controlEvents: false, keepHistory: false }
 
-interface EntryRow {
+// A title match weighs five times a body match.
+const FULLTEXT = { title: 5, body: 1 }
+
+// The file is compacted when it has doubled since the last compaction, and
+// not below this size.
+const COMPACT_FLOOR = 1 << 20
+
+type Binding = typeof RustyRed
+
+// Picked into an object type, which can stand as a node's properties.
+type EntryProperties = Pick<IndexedEntry, keyof IndexedEntry> & {
+  nameKey: string
+}
+
+type NoteProperties = {
   path: string
-  id: string
-  kind: 'file' | 'directory'
-  size: number
-  mtime_ms: number
-  hash: string | null
-  norm_hash: string | null
+  title: string
+  body: string
+  links: Array<ParsedLink>
+  headings: ParsedNote['headings']
+  tags: ParsedNote['tags']
+  /** The frontmatter's `[key, value]` pairs as JSON, in the order written. */
+  frontmatter: string
+  tasks: ParsedNote['tasks']
+  blocks: ParsedNote['blocks']
 }
 
-interface LinkRow {
-  source: string
-  kind: WorkspaceLink['kind']
-  syntax: 'wiki' | 'markdown'
-  target: string
-  heading: string | null
-  block: string | null
-  line: number
+/** Writes not yet committed, by id; `null` deletes. */
+interface Pending {
+  nodes: Map<string, GraphNode | null>
+  edges: Map<string, Edge | null>
+  /** Tags and keys that lost an edge, and may have none left. */
+  ends: Set<string>
 }
 
-const toEntry = (row: EntryRow): IndexedEntry => ({
-  id: row.id,
-  path: row.path,
-  kind: row.kind,
-  size: row.size,
-  mtimeMs: row.mtime_ms,
-  hash: row.hash,
-  normHash: row.norm_hash,
-})
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
+/** By the UTF-8 bytes of the path, the order the database keeps them in. */
+const byPath = (a: IndexedEntry, b: IndexedEntry) =>
+  Buffer.compare(Buffer.from(a.path), Buffer.from(b.path))
+
+/** The value as JSON holds it: no `undefined` members, dates as strings. */
+const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
+const tagKey = (tag: string) => tag.toLowerCase()
+
+function entryNode(entry: IndexedEntry): GraphNode {
+  const properties: EntryProperties = {
+    id: entry.id,
+    path: entry.path,
+    kind: entry.kind,
+    size: entry.size,
+    mtimeMs: entry.mtimeMs,
+    hash: entry.hash,
+    normHash: entry.normHash,
+    nameKey: nameKey(entry.path),
+  }
+  return { id: ENTRY + entry.path, labels: ['Entry'], properties }
+}
+
+function toEntry(node: GraphNode): IndexedEntry {
+  const p = node.properties as EntryProperties
+  return {
+    id: p.id,
+    path: p.path,
+    kind: p.kind,
+    size: p.size,
+    mtimeMs: p.mtimeMs,
+    hash: p.hash,
+    normHash: p.normHash,
+  }
+}
 
 /** A note's title: its `title` property, else its first heading, else its name. */
-export function noteTitle(entryPath: string, note: ParsedNote): string {
+export function noteTitle(
+  entryPath: string,
+  note: Pick<ParsedNote, 'properties' | 'headings'>,
+): string {
   const property = note.properties.title
   if (typeof property === 'string' && property.trim()) return property.trim()
   const heading = note.headings.find((h) => h.depth === 1) ?? note.headings[0]
@@ -114,14 +141,68 @@ export function noteTitle(entryPath: string, note: ParsedNote): string {
   return path.posix.basename(entryPath).replace(/\.md$/i, '')
 }
 
-const escapeHtml = (text: string) =>
-  text.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
-        c
-      ]!,
-  )
+const frontmatter = (note: NoteProperties) =>
+  Object.fromEntries(
+    JSON.parse(note.frontmatter) as Array<[string, unknown]>,
+  ) as Record<string, unknown>
+
+/** The edges a note has, each with the tag or key node it reaches. */
+function noteEdges(
+  note: NoteProperties,
+): Array<{ edge: Edge; end: GraphNode }> {
+  const from = NOTE + note.path
+  const edges = new Map<string, { edge: Edge; end: GraphNode }>()
+  const add = (
+    type: string,
+    label: string,
+    to: string,
+    key: string,
+    properties: Record<string, unknown>,
+  ) => {
+    const id = JSON.stringify([type, from, to])
+    edges.set(id, {
+      edge: { id, from, to, type, properties },
+      end: { id: to, labels: [label], properties: { key } },
+    })
+  }
+  for (const { tag } of note.tags) {
+    const key = tagKey(tag)
+    const seen = edges.get(JSON.stringify(['TAGGED', from, TAG + key]))
+    if (!seen || tag < (seen.edge.properties.tag as string))
+      add('TAGGED', 'Tag', TAG + key, key, { tag })
+  }
+  for (const link of note.links) {
+    const key = nameKey(link.target)
+    add('LINKS_TO', 'LinkKey', LINK_KEY + key, key, {})
+  }
+  return [...edges.values()]
+}
+
+/** The graph one workspace's index needs, as a new file holds it. */
+function prepared(db: Database): Database {
+  db.designateFulltext('Note', FULLTEXT)
+  db.mutate({
+    upsertNodes: [
+      { id: META, labels: ['Meta'], properties: { schema: SCHEMA_VERSION } },
+    ],
+  })
+  return db
+}
+
+/**
+ * The index file at `file`, created if it is missing and recreated if an
+ * earlier schema wrote it.
+ */
+function connect(binding: Binding, file: string): Database {
+  mkdirSync(path.dirname(file), { recursive: true })
+  if (existsSync(file)) {
+    const db = binding.Database.open(file, OPTIONS)
+    if (db.getNode(META)?.properties.schema === SCHEMA_VERSION) return db
+    db.close()
+    rmSync(file)
+  }
+  return prepared(binding.Database.create(file, OPTIONS))
+}
 
 /**
  * What a person typed, split as Obsidian's search splits it: `tag:#name`
@@ -141,320 +222,364 @@ export function parseSearch(input: string): {
   return { tags, words }
 }
 
-/** LIKE's wildcards in `text`, escaped with `\`. */
-const likeLiteral = (text: string) => text.replace(/[\\%_]/g, '\\$&')
-
-/**
- * The FTS5 query for what a person typed: every word must appear, the last as
- * a prefix so results follow typing. Words are quoted so FTS5 operators and
- * punctuation in them are taken literally.
- */
-export function ftsQuery(input: string): string | null {
-  const words = input.split(/\s+/).filter(Boolean)
-  if (words.length === 0) return null
-  return words
-    .map((word, i) => {
-      const quoted = `"${word.replace(/"/g, '""')}"`
-      return i === words.length - 1 ? `${quoted}*` : quoted
-    })
-    .join(' ')
-}
-
-/** One workspace's index at `desktopDataDir()/workspaces/<id>/index.sqlite`. */
+/** One workspace's index at `desktopDataDir()/workspaces/<id>/index.rr`. */
 export class WorkspaceIndex implements LinkLookup {
-  private constructor(readonly db: Database) {}
+  private pending: Pending | null = null
+  /** The file's size after its last compaction. */
+  private compacted = 0
 
-  static open(file: string): WorkspaceIndex {
-    if (file !== ':memory:') mkdirSync(path.dirname(file), { recursive: true })
-    const db = new Database(file, { create: true, strict: true })
-    db.run('PRAGMA journal_mode = WAL')
-    const { user_version } = db.query('PRAGMA user_version').get() as {
-      user_version: number
-    }
-    if (user_version !== SCHEMA_VERSION) {
-      const tables = db
-        .query(
-          "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'fts_%'",
-        )
-        .all() as Array<{ name: string }>
-      for (const { name } of tables) db.run(`DROP TABLE IF EXISTS "${name}"`)
-      db.run(SCHEMA)
-      db.run(`PRAGMA user_version = ${SCHEMA_VERSION}`)
-    }
-    return new WorkspaceIndex(db)
+  private constructor(
+    private readonly binding: Binding,
+    private readonly file: string,
+    private db: Database,
+  ) {}
+
+  static async open(file: string): Promise<WorkspaceIndex> {
+    // Loaded on first use, so a server that never opens a workspace (the web
+    // deployment) never loads the native addon.
+    const binding = await import('@rustyred/node')
+    const index = new WorkspaceIndex(binding, file, connect(binding, file))
+    index.compact()
+    return index
   }
 
   close(): void {
     this.db.close()
   }
 
+  /**
+   * Runs `fn` as one commit. Inside it, entry and note reads see its writes;
+   * link-key lookups, tags and search see the last commit. A throw discards
+   * the writes.
+   */
   transaction<T>(fn: () => T): T {
-    return this.db.transaction(fn)()
+    if (this.pending) return fn()
+    this.pending = { nodes: new Map(), edges: new Map(), ends: new Set() }
+    try {
+      const result = fn()
+      this.commit(this.pending)
+      return result
+    } finally {
+      this.pending = null
+    }
   }
 
   /** Empties the index, for a rebuild from the folder. */
   clear(): void {
-    this.transaction(() => {
-      this.db.run('DELETE FROM entries')
-      this.db.run('DELETE FROM links')
-      for (const table of NOTE_TABLES) this.db.run(`DELETE FROM ${table}`)
-    })
+    this.db.close()
+    rmSync(this.file)
+    this.db = prepared(this.binding.Database.create(this.file, OPTIONS))
+    this.compacted = statSync(this.file).size
   }
 
   entries(): Array<IndexedEntry> {
-    return (
-      this.db
-        .query('SELECT * FROM entries ORDER BY path')
-        .all() as Array<EntryRow>
-    ).map(toEntry)
+    return this.findEntries(
+      { prefix: { property: 'path', value: '' } },
+      () => true,
+    )
   }
 
   entry(entryPath: string): IndexedEntry | undefined {
-    const row = this.db
-      .query('SELECT * FROM entries WHERE path = $path')
-      .get({ path: entryPath }) as EntryRow | null
-    return row ? toEntry(row) : undefined
+    const node = this.node(ENTRY + entryPath)
+    return node ? toEntry(node) : undefined
   }
 
   /** The entry and everything below it, deepest last. */
   subtree(entryPath: string): Array<IndexedEntry> {
-    return (
-      this.db
-        .query(
-          'SELECT * FROM entries WHERE path = $path OR substr(path, 1, length($prefix)) = $prefix ORDER BY path',
-        )
-        .all({ path: entryPath, prefix: `${entryPath}/` }) as Array<EntryRow>
-    ).map(toEntry)
+    const prefix = `${entryPath}/`
+    const below = this.findEntries(
+      { prefix: { property: 'path', value: prefix } },
+      (entry) => entry.path.startsWith(prefix),
+    )
+    const entry = this.entry(entryPath)
+    return entry ? [entry, ...below] : below
   }
 
   putEntry(entry: IndexedEntry): void {
-    this.db
-      .query(
-        `INSERT INTO entries (path, id, kind, size, mtime_ms, hash, norm_hash, name_key)
-         VALUES ($path, $id, $kind, $size, $mtime, $hash, $norm, $key)
-         ON CONFLICT (path) DO UPDATE SET id = $id, kind = $kind, size = $size,
-           mtime_ms = $mtime, hash = $hash, norm_hash = $norm, name_key = $key`,
-      )
-      .run({
-        path: entry.path,
-        id: entry.id,
-        kind: entry.kind,
-        size: entry.size,
-        mtime: entry.mtimeMs,
-        hash: entry.hash,
-        norm: entry.normHash,
-        key: nameKey(entry.path),
-      })
+    this.write((pending) =>
+      pending.nodes.set(ENTRY + entry.path, entryNode(entry)),
+    )
   }
 
   /** Removes the entry and what was parsed from it. */
   removeEntry(entryPath: string): void {
-    this.db.query('DELETE FROM entries WHERE path = $path').run({
-      path: entryPath,
+    this.write((pending) => {
+      pending.nodes.set(ENTRY + entryPath, null)
+      this.clearNote(entryPath)
     })
-    this.clearNote(entryPath)
   }
 
-  /** Moves the entry and its parsed rows to a new path. */
+  /** Moves the entry and what was parsed from it to a new path. */
   moveEntry(from: string, to: string): void {
-    this.db
-      .query(
-        'UPDATE entries SET path = $to, name_key = $key WHERE path = $from',
-      )
-      .run({ from, to, key: nameKey(to) })
-    this.db
-      .query('UPDATE links SET source = $to WHERE source = $from')
-      .run({ from, to })
-    for (const table of NOTE_TABLES)
-      this.db
-        .query(`UPDATE ${table} SET path = $to WHERE path = $from`)
-        .run({ from, to })
+    this.write((pending) => {
+      const entry = this.entry(from)
+      if (entry) {
+        pending.nodes.set(ENTRY + from, null)
+        pending.nodes.set(ENTRY + to, entryNode({ ...entry, path: to }))
+      }
+      const note = this.note(from)
+      if (!note) return
+      this.clearNote(from)
+      // The title may be the note's name.
+      const properties = frontmatter(note)
+      this.setNote({
+        ...note,
+        path: to,
+        title: noteTitle(to, { properties, headings: note.headings }),
+      })
+    })
   }
 
   clearNote(entryPath: string): void {
-    this.db
-      .query('DELETE FROM links WHERE source = $path')
-      .run({ path: entryPath })
-    for (const table of NOTE_TABLES)
-      this.db
-        .query(`DELETE FROM ${table} WHERE path = $path`)
-        .run({ path: entryPath })
+    this.write((pending) => {
+      const note = this.note(entryPath)
+      if (!note) return
+      for (const { edge } of noteEdges(note)) {
+        pending.edges.set(edge.id, null)
+        pending.ends.add(edge.to)
+      }
+      pending.nodes.set(NOTE + entryPath, null)
+    })
   }
 
   /** Replaces what the index holds about a Markdown file. */
   putNote(entryPath: string, note: ParsedNote): void {
-    this.clearNote(entryPath)
-    const p = entryPath
-    this.db
-      .query('INSERT INTO notes (path, title) VALUES ($p, $title)')
-      .run({ p, title: noteTitle(entryPath, note) })
-    const link = this.db.query(
-      `INSERT INTO links (source, kind, syntax, target, target_key, heading, block, line)
-       VALUES ($p, $kind, $syntax, $target, $key, $heading, $block, $line)`,
-    )
-    for (const l of note.links)
-      link.run({
-        p,
-        kind: l.kind,
-        syntax: l.syntax,
-        target: l.target,
-        key: nameKey(l.target),
-        heading: l.heading ?? null,
-        block: l.block ?? null,
-        line: l.line,
-      })
-    const heading = this.db.query(
-      'INSERT INTO headings (path, depth, text, line) VALUES ($p, $depth, $text, $line)',
-    )
-    for (const h of note.headings) heading.run({ p, ...h })
-    const tag = this.db.query(
-      'INSERT INTO tags (path, tag, source, line) VALUES ($p, $tag, $source, $line)',
-    )
-    for (const t of note.tags) tag.run({ p, ...t })
-    const property = this.db.query(
-      'INSERT INTO properties (path, key, value) VALUES ($p, $key, $value)',
-    )
-    for (const [key, value] of Object.entries(note.properties))
-      property.run({ p, key, value: JSON.stringify(value) })
-    const task = this.db.query(
-      'INSERT INTO tasks (path, text, checked, line) VALUES ($p, $text, $checked, $line)',
-    )
-    for (const t of note.tasks)
-      task.run({ p, text: t.text, checked: t.checked ? 1 : 0, line: t.line })
-    const block = this.db.query(
-      'INSERT INTO blocks (path, block_id, line) VALUES ($p, $id, $line)',
-    )
-    for (const b of note.blocks) block.run({ p, ...b })
-    this.db
-      .query('INSERT INTO fts (path, title, body) VALUES ($p, $title, $body)')
-      .run({ p, title: noteTitle(entryPath, note), body: note.body })
+    this.write(() => {
+      this.clearNote(entryPath)
+      this.setNote(
+        plain({
+          path: entryPath,
+          title: noteTitle(entryPath, note),
+          body: note.body,
+          links: note.links,
+          headings: note.headings,
+          tags: note.tags,
+          frontmatter: JSON.stringify(Object.entries(note.properties)),
+          tasks: note.tasks,
+          blocks: note.blocks,
+        }),
+      )
+    })
   }
 
   /** LinkLookup: the files whose name key is `key`. */
   named(key: string): Array<string> {
-    return (
-      this.db
-        .query(
-          "SELECT path FROM entries WHERE name_key = $key AND kind = 'file'",
-        )
-        .all({ key }) as Array<{ path: string }>
-    ).map((row) => row.path)
+    return this.findEntries(
+      { properties: { nameKey: key, kind: 'file' } },
+      (entry) => entry.nameKey === key && entry.kind === 'file',
+    ).map((entry) => entry.path)
   }
 
   /** Notes holding a link whose target could name a file with one of these keys. */
   sourcesFor(keys: Iterable<string>): Array<string> {
-    const query = this.db.query(
-      'SELECT DISTINCT source FROM links WHERE target_key = $key',
-    )
     const sources = new Set<string>()
     for (const key of keys)
-      for (const row of query.all({ key }) as Array<{ source: string }>)
-        sources.add(row.source)
+      for (const hit of this.db.neighbors({
+        nodeId: LINK_KEY + key,
+        direction: 'in',
+        edgeType: 'LINKS_TO',
+      }))
+        sources.add(hit.nodeId.slice(NOTE.length))
     return [...sources].sort()
-  }
-
-  private toLink(row: LinkRow): WorkspaceLink {
-    return {
-      from: row.source,
-      target: row.target,
-      resolved: resolveLink(row.target, row.source, row.syntax, this),
-      kind: row.kind,
-      ...(row.heading !== null && { heading: row.heading }),
-      ...(row.block !== null && { block: row.block }),
-      line: row.line,
-    }
   }
 
   /** The links in a note, in order, each resolved against the workspace now. */
   links(entryPath: string): Array<WorkspaceLink> {
-    return (
-      this.db
-        .query('SELECT * FROM links WHERE source = $path ORDER BY rowid')
-        .all({ path: entryPath }) as Array<LinkRow>
-    ).map((row) => this.toLink(row))
+    return (this.note(entryPath)?.links ?? []).map((link) =>
+      this.toLink(entryPath, link),
+    )
   }
 
   /** The links anywhere in the workspace that resolve to `entryPath`. */
   backlinks(entryPath: string): Array<WorkspaceLink> {
-    return (
-      this.db
-        .query(
-          'SELECT * FROM links WHERE target_key = $key ORDER BY source, rowid',
-        )
-        .all({ key: nameKey(entryPath) }) as Array<LinkRow>
-    )
-      .map((row) => this.toLink(row))
+    const key = nameKey(entryPath)
+    return this.sourcesFor([key])
+      .flatMap((source) =>
+        (this.note(source)?.links ?? [])
+          .filter((link) => nameKey(link.target) === key)
+          .map((link) => this.toLink(source, link)),
+      )
       .filter((link) => link.resolved === entryPath)
   }
 
   /**
-   * Full-text search over titles and bodies, best match first. A `tag:#name`
-   * term keeps the notes with that tag or one nested under it (`#name/sub`),
-   * as Obsidian's does; with only tags, the notes come by title.
+   * Full-text search over titles and bodies, best match first. Every word
+   * must match, the last also as the start of a longer word, so results
+   * follow typing. A `tag:#name` term keeps the notes with that tag or one
+   * nested under it (`#name/sub`), as Obsidian's does; with only tags, the
+   * notes come by title.
    */
   search(input: string, limit = 20): Array<SearchHit> {
     const { tags, words } = parseSearch(input)
-    const match = ftsQuery(words.join(' '))
-    if (!match && tags.length === 0) return []
-    const params: Record<string, string | number> = { limit }
-    const tagged = tags.map((tag, i) => {
-      params[`tag${i}`] = tag
-      params[`nested${i}`] = `${likeLiteral(tag)}/%`
-      return `notes.path IN (SELECT path FROM tags WHERE tag = $tag${i} COLLATE NOCASE OR tag LIKE $nested${i} ESCAPE '\\')`
-    })
-    if (!match) {
-      const rows = this.db
-        .query(
-          `SELECT path, title FROM notes WHERE ${tagged.join(' AND ')}
-           ORDER BY title COLLATE NOCASE LIMIT $limit`,
-        )
-        .all(params) as Array<{ path: string; title: string }>
-      return rows.map((row) => ({ ...row, snippet: '', score: 0 }))
+    if (words.length === 0 && tags.length === 0) return []
+    let within: Array<string> | undefined
+    for (const tag of tags) {
+      const tagged = this.tagged(tag)
+      within = (within ?? [...tagged]).filter((id) => tagged.has(id))
     }
-    params.match = match
-    const rows = this.db
-      .query(
-        `SELECT fts.path AS path, notes.title AS title,
-           snippet(fts, -1, char(2), char(3), '…', 16) AS snippet,
-           bm25(fts, 0, 5.0, 1.0) AS rank
-         FROM fts JOIN notes ON notes.path = fts.path
-         WHERE fts MATCH $match ${tagged.map((t) => `AND ${t}`).join(' ')}
-         ORDER BY rank LIMIT $limit`,
-      )
-      .all(params) as Array<{
-      path: string
-      title: string
-      snippet: string
-      rank: number
-    }>
-    return rows.map((row) => ({
-      path: row.path,
-      title: row.title,
-      snippet: escapeHtml(row.snippet)
-        .replaceAll('\u0002', '<mark>')
-        .replaceAll('\u0003', '</mark>'),
-      score: -row.rank,
-    }))
+    if (words.length === 0)
+      return (within ?? [])
+        .flatMap((id) => {
+          const note = this.note(id.slice(NOTE.length))
+          return note ? [{ path: note.path, title: note.title }] : []
+        })
+        .sort(
+          (a, b) =>
+            compare(a.title.toLowerCase(), b.title.toLowerCase()) ||
+            compare(a.path, b.path),
+        )
+        .slice(0, limit)
+        .map((hit) => ({ ...hit, snippet: '', score: 0 }))
+    return this.db
+      .fulltextSearch('Note', words.join(' '), limit, within)
+      .flatMap((hit) => {
+        const note = this.note(hit.id.slice(NOTE.length))
+        return note
+          ? [
+              {
+                path: note.path,
+                title: note.title,
+                snippet: hit.snippet,
+                score: hit.score,
+              },
+            ]
+          : []
+      })
   }
 
   /** Every tag with the number of notes using it, case-insensitively grouped. */
   tags(): Array<{ tag: string; count: number }> {
     return this.db
-      .query(
-        `SELECT MIN(tag) AS tag, COUNT(DISTINCT path) AS count FROM tags
-         GROUP BY tag COLLATE NOCASE ORDER BY tag COLLATE NOCASE`,
-      )
-      .all() as Array<{ tag: string; count: number }>
+      .queryNodes({ label: 'Tag' })
+      .flatMap((node) => {
+        const spellings = this.db
+          .neighbors({ nodeId: node.id, direction: 'in', edgeType: 'TAGGED' })
+          .map((hit) => hit.properties.tag as string)
+          .sort()
+        return spellings.length > 0
+          ? [{ tag: spellings[0]!, count: spellings.length }]
+          : []
+      })
+      .sort((a, b) => compare(a.tag.toLowerCase(), b.tag.toLowerCase()))
   }
 
   properties(entryPath: string): Record<string, unknown> {
-    const rows = this.db
-      .query(
-        'SELECT key, value FROM properties WHERE path = $path ORDER BY rowid',
-      )
-      .all({ path: entryPath }) as Array<{ key: string; value: string }>
-    return Object.fromEntries(
-      rows.map((row) => [row.key, JSON.parse(row.value) as unknown]),
+    const note = this.note(entryPath)
+    return note ? frontmatter(note) : {}
+  }
+
+  // Internals --------------------------------------------------------------
+
+  /** Runs `fn` with this transaction's writes, or as a commit of its own. */
+  private write(fn: (pending: Pending) => void): void {
+    this.transaction(() => fn(this.pending!))
+  }
+
+  /** A node as this transaction leaves it, or as last committed. */
+  private node(id: string): GraphNode | null {
+    const pending = this.pending?.nodes.get(id)
+    return pending === undefined ? this.db.getNode(id) : pending
+  }
+
+  private note(entryPath: string): NoteProperties | null {
+    const node = this.node(NOTE + entryPath)
+    return node ? (node.properties as NoteProperties) : null
+  }
+
+  /** Writes a note and its edges, creating the tags and keys they reach. */
+  private setNote(note: NoteProperties): void {
+    const pending = this.pending!
+    const id = NOTE + note.path
+    pending.nodes.set(id, { id, labels: ['Note'], properties: note })
+    for (const { edge, end } of noteEdges(note)) {
+      pending.edges.set(edge.id, edge)
+      if (!this.node(end.id)) pending.nodes.set(end.id, end)
+    }
+  }
+
+  /**
+   * The entries `filter` finds, with this transaction's writes applied:
+   * `matches` says whether an entry it wrote belongs in the result.
+   */
+  private findEntries(
+    filter: NodeFilter,
+    matches: (entry: EntryProperties) => boolean,
+  ): Array<IndexedEntry> {
+    const found = this.db.queryNodes({ label: 'Entry', ...filter })
+    const written = [...(this.pending?.nodes ?? [])].filter(([id]) =>
+      id.startsWith(ENTRY),
     )
+    if (written.length === 0) return found.map(toEntry)
+    const byId = new Map(found.map((node) => [node.id, node]))
+    for (const [id, node] of written)
+      if (node && matches(node.properties as EntryProperties))
+        byId.set(id, node)
+      else byId.delete(id)
+    return [...byId.values()].map(toEntry).sort(byPath)
+  }
+
+  private toLink(source: string, link: ParsedLink): WorkspaceLink {
+    return {
+      from: source,
+      target: link.target,
+      resolved: resolveLink(link.target, source, link.syntax, this),
+      kind: link.kind,
+      ...(link.heading !== undefined && { heading: link.heading }),
+      ...(link.block !== undefined && { block: link.block }),
+      line: link.line,
+    }
+  }
+
+  /** The notes with `tag` or a tag nested under it (`tag/sub`), by node id. */
+  private tagged(tag: string): Set<string> {
+    const key = tagKey(tag)
+    const nested = this.db.queryNodes({
+      label: 'Tag',
+      prefix: { property: 'key', value: `${key}/` },
+    })
+    const notes = new Set<string>()
+    for (const id of [TAG + key, ...nested.map((node) => node.id)])
+      for (const hit of this.db.neighbors({
+        nodeId: id,
+        direction: 'in',
+        edgeType: 'TAGGED',
+      }))
+        notes.add(hit.nodeId)
+    return notes
+  }
+
+  private commit({ nodes, edges, ends }: Pending): void {
+    // A tag or key no edge reaches any more goes with this commit.
+    const reached = new Set<string>()
+    for (const edge of edges.values()) if (edge) reached.add(edge.to)
+    for (const id of ends) {
+      if (reached.has(id) || nodes.get(id) === null) continue
+      const kept = this.db
+        .neighbors({ nodeId: id, direction: 'in' })
+        .some((hit) => !edges.has(hit.edgeId))
+      if (!kept) nodes.set(id, null)
+    }
+    if (nodes.size === 0 && edges.size === 0) return
+    const batch = {
+      deleteEdges: [] as Array<string>,
+      deleteNodes: [] as Array<string>,
+      upsertNodes: [] as Array<GraphNode>,
+      upsertEdges: [] as Array<Edge>,
+    }
+    for (const [id, edge] of edges)
+      if (edge) batch.upsertEdges.push(edge)
+      else batch.deleteEdges.push(id)
+    for (const [id, node] of nodes)
+      if (node) batch.upsertNodes.push(node)
+      else batch.deleteNodes.push(id)
+    this.db.mutate(batch)
+    if (statSync(this.file).size >= Math.max(2 * this.compacted, COMPACT_FLOOR))
+      this.compact()
+  }
+
+  /** Rewrites the file without what earlier writes replaced. */
+  private compact(): void {
+    this.db.compact()
+    this.compacted = statSync(this.file).size
   }
 }

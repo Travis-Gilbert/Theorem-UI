@@ -18,7 +18,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { Database } from 'bun:sqlite'
+import { Database } from '@rustyred/node'
 import type {
   WorkspaceEntry,
   WorkspaceEvent,
@@ -500,6 +500,16 @@ describe('folder workspace service', () => {
     >
     expect(ids['archive/Thoughts.md']).toBe(ideasId)
     expect(ids['Ideas.md']).toBeUndefined()
+
+    // A note titled by its name takes the new name.
+    await call('rename', 'POST', id, {
+      json: { from: 'other.md', to: 'Renamed.md' },
+    })
+    expect(
+      await (
+        await call('search', 'GET', id, { query: { q: 'unrelated' } })
+      ).json(),
+    ).toMatchObject([{ path: 'Renamed.md', title: 'Renamed' }])
   })
 
   test('a rename made outside Theorem keeps the id', async () => {
@@ -541,38 +551,43 @@ describe('folder workspace service', () => {
       'notes/Plan.md':
         '---\ntags: [a, b]\nrating: 3\n---\n# Plan\n\n[[Ideas#Later]] #c\n\n- [x] done ^blk\n',
       'Ideas.md': '# Ideas\n\n## Later\n',
+      'Old.md': '[[Gone]] #gone\n',
       'img/x.png': 'bytes',
     })
-    const file = path.join(workspaceDataDir(id), 'index.sqlite')
+    // A tag and a link key whose last use goes are deleted with it.
+    await call('file', 'PUT', id, {
+      query: { path: 'Old.md' },
+      body: 'Nothing here\n',
+    })
+    const file = path.join(workspaceDataDir(id), 'index.rr')
     const snapshot = () => {
-      const db = new Database(file, { readonly: true })
-      const rows: Record<string, Array<string>> = {}
-      for (const table of [
-        'entries',
-        'notes',
-        'links',
-        'headings',
-        'tags',
-        'properties',
-        'tasks',
-        'blocks',
-      ])
-        rows[table] = db
-          .query(`SELECT * FROM ${table}`)
-          .all()
-          .map((row) => JSON.stringify(row))
+      const db = Database.openReadOnly(file)
+      const graph: Record<string, Array<string>> = {}
+      for (const label of ['Entry', 'Note', 'Tag', 'LinkKey', 'Meta'])
+        graph[label] = db
+          .queryNodes({ label })
+          .map((node) => JSON.stringify(node))
           .sort()
-      rows.fts = db
-        .query('SELECT path, title, body FROM fts')
-        .all()
-        .map((row) => JSON.stringify(row))
+      graph.edges = db
+        .queryNodes({ label: 'Note' })
+        .flatMap((note) =>
+          db
+            .neighbors({ nodeId: note.id, direction: 'out' })
+            .map((hit) => JSON.stringify({ from: note.id, ...hit })),
+        )
         .sort()
+      graph.search = db
+        .fulltextSearch('Note', 'later', 10)
+        .map((hit) => JSON.stringify([hit.id, hit.snippet]))
       db.close()
-      return rows
+      return graph
     }
     const first = snapshot()
-    expect(first.links).toHaveLength(1)
-    expect(first.tags).toHaveLength(3)
+    expect(first.Note).toHaveLength(3)
+    expect(first.Tag).toHaveLength(3)
+    expect(first.LinkKey).toHaveLength(1)
+    expect(first.edges?.filter((e) => e.includes('"LINKS_TO"'))).toHaveLength(1)
+    expect(first.search).toHaveLength(2)
 
     await (await getWorkspace(id)).rebuild()
     expect(snapshot()).toEqual(first)

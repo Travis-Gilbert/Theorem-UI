@@ -40,9 +40,10 @@ const config = defineConfig({
           method: 'GET',
         },
       },
-      // trash runs a helper binary that sits beside its module; copied whole
-      // so the binary ships with it instead of being lost to bundling.
-      traceDeps: ['trash*'],
+      // trash runs a helper binary and @rustyred/node loads a native addon,
+      // each sitting beside its module; copied whole so the binary ships with
+      // it instead of being lost to bundling.
+      traceDeps: ['trash*', '@rustyred/node*'],
     }),
     viteReact(),
   ],

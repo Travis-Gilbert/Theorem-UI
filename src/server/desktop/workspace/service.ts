@@ -163,8 +163,8 @@ export class WorkspaceService {
   ): Promise<WorkspaceService> {
     const root = await realpath(folder)
     const ids = await IdStore.load(root)
-    const index = WorkspaceIndex.open(
-      path.join(options.dataDir, 'index.sqlite'),
+    const index = await WorkspaceIndex.open(
+      path.join(options.dataDir, 'index.rr'),
     )
     const settings = await readSettings(options.dataDir)
     const service = new WorkspaceService(

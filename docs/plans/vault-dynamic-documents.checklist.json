@@ -165,15 +165,15 @@
     },
     {
       "id": "folder-index",
-      "item": "Rebuildable index (links, backlinks, tags, properties, headings, tasks, FTS5 search) in bun:sqlite in app data (Data ownership)",
+      "item": "Rebuildable index (links, backlinks, tags, properties, headings, tasks, full-text search) in embedded Rusty Red in app data (Data ownership)",
       "status": "done",
-      "evidence": "index-db.ts keeps entries, notes, links, headings, tags, properties, tasks and an FTS5 table in bun:sqlite at <app data>/workspaces/<id>/index.sqlite; it rebuilds from nothing to the same rows, and search takes tag: terms with nested tags (service.test.ts). The search dialog and tag list read it (workspace-commands.test.tsx)."
+      "evidence": "index-db.ts keeps entries, notes, links, headings, tags, properties, tasks and the full-text index in a Rusty Red graph through @rustyred/node at <app data>/workspaces/<id>/index.rr, opened without control events or history and compacted as it grows; it rebuilds from nothing to the same nodes, edges and search hits, drops tags and link keys no note uses any more, and recomputes a renamed note's title; search takes tag: terms with nested tags (service.test.ts). The search dialog and tag list read it (workspace-commands.test.tsx)."
     },
     {
       "id": "folder-layout",
       "item": ".theorem/ holds only user config; index, compile cache, last-run values and Loro docs live in app data keyed by workspace id (D8)",
       "status": "done",
-      "evidence": ".theorem/ holds workspace.json, ids.json and settings.json (attachments, daily notes), all user configuration; index.sqlite, the trust flag and state.loro live in app data under workspaces/<id> (registry.ts, state-document.ts). The compile cache and last-run values are not built yet."
+      "evidence": ".theorem/ holds workspace.json, ids.json and settings.json (attachments, daily notes), all user configuration; index.rr, the trust flag and state.loro live in app data under workspaces/<id> (registry.ts, state-document.ts). The compile cache and last-run values are not built yet."
     },
     {
       "id": "folder-conventions",
