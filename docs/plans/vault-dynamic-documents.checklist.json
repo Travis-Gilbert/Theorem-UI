@@ -142,44 +142,44 @@
     {
       "id": "folder-open",
       "item": "Any folder opens through the native picker; desktop-only routes serve only folders the person opened (D16)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "Open folder calls the host's pickFolder (desktop/protocol, src/server/desktop/rpc.ts); the workspace routes answer 404 outside desktop mode, refuse paths that leave the folder, and close a workspace whose grant is withdrawn (service.test.ts)."
     },
     {
       "id": "folder-watch-write",
       "item": "@parcel/watcher records external edits as reconcile revisions; atomic write then rename; own writes skipped by content hash (D7)",
-      "status": "pending",
-      "evidence": null
+      "status": "in_progress",
+      "evidence": "@parcel/watcher (watcher.ts) reports outside edits as external after the debounce; writes are atomic and checked against the hash on disk; the service's own changes are not echoed as external (service.test.ts). Recording each as a Documents v2 revision waits on that backend change in the Theorem repo."
     },
     {
       "id": "folder-identity",
       "item": "Ids in .theorem/ids.json; renames keep ids; theorem-id frontmatter honored; Spaces place { kind: workspace-file, id } (D8)",
-      "status": "pending",
-      "evidence": null
+      "status": "in_progress",
+      "evidence": "Ids live in .theorem/ids.json; a rename in the app or outside it keeps the id, and a theorem-id in frontmatter is honored (service.test.ts). Placing a file in a Space as { kind: workspace-file, id } waits on Documents v2 accepting workspace kinds in the Theorem repo."
     },
     {
       "id": "folder-links",
       "item": "Wikilinks, heading links, block links and embeds resolve; backlinks listed; links rewrite on rename (D8, D16)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "Wikilinks open at a heading or ^block, links to missing notes create them, and ![[Note#Heading]] / ![[Note#^id]] embed that section (markdown-handler.test.tsx, note-sections.test.ts); the Links pane lists backlinks with their line, outgoing links and tags (links-pane.test.tsx); [[ suggests files, headings and blocks (wiki-suggest.test.tsx); a rename rewrites the links to it (service.test.ts)."
     },
     {
       "id": "folder-index",
       "item": "Rebuildable index (links, backlinks, tags, properties, headings, tasks, FTS5 search) in bun:sqlite in app data (Data ownership)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "index-db.ts keeps entries, notes, links, headings, tags, properties, tasks and an FTS5 table in bun:sqlite at <app data>/workspaces/<id>/index.sqlite; it rebuilds from nothing to the same rows, and search takes tag: terms with nested tags (service.test.ts). The search dialog and tag list read it (workspace-commands.test.tsx)."
     },
     {
       "id": "folder-layout",
       "item": ".theorem/ holds only user config; index, compile cache, last-run values and Loro docs live in app data keyed by workspace id (D8)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": ".theorem/ holds workspace.json, ids.json and settings.json (attachments, daily notes), all user configuration; index.sqlite, the trust flag and state.loro live in app data under workspaces/<id> (registry.ts, state-document.ts). The compile cache and last-run values are not built yet."
     },
     {
       "id": "folder-conventions",
       "item": "Tags, frontmatter properties, daily notes from a template, attachments folder and canvases work as Obsidian users expect; no .obsidian config or plugins (D16)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "Tags (#a/b, frontmatter) and properties are indexed and searchable; Today's note is made from the folder's template with {{date}}, {{time}} and {{title}} (notes.test.ts); pasted files go to the folder's attachments setting as ![[...]] embeds (attachments.test.tsx); Folder settings edits both (workspace-commands.test.tsx); .canvas files open in the canvas handler. No .obsidian config or plugins are read."
     },
     {
       "id": "file-tree",
