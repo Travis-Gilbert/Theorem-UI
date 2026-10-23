@@ -115,6 +115,24 @@ Fixed in this pass:
   keydown comes back unconsumed and the host replayed it to GPUI's Edit menu,
   which sent a second paste. `PageView::editing` now skips replayed
   keystrokes.
+- **C. The artifact panel was squeezed on first open** (Theorem UI, both
+  engines). With a note open beside the thread, the thread (360px), note
+  (360px) and artifact (400px) minimums add up to more than the dock, and
+  Dockview opened the artifact group at about 145px. `open-beside.ts` now
+  opens a column only when the dock's minimum width plus the new panel's
+  still fits, and otherwise adds the panel as a tab in the side group.
+  Artifacts, notes and workspace files share the rule. Rechecked in Chrome:
+  the artifact joins the note's group, both groups stay at 432px.
+- **D. A quick close lost the last note edit** (Theorem UI, both engines).
+  Milkdown waits 200ms before it reports an edit and cancels the report when
+  the editor is destroyed. The editor now hands over its text on destroy,
+  with a serializer it keeps from mount, because Milkdown removes the
+  context's serializer before it closes the view. Leaving the page
+  (`beforeunload`, or the page turning hidden) starts the scheduled saves at
+  once, and `beforeunload` asks first while one is unfinished. Rechecked in
+  Chrome: an edit closed within the debounce and an edit reloaded within it
+  both reached the backend. The leave prompt itself did not appear in the
+  in-app browser, so it is unverified.
 - **CSS fallbacks** (Theorem UI). `styles.css` gives Servo something to draw
   where it drops a declaration the page depends on:
   1. `pointer-events: all`, which Servo drops: behind
@@ -182,15 +200,17 @@ then upstream:
     Vendor pseudo-elements (`::-webkit-scrollbar`, the date field parts) are
     dropped too. They only style Chrome's own controls, so nothing is lost.
 
-Theorem UI, found here, in both engines, not fixed:
+Host, not fixed:
 
-- **The artifact panel is squeezed on first open.** The thread (360px),
-  artifact (400px) and note (360px) minimum widths add up to more than the
-  dock, so the artifact group opens at about 145px. Chrome overflows the dock
-  instead after a restore. `dock.tsx`'s minimum widths need to give way.
-- **A quick close loses the last note edit.** The note editor saves on a
-  debounce, so quitting or closing within it drops the last change. The
-  editor needs to flush on `pagehide` and on close.
+- **Quitting skips the page's leave handlers.** `on_app_quit` in
+  `bridge.rs` closes the local server's stdin, and the page never receives
+  `beforeunload` or a hidden `visibilitychange`. Servo's default
+  `request_unload` allows every unload without asking the page. An edit made
+  within the 800ms save delay before Cmd-Q is lost. The host needs a quit
+  handshake: ask the page to leave, wait for its save queue to settle, then
+  stop the server. GPUI waits at most 200ms (`SHUTDOWN_TIMEOUT`) for
+  `on_app_quit` futures, so the handshake belongs in the Quit action, before
+  `cx.quit()`.
 
 ## Phase 0 status
 
