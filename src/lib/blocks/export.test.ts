@@ -35,6 +35,8 @@ function policyOf(html: string): Record<string, string> {
   )
 }
 
+// esbuild-wasm compiles its WebAssembly on first use, which outlasts bun's 5 s
+// default on its own.
 test('a tool exports as one page that runs with only what it declared', async () => {
   const client = memoryWorkspace(await loadFixtures(FIXTURES))
   const state = memoryState()
@@ -86,7 +88,7 @@ test('a tool exports as one page that runs with only what it declared', async ()
   expect(
     JSON.parse(localStorage.getItem('theorem-export:Habit tracker:habits')!),
   ).toEqual({ run: true, read: true })
-})
+}, 30_000)
 
 test('a tool with declaration problems does not export', async () => {
   const client = memoryWorkspace({

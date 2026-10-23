@@ -200,6 +200,13 @@ const renaming = (container: HTMLElement) =>
     container.querySelector<HTMLInputElement>('[role="treeitem"] input'),
   )
 
+/**
+ * headless-tree hands focus back to the row a moment after a rename ends; a
+ * menu chosen sooner would have its new name field blurred by that focus.
+ */
+const focusBack = () =>
+  waitFor(() => document.activeElement?.getAttribute('role') === 'treeitem')
+
 describe('WorkspaceTree changes', () => {
   beforeEach(() => useWorkspaceFileView.setState({ file: undefined }))
 
@@ -278,12 +285,14 @@ describe('WorkspaceTree changes', () => {
     press(input, 'Enter')
     await waitFor(() => rows(container).includes('Projects'))
     expect(useWorkspaceFileView.getState().file).toBeUndefined()
+    await focusBack()
 
     // A second new folder takes the next free name.
     await choose(tree, 'New folder')
     const next = await renaming(container)
     expect(next.value).toBe('Untitled')
     press(next, 'Escape')
+    await focusBack()
     await choose(tree, 'New folder')
     expect((await renaming(container)).value).toBe('Untitled 1')
   })
