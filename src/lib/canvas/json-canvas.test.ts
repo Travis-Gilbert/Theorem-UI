@@ -1,3 +1,5 @@
+// SOURCING: bun:test over the JSON Canvas reader and editor, round-tripping
+// canvases Obsidian wrote.
 import { describe, expect, test } from 'bun:test'
 import { applyCanvasEdits, parseCanvas, removeNodes } from './json-canvas'
 import type { CanvasEdit, CanvasNode } from './json-canvas'
