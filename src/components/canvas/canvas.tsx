@@ -52,6 +52,7 @@ import {
   userAuthorship,
 } from '@/lib/theorem/spaces'
 import { useComposer } from './composer-state'
+import { ExportToFolder } from './export-to-folder'
 import { NoteNodeView } from './note-node'
 import type { NoteNode } from './note-node'
 
@@ -372,6 +373,7 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
             <Icon.Search />
             Add note
           </Button>
+          <ExportToFolder title={title} space={space.data.space} />
           {creating && (
             <span className="text-xs text-error-ink">{creating}</span>
           )}
