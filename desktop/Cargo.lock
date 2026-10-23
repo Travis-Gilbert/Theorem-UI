@@ -3573,8 +3573,6 @@ dependencies = [
 [[package]]
 name = "gpui-pre-apple"
 version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b52f58893fe1a0836464428dfad2b5eaf42c9c303a9638f4c2aced5a69072a15"
 dependencies = [
  "anyhow",
  "async-task",
@@ -6588,6 +6586,7 @@ dependencies = [
  "libc",
  "objc2 0.6.5",
  "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -11141,20 +11140,27 @@ dependencies = [
  "euclid",
  "futures",
  "getrandom 0.3.4",
+ "gleam",
+ "glow",
  "gpui-kit",
  "gpui-pre",
+ "gpui-pre-apple",
  "hex",
  "log",
  "notify-rust",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-core-video",
  "objc2-foundation 0.3.2",
+ "objc2-io-surface",
  "raw-window-handle",
  "rustls",
  "security-framework",
  "serde",
  "serde_json",
  "servo",
+ "surfman",
  "theorem-desktop-protocol",
  "url",
  "webview-surface",

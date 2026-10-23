@@ -107,6 +107,8 @@ pub enum Step {
     Commit(String),
     /// Save `<name>.png` and `<name>.json`, as `THEOREM_CAPTURE` does.
     Capture(String),
+    /// Record the page's frame times since the last `frames` step.
+    Frames,
     /// Quit as Cmd-Q does: once the page has saved.
     Quit,
 }
@@ -305,6 +307,13 @@ impl Driver {
                 self.settled(cx).await
             }
             Step::Capture(name) => self.capture(name, cx).await,
+            Step::Frames => cx
+                .update(|cx| {
+                    self.page
+                        .upgrade()
+                        .map(|page| page.read(cx).take_frame_stats())
+                })
+                .ok_or_else(|| "the page is gone".to_string()),
             Step::Quit => {
                 cx.update(Host::quit);
                 Ok(Value::Null)
@@ -531,7 +540,7 @@ mod tests {
     fn steps_read_as_written() {
         let steps: Vec<Step> = serde_json::from_str(
             r#"[{"wait": 5}, {"click": "textarea"}, {"click": [10, 20]},
-                {"until": {"js": "ready"}}, {"type": "Hi"}, "quit"]"#,
+                {"until": {"js": "ready"}}, {"type": "Hi"}, "quit", "frames"]"#,
         )
         .unwrap();
         assert!(matches!(steps[1], Step::Click(Target::Selector(ref s)) if s == "textarea"));
@@ -544,6 +553,7 @@ mod tests {
             }
         ));
         assert!(matches!(steps[5], Step::Quit));
+        assert!(matches!(steps[6], Step::Frames));
     }
 
     #[test]

@@ -25,6 +25,10 @@ dpi = "0.1"
 euclid = "0.22"
 futures = "0.3"
 getrandom = "0.3"
+# The in-scene renderer's OpenGL context, at the versions Servo's
+# `RenderingContext` is written against.
+gleam = "0.15"
+glow = "0.17"
 hex = "0.4"
 log = "0.4"
 notify-rust = "4.18"
@@ -42,14 +46,22 @@ which = "8"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3.2", features = ["NSView", "NSResponder", "NSWindow", "NSGraphics"] }
+objc2-core-foundation = "0.3.2"
+# Wrapping Servo's `IOSurface` frames for `gpui::surface()`.
+objc2-core-video = { version = "0.3.2", default-features = false, features = ["std", "CVBuffer", "CVImageBuffer", "CVPixelBuffer", "CVPixelBufferIOSurface", "CVReturn", "objc2-io-surface"] }
 objc2-foundation = { version = "0.3.2", features = ["NSGeometry"] }
+objc2-io-surface = "0.3.2"
 security-framework = "3"
+surfman = "0.14"
 
 [dev-dependencies]
 # Headless windows and simulated prompts for #[gpui_kit::test], whose expansion
 # names the `gpui` crate. GPUI Kit's own test-support feature cannot resolve:
 # it weakly names gpui-fast 0.1.10, which conflicts with the locked GPUI crates.
 gpui = { package = "gpui-pre", version = "=0.3.9", features = ["test-support"] }
+# GPUI's headless Metal renderer and Apple's text system, for tests that check
+# drawn pixels off the main thread.
+gpui-pre-apple = { version = "=0.3.9", features = ["font-kit", "test-support"] }
 
 [profile.dev]
 # Servo is unusably slow unoptimized; optimize dependencies, keep the host debuggable.
@@ -59,3 +71,5 @@ opt-level = 2
 [patch.crates-io]
 # See vendor/zed-font-kit/THEOREM-PATCH.md: freetype-sys 0.23 to match Servo.
 zed-font-kit = { path = "vendor/zed-font-kit" }
+# See vendor/gpui-pre-apple/THEOREM-PATCH.md: BGRA surfaces in GPUI's renderer.
+gpui-pre-apple = { path = "vendor/gpui-pre-apple" }

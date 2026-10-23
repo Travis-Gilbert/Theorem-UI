@@ -2,23 +2,29 @@
 //! view, plus the two decisions the host makes on the spot: which navigations
 //! stay in the app, and what happens to new windows.
 //!
-//! SOURCING: Servo's `WebViewDelegate`; `url` for origins.
+//! SOURCING: Servo's `WebViewDelegate` and `SoftwareRenderingContext`; `url`
+//! for origins.
 //! The navigation policy is ours: it is this app's rule, not a library's.
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::{Rc, Weak};
+use std::time::Instant;
 
 use dpi::PhysicalSize;
 use servo::{
     ConsoleLogLevel, CreateNewWebViewRequest, Cursor, EmbedderControl, EmbedderControlId,
-    InputEventId, InputEventResult, NavigationRequest, RenderingContext, WebView,
-    WebViewDelegate, WebViewId, WindowRenderingContext,
+    InputEventId, InputEventResult, NavigationRequest, RenderingContext, SoftwareRenderingContext,
+    WebView, WebViewDelegate, WebViewId, WindowRenderingContext,
 };
 use url::{Origin, Url};
 
+use crate::frames::FrameStats;
+
 /// One thing the page view has to act on after Servo's turn of the loop.
 pub enum PageEvent {
+    /// Servo painted and presented a frame.
+    Frame,
     Cursor(Cursor),
     InputHandled(InputEventId, InputEventResult),
     ShowControl(EmbedderControl),
@@ -38,18 +44,22 @@ pub struct Delegate {
     /// Web views opened by `window.open` or `target="_blank"`, held only until
     /// their first navigation says where they meant to go.
     popups: RefCell<Vec<WebView>>,
-    rendering_context: Rc<WindowRenderingContext>,
+    /// The child view's context, which popups render beside; the in-scene
+    /// renderer has none.
+    window_context: Option<Rc<WindowRenderingContext>>,
+    pub frames: RefCell<FrameStats>,
 }
 
 impl Delegate {
-    pub fn new(rendering_context: Rc<WindowRenderingContext>) -> Rc<Self> {
+    pub fn new(window_context: Option<Rc<WindowRenderingContext>>) -> Rc<Self> {
         Rc::new_cyclic(|this| Self {
             this: this.clone(),
             events: RefCell::default(),
             allowed: RefCell::default(),
             page: Cell::new(None),
             popups: RefCell::default(),
-            rendering_context,
+            window_context,
+            frames: RefCell::default(),
         })
     }
 
@@ -114,8 +124,11 @@ fn opens_externally(url: &Url) -> bool {
 impl WebViewDelegate for Delegate {
     fn notify_new_frame_ready(&self, webview: WebView) {
         if self.is_page(&webview) {
+            let started = Instant::now();
             webview.paint();
             webview.rendering_context().present();
+            self.frames.borrow_mut().painted(started);
+            self.push(PageEvent::Frame);
         }
     }
 
@@ -196,10 +209,17 @@ impl WebViewDelegate for Delegate {
     fn request_create_new(&self, _parent: WebView, request: CreateNewWebViewRequest) {
         // `CreateNewWebViewRequest` does not say where the new window is going,
         // so build it off screen and catch its first navigation.
-        let context: Rc<dyn RenderingContext> = Rc::new(
-            self.rendering_context
-                .offscreen_context(PhysicalSize::new(1, 1)),
-        );
+        let size = PhysicalSize::new(1, 1);
+        let context: Rc<dyn RenderingContext> = match &self.window_context {
+            Some(parent) => Rc::new(parent.offscreen_context(size)),
+            None => match SoftwareRenderingContext::new(size) {
+                Ok(context) => Rc::new(context),
+                Err(error) => {
+                    log::error!("popup context: {error:?}");
+                    return;
+                }
+            },
+        };
         let Some(delegate) = self.this.upgrade() else {
             return;
         };

@@ -88,8 +88,8 @@
     {
       "id": "composition-spike",
       "item": "In-scene spike: Servo IOSurface frames painted with gpui::surface() through a BGRA path patched into gpui-pre-apple's Metal renderer; a GPUI overlay above the page in the same window; frame times compared with the child view (D2 step 2, Phase 0)",
-      "status": "pending",
-      "evidence": null
+      "status": "in_progress",
+      "evidence": "THEOREM_PAGE_RENDERER=scene draws Servo's IOSurface frames with gpui::surface() through the BGRA patch; the overlay above an upright page is checked through GPUI's headless Metal renderer; Servo-side frame times compared with the child view. GPUI's present-to-draw time and a live-window screenshot are not measured: the screen was locked (docs/desktop/conformance.md, Phase 0 item 6)."
     },
     {
       "id": "in-scene-main-window",

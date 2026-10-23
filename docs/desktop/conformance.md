@@ -275,9 +275,56 @@ Host, not fixed:
    session route with a wrong or missing secret, and a `Host: localhost`
    request all answered 403. Saving from the native editor and seeing the
    page update was not rechecked: the driver types only into the page.
-6. **The in-scene spike:** not started. Servo's `IOSurface` frames through
-   the BGRA renderer patch, a GPUI overlay above the page, and the frame-time
-   comparison are still to do.
+6. **The in-scene spike:** the page draws inside GPUI's scene with
+   `THEOREM_PAGE_RENDERER=scene`. The child view stays the default.
+   - **Frames reach GPUI's scene.** `SceneRenderingContext`
+     (`desktop/src/scene.rs`) renders into surfman `IOSurface`s and hands
+     GPUI the newest as a `CVPixelBuffer`. `gpui::surface()` draws it through
+     the BGRA path in `desktop/vendor/gpui-pre-apple`. Tests:
+     `render_bgra_surface` for the patch; `scene::tests` for the format
+     (`32BGRA`), row order and recycling; and
+     `page::tests::the_overlay_draws_above_the_page_in_gpuis_scene`, which
+     draws a frame from the context through GPUI's headless Metal renderer
+     and checks that the page is upright with the overlay above it.
+   - **The overlay in a live window was not seen.** The spike's frame-time
+     readout is a GPUI element above the page, but no screenshot of a real
+     window exists: this session has no Screen Recording permission, and the
+     screen was locked during the runs.
+   - **Frame times on Servo's side.** `docs/desktop/frame-times.steps.json`
+     animates a box with `requestAnimationFrame` for 6 s and reads the
+     host's counts with the driver's `frames` step. Same release build, screen
+     locked, window covered:
+
+     | | Child view | In GPUI's scene |
+     | --- | --- | --- |
+     | Frames from Servo | 536 | 525 |
+     | Interval, p50 / p95 / max | 11.11 / 13.47 / 94.96 ms | 11.1 / 14.53 / 69.88 ms |
+     | Servo's paint and present, p50 / p95 / max | 6.02 / 10.75 / 94.44 ms | 1.09 / 3.8 / 69.35 ms |
+
+     The pages kept the same pace. Painting and presenting took a fifth as
+     long in the scene (mean 1.7 ms against 6.17 ms), where `present` only
+     swaps which `IOSurface` is the front buffer.
+   - **GPUI's side was not measured.** The time from `present` to GPUI
+     drawing that frame (`toSceneMs` in the `frames` step) stayed empty.
+     GPUI stops a macOS window's display link while the window is occluded
+     (`gpui-pre-macos` 0.3.9, `window.rs`, `start_display_link`), and the
+     lock screen covered it; the child view draws through its own view
+     regardless. To measure it, unlock the screen, keep the window in front,
+     and run the release build:
+
+     ```bash
+     THEOREM_PAGE_RENDERER=scene THEOREM_DRIVE=docs/desktop/frame-times.steps.json THEOREM_DRIVE_OUT=/tmp/scene theorem
+     ```
+
+   - **Known limits.** GPUI releases each frame's `CVMetalTexture` before the
+     GPU has finished with it, as upstream does for screen capture. Three
+     frames stay in flight before a surface goes back to Servo, so a GPUI
+     redraw long after a burst of frames could show a recycled surface. In
+     the scene, popups render into a `SoftwareRenderingContext`, because the
+     child view's context they render beside does not exist.
+   - **Result:** the page draws correctly in the scene, with GPUI above it,
+     and costs Servo less per frame. Moving the main window to it (Phase 1)
+     waits on GPUI's side measured in a visible window.
 
 ## Test data this pass left on the backend
 

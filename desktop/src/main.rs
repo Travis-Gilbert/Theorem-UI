@@ -11,8 +11,10 @@ mod delegate;
 mod drive;
 mod editor;
 mod engine;
+mod frames;
 mod keys;
 mod page;
+mod scene;
 mod server;
 
 use anyhow::Context as _;

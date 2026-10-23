@@ -1,9 +1,12 @@
 //! The main window's page: Servo's web view in a child view over the GPUI
 //! window, with GPUI's input routed into it (plan D2, rendering step 1).
+//! `THEOREM_PAGE_RENDERER=scene` draws it inside GPUI's scene instead
+//! (rendering step 2, the Phase 0 spike), with a GPUI overlay above it.
 //!
 //! SOURCING: hand-rolled embedder layer. No crate joins Servo and GPUI; the
 //! event translation follows servoshell (`headed_window.rs`) and Theorem's
-//! `space_servo_web.rs`, and the child view is Theorem's `webview-surface`.
+//! `space_servo_web.rs`, the child view is Theorem's `webview-surface`, and
+//! the in-scene frames are GPUI's `surface()` element.
 
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
@@ -12,23 +15,26 @@ use std::rc::Rc;
 
 use anyhow::{Context as _, anyhow};
 use euclid::Scale;
+use gpui_kit::component::ActiveTheme as _;
 use gpui_kit::{
-    App, AppContext as _, Bounds, Context, CursorStyle, ElementInputHandler, Entity, EntityInputHandler, FocusHandle,
-    Focusable, InteractiveElement as _, IntoElement, KeyUpEvent, Keystroke, ModifiersChangedEvent,
-    MouseButton as GpuiButton, MouseDownEvent, MouseExitEvent, MouseMoveEvent, MouseUpEvent,
-    NavigationDirection, ParentElement as _, PinchEvent, Pixels, Point, Render, ScrollDelta,
-    ScrollWheelEvent, Styled as _, Subscription, UTF16Selection, Window, WindowAppearance, canvas,
-    div, point, px, size,
+    App, AppContext as _, Bounds, Context, CursorStyle, Div, ElementInputHandler, Entity,
+    EntityInputHandler, FocusHandle, Focusable, InteractiveElement as _, IntoElement, KeyUpEvent,
+    Keystroke, ModifiersChangedEvent, MouseButton as GpuiButton, MouseDownEvent, MouseExitEvent,
+    MouseMoveEvent, MouseUpEvent, NavigationDirection, ObjectFit, ParentElement as _, PinchEvent,
+    Pixels, Point, Render, ScrollDelta, ScrollWheelEvent, Styled as _, Subscription,
+    UTF16Selection, Window, WindowAppearance, canvas, div, point, px, size, surface,
 };
+use objc2_core_foundation::CFRetained;
+use objc2_core_video::CVPixelBuffer;
 use raw_window_handle::{
     AppKitDisplayHandle, DisplayHandle, HasWindowHandle, RawDisplayHandle, WindowHandle,
 };
 use servo::{
-    ClipboardAction, CompositionEvent, CompositionState, Cursor, DevicePoint, ImeEvent,
-    InputEvent, InputEventId, InputEventResult, InputMethodControl, KeyState,
-    MouseButton as ServoButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
-    MouseMoveEvent as ServoMouseMove, RenderingContext as _, Theme, WebView, WebViewBuilder,
-    WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
+    ClipboardAction, CompositionEvent, CompositionState, Cursor, DevicePoint, ImeEvent, InputEvent,
+    InputEventId, InputEventResult, InputMethodControl, KeyState, MouseButton as ServoButton,
+    MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent, MouseMoveEvent as ServoMouseMove,
+    RenderingContext, Theme, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode,
+    WindowRenderingContext,
 };
 use url::Url;
 use gpui_kit::component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
@@ -38,6 +44,7 @@ use crate::controls::Controls;
 use crate::delegate::{Delegate, PageEvent};
 use crate::engine::Engine;
 use crate::keys;
+use crate::scene::SceneRenderingContext;
 
 /// The key context the Edit menu's shortcuts bind in.
 pub const CONTEXT: &str = "Page";
@@ -45,11 +52,19 @@ pub const CONTEXT: &str = "Page";
 /// servoshell's line height for wheels that scroll by lines.
 const LINE_HEIGHT: f64 = 38.0;
 
+/// Where the page's frames go.
+enum Renderer {
+    /// A native child view over the window, which GPUI cannot draw above.
+    ChildView(ChildSurface),
+    /// GPUI's own scene, through the BGRA path in `vendor/gpui-pre-apple`.
+    Scene(Rc<SceneRenderingContext>),
+}
+
 pub struct PageView {
     focus_handle: FocusHandle,
     pub(crate) webview: WebView,
     delegate: Rc<Delegate>,
-    surface: ChildSurface,
+    renderer: Renderer,
     /// The page element's last layout, in window points, and the scale it
     /// was placed at.
     pub(crate) bounds: Option<Bounds<Pixels>>,
@@ -72,37 +87,29 @@ pub struct PageView {
 }
 
 impl PageView {
-    /// Put Servo's view over `window`. The native half can fail (no GL
-    /// context, no child view); the rest cannot.
+    /// Put Servo's view over `window`, or in its scene. The native half can
+    /// fail (no GL context, no child view); the rest cannot.
     pub fn new(window: &mut Window, cx: &mut App) -> anyhow::Result<Entity<Self>> {
         let scale = window.scale_factor();
         let viewport = window.viewport_size();
         let placement = physical(Bounds::new(point(px(0.), px(0.)), viewport), scale);
-        // GPUI's inherent `window_handle` is its own handle; this is AppKit's.
-        let parent = HasWindowHandle::window_handle(window)
-            .map_err(|error| anyhow!("no native window: {error}"))?
-            .as_raw();
-        let surface = webview_surface::adopt_parented(parent, placement).map_err(|e| anyhow!(e))?;
-        let child = surface
-            .appkit_window_handle()
-            .context("the page's child view has no native handle")?;
-        let display = RawDisplayHandle::AppKit(AppKitDisplayHandle::new());
-        // SAFETY: the child view lives in `surface`, which this view owns and
-        // drops after the web view and its rendering context.
-        let rendering_context = unsafe {
-            WindowRenderingContext::new(
-                DisplayHandle::borrow_raw(display),
-                WindowHandle::borrow_raw(child),
-                placement.physical_size(),
-            )
-        }
-        .map_err(|error| anyhow!("rendering context: {error:?}"))?;
+        let in_scene =
+            std::env::var_os("THEOREM_PAGE_RENDERER").is_some_and(|name| name == "scene");
+        let (renderer, rendering_context, window_context): (_, Rc<dyn RenderingContext>, _) =
+            if in_scene {
+                let context = SceneRenderingContext::new(placement.physical_size())
+                    .map_err(|error| anyhow!("rendering context: {error:?}"))?;
+                let context = Rc::new(context);
+                (Renderer::Scene(context.clone()), context, None)
+            } else {
+                let (surface, context) = child_view(window, placement)?;
+                (Renderer::ChildView(surface), context.clone(), Some(context))
+            };
         rendering_context
             .make_current()
             .map_err(|error| anyhow!("rendering context: {error:?}"))?;
-        let rendering_context = Rc::new(rendering_context);
 
-        let delegate = Delegate::new(rendering_context.clone());
+        let delegate = Delegate::new(window_context);
         let webview = WebViewBuilder::new(&Engine::servo(cx), rendering_context)
             .hidpi_scale_factor(Scale::new(scale))
             .delegate(delegate.clone())
@@ -131,7 +138,7 @@ impl PageView {
                 focus_handle,
                 webview,
                 delegate,
-                surface,
+                renderer,
                 bounds: None,
                 scale,
                 cursor: CursorStyle::Arrow,
@@ -174,6 +181,11 @@ impl PageView {
     fn drain(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         for event in self.delegate.take_events() {
             match event {
+                PageEvent::Frame => {
+                    if matches!(self.renderer, Renderer::Scene(_)) {
+                        cx.notify();
+                    }
+                }
                 PageEvent::Cursor(cursor) => {
                     self.cursor = cursor_style(cursor);
                     cx.notify();
@@ -454,7 +466,9 @@ impl PageView {
             return;
         }
         let placement = physical(bounds, scale);
-        if let Err(error) = self.surface.apply(placement) {
+        if let Renderer::ChildView(surface) = &self.renderer
+            && let Err(error) = surface.apply(placement)
+        {
             log::error!("placing the page: {error}");
         }
         if self.scale != scale {
@@ -463,6 +477,35 @@ impl PageView {
         self.webview.resize(placement.physical_size());
         self.bounds = Some(bounds);
         self.scale = scale;
+    }
+
+    /// In GPUI's scene: the page's last frame, and above it a GPUI overlay
+    /// with the frame times, which a child view would hide.
+    fn scene_layer(&self, cx: &App) -> Option<Div> {
+        let Renderer::Scene(context) = &self.renderer else {
+            return None;
+        };
+        let frame = context.frame()?;
+        let mut frames = self.delegate.frames.borrow_mut();
+        frames.drawn();
+        let painting = frames.last_painting().unwrap_or_default();
+        let readout = format!(
+            "In GPUI's scene · {} frames · paint {:.1} ms",
+            frames.frames(),
+            painting.as_secs_f64() * 1e3
+        );
+        Some(page_in_scene(frame, readout, cx))
+    }
+
+    /// The frame times since the last call, for the driver's `frames` step.
+    pub(crate) fn take_frame_stats(&self) -> serde_json::Value {
+        let mut summary = self.delegate.frames.borrow_mut().take_summary();
+        summary["renderer"] = match self.renderer {
+            Renderer::ChildView(_) => "childView",
+            Renderer::Scene(_) => "scene",
+        }
+        .into();
+        summary
     }
 
     // Input method.
@@ -480,6 +523,60 @@ impl PageView {
         }
         self.compose(CompositionState::End, text);
     }
+}
+
+/// The page's latest frame filling its element, with the spike's readout, a
+/// GPUI overlay, above it.
+fn page_in_scene(frame: CFRetained<CVPixelBuffer>, readout: String, cx: &App) -> Div {
+    let theme = cx.theme();
+    div()
+        .absolute()
+        .inset_0()
+        .child(surface(frame).object_fit(ObjectFit::Fill).size_full())
+        .child(
+            div()
+                .absolute()
+                .top_2()
+                .right_2()
+                .px_2()
+                .py_1()
+                .rounded_md()
+                .border_1()
+                .border_color(theme.border)
+                .bg(theme.popover)
+                .text_color(theme.popover_foreground)
+                .text_xs()
+                .font_family(theme.mono_font_family.clone())
+                .child(readout),
+        )
+}
+
+/// A child view over `window` at `placement`, and a Servo context drawing
+/// into it.
+fn child_view(
+    window: &Window,
+    placement: webview_surface::Bounds,
+) -> anyhow::Result<(ChildSurface, Rc<WindowRenderingContext>)> {
+    // GPUI's inherent `window_handle` is its own handle; this is AppKit's.
+    let parent = HasWindowHandle::window_handle(window)
+        .map_err(|error| anyhow!("no native window: {error}"))?
+        .as_raw();
+    let surface = webview_surface::adopt_parented(parent, placement).map_err(|e| anyhow!(e))?;
+    let child = surface
+        .appkit_window_handle()
+        .context("the page's child view has no native handle")?;
+    let display = RawDisplayHandle::AppKit(AppKitDisplayHandle::new());
+    // SAFETY: the child view lives in `surface`, which the page view owns
+    // and drops after the web view and its rendering context.
+    let rendering_context = unsafe {
+        WindowRenderingContext::new(
+            DisplayHandle::borrow_raw(display),
+            WindowHandle::borrow_raw(child),
+            placement.physical_size(),
+        )
+    }
+    .map_err(|error| anyhow!("rendering context: {error:?}"))?;
+    Ok((surface, Rc::new(rendering_context)))
 }
 
 /// Physical placement of a rectangle in window points.
@@ -555,10 +652,12 @@ impl Render for PageView {
         let page = cx.entity();
         let placed = page.downgrade();
         let focus_handle = self.focus_handle.clone();
+        let scene = self.scene_layer(cx);
         div()
             .id("page")
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
+            .relative()
             .size_full()
             .cursor(self.cursor)
             .on_any_mouse_down(cx.listener(Self::mouse_down))
@@ -600,6 +699,7 @@ impl Render for PageView {
                 )
                 .size_full(),
             )
+            .children(scene)
     }
 }
 
@@ -708,5 +808,104 @@ impl EntityInputHandler for PageView {
         _: &mut Context<Self>,
     ) -> Option<usize> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use dpi::PhysicalSize;
+    use gleam::gl;
+    use gpui_apple::AppleTextSystem;
+    use gpui_apple::metal_renderer::MetalHeadlessRenderer;
+    use gpui_kit::{HeadlessAppContext, Rgba, WindowBounds, WindowOptions};
+
+    use super::*;
+
+    struct Page(CFRetained<CVPixelBuffer>);
+
+    impl Render for Page {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            div().relative().size_full().child(page_in_scene(
+                self.0.clone(),
+                "In GPUI's scene".into(),
+                cx,
+            ))
+        }
+    }
+
+    /// The spike (plan Phase 0, item 6) through GPUI's real Metal renderer: a
+    /// frame from the context Servo draws into is upright in the scene, and
+    /// the overlay is drawn above it.
+    #[test]
+    fn the_overlay_draws_above_the_page_in_gpuis_scene() {
+        let context = SceneRenderingContext::new(PhysicalSize::new(240, 160)).unwrap();
+        context.make_current().unwrap();
+        context.prepare_for_rendering();
+        let gl_api = context.gleam_gl_api();
+        gl_api.clear_color(0.0, 0.0, 1.0, 1.0);
+        gl_api.clear(gl::COLOR_BUFFER_BIT);
+        gl_api.enable(gl::SCISSOR_TEST);
+        gl_api.scissor(0, 80, 240, 80);
+        gl_api.clear_color(1.0, 0.0, 0.0, 1.0);
+        gl_api.clear(gl::COLOR_BUFFER_BIT);
+        gl_api.disable(gl::SCISSOR_TEST);
+        gl_api.finish();
+        context.present();
+        let frame = context.frame().unwrap();
+
+        let mut cx = HeadlessAppContext::with_platform(
+            Arc::new(AppleTextSystem::new()),
+            Arc::new(gpui_kit::assets::Assets),
+            || Ok(Some(Box::new(MetalHeadlessRenderer::new()))),
+        );
+        cx.update(gpui_kit::init);
+        let (window, _) = cx
+            .update(|cx| {
+                gpui_kit::open_window(
+                    WindowOptions {
+                        window_bounds: Some(WindowBounds::Windowed(Bounds::new(
+                            point(px(0.), px(0.)),
+                            size(px(240.), px(160.)),
+                        ))),
+                        focus: false,
+                        show: false,
+                        ..Default::default()
+                    },
+                    cx,
+                    |_, cx| cx.new(|_| Page(frame)),
+                )
+            })
+            .unwrap();
+        cx.update_window(window, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let image = cx.capture_screenshot(window).unwrap();
+        let popover = Rgba::from(cx.update(|cx| cx.theme().popover));
+
+        let scale = image.width() as f32 / 240.;
+        let at = |x: f32, y: f32| image.get_pixel((x * scale) as u32, (y * scale) as u32).0;
+        assert_eq!(
+            at(20., 20.),
+            [255, 0, 0, 255],
+            "the page's top, red, on top"
+        );
+        assert_eq!(
+            at(20., 140.),
+            [0, 0, 255, 255],
+            "the page's bottom, blue, below"
+        );
+        let overlay = at(240. - 12., 12.);
+        let expected = [popover.r, popover.g, popover.b].map(|c| (c * 255.).round() as i32);
+        assert!(
+            overlay[..3]
+                .iter()
+                .zip(expected)
+                .all(|(&drawn, wanted)| (drawn as i32 - wanted).abs() <= 2),
+            "the overlay's background {overlay:?} is drawn over the page, not {expected:?}"
+        );
     }
 }
