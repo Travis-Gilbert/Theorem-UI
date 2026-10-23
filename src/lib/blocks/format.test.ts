@@ -184,6 +184,19 @@ describe('fence helpers', () => {
     expect(withFenceId('```tsx {.live}\n1\n```', 'b1')).toBe(
       '```tsx {.live #b1}\n1\n```',
     )
+    expect(withFenceId('  ~~~~ts {.live x=1}  \n1\n  ~~~~', 'b1')).toBe(
+      '  ~~~~ts {.live x=1 #b1}  \n1\n  ~~~~',
+    )
+  })
+
+  test('renaming replaces the id and leaves the rest as written', () => {
+    expect(withFenceId('```tsx {.live #old  x=1}\n1\n```', 'streak')).toBe(
+      '```tsx {.live #streak  x=1}\n1\n```',
+    )
+    expect(withFenceId('```query {#old .live}\nfrom: x\n```', 'new')).toBe(
+      '```query {#new .live}\nfrom: x\n```',
+    )
+    expect(fenceInfo(withFenceId('```tsx {.live #a}\n```', 'b'))?.id).toBe('b')
   })
 
   test('an unclosed fence is closed when written', () => {

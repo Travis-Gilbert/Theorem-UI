@@ -163,14 +163,21 @@ export function withFenceCode(fence: string, code: string): string {
   return [open, ...lines.map((line) => line && pad + line), close].join('\n')
 }
 
-/** The fence with `#id` added to its attribute block. */
+/**
+ * The fence named `id`: its attribute block's `#name` replaced, or `#id`
+ * added at the block's end. Nothing else in the fence changes.
+ */
 export function withFenceId(fence: string, id: string): string {
   const parts = splitFence(fence)
   const brace = parts.info.indexOf('{')
   if (brace === -1) return fence
   const end = brace + parseAttr(parts.info, brace).eaten.length - 1
-  const at = parts.indent + parts.marker.length + end
-  return `${parts.open.slice(0, at)} #${id}${parts.open.slice(at)}${fence.slice(parts.open.length)}`
+  const start = parts.indent + parts.marker.length
+  const block = parts.info.slice(brace, end)
+  const named = block.replace(/(^\{|\s)#[^\s}]+/, `$1#${id}`)
+  const next = named === block ? `${block} #${id}` : named
+  const rest = fence.slice(parts.open.length)
+  return `${parts.open.slice(0, start + brace)}${next}${parts.open.slice(start + end)}${rest}`
 }
 
 // Pinned output -------------------------------------------------------------
