@@ -256,6 +256,14 @@ export class BlockGraph {
       }
   }
 
+  /** Changes may have been missed: recompute everything that reads files. */
+  everyFileChanged(): void {
+    for (const [glob, entry] of this.globs) {
+      const version = ++entry.version
+      entry.variable.define(`files:${glob}`, [], () => version)
+    }
+  }
+
   forget(key: string): void {
     this.cells.delete(key)
   }

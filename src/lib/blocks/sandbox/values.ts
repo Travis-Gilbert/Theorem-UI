@@ -55,6 +55,10 @@ function describe(
   } catch {
     // Some part of it cannot be cloned; describe it part by part.
   }
+  // Something that says how it serializes, such as a state collection.
+  const toJSON = (value as { toJSON?: unknown }).toJSON
+  if (typeof toJSON === 'function')
+    return describe(toJSON.call(value), depth + 1, seen)
   if (Array.isArray(value))
     return value.map((item) => describe(item, depth + 1, seen))
   if (value instanceof Map)
