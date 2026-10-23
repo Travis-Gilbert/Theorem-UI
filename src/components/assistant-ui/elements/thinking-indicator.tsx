@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import type { ComponentProps } from "react";
+import { useWordsIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { mono, ShimmerLabel } from "./surfaces";
 
@@ -25,14 +27,9 @@ export function ThinkingIndicator({
     >
       <span
         aria-hidden
-        className="size-1.5 shrink-0 animate-pulse rounded-full bg-redwood motion-reduce:animate-none"
+        className="size-1.5 shrink-0 animate-heartbeat rounded-full bg-redwood motion-reduce:animate-none"
       />
-      <ShimmerLabel
-        key={label}
-        className="fade-in slide-in-from-bottom-1 animate-in relative inline-block min-w-0 truncate leading-tight duration-300"
-      >
-        {label}
-      </ShimmerLabel>
+      <ThinkingLabel key={label} label={label} />
       {elapsed !== undefined && (
         <span
           className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
@@ -41,5 +38,19 @@ export function ThinkingIndicator({
         </span>
       )}
     </div>
+  );
+}
+
+/** Each new label rises in word by word; the key above gives every label its own element. */
+function ThinkingLabel({ label }: { label: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useWordsIn(ref, { gap: 35, y: 8 });
+  return (
+    <ShimmerLabel
+      ref={ref}
+      className="relative inline-block min-w-0 truncate leading-tight"
+    >
+      {label}
+    </ShimmerLabel>
   );
 }

@@ -8,6 +8,7 @@ import { ThemeProvider } from 'next-themes'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
+import { MotionRoot } from '@/components/motion'
 import appCss from '../styles.css?url'
 
 interface RouterContext {
@@ -56,6 +57,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
+          <MotionRoot />
           {children}
         </ThemeProvider>
         <Scripts />

@@ -12,7 +12,7 @@ import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
 } from '@assistant-ui/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FC } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
@@ -43,6 +43,9 @@ import {
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { Icon } from '@/components/icons'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
+import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
+import { useMagnet } from '@/components/motion'
+import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 type Json = Record<string, unknown>
@@ -69,10 +72,26 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const live = useAuiState((s) => s.message.status?.type === 'running')
   const artifactId = artifact?.artifactId
   const revision = artifact?.revision
+  const cardRef = useRef<HTMLDivElement>(null)
+  useMagnet(cardRef, { strength: 0.04, max: 3 })
+  // The panel an artifact opens in flies out of this card.
+  const launch = () => {
+    if (cardRef.current && artifactId)
+      recordLaunch(
+        cardRef.current.getBoundingClientRect(),
+        `artifact:${artifactId}`,
+      )
+  }
 
   // A revision produced by the run in progress opens beside the conversation.
   useEffect(() => {
-    if (live && artifactId) open(artifactId)
+    if (!live || !artifactId) return
+    if (cardRef.current)
+      recordLaunch(
+        cardRef.current.getBoundingClientRect(),
+        `artifact:${artifactId}`,
+      )
+    open(artifactId)
   }, [live, artifactId, revision, open])
 
   if (!artifact)
@@ -80,16 +99,21 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const versions = artifacts.get(artifact.artifactId) ?? [artifact]
   const position = versions.findIndex((v) => v.revision === artifact.revision)
   const latest = position === versions.length - 1
-  const show = () =>
+  const show = () => {
+    launch()
     open(artifact.artifactId, latest ? undefined : artifact.revision)
+  }
 
   return (
     <div
+      ref={cardRef}
       data-slot="theorem-artifact-card"
+      data-artifact-id={artifact.artifactId}
       data-selected={selected || undefined}
       className={cn(
         'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
         'transition-colors duration-100',
+        'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-90 in-data-live:slide-in-from-bottom-2 in-data-live:ease-lift in-data-live:duration-(--duration-lift)',
         selected && 'bg-selected outline outline-1 outline-redwood-ink',
       )}
     >
@@ -140,7 +164,12 @@ const ArtifactPendingCard: FC<{
   title?: string
   kind?: string
 }> = ({ toolName, title, kind }) => (
-  <div className="my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4">
+  <div
+    className={cn(
+      'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
+      liveEnter,
+    )}
+  >
     <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
       <ArtifactKindIcon
         kind={kind ?? 'document'}
@@ -211,13 +240,17 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     <span
       className={cn(
         'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs',
+        liveEnter,
         failed ? 'text-error-ink' : 'text-ink-muted',
       )}
     >
       <StateIcon
         className={cn(
           'size-3 shrink-0',
-          pending && 'animate-pulse motion-reduce:animate-none',
+          // Each state is its own icon, so the settled one pops in.
+          pending
+            ? 'animate-pulse motion-reduce:animate-none'
+            : 'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-30 in-data-live:-spin-in-45',
         )}
       />
       <span className="font-mono">{name}</span>

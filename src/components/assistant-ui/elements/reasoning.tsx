@@ -14,13 +14,14 @@ import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { liveEnter } from "./surfaces";
 import {
   CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./collapsible-root";
 
-export const ANIMATION_DURATION = 200;
+export const ANIMATION_DURATION = 320;
 
 const ReasoningPreviewContext = createContext(false);
 
@@ -116,6 +117,7 @@ const ReasoningRoot = forwardRef<
       onOpenChange={handleOpenChange}
       className={cn(
         "group/reasoning-root",
+        liveEnter,
         reasoningVariants({ variant, className }),
       )}
       style={
@@ -185,7 +187,7 @@ function ReasoningTrigger({
     <CollapsibleTrigger
       data-slot="reasoning-trigger"
       className={cn(
-        "aui-reasoning-trigger group/trigger text-muted-foreground hover:text-foreground flex max-w-[75%] origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
+        "aui-reasoning-trigger group/trigger text-muted-foreground hover:text-foreground flex max-w-[75%] origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale]",
         className,
       )}
       {...props}
@@ -203,7 +205,7 @@ function ReasoningTrigger({
         data-slot="reasoning-trigger-chevron"
         className={cn(
           "aui-reasoning-trigger-chevron mt-0.5 size-4 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          "transition-transform duration-(--duration-snap) ease-snap motion-reduce:transition-none",
           "group-data-open/trigger:rotate-90",
           "group-data-panel-open/trigger:rotate-90",
         )}
@@ -224,12 +226,12 @@ function ReasoningContent({
       data-slot="reasoning-content"
       className={cn(
         "aui-reasoning-content text-muted-foreground relative overflow-hidden text-sm outline-none",
-        "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+        "group/collapsible-content ease-glide motion-reduce:animate-none",
         "data-closed:animate-collapsible-up",
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "[--tw-duration:var(--animation-duration)]",
+        "[--tw-duration:var(--duration-glide)] data-closed:ease-exit data-closed:[--tw-duration:var(--duration-exit)]",
         className,
       )}
       {...props}
@@ -300,7 +302,7 @@ function ReasoningText({
       data-slot="reasoning-text"
       className={cn(
         "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed text-pretty",
-        "transform-gpu transition-[transform,opacity] ease-[cubic-bezier(0.32,0.72,0,1)]",
+        "transform-gpu transition-[transform,opacity]",
         "motion-reduce:animate-none",
         "group-data-open/collapsible-content:animate-in",
         "group-data-closed/collapsible-content:animate-out",
@@ -310,8 +312,9 @@ function ReasoningText({
         "group-data-closed/collapsible-content:slide-out-to-top-4",
         "group-data-open/collapsible-content:blur-in-[2px]",
         "group-data-closed/collapsible-content:blur-out-[2px]",
-        "group-data-open/collapsible-content:animation-duration-(--animation-duration)",
-        "group-data-closed/collapsible-content:animation-duration-(--animation-duration)",
+        "group-data-open/collapsible-content:animation-duration-(--duration-settle)",
+        "group-data-open/collapsible-content:ease-settle",
+        "group-data-closed/collapsible-content:animation-duration-(--duration-exit)",
         className,
       )}
       {...props}

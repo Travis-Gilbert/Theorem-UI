@@ -1,5 +1,6 @@
 "use client";
 
+import { useGlideHighlight, useLayoutSprings } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +14,6 @@ import {
 import type { Theorem } from "@/lib/theorem/client";
 import { cn } from "@/lib/utils";
 import {
-  AuiIf,
   ThreadListItemMorePrimitive,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
@@ -31,7 +31,7 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore
+  useSyncExternalStore,
 } from "react";
 import type { ComponentPropsWithoutRef, FC } from "react";
 
@@ -91,21 +91,58 @@ export const ThreadListRoot: FC<
   );
 };
 
+// Each thread moves with its branches, so the tree is the row that springs.
+const LIST_ROWS =
+  '[data-slot="aui_thread-list-item-tree"], [data-slot="aui_thread-list-group-label"]';
+const ACTIVE_ROW =
+  '[data-slot="aui_thread-list-item"][data-active], [data-slot="aui_thread-list-branch"] > [data-active]';
+
 export const ThreadListItems: FC<
   ComponentPropsWithoutRef<"div"> & { searchQuery?: string }
 > = ({ className, searchQuery = "", ...props }) => {
+  const listing = useThreadListGroups(searchQuery);
+  const isLoading = useAuiState((s) => s.threads.isLoading);
+  const activeId = useAuiState((s) => s.threads.mainThreadId);
+  const listRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  // Rows spring to their new places when the list reorders, and one pill
+  // glides to the open thread or branch.
+  const order = useMemo(() => {
+    const { threadIds, filteredIndices, groups } = listing;
+    if (isLoading) return "loading";
+    if (!groups) return filteredIndices.map((i) => threadIds[i]).join(",");
+    return groups
+      .map((g) => `${g.label}:${g.indices.map((i) => threadIds[i]).join(",")}`)
+      .join("|");
+  }, [listing, isLoading]);
+  useLayoutSprings(listRef, order, LIST_ROWS);
+  useGlideHighlight(listRef, highlightRef, ACTIVE_ROW, `${activeId}|${order}`);
+
+  // The pill sits outside the layout root: the layout restores the inline
+  // styles of everything under its root, which would undo the glide.
   return (
     <div
       data-slot="aui_thread-list-items"
-      className={cn("flex flex-col", className)}
+      className={cn("relative", className)}
       {...props}
     >
-      <AuiIf condition={(s) => s.threads.isLoading}>
-        <ThreadListSkeleton />
-      </AuiIf>
-      <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListItemGroups searchQuery={searchQuery} />
-      </AuiIf>
+      <div
+        ref={highlightRef}
+        aria-hidden
+        data-slot="aui_thread-list-highlight"
+        // Inline so the glide owns visibility: an entrance clears its inline
+        // opacity on landing, which a class would then hide again.
+        style={{ opacity: 0 }}
+        className="bg-pill shadow-pill pointer-events-none absolute rounded-md"
+      />
+      <div ref={listRef} className="flex flex-col">
+        {isLoading ? (
+          <ThreadListSkeleton />
+        ) : (
+          <ThreadListItemGroups listing={listing} searchQuery={searchQuery} />
+        )}
+      </div>
     </div>
   );
 };
@@ -229,11 +266,11 @@ export const useThreadListGroups = (searchQuery = "") => {
   }, [threadIds, threadItems, query, startOfToday]);
 };
 
-const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
-  searchQuery = "",
-}) => {
-  const { threadIds, filteredIndices, groups } =
-    useThreadListGroups(searchQuery);
+const ThreadListItemGroups: FC<{
+  listing: ReturnType<typeof useThreadListGroups>;
+  searchQuery?: string;
+}> = ({ listing, searchQuery = "" }) => {
+  const { threadIds, filteredIndices, groups } = listing;
   const query = searchQuery.trim();
 
   if (query && filteredIndices.length === 0) {
@@ -449,7 +486,7 @@ export const ThreadListItem: FC = () => {
               data-slot="aui_thread-list-item"
               data-active={isCurrent || undefined}
               aria-current={isCurrent || undefined}
-              className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-pill data-active:shadow-pill relative flex h-7 items-center gap-1 rounded-md ps-2 pe-1 text-sm transition-colors duration-100"
+              className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-transparent relative flex h-7 items-center gap-1 rounded-md ps-2 pe-1 text-sm transition-colors duration-100"
             />
           }
         >
@@ -542,7 +579,7 @@ export const ThreadListItem: FC = () => {
       {remoteId && forks.length > 0 && (
         <Collapsible.Panel
           data-slot="aui_thread-list-item-branches"
-          className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-(--ease-structure) data-ending-style:h-0 data-starting-style:h-0"
+          className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-(--duration-glide) ease-glide data-ending-style:h-0 data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-starting-style:h-0"
         >
           {forks.map((branch, index) => (
             <ThreadBranchRow
@@ -589,7 +626,7 @@ const ThreadBranchRow: FC<{
         data-active={isCurrent || undefined}
         aria-current={isCurrent || undefined}
         onClick={onOpen}
-        className="hover:bg-hover focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill flex h-7 w-full min-w-0 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-60"
+        className="hover:bg-hover focus-visible:outline-focus data-active:bg-transparent flex h-7 w-full min-w-0 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-60"
       >
         <span className="truncate">{label || `Branch ${ordinal}`}</span>
       </button>

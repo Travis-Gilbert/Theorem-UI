@@ -167,7 +167,7 @@ const AttachmentUI: FC = () => {
                   className={cn(
                     "aui-attachment-tile bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 overflow-hidden rounded-[calc(var(--composer-radius,1rem)-var(--composer-padding,8px))] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-1 motion-reduce:transition-none dark:after:ring-white/10",
                     src
-                      ? "cursor-zoom-in active:scale-[0.96]"
+                      ? "cursor-zoom-in"
                       : "cursor-default",
                     isError &&
                       "after:ring-destructive/60 dark:after:ring-destructive/60",
@@ -222,7 +222,7 @@ const AttachmentRemove: FC<{ name: string }> = ({ name }) => {
       render={
         <TooltipIconButton
           tooltip={`Remove ${name}`}
-          className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! motion-reduce:transition-none"
           side="top"
         />
       }
@@ -261,7 +261,7 @@ export const ComposerAddAttachment: FC = () => {
           side="bottom"
           variant="ghost"
           size="icon"
-          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-7 rounded-md p-1.5 active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-7 rounded-md p-1.5 motion-reduce:transition-none"
           aria-label="Add Attachment"
         />
       }

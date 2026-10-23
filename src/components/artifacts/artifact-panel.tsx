@@ -1,4 +1,5 @@
 // SOURCING: Base UI Dialog (ui/dialog) for Inspect, TooltipIconButton element for header actions, useCopyToClipboard hook; content renders through artifact-renderers
+import { useLayoutEffect, useRef } from 'react'
 import type { FC } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
@@ -11,6 +12,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { flyGhost, takeLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { fileNameFor, kindLabel, useThreadArtifacts } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
@@ -115,6 +117,20 @@ export function ArtifactPanel({
   const revision = useArtifactView((s) => s.revisions[artifactId])
   const select = useArtifactView((s) => s.select)
   const { isCopied, copyToClipboard } = useCopyToClipboard()
+  const sectionRef = useRef<HTMLElement>(null)
+
+  // Opened from a chat card, the canvas grows out of that card. The frame
+  // after mount is when the dock or the phone overlay has its final size.
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const origin = takeLaunch(`artifact:${artifactId}`)
+      if (origin && sectionRef.current)
+        flyGhost(origin, sectionRef.current, {
+          className: 'rounded-artifact border border-separator bg-artifact',
+        })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [artifactId])
 
   const versions = artifacts.get(artifactId)
   if (!versions?.length) return null
@@ -134,6 +150,7 @@ export function ArtifactPanel({
 
   return (
     <section
+      ref={sectionRef}
       aria-label={`Artifact: ${artifact.title}`}
       className={cn('flex h-full min-w-0 flex-col bg-artifact', className)}
     >
@@ -181,9 +198,9 @@ export function ArtifactPanel({
           onClick={() => copyToClipboard(artifact.content)}
         >
           {isCopied ? (
-            <Icon.Copied className="size-4" />
+            <Icon.Copied className="size-4 animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
           ) : (
-            <Icon.Copy className="size-4" />
+            <Icon.Copy className="size-4 animate-in fade-in zoom-in-75" />
           )}
         </TooltipIconButton>
         <TooltipIconButton

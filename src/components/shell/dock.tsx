@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
 
+import { flyGhost, popIn } from '@/lib/motion'
+
 const THREAD = 'thread'
 const ARTIFACT = 'artifact:'
 
@@ -183,6 +185,47 @@ function openArtifact(api: DockviewApi, artifactId: string) {
 }
 
 /**
+ * Maximize and restore move groups on springs: a group that changes size
+ * grows or shrinks there as a ghost of its surface, and groups that come back
+ * into view pop in. dockview brackets the change, so the rects before it are
+ * still on screen when the first event fires.
+ */
+function springMaximize(dock: DockviewApi) {
+  let before = new Map<string, DOMRect>()
+  return [
+    dock.onWillMutateLayout(({ kind }) => {
+      if (kind !== 'maximize') return
+      before = new Map(
+        dock.groups.map((group) => [
+          group.id,
+          group.element.getBoundingClientRect(),
+        ]),
+      )
+    }),
+    dock.onDidMutateLayout(({ kind }) => {
+      if (kind !== 'maximize') return
+      const was = before
+      requestAnimationFrame(() => {
+        for (const group of dock.groups) {
+          const from = was.get(group.id)
+          const to = group.element.getBoundingClientRect()
+          if (!from || to.width === 0 || to.height === 0) continue
+          if (from.width === 0 || from.height === 0) {
+            popIn(group.element, { from: 0.97, ease: 'settle' })
+            continue
+          }
+          if (from.width === to.width && from.height === to.height) continue
+          const artifact = group.panels.some((panel) => artifactIdOf(panel.id))
+          flyGhost(from, group.element, {
+            className: artifact ? 'bg-artifact' : 'bg-background',
+            ease: 'settle',
+          })
+        }
+      })
+    }),
+  ]
+}
+/**
  * Desktop dock: the conversation and each open artifact as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
  * per project; artifact panels belong to the conversation they came from.
@@ -241,6 +284,7 @@ export function DockShell({
         if (artifactId) useArtifactView.getState().closed(artifactId)
       }),
       dock.onDidLayoutChange(save),
+      ...springMaximize(dock),
     ]
     return () => {
       for (const listener of listeners) listener.dispose()

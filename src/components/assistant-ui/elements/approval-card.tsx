@@ -4,7 +4,7 @@ import { useId } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { field, ghostButton, inkButton, mono, paper } from "./surfaces";
+import { field, ghostButton, inkButton, liveEnter, mono, paper } from "./surfaces";
 import { useReceiptFocus } from "./receipt-focus";
 
 export type ApprovalState = "request" | "running" | "done" | "denied";
@@ -84,6 +84,7 @@ export function ApprovalCard({
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4",
+        liveEnter,
         className,
       )}
     >
@@ -178,7 +179,7 @@ export function ApprovalCard({
                 onClick={onAllowOnce}
                 className={cn(
                   variant === "destructive"
-                    ? "bg-error-ink text-on-redwood transition-[background-color,scale] duration-150 hover:bg-error-ink/90 active:scale-[0.96] motion-reduce:transition-none"
+                    ? "bg-error-ink text-on-redwood transition-[background-color,scale] duration-150 hover:bg-error-ink/90 motion-reduce:transition-none"
                     : inkButton,
                   "flex h-8 items-center rounded-full px-3.5 text-xs font-medium whitespace-nowrap",
                 )}
