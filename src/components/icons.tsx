@@ -42,6 +42,8 @@ import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
 import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
 import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
+import FileOpen from '@/assets/icons/streamline/streamline-file-open.png'
+import FolderClosed from '@/assets/icons/streamline/streamline-folder.png'
 import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
 import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
 import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
@@ -90,6 +92,8 @@ const masked = (src: string): SvgMark =>
   }
 
 const Copy = masked(CopyPaste)
+const Folder = masked(FolderClosed)
+const FolderOpen = masked(FileOpen)
 const Diagram = masked(CodeWrite)
 const NewChat = masked(PencilWrite)
 const Search = masked(SearchSquare)
@@ -122,6 +126,8 @@ export const Icon = {
   Expand,
   Eye,
   File,
+  Folder,
+  FolderOpen,
   Ide: Shellfile,
   Layout,
   Link,

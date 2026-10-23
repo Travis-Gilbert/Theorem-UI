@@ -78,6 +78,9 @@ export function useComposerRequests() {
   }
 }
 
+/** The composer's buttons are passed on the way to typing, so their tooltips wait for a resting pointer. */
+export const COMPOSER_TOOLTIP_DELAY = 700
+
 /** Web and Diagram, beside the attachment button. */
 export function ComposerTools() {
   const tools = useComposerTools()
@@ -86,6 +89,7 @@ export function ComposerTools() {
       {TOOLS.map(({ tool, label, on, off, Mark }) => (
         <Tooltip key={tool}>
           <TooltipTrigger
+            delay={COMPOSER_TOOLTIP_DELAY}
             render={
               <Toggle
                 pressed={tools[tool]}

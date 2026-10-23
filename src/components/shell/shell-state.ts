@@ -12,7 +12,7 @@ export type SavedLayout = {
 }
 
 /** The context panel's working range in px; it opens at the default. */
-export const PANEL_WIDTH = { min: 200, default: 256, max: 360 } as const
+export const PANEL_WIDTH = { min: 184, default: 224, max: 296 } as const
 
 type ShellState = {
   /** Project whose threads the sidebar lists. Falls back to the first project. */
@@ -62,18 +62,20 @@ export const useShell = create<ShellState>()(
       // Version 0 kept a sidebarOpen flag that the dock's edge group replaced,
       // and version 1 docked the sidebar in that edge group. The sidebar now
       // sits beside the dock, so older layouts are dropped rather than restored
-      // with a panel the dock no longer has.
-      version: 2,
+      // with a panel the dock no longer has. Version 3 narrowed the panel's
+      // range, so widths saved against the wider one start over at the default.
+      version: 3,
       partialize: ({ projectId, layouts, panelWidth, panelCollapsed }) => ({
         projectId,
         layouts,
         panelWidth,
         panelCollapsed,
       }),
-      migrate: (persisted) => ({
-        projectId: (persisted as { projectId?: string } | undefined)?.projectId,
-        layouts: {},
-      }),
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<ShellState> | undefined
+        if (version === 2) return { ...state, panelWidth: PANEL_WIDTH.default }
+        return { projectId: state?.projectId, layouts: {} }
+      },
     },
   ),
 )

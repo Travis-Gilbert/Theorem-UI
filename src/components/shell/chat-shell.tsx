@@ -134,17 +134,21 @@ function SheetSplit(route: DockRoute) {
   const [split, setSplit] = useState<SplitviewApi>()
 
   const onReady = ({ api }: SplitviewReadyEvent) => {
+    const panelWidth = useShell.getState().panelWidth
     api.addPanel({
       id: PANEL,
       component: PANEL,
-      size: useShell.getState().panelWidth,
+      size: panelWidth,
       minimumSize: PANEL_WIDTH.min,
       maximumSize: PANEL_WIDTH.max,
       priority: LayoutPriority.Low,
     })
+    // Without a size the dock is added by evenly redistributing every view,
+    // which would widen the panel to its maximum.
     api.addPanel({
       id: 'dock',
       component: 'dock',
+      size: api.width - panelWidth,
       minimumSize: 360,
       priority: LayoutPriority.High,
     })

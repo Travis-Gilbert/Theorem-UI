@@ -15,16 +15,19 @@ import { cn } from "@/lib/utils";
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;
   side?: "top" | "bottom" | "left" | "right";
+  /** How long the pointer rests before the tooltip opens, in ms. */
+  delay?: number;
 };
 
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
+>(({ children, tooltip, side = "bottom", delay, className, ...rest }, ref) => {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger
+          delay={delay}
           render={
             <Button
               variant="ghost"

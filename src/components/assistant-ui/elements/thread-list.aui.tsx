@@ -50,27 +50,57 @@ export const ThreadList: FC = () => {
   );
 };
 
+/**
+ * Search rests as its icon alone. Focusing it springs the field open to an
+ * outlined box; it folds back once it loses focus with nothing typed, and
+ * Escape clears it and lets go.
+ */
 export const ThreadListSearch = forwardRef<
   HTMLInputElement,
   Omit<ComponentPropsWithoutRef<typeof Input>, "value" | "onChange"> & {
     value: string;
     onValueChange: (value: string) => void;
   }
->(({ className, value, onValueChange, ...props }, ref) => {
+>(({ className, value, onValueChange, onFocus, onBlur, onKeyDown, ...props }, ref) => {
+  const [focused, setFocused] = useState(false);
+  const open = focused || value !== "";
   return (
-    <div data-slot="aui_thread-list-search" className="relative">
+    <div
+      data-slot="aui_thread-list-search"
+      data-open={open || undefined}
+      className="relative w-7 transition-[width] duration-(--duration-settle) ease-settle data-open:w-full motion-reduce:transition-none"
+    >
       <Icon.Search
         data-slot="aui_thread-list-search-icon"
-        className="text-ink-faint pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2"
+        className="text-ink-muted pointer-events-none absolute start-1.5 top-1/2 size-4 -translate-y-1/2"
       />
       <Input
         ref={ref}
         type="search"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            onValueChange("");
+            event.currentTarget.blur();
+          }
+          onKeyDown?.(event);
+        }}
         aria-label="Search threads"
-        placeholder="Search"
-        className={cn("bg-ink/6 h-7 rounded-md border-transparent ps-8 text-sm shadow-none dark:bg-ink/6", className)}
+        placeholder={open ? "Search" : ""}
+        className={cn(
+          "hover:bg-hover h-7 cursor-pointer rounded-md border-transparent bg-transparent ps-7 pe-2 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent",
+          open && "border-ink/20 focus-visible:border-ink/30 hover:bg-transparent cursor-text",
+          className,
+        )}
         {...props}
       />
     </div>
@@ -102,7 +132,6 @@ export const ThreadListItems: FC<
 > = ({ className, searchQuery = "", ...props }) => {
   const listing = useThreadListGroups(searchQuery);
   const isLoading = useAuiState((s) => s.threads.isLoading);
-  const activeId = useAuiState((s) => s.threads.mainThreadId);
   const listRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +146,7 @@ export const ThreadListItems: FC<
       .join("|");
   }, [listing, isLoading]);
   useLayoutSprings(listRef, order, LIST_ROWS);
-  useGlideHighlight(listRef, highlightRef, ACTIVE_ROW, `${activeId}|${order}`);
+  useGlideHighlight(listRef, highlightRef, ACTIVE_ROW, "data-active");
 
   // The pill sits outside the layout root: the layout restores the inline
   // styles of everything under its root, which would undo the glide.
@@ -355,16 +384,17 @@ export const ThreadListNew = forwardRef<
                 className,
               )} {...props} />}>{children ?? (
                 <>
-                  <Icon.NewChat
-                    data-slot="aui_thread-list-new-icon"
-                    className="text-ink-muted size-4"
-                  />
                   <span
                     data-slot="aui_thread-list-new-label"
                     className={cn("whitespace-nowrap", labelClassName)}
                   >
                     New chat
                   </span>
+                  {/* The pencil shows only under the pointer or a press. */}
+                  <Icon.NewChat
+                    data-slot="aui_thread-list-new-icon"
+                    className="text-ink-muted ms-auto size-4 opacity-0 group-hover/button:opacity-100 group-focus-visible/button:opacity-100 group-active/button:opacity-100"
+                  />
                 </>
               )}</ThreadListPrimitive.New>
   );

@@ -1,5 +1,5 @@
-// SOURCING: animejs (spring physics, animate, WAAPI ease conversion for the CSS tokens)
-import { animate, spring, waapi } from 'animejs'
+// SOURCING: animejs (spring physics, animate, utils.remove for interrupted exits, WAAPI ease conversion for the CSS tokens)
+import { animate, spring, utils, waapi } from 'animejs'
 import type { FunctionValue, JSAnimation } from 'animejs'
 
 /**
@@ -93,6 +93,22 @@ export function popIn(
     rotate: { from: rotate, to: 0 },
     ease: springs[ease],
     delay,
+    onComplete: clean,
+  })
+}
+
+/**
+ * Something steps aside for what replaces it: a quick shrink and fade on the
+ * exit curve, leaving no inline styles behind.
+ */
+export function popOut(target: Element, { to = 0.8 }: { to?: number } = {}) {
+  // An entrance still turning would keep writing the transform after this.
+  utils.remove(target)
+  return animate(target, {
+    // From wherever an interrupted entrance left it.
+    opacity: 0,
+    ...(prefersReducedMotion() ? {} : { scale: to }),
+    ...exit,
     onComplete: clean,
   })
 }

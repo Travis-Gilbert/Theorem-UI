@@ -1,4 +1,4 @@
-// SOURCING: animejs (createAnimatable for the magnetic pull, splitText + stagger for word entrances, createLayout for list reorders, animate on a plain object for the gliding highlight); ResizeObserver to follow rows that move without a reorder over src/lib/motion; assistant-ui useAui for reading a message's state at mount
+// SOURCING: animejs (createAnimatable for the magnetic pull, splitText + stagger for word entrances, createLayout for list reorders, animate on a plain object for the gliding highlight); MutationObserver to glide when the selected row changes or rows move; ResizeObserver to follow rows that move without a reorder over src/lib/motion; assistant-ui useAui for reading a message's state at mount
 import { useAui } from '@assistant-ui/react'
 import {
   animate,
@@ -214,8 +214,8 @@ export function useLayoutSprings(
 type Edges = { top: number; bottom: number; left: number; right: number }
 
 /**
- * Where `element` sits inside `container`, cut to any ancestor between them
- * that clips its overflow, such as a collapsing panel. Null when none of it
+ * Where `element` sits inside `container`, a positioned ancestor, cut to any
+ * ancestor between them that clips its overflow, such as a collapsing panel. Null when none of it
  * shows. Offsets rather than client rects, so rows mid-spring count where
  * they are headed.
  */
@@ -255,15 +255,16 @@ function edgesWithin(element: HTMLElement, container: HTMLElement) {
 /**
  * Glides one highlight to whichever descendant matches `selector`, stretching
  * its leading edge toward the new place before the trailing edge follows.
- * `placement` changes whenever the selected element may have, which reruns
- * the glide; a resize, as when rows above load or a panel opens, moves the
- * highlight with the element instead.
+ * It glides when `attribute` changes anywhere in the container or children
+ * are added, removed or moved, since the selection can land in a later commit
+ * than whatever caused it; a resize, as when rows above load or a panel
+ * opens, moves the highlight with the element instead.
  */
 export function useGlideHighlight(
   containerRef: RefObject<HTMLElement | null>,
   highlightRef: RefObject<HTMLElement | null>,
   selector: string,
-  placement: string,
+  attribute: string,
 ) {
   const edges = useRef<Edges | null>(null)
   const glide = useRef<JSAnimation | null>(null)
@@ -273,7 +274,10 @@ export function useGlideHighlight(
     const highlight = highlightRef.current
     if (!container || !highlight) return
     const target = container.querySelector<HTMLElement>(selector)
-    const next = target && edgesWithin(target, container)
+    // Measured in the box the highlight is positioned in.
+    const frame = highlight.offsetParent
+    const next =
+      target && frame instanceof HTMLElement && edgesWithin(target, frame)
     if (!next) {
       glide.current?.cancel()
       highlight.style.opacity = '0'
@@ -310,13 +314,21 @@ export function useGlideHighlight(
     })
   }, [containerRef, highlightRef, selector])
 
-  useIsomorphicLayoutEffect(() => place('glide'), [placement, place])
-
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
+    place('glide')
+    const changed = new MutationObserver(() => place('glide'))
+    changed.observe(container, {
+      subtree: true,
+      childList: true,
+      attributeFilter: [attribute],
+    })
     const resized = new ResizeObserver(() => place('follow'))
     resized.observe(container)
-    return () => resized.disconnect()
-  }, [containerRef, place])
+    return () => {
+      changed.disconnect()
+      resized.disconnect()
+    }
+  }, [containerRef, attribute, place])
 }
