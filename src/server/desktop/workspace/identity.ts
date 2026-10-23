@@ -93,12 +93,18 @@ export class IdStore {
     if (data && typeof data === 'object')
       for (const [entryPath, id] of Object.entries(data))
         if (isEntryId(id) && !this.byId.has(id)) this.assign(entryPath, id)
+    this.written = data === undefined ? null : sha256(await readFile(this.file))
     this.dirty = false
   }
 
-  /** True when `bytes` are not what this store last wrote. */
+  /** True when `bytes` are not what this store last read or wrote. */
   isForeign(bytes: Uint8Array): boolean {
     return sha256(bytes) !== this.written
+  }
+
+  /** Every path with an id. */
+  paths(): Array<string> {
+    return [...this.byPath.keys()]
   }
 
   get(entryPath: string): EntryId | undefined {
@@ -109,15 +115,14 @@ export class IdStore {
     return this.byId.get(id)
   }
 
-  /** The id for `entryPath`, assigning `preferred` or a new one when it has none. */
+  /**
+   * The id for `entryPath`. One with none gets `preferred` (a `theorem-id`
+   * from its frontmatter) when no other entry holds it, else a new id.
+   */
   ensure(entryPath: string, preferred?: EntryId): EntryId {
     const current = this.byPath.get(entryPath)
-    if (preferred && preferred !== current && !this.byId.has(preferred)) {
-      this.assign(entryPath, preferred)
-      return preferred
-    }
     if (current) return current
-    const id = newEntryId()
+    const id = preferred && !this.byId.has(preferred) ? preferred : newEntryId()
     this.assign(entryPath, id)
     return id
   }

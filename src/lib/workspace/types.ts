@@ -60,6 +60,11 @@ export type WorkspaceEvent =
     }
   /** The index has caught up with every change so far. */
   | { type: 'indexed' }
+  /**
+   * Events may have been missed (the event stream reconnected, or ids changed
+   * outside Theorem): refetch the tree and anything derived from it.
+   */
+  | { type: 'resync' }
 
 export interface WorkspaceLink {
   /** The note that holds the link. */
