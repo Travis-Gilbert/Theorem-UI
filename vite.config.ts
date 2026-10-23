@@ -40,6 +40,8 @@ const config = defineConfig({
           name: 'theorem-ui',
           compatibility_date: '2026-10-01',
           routes: [{ pattern: 'theorem.rs', custom_domain: true }],
+          // Also reachable at theorem-ui.<account>.workers.dev.
+          workers_dev: true,
           vars: { THEOREM_API_URL: 'https://theoremweb.com' },
         },
       },
