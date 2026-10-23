@@ -3,6 +3,7 @@
 // bridge script added, while the page streams), Bun.file().type (content
 // types). The routes and checks are this app's own.
 import { parseHtmlDeclarations } from '#/lib/blocks/declarations'
+import { BLOCK_DOCUMENT_STYLE } from '#/lib/blocks/document'
 import type { WorkspaceId } from '#/lib/workspace/types'
 import { importMapScript, runtimeModules, vendorModule } from './assets'
 import { appPolicy, cellPolicy } from './csp'
@@ -54,7 +55,8 @@ const ID = /^ws_[0-9A-Za-z]+$/
 function appFile(segments: Array<string>): string | null {
   if (
     segments.some(
-      (segment) => !segment || segment.startsWith('.') || segment.includes('\\'),
+      (segment) =>
+        !segment || segment.startsWith('.') || segment.includes('\\'),
     )
   )
     return null
@@ -69,17 +71,12 @@ function decodeSegments(segments: Array<string>): Array<string> | null {
   }
 }
 
-const BASE_STYLE = `:root{color-scheme:light dark;font:14px/1.5 system-ui,sans-serif}
-body{margin:0;padding:8px;background:transparent;overflow-wrap:anywhere}
-pre{margin:0;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap}
-.theorem-display+.theorem-display{margin-top:8px}`
-
 function cellDocument(cellPath: string): string {
   return `<!doctype html>
 <html><head><meta charset="utf-8">
 <meta name="theorem:cell" content="${cellPath}">
 <script type="importmap">${importMapScript}</script>
-<style>${BASE_STYLE}</style>
+<style>${BLOCK_DOCUMENT_STYLE}</style>
 <script type="module" src="/__runtime/cell-runtime"></script>
 </head><body><div id="root"></div></body></html>`
 }

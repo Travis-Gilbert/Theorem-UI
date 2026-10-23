@@ -2,19 +2,14 @@
 // directives are the ones plan D9 fixes for block documents. node:crypto
 // hashes the inline import map, which `script-src` must name.
 import { createHash } from 'node:crypto'
+import {
+  connectSources,
+  contentSecurityPolicy as policy,
+} from '#/lib/blocks/document'
 
 /** `'sha256-…'` for an inline script's exact text. */
 export const scriptHash = (text: string) =>
   `'sha256-${createHash('sha256').update(text).digest('base64')}'`
-
-/** `connect-src`: nothing, unless the block declared `net("host")`. */
-export const connectSources = (hosts: Array<string>) =>
-  hosts.length ? hosts.map((host) => `https://${host}`).join(' ') : "'none'"
-
-const policy = (directives: Record<string, string>) =>
-  Object.entries(directives)
-    .map(([name, value]) => `${name} ${value}`)
-    .join('; ')
 
 interface PolicyInput {
   /** The block listener's origin, `http://127.0.0.1:<port>`. */

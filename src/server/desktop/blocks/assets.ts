@@ -1,27 +1,11 @@
 // SOURCING: sucrase (the sandbox runtime is TypeScript in src/lib/blocks/
-// sandbox; types are stripped once, when the server starts) and Vite's `?raw`
-// imports, which put the sources in the server bundle. The vendored modules
-// come from src/lib/blocks/vendor, written by scripts/vendor-block-modules.ts.
+// sandbox; types are stripped once, when the server starts) over the sources
+// runtime-sources.ts puts in the server bundle. The vendored modules come
+// from src/lib/blocks/vendor, written by scripts/vendor-block-modules.ts.
 import { transform } from 'sucrase'
-import appBridge from '../../../lib/blocks/sandbox/app-bridge.ts?raw'
-import cell from '../../../lib/blocks/sandbox/cell.ts?raw'
-import cellRuntime from '../../../lib/blocks/sandbox/cell-runtime.ts?raw'
-import connect from '../../../lib/blocks/sandbox/connect.ts?raw'
-import display from '../../../lib/blocks/sandbox/display.ts?raw'
-import protocol from '../../../lib/blocks/sandbox/protocol.ts?raw'
-import values from '../../../lib/blocks/sandbox/values.ts?raw'
+import { runtimeSources } from '#/lib/blocks/runtime-sources'
 import { importMap } from '#/lib/blocks/vendor/manifest'
 import { vendorModules } from '#/lib/blocks/vendor/modules'
-
-const sources: Record<string, string> = {
-  'app-bridge': appBridge,
-  cell,
-  'cell-runtime': cellRuntime,
-  connect,
-  display,
-  protocol,
-  values,
-}
 
 let runtime: Map<string, string> | null = null
 
@@ -31,7 +15,7 @@ let runtime: Map<string, string> | null = null
  */
 export function runtimeModules(): Map<string, string> {
   runtime ??= new Map(
-    Object.entries(sources).map(([name, source]) => [
+    Object.entries(runtimeSources).map(([name, source]) => [
       name,
       transform(source, {
         transforms: ['typescript'],

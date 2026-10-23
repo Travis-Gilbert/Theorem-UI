@@ -86,7 +86,8 @@ function matcher(globs: Array<string>): (path: string) => boolean {
   return (path) => test(path)
 }
 
-function decode(bytes: Uint8Array, as: FileFormat): unknown {
+/** A file's bytes as a block asked for them: text, JSON, CSV rows or bytes. */
+export function decodeFile(bytes: Uint8Array, as: FileFormat): unknown {
   if (as === 'bytes') return bytes
   const text = new TextDecoder().decode(bytes)
   if (as === 'text') return text
@@ -121,7 +122,7 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
         `files.read("${path}") was not declared; add // uses: files.read("${path}")`,
       )
     const { bytes } = await host.client.read(path)
-    return decode(bytes, as)
+    return decodeFile(bytes, as)
   })
 
   serve<PageMethods, 'files.list'>(rpc, 'files.list', async (raw) => {
