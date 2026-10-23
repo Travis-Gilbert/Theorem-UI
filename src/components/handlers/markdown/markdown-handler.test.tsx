@@ -194,6 +194,53 @@ describe('MarkdownPanel', () => {
   })
 })
 
+describe('section embeds', () => {
+  const SECTIONS = `![[Other#details]]
+
+![[Other#^deep]]
+
+![[Other#Nope]]
+`
+  const OTHER_WITH_BLOCK = OTHER.replace('Deep.', 'Deep. ^deep')
+
+  test("show only the heading's or block's part of the note", async () => {
+    const { container } = await openPanel({
+      'Plan.md': SECTIONS,
+      'Other.md': OTHER_WITH_BLOCK,
+    })
+    const embeds = () => [...container.querySelectorAll('.theorem-wiki-embed')]
+    await waitFor(() => embeds()[2]?.textContent.includes('No heading'))
+    const [heading, block, missing] = embeds()
+
+    expect(heading?.querySelector('button')?.textContent).toBe(
+      'Other › details',
+    )
+    expect(heading?.querySelector('h2')?.textContent).toBe('Details')
+    expect(heading?.textContent).not.toContain('Other body text.')
+
+    expect(block?.querySelector('button')?.textContent).toBe('Other › ^deep')
+    expect(block?.querySelector('.theorem-wiki-embed-body')?.textContent).toBe(
+      'Deep.',
+    )
+
+    expect(missing?.textContent).toContain('No heading “Nope” in Other.')
+  })
+
+  test('a header opens the note at its heading', async () => {
+    const { container } = await openPanel({
+      'Plan.md': SECTIONS,
+      'Other.md': OTHER_WITH_BLOCK,
+    })
+    const title = await waitFor(() =>
+      container.querySelector<HTMLElement>('.theorem-wiki-embed-title'),
+    )
+    act(() => title.click())
+    await waitFor(() => useRevealRequest.getState().request)
+    expect(useWorkspaceFileView.getState().file?.path).toBe('Other.md')
+    expect(useRevealRequest.getState().request?.subpath).toBe('#details')
+  })
+})
+
 describe('MarkdownCard', () => {
   test('below the edit zoom, a title and an excerpt', async () => {
     const ws = fakeWorkspace({ 'Notes/Other.md': OTHER })

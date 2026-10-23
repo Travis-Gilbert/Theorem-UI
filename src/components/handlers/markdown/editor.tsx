@@ -1,6 +1,7 @@
 // SOURCING: @milkdown/crepe via @milkdown/react, configured as note-editor.tsx
 // configures it, with @prosemirror-adapter/react for the React node views of
-// views.tsx, Crepe's ImageBlock hooks for images kept in the folder, and the
+// views.tsx, Crepe's ImageBlock hooks for images kept in the folder, the `[[`
+// suggestions of wiki-suggest.tsx, the attachments of attachments.ts, and the
 // registry's MarkdownExtensions. Milkdown's replaceAll takes changes from disk.
 //
 // The editor shows a note's body; the frontmatter stays with the panel. It
@@ -24,14 +25,20 @@ import {
   useNodeViewFactory,
 } from '@prosemirror-adapter/react'
 import { Info } from 'lucide-react'
-import { basename, dirname, join } from 'pathe'
-import { useEffect, useRef } from 'react'
+import { dirname, join } from 'pathe'
+import { useEffect, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { revealDone, useRevealRequest } from '@/lib/handlers/actions'
-import { writeNewFile } from '@/lib/handlers/file-sync'
 import { markdownExtensions, mimeOf } from '@/lib/handlers/registry'
 import type { FileViewProps } from '@/lib/handlers/types'
 import { cn } from '@/lib/utils'
+import {
+  attachmentUploads,
+  relativeUrl,
+  saveAttachment,
+  useAttachmentTarget,
+} from './attachments'
+import type { AttachmentTarget } from './attachments'
 import {
   calloutNode,
   markdownSyntax,
@@ -43,6 +50,11 @@ import {
   markdownViews,
   useResolvedPathsInvalidation,
 } from './views'
+import {
+  WikiSuggest,
+  createWikiSuggestStore,
+  wikiSuggest,
+} from './wiki-suggest'
 
 const calloutIcon = renderToStaticMarkup(<Info />)
 
@@ -61,7 +73,10 @@ function decode(url: string) {
  * Images the note links by a relative path, loaded from the folder. The URLs
  * live as long as the editor.
  */
-function useFolderImages({ client, path }: FileViewProps) {
+function useFolderImages(
+  { client, path }: FileViewProps,
+  attachments: () => Promise<AttachmentTarget>,
+) {
   const urls = useRef(new Set<string>())
   useEffect(() => {
     const created = urls.current
@@ -88,16 +103,10 @@ function useFolderImages({ client, path }: FileViewProps) {
     }
   }
 
-  /** A pasted or picked image is saved next to the note, under a free name. */
+  /** A picked image is saved with the note's attachments, under a free name. */
   const onUpload = async (upload: File) => {
-    const bytes = new Uint8Array(await upload.arrayBuffer())
-    const written = await writeNewFile(
-      client,
-      dirname(path),
-      upload.name || 'image',
-      bytes,
-    )
-    return encodeURI(basename(written))
+    const target = await attachments()
+    return relativeUrl(target.path, await saveAttachment(target, upload))
   }
 
   return { proxyDomURL, onUpload }
@@ -173,7 +182,12 @@ function CrepeFile({
   readOnly: boolean
 }) {
   const nodeViewFactory = useNodeViewFactory()
-  const images = useFolderImages(file)
+  const attachments = useAttachmentTarget(file)
+  const images = useFolderImages(file, attachments)
+  const [suggest] = useState(() => {
+    const store = createWikiSuggestStore()
+    return { store, ...wikiSuggest(store) }
+  })
   /** The Markdown this editor last showed or serialized. */
   const shown = useRef(body)
   const crepeRef = useRef<Crepe>(undefined)
@@ -213,8 +227,11 @@ function CrepeFile({
     crepe.editor
       .config(obsidianMarkdownStyle)
       .config((ctx) => ctx.set(nodeViewFactoryCtx.key, nodeViewFactory))
+      .config(suggest.config)
+      .config(attachmentUploads(attachments))
       .use(markdownSyntax)
       .use(markdownViews)
+      .use(suggest.plugins)
     for (const extension of markdownExtensions()) extension.extend(crepe, file)
     crepeRef.current = crepe
     crepe.on((listener) => {
@@ -245,7 +262,12 @@ function CrepeFile({
 
   useReveal(get, loading, file)
 
-  return <Milkdown />
+  return (
+    <>
+      <Milkdown />
+      <WikiSuggest store={suggest.store} file={file} />
+    </>
+  )
 }
 
 /** A Markdown body in Crepe, with wikilinks, embeds and callouts. */

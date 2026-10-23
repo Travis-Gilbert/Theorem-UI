@@ -14,6 +14,18 @@ plugin({
         : Bun.resolveSync(specifier, path.dirname(args.importer))
       return { path: `${file}?${query}`, namespace: 'vite-query' }
     })
+    // Vite takes a package's ES `module` build before its `main`; Bun takes
+    // `main`. prosemirror-autocomplete's `main` is CommonJS, which loads a
+    // second prosemirror-view beside the ES one Milkdown's editor view uses,
+    // and that view cannot read the other copy's decorations. So its CommonJS
+    // entry loads as its ES build.
+    build.onLoad(
+      { filter: /\/prosemirror-autocomplete\/dist\/cjs\/index\.js$/ },
+      async (args) => ({
+        exports: await import(args.path.replace('/dist/cjs/', '/dist/esm/')),
+        loader: 'object',
+      }),
+    )
     build.onLoad({ filter: /.*/, namespace: 'vite-query' }, async (args) => {
       const [file = '', query] = args.path.split('?')
       return {

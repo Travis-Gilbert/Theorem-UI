@@ -1,8 +1,9 @@
 // SOURCING: @prosemirror-adapter/react (wikilinks, embeds and callouts as
 // React node views, registered through Milkdown's $view), @tanstack/react-query
 // (each link's resolved path, cached until files appear, go or move),
-// lucide-react (Obsidian draws callouts with Lucide's icons), pathe, and the
-// handler registry's Cards for embeds.
+// lucide-react (Obsidian draws callouts with Lucide's icons), pathe, the
+// handler registry's Cards for embeds, and NoteExcerpt for an embedded
+// heading's or block's part of a note (note-sections.ts).
 import { $view } from '@milkdown/kit/utils'
 import { useNodeViewContext } from '@prosemirror-adapter/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -23,14 +24,16 @@ import {
   Zap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { extname } from 'pathe'
+import { basename, extname } from 'pathe'
 import { createContext, use, useEffect } from 'react'
 import { parseWikiTarget } from '#/server/desktop/workspace/markdown'
+import { NoteExcerpt } from '@/components/notes/note-excerpt'
 import { openFileAt } from '@/lib/handlers/actions'
 import type { FileViewProps } from '@/lib/handlers/types'
 import { WorkspaceConflictError } from '@/lib/workspace/types'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import { FileCard } from '../file-card'
+import { noteSection, useNoteText } from './note-sections'
 import {
   calloutNode,
   defaultCalloutTitle,
@@ -53,7 +56,7 @@ const resolveKey = (workspaceId: string) =>
   ['desktop', 'workspace', workspaceId, 'resolve'] as const
 
 /** Where `target`, written in `file`, leads; '' is the file itself. */
-function useResolvedPath(file: FileViewProps, target: string) {
+export function useResolvedPath(file: FileViewProps, target: string) {
   return useQuery({
     queryKey: [...resolveKey(file.client.workspace.id), file.path, target],
     queryFn: () =>
@@ -134,11 +137,62 @@ function WikiLinkView() {
  */
 const EMBED_ZOOM = 0.5
 
+/**
+ * The part of a note `![[Note#Heading]]` or `![[Note#^block]]` embeds, as
+ * Obsidian shows it, or why it cannot.
+ */
+function SectionEmbed({
+  file,
+  path,
+  heading,
+  block,
+}: {
+  file: FileViewProps
+  path: string
+  heading?: string
+  block?: string
+}) {
+  const text = useNoteText(file.client, path)
+  const name = basename(path, '.md')
+  const markdown =
+    text.data === undefined ? null : noteSection(text.data, { heading, block })
+  if (markdown !== null)
+    return (
+      <NoteExcerpt
+        markdown={markdown}
+        className="theorem-wiki-embed-body overflow-auto px-3 py-2"
+      />
+    )
+  return (
+    <span className="theorem-wiki-embed-missing">
+      {text.isPending
+        ? 'Loading…'
+        : text.isError
+          ? `Could not read ${name}.`
+          : block
+            ? `No block ^${block} in ${name}.`
+            : `No heading “${heading}” in ${name}.`}
+    </span>
+  )
+}
+
 function WikiEmbedView() {
   const { node, selected } = useNodeViewContext()
   const file = useMarkdownFile()
   const { value } = node.attrs as WikiAttrs
-  const resolved = useResolvedPath(file, parseWikiTarget(value).target)
+  const { target, heading, block } = parseWikiTarget(value)
+  const resolved = useResolvedPath(file, target)
+  // A heading or block of a note shows as its text; of another file, the file.
+  const section =
+    (heading || block) && resolved.data && extname(resolved.data) === '.md'
+      ? resolved.data
+      : null
+  const title = section
+    ? [
+        basename(section, '.md'),
+        ...(block ? [`^${block}`] : (heading ?? '').split('#').filter(Boolean)),
+      ].join(' › ')
+    : value
   return (
     <span
       className="theorem-wiki-embed"
@@ -150,9 +204,16 @@ function WikiEmbedView() {
         title={`Open ${value}`}
         onClick={() => void followWikiLink(file, value)}
       >
-        {value}
+        {title}
       </button>
-      {resolved.data ? (
+      {section ? (
+        <SectionEmbed
+          file={file}
+          path={section}
+          heading={heading}
+          block={block}
+        />
+      ) : resolved.data ? (
         <FileCard
           client={file.client}
           path={resolved.data}
