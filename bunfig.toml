@@ -18,6 +18,10 @@ minimumReleaseAgeExcludes = [
   "dockview-core",
   "dockview-react",
   "react-resizable-panels",
+  # First party: Rusty Red's Node-API binding, published from RustyRedDB.
+  "@rustyreddb/node",
+  "@rustyreddb/node-darwin-arm64",
+  "@rustyreddb/node-linux-x64-gnu",
 ]
 
 [test]

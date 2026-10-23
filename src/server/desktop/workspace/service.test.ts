@@ -18,7 +18,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { Database } from '@rustyred/node'
+import { Database } from '@rustyreddb/node'
 import type {
   WorkspaceEntry,
   WorkspaceEvent,

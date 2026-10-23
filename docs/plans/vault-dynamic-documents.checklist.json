@@ -167,7 +167,7 @@
       "id": "folder-index",
       "item": "Rebuildable index (links, backlinks, tags, properties, headings, tasks, full-text search) in embedded Rusty Red in app data (Data ownership)",
       "status": "done",
-      "evidence": "index-db.ts keeps entries, notes, links, headings, tags, properties, tasks and the full-text index in a Rusty Red graph through @rustyred/node at <app data>/workspaces/<id>/index.rr, opened without control events or history and compacted as it grows; it rebuilds from nothing to the same nodes, edges and search hits, drops tags and link keys no note uses any more, and recomputes a renamed note's title; search takes tag: terms with nested tags (service.test.ts). The search dialog and tag list read it (workspace-commands.test.tsx)."
+      "evidence": "index-db.ts keeps entries, notes, links, headings, tags, properties, tasks and the full-text index in a Rusty Red graph through @rustyreddb/node at <app data>/workspaces/<id>/index.rr, opened without control events or history and compacted as it grows; it rebuilds from nothing to the same nodes, edges and search hits, drops tags and link keys no note uses any more, and recomputes a renamed note's title; search takes tag: terms with nested tags (service.test.ts). The search dialog and tag list read it (workspace-commands.test.tsx)."
     },
     {
       "id": "folder-layout",

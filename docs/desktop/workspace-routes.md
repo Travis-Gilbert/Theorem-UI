@@ -129,7 +129,7 @@ frontmatter appears in the same batch; the id follows the file.
   a `folder` and a `template` note whose `{{date}}`, `{{time}}` and
   `{{title}}` are filled in.
 - In app data, `<THEOREM_DESKTOP_DATA_DIR>/workspaces/<ws id>/`:
-  `index.rr` (a Rusty Red graph through `@rustyred/node`: entries, notes with
+  `index.rr` (a Rusty Red graph through `@rustyreddb/node`: entries, notes with
   their links, headings, tags, properties, tasks and block ids, and a BM25
   full-text index kept in the same file; derived and rebuildable) and
   `settings.json` (trust).

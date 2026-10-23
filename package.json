@@ -45,7 +45,7 @@
     "@observablehq/runtime": "6.0.1",
     "@parcel/watcher": "2.6.0",
     "@prosemirror-adapter/react": "0.5.5",
-    "@rustyred/node": "file:vendor/rustyred-node-0.1.0-beta.2.tgz",
+    "@rustyreddb/node": "0.1.0-beta.2",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-hotkeys": "0.16.0",

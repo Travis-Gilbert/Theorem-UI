@@ -824,7 +824,7 @@ TypeScript:
 - `@parcel/watcher`;
 - the atomic writer;
 - ids and links;
-- the index in embedded Rusty Red (`@rustyred/node`), with its full-text index;
+- the index in embedded Rusty Red (`@rustyreddb/node`), with its full-text index;
 - per-file Loro documents;
 - sync.
 
@@ -911,7 +911,7 @@ Web deployment              the same app and server, no workspace or bridge
 | Bridge typing | `ts-rs`, `json-rpc-2.0` | crates.io, npm |
 | OAuth PKCE | `oauth4webapi` | npm; Theia plan |
 | File watching | `@parcel/watcher` | npm |
-| Index and search | `@rustyred/node`, the Node-API binding of Rusty Red | RustyRedDB `crates/rustyred-node`; vendored tarball until published |
+| Index and search | `@rustyreddb/node`, the Node-API binding of Rusty Red | RustyRedDB `crates/rustyred-node`, published to npm with addons for macOS arm64 and Linux x64 (glibc) |
 | Live-block runtime | `@observablehq/runtime`, `@observablehq/notebook-kit`, Sucrase, `quickjs-emscripten` | npm |
 | Editor node views | `@prosemirror-adapter/react` | npm; core installed through Crepe |
 | Revisions, `If-Match`, change feed | Documents v2 | Theorem main; no paths, no artifact bodies |

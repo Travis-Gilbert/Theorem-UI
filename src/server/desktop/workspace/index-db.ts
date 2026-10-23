@@ -1,17 +1,17 @@
-// SOURCING: @rustyred/node, the Node-API binding of Rusty Red: an embedded
+// SOURCING: @rustyreddb/node, the Node-API binding of Rusty Red: an embedded
 // graph database in one file, with a BM25 full-text index (ranking, prefix
 // matching and marked snippets) kept in the same file. The graph is this app's:
 // the entries a workspace holds and what parseNote() found in each Markdown
 // file. Everything here is derived from the folder and can be rebuilt from it.
 import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
-import type * as RustyRed from '@rustyred/node'
+import type * as RustyRed from '@rustyreddb/node'
 import type {
   Database,
   Edge,
   Node as GraphNode,
   NodeFilter,
-} from '@rustyred/node'
+} from '@rustyreddb/node'
 import type {
   SearchHit,
   WorkspaceEntry,
@@ -237,7 +237,7 @@ export class WorkspaceIndex implements LinkLookup {
   static async open(file: string): Promise<WorkspaceIndex> {
     // Loaded on first use, so a server that never opens a workspace (the web
     // deployment) never loads the native addon.
-    const binding = await import('@rustyred/node')
+    const binding = await import('@rustyreddb/node')
     const index = new WorkspaceIndex(binding, file, connect(binding, file))
     index.compact()
     return index

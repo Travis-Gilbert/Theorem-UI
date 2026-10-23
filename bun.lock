@@ -33,7 +33,7 @@
         "@observablehq/runtime": "6.0.1",
         "@parcel/watcher": "2.6.0",
         "@prosemirror-adapter/react": "0.5.5",
-        "@rustyred/node": "file:vendor/rustyred-node-0.1.0-beta.2.tgz",
+        "@rustyreddb/node": "0.1.0-beta.2",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.1.18",
         "@tanstack/react-hotkeys": "0.16.0",
@@ -677,7 +677,11 @@
 
     "@rollup/pluginutils": ["@rollup/pluginutils@5.4.0", "", { "dependencies": { "@types/estree": "^1.0.0", "estree-walker": "^2.0.2", "picomatch": "^4.0.2" }, "peerDependencies": { "rollup": "^1.20.0||^2.0.0||^3.0.0||^4.0.0" }, "optionalPeers": ["rollup"] }, "sha512-MfPp06CjRLfXQ3wY0R8vJDYBy/MvVcc9OulEfR0B8Iv9ko+GCNaRZ+EpJYFl27LhKsZK0o420sYCRHCjfCgeUg=="],
 
-    "@rustyred/node": ["@rustyred/node@vendor/rustyred-node-0.1.0-beta.2.tgz", {}, "sha512-39I5clzEnfa8cRDqPbUMxFrQ8leTXmBe/nnhvuDLLEdb7MQIoK9Gw4RGDsFVOtLvDVaeeCWp4Fc2rmyhgz14Bw=="],
+    "@rustyreddb/node": ["@rustyreddb/node@0.1.0-beta.2", "", { "optionalDependencies": { "@rustyreddb/node-darwin-arm64": "0.1.0-beta.2", "@rustyreddb/node-linux-x64-gnu": "0.1.0-beta.2" } }, "sha512-4hwdcLdwH1WzDCRc+GIoS2L8obk+G3k6h3Z4Igr+eBJO0775p3q5k3Nnu46AaNncUj1IsnOGuZ3cJIhoeKhc6g=="],
+
+    "@rustyreddb/node-darwin-arm64": ["@rustyreddb/node-darwin-arm64@0.1.0-beta.2", "", { "os": "darwin", "cpu": "arm64" }, "sha512-Rl/FjA1FxHfcT291vbZetFXbk0e8SGsqPjgKLZuaYLqEg85d4mBRpOsvrCH7Cw0jekyH3Hwb7UUJ5iWMtYNAOw=="],
+
+    "@rustyreddb/node-linux-x64-gnu": ["@rustyreddb/node-linux-x64-gnu@0.1.0-beta.2", "", { "os": "linux", "cpu": "x64" }, "sha512-/dxOwyJY1fwKpWbeQFlKIAn7i4LoepHPOYrasCITHP/zFJtNpHiKCTBrYBASbbch+WZ1c6fv/OmnurfECBaAZg=="],
 
     "@shikijs/core": ["@shikijs/core@4.5.0", "", { "dependencies": { "@shikijs/primitive": "4.5.0", "@shikijs/types": "4.5.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.5", "hast-util-to-html": "^9.0.5" } }, "sha512-6CIgwq+bt2JZ3OSjb/nBkkwEf/CfpHcbam+Mg5Pllco7HAGRQ2/EFhZrrJtbyNTgKwknfVS+llsXGygiDGwJWw=="],
 
