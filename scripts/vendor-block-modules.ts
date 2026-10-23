@@ -53,7 +53,10 @@ async function resolveBuild(url: string): Promise<string> {
 
 const servedPath = (url: string) => `/vendor${new URL(url).pathname}`
 
-const served = new Map<string, { url: string; text: string; upstream: string }>()
+const served = new Map<
+  string,
+  { url: string; text: string; upstream: string }
+>()
 
 async function vendor(url: string): Promise<string> {
   const build = await resolveBuild(url)
@@ -76,10 +79,17 @@ async function vendor(url: string): Promise<string> {
   })
   const out = new MagicString(text)
   for (const source of sources) {
-    const target = new URL(source.value, source.value.startsWith('/') ? ESM : build)
+    const target = new URL(
+      source.value,
+      source.value.startsWith('/') ? ESM : build,
+    )
     if (target.origin !== ESM)
       throw new Error(`${build} imports ${source.value} from outside esm.sh`)
-    out.overwrite(source.start, source.end, JSON.stringify(await vendor(target.href)))
+    out.overwrite(
+      source.start,
+      source.end,
+      JSON.stringify(await vendor(target.href)),
+    )
   }
   served.set(at, { url: build, text: out.toString(), upstream: sri(text) })
   return at
@@ -137,4 +147,6 @@ ${raw.map(([at], i) => `  '${at}': m${i},`).join('\n')}
 `,
 )
 
-console.log(`Vendored ${served.size} modules for ${Object.keys(imports).length} entries`)
+console.log(
+  `Vendored ${served.size} modules for ${Object.keys(imports).length} entries`,
+)
