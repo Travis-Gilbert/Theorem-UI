@@ -11,11 +11,13 @@ import type { ReactNode } from 'react'
 
 import { getDesktopHost, isDesktopDocument } from '@/lib/desktop/host'
 import { reportUnsaved } from '@/lib/desktop/unsaved'
+import { registerLiveBlocks } from '@/lib/blocks'
 import { registerBuiltinHandlers } from '@/lib/handlers/builtins'
 import appCss from '../styles.css?url'
 
 // Every view that shows a workspace file asks the registry which handler opens it.
 registerBuiltinHandlers()
+registerLiveBlocks()
 
 interface RouterContext {
   queryClient: QueryClient

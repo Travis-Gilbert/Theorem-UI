@@ -10,9 +10,9 @@ import { WorkspaceError } from './errors'
 import { getWorkspace, listWorkspaces } from './registry'
 import type { WorkspaceService } from './service'
 
-type Params = Record<string, string | undefined>
+export type Params = Record<string, string | undefined>
 type Context = { request: Request; params: Params }
-type Handler = (context: Context) => Promise<Response> | Response
+export type Handler = (context: Context) => Promise<Response> | Response
 
 function problem(
   status: number,
@@ -49,7 +49,7 @@ function toProblem(error: unknown): Response {
  * Wraps a workspace route handler: 404 unless the desktop host started this
  * server, and errors answered as problem+json.
  */
-function route(handler: Handler): Handler {
+export function route(handler: Handler): Handler {
   return async (context) => {
     if (!isDesktopMode()) return new Response('Not Found', { status: 404 })
     try {
@@ -60,7 +60,7 @@ function route(handler: Handler): Handler {
   }
 }
 
-function query(request: Request, name: string): string {
+export function query(request: Request, name: string): string {
   const value = new URL(request.url).searchParams.get(name)
   if (value === null)
     throw new WorkspaceError(400, 'missing_parameter', `${name} is required`)

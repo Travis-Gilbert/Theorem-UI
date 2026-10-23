@@ -21,4 +21,4 @@ minimumReleaseAgeExcludes = [
 ]
 
 [test]
-preload = ["./test/happy-dom.ts"]
+preload = ["./test/happy-dom.ts", "./test/vite-imports.ts"]

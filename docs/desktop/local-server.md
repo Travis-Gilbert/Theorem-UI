@@ -31,8 +31,8 @@ with stdin and stdout piped to the host. stderr carries logs only.
   fall back to 3000, and desktop mode exits with status 1 instead. Port 0 is
   refused, because the guard must know the port.
 - **`THEOREM_BLOCK_PORT=<port>`**, the live-block port, `1` to `65535`,
-  required. Only echoed back in `ready` for now; the block listener (D9) is
-  not built yet.
+  required. The block listener (D9) binds it before `ready`, which echoes it
+  back (see "The block listener" below).
 - **`THEOREM_DESKTOP_DATA_DIR=<dir>`**, an absolute directory, never inside a
   granted folder. Required by the workspace service (D16), which reads it when
   it first needs it.
@@ -214,3 +214,31 @@ It starts the built server with the environment above and the defaults
 the person cancelled. It logs every other call and answers `null`. `--data-dir`
 and `--server` override the data directory (a new temporary one by default)
 and the server entry.
+
+## The block listener
+
+Live blocks (plan D9, `docs/blocks/live-blocks.md`) run in documents served
+by a second listener, `Bun.serve` on `127.0.0.1:<THEOREM_BLOCK_PORT>`. It is
+started from `src/server/desktop/plugin.ts`, before `ready` is sent, so the
+`blockPort` in `ready` is already serving. A port that cannot be bound exits
+the server before `ready`.
+
+- It is a different origin from the app, so a block cannot read the app's
+  cookies or call its routes. It has no session and is not behind the guard.
+- Every request must name `Host: 127.0.0.1:<THEOREM_BLOCK_PORT>` (else `403`),
+  and only `GET` and `HEAD` are answered (else `405`).
+- `/cell/<workspace id>/<compile key>`: a block's document, framed only by the
+  app's origin (`frame-ancestors`), with a CSP that allows its own compiled
+  module, the runtime and the vendored libraries, and the hosts it declared
+  under `net`.
+- `/compiled/<workspace id>/<compile key>.js`: the compiled module itself.
+- `/app/<token>/<path>`: an HTML app's files. The token is signed with a key
+  made at startup, names the workspace and the app's folder, and lasts 12
+  hours; it is issued by `POST /desktop/blocks/app-token`.
+- `/__runtime/<module>` and `/vendor/<path>`: the block runtime and the
+  vendored libraries of the import map.
+- A folder that is not trusted gets `403` for its cells, modules and apps.
+
+The listener's source is `src/server/desktop/blocks/`. The app-side routes
+that store compiled blocks, last-run values and shared state are listed in
+`docs/desktop/workspace-routes.md`.

@@ -14,20 +14,26 @@ import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
+import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
+import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
 import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
 import { Route as DesktopWorkspaceWorkspaceIdIndexRouteImport } from './routes/desktop/workspace/$workspaceId/index'
 import { Route as DesktopWorkspaceWorkspaceIdBacklinksRouteImport } from './routes/desktop/workspace/$workspaceId/backlinks'
+import { Route as DesktopWorkspaceWorkspaceIdCompiledRouteImport } from './routes/desktop/workspace/$workspaceId/compiled'
 import { Route as DesktopWorkspaceWorkspaceIdEventsRouteImport } from './routes/desktop/workspace/$workspaceId/events'
 import { Route as DesktopWorkspaceWorkspaceIdFileRouteImport } from './routes/desktop/workspace/$workspaceId/file'
+import { Route as DesktopWorkspaceWorkspaceIdLastRunRouteImport } from './routes/desktop/workspace/$workspaceId/last-run'
 import { Route as DesktopWorkspaceWorkspaceIdLinksRouteImport } from './routes/desktop/workspace/$workspaceId/links'
 import { Route as DesktopWorkspaceWorkspaceIdMkdirRouteImport } from './routes/desktop/workspace/$workspaceId/mkdir'
 import { Route as DesktopWorkspaceWorkspaceIdPropertiesRouteImport } from './routes/desktop/workspace/$workspaceId/properties'
 import { Route as DesktopWorkspaceWorkspaceIdRenameRouteImport } from './routes/desktop/workspace/$workspaceId/rename'
 import { Route as DesktopWorkspaceWorkspaceIdResolveRouteImport } from './routes/desktop/workspace/$workspaceId/resolve'
 import { Route as DesktopWorkspaceWorkspaceIdSearchRouteImport } from './routes/desktop/workspace/$workspaceId/search'
+import { Route as DesktopWorkspaceWorkspaceIdStateRouteImport } from './routes/desktop/workspace/$workspaceId/state'
+import { Route as DesktopWorkspaceWorkspaceIdStateEventsRouteImport } from './routes/desktop/workspace/$workspaceId/state-events'
 import { Route as DesktopWorkspaceWorkspaceIdTagsRouteImport } from './routes/desktop/workspace/$workspaceId/tags'
 import { Route as DesktopWorkspaceWorkspaceIdTreeRouteImport } from './routes/desktop/workspace/$workspaceId/tree'
 import { Route as DesktopWorkspaceWorkspaceIdTrustRouteImport } from './routes/desktop/workspace/$workspaceId/trust'
@@ -56,6 +62,16 @@ const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
   getParentRoute: () => ChatRoute,
+} as any)
+const DesktopBlocksIndexRoute = DesktopBlocksIndexRouteImport.update({
+  id: '/desktop/blocks/',
+  path: '/desktop/blocks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesktopBlocksAppTokenRoute = DesktopBlocksAppTokenRouteImport.update({
+  id: '/desktop/blocks/app-token',
+  path: '/desktop/blocks/app-token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DesktopWorkspaceIndexRoute = DesktopWorkspaceIndexRouteImport.update({
   id: '/desktop/workspace/',
@@ -89,6 +105,12 @@ const DesktopWorkspaceWorkspaceIdBacklinksRoute =
     path: '/desktop/workspace/$workspaceId/backlinks',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DesktopWorkspaceWorkspaceIdCompiledRoute =
+  DesktopWorkspaceWorkspaceIdCompiledRouteImport.update({
+    id: '/desktop/workspace/$workspaceId/compiled',
+    path: '/desktop/workspace/$workspaceId/compiled',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DesktopWorkspaceWorkspaceIdEventsRoute =
   DesktopWorkspaceWorkspaceIdEventsRouteImport.update({
     id: '/desktop/workspace/$workspaceId/events',
@@ -99,6 +121,12 @@ const DesktopWorkspaceWorkspaceIdFileRoute =
   DesktopWorkspaceWorkspaceIdFileRouteImport.update({
     id: '/desktop/workspace/$workspaceId/file',
     path: '/desktop/workspace/$workspaceId/file',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DesktopWorkspaceWorkspaceIdLastRunRoute =
+  DesktopWorkspaceWorkspaceIdLastRunRouteImport.update({
+    id: '/desktop/workspace/$workspaceId/last-run',
+    path: '/desktop/workspace/$workspaceId/last-run',
     getParentRoute: () => rootRouteImport,
   } as any)
 const DesktopWorkspaceWorkspaceIdLinksRoute =
@@ -137,6 +165,18 @@ const DesktopWorkspaceWorkspaceIdSearchRoute =
     path: '/desktop/workspace/$workspaceId/search',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DesktopWorkspaceWorkspaceIdStateRoute =
+  DesktopWorkspaceWorkspaceIdStateRouteImport.update({
+    id: '/desktop/workspace/$workspaceId/state',
+    path: '/desktop/workspace/$workspaceId/state',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DesktopWorkspaceWorkspaceIdStateEventsRoute =
+  DesktopWorkspaceWorkspaceIdStateEventsRouteImport.update({
+    id: '/desktop/workspace/$workspaceId/state-events',
+    path: '/desktop/workspace/$workspaceId/state-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DesktopWorkspaceWorkspaceIdTagsRoute =
   DesktopWorkspaceWorkspaceIdTagsRouteImport.update({
     id: '/desktop/workspace/$workspaceId/tags',
@@ -167,19 +207,25 @@ export interface FileRoutesByFullPath {
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
+  '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
+  '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   '/desktop/workspace/$workspaceId/events': typeof DesktopWorkspaceWorkspaceIdEventsRoute
   '/desktop/workspace/$workspaceId/file': typeof DesktopWorkspaceWorkspaceIdFileRoute
+  '/desktop/workspace/$workspaceId/last-run': typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   '/desktop/workspace/$workspaceId/links': typeof DesktopWorkspaceWorkspaceIdLinksRoute
   '/desktop/workspace/$workspaceId/mkdir': typeof DesktopWorkspaceWorkspaceIdMkdirRoute
   '/desktop/workspace/$workspaceId/properties': typeof DesktopWorkspaceWorkspaceIdPropertiesRoute
   '/desktop/workspace/$workspaceId/rename': typeof DesktopWorkspaceWorkspaceIdRenameRoute
   '/desktop/workspace/$workspaceId/resolve': typeof DesktopWorkspaceWorkspaceIdResolveRoute
   '/desktop/workspace/$workspaceId/search': typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  '/desktop/workspace/$workspaceId/state': typeof DesktopWorkspaceWorkspaceIdStateRoute
+  '/desktop/workspace/$workspaceId/state-events': typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
@@ -191,19 +237,25 @@ export interface FileRoutesByTo {
   '/spaces': typeof ChatSpacesRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
+  '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
+  '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   '/desktop/workspace/$workspaceId/events': typeof DesktopWorkspaceWorkspaceIdEventsRoute
   '/desktop/workspace/$workspaceId/file': typeof DesktopWorkspaceWorkspaceIdFileRoute
+  '/desktop/workspace/$workspaceId/last-run': typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   '/desktop/workspace/$workspaceId/links': typeof DesktopWorkspaceWorkspaceIdLinksRoute
   '/desktop/workspace/$workspaceId/mkdir': typeof DesktopWorkspaceWorkspaceIdMkdirRoute
   '/desktop/workspace/$workspaceId/properties': typeof DesktopWorkspaceWorkspaceIdPropertiesRoute
   '/desktop/workspace/$workspaceId/rename': typeof DesktopWorkspaceWorkspaceIdRenameRoute
   '/desktop/workspace/$workspaceId/resolve': typeof DesktopWorkspaceWorkspaceIdResolveRoute
   '/desktop/workspace/$workspaceId/search': typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  '/desktop/workspace/$workspaceId/state': typeof DesktopWorkspaceWorkspaceIdStateRoute
+  '/desktop/workspace/$workspaceId/state-events': typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
@@ -217,19 +269,25 @@ export interface FileRoutesById {
   '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
+  '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
+  '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
+  '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   '/desktop/workspace/$workspaceId/events': typeof DesktopWorkspaceWorkspaceIdEventsRoute
   '/desktop/workspace/$workspaceId/file': typeof DesktopWorkspaceWorkspaceIdFileRoute
+  '/desktop/workspace/$workspaceId/last-run': typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   '/desktop/workspace/$workspaceId/links': typeof DesktopWorkspaceWorkspaceIdLinksRoute
   '/desktop/workspace/$workspaceId/mkdir': typeof DesktopWorkspaceWorkspaceIdMkdirRoute
   '/desktop/workspace/$workspaceId/properties': typeof DesktopWorkspaceWorkspaceIdPropertiesRoute
   '/desktop/workspace/$workspaceId/rename': typeof DesktopWorkspaceWorkspaceIdRenameRoute
   '/desktop/workspace/$workspaceId/resolve': typeof DesktopWorkspaceWorkspaceIdResolveRoute
   '/desktop/workspace/$workspaceId/search': typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  '/desktop/workspace/$workspaceId/state': typeof DesktopWorkspaceWorkspaceIdStateRoute
+  '/desktop/workspace/$workspaceId/state-events': typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
@@ -243,19 +301,25 @@ export interface FileRouteTypes {
     | '/ide'
     | '/spaces'
     | '/c/$threadId'
+    | '/desktop/blocks/app-token'
+    | '/desktop/blocks/'
     | '/desktop/workspace/'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
+    | '/desktop/workspace/$workspaceId/compiled'
     | '/desktop/workspace/$workspaceId/events'
     | '/desktop/workspace/$workspaceId/file'
+    | '/desktop/workspace/$workspaceId/last-run'
     | '/desktop/workspace/$workspaceId/links'
     | '/desktop/workspace/$workspaceId/mkdir'
     | '/desktop/workspace/$workspaceId/properties'
     | '/desktop/workspace/$workspaceId/rename'
     | '/desktop/workspace/$workspaceId/resolve'
     | '/desktop/workspace/$workspaceId/search'
+    | '/desktop/workspace/$workspaceId/state'
+    | '/desktop/workspace/$workspaceId/state-events'
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
@@ -267,19 +331,25 @@ export interface FileRouteTypes {
     | '/spaces'
     | '/'
     | '/c/$threadId'
+    | '/desktop/blocks/app-token'
+    | '/desktop/blocks'
     | '/desktop/workspace'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
+    | '/desktop/workspace/$workspaceId/compiled'
     | '/desktop/workspace/$workspaceId/events'
     | '/desktop/workspace/$workspaceId/file'
+    | '/desktop/workspace/$workspaceId/last-run'
     | '/desktop/workspace/$workspaceId/links'
     | '/desktop/workspace/$workspaceId/mkdir'
     | '/desktop/workspace/$workspaceId/properties'
     | '/desktop/workspace/$workspaceId/rename'
     | '/desktop/workspace/$workspaceId/resolve'
     | '/desktop/workspace/$workspaceId/search'
+    | '/desktop/workspace/$workspaceId/state'
+    | '/desktop/workspace/$workspaceId/state-events'
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
@@ -292,19 +362,25 @@ export interface FileRouteTypes {
     | '/_chat/spaces'
     | '/_chat/'
     | '/_chat/c/$threadId'
+    | '/desktop/blocks/app-token'
+    | '/desktop/blocks/'
     | '/desktop/workspace/'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
+    | '/desktop/workspace/$workspaceId/compiled'
     | '/desktop/workspace/$workspaceId/events'
     | '/desktop/workspace/$workspaceId/file'
+    | '/desktop/workspace/$workspaceId/last-run'
     | '/desktop/workspace/$workspaceId/links'
     | '/desktop/workspace/$workspaceId/mkdir'
     | '/desktop/workspace/$workspaceId/properties'
     | '/desktop/workspace/$workspaceId/rename'
     | '/desktop/workspace/$workspaceId/resolve'
     | '/desktop/workspace/$workspaceId/search'
+    | '/desktop/workspace/$workspaceId/state'
+    | '/desktop/workspace/$workspaceId/state-events'
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
@@ -314,19 +390,25 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
+  DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
   ApiSpacesV1SplatRoute: typeof ApiSpacesV1SplatRoute
   DesktopWorkspaceWorkspaceIdBacklinksRoute: typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
+  DesktopWorkspaceWorkspaceIdCompiledRoute: typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   DesktopWorkspaceWorkspaceIdEventsRoute: typeof DesktopWorkspaceWorkspaceIdEventsRoute
   DesktopWorkspaceWorkspaceIdFileRoute: typeof DesktopWorkspaceWorkspaceIdFileRoute
+  DesktopWorkspaceWorkspaceIdLastRunRoute: typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   DesktopWorkspaceWorkspaceIdLinksRoute: typeof DesktopWorkspaceWorkspaceIdLinksRoute
   DesktopWorkspaceWorkspaceIdMkdirRoute: typeof DesktopWorkspaceWorkspaceIdMkdirRoute
   DesktopWorkspaceWorkspaceIdPropertiesRoute: typeof DesktopWorkspaceWorkspaceIdPropertiesRoute
   DesktopWorkspaceWorkspaceIdRenameRoute: typeof DesktopWorkspaceWorkspaceIdRenameRoute
   DesktopWorkspaceWorkspaceIdResolveRoute: typeof DesktopWorkspaceWorkspaceIdResolveRoute
   DesktopWorkspaceWorkspaceIdSearchRoute: typeof DesktopWorkspaceWorkspaceIdSearchRoute
+  DesktopWorkspaceWorkspaceIdStateRoute: typeof DesktopWorkspaceWorkspaceIdStateRoute
+  DesktopWorkspaceWorkspaceIdStateEventsRoute: typeof DesktopWorkspaceWorkspaceIdStateEventsRoute
   DesktopWorkspaceWorkspaceIdTagsRoute: typeof DesktopWorkspaceWorkspaceIdTagsRoute
   DesktopWorkspaceWorkspaceIdTreeRoute: typeof DesktopWorkspaceWorkspaceIdTreeRoute
   DesktopWorkspaceWorkspaceIdTrustRoute: typeof DesktopWorkspaceWorkspaceIdTrustRoute
@@ -371,6 +453,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatCThreadIdRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/desktop/blocks/': {
+      id: '/desktop/blocks/'
+      path: '/desktop/blocks'
+      fullPath: '/desktop/blocks/'
+      preLoaderRoute: typeof DesktopBlocksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desktop/blocks/app-token': {
+      id: '/desktop/blocks/app-token'
+      path: '/desktop/blocks/app-token'
+      fullPath: '/desktop/blocks/app-token'
+      preLoaderRoute: typeof DesktopBlocksAppTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/desktop/workspace/': {
       id: '/desktop/workspace/'
       path: '/desktop/workspace'
@@ -413,6 +509,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdBacklinksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/desktop/workspace/$workspaceId/compiled': {
+      id: '/desktop/workspace/$workspaceId/compiled'
+      path: '/desktop/workspace/$workspaceId/compiled'
+      fullPath: '/desktop/workspace/$workspaceId/compiled'
+      preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdCompiledRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/desktop/workspace/$workspaceId/events': {
       id: '/desktop/workspace/$workspaceId/events'
       path: '/desktop/workspace/$workspaceId/events'
@@ -425,6 +528,13 @@ declare module '@tanstack/react-router' {
       path: '/desktop/workspace/$workspaceId/file'
       fullPath: '/desktop/workspace/$workspaceId/file'
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desktop/workspace/$workspaceId/last-run': {
+      id: '/desktop/workspace/$workspaceId/last-run'
+      path: '/desktop/workspace/$workspaceId/last-run'
+      fullPath: '/desktop/workspace/$workspaceId/last-run'
+      preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdLastRunRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/desktop/workspace/$workspaceId/links': {
@@ -467,6 +577,20 @@ declare module '@tanstack/react-router' {
       path: '/desktop/workspace/$workspaceId/search'
       fullPath: '/desktop/workspace/$workspaceId/search'
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desktop/workspace/$workspaceId/state': {
+      id: '/desktop/workspace/$workspaceId/state'
+      path: '/desktop/workspace/$workspaceId/state'
+      fullPath: '/desktop/workspace/$workspaceId/state'
+      preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdStateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desktop/workspace/$workspaceId/state-events': {
+      id: '/desktop/workspace/$workspaceId/state-events'
+      path: '/desktop/workspace/$workspaceId/state-events'
+      fullPath: '/desktop/workspace/$workspaceId/state-events'
+      preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdStateEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/desktop/workspace/$workspaceId/tags': {
@@ -518,15 +642,21 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
+  DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
   ApiSpacesV1SplatRoute: ApiSpacesV1SplatRoute,
   DesktopWorkspaceWorkspaceIdBacklinksRoute:
     DesktopWorkspaceWorkspaceIdBacklinksRoute,
+  DesktopWorkspaceWorkspaceIdCompiledRoute:
+    DesktopWorkspaceWorkspaceIdCompiledRoute,
   DesktopWorkspaceWorkspaceIdEventsRoute:
     DesktopWorkspaceWorkspaceIdEventsRoute,
   DesktopWorkspaceWorkspaceIdFileRoute: DesktopWorkspaceWorkspaceIdFileRoute,
+  DesktopWorkspaceWorkspaceIdLastRunRoute:
+    DesktopWorkspaceWorkspaceIdLastRunRoute,
   DesktopWorkspaceWorkspaceIdLinksRoute: DesktopWorkspaceWorkspaceIdLinksRoute,
   DesktopWorkspaceWorkspaceIdMkdirRoute: DesktopWorkspaceWorkspaceIdMkdirRoute,
   DesktopWorkspaceWorkspaceIdPropertiesRoute:
@@ -537,6 +667,9 @@ const rootRouteChildren: RootRouteChildren = {
     DesktopWorkspaceWorkspaceIdResolveRoute,
   DesktopWorkspaceWorkspaceIdSearchRoute:
     DesktopWorkspaceWorkspaceIdSearchRoute,
+  DesktopWorkspaceWorkspaceIdStateRoute: DesktopWorkspaceWorkspaceIdStateRoute,
+  DesktopWorkspaceWorkspaceIdStateEventsRoute:
+    DesktopWorkspaceWorkspaceIdStateEventsRoute,
   DesktopWorkspaceWorkspaceIdTagsRoute: DesktopWorkspaceWorkspaceIdTagsRoute,
   DesktopWorkspaceWorkspaceIdTreeRoute: DesktopWorkspaceWorkspaceIdTreeRoute,
   DesktopWorkspaceWorkspaceIdTrustRoute: DesktopWorkspaceWorkspaceIdTrustRoute,

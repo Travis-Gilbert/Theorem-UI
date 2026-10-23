@@ -75,6 +75,32 @@ All under `/desktop/workspace`.
 | `PUT /$workspaceId/trust` `{ trusted }`           | Sets whether the person trusts the folder's code (kept in app data, never in the folder)                                                                         | `WorkspaceSummary`                                         |
 | `GET /$workspaceId/events`                        | Server-Sent Events, one `WorkspaceEvent` as JSON per `data:` line, a comment every 15 seconds                                                                    | `text/event-stream`                                        |
 
+## Live block routes
+
+Live blocks (`docs/blocks/live-blocks.md`) add these routes. Their handlers
+are `blockRoutes` in `src/server/desktop/blocks/http.ts`; the route files are
+in `src/routes/desktop/blocks/` and beside the workspace routes above. The
+page reaches them through `src/lib/blocks/`, never directly from a view.
+
+- `hash` and `key` are SHA-256, lowercase hex; anything else is
+  `400 invalid_key`.
+- A `hash` is the hash of a block's source. A `key` is the compile key: the
+  hash of the source, the compiler's version and the import map.
+- The block documents themselves are served by the block listener on
+  `THEOREM_BLOCK_PORT`, not by these routes (`docs/desktop/local-server.md`).
+
+| Method and path                                          | Does                                                                                                                           | Answers                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `GET /desktop/blocks`                                    | The block listener's origin, which block frames load from                                                                      | `{ origin }`                                         |
+| `POST /desktop/blocks/app-token` `{ workspaceId, path }` | A signed address for an HTML app: an `.html` file, or a folder whose `index.html` is the app. The address is good for 12 hours | `{ url }`; `403 workspace_untrusted`                 |
+| `GET /desktop/workspace/$workspaceId/state`              | The folder's shared block state, a Loro snapshot                                                                               | bytes, `application/octet-stream`                    |
+| `POST /desktop/workspace/$workspaceId/state`             | Applies a Loro update to it                                                                                                    | `204`                                                |
+| `GET /desktop/workspace/$workspaceId/state-events`       | Server-Sent Events, one Loro update in base64 per `data:` line, `retry: 1000`, a comment every 15 seconds                      | `text/event-stream`                                  |
+| `GET /desktop/workspace/$workspaceId/last-run?hash=`     | The values a source gave the last time it ran                                                                                  | `LastRun`; `404 not_found`                           |
+| `PUT /desktop/workspace/$workspaceId/last-run?hash=`     | Records them. The body's `sourceHash` must be `hash`                                                                           | `204`; `400 invalid_body`                            |
+| `GET /desktop/workspace/$workspaceId/compiled?key=`      | A compiled block                                                                                                               | `CompiledCell`; `404 not_found`                      |
+| `PUT /desktop/workspace/$workspaceId/compiled?key=`      | Stores one. The folder must be trusted, and the body's `key` must be `key`                                                     | `204`; `403 workspace_untrusted`, `400 invalid_body` |
+
 ## Events
 
 `created`, `changed`, `deleted` and `renamed` carry `origin: 'app' | 'external'`.
@@ -98,6 +124,10 @@ frontmatter appears in the same batch; the id follows the file.
 - In app data, `<THEOREM_DESKTOP_DATA_DIR>/workspaces/<ws id>/`:
   `index.sqlite` (entries, links, headings, tags, properties, tasks, block ids
   and an FTS5 table; derived and rebuildable) and `settings.json` (trust).
+- Beside them, for live blocks: `compiled/<key>.json` (compiled blocks, a
+  cache), `last-run/<hash>.json` (each source's last-run values) and
+  `state.loro` (the shared block state, saved as it changes and when the
+  workspace closes).
 
 ## Link resolution
 

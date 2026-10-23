@@ -1,6 +1,8 @@
 // SOURCING: a Nitro runtime plugin (nitro's definePlugin), registered in
-// vite.config.ts; it wires the desktop modules into the server at startup.
+// vite.config.ts; it wires the desktop modules, the block listener among
+// them, into the server at startup.
 import { definePlugin } from 'nitro'
+import { startDesktopBlockListener } from './blocks/start'
 import { sendToHost, startControlChannel } from './control'
 import { desktopGuard } from './guard'
 import { desktopListen, isDesktopMode } from './mode'
@@ -18,6 +20,9 @@ export default definePlugin((nitroApp) => {
   // route or TanStack Start middleware sees the request, so the guard goes in
   // front of it. Plugins may add to this array at startup (Nitro's plugin docs).
   nitroApp.h3['~middleware'].unshift(desktopGuard)
+  // The second listener, for live block documents (plan D9). It binds before
+  // the host hears `ready`, so the port it reports is already serving.
+  startDesktopBlockListener(blockPort)
   startControlChannel({
     input: process.stdin,
     output: process.stdout,
