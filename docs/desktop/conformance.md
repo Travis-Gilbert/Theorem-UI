@@ -268,10 +268,13 @@ Host, not fixed:
 3. **Conformance:** this document. Approving a tool was not exercised.
 4. **Dispositions:** this document.
 5. **One native capability end to end:** `b093fd2` checked every bridge call
-   from a probe in the page and opened the native editor. Saving from the
-   editor and seeing the page update, the iframe that cannot reach the
-   bridge, and the browser that cannot reach the server were not rechecked
-   in this pass.
+   from a probe in the page and opened the native editor. Rechecked in this
+   pass, with the app running: the page's own bridge call answered 200, and
+   the same call from a sandboxed iframe (origin `null`) failed its CORS
+   check. From outside the web view, `/`, the event stream, the bridge, the
+   session route with a wrong or missing secret, and a `Host: localhost`
+   request all answered 403. Saving from the native editor and seeing the
+   page update was not rechecked: the driver types only into the page.
 6. **The in-scene spike:** not started. Servo's `IOSurface` frames through
    the BGRA renderer patch, a GPUI overlay above the page, and the frame-time
    comparison are still to do.
