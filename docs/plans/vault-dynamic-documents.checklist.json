@@ -1,0 +1,359 @@
+{
+  "spec": "docs/plans/vault-dynamic-documents.md",
+  "items": [
+    {
+      "id": "decide-engine",
+      "item": "Main-window engine decided: Servo 0.7 (D2)",
+      "status": "done",
+      "evidence": "Owner, 2026-10-22: \"We should upgrade to servo 7. Use servo\""
+    },
+    {
+      "id": "host-app",
+      "item": "New GPUI app in desktop/ on GPUI Kit 0.8 (gpui-pre 0.3.9) embedding Servo 0.7.0 opens a window; links no Theorem GPUI crates (D1, Scope)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-dependency",
+      "item": "Host depends on servo 0.7.0 from crates.io with the webcrypto feature, not Turvo's fork or libtheorem_ide_webview.dylib; Servo and gpui-pre build on one toolchain (D2, Phase 0)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-child-view",
+      "item": "Servo renders through WindowRenderingContext in a child NSView of the GPUI window; frame-ready paints and presents; size and HiDPI scale follow the window (D2 step 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-storage",
+      "item": "Servo's config_dir in app data; localStorage layout survives relaunch (D2, D4)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-input",
+      "item": "GPUI mouse, wheel and key events forwarded as Servo input events; unhandled keys reach app shortcuts; cursor and focus follow the page (D2)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-ime",
+      "item": "GPUI input handler over Servo's input-method control; composition and dismissal reach Crepe (D2)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-clipboard",
+      "item": "ClipboardDelegate over GPUI's clipboard; Edit menu sends Servo editing actions (D2)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-embedder-controls",
+      "item": "select, color picker, file picker, alert/confirm/prompt and context menu drawn with GPUI Kit in popup windows or dialogs; window.open goes to the system browser (D2)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-accessibility",
+      "item": "Servo's AccessKit tree forwarded to an AccessKit macOS adapter; VoiceOver reads the transcript and composer (D2, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "local-server",
+      "item": "Host starts .output/server/index.mjs with a bundled Bun on 127.0.0.1 at a stable stored port; restarts it on exit, stops it on quit; host and server talk over a stdin/stdout JSON control channel (D4)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "server-boundary",
+      "item": "Launch secret over stdin swapped for an HttpOnly SameSite=Strict cookie; cookie and exact Host header required; a page in another browser cannot reach the server (D4)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "navigation",
+      "item": "Servo request_navigation keeps the top frame on the app origin and iframes on the app origin or the block listener; other links open in the system browser (D4)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "conformance-servo",
+      "item": "Conformance pass in Servo 0.7 against Chrome: chat stream, run resume, approval, artifact and pinned revision, thread switch, layout restored after relaunch, React Flow, Crepe (IME, selection, clipboard, / menu), Dockview, Mermaid, Shiki; each gap given a disposition: Theorem UI, Servo, or host (Phase 0)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "composition-spike",
+      "item": "In-scene spike: Servo IOSurface frames painted with gpui::surface() through a BGRA path patched into gpui-pre-apple's Metal renderer; a GPUI overlay above the page in the same window; frame times compared with the child view (D2 step 2, Phase 0)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "in-scene-main-window",
+      "item": "Main window on the in-scene renderer once the spike passes; BGRA renderer patch carried by the app through [patch.crates-io], not offered upstream (D2, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "host-bridge",
+      "item": "Bridge relayed by the local server: JSON-RPC 2.0 over POST /desktop/host/rpc, passed to the host over the control channel; host events over SSE at /desktop/host/events; types generated with ts-rs; src/lib/desktop/host.ts absent on the web (D5)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "bridge-authority",
+      "item": "Server accepts bridge requests only with the session cookie and the app Origin; an opaque-origin block iframe and a page in another browser are refused (D5)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "native-editor",
+      "item": "pickFolder and openNativeEditor end to end: a GPUI Kit editor window saves a file and the page updates through the watcher (D6, Phase 0)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "sdk-unchanged",
+      "item": "Page calls Theorem through TheoremClient against the local server's proxy; client.ts and theorem-proxy.ts unchanged; token never in page JavaScript (D3)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "oauth-keychain",
+      "item": "OAuth PKCE (oauth4webapi) run by the local server with the system browser and a loopback redirect; Keychain only in the host; refresh token passed and rotated over stdin; static token from .env for development (D3)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "packaging",
+      "item": "Signed Theorem.app and .dmg from cargo-packager with the host (Servo linked in), re-signed Bun runtime and .output; runs on a clean machine; menu bar, shortcuts and deep links (D4, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "web-deployment-kept",
+      "item": "Web deployment still works and never exposes workspace or bridge routes (D4, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-open",
+      "item": "Any folder opens through the native picker; desktop-only routes serve only folders the person opened (D16)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-watch-write",
+      "item": "@parcel/watcher records external edits as reconcile revisions; atomic write then rename; own writes skipped by content hash (D7)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-identity",
+      "item": "Ids in .theorem/ids.json; renames keep ids; theorem-id frontmatter honored; Spaces place { kind: workspace-file, id } (D8)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-links",
+      "item": "Wikilinks, heading links, block links and embeds resolve; backlinks listed; links rewrite on rename (D8, D16)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-index",
+      "item": "Rebuildable index (links, backlinks, tags, properties, headings, tasks, FTS5 search) in bun:sqlite in app data (Data ownership)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-layout",
+      "item": ".theorem/ holds only user config; index, compile cache, last-run values and Loro docs live in app data keyed by workspace id (D8)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-conventions",
+      "item": "Tags, frontmatter properties, daily notes from a template, attachments folder and canvases work as Obsidian users expect; no .obsidian config or plugins (D16)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "file-tree",
+      "item": "File tree for the workspace (Phase 2)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "handler-registry",
+      "item": "File-handler registry with match, Panel (Dockview), Card and optional create; third-party handlers load through the block sandbox (D13)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "handlers-builtin",
+      "item": "Built-in handlers: md, canvas, executable graph, js/ts/tsx/py, tsx app and html, csv/json, pdf, image/audio/video, unknown; each opens in a panel and as a card (D13)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "canvas-files",
+      "item": ".canvas files in JSON Canvas 1.0 on React Flow with theorem: namespaced scalar keys; round-trip unchanged; project Space exports to .canvas (D15)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "live-node",
+      "item": "Crepe live-block node ($node + $view via @prosemirror-adapter/react, parser priority above code_block) round-trips the fence byte for byte (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "tool-embeds",
+      "item": "![[tool file]] embeds render the tool live and survive renames (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "live-fences",
+      "item": "Brace-attribute .live fences with #id; plain fences stay inert; query and agent fences render (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "reactivity",
+      "item": "Observable notebook-kit and runtime recompute only downstream pure blocks; effectful blocks run only on explicit trigger (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "compile",
+      "item": "Sucrase worker compile; vendored import map with integrity; SHA-256 compile cache; esbuild-wasm only for standalone export (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "sandbox",
+      "item": "Each block in an opaque-origin sandbox=allow-scripts iframe from a second loopback listener with a strict CSP; separate block subdomain on the web (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "capability-bridge",
+      "item": "MessageChannel bridge serves only declared capabilities; undeclared calls and non-clonable values are refused (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "folder-trust",
+      "item": "Untrusted folders show tool source and do not execute until trusted (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "block-state",
+      "item": "Per-workspace Loro state document shared across blocks, persisted by the workspace service, following the sync policy (D9)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "last-run-values",
+      "item": "Last-run values shown beside code; optional pinned output between theorem:output markers (D9, D13)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "embark-layer",
+      "item": "Formulas in QuickJS (quickjs-emscripten worker), mentions, views bound to a subtree and inherited properties (D9, Phase 4)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "runs",
+      "item": "Explicit-trigger runs are harness runs recording source revision, dependency revisions, inputs digest, status and outputs; they outlive the view (D10)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "execution",
+      "item": "Synced workspaces run remotely through codemode-kernel; LocalOnly workspaces run in a host-side local runner confined to the folder (sandbox library from the sourcing gate) (D10)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "run-outputs",
+      "item": "Run outputs written as workspace files and referenced by hash; artifact store for binaries (D10)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "exec-graph",
+      "item": "Executable .canvas graphs run pure nodes reactively and effectful nodes as runs (D14)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "journal",
+      "item": "Agent/Journal/<date>.md projection with run markers; text outside markers survives regeneration (D11)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "journal-op",
+      "item": "journal_append op in the Solo regime; namespace.rs assertion updated for that one op (D11)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "sync",
+      "item": "TypeScript sync shared by the desktop server and web deployment: per-file Loro docs over Documents v2 (canonical Loro body, markdownProjection = bytes) plus a directory document (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "replication-policy",
+      "item": "Each workspace has a replication policy (LocalOnly, Synced, ConnectedLive); E2EE implications documented (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "phone-web-app",
+      "item": "Phone runs the web deployment as an installed web app: OPFS copy, offline service worker, Crepe editing, pure live blocks run, effectful blocks trigger remote runs (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "selective-availability",
+      "item": "Phone keeps pinned folders and recent files local; other entries download on open; offline edits merge on reconnect (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-cobrowse",
+      "item": "Co-browsing window: a second Servo web view on the same instance that Theorem drives (input, screenshots, script, request observation); agent and person browse the same page (D6, Phase 8)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "backend-changes",
+      "item": "Theorem backend: workspace document kinds, revision authorship, artifact store, journal_append, run record fields, OAuth project scope (Backend changes)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "sdk-surfaces",
+      "item": "SDK surfaces for documents and sync, runs and artifacts, journals; tool-author surface with generated declarations and handler registration; a third-party handler and tool load from the public surface (D17)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "today-e2e",
+      "item": "Today.md with a live fence and an embedded tool; agent run writes a result file and a journal entry; all open offline on the phone and the tool runs (First end-to-end target)",
+      "status": "pending",
+      "evidence": null
+    }
+  ]
+}
