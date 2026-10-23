@@ -7,7 +7,7 @@ import { act } from 'react'
 import { applyCanvasEdits, parseCanvas } from '@/lib/canvas/json-canvas'
 import { registerHandler, useHandlerRegistry } from '@/lib/handlers/registry'
 import type { WorkspaceEntry } from '@/lib/workspace/types'
-import { mockReactFlow } from '../../../../test/react-flow'
+import { mockLayout } from '../../../../test/layout'
 import {
   cleanup,
   fakeWorkspace,
@@ -35,9 +35,9 @@ const entry = (path: string): WorkspaceEntry => ({
   mtimeMs: 1,
 })
 
-let unmockReactFlow: () => void
+let unmockLayout: () => void
 beforeAll(() => {
-  unmockReactFlow = mockReactFlow()
+  unmockLayout = mockLayout()
   // File nodes render through the registry; a stand-in card shows the path.
   registerHandler({
     id: 'stand-in',
@@ -54,7 +54,7 @@ beforeAll(() => {
 })
 afterAll(() => {
   useHandlerRegistry.setState({ handlers: [] })
-  unmockReactFlow()
+  unmockLayout()
 })
 afterEach(cleanup)
 

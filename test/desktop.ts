@@ -127,3 +127,27 @@ export function cookieFrom(response: Response): string {
   if (!setCookie) throw new Error('No Set-Cookie header')
   return setCookie.split(';')[0] ?? ''
 }
+
+/**
+ * Stands in for the relay on the page side: records each host call the page
+ * makes over fetch and answers it with `null`, as the host answers actions.
+ * `restore` puts the real fetch back.
+ */
+export function recordHostCalls(): {
+  calls: Array<HostCall>
+  restore: () => void
+} {
+  const calls: Array<HostCall> = []
+  const browserFetch = globalThis.fetch
+  globalThis.fetch = (async (_input: string, init: RequestInit) => {
+    const request = JSON.parse(String(init.body)) as HostCall & { id: number }
+    calls.push({ method: request.method, params: request.params } as HostCall)
+    return Response.json({ jsonrpc: '2.0', id: request.id, result: null })
+  }) as typeof fetch
+  return {
+    calls,
+    restore: () => {
+      globalThis.fetch = browserFetch
+    },
+  }
+}
