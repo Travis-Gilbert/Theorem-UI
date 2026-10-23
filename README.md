@@ -42,6 +42,15 @@ bun run typecheck
 bun run lint
 ```
 
+### Cloudflare
+
+`bun run deploy:cloudflare` builds Theia for production, builds the app with Nitro's `cloudflare_module` preset and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain and `THEOREM_API_URL` are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB. Set the secrets once:
+
+```bash
+openssl rand -hex 32 | bunx wrangler secret put THEOREM_SESSION_SECRET --name theorem-ui
+bunx wrangler secret put THEOREM_OAUTH_CLIENT_ID --name theorem-ui
+```
+
 `bunfig.toml` holds back package versions published less than three days ago. Exemptions are listed there with the reason.
 
 ## Layout
