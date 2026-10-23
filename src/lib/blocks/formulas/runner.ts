@@ -258,14 +258,12 @@ function runChain(task: ChainTask): ChainOutput {
     errors: Record<string, string>
     evaluating: Set<string>
   }
-  const records = task.records.map(
-    (record): Live => ({
-      ...record,
-      computed: {},
-      errors: {},
-      evaluating: new Set(),
-    }),
-  )
+  const records = task.records.map((record): Live => ({
+    ...record,
+    computed: {},
+    errors: {},
+    evaluating: new Set(),
+  }))
 
   // Records under one node chain in date order; undated ones keep their place
   // after the dated ones, in document order.
