@@ -20,6 +20,12 @@ import {
 
 export const LIVE_BLOCK_NODE = 'live_block'
 
+/**
+ * Marks a live block view's own controls (its header, source editor and
+ * result): ProseMirror leaves events inside them alone.
+ */
+export const LIVE_BLOCK_CONTROLS = 'data-live-block-controls'
+
 /** A live block's attributes: its Markdown, as written. */
 export function liveBlockAttrs(node: ProseNode): LiveBlockSource {
   return {
