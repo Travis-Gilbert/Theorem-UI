@@ -1,9 +1,14 @@
 // SOURCING: md-attr-parser (the `{.live #id key=value}` attribute block, the
 // syntax remark-attr and Pandoc use), unist-util-visit (walking the tree),
-// mdast-util-from-markdown with the GFM and frontmatter extensions (the same
-// parse the workspace index uses) and the positions micromark records: each
+// mdast-util-from-markdown with the GFM, frontmatter and
+// @flowershow/remark-wiki-link extensions (the same parse the workspace index
+// uses) and the positions micromark records: each
 // fence is sliced from the source, so it round-trips byte for byte. The
 // pinned-output markers follow plan D11's `<!-- theorem:run -->` markers.
+import {
+  fromMarkdown as wikiLinkFromMarkdown,
+  syntax as wikiLinkSyntax,
+} from '@flowershow/remark-wiki-link'
 import parseAttr from 'md-attr-parser'
 import type { Code, Parents, Root, RootContent } from 'mdast'
 import { fromMarkdown } from 'mdast-util-from-markdown'
@@ -363,11 +368,15 @@ export interface LiveBlockInDocument extends LiveBlockSource {
   position: Position | undefined
 }
 
-/** Parses Markdown the way the workspace index does. */
+/** Parses Markdown the way the workspace index does, wikilinks included. */
 export function parseMarkdown(markdown: string): Root {
   return fromMarkdown(markdown, {
-    extensions: [gfm(), frontmatter(['yaml'])],
-    mdastExtensions: [gfmFromMarkdown(), frontmatterFromMarkdown(['yaml'])],
+    extensions: [gfm(), frontmatter(['yaml']), wikiLinkSyntax()],
+    mdastExtensions: [
+      gfmFromMarkdown(),
+      frontmatterFromMarkdown(['yaml']),
+      wikiLinkFromMarkdown(),
+    ],
   })
 }
 
