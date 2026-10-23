@@ -4,3 +4,6 @@ yarn.lock
 Theorem-UI
 src/routeTree.gen.ts
 src/lib/desktop/bindings
+
+# Generated: vendored esm.sh builds for live blocks
+src/lib/blocks/vendor
