@@ -37,6 +37,10 @@ pub enum HostCall {
     /// Show a file or folder in Finder. The path must lie inside a granted
     /// folder.
     RevealInFinder { path: String },
+    /// Open a file with the app the system uses for its type. The path must
+    /// be a file inside a granted folder, and one the system would open with
+    /// an app rather than run.
+    OpenWithDefault { path: String },
     /// Open an `http` or `https` URL in the system browser.
     OpenExternal { url: String },
     /// Mark the main window as having unsaved changes.
@@ -175,6 +179,16 @@ mod tests {
         let pick: HostCall =
             serde_json::from_value(json!({ "method": "pickFolder", "params": {} })).unwrap();
         assert_eq!(pick, HostCall::PickFolder {});
+        let open: HostCall = serde_json::from_value(
+            json!({ "method": "openWithDefault", "params": { "path": "/a.pdf" } }),
+        )
+        .unwrap();
+        assert_eq!(
+            open,
+            HostCall::OpenWithDefault {
+                path: "/a.pdf".into()
+            }
+        );
     }
 
     #[test]

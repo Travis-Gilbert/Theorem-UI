@@ -67,6 +67,7 @@ describe('getDesktopHost', () => {
     expect(await host.pickFolder()).toEqual(notes)
     expect(await host.notify('Saved')).toBeUndefined()
     expect(await host.setDocumentEdited(true)).toBeUndefined()
+    expect(await host.openWithDefault('/notes/paper.pdf')).toBeUndefined()
     await expect(host.openNativeEditor('/etc/hosts')).rejects.toMatchObject({
       code: -32001,
       message: 'Not inside a granted folder',
@@ -79,6 +80,7 @@ describe('getDesktopHost', () => {
       { method: 'pickFolder', params: {} },
       { method: 'notify', params: { title: 'Saved', body: null } },
       { method: 'setDocumentEdited', params: { edited: true } },
+      { method: 'openWithDefault', params: { path: '/notes/paper.pdf' } },
       { method: 'openNativeEditor', params: { path: '/etc/hosts' } },
     ])
   })

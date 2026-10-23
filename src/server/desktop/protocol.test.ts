@@ -34,6 +34,7 @@ describe('schemas', () => {
       'pickFolder',
       'openNativeEditor',
       'revealInFinder',
+      'openWithDefault',
       'openExternal',
       'setDocumentEdited',
       'notify',

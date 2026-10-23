@@ -173,8 +173,11 @@ All three answer 404 outside desktop mode.
 - The body is a JSON-RPC 2.0 request, or a batch of them. The response is the
   JSON-RPC response, status 200. A notification (no `id`) gets `204`.
 - `method` must be a `HostCall` method: `pickFolder`, `openNativeEditor`,
-  `revealInFinder`, `openExternal`, `setDocumentEdited`, `notify`. Anything else
-  gets `-32601`. Params that do not match `HostCall` get `-32602`, without
+  `revealInFinder`, `openWithDefault`, `openExternal`, `setDocumentEdited`,
+  `notify`. Anything else gets `-32601`. `openWithDefault` opens a file inside
+  a granted folder with the system's app for its type; the host answers
+  `-32602` for a folder, an executable file, or a type macOS would run or
+  follow (`.app`, `.command`, `.webloc` and the like). Params that do not match `HostCall` get `-32602`, without
   reaching the host. The host's own errors pass through with their codes
   (`-32602`, `-32001` not granted, `-32002` failed).
 - Bun's 10 s idle timeout is off for this request, so a long `pickFolder`
