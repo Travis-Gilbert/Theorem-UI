@@ -42,7 +42,12 @@ const config = defineConfig({
           routes: [{ pattern: 'theorem.rs', custom_domain: true }],
           // Also reachable at theorem-ui.<account>.workers.dev.
           workers_dev: true,
-          vars: { THEOREM_API_URL: 'https://theoremweb.com' },
+          // The personal Theorem serves the API and is its OAuth issuer; it
+          // grants the theorem-ui client models:invoke.
+          vars: {
+            THEOREM_API_URL: 'https://travis-theorem-personal.fly.dev',
+            THEOREM_OAUTH_CLIENT_ID: 'theorem-ui',
+          },
         },
       },
       publicAssets: [
