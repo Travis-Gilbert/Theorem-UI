@@ -1,6 +1,7 @@
 // SOURCING: object-inspect (each recorded value as one short line of text, the
-// way Node's util.inspect prints it). Kept by the local server under the hash
-// of the source that produced them, so they show beside that source only.
+// way Node's util.inspect prints it) and Web Crypto's SHA-256. Kept by the
+// local server under the hash of the source that produced them, so they show
+// beside that source only.
 import inspect from 'object-inspect'
 import type { WorkspaceId } from '@/lib/workspace/types'
 import type { RunOutcome } from './sandbox/protocol'
@@ -26,6 +27,17 @@ export interface LastRun {
 }
 
 const MAX_TEXT = 120
+
+/** SHA-256 of a text as lowercase hex, from Web Crypto: what values are kept under. */
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(text),
+  )
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')
+}
 
 /** A value as one short line. */
 export function formatValue(value: unknown): string {

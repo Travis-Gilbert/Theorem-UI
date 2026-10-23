@@ -13,8 +13,7 @@ import {
   WidgetType,
 } from '@codemirror/view'
 import type { DecorationSet, ViewUpdate } from '@codemirror/view'
-import { sha256Hex } from '@/lib/blocks/compile'
-import { fetchLastRun, onLastRun } from '@/lib/blocks/last-run'
+import { fetchLastRun, onLastRun, sha256Hex } from '@/lib/blocks/last-run'
 import type { LastRun } from '@/lib/blocks/last-run'
 import type { WorkspaceId } from '@/lib/workspace/types'
 

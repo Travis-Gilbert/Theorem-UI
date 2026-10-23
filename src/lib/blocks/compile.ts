@@ -3,7 +3,7 @@
 // top-level statements to trace and the exports to unwrap), magic-string
 // (splicing), and @observablehq/notebook-kit's transpileJavaScript (a cell's
 // inputs, outputs and body, with imports turned into dynamic imports that the
-// block document's import map resolves). SHA-256 from Web Crypto.
+// block document's import map resolves). SHA-256 is last-run.ts's, over Web Crypto.
 import { transpileJavaScript } from '@observablehq/notebook-kit'
 import { parse } from 'acorn'
 import type { Node as AcornNode, Pattern, Statement } from 'acorn'
@@ -11,6 +11,7 @@ import MagicString from 'magic-string'
 import { getVersion, transform } from 'sucrase'
 import { parseCodeDeclarations } from './declarations'
 import type { Capabilities } from './declarations'
+import { sha256Hex } from './last-run'
 import { importMapHash } from './vendor/manifest'
 
 /**
@@ -62,16 +63,6 @@ export class CompileError extends Error {
     super(message)
     this.name = 'CompileError'
   }
-}
-
-export async function sha256Hex(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(text),
-  )
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('')
 }
 
 /** The compile cache key for a source. */

@@ -8,7 +8,6 @@ import { useMutation } from '@tanstack/react-query'
 import { Download, Play, ShieldAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CODE_LANGUAGES } from '@/lib/blocks/format'
 import { useBlocksQueryClient } from '@/lib/blocks/query-client'
 import type { BlockSession } from '@/lib/blocks/session'
 import {
@@ -16,8 +15,9 @@ import {
   useCellState,
   useSessionBlocks,
 } from '@/lib/blocks/sessions'
-import { snapshotKey, useSnapshot } from '@/lib/blocks/snapshots'
+import { LIVE_ZOOM, snapshotKey, useSnapshot } from '@/lib/blocks/snapshots'
 import { workspaceState } from '@/lib/blocks/state'
+import { runsAsTool } from '@/lib/blocks/tools'
 import { useFolderTrust } from '@/lib/blocks/trust'
 import type { FileCardProps, FileViewProps } from '@/lib/handlers/types'
 import { CellFrame, SnapshotFrame } from './block-frame'
@@ -28,22 +28,7 @@ import { TrustGate } from './trust-gate'
 /** A tool file's one block, in its session. */
 const KEY = 'tool'
 
-/**
- * Below this zoom a canvas card shows the tool's snapshot instead of running
- * it. Phase 3 renders embeds at 0.5, so an embedded tool always runs.
- */
-export const LIVE_ZOOM = 0.4
-
 const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
-const extensionOf = (path: string) => {
-  const name = fileName(path)
-  const dot = name.lastIndexOf('.')
-  return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
-}
-
-/** Whether the code handler's Run runs this file: TypeScript or JavaScript. */
-export const runsAsTool = (path: string) =>
-  CODE_LANGUAGES.has(extensionOf(path))
 
 function useTool({ client, path }: FileViewProps) {
   const session = useBlockSession(client, path, 'tool')

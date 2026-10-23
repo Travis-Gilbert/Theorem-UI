@@ -9,6 +9,12 @@ import type { WorkspaceId } from '@/lib/workspace/types'
 /** Snapshots kept at once; the oldest goes first. */
 const MAX_SNAPSHOTS = 64
 
+/**
+ * Below this zoom a canvas card shows a frame's snapshot instead of running
+ * it. Phase 3 renders embeds at 0.5, so an embedded tool or app always runs.
+ */
+export const LIVE_ZOOM = 0.4
+
 const snapshots = new Map<string, string>()
 const listeners = new Set<() => void>()
 
