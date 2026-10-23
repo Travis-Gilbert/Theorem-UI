@@ -1,0 +1,10 @@
+node_modules/
+lib/
+src-gen/
+gen-webpack*.config.js
+gen-esbuild.*.mjs
+webpack.config.js
+plugins/
+*.tsbuildinfo
+.DS_Store
+.claude/launch.json

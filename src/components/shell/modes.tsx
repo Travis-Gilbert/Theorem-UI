@@ -1,6 +1,7 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia)
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { Icon } from '@/components/icons'
 import { useShell } from './shell-state'
 
@@ -33,7 +34,7 @@ export function useShellMode(): ShellMode {
   })
 }
 
-/** Navigates to a mode. Chat returns to the conversation it last showed. */
+/** Navigates to a mode; chat returns to the conversation last left. */
 export function useOpenMode() {
   const navigate = useNavigate()
   return (next: ShellMode) => {
@@ -63,15 +64,19 @@ function ModePlaceholder({ mode }: { mode: ShellMode }) {
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
+ * On the desktop Theia covers the whole sheet in IDE mode, so the dock keeps
+ * the conversation laid out beneath it; on a phone the IDE takes the screen.
  */
-export function ModeView() {
+export function ModeView({ docked = false }: { docked?: boolean }) {
   const mode = useShellMode()
+  const showThread = mode === 'chat' || (docked && mode === 'ide')
   return (
     <>
-      <div hidden={mode !== 'chat'} className="h-full">
+      <div hidden={!showThread} className="h-full">
         <Thread />
       </div>
-      {mode !== 'chat' && <ModePlaceholder mode={mode} />}
+      {mode === 'ide' && !docked && <IdeFrame />}
+      {mode === 'spaces' && <ModePlaceholder mode={mode} />}
     </>
   )
 }

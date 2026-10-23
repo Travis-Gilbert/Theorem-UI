@@ -1,0 +1,3 @@
+[install]
+# Theia tooling (theia-patch, the app generator) expects a hoisted node_modules.
+linker = "hoisted"

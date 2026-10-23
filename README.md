@@ -13,7 +13,7 @@ The web frontend for the Theorem agent. It provides a chat interface, artifacts 
 | Desktop layout                             | dockview-react: a dock for the conversation and artifacts, and a split view for the context panel beside it                   |
 | Markdown, code, diagrams                   | react-markdown + remark-gfm, react-shiki, beautiful-mermaid                                                                   |
 | Theme                                      | next-themes                                                                                                                   |
-| Styling                                    | Tailwind CSS v4  `src/styles.css`                                                                     |
+| Styling                                    | Tailwind CSS v4 `src/styles.css`                                                                                              |
 | Runtime and hosting                        | Bun: installs, scripts, dev server, and the production server built by Nitro's `bun` preset, run beside the Theorem authority |
 
 Type: IBM Plex Sans for prose, Libron for titles and headings, JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
@@ -64,6 +64,8 @@ src/
     artifacts/            artifact model, view state, panel, renderers
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
+
+`ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The site does not link to it yet.
 
 ## Artifacts
 

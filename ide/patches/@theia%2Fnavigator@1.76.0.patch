@@ -1,0 +1,30 @@
+diff --git a/lib/browser/navigator-contribution.js b/lib/browser/navigator-contribution.js
+index 27297511710d1aab146b3d655dd65da750305f56..c00140b61e1e512752a28a07d300395960af0f5c 100644
+--- a/lib/browser/navigator-contribution.js	
++++ b/lib/browser/navigator-contribution.js
+@@ -293,6 +293,10 @@ let FileNavigatorContribution = class FileNavigatorContribution extends view_con
+         return this.tryGetWidget()?.model.selectedNodes.filter(browser_3.FileNode.is) || [];
+     }
+     withWidget(widget = this.tryGetWidget(), cb) {
++        // A context menu passes its anchor rather than a widget, so commands in the tree's own menu act on the navigator.
++        if (!(widget instanceof browser_1.Widget)) {
++            widget = this.tryGetWidget();
++        }
+         if (widget instanceof navigator_widget_1.FileNavigatorWidget && widget.id === navigator_widget_1.FILE_NAVIGATOR_ID) {
+             return cb(widget);
+         }
+diff --git a/src/browser/navigator-contribution.ts b/src/browser/navigator-contribution.ts
+index 056dc95149dc93bcfe86cf30d37db2400746640c..df0393f9046f6f08677c957f33fc35a2ba195216 100644
+--- a/src/browser/navigator-contribution.ts	
++++ b/src/browser/navigator-contribution.ts
+@@ -369,6 +369,10 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
+     }
+ 
+     protected withWidget<T>(widget: Widget | undefined = this.tryGetWidget(), cb: (navigator: FileNavigatorWidget) => T): T | false {
++        // A context menu passes its anchor rather than a widget, so commands in the tree's own menu act on the navigator.
++        if (!(widget instanceof Widget)) {
++            widget = this.tryGetWidget();
++        }
+         if (widget instanceof FileNavigatorWidget && widget.id === FILE_NAVIGATOR_ID) {
+             return cb(widget);
+         }

@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, zustand stores for artifact view and saved layouts
+// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, the IDE frame (browser-only Theia), zustand stores for artifact view and saved layouts
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
@@ -15,7 +15,10 @@ import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { useFollow } from '@/components/ide/follow'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
 
@@ -40,17 +43,18 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation in chat mode, the mode's view otherwise. */
+/** The main panel: the conversation, or the mode's view in Spaces. Theia covers the dock in IDE mode. */
 function ThreadPanel({ api }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
-    () => api.setTitle(mode === 'chat' ? title || 'New chat' : modeLabel(mode)),
+    () =>
+      api.setTitle(mode === 'spaces' ? modeLabel(mode) : title || 'New chat'),
     [api, mode, title],
   )
   return (
     <div className="h-full">
-      <ModeView />
+      <ModeView docked />
     </div>
   )
 }
@@ -100,6 +104,8 @@ function ArtifactDockPanel({
 
 const components = {
   thread: ThreadPanel,
+  // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
+  ide: IdeFrame,
   artifact: ArtifactDockPanel,
 }
 
@@ -110,10 +116,27 @@ const tabComponents = {
   ),
 }
 
+/** Follow the Agent across the dock: files in the IDE, artifacts in their panels. */
+function FollowToggle() {
+  const following = useFollow((s) => s.following)
+  const { pause, resume } = useFollow.getState()
+  return (
+    <TooltipIconButton
+      tooltip={following ? 'Following the agent' : 'Follow the agent'}
+      aria-pressed={following}
+      onClick={following ? pause : resume}
+      className={cn('size-7 p-1.5', !following && 'text-ink-faint')}
+    >
+      <Icon.Eye className="size-4" />
+    </TooltipIconButton>
+  )
+}
+
 function GroupActions({ panels }: IDockviewHeaderActionsProps) {
   if (!panels.some((panel) => panel.id === THREAD)) return null
   return (
     <div className="flex h-full items-center pe-1">
+      <FollowToggle />
       <ThreadListPrimitive.New
         render={
           <TooltipIconButton tooltip="New chat" className="size-7 p-1.5" />
@@ -146,6 +169,9 @@ function restoreLayout(
     api.clear()
     return false
   }
+  // Theia now covers the sheet in IDE mode, so an IDE panel would load it twice.
+  const ide = api.getPanel('ide')
+  if (ide) api.removePanel(ide)
   if (api.getPanel(THREAD)) return true
   api.clear()
   return false

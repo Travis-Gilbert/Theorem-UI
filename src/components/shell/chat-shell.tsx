@@ -1,4 +1,4 @@
-// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode)
+// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), the IDE frame (browser-only Theia fills the sheet in IDE mode)
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { Drawer } from '@base-ui/react/drawer'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
@@ -9,6 +9,8 @@ import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { IdeFrame } from '@/components/ide/ide-frame'
+import { cn } from '@/lib/utils'
 import { DockShell } from './dock'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { Rail } from './rail'
@@ -130,7 +132,10 @@ const splitComponents = {
  */
 function SheetSplit(route: DockRoute) {
   const mode = useShellMode()
-  const panelOpen = useShell((s) => !s.panelCollapsed[mode])
+  // Theia covers the split in IDE mode and the rail's IDE button drives its
+  // sidebar, so the split underneath keeps Chat's panel.
+  const panelMode = mode === 'ide' ? 'chat' : mode
+  const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
 
   const onReady = ({ api }: SplitviewReadyEvent) => {
@@ -183,15 +188,32 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
+ * In IDE mode Theia fills the sheet. It loads on the first visit and then
+ * stays, hidden, so its editors and layout survive a switch; the panel and
+ * dock stay mounted under it for the same reason.
  */
 function DesktopShell(route: DockRoute) {
+  const ide = useShellMode() === 'ide'
+  const [ideLoaded, setIdeLoaded] = useState(ide)
+  if (ide && !ideLoaded) setIdeLoaded(true)
   return (
     <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
       <Rail collapsible />
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
         <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
-          <SheetSplit {...route} />
+          {/* Dockview layers its panels with z-index; isolate keeps them under Theia. */}
+          <div inert={ide} className="isolate h-full">
+            <SheetSplit {...route} />
+          </div>
+          {ideLoaded && (
+            <div
+              inert={!ide}
+              className={cn('absolute inset-0', !ide && 'invisible')}
+            >
+              <IdeFrame />
+            </div>
+          )}
         </div>
       </div>
     </div>
