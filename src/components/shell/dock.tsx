@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, NotePanel (Milkdown Crepe), zustand stores for artifact view, note view and saved layouts
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, NotePanel (Milkdown Crepe), WorkspaceFilePanel, zustand stores for artifact view, note view, workspace file view and saved layouts
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
@@ -18,7 +18,13 @@ import { Icon } from '@/components/icons'
 import { NotePanel } from '@/components/notes/note-panel'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
+import {
+  WORKSPACE_FILE_COMPONENT,
+  WorkspaceFileDockPanel,
+  openWorkspaceFilePanel,
+} from '@/components/workspace/workspace-file-panel'
 import { useNote } from '@/lib/theorem/notes'
+import { useWorkspaceFileView } from '@/lib/workspace/open'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
 
@@ -117,6 +123,7 @@ const components = {
   thread: ThreadPanel,
   artifact: ArtifactDockPanel,
   note: NoteDockPanel,
+  [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
 }
 
 const tabComponents = {
@@ -281,6 +288,9 @@ export function DockShell({
     useNoteView.setState({
       dock: { open: (documentId) => openNote(dock, documentId) },
     })
+    useWorkspaceFileView.setState({
+      dock: { open: (file) => openWorkspaceFilePanel(dock, file, THREAD) },
+    })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -296,6 +306,7 @@ export function DockShell({
       for (const listener of listeners) listener.dispose()
       useArtifactView.setState({ dock: undefined })
       useNoteView.setState({ dock: undefined })
+      useWorkspaceFileView.setState({ dock: undefined })
     }
   }, [dock, projectId])
 

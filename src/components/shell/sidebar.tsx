@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks
+// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only)
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { FoldersSection } from '@/components/workspace/folders'
 import { describeError } from '@/lib/theorem/client'
 import { modeLabel, useShellMode } from './modes'
 import type { ShellMode } from './modes'
@@ -219,15 +220,21 @@ function ModePanel({ mode }: { mode: Exclude<ShellMode, 'chat'> }) {
 /**
  * The panel beside the rail belongs to the active mode. Chat's stays mounted
  * behind the others, so its search, scroll and open branches survive a switch.
+ * The desktop app's folders sit below every mode's panel.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   return (
-    <div className="on-sheet h-full">
-      <div hidden={mode !== 'chat'} className="h-full">
+    <div className="on-sheet flex h-full flex-col">
+      <div hidden={mode !== 'chat'} className="min-h-0 flex-1">
         <ChatPanel />
       </div>
-      {mode !== 'chat' && <ModePanel mode={mode} />}
+      {mode !== 'chat' && (
+        <div className="min-h-0 flex-1">
+          <ModePanel mode={mode} />
+        </div>
+      )}
+      <FoldersSection />
     </div>
   )
 }

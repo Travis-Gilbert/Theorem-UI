@@ -15,6 +15,25 @@ that client rather than these routes.
 The service lives in `src/server/desktop/workspace/`; the route files in
 `src/routes/desktop/workspace/` only bind `workspaceRoutes` from `http.ts`.
 
+## In the page
+
+`src/lib/workspace/workspaces.ts` connects the client to React:
+
+- `useWorkspaces()` lists the open workspaces; `available` is false outside
+  the desktop app, where the list route answers `404`.
+- `useWorkspaceClient(id)` returns a workspace's `WorkspaceClient`, and
+  `workspaceClient(summary)` the same instance outside React. Each workspace
+  has one client, so its views share one event stream.
+- `useWorkspaceTree(client)` is the workspace's entries, kept current by its
+  events.
+- `useOpenFolder()` asks the host's folder picker for a folder; it is null
+  when there is no host.
+
+`openWorkspaceFile({ workspaceId, path })` (`src/lib/workspace/open.ts`) opens
+a file in the dock as panel `workspace-file:<workspaceId>:<path>`, or over the
+conversation on a phone. The Folders section under the sidebar
+(`src/components/workspace/`) shows each workspace's tree.
+
 ## Conventions
 
 - **Paths** are workspace-relative POSIX paths without a leading slash, passed
@@ -61,8 +80,9 @@ All under `/desktop/workspace`.
 `created`, `changed`, `deleted` and `renamed` carry `origin: 'app' | 'external'`.
 `indexed` follows each batch, once the index has caught up. `resync` means
 events may have been missed (ids changed outside Theorem, or the index was
-rebuilt); the client also emits it when its event stream reconnects. On
-`resync`, refetch the tree and anything derived from it.
+rebuilt); the client also emits it each time its event stream opens or
+reopens, since changes made before then were not seen. On `resync`, refetch
+the tree and anything derived from it.
 
 A folder move reports `renamed` for the folder and for each entry inside it.
 A rename made outside Theorem is recognized when a file disappears and one
