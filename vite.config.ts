@@ -20,7 +20,12 @@ const config = defineConfig({
     }),
     tanstackStart(),
     // Self-hosted on Bun beside the Theorem authority; the proxy reaches it on localhost.
-    nitro({ preset: 'bun' }),
+    nitro({
+      preset: 'bun',
+      // trash runs a helper binary that sits beside its module; copied whole
+      // so the binary ships with it instead of being lost to bundling.
+      traceDeps: ['trash*'],
+    }),
     viteReact(),
   ],
 })
