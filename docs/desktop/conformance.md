@@ -160,7 +160,10 @@ Fixed in this pass:
   stopped the local server, and the page never received `beforeunload` or a
   hidden `visibilitychange`: Servo's `request_unload` allows every unload
   without asking the page. Cmd-Q, the Quit menu item and closing the window
-  now go through `Host::quit` in `bridge.rs`. Once the page has reported its
+  now go through `Host::quit` in `bridge.rs`. A native editor with unsaved
+  changes asks first, as closing it does, and quitting goes on once it has
+  closed (a headless GPUI test in `editor.rs` drives Cancel and Don't Save).
+  Once the page has reported its
   edited state, the host sends it `leaving`; the page collects the text its
   editors have not reported yet, starts every scheduled save, and reports
   `setDocumentEdited(false)` once nothing is unsaved, and the host quits then.

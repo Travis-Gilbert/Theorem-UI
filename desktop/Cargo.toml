@@ -45,6 +45,12 @@ objc2-app-kit = { version = "0.3.2", features = ["NSView", "NSResponder", "NSWin
 objc2-foundation = { version = "0.3.2", features = ["NSGeometry"] }
 security-framework = "3"
 
+[dev-dependencies]
+# Headless windows and simulated prompts for #[gpui_kit::test], whose expansion
+# names the `gpui` crate. GPUI Kit's own test-support feature cannot resolve:
+# it weakly names gpui-fast 0.1.10, which conflicts with the locked GPUI crates.
+gpui = { package = "gpui-pre", version = "=0.3.9", features = ["test-support"] }
+
 [profile.dev]
 # Servo is unusably slow unoptimized; optimize dependencies, keep the host debuggable.
 [profile.dev.package."*"]

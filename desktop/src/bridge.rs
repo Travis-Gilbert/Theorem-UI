@@ -131,11 +131,16 @@ impl Host {
         }
     }
 
-    /// Quit, once the page has saved its changes. The page hears `Leaving`,
-    /// saves, and reports `edited: false`; if it does not in time, the person
-    /// chooses whether to quit anyway. The page is asked even when it reports
-    /// nothing unsaved, because an editor may hold text it has not reported.
+    /// Quit, once the native editors and the page have saved their changes.
+    /// An edited native editor asks first and quits again when it closes. The
+    /// page hears `Leaving`, saves, and reports `edited: false`; if it does not
+    /// in time, the person chooses whether to quit anyway. The page is asked
+    /// even when it reports nothing unsaved, because an editor may hold text it
+    /// has not reported.
     pub fn quit(cx: &mut App) {
+        if editor::ask_before_quit(cx) {
+            return;
+        }
         let Some(host) = cx.try_global::<Host>() else {
             return cx.quit();
         };

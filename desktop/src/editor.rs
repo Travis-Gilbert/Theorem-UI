@@ -13,7 +13,7 @@ use gpui_kit::component::{ActiveTheme as _, Root};
 use gpui_kit::{
     AnyWindowHandle, App, AppContext as _, Context, Entity, Global, InteractiveElement as _,
     IntoElement, ParentElement as _, PromptLevel, Render, SharedString, Styled as _, Subscription,
-    TitlebarOptions, Window, WindowBounds, WindowOptions, actions, div, px, size,
+    TitlebarOptions, WeakEntity, Window, WindowBounds, WindowOptions, actions, div, px, size,
 };
 use theorem_desktop_protocol::HostEvent;
 
@@ -25,12 +25,16 @@ pub const CONTEXT: &str = "FileEditor";
 
 /// One window per file: opening a file that is already open brings it forward.
 #[derive(Default)]
-struct OpenEditors(HashMap<PathBuf, AnyWindowHandle>);
+struct OpenEditors(HashMap<PathBuf, (AnyWindowHandle, WeakEntity<FileEditor>)>);
 
 impl Global for OpenEditors {}
 
 pub fn open(path: PathBuf, cx: &mut App) -> anyhow::Result<()> {
-    let existing = cx.default_global::<OpenEditors>().0.get(&path).copied();
+    let existing = cx
+        .default_global::<OpenEditors>()
+        .0
+        .get(&path)
+        .map(|(window, _)| *window);
     if let Some(window) = existing
         && window
             .update(cx, |_, window, _| window.activate_window())
@@ -52,12 +56,36 @@ pub fn open(path: PathBuf, cx: &mut App) -> anyhow::Result<()> {
         ..Default::default()
     };
     let key = path.clone();
-    let window = cx.open_window(options, move |window, cx| {
+    let mut editor = WeakEntity::new_invalid();
+    let window = cx.open_window(options, |window, cx| {
         let view = cx.new(|cx| FileEditor::new(path, text, window, cx));
+        editor = view.downgrade();
         cx.new(|cx| Root::new(view, window, cx))
     })?;
-    cx.default_global::<OpenEditors>().0.insert(key, window.into());
+    cx.default_global::<OpenEditors>()
+        .0
+        .insert(key, (window.into(), editor));
     Ok(())
+}
+
+/// Before quitting, an editor with unsaved changes asks whether to save them,
+/// as closing it does, and quitting goes on once it has closed. Returns
+/// whether one asked.
+pub fn ask_before_quit(cx: &mut App) -> bool {
+    let open: Vec<_> = cx.default_global::<OpenEditors>().0.values().cloned().collect();
+    open.into_iter().any(|(window, editor)| {
+        let asked = window.update(cx, |_, window, cx| {
+            editor.update(cx, |this, cx| {
+                let edited = this.edited(cx);
+                if edited {
+                    window.activate_window();
+                    this.ask_to_save(Host::quit, window, cx);
+                }
+                edited
+            })
+        });
+        matches!(asked, Ok(Ok(true)))
+    })
 }
 
 struct FileEditor {
@@ -130,6 +158,13 @@ impl FileEditor {
             self.forget(cx);
             return true;
         }
+        self.ask_to_save(|_| {}, window, cx);
+        false
+    }
+
+    /// Asks whether to save the changes, and closes the window unless the
+    /// person cancels or saving fails; `then` runs once it has closed.
+    fn ask_to_save(&mut self, then: fn(&mut App), window: &mut Window, cx: &mut Context<Self>) {
         let name = self
             .path
             .file_name()
@@ -154,11 +189,11 @@ impl FileEditor {
                 let _ = this.update_in(cx, |this, window, cx| {
                     this.forget(cx);
                     window.remove_window();
+                    cx.defer(then);
                 });
             }
         })
         .detach();
-        false
     }
 
     fn forget(&self, cx: &mut App) {
@@ -185,5 +220,45 @@ impl Render for FileEditor {
             .size_full()
             .bg(cx.theme().background)
             .child(Editor::new(&self.editor).bordered(false).h_full())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui_kit::TestAppContext;
+
+    use super::*;
+
+    #[gpui_kit::test]
+    fn quitting_asks_an_edited_editor_first(cx: &mut TestAppContext) {
+        cx.update(gpui_kit::init);
+        let path = std::env::temp_dir().join(format!("theorem-editor-{}.md", std::process::id()));
+        std::fs::write(&path, "saved").unwrap();
+        cx.update(|cx| open(path.clone(), cx)).unwrap();
+        assert!(!cx.update(ask_before_quit), "nothing to save");
+
+        let (window, editor) = cx.update(|cx| cx.global::<OpenEditors>().0[&path].clone());
+        window
+            .update(cx, |_, window, cx| {
+                editor.update(cx, |this, cx| {
+                    this.editor
+                        .update(cx, |state, cx| state.set_value("edited", window, cx))
+                })
+            })
+            .unwrap()
+            .unwrap();
+
+        assert!(cx.update(ask_before_quit));
+        cx.simulate_prompt_answer("Cancel");
+        cx.run_until_parked();
+        let open = |cx: &mut TestAppContext| cx.update(|cx| cx.global::<OpenEditors>().0.len());
+        assert_eq!(open(cx), 1, "cancelling keeps the editor");
+
+        assert!(cx.update(ask_before_quit));
+        cx.simulate_prompt_answer("Don't Save");
+        cx.run_until_parked();
+        assert_eq!(open(cx), 0, "not saving closes it");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "saved");
+        std::fs::remove_file(&path).unwrap();
     }
 }
