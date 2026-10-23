@@ -3,7 +3,7 @@
 import { CellContext } from './cell'
 import type { CellModule } from './cell'
 import { connectToPage } from './connect'
-import { createDisplay, observeHeight } from './display'
+import { createDisplay, observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
 import type { PageMethods, SandboxMethods } from './protocol'
 
@@ -30,6 +30,9 @@ async function main(): Promise<void> {
   )
   observeHeight((height) => {
     void call<PageMethods, 'frame.resize'>(rpc, 'frame.resize', { height })
+  })
+  observeSnapshots((html) => {
+    void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', { html })
   })
 }
 

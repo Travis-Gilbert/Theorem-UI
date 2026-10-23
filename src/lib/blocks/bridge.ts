@@ -7,7 +7,7 @@ import picomatch from 'picomatch'
 import { z } from 'zod'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import type { Capabilities } from './declarations'
-import { call, serve } from './sandbox/protocol'
+import { MAX_SNAPSHOT, call, serve } from './sandbox/protocol'
 import type {
   FileFormat,
   ListedFile,
@@ -36,6 +36,8 @@ export interface BridgeHost {
   /** Starts an agent block; the bridge has already checked the declaration. */
   run: (target: string) => Promise<RunRequestResult>
   onResize?: (height: number) => void
+  /** A static copy of the frame, unsanitized: snapshots.ts cleans it before showing it. */
+  onSnapshot?: (html: string) => void
 }
 
 /** A call a block made that its declarations do not allow. */
@@ -75,6 +77,7 @@ const params = {
   remove: z.object({ name, key: z.string().min(1) }),
   run: z.object({ target: z.string() }),
   resize: z.object({ height: z.number().finite().nonnegative() }),
+  snapshot: z.object({ html: z.string().max(MAX_SNAPSHOT) }),
 }
 
 /** The tallest a block frame may ask to be, in CSS pixels. */
@@ -186,6 +189,11 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
 
   serve<PageMethods, 'frame.resize'>(rpc, 'frame.resize', (raw) => {
     host.onResize?.(Math.min(params.resize.parse(raw).height, MAX_HEIGHT))
+    return null
+  })
+
+  serve<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', (raw) => {
+    host.onSnapshot?.(params.snapshot.parse(raw).html)
     return null
   })
 

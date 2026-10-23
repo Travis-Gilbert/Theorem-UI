@@ -64,7 +64,12 @@ export interface PageMethods {
   'state.delete': { params: { name: string; key: string }; result: null }
   'run.request': { params: { target: string }; result: RunRequestResult }
   'frame.resize': { params: { height: number }; result: null }
+  /** A static copy of the frame, for where a live frame would cost too much. */
+  'frame.snapshot': { params: { html: string }; result: null }
 }
+
+/** The largest snapshot a frame may send, in characters. */
+export const MAX_SNAPSHOT = 512 * 1024
 
 /** Methods the sandbox serves; the page calls them. */
 export interface SandboxMethods {

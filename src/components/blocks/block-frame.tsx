@@ -1,7 +1,8 @@
 // SOURCING: React (a frame's lifetime as a layout effect) over executor.ts's
 // FrameConnection, which serves the bridge to the frame's window only;
 // @tanstack/react-query reads the block listener's origin. Every frame
-// carries BLOCK_SANDBOX and nothing more (plan D9).
+// carries BLOCK_SANDBOX and nothing more (plan D9); a snapshot frame carries
+// an empty sandbox: no scripts at all.
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import { BLOCK_SANDBOX, FrameConnection } from '@/lib/blocks/executor'
 import { blockOrigin, cellUrl } from '@/lib/blocks/frames'
 import { useBlocksQueryClient } from '@/lib/blocks/query-client'
 import type { BlockSession } from '@/lib/blocks/session'
+import { saveSnapshot } from '@/lib/blocks/snapshots'
 import { cn } from '@/lib/utils'
 import { BlockMessage } from './block-status'
 
@@ -41,6 +43,7 @@ export function BlockFrame({
   host,
   title,
   onConnection,
+  snapshotKey,
   className,
   hidden = false,
 }: {
@@ -49,6 +52,8 @@ export function BlockFrame({
   title: string
   /** Called with each new connection; returns what undoes it. */
   onConnection?: (connection: FrameConnection) => () => void
+  /** Where the frame's snapshots are kept (snapshots.ts), for a card far out. */
+  snapshotKey?: string
   className?: string
   /** Runs without showing: a code editor's Run, whose values show in its margin. */
   hidden?: boolean
@@ -77,6 +82,9 @@ export function BlockFrame({
         onResize: (height) => {
           frame.style.height = `${height}px`
         },
+        ...(snapshotKey !== undefined && {
+          onSnapshot: (html: string) => saveSnapshot(snapshotKey, html),
+        }),
       },
       () => {
         undo?.()
@@ -93,7 +101,7 @@ export function BlockFrame({
       connection.dispose()
       frame.remove()
     }
-  }, [src, host, title, generation])
+  }, [src, host, title, snapshotKey, generation])
 
   return (
     <div
@@ -121,12 +129,29 @@ export function BlockFrame({
   )
 }
 
+/**
+ * A frame's last snapshot, shown with no scripts and nothing loaded: what a
+ * card shows far out instead of a live frame.
+ */
+export function SnapshotFrame({ html, title }: { html: string; title: string }) {
+  return (
+    <iframe
+      title={title}
+      sandbox=""
+      srcDoc={html}
+      tabIndex={-1}
+      className="pointer-events-none block size-full border-0 bg-transparent"
+    />
+  )
+}
+
 /** A compiled code block's frame, attached to its session while shown. */
 export function CellFrame({
   session,
   blockKey,
   compiled,
   title,
+  snapshotKey,
   hidden,
   className,
 }: {
@@ -134,6 +159,7 @@ export function CellFrame({
   blockKey: string
   compiled: CompiledCell
   title: string
+  snapshotKey?: string
   hidden?: boolean
   className?: string
 }) {
@@ -149,6 +175,7 @@ export function CellFrame({
       src={cellUrl(origin, session.client.workspace.id, compiled.key)}
       host={host}
       title={title}
+      snapshotKey={snapshotKey}
       hidden={hidden}
       className={className}
       onConnection={(connection) =>

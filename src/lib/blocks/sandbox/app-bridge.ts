@@ -3,7 +3,7 @@
 // `window.theorem`: the same declared files, state and run calls a cell has.
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
-import { observeHeight } from './display'
+import { observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
 import type { PageMethods, SandboxMethods } from './protocol'
 
@@ -20,6 +20,9 @@ const context = connectToPage().then((port) => {
   )
   observeHeight((height) => {
     void call<PageMethods, 'frame.resize'>(rpc, 'frame.resize', { height })
+  })
+  observeSnapshots((html) => {
+    void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', { html })
   })
   return cells
 })

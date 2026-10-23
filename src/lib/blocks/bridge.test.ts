@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { loadCell } from '../../../test/blocks/load-cell'
 import { memoryWorkspace } from '../../../test/blocks/memory-workspace'
-import { checkPath } from './bridge'
+import { checkPath, serveBridge } from './bridge'
 import type { BridgeHost, StateCollections } from './bridge'
 import { compileCell } from './compile'
+import { noCapabilities } from './declarations'
 import { inProcessExecutor } from './executor'
 import type { CellExecutor } from './executor'
 import { recordedAgentRuns, requestAgentRun } from './runs'
+import { MAX_SNAPSHOT, call, rpcOver } from './sandbox/protocol'
+import type { PageMethods } from './sandbox/protocol'
 import { StateReplica } from './state'
 
 const executors: Array<CellExecutor> = []
@@ -181,5 +184,29 @@ b * 10`)
       habits: [1, 2, 3],
     })
     expect(outcome.value).toEqual({ total: 6 })
+  })
+
+  test('a frame sends its snapshot, up to the size limit', async () => {
+    const snapshots: Array<string> = []
+    const channel = new MessageChannel()
+    const stop = serveBridge(rpcOver(channel.port1), {
+      client,
+      capabilities: noCapabilities(),
+      state: memoryState(),
+      run: () => Promise.reject(new Error('unused')),
+      onSnapshot: (html) => snapshots.push(html),
+    })
+    const frame = rpcOver(channel.port2)
+    await call<PageMethods, 'frame.snapshot'>(frame, 'frame.snapshot', {
+      html: '<p>kept</p>',
+    })
+    const tooLarge = call<PageMethods, 'frame.snapshot'>(frame, 'frame.snapshot', {
+      html: 'x'.repeat(MAX_SNAPSHOT + 1),
+    })
+    expect(await tooLarge.then(() => 'sent', () => 'refused')).toBe('refused')
+    expect(snapshots).toEqual(['<p>kept</p>'])
+    stop()
+    channel.port1.close()
+    channel.port2.close()
   })
 })
