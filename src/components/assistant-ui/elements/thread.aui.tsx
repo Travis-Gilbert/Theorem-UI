@@ -26,6 +26,7 @@ import {
   RunningIndicator,
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
+import { ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -455,9 +456,15 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+  const applyRequests = useComposerRequests();
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-composer relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
+    <ComposerPrimitive.Root
+      onSubmit={applyRequests}
+      className="aui-composer-root relative flex w-full flex-col"
+    >
+      {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
+      <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
+      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-10 w-full resize-none bg-transparent py-2 ps-2.5 pe-14 text-base leading-6 outline-none focus-visible:outline-none"
                       rows={1}
@@ -479,7 +486,10 @@ const ComposerAction: FC = () => {
 
   return (
     <div className="aui-composer-action-wrapper flex items-center justify-between">
-      <ComposerAddAttachment />
+      <div className="flex items-center gap-1">
+        <ComposerAddAttachment />
+        <ComposerTools />
+      </div>
       <div className="absolute end-(--composer-padding) top-(--composer-padding) flex items-center gap-1.5">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
@@ -730,22 +740,28 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   return (
+    // No content-visibility here, unlike the message rows: its paint
+    // containment would clip the composer's shadow and glow, and only the
+    // message being edited renders this.
     <MessagePrimitive.Root
       data-slot="aui_edit-composer-wrapper"
-      className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className="flex flex-col px-2"
     >
-      <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-composer ms-auto flex w-full max-w-[70%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
-        <ComposerPrimitive.Input
-          className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
-          autoFocus
-        />
-        <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
-          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" className="h-8 px-3" />}>Cancel
-                              </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" className="bg-redwood text-on-redwood hover:bg-redwood-hover h-8 px-3" />}>Send
-                              </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
+      <div className="relative ms-auto w-full max-w-[70%]">
+        <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
+        <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-sheet relative flex w-full cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
+          <ComposerPrimitive.Input
+            className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
+            autoFocus
+          />
+          <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
+            <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" className="h-8 px-3" />}>Cancel
+                                </ComposerPrimitive.Cancel>
+            <ComposerPrimitive.Send render={<Button size="sm" className="bg-redwood text-on-redwood hover:bg-redwood-hover h-8 px-3" />}>Send
+                                </ComposerPrimitive.Send>
+          </div>
+        </ComposerPrimitive.Root>
+      </div>
     </MessagePrimitive.Root>
   );
 };

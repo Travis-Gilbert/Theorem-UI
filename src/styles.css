@@ -141,8 +141,8 @@
      read against the rail, warm at the top and teal at the bottom. */
   --shadow-sheet: 0 0 #0000;
   --glow-opacity: 1;
-  --glow-from: rgb(205 78 24 / 0.45);
-  --glow-to: rgb(25 142 169 / 0.45);
+  --glow-from: rgb(205 78 24 / 0.36);
+  --glow-to: rgb(25 142 169 / 0.36);
 
   --ink: #cccccc;
   --ink-muted: #959595;
@@ -494,13 +494,15 @@
   --surface-hover: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
-/* The dark sheet's glow (chat-shell.tsx): the glow gradient, blurred behind
-   the sheet so only its halo shows past the edge. --glow-opacity is 0 in
-   light, where --shadow-sheet does this job. */
-.sheet-glow {
+/* The dark glow behind a lifted surface, the sheet (chat-shell.tsx) and the
+   composer (thread.aui.tsx): the glow gradient, blurred behind the surface so
+   only its halo shows past the edge. It fills its positioned parent, and the
+   surface comes after it so it paints on top. --glow-opacity is 0 in light,
+   where --shadow-sheet does this job. */
+.lift-glow {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--glow-radius, var(--radius-xl));
   background: linear-gradient(to bottom, var(--glow-from), var(--glow-to));
   filter: blur(6px);
   opacity: var(--glow-opacity);
