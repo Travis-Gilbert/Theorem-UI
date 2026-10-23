@@ -12,6 +12,13 @@ export interface AgentRunRequest {
   /** Who asked: the Run button, or the block `#id` whose code called run(). */
   requestedBy: string
   requestedAt: string
+  /** The agent block's body, and the values of the inputs it names. */
+  agent?: {
+    prompt: string
+    inputs: Record<string, unknown>
+    trigger: 'manual' | { schedule: string }
+    output: string | null
+  }
 }
 
 export type RunRequester = (request: AgentRunRequest) => Promise<RunRequestResult>
