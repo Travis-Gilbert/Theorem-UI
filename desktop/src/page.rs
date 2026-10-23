@@ -313,6 +313,13 @@ impl PageView {
     /// The Edit menu. Servo has editing actions for the clipboard; the rest
     /// reach the page as the shortcut they stand for.
     fn editing(&mut self, action: ClipboardAction) {
+        // Servo runs the clipboard shortcuts on keydown itself, so a replayed
+        // Cmd-C, Cmd-X or Cmd-V has already happened. A page that handles
+        // the paste event leaves the keydown unconsumed, and repeating it here
+        // would paste twice.
+        if self.replaying.get() {
+            return;
+        }
         self.send(InputEvent::EditingAction(action));
     }
 
