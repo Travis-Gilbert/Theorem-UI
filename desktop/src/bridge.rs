@@ -24,6 +24,8 @@ use crate::server::{Ports, Server, ServerConfig, new_secret};
 
 /// A server that stayed up this long is restarted without asking when it stops.
 const STABLE_RUN: Duration = Duration::from_secs(30);
+/// How long quitting waits for the page to save before it asks the person.
+const SAVE_ON_QUIT: Duration = Duration::from_secs(3);
 
 pub struct Host {
     config: ServerConfig,
@@ -33,6 +35,12 @@ pub struct Host {
     window: AnyWindowHandle,
     /// When the current server said `ready`.
     ready_at: Option<Instant>,
+    /// Whether the page has unsaved changes (`SetDocumentEdited`); `None`
+    /// until a page reports, so a page that never does is not waited for.
+    edited: Option<bool>,
+    /// Quitting, waiting for the page to save; the task asks the person if
+    /// it takes too long.
+    leaving: Option<Task<()>>,
     quitting: bool,
 }
 
@@ -53,6 +61,8 @@ impl Host {
             page,
             window,
             ready_at: None,
+            edited: None,
+            leaving: None,
             quitting: false,
         });
         cx.on_app_quit(|cx| {
@@ -119,6 +129,57 @@ impl Host {
                 .detach();
             }
         }
+    }
+
+    /// Quit, once the page has saved its changes. The page hears `Leaving`,
+    /// saves, and reports `edited: false`; if it does not in time, the person
+    /// chooses whether to quit anyway. The page is asked even when it reports
+    /// nothing unsaved, because an editor may hold text it has not reported.
+    pub fn quit(cx: &mut App) {
+        let Some(host) = cx.try_global::<Host>() else {
+            return cx.quit();
+        };
+        if host.leaving.is_some() {
+            return;
+        }
+        // Without a server the page cannot save.
+        if host.edited.is_none() || host.server.is_none() {
+            return cx.quit();
+        }
+        Self::event(HostEvent::Leaving {}, cx);
+        let timeout = cx.background_executor().timer(SAVE_ON_QUIT);
+        let leaving = cx.spawn(async move |cx: &mut AsyncApp| {
+            timeout.await;
+            cx.update(Self::ask_to_quit);
+        });
+        cx.global_mut::<Host>().leaving = Some(leaving);
+    }
+
+    fn ask_to_quit(cx: &mut App) {
+        let window = cx.global::<Host>().window;
+        let asked = window.update(cx, |_, window, cx| {
+            window.prompt(
+                PromptLevel::Warning,
+                "Some changes are not saved yet.",
+                Some("If you quit now, they are lost."),
+                &["Quit Anyway", "Cancel"],
+                cx,
+            )
+        });
+        let Ok(answer) = asked else {
+            return cx.quit();
+        };
+        cx.spawn(async move |cx: &mut AsyncApp| {
+            let quit = matches!(answer.await, Ok(0));
+            cx.update(|cx| {
+                if quit {
+                    cx.quit();
+                } else {
+                    cx.global_mut::<Host>().leaving = None;
+                }
+            });
+        })
+        .detach();
     }
 
     /// The server closed its stdout, which it does only by exiting.
@@ -326,7 +387,13 @@ fn answer(call: HostCall, cx: &mut App) -> Task<Result<Value, RpcError>> {
             )),
         }),
         HostCall::SetDocumentEdited { edited } => {
-            let window = cx.global::<Host>().window;
+            let host = cx.global_mut::<Host>();
+            host.edited = Some(edited);
+            if !edited && host.leaving.is_some() {
+                cx.quit();
+                return done(Ok(()));
+            }
+            let window = host.window;
             done(
                 window
                     .update(cx, |_, window, _| window.set_window_edited(edited))

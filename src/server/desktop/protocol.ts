@@ -10,6 +10,7 @@ const folderGrant = z.object({ path: z.string(), name: z.string() })
 export const hostEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('fileSaved'), path: z.string() }),
   z.object({ type: z.literal('grantsChanged'), grants: z.array(folderGrant) }),
+  z.object({ type: z.literal('leaving') }),
 ])
 
 /**

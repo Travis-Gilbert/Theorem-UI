@@ -261,13 +261,26 @@ export function editNote(
   else queue.timer = setTimeout(queue.start, SAVE_DELAY_MS)
 }
 
+/** Open editors' text not yet reported through editNote. */
+const handovers = new Set<() => void>()
+
 /**
- * For a page that is going away: a hidden page may never come back, so its
- * scheduled saves start now, and unloading while a save is unfinished asks
- * first, as browsers do for edited forms. Editors call this after handing
- * over their last text.
+ * Registers an open editor's handover: when the page goes away, it reports
+ * the text it holds through editNote. Returns the function that removes it.
+ */
+export function onLeavePage(handover: () => void): () => void {
+  watchLeaving()
+  handovers.add(handover)
+  return () => void handovers.delete(handover)
+}
+
+/**
+ * For a page that is going away: open editors hand over their text, and since
+ * a hidden page may never come back, the scheduled saves start now. Unloading
+ * while a save is unfinished asks first, as browsers do for edited forms.
  */
 export function leavePage(event?: Event) {
+  for (const handover of handovers) handover()
   for (const queue of queues.values())
     if (queue.timer !== undefined) queue.start()
   const unsaved = Object.values(useNoteStatus.getState().status).some(
@@ -278,7 +291,7 @@ export function leavePage(event?: Event) {
 
 let watching = false
 
-/** Edits saved after an editor closed still need leavePage. */
+/** Open editors, and edits saved after their editor closed, need leavePage. */
 function watchLeaving() {
   if (watching) return
   watching = true

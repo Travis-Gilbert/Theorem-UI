@@ -156,6 +156,18 @@ Fixed in this pass:
   and Servo's canvas does not draw with loaded fonts (gap 11). The PDF
   handler sets pdf.js's `disableFontFace`, so glyphs are drawn as paths.
   Rechecked in Servo: the fixture's text reads correctly.
+- **F. Quitting lost an edit made within the save delay** (host). Quitting
+  stopped the local server, and the page never received `beforeunload` or a
+  hidden `visibilitychange`: Servo's `request_unload` allows every unload
+  without asking the page. Cmd-Q, the Quit menu item and closing the window
+  now go through `Host::quit` in `bridge.rs`. Once the page has reported its
+  edited state, the host sends it `leaving`; the page collects the text its
+  editors have not reported yet, starts every scheduled save, and reports
+  `setDocumentEdited(false)` once nothing is unsaved, and the host quits then.
+  Without that answer in 3 seconds, the host asks whether to quit anyway.
+  Rechecked in Servo: text typed just before quitting reached the backend,
+  and a control build that quits at once lost it. The 3-second prompt and
+  closing the window were not driven.
 - **CSS fallbacks** (Theorem UI). `styles.css` gives Servo something to draw
   where it drops a declaration the page depends on:
   1. `pointer-events: all`, which Servo drops: behind
@@ -235,15 +247,14 @@ then upstream:
 
 Host, not fixed:
 
-- **Quitting skips the page's leave handlers.** `on_app_quit` in
-  `bridge.rs` closes the local server's stdin, and the page never receives
-  `beforeunload` or a hidden `visibilitychange`. Servo's default
-  `request_unload` allows every unload without asking the page. An edit made
-  within the 800ms save delay before Cmd-Q is lost. The host needs a quit
-  handshake: ask the page to leave, wait for its save queue to settle, then
-  stop the server. GPUI waits at most 200ms (`SHUTDOWN_TIMEOUT`) for
-  `on_app_quit` futures, so the handshake belongs in the Quit action, before
-  `cx.quit()`.
+- **The Dock's Quit, logging out and shutting down skip the quit
+  handshake** (fix F). They reach the app as `terminate:`, which GPUI's macOS
+  layer lets through without asking the app: it registers only
+  `applicationWillTerminate:`, which runs `on_app_quit` for at most 200ms
+  (`SHUTDOWN_TIMEOUT`). An edit made within the save delay before one of
+  them is lost. Waiting for the page there needs an
+  `applicationShouldTerminate:` hook in GPUI that can answer later
+  (`NSTerminateLater`).
 
 ## Phase 0 status
 

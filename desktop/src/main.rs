@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn install_menus(cx: &mut App) {
-    cx.on_action(|_: &Quit, cx| cx.quit());
+    cx.on_action(|_: &Quit, cx| Host::quit(cx));
     cx.bind_keys([
         KeyBinding::new("cmd-q", Quit, None),
         KeyBinding::new("cmd-z", Undo, Some(page::CONTEXT)),
@@ -99,6 +99,11 @@ fn open_main_window(config: ServerConfig, cx: &mut App) -> anyhow::Result<()> {
     let mut page = None;
     let mut failure = None;
     let window = cx.open_window(options, |window, cx| {
+        // Closing the window is quitting, which waits for the page to save.
+        window.on_window_should_close(cx, |_, cx| {
+            Host::quit(cx);
+            false
+        });
         let view: AnyView = match PageView::new(window, cx) {
             Ok(view) => {
                 window.focus(&view.focus_handle(cx), cx);

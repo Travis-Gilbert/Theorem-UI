@@ -31,6 +31,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use servo::{JSValue, WebView};
 
+use crate::bridge::Host;
 use crate::page::PageView;
 
 const SETTLE: Duration = Duration::from_secs(10);
@@ -106,6 +107,7 @@ pub enum Step {
     Commit(String),
     /// Save `<name>.png` and `<name>.json`, as `THEOREM_CAPTURE` does.
     Capture(String),
+    /// Quit as Cmd-Q does: once the page has saved.
     Quit,
 }
 
@@ -304,7 +306,7 @@ impl Driver {
             }
             Step::Capture(name) => self.capture(name, cx).await,
             Step::Quit => {
-                cx.update(|cx| cx.quit());
+                cx.update(Host::quit);
                 Ok(Value::Null)
             }
         }

@@ -43,7 +43,8 @@ pub enum HostCall {
     OpenWithDefault { path: String },
     /// Open an `http` or `https` URL in the system browser.
     OpenExternal { url: String },
-    /// Mark the main window as having unsaved changes.
+    /// Mark the main window as having unsaved changes. The host waits for
+    /// `false` before it quits.
     SetDocumentEdited { edited: bool },
     /// Show a system notification.
     Notify { title: String, body: Option<String> },
@@ -74,6 +75,9 @@ pub enum HostEvent {
     FileSaved { path: String },
     /// The set of granted folders changed.
     GrantsChanged { grants: Vec<FolderGrant> },
+    /// The person is quitting. The page saves what is unsaved now and reports
+    /// `SetDocumentEdited { edited: false }` once nothing is.
+    Leaving {},
 }
 
 /// The error half of a bridge reply, in JSON-RPC 2.0's shape.

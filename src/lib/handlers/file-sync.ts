@@ -1,8 +1,9 @@
 // SOURCING: @tanstack/react-query (a file's text and bytes as server state,
 // shared by every view of the file), lodash-es debounce (saves while typing)
 // and async-mutex (one write at a time, each against the hash the previous one
-// returned). The conflict rule itself, a write's expectedHash and the
-// workspace's change events, is the WorkspaceClient contract's.
+// returned), and zustand (whether any open view has unsaved edits). The
+// conflict rule itself, a write's expectedHash and the workspace's change
+// events, is the WorkspaceClient contract's.
 //
 // A handler's view of a file:
 // - `useTextFile(file)` loads the text, saves edits with the hash they were
@@ -16,6 +17,7 @@ import { Mutex } from 'async-mutex'
 import debounce from 'lodash-es/debounce'
 import { join } from 'pathe'
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { create } from 'zustand'
 import { WorkspaceConflictError } from '@/lib/workspace/types'
 import type { WorkspaceClient, WorkspaceEvent } from '@/lib/workspace/types'
 
@@ -48,9 +50,29 @@ type SyncState = {
   saveFailed: boolean
 }
 
+/** The open views' syncs. A closing view stays until its last write is done. */
+const syncs = new Set<TextFileSync>()
+
+/** Whether an open view has edits not yet written. */
+export const useUnsavedFiles = create<{ unsaved: boolean }>()(() => ({
+  unsaved: false,
+}))
+
+const updateUnsaved = () =>
+  useUnsavedFiles.setState({
+    unsaved: [...syncs].some((sync) => sync.state.draft !== null),
+  })
+
+/** Starts every scheduled write now, for a page that is going away. */
+export function flushTextFiles() {
+  for (const sync of syncs) sync.save.flush()
+}
+
 /** One view's edits to one file, and what it does about changes on disk. */
 class TextFileSync {
   state: SyncState = { draft: null, conflict: null, saveFailed: false }
+  /** A view shows this sync. */
+  open = false
   private readonly listeners = new Set<() => void>()
   private readonly mutex = new Mutex()
   /** Hashes this view wrote, so their change events are not taken as news. */
@@ -76,6 +98,7 @@ class TextFileSync {
   private set(patch: Partial<SyncState>) {
     this.state = { ...this.state, ...patch }
     for (const listener of this.listeners) listener()
+    updateUnsaved()
   }
 
   subscribe = (listener: () => void) => {
@@ -200,8 +223,21 @@ export function useTextFile({ client, path }: FileRef): TextFile {
     () => client.subscribe((event) => void sync.onEvent(event)),
     [client, sync],
   )
-  // Edits still waiting when the view closes are written then.
-  useEffect(() => () => sync.save.flush(), [sync])
+  // Edits still waiting when the view closes are written then; edits held by
+  // a conflict are dropped with the view.
+  useEffect(() => {
+    sync.open = true
+    syncs.add(sync)
+    return () => {
+      sync.open = false
+      sync.save.cancel()
+      void sync.write().finally(() => {
+        if (sync.open) return
+        syncs.delete(sync)
+        updateUnsaved()
+      })
+    }
+  }, [sync])
 
   const text = state.draft ?? query.data?.text
   return {

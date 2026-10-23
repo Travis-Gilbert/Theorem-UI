@@ -4,4 +4,4 @@ import type { FolderGrant } from "./FolderGrant";
 /**
  * Something the host tells the page, through `/desktop/host/events`.
  */
-export type HostEvent = { "type": "fileSaved", path: string, } | { "type": "grantsChanged", grants: Array<FolderGrant>, };
+export type HostEvent = { "type": "fileSaved", path: string, } | { "type": "grantsChanged", grants: Array<FolderGrant>, } | { "type": "leaving", };

@@ -19,7 +19,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import askIcon from '@/assets/icons/rail/noun-chat-8216252.svg?raw'
 import embedIcon from '@/assets/icons/records/noun-article-8259879.svg?raw'
 import { EMBED_LANGUAGE, embedFence, parseEmbed } from '@/lib/theorem/embeds'
-import { editNote, fetchNote, leavePage, noteKey } from '@/lib/theorem/notes'
+import { editNote, fetchNote, noteKey, onLeavePage } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 import { EMBED_ATTR, EmbedCard } from './note-excerpt'
@@ -151,20 +151,12 @@ function CrepeEditor({
 
   // Leaving the page skips the destroy above, so the editor hands over its
   // last text before the saves are flushed.
-  useEffect(() => {
-    const leave = (event: Event) => {
-      if (event.type === 'visibilitychange' && !document.hidden) return
+  useEffect(() =>
+    onLeavePage(() => {
       const markdown = get()?.action(getMarkdown())
       if (markdown !== undefined) report(markdown)
-      leavePage(event)
-    }
-    window.addEventListener('beforeunload', leave)
-    document.addEventListener('visibilitychange', leave)
-    return () => {
-      window.removeEventListener('beforeunload', leave)
-      document.removeEventListener('visibilitychange', leave)
-    }
-  })
+    }),
+  )
 
   // A change from elsewhere replaces the document.
   useEffect(() => {
