@@ -18,7 +18,7 @@ import MoreMark from '@/assets/icons/message/theorem-more.svg?react'
 import NextMark from '@/assets/icons/message/theorem-next.svg?react'
 import PreviousMark from '@/assets/icons/message/theorem-previous.svg?react'
 import ReloadMark from '@/assets/icons/message/theorem-reload.svg?react'
-import Chat from '@/assets/icons/rail/noun-chat-8216252.svg?react'
+import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
@@ -101,6 +101,7 @@ const Send = masked(SendEmail)
 const Share = masked(ShareBox)
 const Web = masked(CrossRegion)
 
+const Chat = solid(ChatMark)
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)

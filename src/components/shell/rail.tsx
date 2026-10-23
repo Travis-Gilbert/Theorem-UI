@@ -18,7 +18,7 @@ import { menuItem, menuPopup } from './sidebar'
 
 /** The rail's square controls: destinations and the account. */
 const railButton =
-  'relative flex size-9 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
+  'relative flex size-8 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
 
 const THEMES = [
   { value: 'light', label: 'Light' },
@@ -90,12 +90,15 @@ function AccountMenu() {
  * the sheet's gradient at its own height, so the join has no seam, and slides
  * when the mode changes.
  */
-function Junction({ y, t }: { y: number; t: number }) {
+function Junction({ y, h, t, flush }: Junction) {
   return (
     <div
       aria-hidden="true"
       className="rail-junction"
-      style={{ '--rail-y': `${y}px`, '--rail-t': t } as CSSProperties}
+      data-flush={flush || undefined}
+      style={
+        { '--rail-y': `${y}px`, '--junction-item': `${h}px`, '--rail-t': t } as CSSProperties
+      }
     >
       <span className="rail-junction-tab" />
       <span className="rail-junction-corner" data-edge="top" />
@@ -104,13 +107,15 @@ function Junction({ y, t }: { y: number; t: number }) {
   )
 }
 
+type Junction = { y: number; h: number; t: number; flush: boolean }
+
 /**
  * The global rail: one destination per mode, and the account at the foot.
  * It is the base the sheet sits on, and stacks above the sheet's shadow and
  * glow so the junction's tab stays level with the panel it joins. The first
- * destination sits low enough that the junction's upper corner clears the
- * sheet's rounded corner. On the desktop the active destination also shows
- * and hides its mode's panel.
+ * destination is flush with the sheet's top, so its tab continues the sheet's
+ * top edge. On the desktop the active destination also shows and hides its
+ * mode's panel.
  */
 export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const mode = useShellMode()
@@ -120,23 +125,29 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
-  const [junction, setJunction] = useState<{ y: number; t: number }>()
+  const [junction, setJunction] = useState<Junction>()
   useLayoutEffect(() => {
     const rail = railRef.current
     const active = destinations.current.get(mode)
     if (!rail || !active) return
     const box = rail.getBoundingClientRect()
-    const y = active.getBoundingClientRect().top - box.top
+    const { top, height } = active.getBoundingClientRect()
+    const y = top - box.top
     // How far down the rail the tab sits, for the glow colour it takes.
-    setJunction({ y, t: box.height ? y / box.height : 0 })
+    setJunction({
+      y,
+      h: height,
+      t: box.height ? y / box.height : 0,
+      flush: mode === MODES[0].mode,
+    })
   }, [mode])
 
   return (
     <div
       ref={railRef}
-      className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-[calc(var(--sheet-inset)+24px)] pb-3"
+      className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-(--sheet-inset) pb-3"
     >
-      {junction && <Junction y={junction.y} t={junction.t} />}
+      {junction && <Junction {...junction} />}
       <TooltipProvider>
         <nav aria-label="Modes" className="flex flex-col gap-1">
           {MODES.map(({ mode: value, label, Mark }) => {
@@ -162,11 +173,11 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
                         if (!active) void openMode(value)
                         else if (collapsible) togglePanel(value)
                       }}
-                      className={`${railButton} aria-[current=page]:text-ink aria-[current=page]:hover:bg-transparent`}
+                      className={`${railButton} h-12 aria-[current=page]:text-ink aria-[current=page]:hover:bg-transparent`}
                     />
                   }
                 >
-                  <Mark className="size-[18px]" />
+                  <Mark className="size-5" />
                 </TooltipTrigger>
                 <TooltipContent side="right">{tooltip}</TooltipContent>
               </Tooltip>

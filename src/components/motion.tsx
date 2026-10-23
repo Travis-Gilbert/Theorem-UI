@@ -1,4 +1,4 @@
-// SOURCING: animejs (createAnimatable for the magnetic pull, splitText + stagger for word entrances, createLayout for list reorders, animate on a plain object for the gliding highlight); MutationObserver to glide when the selected row changes or rows move; ResizeObserver to follow rows that move without a reorder over src/lib/motion; assistant-ui useAui for reading a message's state at mount
+// SOURCING: animejs (createAnimatable for the magnetic pull, splitText + stagger for word entrances, createLayout for list reorders, animate on a plain object for the gliding highlight, a looping rotate whose speed is tweened for the spinning mark); MutationObserver to glide when the selected row changes or rows move; ResizeObserver to follow rows that move without a reorder over src/lib/motion; assistant-ui useAui for reading a message's state at mount
 import { useAui } from '@assistant-ui/react'
 import {
   animate,
@@ -16,6 +16,7 @@ import {
   installBeat,
   installMotionTokens,
   installPress,
+  installSpin,
   popIn,
   prefersReducedMotion,
   riseIn,
@@ -96,6 +97,16 @@ export function useMagnet(
       pull.revert()
     }
   }, [ref, strength, max])
+}
+
+/** Turns a mark while the pointer rests on the button around it; see installSpin. */
+export function useSpin(ref: RefObject<Element | null>) {
+  useEffect(() => {
+    const mark = ref.current
+    const control = mark?.closest('button')
+    if (!mark || !control) return
+    return installSpin(mark, control)
+  }, [ref])
 }
 
 /**

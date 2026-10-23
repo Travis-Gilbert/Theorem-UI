@@ -1,8 +1,11 @@
-// SOURCING: zustand (toggle state the composer and the runtime share), Base UI Toggle, ui/tooltip over Base UI Tooltip, assistant-ui composer scope (useAui)
+// SOURCING: zustand (toggle state the composer and the runtime share), Base UI Toggle, ui/tooltip over Base UI Tooltip, assistant-ui composer scope (useAui), the shared useSpin over anime.js
 import { useAui } from '@assistant-ui/react'
 import { Toggle } from '@base-ui/react/toggle'
+import { useRef } from 'react'
+import type { ComponentProps } from 'react'
 import { create } from 'zustand'
 import { Icon } from '@/components/icons'
+import { useSpin } from '@/components/motion'
 import {
   Tooltip,
   TooltipContent,
@@ -27,13 +30,20 @@ export const useComposerTools = create<ComposerToolsState>()((set) => ({
   toggle: (tool) => set((s) => ({ [tool]: !s[tool] })),
 }))
 
+/** The web mark turns while the pointer rests on its toggle, faster on a press. */
+function WebMark(props: ComponentProps<'svg'>) {
+  const ref = useRef<SVGSVGElement>(null)
+  useSpin(ref)
+  return <Icon.Web ref={ref} {...props} />
+}
+
 const TOOLS = [
   {
     tool: 'web',
     label: 'Web',
     on: 'Web search on',
     off: 'Search the web',
-    Mark: Icon.Web,
+    Mark: WebMark,
   },
   {
     tool: 'diagram',

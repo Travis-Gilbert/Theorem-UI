@@ -315,7 +315,7 @@
   /* The sheet sits on the rail; the junction's tab casts the same shadow. */
   --shadow-sheet: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
-  --spacing-rail: 52px;
+  --spacing-rail: 44px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
   --spacing-reading: 720px;
@@ -582,8 +582,8 @@
   initial-value: 0px;
 }
 
+/* --junction-item is the active destination's height, set by rail.tsx. */
 .rail-junction {
-  --junction-item: 36px;
   --junction-corner: 10px;
   position: absolute;
   inset: 0;
@@ -606,11 +606,25 @@
 
 .rail-junction-tab {
   top: var(--rail-y);
-  left: 8px;
+  left: 6px;
   height: var(--junction-item);
   border-start-start-radius: var(--junction-corner);
   border-end-start-radius: var(--junction-corner);
   background-position: 0 calc(var(--sheet-inset) - var(--rail-y));
+}
+
+/* The first destination's tab meets the sheet's top edge: it has no upper
+   corner, and the sheet squares its own corner to continue into the tab. */
+.rail-junction[data-flush] .rail-junction-corner[data-edge="top"] {
+  display: none;
+}
+
+:has(> .rail-junction[data-flush]) + * > .sheet {
+  border-start-start-radius: 0;
+}
+
+.sheet {
+  transition: border-start-start-radius var(--duration-snap) var(--ease-snap);
 }
 
 .rail-junction-corner {

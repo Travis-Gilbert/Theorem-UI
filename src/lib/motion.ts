@@ -113,6 +113,70 @@ export function popOut(target: Element, { to = 0.8 }: { to?: number } = {}) {
   })
 }
 
+/**
+ * Turns `mark` slowly while the pointer rests on `control` and spins it
+ * faster for a moment on a press, easing back to the resting pace. When the
+ * pointer leaves, the mark rolls on to upright rather than snapping back.
+ * Returns the uninstaller. Under reduced motion nothing turns.
+ */
+export function installSpin(
+  mark: Element,
+  control: Element,
+  { turn = 6000, burst = 4 }: { turn?: number; burst?: number } = {},
+) {
+  if (prefersReducedMotion()) return () => {}
+  let spin: JSAnimation | null = null
+  const angle = () => Number(utils.get(mark, 'rotate', false)) || 0
+  const start = () => {
+    if (spin) return spin
+    // Picks up from wherever a wind-down was when the pointer came back.
+    utils.remove(mark)
+    const from = angle() % 360
+    spin = animate(mark, {
+      rotate: [from, from + 360],
+      duration: turn,
+      ease: 'linear',
+      loop: true,
+    })
+    return spin
+  }
+  const press = () => {
+    const running = start()
+    const pace = { speed: burst }
+    animate(pace, {
+      speed: 1,
+      duration: 900,
+      ease: 'out(2)',
+      onRender: () => {
+        running.speed = pace.speed
+      },
+    })
+  }
+  const leave = () => {
+    if (!spin) return
+    spin = null
+    utils.remove(mark)
+    const from = angle()
+    const to = Math.ceil(from / 360) * 360
+    animate(mark, {
+      rotate: [from, to],
+      // Leaves at roughly the resting pace, without crawling the last turn.
+      duration: utils.clamp(((to - from) / 360) * turn * 0.5, 200, 1200),
+      ease: 'out(2)',
+      onComplete: clean,
+    })
+  }
+  control.addEventListener('pointerenter', start)
+  control.addEventListener('pointerdown', press)
+  control.addEventListener('pointerleave', leave)
+  return () => {
+    control.removeEventListener('pointerenter', start)
+    control.removeEventListener('pointerdown', press)
+    control.removeEventListener('pointerleave', leave)
+    utils.remove(mark)
+  }
+}
+
 /** Something arrives from below and settles. */
 export function riseIn(
   target: Element | Array<Element>,

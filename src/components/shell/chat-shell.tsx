@@ -76,7 +76,7 @@ function PhoneShell() {
               <Rail />
               <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
                 <div aria-hidden="true" className="lift-glow" />
-                <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+                <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
                   <ContextPanel />
                 </div>
               </div>
@@ -194,7 +194,7 @@ function DesktopShell(route: DockRoute) {
       <Rail collapsible />
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
-        <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+        <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
           <SheetSplit {...route} />
         </div>
       </div>
