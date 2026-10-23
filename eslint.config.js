@@ -35,6 +35,7 @@ export default [
       'eslint.config.js',
       'prettier.config.js',
       'Theorem-UI/**',
+      'ide/**',
       'dist/**',
       '.delta/**',
       '.output/**',

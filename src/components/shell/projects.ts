@@ -1,6 +1,6 @@
 // SOURCING: @tanstack/react-query (server state for Theorem projects and the session tenant via @theoremharness/sdk)
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { bootstrap, mutate, theorem } from '@/lib/theorem/client'
+import { bootstrap, isSignedOut, mutate, theorem } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
 import { useShell } from './shell-state'
 
@@ -21,7 +21,8 @@ export function useProjects() {
       return [record]
     },
     staleTime: 60_000,
-    retry: 1,
+    // Signed out is an answer, not a failure: the layout shows the sign-in.
+    retry: (failures, error) => !isSignedOut(error) && failures < 1,
   })
 }
 

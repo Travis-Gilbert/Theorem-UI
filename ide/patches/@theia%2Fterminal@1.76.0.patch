@@ -1,0 +1,28 @@
+diff --git a/lib/browser/terminal-frontend-contribution.js b/lib/browser/terminal-frontend-contribution.js
+index ff3134c8823f07e27db44477401bfb18ff38990f..0f8eba8fde3ec754a65dbcf9cf89b9b3c2bcf8a2 100644
+--- a/lib/browser/terminal-frontend-contribution.js	
++++ b/lib/browser/terminal-frontend-contribution.js
+@@ -621,7 +621,8 @@ let TerminalFrontendContribution = class TerminalFrontendContribution {
+         }
+         if (!this.shell.isExpanded('bottom')) {
+             this.shell.expandPanel('bottom');
+-            terminals[0].activate();
++            // Selects the terminal tab; `activate()` alone leaves the panel showing its last tab.
++            this.shell.activateWidget(terminals[0].id);
+         }
+         else {
+             const visibleTerminal = terminals.find(t => t.isVisible);
+diff --git a/src/browser/terminal-frontend-contribution.ts b/src/browser/terminal-frontend-contribution.ts
+index 0cc05b5d456d3ba28256429b522b5c7dcf3dd37b..2986b6c14e404e8bc7087b516ecc4232e2ae9049 100644
+--- a/src/browser/terminal-frontend-contribution.ts	
++++ b/src/browser/terminal-frontend-contribution.ts
+@@ -743,7 +743,8 @@ export class TerminalFrontendContribution implements FrontendApplicationContribu
+ 
+         if (!this.shell.isExpanded('bottom')) {
+             this.shell.expandPanel('bottom');
+-            terminals[0].activate();
++            // Selects the terminal tab; `activate()` alone leaves the panel showing its last tab.
++            this.shell.activateWidget(terminals[0].id);
+         } else {
+             const visibleTerminal = terminals.find(t => t.isVisible);
+             if (!visibleTerminal) {

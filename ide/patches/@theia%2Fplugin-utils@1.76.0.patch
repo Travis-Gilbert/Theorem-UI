@@ -1,0 +1,54 @@
+diff --git a/lib/common/contribution-types.d.ts b/lib/common/contribution-types.d.ts
+index 1c680b8174871ac471b53be3dae8813f1789646c..d46e507fdf2f0a069be295caae9d31c88dbcaada 100644
+--- a/lib/common/contribution-types.d.ts	
++++ b/lib/common/contribution-types.d.ts
+@@ -205,6 +205,8 @@ export interface PluginPackageView {
+     name: string;
+     when?: string;
+     type?: string;
++    /** Initial state, as in VS Code: `visible` (the default), `collapsed` or `hidden`. */
++    visibility?: 'visible' | 'hidden' | 'collapsed';
+ }
+ export interface PluginPackageViewWelcome {
+     view: string;
+diff --git a/lib/node/normalize-contributions.js b/lib/node/normalize-contributions.js
+index f7b3f41fae8538b2b78369b0a675bdc77a0a99f3..086328b7bd4ff7b81e8d26ac2a3ed83c4e904018 100644
+--- a/lib/node/normalize-contributions.js	
++++ b/lib/node/normalize-contributions.js
+@@ -758,7 +758,8 @@ function readView(rawView) {
+         id: rawView.id,
+         name: rawView.name,
+         when: rawView.when,
+-        type: rawView.type
++        type: rawView.type,
++        visibility: rawView.visibility
+     };
+ }
+ function readViewsWelcome(rawViewsWelcome, rowViews) {
+diff --git a/src/common/contribution-types.ts b/src/common/contribution-types.ts
+index d329489b6dff974ed0a8c757117d8f94449c4dc7..eb34fc988a7e9b87cfb9bca12e59b5698e8b50dc 100644
+--- a/src/common/contribution-types.ts	
++++ b/src/common/contribution-types.ts
+@@ -218,6 +218,8 @@ export interface PluginPackageView {
+     name: string;
+     when?: string;
+     type?: string;
++    /** Initial state, as in VS Code: `visible` (the default), `collapsed` or `hidden`. */
++    visibility?: 'visible' | 'hidden' | 'collapsed';
+ }
+ 
+ export interface PluginPackageViewWelcome {
+diff --git a/src/node/normalize-contributions.ts b/src/node/normalize-contributions.ts
+index 1efa356b639bd2636d923b18c59f13148f6266a6..31d9c635c67d02548bf8c77ff0d9e3054b775600 100644
+--- a/src/node/normalize-contributions.ts	
++++ b/src/node/normalize-contributions.ts
+@@ -853,7 +853,8 @@ export function readView(rawView: RawView): RawView {
+         id: rawView.id,
+         name: rawView.name,
+         when: rawView.when,
+-        type: rawView.type
++        type: rawView.type,
++        visibility: rawView.visibility
+     };
+ }
+ 

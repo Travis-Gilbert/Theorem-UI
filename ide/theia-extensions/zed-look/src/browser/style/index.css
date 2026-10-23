@@ -1,0 +1,246 @@
+/*
+ * Zed's look for the Theia workbench: Zed's bundled fonts, its type scale and density, and its layout,
+ * which has no activity bar (dock buttons live in the status bar, see zed-dock-buttons.ts) and folds the
+ * menu bar into the title bar's application menu (zed-title-bar.tsx).
+ * Colors come from the converted Zed themes, so everything here reads Theia's color variables.
+ */
+
+/* Zed ships IBM Plex Sans as ".ZedSans" and Lilex as ".ZedMono" (assets/fonts in the Zed repository). */
+@font-face {
+  font-family: "Zed Sans";
+  src: url("./fonts/IBMPlexSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Zed Sans";
+  src: url("./fonts/IBMPlexSans-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Zed Sans";
+  src: url("./fonts/IBMPlexSans-SemiBold.ttf") format("truetype");
+  font-weight: 600 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Zed Sans";
+  src: url("./fonts/IBMPlexSans-SemiBoldItalic.ttf") format("truetype");
+  font-weight: 600 700;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Zed Mono";
+  src: url("./fonts/Lilex-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Zed Mono";
+  src: url("./fonts/Lilex-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Zed Mono";
+  src: url("./fonts/Lilex-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Zed Mono";
+  src: url("./fonts/Lilex-BoldItalic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+}
+
+/* Zed's defaults: a 16px rem, 14px UI text, 12px small labels, 34px title bar, 32px tabs, a status bar of
+   22px buttons in 4px padding, and 6px scrollbar thumbs centred in 14px rails. */
+:root {
+  --theia-ui-font-size1: 14px;
+  --theia-content-font-size: 14px;
+  --theia-content-line-height: 24px;
+  --theia-code-font-family: "Zed Mono", Lilex, Menlo, monospace;
+  --theia-code-font-size: 15px;
+  --theia-private-menubar-height: 34px;
+  --theia-private-horizontal-tab-height: 32px;
+  --theia-statusBar-height: 30px;
+  --theia-scrollbar-width: 6px;
+  --theia-scrollbar-rail-width: 14px;
+  --zed-radius: 6px;
+}
+
+/* Monaco's per-platform rules (`.mac`, `.windows`, `.linux`, with `:lang()` variants) set the UI font
+   variable on body itself, so it is overridden there rather than on :root. */
+:root body.mac,
+:root body.windows,
+:root body.linux {
+  --theia-ui-font-family: "Zed Sans", "IBM Plex Sans", system-ui, sans-serif;
+}
+
+/* Title bar (zed-title-bar.tsx): Zed's ghost buttons with small labels, the branch muted. */
+#theia-top-panel {
+  border-bottom: var(--theia-border-width) solid var(--theia-titleBar-border);
+  align-items: center;
+}
+.zed-title-bar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 6px;
+}
+.zed-title-bar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--theia-titleBar-activeForeground);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.zed-title-bar-button:hover {
+  background-color: var(--theia-toolbar-hoverBackground);
+}
+.zed-title-bar-button:focus-visible {
+  outline: var(--theia-border-width) solid var(--theia-focusBorder);
+}
+.zed-title-bar-button.zed-title-bar-icon {
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+  font-size: 14px;
+}
+.zed-title-bar-muted {
+  color: var(--theia-descriptionForeground);
+}
+/* Zed cuts project and branch names at 40 characters. */
+.zed-title-bar-label {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zed-title-bar-label-icon {
+  font-size: 12px;
+}
+
+/* Docked panels: title in sentence case like Zed's panel headers, a border instead of the activity bar edge. */
+#theia-left-side-panel {
+  border-right: var(--theia-border-width) solid var(--theia-sideBar-border);
+}
+#theia-right-side-panel {
+  border-left: var(--theia-border-width) solid var(--theia-sideBar-border);
+}
+/* With no activity bar, a collapsed dock has nothing to show. Theia caps it at the activity bar's
+   width; this caps it at its 1px border (Lumino reads a max-width of 0 as no limit). */
+#theia-left-content-panel.theia-mod-collapsed,
+#theia-right-content-panel.theia-mod-collapsed {
+  max-width: 1px;
+}
+.theia-sidepanel-toolbar .theia-sidepanel-title {
+  text-transform: none;
+  font-size: var(--theia-ui-font-size1);
+  color: var(--theia-sideBarTitle-foreground);
+}
+.theia-view-container .part > .theia-header {
+  text-transform: none;
+}
+/* A collapsed view keeps its body's 50px min-height below its header, which overflows the shell
+   with the taller status bar and lets focus scroll the whole page. */
+.theia-view-container .part.collapsed > .body {
+  display: none;
+}
+
+/* Tabs: flat, separated by borders, no accent stripe, close button only on hover or when dirty. */
+.lm-TabBar.theia-app-centers .lm-TabBar-tab {
+  border-right: var(--theia-border-width) solid var(--theia-tab-border);
+  border-top: none;
+  padding: 0 8px 0 12px;
+}
+.lm-TabBar.theia-app-centers .lm-TabBar-tab.lm-mod-current {
+  box-shadow: none;
+}
+.lm-TabBar.theia-app-centers .lm-TabBar-tab:not(.lm-mod-current) {
+  border-bottom: var(--theia-border-width) solid var(--theia-editorGroupHeader-tabsBorder);
+}
+.lm-TabBar.theia-app-centers .lm-TabBar-tab .lm-TabBar-tabCloseIcon {
+  visibility: hidden;
+}
+.lm-TabBar.theia-app-centers .lm-TabBar-tab:hover .lm-TabBar-tabCloseIcon,
+.lm-TabBar.theia-app-centers .lm-TabBar-tab.theia-mod-dirty .lm-TabBar-tabCloseIcon {
+  visibility: visible;
+}
+
+/* Status bar: Zed's muted, uncolored bar with small labels and square icon buttons. */
+#theia-statusBar {
+  border-top: var(--theia-border-width) solid var(--theia-statusBar-border);
+  padding: 0 4px;
+}
+/* On a narrow window the left area clips, so the right dock buttons stay on screen. */
+#theia-statusBar .area.left {
+  min-width: 0;
+  overflow: hidden;
+}
+#theia-statusBar .area.right {
+  flex: none;
+}
+#theia-statusBar .area .element {
+  /* Theia's minimum is the bar height, which would widen every label in this taller bar. */
+  min-width: 0;
+  flex-shrink: 0;
+  font-size: 12px;
+  margin: 0 1px;
+  padding: 0 6px;
+  border-radius: 4px;
+  height: 22px;
+  align-self: center;
+}
+#theia-statusBar .area .element.zed-dock-button {
+  min-width: 22px;
+  justify-content: center;
+  padding: 0 4px;
+  font-size: 14px;
+  color: var(--theia-icon-foreground);
+  opacity: 0.7;
+}
+#theia-statusBar .area .element.zed-dock-button .codicon {
+  font-size: 14px;
+}
+#theia-statusBar .area .element.zed-dock-button:hover,
+#theia-statusBar .area .element.zed-dock-button-active {
+  opacity: 1;
+}
+#theia-statusBar .area .element.zed-dock-button-active {
+  background-color: var(--theia-statusBarItem-activeBackground);
+}
+#theia-statusBar .area.left .element.zed-dock-button:last-of-type {
+  margin-right: 8px;
+}
+
+/* Overlays: Zed's rounded, bordered popovers. */
+.lm-Menu,
+.quick-input-widget,
+.monaco-editor .suggest-widget,
+.monaco-hover,
+.theia-notification-toasts .theia-notification-list-item-container,
+.dialogOverlay .dialogBlock {
+  border-radius: var(--zed-radius);
+}
+.quick-input-widget {
+  border: var(--theia-border-width) solid var(--theia-widget-border);
+}
+.lm-Menu {
+  padding: 4px;
+}
+.lm-Menu-item {
+  border-radius: 4px;
+}

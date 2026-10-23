@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode)
+// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link
 import {
   createFileRoute,
   Outlet,
@@ -10,7 +10,9 @@ import { ChatShell, ShellStatus } from '@/components/shell/chat-shell'
 import { useShellMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
-import { describeError } from '@/lib/theorem/client'
+import { buttonVariants } from '@/components/ui/button'
+import { describeError, isSignedOut } from '@/lib/theorem/client'
+import { signInHref } from '@/lib/theorem/sign-in'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 
 export const Route = createFileRoute('/_chat')({
@@ -40,6 +42,7 @@ function ChatLayout() {
     [navigate],
   )
 
+  if (isSignedOut(error)) return <SignIn />
   if (error)
     return (
       <ShellStatus
@@ -59,5 +62,27 @@ function ChatLayout() {
       <ChatShell projectId={project.projectId} threadId={openThreadId} />
       <Outlet />
     </TheoremRuntimeProvider>
+  )
+}
+
+/** Shown while nobody is signed in; a failed attempt comes back with its reason. */
+function SignIn() {
+  const failure = new URLSearchParams(window.location.search).get(
+    'signin_error',
+  )
+  return (
+    <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+      <p className="font-heading text-[20px] font-normal tracking-tight">
+        Theorem
+      </p>
+      <p className="max-w-md text-sm text-ink-muted">
+        {failure
+          ? `Signing in did not finish (${failure}). Try again.`
+          : 'Sign in to open your projects and conversations.'}
+      </p>
+      <a href={signInHref()} className={buttonVariants()}>
+        Sign in
+      </a>
+    </div>
   )
 }

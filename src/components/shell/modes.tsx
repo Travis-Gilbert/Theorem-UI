@@ -1,10 +1,9 @@
-// SOURCING: Base UI ToggleGroup + Toggle (mode switch), ui/tooltip over Base UI Tooltip, @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia), the Spaces canvas (React Flow)
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { Canvas } from '@/components/canvas/canvas'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { Icon } from '@/components/icons'
-import {
-} from '@/components/ui/tooltip'
 import { useShell } from './shell-state'
 
 export type ShellMode = 'chat' | 'spaces' | 'ide'
@@ -36,7 +35,7 @@ export function useShellMode(): ShellMode {
   })
 }
 
-/** Navigates to a mode. Chat returns to the conversation it last showed. */
+/** Navigates to a mode; chat returns to the conversation last left. */
 export function useOpenMode() {
   const navigate = useNavigate()
   return (next: ShellMode) => {
@@ -48,33 +47,23 @@ export function useOpenMode() {
       : navigate({ to: '/' })
   }
 }
-function ModePlaceholder({ mode }: { mode: ShellMode }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
-        {modeLabel(mode)}
-      </p>
-      <p className="max-w-sm text-sm text-ink-muted">
-        {modeLabel(mode)} is not in Theorem UI yet. Chat returns to the
-        conversation you left.
-      </p>
-    </div>
-  )
-}
 
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
+ * On the desktop Theia covers the whole sheet in IDE mode, so the dock keeps
+ * the conversation laid out beneath it; on a phone the IDE takes the screen.
  */
-export function ModeView() {
+export function ModeView({ docked = false }: { docked?: boolean }) {
   const mode = useShellMode()
+  const showThread = mode === 'chat' || (docked && mode === 'ide')
   return (
     <>
-      <div hidden={mode !== 'chat'} className="h-full">
+      <div hidden={!showThread} className="h-full">
         <Thread />
       </div>
+      {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'spaces' && <Canvas />}
-      {mode === 'ide' && <ModePlaceholder mode={mode} />}
     </>
   )
 }
