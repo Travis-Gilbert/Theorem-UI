@@ -3,24 +3,34 @@
 import path from 'node:path'
 import type { FolderGrant } from '#/lib/desktop/bindings/FolderGrant'
 
-let grants: Array<FolderGrant> = []
-const listeners = new Set<(next: Array<FolderGrant>) => void>()
+interface GrantStore {
+  grants: Array<FolderGrant>
+  listeners: Set<(next: Array<FolderGrant>) => void>
+}
+
+// The production build bundles Nitro's plugins and routes apart from TanStack
+// Start's server routes (`.output/server/_ssr`), so this module can load twice
+// in one process. Both copies share one store on globalThis: the control
+// channel writes it from the Nitro side, workspace routes read it from either.
+const storeKey: unique symbol = Symbol.for('theorem.desktop.grants')
+const scope = globalThis as { [storeKey]?: GrantStore }
+const store = (scope[storeKey] ??= { grants: [], listeners: new Set() })
 
 /** Replace the grants. Called when the host sends `hello` or `grants`. */
 export function setGrants(next: Array<FolderGrant>): void {
-  grants = next
-  for (const listener of listeners) listener(grants)
+  store.grants = next
+  for (const listener of store.listeners) listener(store.grants)
 }
 
 /** The folders the person opened through the system picker. */
 export function currentGrants(): Array<FolderGrant> {
-  return grants
+  return store.grants
 }
 
 /** The grant whose folder contains `absolutePath`, if any. */
 export function grantFor(absolutePath: string): FolderGrant | undefined {
   const target = path.resolve(absolutePath)
-  return grants.find((grant) => {
+  return store.grants.find((grant) => {
     const relative = path.relative(grant.path, target)
     return (
       relative === '' ||
@@ -32,6 +42,6 @@ export function grantFor(absolutePath: string): FolderGrant | undefined {
 export function onGrantsChanged(
   listener: (next: Array<FolderGrant>) => void,
 ): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
+  store.listeners.add(listener)
+  return () => store.listeners.delete(listener)
 }
