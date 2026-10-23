@@ -1,7 +1,8 @@
 // SOURCING: @uiw/react-codemirror (CodeMirror 6 as a React component with its
-// light and dark themes, as the code handler uses it), @codemirror/lang-javascript
-// and @codemirror/lang-yaml (a block's language), next-themes (the app's
-// theme). A live block's source, with its last-run values in the margin.
+// light and dark themes, as the code handler uses it), @codemirror/lang-javascript,
+// lang-yaml and lang-html (a block's or an app's language), next-themes (the
+// app's theme). A live block's source, with its last-run values in the margin.
+import { html } from '@codemirror/lang-html'
 import { javascript } from '@codemirror/lang-javascript'
 import { yaml } from '@codemirror/lang-yaml'
 import CodeMirror from '@uiw/react-codemirror'
@@ -13,9 +14,10 @@ import { lastRunMargin } from './last-run-margin'
 const TYPESCRIPT = new Set(['ts', 'tsx', 'typescript'])
 const JSX = new Set(['tsx', 'jsx'])
 
-/** The CodeMirror language for a fence's language word. */
+/** The CodeMirror language for a fence's language word, or `html` for an app. */
 function languageOf(lang: string) {
   if (lang === 'query' || lang === 'agent') return yaml()
+  if (lang === 'html') return html()
   return javascript({ jsx: JSX.has(lang), typescript: TYPESCRIPT.has(lang) })
 }
 
