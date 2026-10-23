@@ -7,7 +7,7 @@ import { debounce } from 'lodash-es'
 import { toRelative } from './paths'
 
 export interface FolderWatcher {
-  close(): Promise<void>
+  close: () => Promise<void>
 }
 
 export interface WatchOptions {

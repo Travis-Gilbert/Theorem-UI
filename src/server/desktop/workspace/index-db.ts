@@ -294,7 +294,7 @@ export class WorkspaceIndex implements LinkLookup {
       'INSERT INTO properties (path, key, value) VALUES ($p, $key, $value)',
     )
     for (const [key, value] of Object.entries(note.properties))
-      property.run({ p, key, value: JSON.stringify(value) ?? 'null' })
+      property.run({ p, key, value: JSON.stringify(value) })
     const task = this.db.query(
       'INSERT INTO tasks (path, text, checked, line) VALUES ($p, $text, $checked, $line)',
     )

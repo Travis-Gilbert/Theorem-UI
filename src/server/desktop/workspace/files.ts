@@ -91,10 +91,10 @@ export async function walk(
     .withPromise()
   const entries = new Map<string, DiskEntry>()
   await Promise.all(
-    found.map(async (found) => {
+    found.map(async (listed) => {
       // fdir lists the crawled folder itself as "." and folders with a slash.
-      if (found === '.') return
-      const inner = found.replace(/\/$/, '')
+      if (listed === '.') return
+      const inner = listed.replace(/\/$/, '')
       const rel = relative ? `${relative}/${inner}` : inner
       if (isHidden(rel)) return
       const entry = await statEntry(path.join(root, ...rel.split('/')), rel)

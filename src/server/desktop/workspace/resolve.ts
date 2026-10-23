@@ -6,7 +6,7 @@ import path from 'node:path'
 
 /** What resolution needs from the index: the files whose name key is `key`. */
 export interface LinkLookup {
-  named(key: string): Array<string>
+  named: (key: string) => Array<string>
 }
 
 /**
