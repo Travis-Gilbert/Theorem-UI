@@ -73,6 +73,9 @@ export const markdownExtensions = () =>
 
 export const codeExtensions = () => useHandlerRegistry.getState().codeExtensions
 
+/** The built-in handler for files no other handler opens. */
+export const FALLBACK_HANDLER_ID = 'unknown'
+
 export const handlerById = (id: string) =>
   useHandlerRegistry.getState().handlers.find((h) => h.id === id)
 
