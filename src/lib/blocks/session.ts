@@ -21,12 +21,18 @@ import type { FenceInfo, LiveKind } from './format'
 import type { FormulaEngine } from './formulas/engine'
 import { announceLastRun, lastRunOf } from './last-run'
 import type { LastRun } from './last-run'
-import { parseQuery, queryInputs, queryReads, runQuery, sourceOf } from './query'
+import {
+  parseQuery,
+  queryInputs,
+  queryReads,
+  runQuery,
+  sourceOf,
+} from './query'
 import type { QuerySpec } from './query'
 import { requestAgentRun } from './runs'
 import { BlockGraph } from './runtime'
 import type { CellDefinition, CellHandle } from './runtime'
-import type { RunRequestResult } from './sandbox/protocol'
+import type { RunOutcome, RunRequestResult } from './sandbox/protocol'
 
 /** One live block of a document, or a whole tool file. */
 export interface SessionBlock {
@@ -106,9 +112,20 @@ export class BlockSession {
   private blocks: Array<SessionBlock> = []
   private signatures = new Map<string, string>()
   private code = new Map<string, CodeBlockState>()
+  /** The executors `options.executor` made, one per block. */
   private executors = new Map<
     string,
     { cellKey: string; executor: Promise<CellExecutor> }
+  >()
+  /** The frames views attached for each block, newest last. */
+  private frames = new Map<
+    string,
+    Array<{ cellKey: string; executor: CellExecutor }>
+  >()
+  /** What each pure code block last ran with, for a frame attached later. */
+  private lastInputs = new Map<
+    string,
+    { cellKey: string; inputs: Record<string, unknown> }
   >()
   private parked = new Map<
     string,
@@ -374,7 +391,10 @@ export class BlockSession {
   }
 
   /** What the page lends a block: its declared capabilities, and nothing else. */
-  hostFor(key: string, capabilities: Capabilities = noCapabilities()): BridgeHost {
+  hostFor(
+    key: string,
+    capabilities: Capabilities = noCapabilities(),
+  ): BridgeHost {
     return {
       client: this.options.client,
       capabilities,
@@ -383,43 +403,74 @@ export class BlockSession {
     }
   }
 
-  /** A view's frame for the block: evaluations of this compiled code go to it. */
+  /**
+   * A view's frame for the block, running `cellKey`. The newest frame runs
+   * the block for the graph. Every view shows the run: a pure block also runs
+   * in the other frames, and in a frame attached later, with the same inputs;
+   * an effectful block runs once, in the newest. Returns the detach.
+   */
   attach(key: string, cellKey: string, executor: CellExecutor): () => void {
-    const entry = { cellKey, executor: Promise.resolve(executor) }
-    this.executors.set(key, entry)
-    const parked = this.parked.get(key) ?? []
+    const entry = { cellKey, executor }
+    const frames = this.frames.get(key) ?? []
+    frames.push(entry)
+    this.frames.set(key, frames)
+    const waits = this.parked.get(key) ?? []
+    const waiting = waits.filter((wait) => wait.cellKey === cellKey)
     this.parked.set(
       key,
-      parked.filter((wait) => {
-        if (wait.cellKey !== cellKey) return true
-        wait.resolve(executor)
-        return false
-      }),
+      waits.filter((wait) => wait.cellKey !== cellKey),
     )
+    for (const wait of waiting) wait.resolve(executor)
+    const last = this.lastInputs.get(key)
+    if (!waiting.length && last?.cellKey === cellKey)
+      void executor.run(last.inputs).catch(() => {})
     return () => {
-      if (this.executors.get(key) === entry) this.executors.delete(key)
+      const list = this.frames.get(key)
+      const index = list?.indexOf(entry) ?? -1
+      if (index >= 0) list!.splice(index, 1)
+      if (list && !list.length) this.frames.delete(key)
     }
   }
 
   private dropExecutor(key: string) {
     const entry = this.executors.get(key)
     this.executors.delete(key)
-    if (entry && this.options.executor)
-      void entry.executor.then((executor) => executor.dispose())
+    this.lastInputs.delete(key)
+    if (entry) void entry.executor.then((executor) => executor.dispose())
   }
 
-  private executorFor(key: string, compiled: CompiledCell): Promise<CellExecutor> {
-    const current = this.executors.get(key)
-    if (current?.cellKey === compiled.key) return current.executor
-    if (this.options.executor) {
-      this.dropExecutor(key)
-      const executor = Promise.resolve(
-        this.options.executor(compiled, this.hostFor(key, compiled.capabilities)),
-      )
-      this.executors.set(key, { cellKey: compiled.key, executor })
-      return executor
+  /** Runs the block in its executor, or in the frames its views attached. */
+  private async execute(
+    key: string,
+    compiled: CompiledCell,
+    inputs: Record<string, unknown>,
+  ): Promise<RunOutcome> {
+    const { executor } = this.options
+    if (executor) {
+      let current = this.executors.get(key)
+      if (current?.cellKey !== compiled.key) {
+        this.dropExecutor(key)
+        current = {
+          cellKey: compiled.key,
+          executor: Promise.resolve(
+            executor(compiled, this.hostFor(key, compiled.capabilities)),
+          ),
+        }
+        this.executors.set(key, current)
+      }
+      return (await current.executor).run(inputs)
     }
-    return this.park(key, compiled.key)
+    const frames = (this.frames.get(key) ?? []).filter(
+      (frame) => frame.cellKey === compiled.key,
+    )
+    const newest =
+      frames.at(-1)?.executor ?? (await this.park(key, compiled.key))
+    if (!isEffectful(compiled.capabilities)) {
+      this.lastInputs.set(key, { cellKey: compiled.key, inputs })
+      for (const frame of frames.slice(0, -1))
+        void frame.executor.run(inputs).catch(() => {})
+    }
+    return newest.run(inputs)
   }
 
   private async runCode(
@@ -427,8 +478,7 @@ export class BlockSession {
     compiled: CompiledCell,
     inputs: Record<string, unknown>,
   ): Promise<unknown> {
-    const executor = await this.executorFor(key, compiled)
-    const outcome = await executor.run(inputs)
+    const outcome = await this.execute(key, compiled, inputs)
     const run = lastRunOf(compiled.sourceHash, outcome)
     announceLastRun(run)
     const save =
@@ -479,7 +529,10 @@ export class BlockSession {
       return this.fail(block, (error as Error).message)
     }
     if (!block.name)
-      return this.fail(block, 'An agent block needs a name: add #id to its fence')
+      return this.fail(
+        block,
+        'An agent block needs a name: add #id to its fence',
+      )
     const name = block.name
     this.put(block, {
       name,
@@ -504,7 +557,10 @@ export class BlockSession {
   }
 
   /** A block's code called `run("agent:#id")`: runs that agent block of this document. */
-  private async runAgent(target: string, from: string): Promise<RunRequestResult> {
+  private async runAgent(
+    target: string,
+    from: string,
+  ): Promise<RunRequestResult> {
     const name = target.replace(/^agent:#/, '')
     const block = this.blocks.find((b) => b.kind === 'agent' && b.name === name)
     if (!block) throw new Error(`No agent block #${name} in ${this.path}`)
@@ -536,6 +592,7 @@ export class BlockSession {
     this.stop()
     for (const key of [...this.executors.keys()]) this.dropExecutor(key)
     for (const key of [...this.parked.keys()]) this.release(key)
+    this.frames.clear()
     this.graph.dispose()
     this.listeners.clear()
   }
