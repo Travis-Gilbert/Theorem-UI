@@ -21,7 +21,9 @@ export interface AgentRunRequest {
   }
 }
 
-export type RunRequester = (request: AgentRunRequest) => Promise<RunRequestResult>
+export type RunRequester = (
+  request: AgentRunRequest,
+) => Promise<RunRequestResult>
 
 const requests: Array<AgentRunRequest> = []
 

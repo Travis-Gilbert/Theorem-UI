@@ -133,7 +133,13 @@ export function BlockFrame({
  * A frame's last snapshot, shown with no scripts and nothing loaded: what a
  * card shows far out instead of a live frame.
  */
-export function SnapshotFrame({ html, title }: { html: string; title: string }) {
+export function SnapshotFrame({
+  html,
+  title,
+}: {
+  html: string
+  title: string
+}) {
   return (
     <iframe
       title={title}

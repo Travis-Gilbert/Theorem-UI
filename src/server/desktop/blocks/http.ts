@@ -189,8 +189,7 @@ export const blockRoutes = {
       const cell = await storeOf(await workspace(params)).readCompiled(
         query(request, 'key'),
       )
-      if (!cell)
-        throw new WorkspaceError(404, 'not_found', 'Not compiled yet')
+      if (!cell) throw new WorkspaceError(404, 'not_found', 'Not compiled yet')
       return Response.json(cell)
     }),
     PUT: route(async ({ request, params }) => {

@@ -200,10 +200,19 @@ b * 10`)
     await call<PageMethods, 'frame.snapshot'>(frame, 'frame.snapshot', {
       html: '<p>kept</p>',
     })
-    const tooLarge = call<PageMethods, 'frame.snapshot'>(frame, 'frame.snapshot', {
-      html: 'x'.repeat(MAX_SNAPSHOT + 1),
-    })
-    expect(await tooLarge.then(() => 'sent', () => 'refused')).toBe('refused')
+    const tooLarge = call<PageMethods, 'frame.snapshot'>(
+      frame,
+      'frame.snapshot',
+      {
+        html: 'x'.repeat(MAX_SNAPSHOT + 1),
+      },
+    )
+    expect(
+      await tooLarge.then(
+        () => 'sent',
+        () => 'refused',
+      ),
+    ).toBe('refused')
     expect(snapshots).toEqual(['<p>kept</p>'])
     stop()
     channel.port1.close()

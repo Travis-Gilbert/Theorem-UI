@@ -108,12 +108,17 @@ describe('Today.md, end to end', () => {
 
     // Last-run values were kept for each code block, by source hash.
     expect(
-      [...new Set(saved.map((run) => run.sourceHash))].map((hash) =>
-        today
-          .list()
-          .find((block) => today.codeState(block.key).compiled?.sourceHash === hash)
-          ?.key,
-      ).sort(),
+      [...new Set(saved.map((run) => run.sourceHash))]
+        .map(
+          (hash) =>
+            today
+              .list()
+              .find(
+                (block) =>
+                  today.codeState(block.key).compiled?.sourceHash === hash,
+              )?.key,
+        )
+        .sort(),
     ).toEqual(['focus', 'habits', 'streak'])
 
     const before = Object.fromEntries(

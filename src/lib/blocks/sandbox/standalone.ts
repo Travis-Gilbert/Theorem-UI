@@ -63,7 +63,9 @@ export async function startStandalone(
   const file = (path: string) => {
     const found = data.files[path]
     if (!found)
-      throw new Error(`${path} was not part of this export: it reads only what the tool declared`)
+      throw new Error(
+        `${path} was not part of this export: it reads only what the tool declared`,
+      )
     return found
   }
   const collection = (name: string) => {
@@ -98,7 +100,9 @@ export async function startStandalone(
   serve<PageMethods, 'files.list'>(page, 'files.list', ({ glob }) => {
     const listed = data.lists[glob]
     if (!listed)
-      throw new Error(`files.list("${glob}") was not declared, so the export has no listing for it`)
+      throw new Error(
+        `files.list("${glob}") was not declared, so the export has no listing for it`,
+      )
     return listed
   })
   serve<PageMethods, 'files.write'>(page, 'files.write', () => {

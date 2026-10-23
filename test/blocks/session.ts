@@ -32,7 +32,8 @@ export async function testSession(
     compile: compileCell,
     engine: await testFormulaEngine(),
     state: memoryState(),
-    executor: async (cell, host) => inProcessExecutor(await loadCell(cell), host),
+    executor: async (cell, host) =>
+      inProcessExecutor(await loadCell(cell), host),
     saveLastRun: async (run) => {
       saved.push(run)
     },
@@ -59,12 +60,10 @@ export async function until(
 export function settled(session: BlockSession): Promise<void> {
   return until(
     () =>
-      session
-        .list()
-        .every((block) => {
-          const cell = session.cell(block.key)
-          return !cell || cell.getState().status !== 'pending'
-        }),
+      session.list().every((block) => {
+        const cell = session.cell(block.key)
+        return !cell || cell.getState().status !== 'pending'
+      }),
     'the blocks to settle',
   )
 }

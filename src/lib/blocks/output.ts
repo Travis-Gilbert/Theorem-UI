@@ -36,14 +36,10 @@ function table(
     type: 'tableRow',
     children: columns.map(({ label }) => cell(label)),
   }
-  const body = rows
-    .slice(0, MAX_ROWS)
-    .map(
-      (row): TableRow => ({
-        type: 'tableRow',
-        children: columns.map(({ key }) => cell(row[key])),
-      }),
-    )
+  const body = rows.slice(0, MAX_ROWS).map((row): TableRow => ({
+    type: 'tableRow',
+    children: columns.map(({ key }) => cell(row[key])),
+  }))
   const nodes: Array<RootContent> = [
     { type: 'table', align: [], children: [head, ...body] } satisfies Table,
   ]
@@ -80,7 +76,9 @@ export function outputMarkdown(value: unknown): string {
     const [view] = value.views
     nodes = view ? table(view.columns, view.rows) : []
   } else if (isRunResult(value)) {
-    nodes = [{ type: 'paragraph', children: [{ type: 'text', value: value.message }] }]
+    nodes = [
+      { type: 'paragraph', children: [{ type: 'text', value: value.message }] },
+    ]
   } else if (isRows(value)) {
     const keys = [...new Set(value.flatMap((row) => Object.keys(row)))]
     nodes = table(
@@ -95,7 +93,11 @@ export function outputMarkdown(value: unknown): string {
           {
             type: 'emphasis',
             children: [
-              { type: 'text', value: 'Interactive output: open this note in Theorem to see it.' },
+              {
+                type: 'text',
+                value:
+                  'Interactive output: open this note in Theorem to see it.',
+              },
             ],
           },
         ],
@@ -129,7 +131,9 @@ export function withPinnedOutput(
 }
 
 /** The block without its pinned output. */
-export const withoutPinnedOutput = (block: LiveBlockSource): LiveBlockSource => ({
+export const withoutPinnedOutput = (
+  block: LiveBlockSource,
+): LiveBlockSource => ({
   ...block,
   gap: '',
   output: null,

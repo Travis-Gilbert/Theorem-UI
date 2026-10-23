@@ -7,7 +7,8 @@ import { closeStateDocument, stateDocument } from './state-document'
 
 const dirs: Array<string> = []
 afterEach(async () => {
-  for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true })
+  for (const dir of dirs.splice(0))
+    await rm(dir, { recursive: true, force: true })
 })
 
 async function dataDir() {

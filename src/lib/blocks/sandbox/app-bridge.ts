@@ -28,11 +28,10 @@ const context = connectToPage().then((port) => {
 })
 
 type Files = ReturnType<CellContext['files']>
-const files = (name: keyof Files) =>
+const files =
+  (name: keyof Files) =>
   async (...args: Array<string>) =>
-    ((await context).files()[name] as (...a: Array<string>) => unknown)(
-      ...args,
-    )
+    ((await context).files()[name] as (...a: Array<string>) => unknown)(...args)
 
 const theorem = {
   /** Resolves once the page has connected this app. */

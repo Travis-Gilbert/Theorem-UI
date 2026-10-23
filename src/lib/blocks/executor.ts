@@ -5,7 +5,13 @@ import { serveBridge } from './bridge'
 import type { BridgeHost } from './bridge'
 import { CellContext } from './sandbox/cell'
 import type { CellModule, Display } from './sandbox/cell'
-import { CONNECT_MESSAGE, READY_MESSAGE, call, rpcOver, serve } from './sandbox/protocol'
+import {
+  CONNECT_MESSAGE,
+  READY_MESSAGE,
+  call,
+  rpcOver,
+  serve,
+} from './sandbox/protocol'
 import type { Rpc, RunOutcome, SandboxMethods } from './sandbox/protocol'
 
 /** Something that runs one block with the values it reads. */

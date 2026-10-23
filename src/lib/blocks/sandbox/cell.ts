@@ -3,7 +3,13 @@
 // produced, with the builtins it names is this app's sandbox runtime (plan D9).
 import { createElement, useSyncExternalStore } from 'react'
 import { call } from './protocol'
-import type { FileFormat, PageMethods, Rpc, RunOutcome, Trace } from './protocol'
+import type {
+  FileFormat,
+  PageMethods,
+  Rpc,
+  RunOutcome,
+  Trace,
+} from './protocol'
 import { blockValue, toClonable } from './values'
 
 /** A compiled cell module, as compile.ts writes it. */
@@ -180,7 +186,8 @@ export class CellContext {
     const resolve = (name: string): unknown => {
       if (name in builtins) return builtins[name]
       if (name in inputs) return inputs[name]
-      if (name in globalThis) return (globalThis as Record<string, unknown>)[name]
+      if (name in globalThis)
+        return (globalThis as Record<string, unknown>)[name]
       throw new ReferenceError(`${name} is not defined`)
     }
     try {

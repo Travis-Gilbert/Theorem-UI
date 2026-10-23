@@ -137,9 +137,7 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
         (entry) =>
           entry.kind === 'file' && requested(entry.path) && mayRead(entry.path),
       )
-      .map(
-        ({ path, size, mtimeMs }): ListedFile => ({ path, size, mtimeMs }),
-      )
+      .map(({ path, size, mtimeMs }): ListedFile => ({ path, size, mtimeMs }))
   })
 
   serve<PageMethods, 'files.write'>(rpc, 'files.write', async (raw) => {

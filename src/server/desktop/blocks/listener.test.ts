@@ -81,7 +81,9 @@ describe('the block listener', () => {
   })
 
   test('serves reads only', async () => {
-    expect((await get('/__runtime/cell-runtime', { method: 'POST' })).status).toBe(405)
+    expect(
+      (await get('/__runtime/cell-runtime', { method: 'POST' })).status,
+    ).toBe(405)
   })
 
   test('serves the sandbox runtime as JavaScript a sandboxed document may load', async () => {
@@ -95,16 +97,28 @@ describe('the block listener', () => {
   test('every runtime import resolves to a runtime module or the import map', () => {
     const modules = runtimeModules()
     for (const [name, code] of modules) {
-      const program = parse(code, { ecmaVersion: 'latest', sourceType: 'module' })
+      const program = parse(code, {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      })
       simple(program, {
         ImportDeclaration(node) {
           const specifier = String(node.source.value)
           if (specifier.startsWith('./'))
-            expect(modules.has(specifier.slice(2)), `${name} → ${specifier}`).toBe(true)
+            expect(
+              modules.has(specifier.slice(2)),
+              `${name} → ${specifier}`,
+            ).toBe(true)
           else
-            expect(Object.keys(importMap.imports), `${name} → ${specifier}`).toContain(specifier)
+            expect(
+              Object.keys(importMap.imports),
+              `${name} → ${specifier}`,
+            ).toContain(specifier)
         },
-      } as Record<string, (node: AcornNode & { source: { value: unknown } }) => void>)
+      } as Record<
+        string,
+        (node: AcornNode & { source: { value: unknown } }) => void
+      >)
     }
   })
 
@@ -129,7 +143,8 @@ describe('the block listener', () => {
     expect(policy['connect-src']).toBe("'none'")
     expect(policy['frame-ancestors']).toBe(APP_ORIGIN)
     expect(policy['form-action']).toBe("'none'")
-    const inlineMap = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? ''
+    const inlineMap =
+      /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? ''
     expect(policy['script-src']).toBe(
       `${listener.origin}/__runtime/ ${listener.origin}/vendor/ ${listener.origin}/compiled/ws_trusted/${cell.key}.js ${scriptHash(inlineMap)}`,
     )
@@ -147,15 +162,19 @@ describe('the block listener', () => {
       '// uses: net("api.example.com")\nconst a = 1',
     )
     const response = await get(`/cell/ws_trusted/${cell.key}`)
-    expect(directives(response.headers.get('content-security-policy'))['connect-src']).toBe(
-      'https://api.example.com',
-    )
+    expect(
+      directives(response.headers.get('content-security-policy'))[
+        'connect-src'
+      ],
+    ).toBe('https://api.example.com')
   })
 
   test('an untrusted folder gets no block documents and no compiled code', async () => {
     const cell = await compiledIn(workspaces.ws_untrusted!, 'const b = 2')
     expect((await get(`/cell/ws_untrusted/${cell.key}`)).status).toBe(403)
-    expect((await get(`/compiled/ws_untrusted/${cell.key}.js`)).status).toBe(403)
+    expect((await get(`/compiled/ws_untrusted/${cell.key}.js`)).status).toBe(
+      403,
+    )
     expect((await get(`/cell/ws_missing/${cell.key}`)).status).toBe(403)
   })
 
@@ -164,7 +183,9 @@ describe('the block listener', () => {
     const response = await get(`/app/${token}/index.html`)
     expect(response.status).toBe(200)
     const html = await response.text()
-    expect(html).toContain('<script type="module" src="/__runtime/app-bridge"></script>')
+    expect(html).toContain(
+      '<script type="module" src="/__runtime/app-bridge"></script>',
+    )
     expect(html).toContain('<script type="importmap">')
     const policy = directives(response.headers.get('content-security-policy'))
     expect(policy['connect-src']).toBe('https://api.example.com')
@@ -173,10 +194,16 @@ describe('the block listener', () => {
 
     expect((await get(`/app/${token}/clock.js`)).status).toBe(200)
     expect((await get(`/app/${token}/.env`)).status).toBe(404)
-    expect((await get(`/app/${token}/..%2F..%2FData%2Fsecret.txt`)).status).toBe(404)
+    expect(
+      (await get(`/app/${token}/..%2F..%2FData%2Fsecret.txt`)).status,
+    ).toBe(404)
     expect((await get(`/app/${token}/../../Data/secret.txt`)).status).toBe(404)
     expect((await get(`/app/${token}x/index.html`)).status).toBe(403)
-    const expired = issueAppToken('ws_trusted', 'Apps/Clock', Date.now() - 13 * 3600_000)
+    const expired = issueAppToken(
+      'ws_trusted',
+      'Apps/Clock',
+      Date.now() - 13 * 3600_000,
+    )
     expect((await get(`/app/${expired}/index.html`)).status).toBe(403)
     const untrusted = issueAppToken('ws_untrusted', 'Apps/Clock')
     expect((await get(`/app/${untrusted}/index.html`)).status).toBe(403)

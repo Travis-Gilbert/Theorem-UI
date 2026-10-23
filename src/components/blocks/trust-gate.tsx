@@ -21,7 +21,10 @@ export function TrustGate({
   return (
     <div data-slot="trust-gate" className="space-y-2 py-2">
       <div className="flex items-start gap-2 px-3 text-xs">
-        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-ink-muted" aria-hidden />
+        <ShieldAlert
+          className="mt-0.5 size-4 shrink-0 text-ink-muted"
+          aria-hidden
+        />
         <p className="text-ink-muted">
           <span className="font-medium text-ink">
             {client.workspace.name} is not trusted, so its blocks do not run.

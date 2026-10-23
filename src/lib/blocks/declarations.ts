@@ -81,7 +81,10 @@ function validate(kind: keyof Capabilities, value: string): string | null {
     return `net("${value}") needs a host name such as api.example.com`
   if (kind === 'run' && !RUN_TARGET.test(value))
     return `run("${value}") needs an agent block such as agent:#nightly`
-  if ((kind === 'read' || kind === 'write') && /^\/|(^|\/)\.\.(\/|$)/.test(value))
+  if (
+    (kind === 'read' || kind === 'write') &&
+    /^\/|(^|\/)\.\.(\/|$)/.test(value)
+  )
     return `files.${kind}("${value}") must stay inside the folder`
   return null
 }
@@ -96,7 +99,9 @@ export function parseDeclarationList(
   try {
     expression = parseExpressionAt(text, 0, { ecmaVersion: 'latest' })
   } catch (error) {
-    into.errors.push(`Cannot read "${text.trim()}": ${(error as Error).message}`)
+    into.errors.push(
+      `Cannot read "${text.trim()}": ${(error as Error).message}`,
+    )
     return into
   }
   const calls =

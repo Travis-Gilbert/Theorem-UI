@@ -7,7 +7,10 @@ import { BLOCK_SANDBOX } from '@/lib/blocks/executor'
 import { saveSnapshot, snapshotKey } from '@/lib/blocks/snapshots'
 import type { FileViewProps } from '@/lib/handlers/types'
 import type { WorkspaceClient } from '@/lib/workspace/types'
-import { BLOCK_ORIGIN, stubLocalServer } from '../../../test/blocks/local-server'
+import {
+  BLOCK_ORIGIN,
+  stubLocalServer,
+} from '../../../test/blocks/local-server'
 import type { LocalServer } from '../../../test/blocks/local-server'
 import { memoryWorkspace } from '../../../test/blocks/memory-workspace'
 import {
@@ -110,7 +113,9 @@ test("the code editor's Run runs a tool file only once it is pressed", async () 
   const frame = await waitFor(() => frameIn(container))
   expect(frame.src).toBe(`${BLOCK_ORIGIN}/cell/ws_test/${key}`)
   expect(
-    container.querySelector('[data-slot="block-frame"]')!.hasAttribute('hidden'),
+    container
+      .querySelector('[data-slot="block-frame"]')!
+      .hasAttribute('hidden'),
   ).toBe(true)
   expect(buttonNamed(container, 'Run again')).toBeDefined()
 })

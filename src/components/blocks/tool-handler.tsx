@@ -42,7 +42,8 @@ const extensionOf = (path: string) => {
 }
 
 /** Whether the code handler's Run runs this file: TypeScript or JavaScript. */
-export const runsAsTool = (path: string) => CODE_LANGUAGES.has(extensionOf(path))
+export const runsAsTool = (path: string) =>
+  CODE_LANGUAGES.has(extensionOf(path))
 
 function useTool({ client, path }: FileViewProps) {
   const session = useBlockSession(client, path, 'tool')
@@ -87,7 +88,12 @@ function ToolBody({
     return (
       <TrustGate client={file.client}>
         {block && (
-          <SourceEditor value={block.source} lang="tsx" readOnly label={title} />
+          <SourceEditor
+            value={block.source}
+            lang="tsx"
+            readOnly
+            label={title}
+          />
         )}
       </TrustGate>
     )
@@ -173,7 +179,13 @@ export function ToolPanel(file: FileViewProps) {
   )
 }
 
-function ToolSummary({ file, tool }: { file: FileViewProps; tool: ReturnType<typeof useTool> }) {
+function ToolSummary({
+  file,
+  tool,
+}: {
+  file: FileViewProps
+  tool: ReturnType<typeof useTool>
+}) {
   return (
     <div className="flex h-full flex-col justify-end gap-1 p-3">
       <span className="truncate text-sm font-medium text-ink">

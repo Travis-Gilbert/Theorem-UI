@@ -9,7 +9,10 @@ export const agentSchema = z.strictObject({
   inputs: z.array(z.string()).default([]),
   /** `manual`, or `{ schedule: "<cron>" }`. */
   trigger: z
-    .union([z.literal('manual'), z.strictObject({ schedule: z.string().min(1) })])
+    .union([
+      z.literal('manual'),
+      z.strictObject({ schedule: z.string().min(1) }),
+    ])
     .default('manual'),
   /** Where the run writes its result, relative to the workspace. */
   output: z.string().optional(),
@@ -46,7 +49,9 @@ export function parseAgent(body: string): AgentSpec {
 
 /** The blocks an agent reads, by name. */
 export const agentInputs = (spec: AgentSpec): Array<string> =>
-  spec.inputs.filter((input) => input.startsWith('#')).map((input) => input.slice(1))
+  spec.inputs
+    .filter((input) => input.startsWith('#'))
+    .map((input) => input.slice(1))
 
 /** The workspace paths an agent reads. */
 export const agentReads = (spec: AgentSpec): Array<string> =>

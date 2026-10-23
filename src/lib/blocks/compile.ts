@@ -224,8 +224,7 @@ export interface CompileFailure {
 }
 
 export type CompileResult =
-  | { ok: true; cell: CompiledCell }
-  | { ok: false; error: CompileFailure }
+  { ok: true; cell: CompiledCell } | { ok: false; error: CompileFailure }
 
 export interface WorkerMethods {
   compile: { params: { source: string }; result: CompileResult }

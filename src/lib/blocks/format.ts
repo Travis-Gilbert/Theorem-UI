@@ -212,7 +212,8 @@ function containerPrefix(source: string, offset: number): string {
     .slice(lineStart, offset)
     .replace(
       LIST_MARKER,
-      (_match, lead: string, marker: string) => lead + ' '.repeat(marker.length),
+      (_match, lead: string, marker: string) =>
+        lead + ' '.repeat(marker.length),
     )
 }
 
@@ -258,7 +259,9 @@ function rawFence(code: Code, slicer: Slicer | null): string {
     const lineStart = source.lastIndexOf('\n', start - 1) + 1
     return source.slice(lineStart, end)
   }
-  return stripContainer(source.slice(start, end), prefix) ?? fenceFromValue(code)
+  return (
+    stripContainer(source.slice(start, end), prefix) ?? fenceFromValue(code)
+  )
 }
 
 interface Absorbed {

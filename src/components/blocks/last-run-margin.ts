@@ -6,7 +6,12 @@
 // edited line shows nothing until the block runs again.
 import { RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import type { Extension, Text } from '@codemirror/state'
-import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view'
+import {
+  Decoration,
+  EditorView,
+  ViewPlugin,
+  WidgetType,
+} from '@codemirror/view'
 import type { DecorationSet, ViewUpdate } from '@codemirror/view'
 import { sha256Hex } from '@/lib/blocks/compile'
 import { fetchLastRun, onLastRun } from '@/lib/blocks/last-run'
@@ -68,23 +73,25 @@ function decorations(doc: Text, run: LastRun | null): DecorationSet {
   return builder.finish()
 }
 
-const runField = StateField.define<{ run: LastRun | null; set: DecorationSet }>({
-  create: () => ({ run: null, set: Decoration.none }),
-  update(value, transaction) {
-    let next = value
-    // Values belong to the source that produced them: an edit takes them away.
-    if (transaction.docChanged) next = { run: null, set: Decoration.none }
-    for (const effect of transaction.effects)
-      if (effect.is(showRun))
-        next = {
-          run: effect.value,
-          set: decorations(transaction.state.doc, effect.value),
-        }
-    return next
+const runField = StateField.define<{ run: LastRun | null; set: DecorationSet }>(
+  {
+    create: () => ({ run: null, set: Decoration.none }),
+    update(value, transaction) {
+      let next = value
+      // Values belong to the source that produced them: an edit takes them away.
+      if (transaction.docChanged) next = { run: null, set: Decoration.none }
+      for (const effect of transaction.effects)
+        if (effect.is(showRun))
+          next = {
+            run: effect.value,
+            set: decorations(transaction.state.doc, effect.value),
+          }
+      return next
+    },
+    provide: (field) =>
+      EditorView.decorations.from(field, (value) => value.set),
   },
-  provide: (field) =>
-    EditorView.decorations.from(field, (value) => value.set),
-})
+)
 
 /** How long typing pauses before the values for the new source are looked up. */
 const LOOKUP_DELAY_MS = 250
@@ -118,7 +125,8 @@ const lookup = (workspaceId: WorkspaceId) =>
         const text = this.view.state.doc.toString()
         this.timer = setTimeout(() => {
           void sha256Hex(text).then(async (hash) => {
-            if (this.destroyed || this.view.state.doc.toString() !== text) return
+            if (this.destroyed || this.view.state.doc.toString() !== text)
+              return
             this.hash = hash
             const run = await fetchLastRun(workspaceId, hash).catch(
               (error: unknown) => {

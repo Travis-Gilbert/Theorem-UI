@@ -58,7 +58,9 @@ export function snapshotHtml(): string {
     } else if (element instanceof HTMLTextAreaElement) {
       target.textContent = element.value
     } else if (element instanceof HTMLSelectElement) {
-      for (const [i, option] of [...(target as HTMLSelectElement).options].entries())
+      for (const [i, option] of [
+        ...(target as HTMLSelectElement).options,
+      ].entries())
         option.toggleAttribute('selected', i === element.selectedIndex)
     } else if (element instanceof HTMLCanvasElement) {
       const image = document.createElement('img')

@@ -54,9 +54,9 @@ test('a table shows its groups, its summaries and a day as a day', async () => {
   expect(headers.map((th) => th.textContent)).toEqual(['Habit', 'Date', 'Done'])
   const groups = [...container.querySelectorAll('th[scope="rowgroup"]')]
   expect(groups.map((th) => th.textContent)).toEqual(['run2', 'read1'])
-  expect(container.querySelector('tbody td')?.nextElementSibling?.textContent).toBe(
-    '2026-10-20',
-  )
+  expect(
+    container.querySelector('tbody td')?.nextElementSibling?.textContent,
+  ).toBe('2026-10-20')
   expect(container.querySelector('tfoot')?.textContent).toBe('2')
 })
 
@@ -78,7 +78,11 @@ test('several views get a tab each, and a calendar places rows on their days', a
     />,
   )
   const tabs = [...container.querySelectorAll('[role="tab"]')]
-  expect(tabs.map((tab) => tab.textContent)).toEqual(['All', 'List', 'Calendar'])
+  expect(tabs.map((tab) => tab.textContent)).toEqual([
+    'All',
+    'List',
+    'Calendar',
+  ])
   expect(container.querySelector('table')).not.toBeNull()
 
   await click(tabs[1]!)
@@ -97,7 +101,10 @@ test('several views get a tab each, and a calendar places rows on their days', a
 test('expressions that failed are shown', async () => {
   const { container } = await render(
     <QueryView
-      result={{ ...result(view({})), errors: ['formula streak: x is not defined'] }}
+      result={{
+        ...result(view({})),
+        errors: ['formula streak: x is not defined'],
+      }}
     />,
   )
   expect(container.querySelector('[role="alert"]')?.textContent).toBe(

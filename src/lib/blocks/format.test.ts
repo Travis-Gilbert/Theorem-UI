@@ -57,7 +57,8 @@ const fences: Record<string, string> = {
     'inputs: [streak, Data/habits.csv]',
     '~~~~   ',
   ].join('\n'),
-  'indented fence': '  ```tsx{.live #indented}\n  const x = 2\n      deeper\n  ```',
+  'indented fence':
+    '  ```tsx{.live #indented}\n  const x = 2\n      deeper\n  ```',
   'blank lines and trailing spaces': [
     '```ts {.live #spaces}',
     'const a = 1   ',
@@ -134,7 +135,9 @@ describe('live fences round-trip byte for byte through Crepe', () => {
       expect(nodeTypes(crepe)).toContain(LIVE_BLOCK_NODE)
       return crepe.getMarkdown()
     })
-    expect(out).toContain('```tsx {.live #inlist}\n  const x = 1\n\n    x\n  ```')
+    expect(out).toContain(
+      '```tsx {.live #inlist}\n  const x = 1\n\n    x\n  ```',
+    )
   })
 
   test('a second pass is stable', async () => {
@@ -156,7 +159,9 @@ describe('fence helpers', () => {
     })
     expect(fenceInfo('```tsx {.wide}\n```')).toBeNull()
     expect(fenceInfo('```tsx\n```')).toBeNull()
-    expect(fenceInfo(fences['live on a language nothing runs']!)?.kind).toBeNull()
+    expect(
+      fenceInfo(fences['live on a language nothing runs']!)?.kind,
+    ).toBeNull()
   })
 
   test('code is read without the fence indentation and written back with it', () => {
@@ -197,7 +202,11 @@ describe('fence helpers', () => {
     )
     expect(pinnedBody(output)).toBe('**3**')
     expect(
-      serializeLiveBlock({ fence: '```tsx {.live #total}\n1\n```', gap: '\n\n', output }),
+      serializeLiveBlock({
+        fence: '```tsx {.live #total}\n1\n```',
+        gap: '\n\n',
+        output,
+      }),
     ).toBe(`\`\`\`tsx {.live #total}\n1\n\`\`\`\n\n${output}`)
   })
 })

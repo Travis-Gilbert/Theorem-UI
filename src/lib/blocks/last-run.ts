@@ -78,7 +78,10 @@ export async function fetchLastRun(
   return (await response.json()) as LastRun
 }
 
-export async function saveLastRun(id: WorkspaceId, run: LastRun): Promise<void> {
+export async function saveLastRun(
+  id: WorkspaceId,
+  run: LastRun,
+): Promise<void> {
   const response = await fetch(`${base(id)}?hash=${run.sourceHash}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },

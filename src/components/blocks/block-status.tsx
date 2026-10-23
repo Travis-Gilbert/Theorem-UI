@@ -1,6 +1,11 @@
 // SOURCING: lucide-react (the status glyphs) and the app's Tailwind tokens.
 // How a block says where it stands: computing, done, failed, waiting for Run.
-import { CircleAlert, CircleCheck, CircleDashed, LoaderCircle } from 'lucide-react'
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
+  LoaderCircle,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { CellState } from '@/lib/blocks/runtime'
 import { cn } from '@/lib/utils'

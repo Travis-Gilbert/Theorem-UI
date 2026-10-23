@@ -52,7 +52,10 @@ export interface PageMethods {
     result: unknown
   }
   'files.list': { params: { glob: string }; result: Array<ListedFile> }
-  'files.write': { params: { path: string; text: string }; result: { hash: string } }
+  'files.write': {
+    params: { path: string; text: string }
+    result: { hash: string }
+  }
   'state.open': {
     params: { name: string }
     result: Record<string, unknown>

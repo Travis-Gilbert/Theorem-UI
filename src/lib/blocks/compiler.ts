@@ -26,9 +26,7 @@ export function compileInWorker(): Promise<Compiler> {
       }),
     )
     return async (source: string) =>
-      unwrap(
-        await call<WorkerMethods, 'compile'>(rpc, 'compile', { source }),
-      )
+      unwrap(await call<WorkerMethods, 'compile'>(rpc, 'compile', { source }))
   })
   return worker
 }

@@ -2,6 +2,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { blockRoutes } from '#/server/desktop/blocks/http'
 
-export const Route = createFileRoute('/desktop/workspace/$workspaceId/state-events')({
+export const Route = createFileRoute(
+  '/desktop/workspace/$workspaceId/state-events',
+)({
   server: { handlers: blockRoutes.stateEvents },
 })

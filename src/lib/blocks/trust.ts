@@ -29,7 +29,11 @@ export async function setFolderTrust(
 
 /** Whether the folder is trusted, and the action that trusts it. */
 export function useFolderTrust(client: WorkspaceClient) {
-  useSyncExternalStore(subscribe, () => changes, () => changes)
+  useSyncExternalStore(
+    subscribe,
+    () => changes,
+    () => changes,
+  )
   // Optional: block views also render outside the app's providers.
   const queryClient = useContext(QueryClientContext)
   const [pending, setPending] = useState(false)

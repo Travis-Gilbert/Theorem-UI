@@ -72,7 +72,9 @@ test('the page shows a snapshot sanitized, under a policy that loads nothing', (
   ).toBe(
     "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:",
   )
-  expect(parsed.body.querySelector('style')?.textContent).toBe('.x { color: red }')
+  expect(parsed.body.querySelector('style')?.textContent).toBe(
+    '.x { color: red }',
+  )
   expect(parsed.querySelector('p.x')?.textContent).toBe('kept')
   expect(parsed.querySelector('img')?.hasAttribute('onerror')).toBe(false)
   expect(parsed.body.querySelector('meta')).toBeNull()
