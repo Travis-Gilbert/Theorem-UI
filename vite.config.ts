@@ -8,6 +8,9 @@ import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
 import svgr from 'vite-plugin-svgr'
 
+// `bun run deploy:cloudflare` builds for Workers; every other build is the Bun server.
+const cloudflare = process.env.NITRO_PRESET === 'cloudflare_module'
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
@@ -24,11 +27,24 @@ const config = defineConfig({
       },
     }),
     tanstackStart(),
-    // Self-hosted on Bun beside the Theorem authority; the proxy reaches it on localhost.
-    // The IDE frame is the browser-only Theia build in ide/, served beside the
-    // app so it shares this origin, its proxy and its session.
+    // Self-hosted on Bun beside the Theorem authority, or the theorem-ui Worker
+    // on theorem.rs. The IDE frame is the browser-only Theia build in ide/,
+    // served beside the app so it shares this origin, its proxy and its session.
     nitro({
-      preset: 'bun',
+      preset: cloudflare ? 'cloudflare_module' : 'bun',
+      cloudflare: {
+        deployConfig: true,
+        nodeCompat: true,
+        // Secrets are set with `wrangler secret put`; see README.
+        wrangler: {
+          name: 'theorem-ui',
+          compatibility_date: '2026-10-01',
+          routes: [{ pattern: 'theorem.rs', custom_domain: true }],
+          // Also reachable at theorem-ui.<account>.workers.dev.
+          workers_dev: true,
+          vars: { THEOREM_API_URL: 'https://theoremweb.com' },
+        },
+      },
       publicAssets: [
         {
           baseURL: '/theia',
@@ -36,6 +52,8 @@ const config = defineConfig({
             new URL('./ide/applications/browser/lib/frontend', import.meta.url),
           ),
           maxAge: 0,
+          // Workers cap a static asset at 25 MiB; Theia's source maps exceed it.
+          ignore: cloudflare ? ['**/*.map', '**/*.map.gz'] : undefined,
         },
       ],
     }),
