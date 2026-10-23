@@ -108,9 +108,7 @@ describe('parseNote', () => {
   })
 
   test('collects headings, inline tags, tasks and block ids', () => {
-    expect(note.headings).toEqual([
-      { depth: 1, text: 'Plan #weekly', line: 6 },
-    ])
+    expect(note.headings).toEqual([{ depth: 1, text: 'Plan #weekly', line: 6 }])
     expect(note.tags.filter((t) => t.source === 'inline')).toEqual([
       { tag: 'weekly', source: 'inline', line: 6 },
       { tag: 'todo/done', source: 'inline', line: 13 },
