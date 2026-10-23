@@ -126,6 +126,20 @@ export function applyWorkspaceEvent(
   }
 }
 
+/**
+ * One entry of a workspace's tree, from the cache `useWorkspaceTree` keeps
+ * current. A view inside one that holds the tree (a file panel, a canvas)
+ * reads entries without subscribing again.
+ */
+export function useWorkspaceEntry(client: WorkspaceClient, path: string | null) {
+  return useQuery({
+    queryKey: workspaceTreeKey(client.workspace.id),
+    queryFn: () => client.tree(),
+    staleTime: Infinity,
+    select: (entries) => entries.find((e) => e.path === path),
+  })
+}
+
 /** A workspace's entries, updated from its events as they arrive. */
 export function useWorkspaceTree(client: WorkspaceClient) {
   const queryClient = useQueryClient()

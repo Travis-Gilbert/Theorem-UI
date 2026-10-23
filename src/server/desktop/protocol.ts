@@ -28,6 +28,10 @@ export const hostCallSchema = z.discriminatedUnion('method', [
     params: z.object({ path: z.string() }),
   }),
   z.object({
+    method: z.literal('openWithDefault'),
+    params: z.object({ path: z.string() }),
+  }),
+  z.object({
     method: z.literal('openExternal'),
     params: z.object({ url: z.string() }),
   }),

@@ -4,4 +4,4 @@
  * A call the page makes on the host. Serialized the way JSON-RPC 2.0 spells
  * a request's `method` and `params`.
  */
-export type HostCall = { "method": "pickFolder", "params": Record<symbol, never> } | { "method": "openNativeEditor", "params": { path: string, } } | { "method": "revealInFinder", "params": { path: string, } } | { "method": "openExternal", "params": { url: string, } } | { "method": "setDocumentEdited", "params": { edited: boolean, } } | { "method": "notify", "params": { title: string, body: string | null, } };
+export type HostCall = { "method": "pickFolder", "params": Record<symbol, never> } | { "method": "openNativeEditor", "params": { path: string, } } | { "method": "revealInFinder", "params": { path: string, } } | { "method": "openWithDefault", "params": { path: string, } } | { "method": "openExternal", "params": { url: string, } } | { "method": "setDocumentEdited", "params": { edited: boolean, } } | { "method": "notify", "params": { title: string, body: string | null, } };

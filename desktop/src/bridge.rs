@@ -1,9 +1,10 @@
 //! The host's side of the bridge (plan D5): the server's lifetime, the
 //! granted folders, and the answers to the page's `HostCall`s.
 //!
-//! SOURCING: GPUI for the open panel, Finder, URLs and the edited mark;
-//! notify-rust for notifications. Grant checks and restarts are ours: they
-//! are this app's policy, not something a library models.
+//! SOURCING: GPUI for the open panel, Finder, the system's default apps,
+//! URLs and the edited mark; notify-rust for notifications. Grant checks and
+//! restarts are ours: they are this app's policy, not something a library
+//! models.
 
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -200,6 +201,10 @@ impl Host {
     fn granted(path: &str, cx: &App) -> Result<PathBuf, RpcError> {
         check_grant(path, &cx.global::<Host>().grants)
     }
+
+    fn openable(path: &str, cx: &App) -> Result<PathBuf, RpcError> {
+        check_openable(path, &cx.global::<Host>().grants)
+    }
 }
 
 /// The canonical path, if it lies inside a granted folder. A path outside
@@ -224,6 +229,53 @@ fn check_grant(path: &str, grants: &[FolderGrant]) -> Result<PathBuf, RpcError> 
             format!("{path} is outside every granted folder"),
         )),
     }
+}
+
+/// Extensions macOS runs, installs or follows when it opens them, rather than
+/// showing them in an app.
+const LAUNCHED: &[&str] = &[
+    "app",
+    "command",
+    "tool",
+    "terminal",
+    "jar",
+    "pkg",
+    "mpkg",
+    "mobileconfig",
+    "webloc",
+    "inetloc",
+    "fileloc",
+];
+
+/// A granted path the system may open with its default app. The page can
+/// write into granted folders, so this refuses what the system would run
+/// rather than open: folders (app bundles are folders), files marked
+/// executable, and the types in [`LAUNCHED`].
+fn check_openable(path: &str, grants: &[FolderGrant]) -> Result<PathBuf, RpcError> {
+    let path = check_grant(path, grants)?;
+    let metadata = fs::metadata(&path).map_err(failed)?;
+    let launched = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| LAUNCHED.contains(&extension.to_ascii_lowercase().as_str()));
+    if metadata.is_dir() || executable(&metadata) || launched {
+        return Err(RpcError::new(
+            RpcError::INVALID_PARAMS,
+            format!("{} would run rather than open", path.display()),
+        ));
+    }
+    Ok(path)
+}
+
+#[cfg(unix)]
+fn executable(metadata: &fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt as _;
+    metadata.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(not(unix))]
+fn executable(_: &fs::Metadata) -> bool {
+    false
 }
 
 fn grants_file(config: &ServerConfig) -> PathBuf {
@@ -259,6 +311,9 @@ fn answer(call: HostCall, cx: &mut App) -> Task<Result<Value, RpcError>> {
         ),
         HostCall::RevealInFinder { path } => {
             done(Host::granted(&path, cx).map(|path| cx.reveal_path(&path)))
+        }
+        HostCall::OpenWithDefault { path } => {
+            done(Host::openable(&path, cx).map(|path| cx.open_with_system(&path)))
         }
         HostCall::OpenExternal { url } => done(match Url::parse(&url) {
             Ok(url) if matches!(url.scheme(), "http" | "https") => {
@@ -367,6 +422,39 @@ mod tests {
         // `..` and relative paths are refused before touching the disk.
         assert_eq!(code(&dir.join("notes/../secret.md")), Err(RpcError::INVALID_PARAMS));
         assert_eq!(code(Path::new("notes/a.md")), Err(RpcError::INVALID_PARAMS));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn only_granted_documents_open_with_their_app() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = std::env::temp_dir()
+            .canonicalize()
+            .unwrap()
+            .join(format!("theorem-open-{}", std::process::id()));
+        let notes = dir.join("notes");
+        fs::create_dir_all(notes.join("Tool.app")).unwrap();
+        for name in ["paper.pdf", "data.bin", "run.command", "site.WEBLOC", "script.sh"] {
+            fs::write(notes.join(name), "x").unwrap();
+        }
+        fs::set_permissions(notes.join("script.sh"), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::write(dir.join("secret.pdf"), "s").unwrap();
+        let grants = [grant(notes.to_str().unwrap())];
+        let code =
+            |path: &Path| check_openable(path.to_str().unwrap(), &grants).map_err(|e| e.code);
+
+        assert_eq!(code(&notes.join("paper.pdf")), Ok(notes.join("paper.pdf")));
+        assert_eq!(code(&notes.join("data.bin")), Ok(notes.join("data.bin")));
+        // The grant check comes first, with its answers.
+        assert_eq!(code(&dir.join("secret.pdf")), Err(RpcError::NOT_GRANTED));
+        assert_eq!(code(&dir.join("missing.pdf")), Err(RpcError::NOT_GRANTED));
+        assert_eq!(code(&notes.join("../secret.pdf")), Err(RpcError::INVALID_PARAMS));
+        assert_eq!(code(&notes.join("missing.pdf")), Err(RpcError::INVALID_PARAMS));
+        // What the system would run is refused, whatever the case of its name.
+        for name in ["Tool.app", "run.command", "site.WEBLOC", "script.sh"] {
+            assert_eq!(code(&notes.join(name)), Err(RpcError::INVALID_PARAMS), "{name}");
+        }
+        assert_eq!(code(&notes), Err(RpcError::INVALID_PARAMS));
         fs::remove_dir_all(dir).unwrap();
     }
 }

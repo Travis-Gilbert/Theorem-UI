@@ -1,13 +1,20 @@
-// SOURCING: dockview-react (the file's dock panel and its placement),
-// @tanstack/react-query (the file's bytes, refetched on its events), the
-// platform TextDecoder; ui/button. A plain text view: the note editor is bound
-// to Theorem Documents (editNote, the note cache), not to files.
+// SOURCING: dockview-react (the file's dock panel and its placement), the
+// handler registry (plan D13: the file is shown by the Panel of the handler
+// that opens it, or of the one picked in "Open with"), @tanstack/react-query
+// (a Markdown file's properties, which handlers may match on); ui/button.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react'
 import { useEffect, useEffectEvent, useState } from 'react'
+import { OpenWith } from '@/components/handlers/open-with'
 import { Icon } from '@/components/icons'
 import { openBeside } from '@/components/shell/open-beside'
 import { Button } from '@/components/ui/button'
+import {
+  handlerFor,
+  matchInput,
+  mimeOf,
+  useHandlerRegistry,
+} from '@/lib/handlers/registry'
 import {
   openWorkspaceFile,
   useWorkspaceFileView,
@@ -15,63 +22,108 @@ import {
 } from '@/lib/workspace/open'
 import type { WorkspaceFileRef } from '@/lib/workspace/open'
 import type { WorkspaceClient, WorkspaceEvent } from '@/lib/workspace/types'
-import { useWorkspaceClient, useWorkspaces } from '@/lib/workspace/workspaces'
+import {
+  useWorkspaceClient,
+  useWorkspaceTree,
+  useWorkspaces,
+} from '@/lib/workspace/workspaces'
 import { cn } from '@/lib/utils'
 
 /** The dock's component name for workspace files. */
 export const WORKSPACE_FILE_COMPONENT = 'workspaceFile'
 
-/** Above this the file is not shown as text. */
-const TEXT_LIMIT = 2 * 1024 * 1024
-
 const basename = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const within = (path: string, folder: string) =>
   path === folder || path.startsWith(`${folder}/`)
 
-type Contents =
-  | { kind: 'text'; text: string; hash: string }
-  | { kind: 'binary' | 'large'; hash: string }
-
-async function readContents(
-  client: WorkspaceClient,
-  path: string,
-): Promise<Contents> {
-  const { bytes, hash } = await client.read(path)
-  if (bytes.length > TEXT_LIMIT) return { kind: 'large', hash }
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    return { kind: 'text', text, hash }
-  } catch {
-    return { kind: 'binary', hash }
-  }
-}
-
-function FileBody({
-  client,
-  path,
-  onMoved,
-}: {
-  client: WorkspaceClient
-  path: string
-  onMoved: (path: string) => void
-}) {
+/**
+ * A Markdown file's frontmatter properties, from the workspace index, for
+ * handlers that match on them; null for other files.
+ */
+function useMatchProperties(client: WorkspaceClient, path: string) {
   const queryClient = useQueryClient()
-  const queryKey = ['desktop', 'workspace', client.workspace.id, 'file', path]
-  const contents = useQuery({
+  const markdown = mimeOf(path) === 'text/markdown'
+  const queryKey = [
+    'desktop',
+    'workspace',
+    client.workspace.id,
+    'file',
+    path,
+    'properties',
+  ]
+  const onEvent = useEffectEvent((event: WorkspaceEvent) => {
+    // The index has the file's new properties once it has caught up.
+    if (event.type === 'indexed' || event.type === 'resync')
+      void queryClient.invalidateQueries({ queryKey })
+  })
+  useEffect(() => client.subscribe((event) => onEvent(event)), [client])
+  return useQuery({
     queryKey,
-    queryFn: () => readContents(client, path),
+    queryFn: () => client.properties(path),
+    enabled: markdown,
     staleTime: Infinity,
     retry: false,
   })
+}
+
+function Message({ children }: { children: React.ReactNode }) {
+  return <p className="p-6 text-sm text-ink-muted">{children}</p>
+}
+
+function Header({
+  path,
+  onClose,
+  children,
+}: {
+  path: string
+  onClose?: () => void
+  /** Controls before Close. */
+  children?: React.ReactNode
+}) {
+  return (
+    <header className="flex h-10 shrink-0 items-center gap-2 border-b border-separator px-4">
+      <Icon.TreeFile className="size-4 shrink-0 text-ink-faint" />
+      <h2 className="min-w-0 flex-1 truncate text-sm font-medium" title={path}>
+        {basename(path)}
+      </h2>
+      {children}
+      {onClose && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <Icon.Close />
+        </Button>
+      )}
+    </header>
+  )
+}
+
+function FileView({
+  client,
+  file,
+  onMoved,
+  onClose,
+}: {
+  client: WorkspaceClient
+  file: WorkspaceFileRef
+  onMoved: (path: string) => void
+  onClose?: () => void
+}) {
+  const { path } = file
+  const tree = useWorkspaceTree(client)
+  const entry = tree.data?.find((e) => e.path === path)
+  const properties = useMatchProperties(client, path)
+  const handlers = useHandlerRegistry((s) => s.handlers)
   const [deleted, setDeleted] = useState(false)
 
   const onEvent = useEffectEvent((event: WorkspaceEvent) => {
     switch (event.type) {
       case 'changed':
       case 'created':
-        if (event.entry.path !== path) return
-        setDeleted(false)
-        void queryClient.invalidateQueries({ queryKey })
+        if (event.entry.path === path) setDeleted(false)
         return
       case 'renamed':
         if (within(path, event.from))
@@ -82,31 +134,54 @@ function FileBody({
         return
       case 'resync':
         setDeleted(false)
-        void queryClient.invalidateQueries({ queryKey })
     }
   })
   useEffect(() => client.subscribe((event) => onEvent(event)), [client])
 
-  if (deleted)
-    return <p className="p-6 text-sm text-ink-muted">This file was deleted.</p>
-  if (contents.isPending)
-    return <p className="p-6 text-sm text-ink-muted">Loading…</p>
-  if (contents.isError)
-    return (
-      <p className="p-6 text-sm text-ink-muted">This file is unavailable.</p>
+  const matched =
+    entry &&
+    !properties.isLoading &&
+    handlerFor(matchInput(entry, properties.data ?? null), handlers)
+  const handler =
+    (file.handler && handlers.find((h) => h.id === file.handler)) || matched
+
+  let body: React.ReactNode
+  if (deleted) body = <Message>This file was deleted.</Message>
+  else if (tree.isPending || properties.isLoading)
+    body = <Message>Loading…</Message>
+  else if (!entry) body = <Message>This file is not in this folder.</Message>
+  else if (!handler) body = <Message>Nothing here can show this file.</Message>
+  else
+    body = (
+      <div className="min-h-0 flex-1">
+        <handler.Panel
+          // Another file or another view is a new view.
+          key={`${handler.id}:${path}`}
+          client={client}
+          path={path}
+          entry={entry}
+        />
+      </div>
     )
-  if (contents.data.kind !== 'text')
-    return (
-      <p className="p-6 text-sm text-ink-muted">
-        {contents.data.kind === 'large'
-          ? 'This file is too large to show as text.'
-          : 'This file is not text.'}
-      </p>
-    )
+
   return (
-    <pre className="min-h-0 flex-1 overflow-auto p-4 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap">
-      {contents.data.text}
-    </pre>
+    <>
+      <Header path={path} onClose={onClose}>
+        {entry && handler && !deleted && (
+          <OpenWith
+            file={{ client, path, entry }}
+            properties={properties.data}
+            current={handler.id}
+            render={
+              <Button variant="ghost" size="icon-xs" aria-label="Open with" />
+            }
+          >
+            <Icon.More />
+          </OpenWith>
+        )}
+      </Header>
+      {body}
+    </>
   )
 }
 
@@ -128,36 +203,21 @@ export function WorkspaceFilePanel({
 
   return (
     <div className={cn('flex h-full flex-col bg-artifact', className)}>
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-separator px-4">
-        <Icon.TreeFile className="size-4 shrink-0 text-ink-faint" />
-        <h2
-          className="min-w-0 flex-1 truncate text-sm font-medium"
-          title={file.path}
-        >
-          {basename(file.path)}
-        </h2>
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <Icon.Close />
-          </Button>
-        )}
-      </header>
       {client ? (
-        <FileBody
+        <FileView
           key={file.path}
           client={client}
-          path={file.path}
+          file={file}
           onMoved={onMoved}
+          onClose={onClose}
         />
       ) : (
-        <p className="p-6 text-sm text-ink-muted">
-          {isPending ? 'Loading…' : 'This folder is not open.'}
-        </p>
+        <>
+          <Header path={file.path} onClose={onClose} />
+          <Message>
+            {isPending ? 'Loading…' : 'This folder is not open.'}
+          </Message>
+        </>
       )}
     </div>
   )
@@ -173,7 +233,7 @@ export function WorkspaceFileDockPanel({
   params,
 }: IDockviewPanelProps<WorkspaceFileRef>) {
   const onMoved = (path: string) => {
-    const next = { workspaceId: params.workspaceId, path }
+    const next = { ...params, path }
     if (!containerApi.getPanel(workspaceFilePanelId(next)))
       containerApi.addPanel({
         id: workspaceFilePanelId(next),
@@ -189,7 +249,8 @@ export function WorkspaceFileDockPanel({
 
 /**
  * Opens a file in the dock: it joins the open workspace file tabs, else opens
- * beside `besidePanelId` (the conversation) when that sits in the grid.
+ * beside `besidePanelId` (the conversation) when that sits in the grid. A file
+ * already open comes forward, switched to `file.handler` when one is given.
  */
 export function openWorkspaceFilePanel(
   api: DockviewApi,
@@ -199,6 +260,7 @@ export function openWorkspaceFilePanel(
   const id = workspaceFilePanelId(file)
   const existing = api.getPanel(id)
   if (existing) {
+    if (file.handler) existing.api.updateParameters(file)
     existing.api.setActive()
     return
   }

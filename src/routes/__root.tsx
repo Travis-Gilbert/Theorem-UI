@@ -9,7 +9,11 @@ import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { isDesktopDocument } from '@/lib/desktop/host'
+import { registerBuiltinHandlers } from '@/lib/handlers/builtins'
 import appCss from '../styles.css?url'
+
+// Every view that shows a workspace file asks the registry which handler opens it.
+registerBuiltinHandlers()
 
 interface RouterContext {
   queryClient: QueryClient

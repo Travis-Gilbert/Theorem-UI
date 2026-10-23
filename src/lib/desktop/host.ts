@@ -16,6 +16,11 @@ export interface DesktopHost {
   /** Open a file, inside a granted folder, in a native editor window. */
   openNativeEditor: (absolutePath: string) => Promise<void>
   revealInFinder: (absolutePath: string) => Promise<void>
+  /**
+   * Open a file, inside a granted folder, with the app the system uses for
+   * its type. The host refuses folders and files it would run instead.
+   */
+  openWithDefault: (absolutePath: string) => Promise<void>
   openExternal: (url: string) => Promise<void>
   setDocumentEdited: (edited: boolean) => Promise<void>
   notify: (title: string, body?: string) => Promise<void>
@@ -88,6 +93,7 @@ function createDesktopHost(): DesktopHost {
     pickFolder: () => call('pickFolder', {}) as Promise<FolderGrant | null>,
     openNativeEditor: (path) => call('openNativeEditor', { path }).then(done),
     revealInFinder: (path) => call('revealInFinder', { path }).then(done),
+    openWithDefault: (path) => call('openWithDefault', { path }).then(done),
     openExternal: (url) => call('openExternal', { url }).then(done),
     setDocumentEdited: (edited) =>
       call('setDocumentEdited', { edited }).then(done),

@@ -8,6 +8,11 @@ export interface WorkspaceFileRef {
   workspaceId: WorkspaceId
   /** Workspace-relative POSIX path. */
   path: string
+  /**
+   * The id of the handler to show the file with, chosen in "Open with".
+   * Without one, the registry picks.
+   */
+  handler?: string
 }
 
 /** The Dockview panel id for a file opened from a workspace. */
