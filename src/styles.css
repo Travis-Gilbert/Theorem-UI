@@ -472,6 +472,20 @@
     background-color: currentColor;
     mask: var(--icon-mask) center / contain no-repeat;
   }
+
+  /* Without CSS masks (Servo 0.7) the mask would leave a solid square.
+     Paint the black mark itself, inverted to about the theme's ink; it
+     loses currentColor's hover and state colours until masks land. */
+  @supports not (mask-image: none) {
+    .icon-mask {
+      background: var(--icon-mask) center / contain no-repeat;
+      filter: invert(0.19);
+    }
+
+    .dark .icon-mask {
+      filter: invert(0.8);
+    }
+  }
 }
 
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
@@ -486,6 +500,12 @@
   background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
+
+  /* Without text clipping (Servo 0.7) the gradient would fill the box. */
+  @supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+    color: var(--ink-faint);
+    background-image: none;
+  }
 }
 
 /* Rows on the sheet sit over a gradient, so their hover is translucent ink
@@ -563,6 +583,11 @@
     top: calc(var(--rail-y) + var(--junction-item));
     background-position: 0 calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
     mask: radial-gradient(circle at 0 100%, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
+  }
+
+  /* Without CSS masks (Servo 0.7) a corner would paint as a square. */
+  @supports not (mask-image: none) {
+    display: none;
   }
 }
 
@@ -718,4 +743,17 @@
   --xy-controls-button-border-color: var(--line-separator);
   --xy-controls-box-shadow: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
   --xy-attribution-background-color: transparent;
+}
+
+/* Servo 0.7 parses pointer-events only as auto or none, so React Flow's
+   `all` is dropped and nodes and handles inherit the pane's none: nothing on
+   the canvas can be clicked, dragged or connected. For an HTML box, auto is
+   what all means. */
+@supports not (pointer-events: all) {
+  .react-flow__node,
+  .react-flow__nodesselection-rect,
+  .react-flow__handle.connectingfrom,
+  .react-flow__handle.connectionindicator {
+    pointer-events: auto;
+  }
 }
