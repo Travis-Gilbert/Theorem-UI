@@ -166,6 +166,21 @@ views:
     ])
   })
 
+  test('a mention formula that fails says so, by line, beside the rows', async () => {
+    const markdown = `# Trip [left:: = left - cost]
+
+- @2026-11-01 Flight [cost:: 600]
+`
+    const result = await runQuery(
+      parseQuery('from: mentions\nviews:\n  - order: [mention.text, left]'),
+      await context({ line: 1, embark: () => parseEmbark(markdown) }),
+    )
+    expect(result.rows).toEqual([{ 'mention.text': 'Flight', left: null }])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toStartWith('line 3, left: ')
+    expect(result.errors[0]).toContain('uses itself')
+  })
+
   test('a body that is not a query says what is wrong', () => {
     expect(() => parseQuery('from: [')).toThrow(QueryError)
     expect(() => parseQuery('views: []')).toThrow(/from/)

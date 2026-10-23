@@ -257,11 +257,14 @@ async function matchingFiles(client: WorkspaceClient, glob: string) {
     .sort((a, b) => ascending(a.path, b.path))
 }
 
-/** The rows a query's source gives, before formulas and filters. */
+/**
+ * The rows a query's source gives, before formulas and filters, with the
+ * errors of the mention formulas computed on the way.
+ */
 export async function loadRows(
   spec: QuerySpec,
   context: QueryContext,
-): Promise<Array<RowInput>> {
+): Promise<{ rows: Array<RowInput>; errors: Array<string> }> {
   const source = sourceOf(spec)
   switch (source.kind) {
     case 'files': {
@@ -280,10 +283,10 @@ export async function loadRows(
               ]
         for (const row of parsed) rows.push({ values: asObject(row), file })
       }
-      return rows
+      return { rows, errors: [] }
     }
-    case 'notes':
-      return Promise.all(
+    case 'notes': {
+      const rows = await Promise.all(
         (await matchingFiles(context.client, source.glob)).map(
           async (entry) => {
             const [properties, links] = await Promise.all([
@@ -303,6 +306,8 @@ export async function loadRows(
           },
         ),
       )
+      return { rows, errors: [] }
+    }
     case 'block': {
       const value = context.inputs[source.name]
       const rows =
@@ -311,7 +316,10 @@ export async function loadRows(
           : value
       if (!Array.isArray(rows))
         throw new QueryError(`#${source.name} is not a list of rows`)
-      return rows.map((row) => ({ values: asObject(row) }))
+      return {
+        rows: rows.map((row) => ({ values: asObject(row) })),
+        errors: [],
+      }
     }
     case 'mentions': {
       const document = context.embark()
@@ -321,21 +329,24 @@ export async function loadRows(
           ? { line: context.line }
           : { heading: source.heading },
       )
-      const { records: computed } = await computeEmbark(
+      const { records: computed, errors } = await computeEmbark(
         records,
         context.engine,
         context.today,
       )
-      return computed.map((record) => ({
-        values: asObject(record.values),
-        mention: {
-          date: record.date,
-          text: record.text,
-          line: record.line,
-          links: record.links,
-          heading: record.heading,
-        },
-      }))
+      return {
+        rows: computed.map((record) => ({
+          values: asObject(record.values),
+          mention: {
+            date: record.date,
+            text: record.text,
+            line: record.line,
+            links: record.links,
+            heading: record.heading,
+          },
+        })),
+        errors: errors.map(({ line, message }) => `line ${line}, ${message}`),
+      }
     }
   }
 }
@@ -430,7 +441,7 @@ export async function runQuery(
   spec: QuerySpec,
   context: QueryContext,
 ): Promise<QueryResult> {
-  const inputs = await loadRows(spec, context)
+  const { rows: inputs, errors: mentionErrors } = await loadRows(spec, context)
   const formulaNames = Object.keys(spec.formulas ?? {})
   // One filter per view: the query's filters and the view's, joined by AND.
   const filters = spec.views.map((v) => {
@@ -455,7 +466,7 @@ export async function runQuery(
       name: context.documentPath.slice(slash + 1).replace(/\.md$/, ''),
     },
   })
-  const errors = [...output.filterErrors]
+  const errors = [...mentionErrors, ...output.filterErrors]
   for (const [i, row] of output.rows.entries())
     for (const [name, message] of Object.entries(row.errors))
       errors.push(`row ${i + 1}, formula.${name}: ${message}`)
