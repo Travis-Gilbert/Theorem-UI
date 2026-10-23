@@ -12,6 +12,7 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  applyEdgeChanges,
   applyNodeChanges,
   useReactFlow,
 } from '@xyflow/react'
@@ -142,9 +143,17 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
     () => (space.data?.space.placements ?? []).filter(isNotePlacement),
     [space.data],
   )
+  // The Space has no selection, so the canvas keeps which edges are selected.
+  const [selectedEdges, setSelectedEdges] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   const edges = useMemo(
-    () => (space.data?.space.connections ?? []).map(toEdge),
-    [space.data],
+    () =>
+      (space.data?.space.connections ?? []).map((c) => ({
+        ...toEdge(c),
+        selected: selectedEdges.has(c.id),
+      })),
+    [space.data, selectedEdges],
   )
 
   // React Flow owns the nodes between Space edits: selection, drags, resizes.
@@ -195,6 +204,14 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
   }
 
   const onEdgesChange = (changes: EdgeChange[]) => {
+    if (changes.some((c) => c.type === 'select'))
+      setSelectedEdges(
+        new Set(
+          applyEdgeChanges(changes, edges).flatMap((e) =>
+            e.selected ? [e.id] : [],
+          ),
+        ),
+      )
     const removed = new Set(
       changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])),
     )
