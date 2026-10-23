@@ -980,7 +980,8 @@ Each phase says how it is verified.
    - frame times are compared with the child view.
 
 Verify: a written Servo-versus-Chrome comparison per component, with each
-gap's disposition, and the spike result, both kept with this plan.
+gap's disposition, and the spike result, both kept with this plan. The
+comparison is `docs/desktop/conformance.md`.
 
 **Phase 1: a shippable app.**
 - OAuth sign-in, with the Keychain in the host and credentials handed to the

@@ -28,26 +28,26 @@
     {
       "id": "servo-storage",
       "item": "Servo's config_dir in app data; localStorage layout survives relaunch (D2, D4)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "After relaunch the dock layout comes back from localStorage (docs/desktop/conformance.md, Chat)."
     },
     {
       "id": "servo-input",
       "item": "GPUI mouse, wheel and key events forwarded as Servo input events; unhandled keys reach app shortcuts; cursor and focus follow the page (D2)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "Clicks, drags, wheel, keys and shortcut replay checked through the THEOREM_DRIVE driver, which skips AppKit hit testing (docs/desktop/conformance.md)."
     },
     {
       "id": "servo-ime",
       "item": "GPUI input handler over Servo's input-method control; composition and dismissal reach Crepe (D2)",
-      "status": "pending",
-      "evidence": null
+      "status": "in_progress",
+      "evidence": "Composition events reach Servo, but Servo inserts committed text only into input and textarea, so Crepe gets none (docs/desktop/conformance.md, gap 6)."
     },
     {
       "id": "servo-clipboard",
       "item": "ClipboardDelegate over GPUI's clipboard; Edit menu sends Servo editing actions (D2)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "Cmd-C reaches the system clipboard (pbpaste) and Cmd-V pastes once after the replay fix in page.rs (docs/desktop/conformance.md, fix B)."
     },
     {
       "id": "servo-embedder-controls",
@@ -82,8 +82,8 @@
     {
       "id": "conformance-servo",
       "item": "Conformance pass in Servo 0.7 against Chrome: chat stream, run resume, approval, artifact and pinned revision, thread switch, layout restored after relaunch, React Flow, Crepe (IME, selection, clipboard, / menu), Dockview, Mermaid, Shiki; each gap given a disposition: Theorem UI, Servo, or host (Phase 0)",
-      "status": "pending",
-      "evidence": null
+      "status": "done",
+      "evidence": "docs/desktop/conformance.md: Servo against Chrome per component, with a CSSOM diff and a disposition for each gap. Approving a tool was not exercised: no reachable tool asks for approval."
     },
     {
       "id": "composition-spike",
