@@ -15,6 +15,7 @@ import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
 
@@ -58,10 +59,12 @@ function PhoneShell() {
   const threadId = useAuiState((s) => s.threadListItem.id)
   useEffect(() => useArtifactView.getState().reset(), [threadId])
 
-  // The drawer belongs to the thread and mode it was opened from, so picking a
-  // chat or a mode in it closes it without an effect.
+  // The drawer belongs to the thread, mode, open note and canvas focus it was
+  // opened from, so picking a chat, a mode or a note in it closes it without
+  // an effect.
   const mode = useShellMode()
-  const view = `${mode}:${threadId}`
+  const focusCount = useCanvasView((s) => s.focusCount)
+  const view = `${mode}:${threadId}:${noteId}:${focusCount}`
   const [drawerView, setDrawerView] = useState<string | null>(null)
   const drawerOpen = drawerView === view
   const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)

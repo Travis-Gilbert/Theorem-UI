@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks
+// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, SpaceNotes (the canvas's note list)
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -9,6 +9,7 @@ import {
   ThreadListRoot,
   ThreadListSearch,
 } from '@/components/assistant-ui/elements/thread-list.aui'
+import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -204,7 +205,32 @@ function ChatPanel() {
   )
 }
 
-/** Spaces and the IDE bring their own panels; until then each names itself. */
+/** Spaces' panel: the project, then the notes on its canvas. */
+function SpacesPanel() {
+  const { project } = useActiveProject()
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex h-12 shrink-0 items-center px-1.5">
+        <ProjectSwitcher />
+      </div>
+      <nav
+        aria-label="Notes on the canvas"
+        className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
+      >
+        <p className="px-2 pt-2 pb-1 text-xs text-ink-faint-sheet">Notes</p>
+        {project && (
+          <SpaceNotes
+            key={project.projectId}
+            projectId={project.projectId}
+            title={project.title}
+          />
+        )}
+      </nav>
+    </div>
+  )
+}
+
+/** The IDE brings its own panel; until then it names itself. */
 function ModePanel({ mode }: { mode: Exclude<ShellMode, 'chat'> }) {
   return (
     <div className="flex h-full flex-col">
@@ -227,7 +253,8 @@ export function ContextPanel() {
       <div hidden={mode !== 'chat'} className="h-full">
         <ChatPanel />
       </div>
-      {mode !== 'chat' && <ModePanel mode={mode} />}
+      {mode === 'spaces' && <SpacesPanel />}
+      {mode === 'ide' && <ModePanel mode={mode} />}
     </div>
   )
 }
