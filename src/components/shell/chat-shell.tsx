@@ -1,4 +1,4 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe)
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
@@ -17,6 +17,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
+import { WorkspaceFileOverlay } from '@/components/workspace/workspace-file-panel'
 
 const iconButton = 'size-9 p-2'
 
@@ -112,6 +113,8 @@ function PhoneShell() {
           className="fixed inset-0 z-40"
         />
       )}
+
+      <WorkspaceFileOverlay />
     </>
   )
 }

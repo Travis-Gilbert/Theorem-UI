@@ -40,6 +40,9 @@ const config = defineConfig({
           method: 'GET',
         },
       },
+      // trash runs a helper binary that sits beside its module; copied whole
+      // so the binary ships with it instead of being lost to bundling.
+      traceDeps: ['trash*'],
     }),
     viteReact(),
   ],

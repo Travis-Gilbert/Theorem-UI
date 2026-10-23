@@ -4,11 +4,17 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 // Keep Bun's own Fetch API and the streams its bodies use. happy-dom's Request
 // and Headers drop the headers a browser may not set (Host, Cookie, Origin,
 // Set-Cookie), and the desktop server's tests send and read exactly those.
+// Bun's Request also only understands Bun's own signals and body types.
 const bunFetchApi = {
   fetch,
   Request,
   Response,
   Headers,
+  AbortController,
+  AbortSignal,
+  Blob,
+  File,
+  FormData,
   TransformStream,
   WritableStream,
 }
