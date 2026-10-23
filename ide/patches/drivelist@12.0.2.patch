@@ -1,0 +1,13 @@
+diff --git a/binding.gyp b/binding.gyp
+index 6c389fc47af9a4276adcb45e633c243ef3744e4f..0ffdd09e7414f92e0cf002f8a3a312aec617f333 100644
+--- a/binding.gyp	
++++ b/binding.gyp
+@@ -12,7 +12,7 @@
+         "VCCLCompilerTool": { "ExceptionHandling": 1 },
+       },
+       'include_dirs': [
+-        "<!@(node -p \"require('node-addon-api').include\")",
++        "<!(node -p \"require('node-addon-api').include_dir\")",
+         "."
+       ],
+       'dependencies': ["<!(node -p \"require('node-addon-api').gyp\")"],

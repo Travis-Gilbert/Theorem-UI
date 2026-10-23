@@ -41,6 +41,7 @@ import {
   ArtifactKindIcon,
 } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { follow } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
 import { cn } from '@/lib/utils'
@@ -70,10 +71,12 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifactId = artifact?.artifactId
   const revision = artifact?.revision
 
-  // A revision produced by the run in progress opens beside the conversation.
+  // A revision produced by the run in progress opens beside the conversation,
+  // unless the person paused Follow the Agent.
   useEffect(() => {
-    if (live && artifactId) open(artifactId)
-  }, [live, artifactId, revision, open])
+    if (live && artifactId)
+      follow({ resource: { kind: 'artifact', artifactId, revision } })
+  }, [live, artifactId, revision])
 
   if (!artifact)
     return <PartNotice name="theorem-artifact" note="could not be read" />

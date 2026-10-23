@@ -2,6 +2,7 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 Theorem-UI
+ide
 src/routeTree.gen.ts
 src/lib/desktop/bindings
 

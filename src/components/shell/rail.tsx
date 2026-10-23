@@ -1,9 +1,10 @@
-// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook
+// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
+import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
 import {
   Tooltip,
   TooltipContent,
@@ -30,6 +31,7 @@ const THEMES = [
 function AccountMenu() {
   const { theme, setTheme } = useTheme()
   const tenant = useTenant()
+  const signIn = useSignInConfigured()
 
   return (
     <Menu.Root>
@@ -77,6 +79,14 @@ function AccountMenu() {
                 ))}
               </Menu.RadioGroup>
             </Menu.Group>
+            {signIn && (
+              <>
+                <Menu.Separator className="my-1 h-px bg-separator" />
+                <Menu.Item className={menuItem} onClick={() => void signOut()}>
+                  Sign out
+                </Menu.Item>
+              </>
+            )}
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
