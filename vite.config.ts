@@ -16,7 +16,11 @@ const config = defineConfig({
     svgr({
       svgrOptions: {
         dimensions: false,
-        svgProps: { 'data-icon': '', 'aria-hidden': 'true', focusable: 'false' },
+        svgProps: {
+          'data-icon': '',
+          'aria-hidden': 'true',
+          focusable: 'false',
+        },
       },
     }),
     tanstackStart(),
