@@ -84,6 +84,8 @@ function useOpenView() {
     error: views.error ?? stored.error,
     pending: choosing || (!builtIn && stored.isPending),
     collectionName,
+    // Choose again, after this page archived the view it held.
+    release: () => setHeld(undefined),
   }
 }
 
@@ -149,11 +151,13 @@ function ViewHeader({
   revision,
   revisions,
   onSaved,
+  onArchived,
 }: {
   view: IndexView
   revision: ViewRevision
   revisions: ViewRevision[]
   onSaved: (view: IndexView) => void
+  onArchived: () => void
 }) {
   const [dialog, setDialog] = useState<Dialog>()
   const pin = usePinView()
@@ -209,6 +213,7 @@ function ViewHeader({
                   {
                     onSuccess: (next) => {
                       if (!next.archived) return
+                      onArchived()
                       if (view.scope.kind === 'collection')
                         navigate.openCollection(view.scope.collectionId)
                       else navigate.openHome()
@@ -344,6 +349,7 @@ function ViewColumn() {
             if (saved.viewId !== open.viewId)
               navigate.openView(saved.viewId, saved.scope)
           }}
+          onArchived={open.release}
         />
         <ProposalNotices
           scope={open.scope}
