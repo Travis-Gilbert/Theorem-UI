@@ -1,10 +1,11 @@
-// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook, the sign-in helpers (sign out), useWorkspaces (whether folders can open, for the Vault)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
+import { useWorkspaces } from '@/lib/workspace/workspaces'
 import {
   Tooltip,
   TooltipContent,
@@ -127,6 +128,10 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const openMode = useOpenMode()
   const panelOpen = useShell((s) => !s.panelCollapsed[mode])
   const togglePanel = useShell((s) => s.togglePanel)
+  const folders = useWorkspaces().available
+  const modes = MODES.filter(
+    (entry) => folders || !('folders' in entry) || entry.mode === mode,
+  )
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
@@ -139,7 +144,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
     const y = active.getBoundingClientRect().top - box.top
     // How far down the rail the tab sits, for the glow colour it takes.
     setJunction({ y, t: box.height ? y / box.height : 0 })
-  }, [mode])
+  }, [mode, modes.length])
 
   return (
     <div
@@ -149,7 +154,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       {junction && <Junction y={junction.y} t={junction.t} />}
       <TooltipProvider>
         <nav aria-label="Modes" className="flex flex-col gap-1">
-          {MODES.map(({ mode: value, label, Mark }) => {
+          {modes.map(({ mode: value, label, Mark }) => {
             const active = value === mode
             const toggles = active && collapsible
             const tooltip = toggles

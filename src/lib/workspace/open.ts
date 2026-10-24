@@ -27,18 +27,25 @@ type WorkspaceFileView = {
   file: WorkspaceFileRef | undefined
   /** Set while the desktop dock is mounted. */
   dock: WorkspaceFileDock | undefined
+  /** Set while the Vault is showing; it takes files before the dock. */
+  vault: WorkspaceFileDock | undefined
   close: () => void
 }
 
 export const useWorkspaceFileView = create<WorkspaceFileView>()((set) => ({
   file: undefined,
   dock: undefined,
+  vault: undefined,
   close: () => set({ file: undefined }),
 }))
 
-/** Opens a workspace file in the dock, or over the conversation on a phone. */
+/**
+ * Opens a workspace file in the Vault when it is showing, else in the dock,
+ * else over the conversation on a phone.
+ */
 export function openWorkspaceFile(file: WorkspaceFileRef) {
-  const { dock } = useWorkspaceFileView.getState()
-  if (dock) dock.open(file)
+  const { vault, dock } = useWorkspaceFileView.getState()
+  if (vault) vault.open(file)
+  else if (dock) dock.open(file)
   else useWorkspaceFileView.setState({ file })
 }

@@ -118,6 +118,16 @@
   --link: var(--teal-ink);
 
   --radius: 0.5rem;
+
+  /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
+     green tags, yellow attachments. Plain colours, since WebGL reads them. */
+  --graph-note: #4a4b46;
+  --graph-tag: #4f7d2c;
+  --graph-attachment: #a8841a;
+  --graph-unresolved: #85827d;
+  --graph-link: #9a9590;
+  --graph-active: var(--redwood);
+  --graph-label: var(--ink);
 }
 
 /* Legacy dark tokens. */
@@ -168,6 +178,13 @@
   --shadow-tint: 0 0 0;
   --popover: #202122;
   --link: #8fd0c4;
+
+  --graph-note: #c9c9c9;
+  --graph-tag: #79c05a;
+  --graph-attachment: #e2c048;
+  --graph-unresolved: #5e5e5e;
+  --graph-link: #4a4a4a;
+  --graph-label: #d6d6d6;
 }
 
 /* Dock theme. Structure follows dockview's light theme; colours map to the
@@ -894,4 +911,14 @@
   .react-flow__handle.connectionindicator {
     pointer-events: auto;
   }
+}
+
+/* Labels in the Vault's graph read as text on the graph, not as chips. */
+.vault-graph {
+  --css-label-background-color: transparent;
+  --css-label-brightness: none;
+}
+.vault-graph .css-label--label {
+  font-weight: 400;
+  text-shadow: 0 0 3px var(--surface-artifact);
 }

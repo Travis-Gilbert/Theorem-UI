@@ -10,6 +10,7 @@ import { Icon } from '@/components/icons'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
 import { Button } from '@/components/ui/button'
 import { hostActions } from '@/lib/handlers/actions'
+import { cn } from '@/lib/utils'
 import { openTodaysNote } from '@/lib/workspace/notes'
 import type { WorkspaceSummary } from '@/lib/workspace/types'
 import {
@@ -114,9 +115,10 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
 
 /**
  * The folders the person opened, each with its live file tree. Present only
- * in the desktop app, where the workspace routes answer.
+ * in the desktop app, where the workspace routes answer. Below a mode's panel
+ * it takes at most half the height; the Vault's Files panel fills itself.
  */
-export function FoldersSection() {
+export function FoldersSection({ className }: { className?: string }) {
   const { available, workspaces } = useWorkspaces()
   const openFolder = useOpenFolder()
   if (!available || (!workspaces.length && !openFolder)) return null
@@ -124,7 +126,10 @@ export function FoldersSection() {
   return (
     <section
       aria-label="Folders"
-      className="flex max-h-[50%] min-h-0 shrink-0 flex-col border-t border-separator"
+      className={cn(
+        'flex max-h-[50%] min-h-0 shrink-0 flex-col border-t border-separator',
+        className,
+      )}
     >
       <div className="flex h-9 shrink-0 items-center ps-3.5 pe-2 text-xs font-medium text-ink-faint-sheet">
         <h2 className="flex-1">Folders</h2>

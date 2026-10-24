@@ -13,6 +13,7 @@ import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
+import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
@@ -30,6 +31,7 @@ import { Route as DesktopWorkspaceWorkspaceIdBacklinksRouteImport } from './rout
 import { Route as DesktopWorkspaceWorkspaceIdCompiledRouteImport } from './routes/desktop/workspace/$workspaceId/compiled'
 import { Route as DesktopWorkspaceWorkspaceIdEventsRouteImport } from './routes/desktop/workspace/$workspaceId/events'
 import { Route as DesktopWorkspaceWorkspaceIdFileRouteImport } from './routes/desktop/workspace/$workspaceId/file'
+import { Route as DesktopWorkspaceWorkspaceIdGraphRouteImport } from './routes/desktop/workspace/$workspaceId/graph'
 import { Route as DesktopWorkspaceWorkspaceIdLastRunRouteImport } from './routes/desktop/workspace/$workspaceId/last-run'
 import { Route as DesktopWorkspaceWorkspaceIdLinksRouteImport } from './routes/desktop/workspace/$workspaceId/links'
 import { Route as DesktopWorkspaceWorkspaceIdMkdirRouteImport } from './routes/desktop/workspace/$workspaceId/mkdir'
@@ -62,6 +64,11 @@ const ChatIdeRoute = ChatIdeRouteImport.update({
 const ChatSpacesRoute = ChatSpacesRouteImport.update({
   id: '/spaces',
   path: '/spaces',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatVaultRoute = ChatVaultRouteImport.update({
+  id: '/vault',
+  path: '/vault',
   getParentRoute: () => ChatRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -154,6 +161,12 @@ const DesktopWorkspaceWorkspaceIdFileRoute =
     path: '/desktop/workspace/$workspaceId/file',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DesktopWorkspaceWorkspaceIdGraphRoute =
+  DesktopWorkspaceWorkspaceIdGraphRouteImport.update({
+    id: '/desktop/workspace/$workspaceId/graph',
+    path: '/desktop/workspace/$workspaceId/graph',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DesktopWorkspaceWorkspaceIdLastRunRoute =
   DesktopWorkspaceWorkspaceIdLastRunRouteImport.update({
     id: '/desktop/workspace/$workspaceId/last-run',
@@ -243,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
+  '/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -259,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   '/desktop/workspace/$workspaceId/events': typeof DesktopWorkspaceWorkspaceIdEventsRoute
   '/desktop/workspace/$workspaceId/file': typeof DesktopWorkspaceWorkspaceIdFileRoute
+  '/desktop/workspace/$workspaceId/graph': typeof DesktopWorkspaceWorkspaceIdGraphRoute
   '/desktop/workspace/$workspaceId/last-run': typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   '/desktop/workspace/$workspaceId/links': typeof DesktopWorkspaceWorkspaceIdLinksRoute
   '/desktop/workspace/$workspaceId/mkdir': typeof DesktopWorkspaceWorkspaceIdMkdirRoute
@@ -278,6 +293,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
+  '/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -295,6 +311,7 @@ export interface FileRoutesByTo {
   '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   '/desktop/workspace/$workspaceId/events': typeof DesktopWorkspaceWorkspaceIdEventsRoute
   '/desktop/workspace/$workspaceId/file': typeof DesktopWorkspaceWorkspaceIdFileRoute
+  '/desktop/workspace/$workspaceId/graph': typeof DesktopWorkspaceWorkspaceIdGraphRoute
   '/desktop/workspace/$workspaceId/last-run': typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   '/desktop/workspace/$workspaceId/links': typeof DesktopWorkspaceWorkspaceIdLinksRoute
   '/desktop/workspace/$workspaceId/mkdir': typeof DesktopWorkspaceWorkspaceIdMkdirRoute
@@ -316,6 +333,7 @@ export interface FileRoutesById {
   '/_chat': typeof ChatRouteWithChildren
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/spaces': typeof ChatSpacesRoute
+  '/_chat/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -333,6 +351,7 @@ export interface FileRoutesById {
   '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   '/desktop/workspace/$workspaceId/events': typeof DesktopWorkspaceWorkspaceIdEventsRoute
   '/desktop/workspace/$workspaceId/file': typeof DesktopWorkspaceWorkspaceIdFileRoute
+  '/desktop/workspace/$workspaceId/graph': typeof DesktopWorkspaceWorkspaceIdGraphRoute
   '/desktop/workspace/$workspaceId/last-run': typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   '/desktop/workspace/$workspaceId/links': typeof DesktopWorkspaceWorkspaceIdLinksRoute
   '/desktop/workspace/$workspaceId/mkdir': typeof DesktopWorkspaceWorkspaceIdMkdirRoute
@@ -355,6 +374,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ide'
     | '/spaces'
+    | '/vault'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -371,6 +391,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/compiled'
     | '/desktop/workspace/$workspaceId/events'
     | '/desktop/workspace/$workspaceId/file'
+    | '/desktop/workspace/$workspaceId/graph'
     | '/desktop/workspace/$workspaceId/last-run'
     | '/desktop/workspace/$workspaceId/links'
     | '/desktop/workspace/$workspaceId/mkdir'
@@ -390,6 +411,7 @@ export interface FileRouteTypes {
   to:
     | '/ide'
     | '/spaces'
+    | '/vault'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -407,6 +429,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/compiled'
     | '/desktop/workspace/$workspaceId/events'
     | '/desktop/workspace/$workspaceId/file'
+    | '/desktop/workspace/$workspaceId/graph'
     | '/desktop/workspace/$workspaceId/last-run'
     | '/desktop/workspace/$workspaceId/links'
     | '/desktop/workspace/$workspaceId/mkdir'
@@ -427,6 +450,7 @@ export interface FileRouteTypes {
     | '/_chat'
     | '/_chat/ide'
     | '/_chat/spaces'
+    | '/_chat/vault'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -444,6 +468,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/compiled'
     | '/desktop/workspace/$workspaceId/events'
     | '/desktop/workspace/$workspaceId/file'
+    | '/desktop/workspace/$workspaceId/graph'
     | '/desktop/workspace/$workspaceId/last-run'
     | '/desktop/workspace/$workspaceId/links'
     | '/desktop/workspace/$workspaceId/mkdir'
@@ -478,6 +503,7 @@ export interface RootRouteChildren {
   DesktopWorkspaceWorkspaceIdCompiledRoute: typeof DesktopWorkspaceWorkspaceIdCompiledRoute
   DesktopWorkspaceWorkspaceIdEventsRoute: typeof DesktopWorkspaceWorkspaceIdEventsRoute
   DesktopWorkspaceWorkspaceIdFileRoute: typeof DesktopWorkspaceWorkspaceIdFileRoute
+  DesktopWorkspaceWorkspaceIdGraphRoute: typeof DesktopWorkspaceWorkspaceIdGraphRoute
   DesktopWorkspaceWorkspaceIdLastRunRoute: typeof DesktopWorkspaceWorkspaceIdLastRunRoute
   DesktopWorkspaceWorkspaceIdLinksRoute: typeof DesktopWorkspaceWorkspaceIdLinksRoute
   DesktopWorkspaceWorkspaceIdMkdirRoute: typeof DesktopWorkspaceWorkspaceIdMkdirRoute
@@ -523,6 +549,13 @@ declare module '@tanstack/react-router' {
       path: '/spaces'
       fullPath: '/spaces'
       preLoaderRoute: typeof ChatSpacesRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/vault': {
+      id: '/_chat/vault'
+      path: '/vault'
+      fullPath: '/vault'
+      preLoaderRoute: typeof ChatVaultRouteImport
       parentRoute: typeof ChatRoute
     }
     '/auth/callback': {
@@ -644,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/desktop/workspace/$workspaceId/graph': {
+      id: '/desktop/workspace/$workspaceId/graph'
+      path: '/desktop/workspace/$workspaceId/graph'
+      fullPath: '/desktop/workspace/$workspaceId/graph'
+      preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdGraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/desktop/workspace/$workspaceId/last-run': {
       id: '/desktop/workspace/$workspaceId/last-run'
       path: '/desktop/workspace/$workspaceId/last-run'
@@ -748,6 +788,7 @@ declare module '@tanstack/react-router' {
 interface ChatRouteChildren {
   ChatIdeRoute: typeof ChatIdeRoute
   ChatSpacesRoute: typeof ChatSpacesRoute
+  ChatVaultRoute: typeof ChatVaultRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatCThreadIdRoute: typeof ChatCThreadIdRoute
 }
@@ -755,6 +796,7 @@ interface ChatRouteChildren {
 const ChatRouteChildren: ChatRouteChildren = {
   ChatIdeRoute: ChatIdeRoute,
   ChatSpacesRoute: ChatSpacesRoute,
+  ChatVaultRoute: ChatVaultRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatCThreadIdRoute: ChatCThreadIdRoute,
 }
@@ -781,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesktopWorkspaceWorkspaceIdEventsRoute:
     DesktopWorkspaceWorkspaceIdEventsRoute,
   DesktopWorkspaceWorkspaceIdFileRoute: DesktopWorkspaceWorkspaceIdFileRoute,
+  DesktopWorkspaceWorkspaceIdGraphRoute: DesktopWorkspaceWorkspaceIdGraphRoute,
   DesktopWorkspaceWorkspaceIdLastRunRoute:
     DesktopWorkspaceWorkspaceIdLastRunRoute,
   DesktopWorkspaceWorkspaceIdLinksRoute: DesktopWorkspaceWorkspaceIdLinksRoute,

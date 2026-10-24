@@ -16,6 +16,7 @@ import { fileTextKey } from '@/lib/handlers/file-sync'
 import type { FileViewProps } from '@/lib/handlers/types'
 import type { WorkspaceLink } from '@/lib/workspace/types'
 import { useIndexQuery } from '@/lib/workspace/workspaces'
+import { cn } from '@/lib/utils'
 import { parseNote } from '#/server/desktop/workspace/markdown'
 import { openSearch } from './search-dialog'
 
@@ -111,7 +112,10 @@ const rowClass =
  * Beside a file: the notes linking to it, the links it makes and its tags, as
  * Obsidian's backlinks, outgoing links and tags panes show them.
  */
-export function LinksPane(file: FileViewProps) {
+export function LinksPane({
+  className,
+  ...file
+}: FileViewProps & { className?: string }) {
   const { client, path } = file
   const markdown = extname(path) === '.md'
   const backlinks = useBacklinks(file)
@@ -129,7 +133,10 @@ export function LinksPane(file: FileViewProps) {
   return (
     <aside
       aria-label="Links"
-      className="w-64 shrink-0 overflow-y-auto border-l border-separator"
+      className={cn(
+        'w-64 shrink-0 overflow-y-auto border-l border-separator',
+        className,
+      )}
     >
       <Section title="Backlinks" count={backlinks.data?.length}>
         {backlinks.isPending
