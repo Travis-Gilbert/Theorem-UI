@@ -1,0 +1,5 @@
+# Servo's v0.7.0 release toolchain. Cargo builds the whole graph with one
+# toolchain, so the host (Servo plus gpui-pre) uses Servo's.
+[toolchain]
+channel = "1.97.1"
+components = ["clippy", "llvm-tools", "rustc-dev", "rustfmt", "rust-src"]
