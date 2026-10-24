@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -29,22 +29,18 @@ import {
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
-import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import {
   ARTIFACT_PART,
   kindLabel,
   readArtifact,
   useThreadArtifacts,
 } from '@/components/artifacts/artifact-model'
-import {
-  ArtifactInspect,
-  ArtifactKindIcon,
-} from '@/components/artifacts/artifact-panel'
+import { download } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { Icon } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
-import { useMagnet } from '@/components/motion'
 import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -65,7 +61,7 @@ function str(value: unknown): string | undefined {
 const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifact = readArtifact(data)
   const artifacts = useThreadArtifacts()
-  const { open, expand } = useArtifactView.getState()
+  const { open } = useArtifactView.getState()
   const selected = useArtifactView(
     (s) => s.openId !== undefined && s.openId === artifact?.artifactId,
   )
@@ -73,7 +69,6 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifactId = artifact?.artifactId
   const revision = artifact?.revision
   const cardRef = useRef<HTMLDivElement>(null)
-  useMagnet(cardRef, { strength: 0.04, max: 3 })
   // The panel an artifact opens in flies out of this card.
   const launch = () => {
     if (cardRef.current && artifactId)
@@ -113,7 +108,6 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
       className={cn(
         'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
         'transition-colors duration-100',
-        'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-90 in-data-live:slide-in-from-bottom-2 in-data-live:ease-lift in-data-live:duration-(--duration-lift)',
         selected && 'bg-selected outline outline-1 outline-redwood-ink',
       )}
     >
@@ -124,7 +118,7 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
         aria-label={`Open ${artifact.title}`}
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
-          <ArtifactKindIcon kind={artifact.kind} className="size-5" />
+          <Icon.Artifact className="size-5 animate-float motion-reduce:animate-none" />
         </span>
         <span className="flex min-w-0 flex-col">
           <span
@@ -142,17 +136,24 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
         </span>
       </button>
       <div className="flex shrink-0 items-center gap-0.5">
-        <TooltipIconButton
-          tooltip="Expand"
-          className="size-8 p-1.5"
-          onClick={() => {
-            show()
-            expand(artifact.artifactId)
-          }}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Open"
+          className="group/open size-8 p-1.5"
+          onClick={show}
         >
-          <Icon.Expand className="size-4" />
-        </TooltipIconButton>
-        <ArtifactInspect artifact={artifact} />
+          <Icon.Open className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Download"
+          className="size-8 p-1.5"
+          onClick={() => download(artifact)}
+        >
+          <Icon.Download className="size-4" />
+        </Button>
       </div>
     </div>
   )
@@ -162,19 +163,10 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
 const ArtifactPendingCard: FC<{
   toolName: string
   title?: string
-  kind?: string
-}> = ({ toolName, title, kind }) => (
-  <div
-    className={cn(
-      'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
-      liveEnter,
-    )}
-  >
+}> = ({ toolName, title }) => (
+  <div className="my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4">
     <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
-      <ArtifactKindIcon
-        kind={kind ?? 'document'}
-        className="size-5 animate-pulse motion-reduce:animate-none"
-      />
+      <Icon.Artifact className="size-5 animate-float motion-reduce:animate-none" />
     </span>
     <span className="flex min-w-0 flex-col">
       <span className="truncate text-sm font-medium">
@@ -202,11 +194,7 @@ const ArtifactToolCall: ToolCallMessagePartComponent<{
   if (isError) return <ArtifactToolFailed toolName={toolName} />
   if (result !== undefined || status.type !== 'running') return null
   return (
-    <ArtifactPendingCard
-      toolName={toolName}
-      title={str(args.title)}
-      kind={str(args.kind)}
-    />
+    <ArtifactPendingCard toolName={toolName} title={str(args.title)} />
   )
 }
 
@@ -239,7 +227,7 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
   return (
     <span
       className={cn(
-        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs',
+        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
         liveEnter,
         failed ? 'text-error-ink' : 'text-ink-muted',
       )}
@@ -262,7 +250,7 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
 
 /* ------------------------------------------------------------------ approvals */
 
-type TheoremApproval = {
+export type TheoremApproval = {
   approvalId: string
   toolCallId: string
   toolName: string
@@ -273,7 +261,7 @@ type TheoremApproval = {
   options: Array<{ optionId: string; name: string; kind: string }>
 }
 
-function readApproval(
+export function readApproval(
   interrupt: ToolCallMessagePartProps['interrupt'],
 ): TheoremApproval | undefined {
   if (interrupt?.type !== 'human') return undefined
@@ -431,6 +419,14 @@ const LIVE_STATUSES = new Set([
   'in_progress',
 ])
 
+const DONE_STATUSES = new Set([
+  'complete',
+  'completed',
+  'done',
+  'succeeded',
+  'success',
+])
+
 function progressLabels(
   content: readonly { type: string; name?: string; data?: unknown }[],
 ) {
@@ -441,23 +437,9 @@ function progressLabels(
   })
 }
 
-function useElapsed(since: Date | undefined, live: boolean) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (!live) return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [live])
-  if (!since) return undefined
-  const seconds = Math.max(0, Math.round((now - since.getTime()) / 1000))
-  return seconds < 60
-    ? `${seconds}s`
-    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
-}
-
 /**
  * Theorem publishes answer text at turn end, so a running turn needs a visible
- * state: the latest progress label, or "Thinking", with elapsed time.
+ * state: the latest progress label, or "Thinking", beside a thinking orb.
  */
 export const RunningIndicator: FC = () => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
@@ -479,22 +461,12 @@ export const RunningIndicator: FC = () => {
       ? str(data.label)
       : undefined
   })
-  // Time the turn from its question: a run resumed after a reload or a runtime
-  // restart is a fresh assistant message, but the turn began when it was asked.
-  const askedAt = useAuiState((s) => {
-    const index = s.thread.messages.findIndex(
-      (message) => message.id === s.message.id,
-    )
-    const asked = index > 0 ? s.thread.messages[index - 1] : undefined
-    return asked?.role === 'user' ? asked.createdAt : s.message.createdAt
-  })
-  const elapsed = useElapsed(askedAt, running)
   if (!running) return null
   return (
     <ThinkingIndicator
-      className="my-2 [&>span:first-child]:bg-redwood"
+      className="my-2"
       label={awaiting ? 'Waiting for your approval' : (label ?? 'Thinking')}
-      elapsed={elapsed}
+      orb={awaiting ? 'breathing' : 'working'}
     />
   )
 }
@@ -512,8 +484,9 @@ const ProgressPart: DataMessagePartComponent = ({ data }) => {
     )
     return last?.type === 'data' && last.data === data
   })
-  // A stopped or failed turn keeps its last live label ("Working"), so the
-  // strip names the outcome instead of ticking it off.
+  // Labels are what the run was doing while live ("Working"), even on the
+  // step that completes, so the strip names the outcome from the statuses: the
+  // message's, then the last step's.
   const outcome = useAuiState((s) =>
     s.message.status?.type !== 'incomplete'
       ? undefined
@@ -521,18 +494,17 @@ const ProgressPart: DataMessagePartComponent = ({ data }) => {
         ? 'Stopped'
         : 'Did not finish',
   )
+  const finished = DONE_STATUSES.has(str(object(data).status) ?? 'complete')
   if (!settled || !isLast || labels.length === 0) return null
-  const steps = labels.length === 1 ? labels[0] : `${labels.length} steps`
-  const StatusIcon = outcome ? Icon.Close : Icon.Check
+  const result = outcome ?? (finished ? 'Done' : 'Did not finish')
+  const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
   return (
     <CollapsibleRoot className="my-1 text-sm text-ink-faint">
       <CollapsibleTrigger className="flex items-center gap-1.5 py-1 hover:text-ink">
         <StatusIcon className="size-3.5" />
-        {outcome
-          ? labels.length > 1
-            ? `${outcome} after ${steps}`
-            : outcome
-          : steps}
+        {labels.length > 1
+          ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
+          : result}
       </CollapsibleTrigger>
       {labels.length > 1 && (
         <CollapsibleContent>
