@@ -56,6 +56,9 @@ export function ViewEditor({
   const [bindingsText, setBindingsText] = useState(
     JSON.stringify(revision.bindings, null, 2),
   )
+  // The revision the draft started from, so a newer one saved meanwhile
+  // (another tab, the improver) is a conflict rather than overwritten.
+  const [baseRevision] = useState(view.current.revision)
   const create = useCreateView()
   const revise = useReviseView()
   const save = copying ? create : revise
@@ -82,7 +85,7 @@ export function ViewEditor({
     if (copying) create.mutate({ scope: view.scope, draft }, done)
     else
       revise.mutate(
-        { viewId: view.viewId, expectedRevision: view.current.revision, draft },
+        { viewId: view.viewId, expectedRevision: baseRevision, draft },
         done,
       )
   }

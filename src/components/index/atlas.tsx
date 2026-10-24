@@ -102,7 +102,7 @@ export function AtlasMap({
       )}
       {drawn && (
         <svg
-          role="img"
+          role="group"
           aria-label={`Atlas, ${snapshot.cells.length} cells, ${overlay.replaceAll('_', ' ')}`}
           viewBox={drawn.viewBox}
           className="max-h-[420px] w-full"
@@ -111,9 +111,18 @@ export function AtlasMap({
             <g key={cell.cell}>
               <polygon
                 points={points}
+                role="button"
+                tabIndex={0}
+                aria-label={`${cell.label ?? `Cell ${cell.cell}`}, ${cell.density} documents`}
+                aria-pressed={cell.cell === cellId}
                 onClick={() => setCellId(cell.cell)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  setCellId(cell.cell)
+                }}
                 className={cn(
-                  'cursor-pointer stroke-sheet transition-[fill-opacity]',
+                  'cursor-pointer stroke-sheet transition-[fill-opacity] outline-none focus-visible:stroke-ink',
                   cell.cell === cellId ? 'fill-redwood' : 'fill-teal',
                 )}
                 style={{

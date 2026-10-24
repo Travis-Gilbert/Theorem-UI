@@ -387,7 +387,13 @@ export function Inspector({
               revision={summary.revision}
               scope={scope}
             />
-            <UsedWith documentId={documentId} scope={scope} onOpen={onOpen} />
+            {/* Keyed so answers given for one document never show on another. */}
+            <UsedWith
+              key={documentId}
+              documentId={documentId}
+              scope={scope}
+              onOpen={onOpen}
+            />
             <section className="flex flex-col gap-2">
               <h3 className="text-xs font-medium tracking-wide text-ink-faint uppercase">
                 Content
