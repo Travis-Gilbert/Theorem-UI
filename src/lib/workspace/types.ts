@@ -81,6 +81,22 @@ export interface WorkspaceLink {
   line: number
 }
 
+/** The notes and the links between them, for the graph view. */
+export interface WorkspaceGraph {
+  notes: Array<{
+    path: string
+    /** The `title` property, else the first heading, else the file name. */
+    title: string
+    /** Each tag once, as first spelled, without the `#`. */
+    tags: Array<string>
+  }>
+  /**
+   * One per note and target. `to` is the path the target resolves to (a note
+   * or any other file), or null when it resolves to nothing.
+   */
+  links: Array<{ from: string; to: string | null; target: string }>
+}
+
 export interface SearchHit {
   path: string
   title: string
@@ -144,6 +160,8 @@ export interface WorkspaceClient {
   resolve(target: string, fromPath: string): Promise<string | null>
   links(path: string): Promise<Array<WorkspaceLink>>
   backlinks(path: string): Promise<Array<WorkspaceLink>>
+  /** Every note and what it links to, for the graph view. */
+  graph(): Promise<WorkspaceGraph>
   /**
    * Full-text search over titles and bodies. `tag:#name` terms keep the notes
    * with that tag or one nested under it.

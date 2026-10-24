@@ -15,6 +15,7 @@ import type {
 import type {
   SearchHit,
   WorkspaceEntry,
+  WorkspaceGraph,
   WorkspaceLink,
 } from '#/lib/workspace/types'
 import type { ParsedLink, ParsedNote } from './markdown'
@@ -400,6 +401,36 @@ export class WorkspaceIndex implements LinkLookup {
           .map((link) => this.toLink(source, link)),
       )
       .filter((link) => link.resolved === entryPath)
+  }
+
+  /**
+   * Every note with its title and tags, and what each links to, resolved now:
+   * one link per note and target, in the order the note first makes it.
+   */
+  graph(): WorkspaceGraph {
+    const notes = this.db
+      .queryNodes({ label: 'Note' })
+      .map((node) => node.properties as NoteProperties)
+      .sort((a, b) => compare(a.path, b.path))
+    const links: WorkspaceGraph['links'] = []
+    for (const note of notes) {
+      const seen = new Set<string>()
+      for (const link of note.links) {
+        const to = resolveLink(link.target, note.path, link.syntax, this)
+        const key = to ?? `?${nameKey(link.target)}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        links.push({ from: note.path, to, target: link.target })
+      }
+    }
+    return {
+      notes: notes.map((note) => ({
+        path: note.path,
+        title: note.title,
+        tags: [...new Set(note.tags.map(({ tag }) => tag))],
+      })),
+      links,
+    }
   }
 
   /**

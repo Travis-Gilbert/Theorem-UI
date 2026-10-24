@@ -112,6 +112,7 @@ export function memoryWorkspace(
     },
     links: async () => [],
     backlinks: async () => [],
+    graph: async () => ({ notes: [], links: [] }),
     search: async () => [],
     tags: async () => [],
     properties: async (p) => {

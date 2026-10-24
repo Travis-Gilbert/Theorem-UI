@@ -22,6 +22,7 @@ import { Database } from '@rustyreddb/node'
 import type {
   WorkspaceEntry,
   WorkspaceEvent,
+  WorkspaceGraph,
   WorkspaceLink,
   WorkspaceSummary,
 } from '#/lib/workspace/types'
@@ -257,6 +258,30 @@ describe('folder workspace service', () => {
       headers: { 'if-none-match': file.headers.get('etag')! },
     })
     expect(again.status).toBe(304)
+  })
+
+  test('the graph holds every note with its tags and its links, each once', async () => {
+    const { id } = await openFolder({
+      'Hub.md':
+        '# Hub\n\n[[Ideas]] and [[Ideas#Later]], [[Missing]] #map\n\n![[img/diagram.png]]\n',
+      'Ideas.md': '---\ntags: [map, Map]\n---\n## Later\n\nBack to [[Hub]]\n',
+      'Lonely.md': 'Nothing links here\n',
+      'img/diagram.png': 'not really a png',
+    })
+    const graph = (await (
+      await call('graph', 'GET', id)
+    ).json()) as WorkspaceGraph
+    expect(graph.notes).toEqual([
+      { path: 'Hub.md', title: 'Hub', tags: ['map'] },
+      { path: 'Ideas.md', title: 'Later', tags: ['map', 'Map'] },
+      { path: 'Lonely.md', title: 'Lonely', tags: [] },
+    ])
+    expect(graph.links).toEqual([
+      { from: 'Hub.md', to: 'Ideas.md', target: 'Ideas' },
+      { from: 'Hub.md', to: null, target: 'Missing' },
+      { from: 'Hub.md', to: 'img/diagram.png', target: 'img/diagram.png' },
+      { from: 'Ideas.md', to: 'Hub.md', target: 'Hub' },
+    ])
   })
 
   test('search takes tag: terms as Obsidian does, nested tags included', async () => {
