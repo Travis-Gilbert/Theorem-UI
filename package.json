@@ -73,5 +73,8 @@
     "lightningcss",
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "patchedDependencies": {
+    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
+  }
 }

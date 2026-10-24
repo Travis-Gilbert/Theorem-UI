@@ -16,6 +16,7 @@ import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
@@ -56,6 +57,11 @@ const AuthSignOutRoute = AuthSignOutRouteImport.update({
   path: '/auth/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TheiaSplatRoute = TheiaSplatRouteImport.update({
+  id: '/theia/$',
+  path: '/theia/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/c/$threadId'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/'
     | '/c/$threadId'
     | '/api/capabilities/v1/$'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/_chat/'
     | '/_chat/c/$threadId'
     | '/api/capabilities/v1/$'
@@ -172,6 +184,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  TheiaSplatRoute: typeof TheiaSplatRoute
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiEnvironmentV1SplatRoute: typeof ApiEnvironmentV1SplatRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/sign-out'
       fullPath: '/auth/sign-out'
       preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/theia/$': {
+      id: '/theia/$'
+      path: '/theia/$'
+      fullPath: '/theia/$'
+      preLoaderRoute: typeof TheiaSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_chat/c/$threadId': {
@@ -288,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  TheiaSplatRoute: TheiaSplatRoute,
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiEnvironmentV1SplatRoute: ApiEnvironmentV1SplatRoute,
