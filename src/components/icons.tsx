@@ -25,9 +25,12 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // Nor a two-way chevron for switchers, a terminal, a bare close cross, or the
 // panels mark (a top bar over a right-hand panel, drawn here as Lucide's
 // top-left panels mirrored); Lucide's stand in the same way.
+// Nor a pin or a revision history for the Index's views; Lucide's stand in too.
 import {
   ChevronsUpDown as UpDown,
+  History,
   PanelsTopLeft,
+  Pin,
   SquareTerminal as Terminal,
   Trash2 as Delete,
   X,
@@ -201,7 +204,9 @@ export const Icon = {
   File,
   Folder,
   FolderOpen,
+  History,
   Ide: Shellfile,
+  Index: Archive,
   Layout,
   Link,
   Menu,
@@ -211,6 +216,7 @@ export const Icon = {
   NewChat,
   Next,
   Panels,
+  Pin,
   Previous,
   Project: ProjectRow,
   Projects,

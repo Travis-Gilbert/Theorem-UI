@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
@@ -18,6 +19,7 @@ import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
+import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
@@ -50,6 +52,11 @@ import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theor
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ChatChar91indexChar93Route = ChatChar91indexChar93RouteImport.update({
+  id: '/index',
+  path: '/index',
+  getParentRoute: () => ChatRoute,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
@@ -90,6 +97,11 @@ const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
   getParentRoute: () => ChatRoute,
+} as any)
+const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
+  id: '/api/index/$',
+  path: '/api/index/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DesktopBlocksIndexRoute = DesktopBlocksIndexRouteImport.update({
   id: '/desktop/blocks/',
@@ -254,12 +266,14 @@ const V1TheoremAgentStreamSplatRoute =
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/ide': typeof ChatIdeRoute
+  '/index': typeof ChatChar91indexChar93Route
   '/spaces': typeof ChatSpacesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/theia/$': typeof TheiaSplatRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -291,6 +305,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/ide': typeof ChatIdeRoute
+  '/index': typeof ChatChar91indexChar93Route
   '/spaces': typeof ChatSpacesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -298,6 +313,7 @@ export interface FileRoutesByTo {
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
@@ -331,6 +347,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
   '/_chat/ide': typeof ChatIdeRoute
+  '/_chat/index': typeof ChatChar91indexChar93Route
   '/_chat/spaces': typeof ChatSpacesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
@@ -338,6 +355,7 @@ export interface FileRoutesById {
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
+  '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -372,12 +390,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ide'
+    | '/index'
     | '/spaces'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/theia/$'
     | '/c/$threadId'
+    | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -409,6 +429,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/ide'
+    | '/index'
     | '/spaces'
     | '/auth/callback'
     | '/auth/sign-in'
@@ -416,6 +437,7 @@ export interface FileRouteTypes {
     | '/theia/$'
     | '/'
     | '/c/$threadId'
+    | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
@@ -448,6 +470,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_chat'
     | '/_chat/ide'
+    | '/_chat/index'
     | '/_chat/spaces'
     | '/auth/callback'
     | '/auth/sign-in'
@@ -455,6 +478,7 @@ export interface FileRouteTypes {
     | '/theia/$'
     | '/_chat/'
     | '/_chat/c/$threadId'
+    | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -491,6 +515,7 @@ export interface RootRouteChildren {
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
+  ApiIndexSplatRoute: typeof ApiIndexSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
@@ -529,6 +554,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_chat/index': {
+      id: '/_chat/index'
+      path: '/index'
+      fullPath: '/index'
+      preLoaderRoute: typeof ChatChar91indexChar93RouteImport
+      parentRoute: typeof ChatRoute
     }
     '/_chat/': {
       id: '/_chat/'
@@ -585,6 +617,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$threadId'
       preLoaderRoute: typeof ChatCThreadIdRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/api/index/$': {
+      id: '/api/index/$'
+      path: '/api/index/$'
+      fullPath: '/api/index/$'
+      preLoaderRoute: typeof ApiIndexSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/desktop/blocks/': {
       id: '/desktop/blocks/'
@@ -787,6 +826,7 @@ declare module '@tanstack/react-router' {
 
 interface ChatRouteChildren {
   ChatIdeRoute: typeof ChatIdeRoute
+  ChatChar91indexChar93Route: typeof ChatChar91indexChar93Route
   ChatSpacesRoute: typeof ChatSpacesRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatCThreadIdRoute: typeof ChatCThreadIdRoute
@@ -794,6 +834,7 @@ interface ChatRouteChildren {
 
 const ChatRouteChildren: ChatRouteChildren = {
   ChatIdeRoute: ChatIdeRoute,
+  ChatChar91indexChar93Route: ChatChar91indexChar93Route,
   ChatSpacesRoute: ChatSpacesRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatCThreadIdRoute: ChatCThreadIdRoute,
@@ -807,6 +848,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
   TheiaSplatRoute: TheiaSplatRoute,
+  ApiIndexSplatRoute: ApiIndexSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
