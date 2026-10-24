@@ -50,9 +50,15 @@ impl Engine {
         let pending = Arc::new(AtomicBool::new(false));
         let mut opts = Opts::default();
         opts.config_dir = Some(profile_dir.to_path_buf());
+        // `:has()` is off by default in Servo; Dockview's focus rings and
+        // Milkdown's table and image tools need it (docs/desktop/conformance.md).
+        let preferences = Preferences {
+            layout_css_has_selector_enabled: true,
+            ..Preferences::default()
+        };
         let servo = ServoBuilder::default()
             .opts(opts)
-            .preferences(Preferences::default())
+            .preferences(preferences)
             .event_loop_waker(Box::new(ChannelWaker {
                 sender,
                 pending: pending.clone(),

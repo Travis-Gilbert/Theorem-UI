@@ -264,9 +264,11 @@ then.
 
 **The dependency.**
 - `servo` from `https://github.com/Travis-Gilbert/servo` at revision
-  `b9d6db9eb26409c2bebab03cb8845be616d4df92` (branch
-  `servo07-browser-20261013`, based on upstream v0.7.0). It is the same pin
-  and feature set as Theorem's `apps/browser`:
+  `87ac5a3d6b1efca84a938df5a3557fc113da7035` (branch
+  `servo07-browser-20261013`, based on upstream v0.7.0). It is one commit
+  ahead of Theorem's `apps/browser` pin (`b9d6db9e`), with the Theorem UI
+  conformance repairs (`docs/desktop/conformance.md`), and has the same
+  feature set:
   - `webcrypto`, because note canonicals hash with `crypto.subtle`;
   - `webgl`;
   - `brotli-compression-stream`.
@@ -899,7 +901,7 @@ Web deployment              the same app and server, no workspace or bridge
 |---|---|---|
 | The interface | this repo's React app | shipped |
 | Native app, windows, dialogs, popups | GPUI Kit 0.8 (`gpui-pre` 0.3.9) | published |
-| Web engine | `servo` 0.7 with `webcrypto`, `webgl`, `brotli-compression-stream` | Theorem's fork, git rev `b9d6db9e` |
+| Web engine | `servo` 0.7 with `webcrypto`, `webgl`, `brotli-compression-stream` | Theorem's fork, git rev `87ac5a3d` |
 | Page frames inside GPUI's scene | `gpui::surface()` with a BGRA path in `gpui-pre-apple`; surfman `IOSurface` | published; renderer patch written and carried by the app |
 | Input translation | servoshell's platform-to-Servo event code | reference, Servo repository |
 | Accessibility | Servo's AccessKit tree, AccessKit macOS adapter | crates.io |

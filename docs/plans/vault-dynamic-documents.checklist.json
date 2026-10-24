@@ -15,9 +15,9 @@
     },
     {
       "id": "servo-dependency",
-      "item": "Depend on Theorem's Servo 0.7 fork (git rev b9d6db9e, features webcrypto, webgl, brotli-compression-stream), lock seeded from Theorem apps/browser, one toolchain (1.97.1) for Servo and gpui-pre",
+      "item": "Depend on Theorem's Servo 0.7 fork (git rev 87ac5a3d, features webcrypto, webgl, brotli-compression-stream), lock seeded from Theorem apps/browser, one toolchain (1.97.1) for Servo and gpui-pre",
       "status": "done",
-      "evidence": "desktop/Cargo.toml pins the fork at b9d6db9 with webcrypto, webgl and brotli-compression-stream; desktop/rust-toolchain.toml pins 1.97.1 for the whole graph; built and run through the conformance pass. zed-font-kit is carried with freetype-sys 0.23 (desktop/vendor/zed-font-kit/THEOREM-PATCH.md)."
+      "evidence": "desktop/Cargo.toml pins the fork at 87ac5a3 (the conformance pass started at b9d6db9) with webcrypto, webgl and brotli-compression-stream; desktop/rust-toolchain.toml pins 1.97.1 for the whole graph; built and run through the conformance pass at both revisions. zed-font-kit is carried with freetype-sys 0.23 (desktop/vendor/zed-font-kit/THEOREM-PATCH.md)."
     },
     {
       "id": "servo-child-view",
@@ -41,7 +41,7 @@
       "id": "servo-ime",
       "item": "GPUI input handler over Servo's input-method control; composition and dismissal reach Crepe (D2)",
       "status": "in_progress",
-      "evidence": "Composition events reach Servo, but Servo inserts committed text only into input and textarea, so Crepe gets none (docs/desktop/conformance.md, gap 6)."
+      "evidence": "At 87ac5a3, composition through GPUI's input handler reaches Crepe: the preedit is replaced, the commit lands once, an empty commit removes the preedit, and undo and redo restore the text around it (docs/desktop/conformance.md, gap 6). A real macOS input method has not been driven: the driver calls GPUI's input handler, not AppKit's."
     },
     {
       "id": "servo-clipboard",
