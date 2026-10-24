@@ -51,9 +51,12 @@ impl Engine {
         let mut opts = Opts::default();
         opts.config_dir = Some(profile_dir.to_path_buf());
         // `:has()` is off by default in Servo; Dockview's focus rings and
-        // Milkdown's table and image tools need it (docs/desktop/conformance.md).
+        // Milkdown's table and image tools need it. So are `FontFace` and
+        // `document.fonts.add`, which pdf.js loads a PDF's fonts through
+        // (docs/desktop/conformance.md).
         let preferences = Preferences {
             layout_css_has_selector_enabled: true,
+            dom_fontface_enabled: true,
             ..Preferences::default()
         };
         let servo = ServoBuilder::default()
