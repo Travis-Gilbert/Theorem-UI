@@ -59,11 +59,12 @@ test('an unreachable Theorem keeps the session, and the next request refreshes i
   expect(await personBearer()).toBe('new')
 })
 
-test('a refused refresh token ends the session', async () => {
+test('a refused refresh token signs out and leaves the cookie alone', async () => {
+  const cookie = jar.get('theorem_session')
   tokenResponse = () =>
     Response.json({ error: 'invalid_grant' }, { status: 400 })
   expect(await personBearer()).toBeUndefined()
-  expect(jar.has('theorem_session')).toBe(false)
+  expect(jar.get('theorem_session')).toBe(cookie)
 })
 
 test('sign-in returns only to paths on this origin', () => {
