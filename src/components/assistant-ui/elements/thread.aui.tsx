@@ -1,4 +1,5 @@
 "use client";
+// SOURCING: @assistant-ui/react (the registry's thread, adopted and restyled: ThreadPrimitive, ComposerPrimitive, MessagePrimitive, ThreadPrimitive.Suggestion for the welcome suggestions)
 
 import {
   ComposerAddAttachment,
@@ -54,7 +55,8 @@ import {
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
 
-import { Magnet, useArrivedLive } from "@/components/motion";
+import { useWelcome } from "@/components/chat/welcome";
+import { Magnet, useArrivedLive, useWordsIn } from "@/components/motion";
 import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
@@ -184,7 +186,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   isEmpty,
   autoFocus,
 }) => {
-  const { Welcome } = useContext(ThreadComponentsContext);
+  const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
   const footerRef = useRef<HTMLDivElement>(null);
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
@@ -216,11 +218,9 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             isEmpty && "justify-center",
           )}
         >
-          {Welcome && (
-            <AuiIf condition={isNewChatView}>
-              <Welcome />
-            </AuiIf>
-          )}
+          <AuiIf condition={isNewChatView}>
+            <Welcome />
+          </AuiIf>
           <AuiIf condition={isHistoryLoadingView}>
             <ThreadHistorySkeleton />
           </AuiIf>
@@ -248,10 +248,85 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
           >
             <ThreadScrollToBottom />
             <Composer autoFocus={autoFocus} />
+            <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
+              <ThreadSuggestions />
+            </AuiIf>
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+  );
+};
+
+// The headline and suggestions are written for this person by the welcome
+// route. While it answers they hold their space, so the composer does not
+// jump; if it cannot answer, the composer stands alone.
+const ThreadWelcome: FC = () => {
+  const welcome = useWelcome();
+  if (welcome.isError) return null;
+  return (
+    <div className="aui-thread-welcome-root mb-8 px-2">
+      {welcome.data ? (
+        <ThreadHeadline key={welcome.data.headline} text={welcome.data.headline} />
+      ) : (
+        <Skeleton className="h-[35px] w-3/5 motion-reduce:animate-none" />
+      )}
+    </div>
+  );
+};
+
+const ThreadHeadline: FC<{ text: string }> = ({ text }) => {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useWordsIn(ref, { gap: 55, y: 14, ease: "lift" });
+  return (
+    <h1
+      ref={ref}
+      className="aui-thread-welcome-message-inner font-heading text-[28px] font-normal tracking-tight leading-tight"
+    >
+      {text}
+    </h1>
+  );
+};
+
+const ThreadSuggestions: FC = () => {
+  const welcome = useWelcome();
+  if (welcome.isError) return null;
+  if (!welcome.data) {
+    return (
+      <div className="flex flex-col gap-1 px-2 py-2">
+        <Skeleton className="h-5 w-1/2 motion-reduce:animate-none" />
+        <Skeleton className="mt-2 h-5 w-2/5 motion-reduce:animate-none" />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "aui-thread-welcome-suggestions flex w-full flex-col",
+        "[&>*]:animate-in [&>*]:fade-in [&>*]:slide-in-from-bottom-2 [&>*]:fill-mode-both [&>*]:ease-settle [&>*]:duration-(--duration-settle) motion-reduce:[&>*]:animate-none",
+        "[&>*:nth-child(1)]:[animation-delay:380ms] [&>*:nth-child(2)]:[animation-delay:440ms]",
+      )}
+    >
+      {welcome.data.suggestions.map((suggestion) => (
+        <ThreadPrimitive.Suggestion
+          key={suggestion.prompt}
+          prompt={suggestion.prompt}
+          send
+          className="aui-thread-welcome-suggestion group hover:bg-hover flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors duration-100 motion-reduce:transition-none"
+        >
+          <span
+            aria-hidden
+            className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none"
+          >
+            {">"}
+          </span>
+          <span className="min-w-0 flex-1 truncate">
+            <span className="text-foreground">{suggestion.title}</span>{" "}
+            <span className="text-muted-foreground">{suggestion.label}</span>
+          </span>
+        </ThreadPrimitive.Suggestion>
+      ))}
+    </div>
   );
 };
 
