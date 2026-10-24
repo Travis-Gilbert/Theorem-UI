@@ -114,8 +114,12 @@ export async function proxyToTheorem(request: Request): Promise<Response> {
   const token = await bearer()
   if (token instanceof Response) return token
 
+  // Set on the base rather than resolved against it: a path starting `//`
+  // would otherwise name another host and take the bearer there.
   const incoming = new URL(request.url)
-  const target = new URL(incoming.pathname + incoming.search, base)
+  const target = new URL(base)
+  target.pathname = incoming.pathname
+  target.search = incoming.search
 
   const headers = new Headers(request.headers)
   for (const name of REQUEST_HEADERS_DROPPED) headers.delete(name)

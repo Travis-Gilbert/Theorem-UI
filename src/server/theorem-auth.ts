@@ -107,9 +107,18 @@ function keep(target: Session, tokens: oauth.TokenEndpointResponse) {
     : undefined
 }
 
-/** Only paths on this origin; anything else returns to the start. */
-function safeReturnTo(value: string | null) {
-  return value?.startsWith('/') && !value.startsWith('//') ? value : '/'
+/**
+ * Only paths on this origin; anything else returns to the start. The path is
+ * resolved rather than matched, because browsers read `/\host` and a path with
+ * a tab after its slash as `//host`.
+ */
+export function safeReturnTo(value: string | null, request: Request) {
+  const origin = new URL(request.url).origin
+  if (!value?.startsWith('/')) return '/'
+  const target = new URL(value, origin)
+  return target.origin === origin
+    ? target.pathname + target.search + target.hash
+    : '/'
 }
 
 const redirect = (location: string) =>
@@ -132,7 +141,10 @@ export async function signIn(request: Request) {
   current.pending = {
     state,
     verifier,
-    returnTo: safeReturnTo(new URL(request.url).searchParams.get('returnTo')),
+    returnTo: safeReturnTo(
+      new URL(request.url).searchParams.get('returnTo'),
+      request,
+    ),
   }
   await current.save()
 
@@ -231,9 +243,11 @@ function refresh(settings: Config, refreshToken: string) {
       ),
     )
     refreshes.set(refreshToken, pending)
-    const forget = () =>
-      setTimeout(() => refreshes.delete(refreshToken), 60_000)
-    pending.then(forget, forget)
+    // A failed refresh is not kept, so the next request tries again.
+    pending.then(
+      () => setTimeout(() => refreshes.delete(refreshToken), 60_000),
+      () => refreshes.delete(refreshToken),
+    )
   }
   return pending
 }
@@ -256,9 +270,15 @@ export async function personBearer(): Promise<string | undefined> {
   }
   try {
     keep(current, await refresh(settings, current.refreshToken))
-  } catch {
-    current.destroy()
-    return undefined
+  } catch (error) {
+    // While Theorem is unreachable (a deploy, say) the session stays and a
+    // later request refreshes it. A refused refresh token signs the person
+    // out without clearing the cookie: Theorem rotates refresh tokens, so the
+    // refusal may be a request that lost a race with a refresh another worker
+    // made, and an emptied cookie would overwrite the one that refresh set.
+    return error instanceof oauth.ResponseBodyError
+      ? undefined
+      : current.accessToken
   }
   await current.save()
   return current.accessToken
