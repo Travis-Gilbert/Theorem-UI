@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only)
+// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list)
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -9,6 +9,7 @@ import {
   ThreadListRoot,
   ThreadListSearch,
 } from '@/components/assistant-ui/elements/thread-list.aui'
+import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { FoldersSection } from '@/components/workspace/folders'
 import { describeError } from '@/lib/theorem/client'
-import { modeLabel, useShellMode } from './modes'
+import { useShellMode } from './modes'
 import { useActiveProject, useCreateProject, useTenant } from './projects'
 import { useShell } from './shell-state'
 
@@ -207,14 +208,27 @@ function ChatPanel() {
   )
 }
 
-/** Spaces will bring its own panel; until then it names itself. */
-function ModePanel({ mode }: { mode: 'spaces' }) {
+/** Spaces' panel: the project, then the notes on its canvas. */
+function SpacesPanel() {
+  const { project } = useActiveProject()
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-12 shrink-0 items-center px-3.5 text-sm font-medium">
-        {modeLabel(mode)}
+      <div className="flex h-12 shrink-0 items-center px-1.5">
+        <ProjectSwitcher />
       </div>
-      <p className="px-3.5 text-sm text-ink-faint-sheet">Nothing here yet.</p>
+      <nav
+        aria-label="Notes on the canvas"
+        className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
+      >
+        <p className="px-2 pt-2 pb-1 text-xs text-ink-faint-sheet">Notes</p>
+        {project && (
+          <SpaceNotes
+            key={project.projectId}
+            projectId={project.projectId}
+            title={project.title}
+          />
+        )}
+      </nav>
     </div>
   )
 }
@@ -234,7 +248,7 @@ export function ContextPanel() {
       </div>
       {mode === 'spaces' && (
         <div className="min-h-0 flex-1">
-          <ModePanel mode={mode} />
+          <SpacesPanel />
         </div>
       )}
       <FoldersSection />

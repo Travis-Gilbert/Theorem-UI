@@ -26,7 +26,7 @@ import type {
 import '@xyflow/react/dist/style.css'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTheme } from 'next-themes'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Icon } from '@/components/icons'
 import { NotePicker } from '@/components/notes/note-picker'
@@ -41,6 +41,7 @@ import { createNote, noteKey, primeNote } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
 import {
   editSpace,
+  isNotePlacement,
   movePlacement,
   removeConnections,
   removePlacements,
@@ -52,21 +53,19 @@ import {
   useSpaceStatus,
   userAuthorship,
 } from '@/lib/theorem/spaces'
+import type { NotePlacement } from '@/lib/theorem/spaces'
+import { useCanvasView } from './canvas-view'
 import { useComposer } from './composer-state'
 import { ExportToFolder } from './export-to-folder'
 import { NoteNodeView } from './note-node'
 import type { NoteNode } from './note-node'
+import { EDIT_ZOOM } from './zoom'
 
 const nodeTypes = { note: NoteNodeView }
 const NEW_NOTE = { w: 360, h: 280 }
 const NEW_NOTE_MARKDOWN = '# Untitled note\n\n'
 
-type ObjectPlacement = Theorem.SpacePlacement.Object
-
-const isNotePlacement = (p: Theorem.SpacePlacement): p is ObjectPlacement =>
-  p.target === 'object' && p.object.kind === 'document'
-
-function toNode(placement: ObjectPlacement): NoteNode {
+function toNode(placement: NotePlacement): NoteNode {
   const { x, y, w, h } = placement.rect
   return {
     id: placement.id,
@@ -168,6 +167,32 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
       placements.map((p) => ({ ...toNode(p), selected: selected.has(p.id) })),
     )
   }
+
+  // The Spaces panel focuses a card: select it alone and bring it into view
+  // at a zoom where it is editable.
+  useEffect(() => {
+    useCanvasView.setState({
+      canvas: {
+        focus: (placementId) => {
+          setNodes((current) =>
+            current.map((n) =>
+              n.selected === (n.id === placementId)
+                ? n
+                : { ...n, selected: n.id === placementId },
+            ),
+          )
+          void flow.fitView({
+            nodes: [{ id: placementId }],
+            duration: 300,
+            padding: 0.3,
+            minZoom: EDIT_ZOOM,
+            maxZoom: 1,
+          })
+        },
+      },
+    })
+    return () => useCanvasView.setState({ canvas: undefined })
+  }, [flow])
 
   const edit = (spaceEdit: Parameters<typeof editSpace>[2]) =>
     editSpace(queryClient, spaceId, spaceEdit)
