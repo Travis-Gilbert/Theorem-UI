@@ -33,7 +33,16 @@ const loroForWorkers: Plugin = {
   },
 }
 
+// trash runs a helper binary and @rustyreddb/node loads a native addon, each
+// sitting beside its module. Only the desktop server uses them.
+const serverOnlyPackages = ['trash', '@rustyreddb/node']
+
 const config = defineConfig({
+  // The dev server's client dependency scan follows the route tree into the
+  // desktop routes, and cannot pre-bundle these for the browser: rolldown
+  // cannot load a .node file, and trash's globby needs unicorn-magic's Node
+  // build. The client never imports them, so they are left out.
+  optimizeDeps: { exclude: serverOnlyPackages },
   resolve: {
     tsconfigPaths: true,
     alias: cloudflare
@@ -116,10 +125,9 @@ const config = defineConfig({
             method: 'GET',
           },
         },
-        // trash runs a helper binary and @rustyreddb/node loads a native addon,
-        // each sitting beside its module; copied whole so the binary ships
-        // with it instead of being lost to bundling.
-        traceDeps: ['trash*', '@rustyreddb/node*'],
+        // Copied whole so each binary ships beside its module instead of
+        // being lost to bundling.
+        traceDeps: serverOnlyPackages.map((name) => `${name}*`),
       }),
     }),
     viteReact(),
