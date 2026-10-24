@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, SpaceNotes (the canvas's note list)
+// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list)
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { FoldersSection } from '@/components/workspace/folders'
 import { describeError } from '@/lib/theorem/client'
 import { useShellMode } from './modes'
 import { useActiveProject, useCreateProject, useTenant } from './projects'
@@ -235,16 +236,22 @@ function SpacesPanel() {
 /**
  * The panel beside the rail belongs to the active mode. Theia covers it in
  * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
- * Spaces, so its search, scroll and open branches survive a switch.
+ * Spaces, so its search, scroll and open branches survive a switch. The
+ * desktop app's folders sit below every mode's panel.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   return (
-    <div className="on-sheet h-full">
-      <div hidden={mode === 'spaces'} className="h-full">
+    <div className="on-sheet flex h-full flex-col">
+      <div hidden={mode === 'spaces'} className="min-h-0 flex-1">
         <ChatPanel />
       </div>
-      {mode === 'spaces' && <SpacesPanel />}
+      {mode === 'spaces' && (
+        <div className="min-h-0 flex-1">
+          <SpacesPanel />
+        </div>
+      )}
+      <FoldersSection />
     </div>
   )
 }

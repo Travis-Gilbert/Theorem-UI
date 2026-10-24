@@ -47,6 +47,9 @@ import Layout from '@/assets/icons/records/noun-layout-8176268.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
+import TreeFileMark from '@/assets/icons/tree/file.svg?react'
+import FolderMark from '@/assets/icons/tree/folder-closed.svg?react'
+import FolderOpenMark from '@/assets/icons/tree/folder-open.svg?react'
 import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
 import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
@@ -168,6 +171,10 @@ const More = solid(MoreMark)
 const Next = solid(NextMark)
 const Previous = solid(PreviousMark)
 const Reload = solid(ReloadMark)
+// The folder tree's marks are filled outlines on a 24 viewBox, solid like the toolbar's.
+const TreeFolder = solid(FolderMark)
+const TreeFolderOpen = solid(FolderOpenMark)
+const TreeFile = solid(TreeFileMark)
 
 export const Icon = {
   Download,
@@ -217,6 +224,9 @@ export const Icon = {
   Stop,
   Sun,
   Terminal,
+  TreeFile,
+  TreeFolder,
+  TreeFolderOpen,
   UpDown,
   Web,
 }

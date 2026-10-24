@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia), the Spaces canvas (React Flow)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia)
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { Canvas } from '@/components/canvas/canvas'

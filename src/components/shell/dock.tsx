@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, NotePanel (Milkdown Crepe), the IDE frame (browser-only Theia), Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, note view, saved layouts and the drawers
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, NotePanel (Milkdown Crepe), WorkspaceFilePanel, the IDE frame (browser-only Theia), Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, note view, workspace file view, saved layouts and the drawers
 import { useAuiState } from '@assistant-ui/react'
 import { Menu } from '@base-ui/react/menu'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
@@ -18,18 +18,25 @@ import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-ic
 import { Icon } from '@/components/icons'
 import { NotePanel } from '@/components/notes/note-panel'
 import { useNoteView } from '@/components/notes/note-view'
-import { useFollow } from '@/components/ide/follow'
-import { IdeFrame } from '@/components/ide/ide-frame'
 import { Button } from '@/components/ui/button'
+import {
+  WORKSPACE_FILE_COMPONENT,
+  WorkspaceFileDockPanel,
+  openWorkspaceFilePanel,
+} from '@/components/workspace/workspace-file-panel'
 import { useNote } from '@/lib/theorem/notes'
 import { useFileDock } from '@/lib/theorem/project-files'
+import { useWorkspaceFileView } from '@/lib/workspace/open'
 import { FilePanel } from './file-panel'
-import { cn } from '@/lib/utils'
 import { ModeView, modeLabel, useShellMode } from './modes'
+import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
 
+import { useFollow } from '@/components/ide/follow'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { flyGhost, popIn } from '@/lib/motion'
+import { cn } from '@/lib/utils'
 
 const THREAD = 'thread'
 const ARTIFACT = 'artifact:'
@@ -41,7 +48,6 @@ const artifactIdOf = (panelId: string) =>
 const FILE = 'file:'
 const filePanelId = (path: string) => `${FILE}${path}`
 const isFilePanel = (panelId: string) => panelId.startsWith(FILE)
-
 /** Colours come from the palette tokens, which already switch per palette and mode. */
 const theme: DockviewTheme = {
   name: 'theorem',
@@ -71,7 +77,6 @@ function ThreadPanel({ api }: IDockviewPanelProps) {
     </div>
   )
 }
-
 function ArtifactDockPanel({
   api,
   containerApi,
@@ -142,8 +147,9 @@ const components = {
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
   ide: IdeFrame,
   artifact: ArtifactDockPanel,
-  file: FileDockPanel,
   note: NoteDockPanel,
+  [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
+  file: FileDockPanel,
 }
 
 const tabComponents = {
@@ -168,7 +174,6 @@ function FollowToggle() {
     </TooltipIconButton>
   )
 }
-
 /**
  * Opens a drawer beside the conversation: the terminal, on the right or at
  * the bottom, and later other tools. New chat lives in the sidebar.
@@ -264,25 +269,15 @@ function openSide(
     existing.api.setActive()
     return
   }
+  const sized = { ...options, minimumWidth: 400 }
   const sibling = api.panels.find(
     (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
   )
   if (sibling) {
-    api.addPanel({
-      ...options,
-      minimumWidth: 400,
-      position: { referenceGroup: sibling.group },
-    })
+    api.addPanel({ ...sized, position: { referenceGroup: sibling.group } })
     return
   }
-  const initialWidth = Math.round(api.width * 0.55)
-  const sized = { ...options, minimumWidth: 400, initialWidth }
-  if (api.getPanel(THREAD)?.api.location.type === 'grid')
-    api.addPanel({
-      ...sized,
-      position: { referencePanel: THREAD, direction: 'right' },
-    })
-  else api.addPanel({ ...sized, position: { direction: 'right' } })
+  openBeside(api, sized, THREAD, 0.55)
 }
 
 function openArtifact(api: DockviewApi, artifactId: string) {
@@ -302,37 +297,6 @@ function openFile(api: DockviewApi, projectId: string, path: string) {
     params: { projectId, path },
     title: path.split('/').at(-1) || path,
   })
-}
-
-/** Notes join the open note tabs, else open beside the conversation. */
-function openNote(api: DockviewApi, documentId: string) {
-  const id = `${NOTE}${documentId}`
-  const existing = api.getPanel(id)
-  if (existing) {
-    existing.api.setActive()
-    return
-  }
-  const options = {
-    id,
-    component: 'note',
-    params: { documentId },
-    title: 'Note',
-    minimumWidth: 360,
-  }
-  const sibling = api.panels.find((panel) => panel.id.startsWith(NOTE))
-  if (sibling) {
-    api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
-    return
-  }
-  const initialWidth = Math.round(api.width * 0.4)
-  if (api.getPanel(THREAD)?.api.location.type === 'grid')
-    api.addPanel({
-      ...options,
-      initialWidth,
-      position: { referencePanel: THREAD, direction: 'right' },
-    })
-  else
-    api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
 }
 
 /**
@@ -366,11 +330,10 @@ function springMaximize(dock: DockviewApi) {
             continue
           }
           if (from.width === to.width && from.height === to.height) continue
-          const artifact = group.panels.some(
-            (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
-          )
+          // Every panel beside the conversation draws on the artifact surface.
+          const side = group.panels.some((panel) => panel.id !== THREAD)
           flyGhost(from, group.element, {
-            className: artifact ? 'bg-artifact' : 'bg-background',
+            className: side ? 'bg-artifact' : 'bg-background',
             ease: 'settle',
           })
         }
@@ -378,8 +341,32 @@ function springMaximize(dock: DockviewApi) {
     }),
   ]
 }
+
+/** Notes join the open note tabs, else open beside the conversation. */
+function openNote(api: DockviewApi, documentId: string) {
+  const id = `${NOTE}${documentId}`
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  const options = {
+    id,
+    component: 'note',
+    params: { documentId },
+    title: 'Note',
+    minimumWidth: 360,
+  }
+  const sibling = api.panels.find((panel) => panel.id.startsWith(NOTE))
+  if (sibling) {
+    api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
+    return
+  }
+  openBeside(api, options, THREAD, 0.4)
+}
+
 /**
- * Desktop dock: the conversation, each open artifact, project file and note as dock panels. Panels render always, so moving or hiding one
+ * Desktop dock: the conversation and each open artifact, note and file as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
  * per project; artifact panels belong to the conversation they came from.
  */
@@ -427,10 +414,13 @@ export function DockShell({
         },
       },
     })
-    useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     useNoteView.setState({
       dock: { open: (documentId) => openNote(dock, documentId) },
     })
+    useWorkspaceFileView.setState({
+      dock: { open: (file) => openWorkspaceFilePanel(dock, file, THREAD) },
+    })
+    useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -446,8 +436,9 @@ export function DockShell({
     return () => {
       for (const listener of listeners) listener.dispose()
       useArtifactView.setState({ dock: undefined })
-      useFileDock.setState({ open: undefined })
       useNoteView.setState({ dock: undefined })
+      useWorkspaceFileView.setState({ dock: undefined })
+      useFileDock.setState({ open: undefined })
     }
   }, [dock, projectId])
 

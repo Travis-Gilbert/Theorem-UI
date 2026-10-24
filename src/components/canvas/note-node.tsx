@@ -12,9 +12,7 @@ import {
 import { useNoteView } from '@/components/notes/note-view'
 import { useNote } from '@/lib/theorem/notes'
 import { useComposer } from './composer-state'
-
-/** Below this zoom a card shows a read-only excerpt instead of a live editor. */
-export const EDIT_ZOOM = 0.6
+import { EDIT_ZOOM } from './zoom'
 
 export type NoteNodeData = { documentId: string }
 export type NoteNode = Node<NoteNodeData, 'note'>

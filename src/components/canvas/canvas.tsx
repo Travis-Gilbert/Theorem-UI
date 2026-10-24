@@ -12,6 +12,7 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  applyEdgeChanges,
   applyNodeChanges,
   useReactFlow,
 } from '@xyflow/react'
@@ -55,8 +56,10 @@ import {
 import type { NotePlacement } from '@/lib/theorem/spaces'
 import { useCanvasView } from './canvas-view'
 import { useComposer } from './composer-state'
-import { EDIT_ZOOM, NoteNodeView } from './note-node'
+import { ExportToFolder } from './export-to-folder'
+import { NoteNodeView } from './note-node'
 import type { NoteNode } from './note-node'
+import { EDIT_ZOOM } from './zoom'
 
 const nodeTypes = { note: NoteNodeView }
 const NEW_NOTE = { w: 360, h: 280 }
@@ -140,9 +143,17 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
     () => (space.data?.space.placements ?? []).filter(isNotePlacement),
     [space.data],
   )
+  // The Space has no selection, so the canvas keeps which edges are selected.
+  const [selectedEdges, setSelectedEdges] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   const edges = useMemo(
-    () => (space.data?.space.connections ?? []).map(toEdge),
-    [space.data],
+    () =>
+      (space.data?.space.connections ?? []).map((c) => ({
+        ...toEdge(c),
+        selected: selectedEdges.has(c.id),
+      })),
+    [space.data, selectedEdges],
   )
 
   // React Flow owns the nodes between Space edits: selection, drags, resizes.
@@ -219,6 +230,14 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
   }
 
   const onEdgesChange = (changes: EdgeChange[]) => {
+    if (changes.some((c) => c.type === 'select'))
+      setSelectedEdges(
+        new Set(
+          applyEdgeChanges(changes, edges).flatMap((e) =>
+            e.selected ? [e.id] : [],
+          ),
+        ),
+      )
     const removed = new Set(
       changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])),
     )
@@ -396,6 +415,7 @@ function Surface({ projectId, title }: { projectId: string; title: string }) {
             <Icon.Search />
             Add note
           </Button>
+          <ExportToFolder title={title} space={space.data.space} />
           {creating && (
             <span className="text-xs text-error-ink">{creating}</span>
           )}

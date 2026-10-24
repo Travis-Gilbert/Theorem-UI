@@ -1,27 +1,29 @@
-// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), the IDE frame (browser-only Theia fills the sheet in IDE mode), the agent TerminalDrawer and the tabbed SideTerminal, AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe)
-import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
-import { Drawer } from '@base-ui/react/drawer'
-import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
-import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
-import { createContext, useContext, useEffect, useState } from 'react'
-import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { AgentComposer } from '@/components/canvas/agent-composer'
-import { useCanvasView } from '@/components/canvas/canvas-view'
-import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
+import { ContextPanel } from './sidebar'
+import { DockShell } from './dock'
+import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
+import { ModeView, modeLabel, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
-import { useNoteView } from '@/components/notes/note-view'
+import { PANEL_WIDTH, useShell } from './shell-state'
+import { Rail } from './rail'
 import { SideTerminal } from '@/components/terminal/side-terminal'
 import { TerminalDrawer } from '@/components/terminal/terminal-drawer'
+import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
+import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { WorkspaceCommands } from '@/components/workspace/workspace-commands'
+import { WorkspaceFileOverlay } from '@/components/workspace/workspace-file-panel'
 import { cn } from '@/lib/utils'
-import { DockShell } from './dock'
-import { ModeView, modeLabel, useShellMode } from './modes'
-import { Rail } from './rail'
-import { PANEL_WIDTH, useShell } from './shell-state'
-import { ContextPanel } from './sidebar'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { useCanvasView } from '@/components/canvas/canvas-view'
+import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
+import { useNoteView } from '@/components/notes/note-view'
 
 const iconButton = 'size-9 p-2'
 
@@ -119,15 +121,14 @@ function PhoneShell() {
           className="fixed inset-0 z-40"
         />
       )}
+
+      <WorkspaceFileOverlay />
     </>
   )
 }
 
 /** What the dock beside the context panel shows. */
 type DockRoute = { projectId: string; threadId: string | undefined }
-
-// Splitview panels render through portals, so the route reaches the dock by
-// context rather than by panel parameters.
 const DockRouteContext = createContext<DockRoute | null>(null)
 
 function DockView() {
@@ -135,7 +136,6 @@ function DockView() {
   if (!route) throw new Error('DockView renders inside the desktop sheet')
   return <DockShell projectId={route.projectId} threadId={route.threadId} />
 }
-
 const PANEL = 'panel'
 
 const splitComponents = {
@@ -241,7 +241,6 @@ function DesktopShell(route: DockRoute) {
     </div>
   )
 }
-
 /** Rail, panel, conversation and artifacts. Mounted inside TheoremRuntimeProvider. */
 export function ChatShell({
   projectId,
@@ -258,9 +257,10 @@ export function ChatShell({
       ) : (
         <PhoneShell />
       )}
+      <AgentComposer projectId={projectId} />
+      <WorkspaceCommands />
       <TerminalDrawer />
       <SideTerminal />
-      <AgentComposer projectId={projectId} />
     </div>
   )
 }

@@ -691,6 +691,20 @@
     background-color: currentColor;
     mask: var(--icon-mask) center / contain no-repeat;
   }
+
+  /* Without CSS masks (Servo 0.7) the mask would leave a solid square.
+     Paint the black mark itself, inverted to about the theme's ink; it
+     loses currentColor's hover and state colours until masks land. */
+  @supports not (mask-image: none) {
+    .icon-mask {
+      background: var(--icon-mask) center / contain no-repeat;
+      filter: invert(0.19);
+    }
+
+    .dark .icon-mask {
+      filter: invert(0.8);
+    }
+  }
 }
 
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
@@ -705,6 +719,12 @@
   background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
+
+  /* Without text clipping (Servo 0.7) the gradient would fill the box. */
+  @supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+    color: var(--ink-faint);
+    background-image: none;
+  }
 }
 
 /* Rows on the sheet sit over a gradient, so their hover is translucent ink
@@ -854,6 +874,11 @@
     background-position: 0 calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
     mask: radial-gradient(circle at 0 100%, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
   }
+
+  /* Without CSS masks (Servo 0.7) a corner would paint as a square. */
+  @supports not (mask-image: none) {
+    display: none;
+  }
 }
 
 /* @tailwindcss/typography, re-pointed at the palette tokens. A utility rather
@@ -986,6 +1011,144 @@
   color: var(--ink);
 }
 
+/* Folder notes: wikilinks, ![[embeds]] and Obsidian callouts. */
+.theorem-note .milkdown .theorem-wikilink {
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.theorem-note .milkdown .theorem-wikilink[data-unresolved] {
+  opacity: 0.65;
+  text-decoration-style: dashed;
+}
+
+.theorem-note .milkdown .theorem-wikilink[data-selected] {
+  border-radius: 3px;
+  background: var(--crepe-color-selected);
+}
+
+.theorem-note .milkdown .theorem-wiki-embed {
+  display: flex;
+  flex-direction: column;
+  max-height: 24rem;
+  margin: 4px 0;
+  overflow: hidden;
+  border: 1px solid var(--line-separator);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--surface-raised);
+}
+
+.theorem-note .milkdown .theorem-wiki-embed[data-selected] {
+  border-color: var(--focus);
+}
+
+.theorem-note .milkdown .theorem-wiki-embed-title {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--line-separator);
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.theorem-note .milkdown .theorem-wiki-embed-body {
+  min-height: 4rem;
+  font-size: 13px;
+}
+
+.theorem-note .milkdown .theorem-wiki-embed-missing {
+  padding: 8px 12px;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/* Obsidian's callout colours, as its default theme sets them. */
+.theorem-callout {
+  --callout: 8 109 221;
+}
+
+.theorem-note .milkdown .theorem-callout {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) + 2px);
+  background: rgb(var(--callout) / 0.1);
+}
+
+.theorem-callout:is([data-callout='abstract'], [data-callout='summary'], [data-callout='tldr'], [data-callout='tip'], [data-callout='hint'], [data-callout='important']) {
+  --callout: 0 191 188;
+}
+
+.theorem-callout:is([data-callout='success'], [data-callout='check'], [data-callout='done']) {
+  --callout: 8 185 78;
+}
+
+.theorem-callout:is([data-callout='question'], [data-callout='help'], [data-callout='faq'], [data-callout='warning'], [data-callout='caution'], [data-callout='attention']) {
+  --callout: 236 117 0;
+}
+
+.theorem-callout:is([data-callout='failure'], [data-callout='fail'], [data-callout='missing'], [data-callout='danger'], [data-callout='error'], [data-callout='bug']) {
+  --callout: 233 49 71;
+}
+
+.theorem-callout[data-callout='example'] {
+  --callout: 120 82 238;
+}
+
+.theorem-callout:is([data-callout='quote'], [data-callout='cite']) {
+  --callout: 158 158 158;
+}
+
+.theorem-note .milkdown .theorem-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--callout));
+  font-weight: 600;
+}
+
+.theorem-note .milkdown .theorem-callout-title select {
+  max-width: 7rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.theorem-note .milkdown .theorem-callout-title input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.theorem-note .milkdown .theorem-callout-title input::placeholder {
+  color: rgb(var(--callout) / 0.7);
+}
+
+.theorem-note .milkdown .theorem-callout-title button {
+  cursor: pointer;
+}
+
+.theorem-note .milkdown .theorem-callout-title button[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+
+.theorem-note .milkdown .theorem-callout-content > :first-child {
+  margin-top: 4px;
+}
+
+.theorem-note .milkdown .theorem-callout-content > :last-child {
+  margin-bottom: 0;
+}
+
 /* React Flow, re-pointed at the Stone tokens. */
 .react-flow {
   --xy-background-color: var(--surface-neutral);
@@ -1008,4 +1171,17 @@
   --xy-controls-button-border-color: var(--line-separator);
   --xy-controls-box-shadow: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
   --xy-attribution-background-color: transparent;
+}
+
+/* Servo 0.7 parses pointer-events only as auto or none, so React Flow's
+   `all` is dropped and nodes and handles inherit the pane's none: nothing on
+   the canvas can be clicked, dragged or connected. For an HTML box, auto is
+   what all means. */
+@supports not (pointer-events: all) {
+  .react-flow__node,
+  .react-flow__nodesselection-rect,
+  .react-flow__handle.connectingfrom,
+  .react-flow__handle.connectionindicator {
+    pointer-events: auto;
+  }
 }
