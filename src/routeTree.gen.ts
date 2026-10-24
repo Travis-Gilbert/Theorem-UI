@@ -21,6 +21,7 @@ import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiEnvironmentV1SplatRouteImport } from './routes/api/environment/v1/$'
+import { Route as ApiProjectFilesV1SplatRouteImport } from './routes/api/project-files/v1/$'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
 
 const ChatRoute = ChatRouteImport.update({
@@ -82,6 +83,11 @@ const ApiEnvironmentV1SplatRoute = ApiEnvironmentV1SplatRouteImport.update({
   path: '/api/environment/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProjectFilesV1SplatRoute = ApiProjectFilesV1SplatRouteImport.update({
+  id: '/api/project-files/v1/$',
+  path: '/api/project-files/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1TheoremAgentStreamSplatRoute =
   V1TheoremAgentStreamSplatRouteImport.update({
     id: '/v1/theorem/agent/stream/$',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
+  '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesByTo {
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
+  '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesById {
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
+  '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRouteTypes {
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/environment/v1/$'
+    | '/api/project-files/v1/$'
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/environment/v1/$'
+    | '/api/project-files/v1/$'
     | '/v1/theorem/agent/stream/$'
   id:
     | '__root__'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/environment/v1/$'
+    | '/api/project-files/v1/$'
     | '/v1/theorem/agent/stream/$'
   fileRoutesById: FileRoutesById
 }
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiEnvironmentV1SplatRoute: typeof ApiEnvironmentV1SplatRoute
+  ApiProjectFilesV1SplatRoute: typeof ApiProjectFilesV1SplatRoute
   V1TheoremAgentStreamSplatRoute: typeof V1TheoremAgentStreamSplatRoute
 }
 
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEnvironmentV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/project-files/v1/$': {
+      id: '/api/project-files/v1/$'
+      path: '/api/project-files/v1/$'
+      fullPath: '/api/project-files/v1/$'
+      preLoaderRoute: typeof ApiProjectFilesV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/theorem/agent/stream/$': {
       id: '/v1/theorem/agent/stream/$'
       path: '/v1/theorem/agent/stream/$'
@@ -312,17 +332,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiEnvironmentV1SplatRoute: ApiEnvironmentV1SplatRoute,
+  ApiProjectFilesV1SplatRoute: ApiProjectFilesV1SplatRoute,
   V1TheoremAgentStreamSplatRoute: V1TheoremAgentStreamSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

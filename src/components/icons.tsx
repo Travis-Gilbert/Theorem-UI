@@ -18,12 +18,20 @@ import MoreMark from '@/assets/icons/message/theorem-more.svg?react'
 import NextMark from '@/assets/icons/message/theorem-next.svg?react'
 import PreviousMark from '@/assets/icons/message/theorem-previous.svg?react'
 import ReloadMark from '@/assets/icons/message/theorem-reload.svg?react'
-import Chat from '@/assets/icons/rail/noun-chat-8216252.svg?react'
+import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
-// Nor a two-way chevron for switchers; Lucide's stands in the same way.
-import { ChevronsUpDown as UpDown, Trash2 as Delete } from 'lucide-react'
+// Nor a two-way chevron for switchers, a terminal, a bare close cross, or the
+// panels mark (a top bar over a right-hand panel, drawn here as Lucide's
+// top-left panels mirrored); Lucide's stand in the same way.
+import {
+  ChevronsUpDown as UpDown,
+  PanelsTopLeft,
+  SquareTerminal as Terminal,
+  Trash2 as Delete,
+  X,
+} from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
 import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
@@ -42,10 +50,16 @@ import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
 import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
 import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
+import FileOpen from '@/assets/icons/streamline/streamline-file-open.png'
+import DownloadBox from '@/assets/icons/streamline/streamline-download-box.png'
+import FolderClosed from '@/assets/icons/streamline/streamline-folder.png'
+import ShipmentUpload from '@/assets/icons/streamline/streamline-shipment-upload.png'
+import WireframeCube from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
 import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
 import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
 import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
 import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
+import XMark from '@/assets/icons/streamline/streamline-x.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -89,14 +103,65 @@ const masked = (src: string): SvgMark =>
     )
   }
 
+const Artifact = masked(WireframeCube)
 const Copy = masked(CopyPaste)
+const Download = masked(DownloadBox)
+const Folder = masked(FolderClosed)
+const FolderOpen = masked(FileOpen)
 const Diagram = masked(CodeWrite)
 const NewChat = masked(PencilWrite)
 const Search = masked(SearchSquare)
 const Send = masked(SendEmail)
 const Share = masked(ShareBox)
 const Web = masked(CrossRegion)
+const Exit = masked(XMark)
 
+function Panels({ className, ...props }: ComponentProps<typeof PanelsTopLeft>) {
+  return <PanelsTopLeft {...props} className={cn('-scale-x-100', className)} />
+}
+
+const flap =
+  'icon-mask box-flap absolute inset-0 duration-(--duration-exit) ease-exit group-hover/open:duration-(--duration-lift) group-hover/open:ease-lift group-focus-visible/open:duration-(--duration-lift) group-focus-visible/open:ease-lift'
+
+/**
+ * Streamline's shipment box as masks of the one PNG: the body, the rim of its
+ * top face, and the two flaps that meet at the taped seam (.box-* in
+ * styles.css). Hovering or focusing the enclosing `group/open` swings the
+ * flaps up and out from the seam, the back one a beat ahead of the front.
+ */
+function Open({ className, style, ...props }: ComponentProps<'span'>) {
+  const mask = {
+    ...style,
+    '--icon-mask': `url("${ShipmentUpload}")`,
+  } as CSSProperties
+  return (
+    <span
+      aria-hidden="true"
+      {...props}
+      className={cn(
+        'relative inline-block shrink-0 group-hover/open:[--flap:120deg] group-focus-visible/open:[--flap:120deg]',
+        className,
+      )}
+    >
+      <span className="icon-mask box-body absolute inset-0" style={mask} />
+      <span
+        className="icon-mask box-rim absolute inset-0 opacity-0 transition-opacity duration-(--duration-exit) group-hover/open:opacity-100 group-focus-visible/open:opacity-100"
+        style={mask}
+      />
+      <span data-flap="back" className={flap} style={mask} />
+      <span
+        data-flap="front"
+        className={cn(
+          flap,
+          'group-hover/open:delay-60 group-focus-visible/open:delay-60',
+        )}
+        style={mask}
+      />
+    </span>
+  )
+}
+
+const Chat = solid(ChatMark)
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)
@@ -105,6 +170,10 @@ const Previous = solid(PreviousMark)
 const Reload = solid(ReloadMark)
 
 export const Icon = {
+  Download,
+  Open,
+  X,
+  Artifact,
   Add,
   Archive,
   Article,
@@ -119,9 +188,12 @@ export const Icon = {
   Diagram,
   Draft,
   Edit,
+  Exit,
   Expand,
   Eye,
   File,
+  Folder,
+  FolderOpen,
   Ide: Shellfile,
   Layout,
   Link,
@@ -131,6 +203,7 @@ export const Icon = {
   More,
   NewChat,
   Next,
+  Panels,
   Previous,
   Project: ProjectRow,
   Projects,
@@ -143,6 +216,7 @@ export const Icon = {
   Spaces: PenroseTriangle,
   Stop,
   Sun,
+  Terminal,
   UpDown,
   Web,
 }

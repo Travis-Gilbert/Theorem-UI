@@ -18,3 +18,7 @@ __unconfig*
 .theorem
 .wrangler
 src/assets/icons/.theorem
+
+# The agent terminal's WebAssembly build (terminal/build.sh).
+src/terminal-wasm
+terminal/target

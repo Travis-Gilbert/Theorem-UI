@@ -1,4 +1,4 @@
-// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), the IDE frame (browser-only Theia fills the sheet in IDE mode)
+// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), the IDE frame (browser-only Theia fills the sheet in IDE mode), the agent TerminalDrawer and the tabbed SideTerminal
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { Drawer } from '@base-ui/react/drawer'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
@@ -10,6 +10,8 @@ import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { SideTerminal } from '@/components/terminal/side-terminal'
+import { TerminalDrawer } from '@/components/terminal/terminal-drawer'
 import { cn } from '@/lib/utils'
 import { DockShell } from './dock'
 import { ModeView, modeLabel, useShellMode } from './modes'
@@ -73,12 +75,12 @@ function PhoneShell() {
         <Drawer.Portal>
           <Drawer.Backdrop className="fixed inset-0 bg-black/30 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-300 data-ending-style:opacity-0 data-starting-style:opacity-0 data-swiping:duration-0" />
           <Drawer.Viewport className="fixed inset-0 flex items-stretch justify-start">
-            <Drawer.Popup className="flex h-full w-[min(calc(var(--spacing-rail)+var(--spacing-sidebar)),90vw)] bg-rail outline-none [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-300 ease-(--ease-structure) data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0">
+            <Drawer.Popup className="flex h-full w-[min(calc(var(--spacing-rail)+var(--spacing-sidebar)),90vw)] bg-rail outline-none [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-(--duration-settle) ease-settle data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0">
               <Drawer.Title className="sr-only">Navigation</Drawer.Title>
               <Rail />
               <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
                 <div aria-hidden="true" className="lift-glow" />
-                <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+                <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
                   <ContextPanel />
                 </div>
               </div>
@@ -139,17 +141,21 @@ function SheetSplit(route: DockRoute) {
   const [split, setSplit] = useState<SplitviewApi>()
 
   const onReady = ({ api }: SplitviewReadyEvent) => {
+    const panelWidth = useShell.getState().panelWidth
     api.addPanel({
       id: PANEL,
       component: PANEL,
-      size: useShell.getState().panelWidth,
+      size: panelWidth,
       minimumSize: PANEL_WIDTH.min,
       maximumSize: PANEL_WIDTH.max,
       priority: LayoutPriority.Low,
     })
+    // Without a size the dock is added by evenly redistributing every view,
+    // which would widen the panel to its maximum.
     api.addPanel({
       id: 'dock',
       component: 'dock',
+      size: api.width - panelWidth,
       minimumSize: 360,
       priority: LayoutPriority.High,
     })
@@ -174,7 +180,7 @@ function SheetSplit(route: DockRoute) {
   return (
     <DockRouteContext.Provider value={route}>
       <SplitviewReact
-        className="sheet-split dockview-theme-stone h-full w-full"
+        className="sheet-split dockview-theme-theorem h-full w-full"
         orientation={Orientation.HORIZONTAL}
         proportionalLayout={false}
         components={splitComponents}
@@ -201,7 +207,7 @@ function DesktopShell(route: DockRoute) {
       <Rail collapsible />
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
-        <div className="relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
+        <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
           {/* Dockview layers its panels with z-index; isolate keeps them under Theia. */}
           <div inert={ide} className="isolate h-full">
             <SheetSplit {...route} />
@@ -236,6 +242,8 @@ export function ChatShell({
       ) : (
         <PhoneShell />
       )}
+      <TerminalDrawer />
+      <SideTerminal />
     </div>
   )
 }
