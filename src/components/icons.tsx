@@ -23,7 +23,13 @@ import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
 // Nor a two-way chevron for switchers; Lucide's stands in the same way.
-import { ChevronsUpDown as UpDown, Trash2 as Delete } from 'lucide-react'
+// Nor an outline or a node graph mark; Lucide's stand in the same way.
+import {
+  ChevronsUpDown as UpDown,
+  Trash2 as Delete,
+  TableOfContents as Outline,
+  Waypoints as Graph,
+} from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
 import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
@@ -43,12 +49,19 @@ import TreeFileMark from '@/assets/icons/tree/file.svg?react'
 import FolderMark from '@/assets/icons/tree/folder-closed.svg?react'
 import FolderOpenMark from '@/assets/icons/tree/folder-open.svg?react'
 import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
+import CommonFileDouble from '@/assets/icons/streamline/streamline-common-file-double.png'
+import CommonFileStack from '@/assets/icons/streamline/streamline-common-file-stack.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
 import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
+import DrawerFile from '@/assets/icons/streamline/streamline-drawer-file.png'
+import FileOpen1 from '@/assets/icons/streamline/streamline-file-open-1.png'
+import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
 import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
 import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
 import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
 import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
+import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
+import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -99,6 +112,13 @@ const Search = masked(SearchSquare)
 const Send = masked(SendEmail)
 const Share = masked(ShareBox)
 const Web = masked(CrossRegion)
+const Vault = masked(DrawerFile)
+const Files = masked(FolderFile1)
+const OpenFolder = masked(FileOpen1)
+const Notes = masked(CommonFileStack)
+const Attachments = masked(CommonFileDouble)
+const Trusted = masked(ZipFileLock)
+const Untrusted = masked(ZipFileWarning)
 
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
@@ -116,6 +136,7 @@ export const Icon = {
   Archive,
   Article,
   Attachment,
+  Attachments,
   Chat,
   Check,
   Close,
@@ -129,8 +150,10 @@ export const Icon = {
   Expand,
   Eye,
   File,
+  Files,
   Folder,
   FolderOpen,
+  Graph,
   Ide: Shellfile,
   Layout,
   Link,
@@ -140,6 +163,9 @@ export const Icon = {
   More,
   NewChat,
   Next,
+  Notes,
+  OpenFolder,
+  Outline,
   Previous,
   Project: ProjectRow,
   Projects,
@@ -153,7 +179,10 @@ export const Icon = {
   Stop,
   Sun,
   TreeFile,
+  Trusted,
+  Untrusted,
   UpDown,
+  Vault,
   Web,
 }
 

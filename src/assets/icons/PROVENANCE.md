@@ -480,4 +480,21 @@ a paid plan does not.
 | Web | `streamline/streamline-cross-region-data-delivery-2.png` | Amazon Web Service Cross Region Data Delivery 2 | `bf2af3fedbfe2ef27e2326eefa76bc188a32bd7b2f02fb483e1e412cc0fdaeb5` |
 | Diagram | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
 
+Seven more came from a second download of the same set,
+"streamline-ultimate-light--48x48-PNG(11).zip", copied and renamed the same
+way, for the Vault view.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Vault | `streamline/streamline-drawer-file.png` | Drawer File | `b62f3a4540b13b92650c088e7bf6df0f260627999be058aa2172f09fcdb53f81` |
+| Files | `streamline/streamline-folder-file-1.png` | Folder File 1 | `4240bc4dd5ffe1f41f0780d5dd14c80aa3870544ee7696c5fff0b12d20486678` |
+| OpenFolder | `streamline/streamline-file-open-1.png` | File Open 1 | `34474520539779686074d77b42268c53eb51fbfe463f0979f31d622130044413` |
+| Notes | `streamline/streamline-common-file-stack.png` | Common File Stack | `bf5297bf079553db6542d828cba373800566f3b735c11d831db1085e364e0dde` |
+| Attachments | `streamline/streamline-common-file-double.png` | Common File Double | `af123c37654db4734759ef6e8fd2e723822789cb614cf2e5b5d6997176f48865` |
+| Trusted | `streamline/streamline-zip-file-lock.png` | Zip File Lock | `d52444fa4c197a78539428b736187268e8cc512fd9656529ccbb87f87e5072c1` |
+| Untrusted | `streamline/streamline-zip-file-warning.png` | Zip File Warning | `12f856713874d0409829cee132357eacf3b4b2f53ef34b47a6630dd9d963020d` |
+
+Outline and Graph have no owned mark yet; Lucide's TableOfContents and
+Waypoints stand in, as Lucide's trash does for Delete.
+
 The files they replace in the registry are listed under Retired.
