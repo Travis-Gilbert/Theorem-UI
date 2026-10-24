@@ -19,8 +19,13 @@ export interface WorkspaceFileRef {
 export const workspaceFilePanelId = ({ workspaceId, path }: WorkspaceFileRef) =>
   `workspace-file:${workspaceId}:${path}`
 
-/** The desktop dock, which hosts each open workspace file as its own panel. */
-export type WorkspaceFileDock = { open: (file: WorkspaceFileRef) => void }
+/**
+ * The desktop dock, which hosts each open workspace file as its own panel.
+ * A file `replacing` another path opens in that path's panel, which closes.
+ */
+export type WorkspaceFileDock = {
+  open: (file: WorkspaceFileRef, replacing?: string) => void
+}
 
 type WorkspaceFileView = {
   /** The file the phone overlay shows; the dock tracks its own panels. */
@@ -41,11 +46,13 @@ export const useWorkspaceFileView = create<WorkspaceFileView>()((set) => ({
 
 /**
  * Opens a workspace file in the Vault when it is showing, else in the dock,
- * else over the conversation on a phone.
+ * else over the conversation on a phone. A file that took the place of the
+ * one at `replacing` opens where that one is open.
  */
-export function openWorkspaceFile(file: WorkspaceFileRef) {
+export function openWorkspaceFile(file: WorkspaceFileRef, replacing?: string) {
   const { vault, dock } = useWorkspaceFileView.getState()
-  if (vault) vault.open(file)
-  else if (dock) dock.open(file)
+  const from = replacing === file.path ? undefined : replacing
+  if (vault) vault.open(file, from)
+  else if (dock) dock.open(file, from)
   else useWorkspaceFileView.setState({ file })
 }

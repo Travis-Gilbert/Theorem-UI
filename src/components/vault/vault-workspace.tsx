@@ -160,12 +160,17 @@ function buildDefaultLayout(api: DockviewApi) {
 }
 
 /** A file joins the editor's tabs and replaces the empty tab. */
-function openFile(api: DockviewApi, file: WorkspaceFileRef) {
+function openFile(api: DockviewApi, file: WorkspaceFileRef, replacing?: string) {
   const id = workspaceFilePanelId(file)
   const existing = api.getPanel(id)
+  const old =
+    replacing === undefined
+      ? undefined
+      : api.getPanel(workspaceFilePanelId({ ...file, path: replacing }))
   if (existing) {
     if (file.handler) existing.api.updateParameters(file)
     existing.api.setActive()
+    old?.api.close()
     return
   }
   api.addPanel({
@@ -174,8 +179,12 @@ function openFile(api: DockviewApi, file: WorkspaceFileRef) {
     params: file,
     title: basename(file.path),
     minimumWidth: 320,
-    position: editorPosition(api),
+    // A file that took another's place opens in its tab.
+    position: old
+      ? { referencePanel: old.id, direction: 'within' }
+      : editorPosition(api),
   })
+  old?.api.close()
   const start = api.getPanel(START)
   if (start) api.removePanel(start)
 }
@@ -309,7 +318,7 @@ export function VaultWorkspace({ active }: { active: boolean }) {
   useEffect(() => {
     if (!dock || !active) return
     useWorkspaceFileView.setState({
-      vault: { open: (file) => openFile(dock, file) },
+      vault: { open: (file, from) => openFile(dock, file, from) },
     })
     return () => useWorkspaceFileView.setState({ vault: undefined })
   }, [dock, active])

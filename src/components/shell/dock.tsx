@@ -300,7 +300,10 @@ export function DockShell({
       dock: { open: (documentId) => openNote(dock, documentId) },
     })
     useWorkspaceFileView.setState({
-      dock: { open: (file) => openWorkspaceFilePanel(dock, file, THREAD) },
+      dock: {
+        open: (file, replacing) =>
+          openWorkspaceFilePanel(dock, file, THREAD, replacing),
+      },
     })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {

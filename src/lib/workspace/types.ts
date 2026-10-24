@@ -245,7 +245,11 @@ export interface TheoremAbilities {
     candidateId: string,
     decision: Theorem.FilesSuggestionDecision,
   ) => Promise<Theorem.FilesDecisionReceipt>
-  /** Makes an agent's document the person's own, at `to` or its default path. */
+  /**
+   * Makes an agent's document the person's own, at `to`, else where the
+   * agent's note was placed, else at its default path. The note leaves the
+   * vault.
+   */
   promote: (path: string, to?: string) => Promise<WorkspaceEntry>
   /** The Markdown under `path` ('' for everything) as an OKF bundle. */
   exportOkf: (

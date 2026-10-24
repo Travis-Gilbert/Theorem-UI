@@ -18,7 +18,12 @@ import { registerHandler, useHandlerRegistry } from '@/lib/handlers/registry'
 import type { FileHandler, FileViewProps } from '@/lib/handlers/types'
 import { useWorkspaceFileView } from '@/lib/workspace/open'
 import type { WorkspaceFileRef } from '@/lib/workspace/open'
-import type { WorkspaceClient } from '@/lib/workspace/types'
+import type {
+  TheoremAbilities,
+  WorkspaceClient,
+  WorkspaceEntry,
+  WorkspaceEvent,
+} from '@/lib/workspace/types'
 import * as workspaces from '@/lib/workspace/workspaces'
 import { mockLayout } from '../../../test/layout'
 import {
@@ -86,7 +91,7 @@ afterAll(() => {
 afterEach(() => {
   cleanup()
   client = undefined
-  useWorkspaceFileView.setState({ file: undefined })
+  useWorkspaceFileView.setState({ file: undefined, vault: undefined })
 })
 
 async function openFile(
@@ -266,6 +271,106 @@ describe('with the built-in handlers', () => {
     await waitFor(() => container.querySelector('dl'))
     expect(container.textContent).toContain('application/octet-stream')
   })
+
+  const NOTE = '# Agent plan\n\nKeep the provenance badge durable.\n'
+
+  /**
+   * A Theorem vault holding one agent's note at `path`, which promotion
+   * turns into the person's document at `to`. Its feed sends the note's
+   * deletion and the document's creation together, as the server does.
+   */
+  function theoremVault(path: string, to: string) {
+    const ws = fakeWorkspace({ [path]: NOTE, [to]: NOTE })
+    const note: WorkspaceEntry = {
+      id: 'doc:agent-note',
+      path,
+      kind: 'file',
+      size: NOTE.length,
+      mtimeMs: 1,
+      theorem: {
+        backing: 'document',
+        readOnly: true,
+        placed: path === to,
+        agent: true,
+      },
+    }
+    const mine: WorkspaceEntry = {
+      ...note,
+      id: 'doc:mine',
+      path: to,
+      theorem: { ...note.theorem!, readOnly: false, agent: false },
+    }
+    let entries = [note]
+    const listeners = new Set<(event: WorkspaceEvent) => void>()
+    const theorem = {
+      promote: (from: string) => {
+        entries = [mine]
+        for (const listener of listeners) {
+          listener({ type: 'deleted', id: note.id, path: from, origin: 'app' })
+          listener({ type: 'created', entry: mine, origin: 'app' })
+        }
+        return Promise.resolve(mine)
+      },
+    } as unknown as TheoremAbilities
+    const opened = mock((_file: WorkspaceFileRef, _replacing?: string) => {})
+    useWorkspaceFileView.setState({ vault: { open: opened } })
+    return {
+      ws: {
+        ...ws,
+        client: {
+          ...ws.client,
+          tree: () => Promise.resolve(entries),
+          subscribe: (listener: (event: WorkspaceEvent) => void) => {
+            listeners.add(listener)
+            return () => void listeners.delete(listener)
+          },
+          theorem,
+        },
+      },
+      opened,
+    }
+  }
+
+  async function makeItMine(container: HTMLElement) {
+    await waitFor(() => container.querySelector('.ProseMirror'))
+    const button = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Make it mine',
+    )!
+    await act(async () => button.click())
+  }
+
+  const editable = (container: HTMLElement) =>
+    container.querySelector('.ProseMirror')?.getAttribute('contenteditable')
+
+  test('"Make it mine" turns a placed note into the person\'s, in place', async () => {
+    const { ws, opened } = theoremVault('Mine.md', 'Mine.md')
+    const { container } = await openFile({ path: 'Mine.md' }, ws)
+    await waitFor(() => editable(container) === 'false')
+    await makeItMine(container)
+    await waitFor(() => !container.textContent.includes('Make it mine'))
+    await settle()
+    expect(container.textContent).not.toContain('This file was deleted.')
+    expect(editable(container)).toBe('true')
+    expect(container.textContent).toContain('Keep the provenance badge durable.')
+    expect(opened).toHaveBeenCalledWith(
+      { workspaceId: 'ws_test', path: 'Mine.md' },
+      undefined,
+    )
+  })
+
+  test('a note made mine elsewhere opens there, in the note\'s tab', async () => {
+    const { ws, opened } = theoremVault(
+      'Agent/Agent plan.md',
+      'Notes/Agent plan.md',
+    )
+    const { container } = await openFile({ path: 'Agent/Agent plan.md' }, ws)
+    await makeItMine(container)
+    await waitFor(() => opened.mock.calls.length > 0)
+    expect(opened).toHaveBeenCalledWith(
+      { workspaceId: 'ws_test', path: 'Notes/Agent plan.md' },
+      'Agent/Agent plan.md',
+    )
+  })
 })
 
 describe('openWorkspaceFilePanel', () => {
@@ -301,6 +406,33 @@ describe('openWorkspaceFilePanel', () => {
     openWorkspaceFilePanel(api as unknown as DockviewApi, chosen, 'chat')
     expect(panel.api.updateParameters).toHaveBeenCalledWith(chosen)
     expect(panel.api.setActive).toHaveBeenCalled()
+  })
+
+  test('a file replacing an open one opens in its tab, which closes', () => {
+    const old = {
+      id: 'workspace-file:ws_test:Agent/Plan.md',
+      api: { close: mock(() => undefined) },
+    }
+    const api = {
+      getPanel: mock((id: string) => (id === old.id ? old : undefined)),
+      addPanel: mock(() => undefined),
+      panels: [],
+    }
+    const mine = { workspaceId: 'ws_test', path: 'Notes/Plan.md' }
+    openWorkspaceFilePanel(
+      api as unknown as DockviewApi,
+      mine,
+      'chat',
+      'Agent/Plan.md',
+    )
+    expect(api.addPanel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'workspace-file:ws_test:Notes/Plan.md',
+        params: mine,
+        position: { referencePanel: old.id, direction: 'within' },
+      }),
+    )
+    expect(old.api.close).toHaveBeenCalled()
   })
 
   test('a file that is not open gets a panel', () => {
