@@ -64,6 +64,9 @@
     "sharp",
     "unrs-resolver",
   ],
+  "patchedDependencies": {
+    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
+  },
   "packages": {
     "@assistant-ui/core": ["@assistant-ui/core@0.3.30", "", { "dependencies": { "assistant-cloud": "^0.2.7", "assistant-stream": "^0.3.53", "nanoid": "^6.0.2" }, "peerDependencies": { "@assistant-ui/store": "^0.3.22", "@assistant-ui/tap": "^0.9.24", "@types/react": "*", "react": "^18 || ^19" }, "optionalPeers": ["@types/react", "react"] }, "sha512-DuCdjTYwFSOwxeBGtJ71l6Fe2tlEIq3aFOgF94yi5lrKbA3lnzfCsxdEUOq5z/w19Eo58jyYERMonulM+O/P4g=="],
 
