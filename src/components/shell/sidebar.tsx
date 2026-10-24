@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks
+// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, the Index panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -10,6 +10,7 @@ import {
   ThreadListSearch,
 } from '@/components/assistant-ui/elements/thread-list.aui'
 import { Icon } from '@/components/icons'
+import { IndexPanel } from '@/components/index/index-panel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -218,15 +219,16 @@ function ModePanel({ mode }: { mode: 'spaces' }) {
 /**
  * The panel beside the rail belongs to the active mode. Theia covers it in
  * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
- * Spaces, so its search, scroll and open branches survive a switch.
+ * the Index and Spaces, so its search, scroll and open branches survive a switch.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   return (
     <div className="on-sheet h-full">
-      <div hidden={mode === 'spaces'} className="h-full">
+      <div hidden={mode === 'spaces' || mode === 'index'} className="h-full">
         <ChatPanel />
       </div>
+      {mode === 'index' && <IndexPanel />}
       {mode === 'spaces' && <ModePanel mode={mode} />}
     </div>
   )

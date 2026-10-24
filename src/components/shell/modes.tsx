@@ -1,15 +1,17 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia), the Index surface
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { Icon } from '@/components/icons'
+import { IndexSurface } from '@/components/index/index-surface'
 import { useShell } from './shell-state'
 
-export type ShellMode = 'chat' | 'spaces' | 'ide'
+export type ShellMode = 'chat' | 'index' | 'spaces' | 'ide'
 
 /** The rail's destinations, in order. */
 export const MODES = [
   { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
+  { mode: 'index', label: 'Index', Mark: Icon.Index },
   { mode: 'spaces', label: 'Spaces', Mark: Icon.Spaces },
   { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
 ] as const
@@ -18,7 +20,7 @@ export const modeLabel = (mode: ShellMode) =>
   MODES.find((entry) => entry.mode === mode)!.label
 
 /**
- * The mode is the route: /spaces and /ide, and chat everywhere else. It reads
+ * The mode is the route: /index, /spaces and /ide, and chat everywhere else. It reads
  * the router's matches, as useParams does, so the mode and the thread id
  * always describe the same navigation.
  */
@@ -26,6 +28,7 @@ export function useShellMode(): ShellMode {
   return useMatches({
     select: (matches) => {
       for (const { routeId } of matches) {
+        if (routeId === '/_chat/index') return 'index'
         if (routeId === '/_chat/spaces') return 'spaces'
         if (routeId === '/_chat/ide') return 'ide'
       }
@@ -38,6 +41,7 @@ export function useShellMode(): ShellMode {
 export function useOpenMode() {
   const navigate = useNavigate()
   return (next: ShellMode) => {
+    if (next === 'index') return navigate({ to: '/index' })
     if (next === 'spaces') return navigate({ to: '/spaces' })
     if (next === 'ide') return navigate({ to: '/ide' })
     const threadId = useShell.getState().chatThreadId
@@ -76,6 +80,7 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
         <Thread />
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
+      {mode === 'index' && <IndexSurface />}
       {mode === 'spaces' && <ModePlaceholder mode={mode} />}
     </>
   )
