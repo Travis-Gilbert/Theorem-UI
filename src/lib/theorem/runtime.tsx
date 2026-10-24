@@ -65,7 +65,6 @@ function titleFrom(text: string): string {
 
 /** Per-turn run settings, such as the agent terminal's coding execution mode. */
 export type TurnOptions = TheoremChatAdapterOptions['turnOptions']
-
 /**
  * One SDK adapter per durable thread; it remembers local-to-durable message
  * ids. A thread keeps the turn options it was first run with.
@@ -140,7 +139,7 @@ function resumeBackoff(attempt: number): Promise<void> {
  * and continues, up to RESUME_ATTEMPTS times. An abort ends silently; the
  * caller settles the run.
  */
-async function* tailRun(
+export async function* tailRun(
   runId: string,
   abortSignal: AbortSignal,
 ): AsyncGenerator<ChatModelRunResult, void> {
@@ -269,7 +268,6 @@ export function createHistoryAdapter(
     async append() {},
   }
 }
-
 function useThreadAdapters() {
   const aui = useAui()
   const history = useMemo(
@@ -321,7 +319,6 @@ export async function* runTurn(
     yield* resumeLiveRun(known, options.abortSignal)
   }
 }
-
 function useTheoremThreadRuntime() {
   const aui = useAui()
   const adapter = useMemo<ChatModelAdapter>(
