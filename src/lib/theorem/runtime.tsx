@@ -28,10 +28,12 @@ import {
   createTheoremChatAdapter,
   toAssistantMessages,
 } from '@theoremharness/sdk/assistant-ui'
+import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
 import { createAssistantStream } from 'assistant-stream'
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
+import { useShell } from '@/components/shell/shell-state'
 import { mutate, mutateThread, theorem } from './client'
 import type { Theorem } from './client'
 
@@ -61,12 +63,25 @@ function titleFrom(text: string): string {
   return `${space > 30 ? cut.slice(0, space) : cut}...`
 }
 
-/** One SDK adapter per durable thread; it remembers local-to-durable message ids. */
+/** Per-turn run settings, such as the agent terminal's coding execution mode. */
+export type TurnOptions = TheoremChatAdapterOptions['turnOptions']
+
+/**
+ * One SDK adapter per durable thread; it remembers local-to-durable message
+ * ids. A thread keeps the turn options it was first run with.
+ */
 const chatAdapters = new Map<string, ChatModelAdapter>()
-function chatAdapterFor(threadId: string): ChatModelAdapter {
+function chatAdapterFor(
+  threadId: string,
+  turnOptions?: TurnOptions,
+): ChatModelAdapter {
   let adapter = chatAdapters.get(threadId)
   if (!adapter) {
-    adapter = createTheoremChatAdapter({ client: theorem(), threadId })
+    adapter = createTheoremChatAdapter({
+      client: theorem(),
+      threadId,
+      turnOptions,
+    })
     chatAdapters.set(threadId, adapter)
   }
   return adapter
@@ -141,7 +156,10 @@ async function* tailRun(
       for await (const event of stream) {
         if (event.sourceEventType === 'CHAT.MESSAGE.PART') {
           const part = event.payload.part as Record<string, unknown> | undefined
-          if (typeof part?.partId === 'string' && typeof part.type === 'string') {
+          if (
+            typeof part?.partId === 'string' &&
+            typeof part.type === 'string'
+          ) {
             parts.set(part.partId, {
               partId: part.partId,
               type: part.type,
@@ -215,39 +233,93 @@ async function* resumeLiveRun(
   }
 }
 
+/**
+ * History for one durable thread: the selected branch from threads.get, with
+ * a run that was live at load reattached by resume. `threadId` is read at load
+ * time; undefined means a thread not created yet.
+ */
+export function createHistoryAdapter(
+  threadId: () => string | undefined,
+): ThreadHistoryAdapter {
+  // Run left open by the last history load; resume reattaches to it.
+  let liveRunId: string | undefined
+  return {
+    async load() {
+      const remoteId = threadId()
+      if (!remoteId) return { messages: [] }
+      const snapshot = await theorem().chat.threads.get({
+        threadId: remoteId,
+      })
+      const runId = snapshot.liveRun?.runId
+      liveRunId = runId
+      // The live run's message is rebuilt by resume from sequence zero.
+      const settled = snapshot.messages.filter(
+        (message) =>
+          !runId || message.runId !== runId || message.role === 'user',
+      )
+      const repository = ExportedMessageRepository.fromArray(
+        toAssistantMessages(settled, snapshot.thread),
+      )
+      return runId ? { ...repository, unstable_resume: true } : repository
+    },
+    async *resume({ abortSignal }) {
+      if (liveRunId) yield* resumeLiveRun(liveRunId, abortSignal)
+    },
+    // Theorem persists every turn itself; nothing to write from the client.
+    async append() {},
+  }
+}
+
 function useThreadAdapters() {
   const aui = useAui()
-  // Run left open by the last history load; resume reattaches to it.
-  const liveRunId = useRef<string | undefined>(undefined)
-  const history = useMemo<ThreadHistoryAdapter>(() => {
-    return {
-      async load() {
-        const { remoteId } = aui.threadListItem.getState()
-        if (!remoteId) return { messages: [] }
-        const snapshot = await theorem().chat.threads.get({
-          threadId: remoteId,
-        })
-        const runId = snapshot.liveRun?.runId
-        liveRunId.current = runId
-        // The live run's message is rebuilt by resume from sequence zero.
-        const settled = snapshot.messages.filter(
-          (message) =>
-            !runId || message.runId !== runId || message.role === 'user',
-        )
-        const repository = ExportedMessageRepository.fromArray(
-          toAssistantMessages(settled, snapshot.thread),
-        )
-        return runId ? { ...repository, unstable_resume: true } : repository
-      },
-      async *resume({ abortSignal }) {
-        const runId = liveRunId.current
-        if (runId) yield* resumeLiveRun(runId, abortSignal)
-      },
-      // Theorem persists every turn itself; nothing to write from the client.
-      async append() {},
-    }
-  }, [aui])
+  const history = useMemo(
+    () => createHistoryAdapter(() => aui.threadListItem.getState().remoteId),
+    [aui],
+  )
   return useMemo(() => ({ history }), [history])
+}
+
+/**
+ * Runs one assistant-ui turn on a durable thread through the SDK adapter.
+ * Edits and regenerates align with the durable branch first.
+ */
+export async function* runTurn(
+  threadId: string,
+  options: ChatModelRunOptions,
+  turnOptions?: TurnOptions,
+): AsyncGenerator<ChatModelRunResult, void> {
+  const messages = await alignWithDurableBranch(threadId, options.messages)
+  const result = chatAdapterFor(threadId, turnOptions).run({
+    ...options,
+    messages,
+  })
+  if (!(Symbol.asyncIterator in result)) {
+    yield await result
+    return
+  }
+  let runId: string | undefined
+  try {
+    for await (const step of result) {
+      const custom = step.metadata?.custom as
+        { theoremRunId?: string } | undefined
+      runId = custom?.theoremRunId ?? runId
+      yield step
+    }
+  } catch (error) {
+    // The SDK adapter throws when its event stream dies before a terminal
+    // event; that is a disconnect the contract resumes from the durable log,
+    // so finish the turn from there instead of surfacing the banner. The run
+    // id comes from streamed metadata, or from the SDK's disconnect message
+    // when nothing streamed yet.
+    if (options.abortSignal.aborted) throw error
+    const known =
+      runId ??
+      /^Theorem run (\S+) disconnected before a terminal event/.exec(
+        error instanceof Error ? error.message : '',
+      )?.[1]
+    if (!known) throw error
+    yield* resumeLiveRun(known, options.abortSignal)
+  }
 }
 
 function useTheoremThreadRuntime() {
@@ -256,37 +328,7 @@ function useTheoremThreadRuntime() {
     () => ({
       async *run(options) {
         const { remoteId } = await aui.threadListItem.initialize()
-        const messages = await alignWithDurableBranch(
-          remoteId,
-          options.messages,
-        )
-        const result = chatAdapterFor(remoteId).run({ ...options, messages })
-        if (Symbol.asyncIterator in result) {
-          let runId: string | undefined
-          try {
-            for await (const step of result) {
-              const custom = step.metadata?.custom as
-                | { theoremRunId?: string }
-                | undefined
-              runId = custom?.theoremRunId ?? runId
-              yield step
-            }
-          } catch (error) {
-            // The SDK adapter throws when its event stream dies before a
-            // terminal event; that is a disconnect the contract resumes from
-            // the durable log, so finish the turn from there instead of
-            // surfacing the banner. The run id comes from streamed metadata,
-            // or from the SDK's disconnect message when nothing streamed yet.
-            if (options.abortSignal.aborted) throw error
-            const known =
-              runId ??
-              /^Theorem run (\S+) disconnected before a terminal event/.exec(
-                error instanceof Error ? error.message : '',
-              )?.[1]
-            if (!known) throw error
-            yield* resumeLiveRun(known, options.abortSignal)
-          }
-        } else yield await result
+        yield* runTurn(remoteId, options)
       },
     }),
     [aui],
@@ -304,8 +346,12 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
         includeArchived: true,
         limit: 50,
       })
+      // The agent terminal's threads live in its drawer, not among the chats.
+      const terminal = new Set(useShell.getState().terminalThreadIds)
       return {
-        threads: page.items.map(toMetadata),
+        threads: page.items
+          .filter((thread) => !terminal.has(thread.threadId))
+          .map(toMetadata),
         nextCursor: page.nextCursor,
       }
     },
