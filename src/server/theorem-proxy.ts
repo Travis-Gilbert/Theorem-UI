@@ -54,12 +54,7 @@ function endOnUpstreamError<T>(body: ReadableStream<T>): ReadableStream<T> {
   })
 }
 
-export function problem(
-  status: number,
-  code: string,
-  title: string,
-  detail: string,
-) {
+function problem(status: number, code: string, title: string, detail: string) {
   return Response.json(
     {
       type: 'about:blank',
@@ -74,7 +69,7 @@ export function problem(
 }
 
 /** The bearer for this request, or the response that refuses it. */
-export async function bearer(): Promise<string | Response> {
+async function bearer(): Promise<string | Response> {
   if (!oauthConfigured()) {
     return (
       process.env.THEOREM_API_TOKEN ||

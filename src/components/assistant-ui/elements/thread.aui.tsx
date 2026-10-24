@@ -258,12 +258,13 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   );
 };
 
-// The headline and suggestions are written for this person by the welcome
-// route. While it answers they hold their space, so the composer does not
-// jump; if it cannot answer, the composer stands alone.
+// The headline and suggestions are written for this person by Theorem. While
+// it answers they hold their space, so the composer does not jump; if it
+// cannot answer, the composer stands alone. Until Theorem has the endpoint the
+// query is dormant (not enabled), and the composer stands alone then too.
 const ThreadWelcome: FC = () => {
   const welcome = useWelcome();
-  if (welcome.isError) return null;
+  if (welcome.isError || !welcome.isEnabled) return null;
   return (
     <div className="aui-thread-welcome-root mb-8 px-2">
       {welcome.data ? (
@@ -290,7 +291,7 @@ const ThreadHeadline: FC<{ text: string }> = ({ text }) => {
 
 const ThreadSuggestions: FC = () => {
   const welcome = useWelcome();
-  if (welcome.isError) return null;
+  if (welcome.isError || !welcome.isEnabled) return null;
   if (!welcome.data) {
     return (
       <div className="flex flex-col gap-1 px-2 py-2">

@@ -1,0 +1,89 @@
+{
+  "spec": "docs/plans/welcome-endpoint.md",
+  "items": [
+    {
+      "id": "ui-workaround-removed",
+      "item": "Theorem UI's direct OpenRouter route, its test, the openai dependency and the env entry are gone",
+      "status": "done",
+      "evidence": "commit on claude/interesting-bohr-cee321 after 6b1053d"
+    },
+    {
+      "id": "catalog-row",
+      "item": "openrouter/qwen/qwen3.8-omni-flash is a committed catalog row on the branch the endpoint builds on (one row, from claude/terminal-run-mixture)",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "binding-test",
+      "item": "chat_model_binding resolves the Omni Flash row with OPENROUTER_API_KEY; THEOREMWEB_WELCOME_MODEL pins the welcome model, default openrouter/qwen/qwen3.8-omni-flash",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "endpoint-route",
+      "item": "POST /api/chat/v1/projects/{project_id}/welcome checks tenant:read, models:invoke and the chat CSRF token, and takes no Idempotency-Key",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "server-context",
+      "item": "Theorem reads the project title, up to 8 recent threads and the newest three last asks itself; the body carries only localTime and folders",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "structured-call",
+      "item": "The model call uses strict json_schema through the existing apply_response_schema, non-streaming, 20 s timeout, max_tokens 1200",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "errors",
+      "item": "400 welcome_invalid, 403 CSRF or scope, 404 other tenant, 503 binding refusals, 502 welcome_failed, each covered by a test",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "public-refused",
+      "item": "An audience:public bearer is refused; the route is not in PUBLIC_ROUTES",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "observability",
+      "item": "Fixed-cardinality outcome counters and latency; no prompt, folder or reply text in logs",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "contract",
+      "item": "theorem-chat-v1.json and THEOREM-CHAT-WIRE-1.0.md describe the endpoint; the contract oracle passes",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "sdk",
+      "item": "openapi.json has the operation and schemas; the SDK regenerates, typechecks, tests and packs as 0.4.1 with theorem().chat.projects.welcome",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "ui-wiring",
+      "item": "Theorem UI vendors SDK 0.4.1, useWelcome calls the SDK with a CSRF helper shared with mutate(), and welcome-schema.ts is deleted",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "host-verified",
+      "item": "In the desktop host the headline and two suggestions render from real threads, a suggestion sends its prompt, and a 503 leaves the composer alone",
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "deploy",
+      "item": "After the user approves, the personal store is redeployed with the row and the endpoint, and theorem.rs shows the welcome",
+      "status": "pending",
+      "evidence": ""
+    }
+  ]
+}

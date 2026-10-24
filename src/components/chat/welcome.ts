@@ -1,40 +1,25 @@
-// SOURCING: @tanstack/react-query (the welcome as server state, keyed by what it was written from; the workspace trees the folder views already cache), assistant-ui thread list state, @theoremharness/sdk thread snapshots
+// SOURCING: @tanstack/react-query (the welcome as server state, keyed by what it was written from; the workspace trees the folder views already cache), assistant-ui thread list state
 import { useAuiState } from '@assistant-ui/react'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { skipToken, useQueries, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useActiveProject } from '@/components/shell/projects'
-import { theorem } from '@/lib/theorem/client'
-import { Welcome } from '@/lib/theorem/welcome-schema'
-import type { WelcomeContext } from '@/lib/theorem/welcome-schema'
+import type { Welcome, WelcomeRequest } from '@/lib/theorem/welcome-schema'
 import {
   useWorkspaces,
   workspaceClient,
   workspaceTreeKey,
 } from '@/lib/workspace/workspaces'
 
-const THREADS = 8
-/** How many of the newest threads lend their last ask. */
-const ASKS = 3
 const FOLDERS = 3
 const FILES = 10
 
-/** The last thing the person said in a thread, from its durable snapshot. */
-async function lastAsk(threadId: string): Promise<string | undefined> {
-  const { messages } = await theorem().chat.threads.get({ threadId })
-  const ask = messages.findLast((message) => message.role === 'user')
-  const text = ask?.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => (part.payload as { text?: string } | undefined)?.text ?? '')
-    .join('\n')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text ? text.slice(0, 600) : undefined
-}
-
 /**
- * The new-chat headline and two suggestions, written by the welcome route
- * from the person's recent threads, project and open folders. It is asked
- * again when any of those change, not on every visit.
+ * The new-chat headline and two suggestions, which Theorem writes from the
+ * person's project and recent conversations plus the folders open here. It is
+ * asked again when any of those change, not on every visit.
+ *
+ * Theorem has no welcome endpoint yet (docs/plans/welcome-endpoint.md), so the
+ * query stays dormant and the new-chat view shows the composer alone.
  */
 export function useWelcome() {
   const threadsLoading = useAuiState((s) => s.threads.isLoading)
@@ -52,28 +37,14 @@ export function useWelcome() {
     }).format(new Date()),
   )
 
-  const recent = items
-    .filter((item) => item.status === 'regular' && item.remoteId)
-    .toSorted(
-      (a, b) =>
-        (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0),
-    )
-    .slice(0, THREADS)
-
-  const asks = useQueries({
-    queries: recent.slice(0, ASKS).map((item) => ({
-      queryKey: [
-        'theorem',
-        'welcome',
-        'last-ask',
-        item.remoteId,
-        item.lastMessageAt?.getTime(),
-      ],
-      queryFn: () => lastAsk(item.remoteId!),
-      staleTime: Infinity,
-      retry: false,
-    })),
-  })
+  // Theorem reads the threads itself; the newest activity only keys the cache,
+  // so a new message asks again.
+  const latestActivity = Math.max(
+    0,
+    ...items
+      .filter((item) => item.status === 'regular')
+      .map((item) => item.lastMessageAt?.getTime() ?? 0),
+  )
 
   const folders = workspaces.slice(0, FOLDERS)
   const trees = useQueries({
@@ -84,13 +55,8 @@ export function useWelcome() {
     })),
   })
 
-  const context: Omit<WelcomeContext, 'localTime'> = {
-    project: project?.title,
-    threads: recent.map((item, index) => ({
-      title: item.title || 'New Chat',
-      lastMessageAt: item.lastMessageAt?.toISOString(),
-      lastAsk: asks[index]?.data,
-    })),
+  const request: WelcomeRequest = {
+    localTime,
     folders: folders.map((summary, index) => ({
       name: summary.name,
       recentFiles: (trees[index]?.data ?? [])
@@ -104,21 +70,20 @@ export function useWelcome() {
     !threadsLoading &&
     !projectPending &&
     !workspacesPending &&
-    asks.every((query) => !query.isPending) &&
+    project !== undefined &&
     trees.every((query) => !query.isPending)
 
-  return useQuery({
-    queryKey: ['theorem', 'welcome', context],
-    queryFn: async ({ signal }) => {
-      const response = await fetch('/api/welcome', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...context, localTime }),
-        signal,
-      })
-      if (!response.ok) throw new Error(`welcome ${response.status}`)
-      return Welcome.parse(await response.json())
-    },
+  return useQuery<Welcome>({
+    queryKey: [
+      'theorem',
+      'welcome',
+      project?.projectId,
+      latestActivity,
+      request.folders,
+    ],
+    // The SDK call for POST /api/chat/v1/projects/{project_id}/welcome goes
+    // here, with `request` as its body.
+    queryFn: skipToken,
     enabled: settled,
     staleTime: 10 * 60_000,
     retry: false,

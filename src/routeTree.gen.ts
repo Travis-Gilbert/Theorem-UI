@@ -13,7 +13,6 @@ import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
-import { Route as ApiWelcomeRouteImport } from './routes/api/welcome'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
@@ -66,11 +65,6 @@ const ChatSpacesRoute = ChatSpacesRouteImport.update({
   id: '/spaces',
   path: '/spaces',
   getParentRoute: () => ChatRoute,
-} as any)
-const ApiWelcomeRoute = ApiWelcomeRouteImport.update({
-  id: '/api/welcome',
-  path: '/api/welcome',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
@@ -261,7 +255,6 @@ export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
-  '/api/welcome': typeof ApiWelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -299,7 +292,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
-  '/api/welcome': typeof ApiWelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -340,7 +332,6 @@ export interface FileRoutesById {
   '/_chat': typeof ChatRouteWithChildren
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/spaces': typeof ChatSpacesRoute
-  '/api/welcome': typeof ApiWelcomeRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
@@ -382,7 +373,6 @@ export interface FileRouteTypes {
     | '/'
     | '/ide'
     | '/spaces'
-    | '/api/welcome'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -420,7 +410,6 @@ export interface FileRouteTypes {
   to:
     | '/ide'
     | '/spaces'
-    | '/api/welcome'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -460,7 +449,6 @@ export interface FileRouteTypes {
     | '/_chat'
     | '/_chat/ide'
     | '/_chat/spaces'
-    | '/api/welcome'
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
@@ -499,7 +487,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
-  ApiWelcomeRoute: typeof ApiWelcomeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
@@ -563,13 +550,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/spaces'
       preLoaderRoute: typeof ChatSpacesRouteImport
       parentRoute: typeof ChatRoute
-    }
-    '/api/welcome': {
-      id: '/api/welcome'
-      path: '/api/welcome'
-      fullPath: '/api/welcome'
-      preLoaderRoute: typeof ApiWelcomeRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -823,7 +803,6 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
-  ApiWelcomeRoute: ApiWelcomeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
