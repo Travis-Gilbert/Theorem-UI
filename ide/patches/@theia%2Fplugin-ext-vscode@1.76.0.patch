@@ -1,0 +1,152 @@
+diff --git a/lib/node/plugin-vscode-init.js b/lib/node/plugin-vscode-init.js
+index 0bb2628fa4e872541900f1cdf33c722639aae077..19aa33110d876cd2374cf7dc81d1a6ffc7a24b06 100644
+--- a/lib/node/plugin-vscode-init.js	
++++ b/lib/node/plugin-vscode-init.js
+@@ -19,6 +19,8 @@ exports.doInitialization = void 0;
+ exports.findPlugin = findPlugin;
+ /* eslint-disable @typescript-eslint/no-explicit-any */
+ const node_module_1 = require("node:module");
++const fs = require("fs");
++const path = require("path");
+ const paths_1 = require("@theia/core/lib/common/paths");
+ const plugin_ext_1 = require("@theia/plugin-ext");
+ const plugin_vscode_types_1 = require("../common/plugin-vscode-types");
+@@ -36,6 +38,9 @@ const doInitialization = (apiFactory, plugin) => {
+         overrideInternalLoad();
+         isLoadOverride = true;
+     }
++    if (typeof Bun !== 'undefined') {
++        registerBunESMHook(plugin);
++    }
+ };
+ exports.doInitialization = doInitialization;
+ function createVSCodeAPI(apiFactory, plugin) {
+@@ -66,7 +71,9 @@ function overrideInternalLoad() {
+         }
+         return defaultApi;
+     };
+-    registerESMLoaderHook();
++    if (typeof Bun === 'undefined') {
++        registerESMLoaderHook();
++    }
+ }
+ /**
+  * Locate the plugin whose folder contains the given file.
+@@ -139,4 +146,36 @@ export async function load(url, context, nextLoad) {
+         console.error('Failed to register VS Code ESM loader hook; ESM plugins will not load:', e);
+     }
+ }
++const VSCODE_IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])vscode\2/g;
++/**
++ * Bun runs neither `module.register` loader hooks nor `onResolve` plugins for bare imports, so under
++ * Bun an ESM plugin's `import ... from 'vscode'` is rewritten to a virtual module holding that
++ * plugin's API. Only the plugin's ES module files pass through the hook: Bun requires `onLoad` to
++ * return source for every file it matches, and CommonJS files handed back as source lose their exports.
++ */
++function registerBunESMHook(plugin) {
++    const isModulePackage = plugin.rawModel.type === 'module';
++    if (!isModulePackage && path.extname(plugin.pluginPath || '').toLowerCase() !== '.mjs') {
++        return;
++    }
++    const folder = plugin.pluginFolder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
++    const sep = '[\\\\/]';
++    const mjs = `^${folder}${sep}.*\\.mjs$`;
++    // In a `"type": "module"` package, `.js` files are ESM too, except in nested node_modules.
++    const filter = new RegExp(isModulePackage ? `${mjs}|^${folder}${sep}(?!node_modules${sep}).*\\.js$` : mjs);
++    const apiModule = `theia-vscode-api:${plugin.model.id}`;
++    Bun.plugin({
++        name: apiModule,
++        setup(build) {
++            build.module(apiModule, () => {
++                const api = pluginsApiImpl.get(plugin.model.id);
++                return { loader: 'object', exports: { ...api, default: api } };
++            });
++            build.onLoad({ filter }, (args) => ({
++                contents: fs.readFileSync(args.path, 'utf8').replace(VSCODE_IMPORT, (_match, prefix, quote) => prefix + quote + apiModule + quote),
++                loader: 'js'
++            }));
++        }
++    });
++}
+ //# sourceMappingURL=plugin-vscode-init.js.map
+diff --git a/src/node/plugin-vscode-init.ts b/src/node/plugin-vscode-init.ts
+index daec66a323df1d9774eb02fd725a82559d600655..6baa4625a93a4c8e3a79bacb25a12797c69c6f79 100644
+--- a/src/node/plugin-vscode-init.ts	
++++ b/src/node/plugin-vscode-init.ts
+@@ -17,6 +17,8 @@
+ /* eslint-disable @typescript-eslint/no-explicit-any */
+ 
+ import { register } from 'node:module';
++import * as fs from 'fs';
++import * as path from 'path';
+ import * as theia from '@theia/plugin';
+ import { isEqualOrParent } from '@theia/core/lib/common/paths';
+ import { BackendInitializationFn, PluginAPIFactory, Plugin, emptyPlugin } from '@theia/plugin-ext';
+@@ -30,6 +32,8 @@ let defaultApi: typeof theia;
+ let isLoadOverride = false;
+ let pluginApiFactory: PluginAPIFactory;
+ 
++declare const Bun: any;
++
+ export const doInitialization: BackendInitializationFn = (apiFactory: PluginAPIFactory, plugin: Plugin) => {
+     pluginsApiImpl.set(plugin.model.id, createVSCodeAPI(apiFactory, plugin));
+     plugins.push(plugin);
+@@ -39,6 +43,9 @@ export const doInitialization: BackendInitializationFn = (apiFactory: PluginAPIF
+         overrideInternalLoad();
+         isLoadOverride = true;
+     }
++    if (typeof Bun !== 'undefined') {
++        registerBunESMHook(plugin);
++    }
+ };
+ 
+ function createVSCodeAPI(apiFactory: PluginAPIFactory, plugin: Plugin): typeof theia {
+@@ -76,7 +83,9 @@ function overrideInternalLoad(): void {
+         return defaultApi;
+     };
+ 
+-    registerESMLoaderHook();
++    if (typeof Bun === 'undefined') {
++        registerESMLoaderHook();
++    }
+ }
+ 
+ /**
+@@ -150,3 +159,37 @@ export async function load(url, context, nextLoad) {
+         console.error('Failed to register VS Code ESM loader hook; ESM plugins will not load:', e);
+     }
+ }
++
++const VSCODE_IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])vscode\2/g;
++
++/**
++ * Bun runs neither `module.register` loader hooks nor `onResolve` plugins for bare imports, so under
++ * Bun an ESM plugin's `import ... from 'vscode'` is rewritten to a virtual module holding that
++ * plugin's API. Only the plugin's ES module files pass through the hook: Bun requires `onLoad` to
++ * return source for every file it matches, and CommonJS files handed back as source lose their exports.
++ */
++function registerBunESMHook(plugin: Plugin): void {
++    const isModulePackage = plugin.rawModel.type === 'module';
++    if (!isModulePackage && path.extname(plugin.pluginPath || '').toLowerCase() !== '.mjs') {
++        return;
++    }
++    const folder = plugin.pluginFolder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
++    const sep = '[\\\\/]';
++    const mjs = `^${folder}${sep}.*\\.mjs$`;
++    // In a `"type": "module"` package, `.js` files are ESM too, except in nested node_modules.
++    const filter = new RegExp(isModulePackage ? `${mjs}|^${folder}${sep}(?!node_modules${sep}).*\\.js$` : mjs);
++    const apiModule = `theia-vscode-api:${plugin.model.id}`;
++    Bun.plugin({
++        name: apiModule,
++        setup(build: any): void {
++            build.module(apiModule, () => {
++                const api = pluginsApiImpl.get(plugin.model.id);
++                return { loader: 'object', exports: { ...api, default: api } };
++            });
++            build.onLoad({ filter }, (args: { path: string }) => ({
++                contents: fs.readFileSync(args.path, 'utf8').replace(VSCODE_IMPORT, (_match: string, prefix: string, quote: string) => prefix + quote + apiModule + quote),
++                loader: 'js'
++            }));
++        }
++    });
++}

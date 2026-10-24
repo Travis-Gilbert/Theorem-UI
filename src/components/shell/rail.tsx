@@ -1,4 +1,4 @@
-// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook
+// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
 import { PALETTES, usePalette } from '@/lib/palette'
 import type { Palette } from '@/lib/palette'
+import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +34,7 @@ function AccountMenu() {
   const { theme, setTheme } = useTheme()
   const { palette, setPalette } = usePalette()
   const tenant = useTenant()
+  const signIn = useSignInConfigured()
 
   return (
     <Menu.Root>
@@ -103,6 +105,14 @@ function AccountMenu() {
                 ))}
               </Menu.RadioGroup>
             </Menu.Group>
+            {signIn && (
+              <>
+                <Menu.Separator className="my-1 h-px bg-separator" />
+                <Menu.Item className={menuItem} onClick={() => void signOut()}>
+                  Sign out
+                </Menu.Item>
+              </>
+            )}
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
@@ -149,7 +159,11 @@ function Junction({ y, h, t, flush }: Junction) {
       className="rail-junction"
       data-flush={flush || undefined}
       style={
-        { '--rail-y': `${y}px`, '--junction-item': `${h}px`, '--rail-t': t } as CSSProperties
+        {
+          '--rail-y': `${y}px`,
+          '--junction-item': `${h}px`,
+          '--rail-t': t,
+        } as CSSProperties
       }
     >
       <span className="rail-junction-tab" />

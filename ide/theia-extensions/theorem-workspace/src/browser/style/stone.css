@@ -1,0 +1,19 @@
+/*
+ * The Theorem UI's sheet behind the workbench (theorem-stone-theme.ts). A colour theme cannot express a
+ * gradient, so the stone themes contribute the sheet's two stops as colours and this paints them the way
+ * the UI's bg-sheet does: once, top to bottom, across the full height. The frame fills the sheet, so the
+ * field lines up with the sheet and the rail's junction around it.
+ *
+ * Monaco keeps `editor.background` opaque, so editors and the editor area read their background from
+ * theoremSheet.editorBackground instead, which the stone themes make transparent. For every other theme
+ * all three colours default to the editor background, which leaves it as it was.
+ */
+:root body {
+  --theia-editor-background: var(--theia-theoremSheet-editorBackground);
+  background: linear-gradient(to bottom, var(--theia-theoremSheet-top), var(--theia-theoremSheet-bottom));
+}
+
+:root body .monaco-editor,
+:root body .monaco-diff-editor {
+  --vscode-editor-background: var(--theia-theoremSheet-editorBackground);
+}

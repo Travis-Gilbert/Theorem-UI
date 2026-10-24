@@ -1,0 +1,200 @@
+diff --git a/node_modules/node-pty/lib/bunTerminal.js b/lib/bunTerminal.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..2a7b66ab1552949e35e577ce2bad43f189f57746
+--- /dev/null
++++ b/lib/bunTerminal.js
+@@ -0,0 +1,177 @@
++"use strict";
++/**
++ * A node-pty terminal backed by Bun's native PTY (`Bun.spawn({ terminal })`).
++ *
++ * Under Bun the native UnixTerminal never delivers data: it reads the PTY master through
++ * `tty.ReadStream` on a non-blocking fd, which Bun does not service. This class implements
++ * the public `IPty` surface on top of `Bun.Terminal` instead, so every node-pty consumer keeps
++ * working unchanged.
++ */
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.BunTerminal = void 0;
++var os_1 = require("os");
++var path_1 = require("path");
++var eventEmitter2_1 = require("./eventEmitter2");
++var terminal_1 = require("./terminal");
++var DEFAULT_FILE = process.platform === 'win32' ? 'cmd.exe' : 'sh';
++var DEFAULT_NAME = 'xterm';
++// Same grace period as UnixTerminal: wait this long after the process exits for the PTY to drain.
++var DESTROY_SOCKET_TIMEOUT_MS = 200;
++// XOFF/XON, as in Terminal.
++var FLOW_CONTROL_PAUSE = '\x13';
++var FLOW_CONTROL_RESUME = '\x11';
++var BunTerminal = /** @class */ (function () {
++    function BunTerminal(file, args, opt) {
++        var _this = this;
++        this._onData = new eventEmitter2_1.EventEmitter2();
++        this._onExit = new eventEmitter2_1.EventEmitter2();
++        this._paused = false;
++        this._pending = [];
++        this._ptyClosed = false;
++        opt = opt || {};
++        if (opt.uid !== undefined || opt.gid !== undefined) {
++            throw new Error('node-pty under Bun: the uid and gid options are not supported.');
++        }
++        this.handleFlowControl = !!opt.handleFlowControl;
++        this._flowControlPause = opt.flowControlPause || FLOW_CONTROL_PAUSE;
++        this._flowControlResume = opt.flowControlResume || FLOW_CONTROL_RESUME;
++        this._cols = opt.cols || terminal_1.DEFAULT_COLS;
++        this._rows = opt.rows || terminal_1.DEFAULT_ROWS;
++        this._file = file || DEFAULT_FILE;
++        var env = Object.assign({}, opt.env || process.env);
++        var name = opt.name || env.TERM || DEFAULT_NAME;
++        env.TERM = name;
++        if (opt.cwd) {
++            env.PWD = opt.cwd;
++        }
++        var encoding = opt.encoding === undefined ? 'utf8' : opt.encoding;
++        var decoder = encoding === null ? undefined : new TextDecoder(encoding);
++        var argv = typeof args === 'string' ? [args] : (args || []);
++        this._proc = Bun.spawn([this._file].concat(argv), {
++            cwd: opt.cwd,
++            env: env,
++            terminal: {
++                cols: this._cols,
++                rows: this._rows,
++                name: name,
++                data: function (_term, chunk) {
++                    _this._emitData(decoder ? decoder.decode(chunk, { stream: true }) : Buffer.from(chunk));
++                },
++                exit: function () {
++                    _this._ptyClosed = true;
++                    if (_this._onPtyClosed) {
++                        _this._onPtyClosed();
++                    }
++                }
++            }
++        });
++        this._proc.exited.then(function (exitCode) {
++            var signal = _this._proc.signalCode;
++            var signalNumber = typeof signal === 'string' ? (os_1.constants.signals[signal] || 0) : (signal || 0);
++            var fire = function () {
++                if (_this._proc.terminal && !_this._proc.terminal.closed) {
++                    _this._proc.terminal.close();
++                }
++                // node-pty reports a signalled exit as exit code 0 plus the signal number.
++                _this._onExit.fire({ exitCode: signalNumber ? 0 : exitCode, signal: signalNumber });
++            };
++            if (_this._ptyClosed) {
++                fire();
++                return;
++            }
++            var timeout = setTimeout(function () {
++                _this._onPtyClosed = undefined;
++                fire();
++            }, DESTROY_SOCKET_TIMEOUT_MS);
++            _this._onPtyClosed = function () {
++                clearTimeout(timeout);
++                fire();
++            };
++        });
++    }
++    Object.defineProperty(BunTerminal.prototype, "onData", {
++        get: function () { return this._onData.event; },
++        enumerable: false,
++        configurable: true
++    });
++    Object.defineProperty(BunTerminal.prototype, "onExit", {
++        get: function () { return this._onExit.event; },
++        enumerable: false,
++        configurable: true
++    });
++    Object.defineProperty(BunTerminal.prototype, "pid", {
++        get: function () { return this._proc.pid; },
++        enumerable: false,
++        configurable: true
++    });
++    Object.defineProperty(BunTerminal.prototype, "cols", {
++        get: function () { return this._cols; },
++        enumerable: false,
++        configurable: true
++    });
++    Object.defineProperty(BunTerminal.prototype, "rows", {
++        get: function () { return this._rows; },
++        enumerable: false,
++        configurable: true
++    });
++    Object.defineProperty(BunTerminal.prototype, "process", {
++        // Bun.Terminal does not expose the PTY master, so the foreground process cannot be looked
++        // up; report the spawned program, as node-pty's Windows backend does.
++        get: function () { return path_1.basename(this._file); },
++        enumerable: false,
++        configurable: true
++    });
++    BunTerminal.prototype._emitData = function (data) {
++        if (this._paused) {
++            this._pending.push(data);
++        }
++        else {
++            this._onData.fire(data);
++        }
++    };
++    BunTerminal.prototype.write = function (data) {
++        if (this.handleFlowControl) {
++            if (data === this._flowControlPause) {
++                this.pause();
++                return;
++            }
++            if (data === this._flowControlResume) {
++                this.resume();
++                return;
++            }
++        }
++        if (this._proc.terminal && !this._proc.terminal.closed) {
++            this._proc.terminal.write(data);
++        }
++    };
++    BunTerminal.prototype.resize = function (cols, rows) {
++        if (cols <= 0 || rows <= 0 || isNaN(cols) || isNaN(rows) || cols === Infinity || rows === Infinity) {
++            throw new Error('resizing must be done using positive cols and rows');
++        }
++        if (!this._proc.terminal || this._proc.terminal.closed) {
++            throw new Error('Cannot resize a pty that has already exited');
++        }
++        this._proc.terminal.resize(cols, rows);
++        this._cols = cols;
++        this._rows = rows;
++    };
++    BunTerminal.prototype.clear = function () {
++        // Like UnixTerminal: clearing the PTY buffer is a Windows-only concept.
++    };
++    BunTerminal.prototype.kill = function (signal) {
++        this._proc.kill(signal || (process.platform === 'win32' ? undefined : 'SIGHUP'));
++    };
++    BunTerminal.prototype.pause = function () {
++        this._paused = true;
++    };
++    BunTerminal.prototype.resume = function () {
++        this._paused = false;
++        var pending = this._pending;
++        this._pending = [];
++        for (var _i = 0, pending_1 = pending; _i < pending_1.length; _i++) {
++            this._onData.fire(pending_1[_i]);
++        }
++    };
++    return BunTerminal;
++}());
++exports.BunTerminal = BunTerminal;
+diff --git a/lib/index.js b/lib/index.js
+index 1527069b2e039e006cdb6398d44b8fba38cc0ca1..6a3beb7f8f33e8ca7a6405e1549472414a5ef7d4 100644
+--- a/lib/index.js	
++++ b/lib/index.js
+@@ -8,7 +8,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.native = exports.open = exports.createTerminal = exports.fork = exports.spawn = void 0;
+ var utils_1 = require("./utils");
+ var terminalCtor;
+-if (process.platform === 'win32') {
++if (typeof Bun !== 'undefined') {
++    // Bun cannot read the PTY master the native backends hand back; use Bun's own PTY.
++    terminalCtor = require('./bunTerminal').BunTerminal;
++}
++else if (process.platform === 'win32') {
+     terminalCtor = require('./windowsTerminal').WindowsTerminal;
+ }
+ else {

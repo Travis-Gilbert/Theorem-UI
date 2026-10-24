@@ -37,6 +37,7 @@ import {
 } from '@/components/artifacts/artifact-model'
 import { download } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { follow } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
@@ -78,7 +79,8 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
       )
   }
 
-  // A revision produced by the run in progress opens beside the conversation.
+  // A revision produced by the run in progress opens beside the conversation,
+  // unless the person paused Follow the Agent.
   useEffect(() => {
     if (!live || !artifactId) return
     if (cardRef.current)
@@ -86,8 +88,8 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
         cardRef.current.getBoundingClientRect(),
         `artifact:${artifactId}`,
       )
-    open(artifactId)
-  }, [live, artifactId, revision, open])
+    follow({ resource: { kind: 'artifact', artifactId, revision } })
+  }, [live, artifactId, revision])
 
   if (!artifact)
     return <PartNotice name="theorem-artifact" note="could not be read" />
@@ -193,9 +195,7 @@ const ArtifactToolCall: ToolCallMessagePartComponent<{
 }> = ({ toolName, args, result, isError, status }) => {
   if (isError) return <ArtifactToolFailed toolName={toolName} />
   if (result !== undefined || status.type !== 'running') return null
-  return (
-    <ArtifactPendingCard toolName={toolName} title={str(args.title)} />
-  )
+  return <ArtifactPendingCard toolName={toolName} title={str(args.title)} />
 }
 
 const ARTIFACT_TOOLS = new Set(['create_artifact', 'update_artifact'])

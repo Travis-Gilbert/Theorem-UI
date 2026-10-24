@@ -23,7 +23,6 @@ import { Input } from '@/components/ui/input'
 import { describeError } from '@/lib/theorem/client'
 import { Explorer } from './explorer'
 import { modeLabel, useShellMode } from './modes'
-import type { ShellMode } from './modes'
 import { useActiveProject, useCreateProject, useTenant } from './projects'
 import { useShell } from './shell-state'
 
@@ -206,8 +205,8 @@ function ChatPanel() {
   )
 }
 
-/** Spaces and the IDE bring their own panels; until then each names itself. */
-function ModePanel({ mode }: { mode: Exclude<ShellMode, 'chat'> }) {
+/** Spaces will bring its own panel; until then it names itself. */
+function ModePanel({ mode }: { mode: 'spaces' }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center px-3.5 text-sm font-medium">
@@ -219,17 +218,18 @@ function ModePanel({ mode }: { mode: Exclude<ShellMode, 'chat'> }) {
 }
 
 /**
- * The panel beside the rail belongs to the active mode. Chat's stays mounted
- * behind the others, so its search, scroll and open branches survive a switch.
+ * The panel beside the rail belongs to the active mode. Theia covers it in
+ * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
+ * Spaces, so its search, scroll and open branches survive a switch.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   return (
     <div className="on-sheet h-full">
-      <div hidden={mode !== 'chat'} className="h-full">
+      <div hidden={mode === 'spaces'} className="h-full">
         <ChatPanel />
       </div>
-      {mode !== 'chat' && <ModePanel mode={mode} />}
+      {mode === 'spaces' && <ModePanel mode={mode} />}
     </div>
   )
 }
