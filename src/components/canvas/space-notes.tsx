@@ -32,7 +32,8 @@ function NoteRow({ placement }: { placement: NotePlacement }) {
         type="button"
         aria-label={`Open ${title}`}
         onClick={() => open(documentId)}
-        className="relative flex size-5 shrink-0 items-center justify-center rounded-sm text-ink-faint opacity-0 outline-none group-hover:opacity-100 hover:bg-selected hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-focus"
+        // Touch screens have no hover, so the button stays visible there.
+        className="relative flex size-5 shrink-0 items-center justify-center rounded-sm text-ink-faint opacity-0 outline-none group-hover:opacity-100 hover:bg-selected hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-focus pointer-coarse:opacity-100"
       >
         <Icon.Expand className="size-3.5" />
       </button>
