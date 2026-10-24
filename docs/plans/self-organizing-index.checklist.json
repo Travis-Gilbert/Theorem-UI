@@ -1,0 +1,151 @@
+{
+  "plan": "docs/plans/self-organizing-index.md",
+  "backendSpec": "Theorem: docs/plans/index-workspace/SPEC-INDEX-WORKSPACE-1.0.md",
+  "items": [
+    {
+      "id": "precompute",
+      "requirement": "Precomputation rather than an inbox: the Index opens on organized material, and improvements arrive as quiet notices, never a backlog",
+      "status": "done",
+      "evidence": [
+        "src/components/index/programs.ts",
+        "src/components/index/proposals.tsx (ProposalNotices)"
+      ]
+    },
+    {
+      "id": "filing-uncertainty",
+      "requirement": "Filing shows its tier, attribution and confidence, flags low confidence, and can be corrected and undone",
+      "status": "done",
+      "evidence": [
+        "src/components/index/inspector.tsx (Filing)",
+        "Undo is read from the latest receipt's correction attribution (correctionId, undo), so it survives a reload",
+        "Verified live: File it (33%, low confidence), Move to Projects, reload, Undo move to Projects"
+      ]
+    },
+    {
+      "id": "search-first",
+      "requirement": "Search-first list, gallery and table, plus collections; exact search works before embeddings exist",
+      "status": "done",
+      "evidence": [
+        "library.tsx SearchField, ItemList (list/gallery/table), CollectionGrid",
+        "index-panel.tsx QuickSearch over the items binding"
+      ]
+    },
+    {
+      "id": "atlas",
+      "requirement": "Optional semantic Atlas over AtlasSnapshot v2, a way to look, never a way to file",
+      "status": "done",
+      "evidence": [
+        "src/components/index/atlas.tsx",
+        "programs.ts default:atlas"
+      ],
+      "dependsOn": "Theorem GET /api/index/map serving a v2 snapshot (lane 2 of the backend spec)"
+    },
+    {
+      "id": "three-pane",
+      "requirement": "Navigation, central view, and a working pane that can do, delegate and decide",
+      "status": "done",
+      "evidence": [
+        "index-panel.tsx",
+        "index-surface.tsx (SplitviewReact on desktop, overlay on phones)",
+        "inspector.tsx (file, move, undo, used-with preferences, Ask Theorem)",
+        "view-renderer.tsx RereadAfterFiling: a file, move or undo runs every Query in the open view again (OpenUI run steps), verified live"
+      ]
+    },
+    {
+      "id": "durable-views",
+      "requirement": "Durable view definitions (purpose, scope, bindings, presentation, operations, revision) owned by no chat message",
+      "status": "done",
+      "evidence": [
+        "contract.ts IndexView/ViewRevision",
+        "api.ts /api/index/v1/views",
+        "navigation.ts: views open from the /index URL"
+      ]
+    },
+    {
+      "id": "background-loop",
+      "requirement": "Improvement runs in Theorem's runtime, producing versioned, validated candidates; never mutates the live interface",
+      "status": "done",
+      "evidence": [
+        "Theorem rustyred-thg-server theorem_index_workspace/improver.rs",
+        "Verified live: three sessions of observations produced a used_together interpretation (support 3) and an auto-applied view composed by template:used_together",
+        "index-surface.tsx useHeldRevision: a revision made elsewhere waits behind 'Show it'"
+      ]
+    },
+    {
+      "id": "openui",
+      "requirement": "OpenUI is the composition path: one library the model composes against and the renderer runs with no model",
+      "status": "done",
+      "evidence": [
+        "library.tsx createLibrary",
+        "view-renderer.tsx Renderer.Root",
+        "queries.ts useLibraryPublication publishes prompt, components and callables"
+      ]
+    },
+    {
+      "id": "three-signals",
+      "requirement": "Observation, interpretation and adopted preference kept separate",
+      "status": "done",
+      "evidence": [
+        "observe.ts -> /observations",
+        "proposals.tsx shows interpretation evidence",
+        "SetPreference action and inspector Together/Apart -> /preferences"
+      ]
+    },
+    {
+      "id": "stability",
+      "requirement": "Pinned arrangements stay pinned; a new view never erases an old one; an active edit is never interrupted; restoring an earlier organization doesn't touch the data",
+      "status": "done",
+      "evidence": [
+        "Pin in ViewHeader",
+        "new_view proposals add views",
+        "useHeldRevision",
+        "view-editor.tsx ViewHistory restores as a new revision"
+      ]
+    },
+    {
+      "id": "policy",
+      "requirement": "Policy for automatic reversible improvements",
+      "status": "done",
+      "evidence": [
+        "index-panel.tsx PolicyMenu (autoApply.newViews, reviseImproverViews)",
+        "proposals.tsx Revert"
+      ]
+    },
+    {
+      "id": "som-separation",
+      "requirement": "SOM / EmbeddingGemma 2 integration, keeping 'used together' separate from semantic similarity",
+      "status": "partial",
+      "evidence": [
+        "inspector.tsx UsedWith reads the used_together binding; the Atlas reads the map binding"
+      ],
+      "open": "The EmbeddingGemma 2 producer and an active Atlas generation are Theorem deployment work, not in this change"
+    },
+    {
+      "id": "model-free",
+      "requirement": "An accepted view runs without a model",
+      "status": "done",
+      "evidence": [
+        "view-renderer.tsx: bindings go to POST /query; no model call anywhere in the surface"
+      ]
+    },
+    {
+      "id": "first-demo",
+      "requirement": "One learned improvement from a repeated pattern that survives reopening and a change of agent",
+      "status": "done",
+      "evidence": [
+        "Verified live on a local Theorem (tenant index-local): repeated co-opening across three sessions produced the 'Used together' view, auto-applied under policy",
+        "The view survived a server restart and renders from its stored program and bindings",
+        "It was composed by template with no model bound and runs with no model, so changing the chat agent cannot change it"
+      ]
+    },
+    {
+      "id": "tests",
+      "requirement": "bun test over bindings, recorder batching, default programs, OpenUI builtin names and Theorem's template programs",
+      "status": "done",
+      "evidence": [
+        "src/components/index/index.test.ts (18 tests)",
+        "Theorem: theorem_document_filing route test asserts correctionId/undo in filing history"
+      ]
+    }
+  ]
+}
