@@ -159,7 +159,7 @@ export function VaultStatusBar({
   return (
     <footer
       aria-label="Vault status"
-      className="flex h-8 shrink-0 items-center gap-0.5 border-t border-separator px-1.5 text-xs text-ink-faint tabular-nums"
+      className="flex h-7 shrink-0 items-center border-t border-separator px-1 text-xs text-ink-faint tabular-nums"
     >
       {(Object.keys(VAULT_TOOLS) as Array<VaultTool>).map((tool) => {
         const Mark = TOOL_MARKS[tool]
