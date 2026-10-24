@@ -120,8 +120,11 @@
   --radius: 0.5rem;
 
   /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
-     green tags, yellow attachments. Plain colours, since WebGL reads them. */
+     green tags, yellow attachments; from Theorem, teal plans and violet
+     agents' documents. Plain colours, since WebGL reads them. */
   --graph-note: #4a4b46;
+  --graph-plan: #2c7a72;
+  --graph-agent: #6b5ba6;
   --graph-tag: #4f7d2c;
   --graph-attachment: #a8841a;
   --graph-unresolved: #85827d;
@@ -180,6 +183,8 @@
   --link: #8fd0c4;
 
   --graph-note: #c9c9c9;
+  --graph-plan: #5fc2b5;
+  --graph-agent: #a898e6;
   --graph-tag: #79c05a;
   --graph-attachment: #e2c048;
   --graph-unresolved: #5e5e5e;

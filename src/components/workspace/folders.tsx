@@ -20,7 +20,13 @@ import {
 } from '@/lib/workspace/workspaces'
 import { openFolderSettings } from './folder-settings-dialog'
 import { openSearch } from './search-dialog'
-import { WorkspaceTree, attempt, makeEntry } from './workspace-tree'
+import {
+  WorkspaceTree,
+  attempt,
+  exportOkf,
+  importOkf,
+  makeEntry,
+} from './workspace-tree'
 
 function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
   const client = workspaceClient(workspace)
@@ -36,13 +42,19 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
     <Collapsible.Root open={open} onOpenChange={setOpen}>
       <div className="group/title relative flex items-center">
         <Collapsible.Trigger
-          title={workspace.path}
+          title={workspace.path || undefined}
           className="group/folder flex h-7 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-sm font-medium transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
         >
           <Icon.Next
             aria-hidden="true"
             className="size-2.5 shrink-0 text-ink-faint transition-transform duration-150 group-data-panel-open/folder:rotate-90"
           />
+          {client.theorem && (
+            <Icon.TheoremVault
+              aria-hidden="true"
+              className="size-3.5 shrink-0 text-ink-faint"
+            />
+          )}
           <span className="min-w-0 truncate">{workspace.name}</span>
         </Collapsible.Trigger>
         <Menu.Root>
@@ -88,6 +100,25 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
                   Today’s note
                 </Menu.Item>
                 <Menu.Separator className="my-1 h-px bg-separator" />
+                {client.theorem && (
+                  <>
+                    <Menu.Item
+                      className={menuItem}
+                      onClick={() => void importOkf(client, '')}
+                    >
+                      <Icon.Add className="size-4" />
+                      Import OKF bundle…
+                    </Menu.Item>
+                    <Menu.Item
+                      className={menuItem}
+                      onClick={() => void exportOkf(client, '')}
+                    >
+                      <Icon.Share className="size-4" />
+                      Export as OKF bundle…
+                    </Menu.Item>
+                    <Menu.Separator className="my-1 h-px bg-separator" />
+                  </>
+                )}
                 {host && (
                   <Menu.Item className={menuItem} onClick={host.revealInFinder}>
                     <Icon.FolderOpen className="size-4" />
@@ -99,7 +130,7 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
                   onClick={() => openFolderSettings(workspace.id)}
                 >
                   <Icon.Settings className="size-4" />
-                  Folder settings…
+                  {client.theorem ? 'Vault settings…' : 'Folder settings…'}
                 </Menu.Item>
               </Menu.Popup>
             </Menu.Positioner>
@@ -114,9 +145,10 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
 }
 
 /**
- * The folders the person opened, each with its live file tree. Present only
- * in the desktop app, where the workspace routes answer. Below a mode's panel
- * it takes at most half the height; the Vault's Files panel fills itself.
+ * The Theorem vault and the folders the person opened, each with its live
+ * file tree. The vault shows once someone is signed in; folders only in the
+ * desktop app, where the workspace routes answer. Below a mode's panel it
+ * takes at most half the height; the Vault's Files panel fills itself.
  */
 export function FoldersSection({ className }: { className?: string }) {
   const { available, workspaces } = useWorkspaces()
@@ -125,14 +157,14 @@ export function FoldersSection({ className }: { className?: string }) {
 
   return (
     <section
-      aria-label="Folders"
+      aria-label="Files"
       className={cn(
         'flex max-h-[50%] min-h-0 shrink-0 flex-col border-t border-separator',
         className,
       )}
     >
       <div className="flex h-9 shrink-0 items-center ps-3.5 pe-2 text-xs font-medium text-ink-faint-sheet">
-        <h2 className="flex-1">Folders</h2>
+        <h2 className="flex-1">Files</h2>
         {workspaces.length > 0 && (
           <TooltipIconButton
             tooltip="Search"

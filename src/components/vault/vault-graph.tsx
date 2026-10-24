@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { openSearch } from '@/components/workspace/search-dialog'
 import { attempt } from '@/components/workspace/workspace-tree'
 import { openFileAt } from '@/lib/handlers/actions'
-import { buildGraph } from '@/lib/vault/graph-model'
+import { buildGraph, isNoteNode } from '@/lib/vault/graph-model'
 import type {
   GraphModel,
   GraphNode,
@@ -51,6 +51,8 @@ function readPalette(element: HTMLElement): Palette {
   const rgba = (name: string) => getRgbaColor(token(name))
   return {
     note: rgba('note'),
+    plan: rgba('plan'),
+    agent: rgba('agent'),
     tag: rgba('tag'),
     attachment: rgba('attachment'),
     unresolved: rgba('unresolved'),
@@ -93,7 +95,7 @@ function seedPositions({ nodes }: GraphModel) {
 
 /** Bigger the more a node links, as in Obsidian. */
 const pointSize = (node: GraphNode) =>
-  (node.kind === 'note' ? 4 : 3) + Math.sqrt(node.degree) * 1.8
+  (isNoteNode(node) ? 4 : 3) + Math.sqrt(node.degree) * 1.8
 
 /** Labels fade in as the view zooms past the fitted scale. */
 const labelOpacity = (zoom: number, fitted: number) =>
@@ -414,6 +416,8 @@ function Controls({ local }: { local: boolean }) {
 
 const LEGEND: Array<{ kind: GraphNodeKind; label: string }> = [
   { kind: 'note', label: 'Notes' },
+  { kind: 'plan', label: 'Plans' },
+  { kind: 'agent', label: 'By agents' },
   { kind: 'tag', label: 'Tags' },
   { kind: 'attachment', label: 'Attachments' },
   { kind: 'unresolved', label: 'Unresolved' },

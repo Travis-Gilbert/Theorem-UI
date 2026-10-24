@@ -123,11 +123,28 @@ class TextFileSync {
       if (text === null) return
       if (this.state.conflict && expectedHash === undefined) return
       try {
-        const { hash } = await this.client.write(this.path, text, {
+        const { hash, merged } = await this.client.write(this.path, text, {
           expectedHash:
             expectedHash === undefined ? this.current()?.hash : expectedHash,
         })
         this.written.add(hash)
+        if (merged) {
+          // The store merged this write with a change made since, so it holds
+          // more than `text`: show what it holds.
+          this.set({
+            draft: this.state.draft === text ? null : this.state.draft,
+          })
+          await this.queryClient.refetchQueries({
+            queryKey: this.queryKey,
+            exact: true,
+          })
+          // Typing while the write was out was on the text before the merge.
+          this.set({
+            conflict: this.state.draft === null ? null : { hash },
+            saveFailed: false,
+          })
+          return
+        }
         this.queryClient.setQueryData<TextData>(this.queryKey, { text, hash })
         this.set({
           conflict: null,

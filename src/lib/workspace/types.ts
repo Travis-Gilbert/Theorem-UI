@@ -1,6 +1,8 @@
 // SOURCING: hand-rolled. The contract between the folder workspace service
 // (plan D16) and the views that use it (handlers, live blocks, the file tree).
-// It is this app's own domain model; no library defines it.
+// It is this app's own domain model; no library defines it. The Theorem
+// vault's own abilities are typed by @theoremharness/sdk.
+import type { Theorem } from '@theoremharness/sdk'
 
 /** `ws_<ULID>`, kept in the folder at `.theorem/workspace.json`. */
 export type WorkspaceId = string
@@ -8,13 +10,13 @@ export type WorkspaceId = string
 /** `vf_<ULID>`, kept in the folder at `.theorem/ids.json` (plan D8). */
 export type EntryId = string
 
-/** Plan D12. Desktop workspaces start `LocalOnly`. */
+/** Plan D12. Desktop workspaces start `LocalOnly`; the Theorem vault is `ConnectedLive`. */
 export type ReplicationPolicy = 'LocalOnly' | 'Synced' | 'ConnectedLive'
 
 export interface WorkspaceSummary {
   id: WorkspaceId
   name: string
-  /** Absolute path of the folder on this machine. */
+  /** Absolute path of the folder on this machine; '' for the Theorem vault. */
   path: string
   /**
    * Whether the person trusts this folder's code (plan D9). Kept in the app
@@ -24,6 +26,31 @@ export interface WorkspaceSummary {
   policy: ReplicationPolicy
 }
 
+/** What stores a Theorem vault entry: a plain file, a document, or a plan. */
+export type TheoremBacking = 'agentfs' | 'document' | 'plan'
+
+/** Where a Theorem vault entry comes from. Absent for folder entries. */
+export interface TheoremSource {
+  backing: TheoremBacking
+  /**
+   * Writing answers `read_only`, and so does removing a plan. It can still
+   * be moved: where it sits is the vault's, not the content's.
+   */
+  readOnly: boolean
+  /**
+   * False while the entry sits at the path Theorem computed for it (a plan
+   * under `Plans/`, an agent's document under `Agent/`); moving it places it.
+   */
+  placed: boolean
+  documentId?: string
+  /** The doc-store kind: `authored`, `skill`, and so on. */
+  documentKind?: string
+  /** An agent wrote it, rather than a person. */
+  agent: boolean
+  planId?: string
+  planStatus?: string
+}
+
 export interface WorkspaceEntry {
   id: EntryId
   /** POSIX path relative to the workspace root, without a leading slash. */
@@ -31,6 +58,7 @@ export interface WorkspaceEntry {
   kind: 'file' | 'directory'
   size: number
   mtimeMs: number
+  theorem?: TheoremSource
 }
 
 export interface FileContent {
@@ -73,12 +101,18 @@ export interface WorkspaceLink {
   target: string
   /** The path the target resolves to, or null when it resolves to nothing. */
   resolved: string | null
-  kind: 'wikilink' | 'markdown' | 'embed'
+  /**
+   * `related` is an accepted Theorem link suggestion that is not in the text;
+   * it shows from both ends.
+   */
+  kind: 'wikilink' | 'markdown' | 'embed' | 'related'
   heading?: string
   /** A block id from `#^id`. */
   block?: string
-  /** 1-based line of the link in `from`. */
+  /** 1-based line of the link in `from`; 0 for a `related` link. */
   line: number
+  /** The Theorem link receipt behind a `related` link. */
+  receiptId?: string
 }
 
 /** The notes and the links between them, for the graph view. */
@@ -89,12 +123,19 @@ export interface WorkspaceGraph {
     title: string
     /** Each tag once, as first spelled, without the `#`. */
     tags: Array<string>
+    /** Present in the Theorem vault. */
+    theorem?: Pick<TheoremSource, 'backing' | 'documentKind' | 'agent'>
   }>
   /**
    * One per note and target. `to` is the path the target resolves to (a note
    * or any other file), or null when it resolves to nothing.
    */
-  links: Array<{ from: string; to: string | null; target: string }>
+  links: Array<{
+    from: string
+    to: string | null
+    target: string
+    kind?: WorkspaceLink['kind']
+  }>
 }
 
 export interface SearchHit {
@@ -146,12 +187,15 @@ export interface WorkspaceClient {
    * Write atomically. `expectedHash` guards against overwriting a change made
    * elsewhere: a hash must match the file on disk, and `null` means the file
    * must not exist yet. On a mismatch it throws `WorkspaceConflictError`.
+   * `merged` is true when the store merged this write with a change made
+   * since `expectedHash` (the Theorem vault does, for documents); what it
+   * stored is then not `data`, and has to be read again.
    */
   write(
     path: string,
     data: string | Uint8Array,
     options?: { expectedHash?: string | null },
-  ): Promise<{ hash: string }>
+  ): Promise<{ hash: string; merged?: boolean }>
   mkdir(path: string): Promise<void>
   /** Rename or move. The entry keeps its id and links to it are rewritten. */
   rename(from: string, to: string): Promise<void>
@@ -176,4 +220,41 @@ export interface WorkspaceClient {
   setTrusted(trusted: boolean): Promise<void>
   /** Returns an unsubscribe function. */
   subscribe(listener: (event: WorkspaceEvent) => void): () => void
+  /** What only the Theorem vault can do. Absent for folders. */
+  readonly theorem?: TheoremAbilities
+}
+
+/** Link suggestions for a note, or why there are none. */
+export type LinkSuggestions =
+  | { status: 'ready'; page: Theorem.FilesSuggestionPage }
+  /** The tenant has not set link thresholds; nothing is suggested. */
+  | { status: 'unconfigured' }
+
+/** The Theorem vault's own abilities, beyond a folder's. */
+export interface TheoremAbilities {
+  /** Link candidates for the document at `path`, from Theorem's link service. */
+  suggestions: (
+    path: string,
+    options?: { limit?: number },
+  ) => Promise<LinkSuggestions>
+  /**
+   * Accepting an inline candidate rewrites its span as a wikilink; any other
+   * accepted candidate becomes a `related` link.
+   */
+  decide: (
+    candidateId: string,
+    decision: Theorem.FilesSuggestionDecision,
+  ) => Promise<Theorem.FilesDecisionReceipt>
+  /** Makes an agent's document the person's own, at `to` or its default path. */
+  promote: (path: string, to?: string) => Promise<WorkspaceEntry>
+  /** The Markdown under `path` ('' for everything) as an OKF bundle. */
+  exportOkf: (
+    path: string,
+  ) => Promise<{ fileName: string; bytes: Uint8Array; conceptCount: number }>
+  /** An OKF bundle's concepts as documents under `path`. */
+  importOkf: (
+    path: string,
+    bundle: { fileName: string; bytes: Uint8Array },
+    options?: { dryRun?: boolean },
+  ) => Promise<Theorem.FilesOkfImportReceipt>
 }

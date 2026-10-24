@@ -98,6 +98,48 @@ describe('buildGraph', () => {
     expect(local(2)).not.toContain('Lonely.md')
   })
 
+  test("marks Theorem's plans and agents' documents, and joins them as notes", () => {
+    const model = buildGraph(
+      {
+        notes: [
+          ...graph.notes,
+          {
+            path: 'Plans/Launch.md',
+            title: 'Launch',
+            tags: [],
+            theorem: { backing: 'plan', agent: false },
+          },
+          {
+            path: 'Notes/Brief.md',
+            title: 'Brief',
+            tags: [],
+            theorem: { backing: 'document', documentKind: 'note', agent: true },
+          },
+        ],
+        links: [
+          ...graph.links,
+          { from: 'Plans/Launch.md', to: 'Notes/Brief.md', target: 'Brief' },
+          {
+            from: 'Notes/Brief.md',
+            to: 'Hub.md',
+            target: 'Hub',
+            kind: 'related',
+          },
+        ],
+      },
+      files,
+      { ...all, tags: false, attachments: false, unresolved: false },
+    )
+    const kinds = Object.fromEntries(
+      model.nodes.map(({ id, kind }) => [id, kind]),
+    )
+    expect(kinds['Plans/Launch.md']).toBe('plan')
+    expect(kinds['Notes/Brief.md']).toBe('agent')
+    expect(kinds['Hub.md']).toBe('note')
+    expect(edges(model)).toContain('Notes/Brief.md - Plans/Launch.md')
+    expect(edges(model)).toContain('Hub.md - Notes/Brief.md')
+  })
+
   test('a local graph keeps its note when nothing links to it', () => {
     const model = buildGraph(graph, files, {
       ...all,

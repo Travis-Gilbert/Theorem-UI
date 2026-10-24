@@ -121,7 +121,9 @@ function SettingsForm({
           {client.workspace.name} settings
         </DialogTitle>
         <DialogDescription>
-          Kept in the folder, in .theorem/settings.json, so they travel with it.
+          {client.theorem
+            ? 'Kept in Theorem with the vault, so every device has them.'
+            : 'Kept in the folder, in .theorem/settings.json, so they travel with it.'}
         </DialogDescription>
       </DialogHeader>
 

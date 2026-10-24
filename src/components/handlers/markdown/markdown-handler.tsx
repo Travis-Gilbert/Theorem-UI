@@ -7,7 +7,12 @@ import { EDIT_ZOOM } from '@/components/canvas/zoom'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
 import { useTextFile } from '@/lib/handlers/file-sync'
 import type { FileCardProps, FileViewProps } from '@/lib/handlers/types'
-import { FileMessage, FileStatusBar, textFileMessage } from '../file-status'
+import {
+  FileMessage,
+  FileStatusBar,
+  TheoremEntryBar,
+  textFileMessage,
+} from '../file-status'
 import { MarkdownEditor } from './editor'
 import { readProperties, splitFrontmatter, writeProperty } from './frontmatter'
 import { PropertiesEditor } from './properties'
@@ -21,22 +26,27 @@ export function MarkdownPanel(file: FileViewProps) {
     return <FileMessage>{message}</FileMessage>
 
   const { head, yaml, body } = splitFrontmatter(text.text)
+  const readOnly = file.entry.theorem?.readOnly ?? false
   return (
     <div className="flex h-full min-h-0 flex-col">
       <FileStatusBar file={text} />
+      <TheoremEntryBar file={file} />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <PropertiesEditor
-          properties={readProperties(yaml)}
-          onChange={(key, value) =>
-            text.setText(writeProperty({ head, yaml }, key, value) + body)
-          }
-        />
+        <fieldset disabled={readOnly} className="contents">
+          <PropertiesEditor
+            properties={readProperties(yaml)}
+            onChange={(key, value) =>
+              text.setText(writeProperty({ head, yaml }, key, value) + body)
+            }
+          />
+        </fieldset>
         <MarkdownEditor
           // A new file is a new editor.
           key={`${file.client.workspace.id}:${file.path}`}
           file={file}
           body={body}
           onBody={(next) => text.setText(head + next)}
+          readOnly={readOnly}
         />
       </div>
     </div>
@@ -63,6 +73,7 @@ export function MarkdownCard({ zoom, ...file }: FileCardProps) {
           file={file}
           body={body}
           onBody={(next) => text.setText(head + next)}
+          readOnly={file.entry.theorem?.readOnly ?? false}
           className="theorem-note-card min-h-0 flex-1 overflow-y-auto"
         />
       </div>

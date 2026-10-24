@@ -3,9 +3,13 @@
 // host bridge for the folder picker. Nothing here models a workspace; it
 // connects the WorkspaceClient to React.
 //
-// How a view reaches a folder workspace:
-// - `useWorkspaces()` lists the open workspaces. `available` is false when the
-//   page is not running in the desktop app, so views can hide themselves.
+// A workspace is the person's Theorem vault (on the web too, once signed in)
+// or a folder they opened in the desktop app.
+//
+// How a view reaches a workspace:
+// - `useWorkspaces()` lists the open workspaces, the Theorem vault first.
+//   `available` is false when there is neither a vault nor the desktop app, so
+//   views can hide themselves.
 // - `useWorkspaceClient(id)` returns that workspace's `WorkspaceClient`, or
 //   undefined while the list loads or once the folder is closed. Outside React,
 //   `workspaceClient(summary)` returns the same instance.
@@ -29,6 +33,11 @@ import {
   createDesktopWorkspaceClient,
   listDesktopWorkspaces,
 } from './desktop-client'
+import {
+  createTheoremWorkspaceClient,
+  getTheoremVault,
+  isTheoremWorkspace,
+} from './theorem-client'
 import type {
   FolderSettings,
   WorkspaceClient,
@@ -39,6 +48,7 @@ import type {
 } from './types'
 
 export const WORKSPACES_KEY = ['desktop', 'workspaces'] as const
+export const THEOREM_VAULT_KEY = ['theorem', 'vault'] as const
 export const workspaceTreeKey = (id: WorkspaceId) =>
   ['desktop', 'workspace', id, 'tree'] as const
 /** The key of something the workspace index answers; see `useIndexQuery`. */
@@ -55,19 +65,32 @@ const clients = new Map<WorkspaceId, WorkspaceClient>()
 export function workspaceClient(summary: WorkspaceSummary): WorkspaceClient {
   let client = clients.get(summary.id)
   if (!client) {
-    client = createDesktopWorkspaceClient(summary)
+    client = isTheoremWorkspace(summary)
+      ? createTheoremWorkspaceClient(summary)
+      : createDesktopWorkspaceClient(summary)
     clients.set(summary.id, client)
   }
   return client
 }
 
-/** The open folder workspaces. Empty, with `available` false, on the web. */
+/**
+ * The Theorem vault, then the open folders. Empty, with `available` false,
+ * on the web while nobody is signed in.
+ */
 export function useWorkspaces() {
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: WORKSPACES_KEY,
     queryFn: () => listDesktopWorkspaces(),
     staleTime: Infinity,
+    retry: false,
+  })
+  // Asked again now and then, so the vault appears once the person signs in
+  // or the backend comes back.
+  const vault = useQuery({
+    queryKey: THEOREM_VAULT_KEY,
+    queryFn: () => getTheoremVault(),
+    staleTime: 60_000,
     retry: false,
   })
 
@@ -83,8 +106,11 @@ export function useWorkspaces() {
 
   return {
     ...query,
-    available: Boolean(query.data),
-    workspaces: query.data ?? [],
+    isPending: query.isPending || vault.isPending,
+    available: Boolean(query.data ?? vault.data),
+    /** The desktop app's workspace routes answer, so folders can be opened. */
+    folders: Boolean(query.data),
+    workspaces: [...(vault.data ? [vault.data] : []), ...(query.data ?? [])],
   }
 }
 

@@ -6,7 +6,13 @@
 import { basename, extname } from 'pathe'
 import type { WorkspaceGraph } from '@/lib/workspace/types'
 
-export type GraphNodeKind = 'note' | 'tag' | 'attachment' | 'unresolved'
+/** `plan` and `agent` are notes Theorem holds as a plan or an agent's document. */
+export type GraphNodeKind =
+  'note' | 'plan' | 'agent' | 'tag' | 'attachment' | 'unresolved'
+
+/** Whether a node stands for a note, whoever wrote it. */
+export const isNoteNode = (node: { kind: GraphNodeKind }) =>
+  node.kind === 'note' || node.kind === 'plan' || node.kind === 'agent'
 
 export interface GraphNode {
   id: string
@@ -66,7 +72,17 @@ export function buildGraph(
   }
 
   for (const note of graph.notes)
-    add({ id: note.path, kind: 'note', label: note.title, path: note.path })
+    add({
+      id: note.path,
+      kind:
+        note.theorem?.backing === 'plan'
+          ? 'plan'
+          : note.theorem?.agent
+            ? 'agent'
+            : 'note',
+      label: note.title,
+      path: note.path,
+    })
   const attachment = (path: string) =>
     add({ id: path, kind: 'attachment', label: basename(path), path })
   if (filters.attachments)
@@ -83,9 +99,12 @@ export function buildGraph(
         target: link.target,
       })
       join(link.from, id)
-    } else if (nodes.get(link.to)?.kind === 'note') join(link.from, link.to)
-    else if (!isNote(link.to) && filters.attachments)
-      join(link.from, attachment(link.to))
+    } else {
+      const to = nodes.get(link.to)
+      if (to && isNoteNode(to)) join(link.from, link.to)
+      else if (!isNote(link.to) && filters.attachments)
+        join(link.from, attachment(link.to))
+    }
   }
 
   // Tags are one node however they are capitalised, as in Obsidian.

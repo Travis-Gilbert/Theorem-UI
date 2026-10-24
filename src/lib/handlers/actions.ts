@@ -15,10 +15,13 @@ type File = { client: WorkspaceClient; path: string }
 export const absolutePath = ({ client, path }: File) =>
   join(client.workspace.path, path)
 
-/** What the desktop host can do with a file; null on the web. */
+/**
+ * What the desktop host can do with a file; null on the web, and for the
+ * Theorem vault, which is not a folder on this machine.
+ */
 export function hostActions(file: File) {
   const host = getDesktopHost()
-  if (!host) return null
+  if (!host || file.client.theorem) return null
   const at = absolutePath(file)
   return {
     revealInFinder: () => host.revealInFinder(at),

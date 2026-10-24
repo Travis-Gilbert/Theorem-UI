@@ -11,6 +11,7 @@ import { describeError } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
 import { fetchNote, noteKey } from '@/lib/theorem/notes'
 import { openWorkspaceFile } from '@/lib/workspace/open'
+import { isTheoremWorkspace } from '@/lib/workspace/theorem-client'
 import type { WorkspaceSummary } from '@/lib/workspace/types'
 import { useWorkspaces, workspaceClient } from '@/lib/workspace/workspaces'
 
@@ -26,7 +27,10 @@ export function ExportToFolder({
   space: Theorem.Space
 }) {
   const queryClient = useQueryClient()
-  const { workspaces } = useWorkspaces()
+  // The Space's notes already live in Theorem; this takes them out of it.
+  const workspaces = useWorkspaces().workspaces.filter(
+    (workspace) => !isTheoremWorkspace(workspace),
+  )
 
   const exporting = useMutation({
     mutationFn: async (workspace: WorkspaceSummary) => {

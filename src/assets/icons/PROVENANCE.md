@@ -494,7 +494,18 @@ way, for the Vault view.
 | Trusted | `streamline/streamline-zip-file-lock.png` | Zip File Lock | `d52444fa4c197a78539428b736187268e8cc512fd9656529ccbb87f87e5072c1` |
 | Untrusted | `streamline/streamline-zip-file-warning.png` | Zip File Warning | `12f856713874d0409829cee132357eacf3b4b2f53ef34b47a6630dd9d963020d` |
 
+Two more mark what comes from Theorem in the Vault, from the downloads
+"streamline-ultimate-light--48x48-PNG(3).zip" and "(5).zip", copied and
+renamed the same way.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Plan | `streamline/streamline-ui-webpage-bullets.png` | Ui Webpage Bullets | `b2672570fdbe15028a0f18287e63ac33dd6e2f5a8ae303557f0d496cc1d15d2d` |
+| TheoremVault | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
+
 Outline and Graph have no owned mark yet; Lucide's TableOfContents and
-Waypoints stand in, as Lucide's trash does for Delete.
+Waypoints stand in, as Lucide's trash does for Delete. Nor do an agent's
+document and a skill: Lucide's Bot and GraduationCap stand in the same way,
+and Lucide's BellOff for muting a link suggestion.
 
 The files they replace in the registry are listed under Retired.

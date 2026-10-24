@@ -24,8 +24,13 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
 // Nor a two-way chevron for switchers; Lucide's stands in the same way.
 // Nor an outline or a node graph mark; Lucide's stand in the same way.
+// Nor an agent's document or a skill; Lucide's stand in the same way.
+// Nor a mute mark, for a link suggestion not to make again.
 import {
+  BellOff as Mute,
+  Bot as Agent,
   ChevronsUpDown as UpDown,
+  GraduationCap as Skill,
   Trash2 as Delete,
   TableOfContents as Outline,
   Waypoints as Graph,
@@ -59,6 +64,8 @@ import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
 import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
 import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
 import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
+import SquareWireframe from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
+import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bullets.png'
 import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
 import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
 import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
@@ -119,6 +126,8 @@ const Notes = masked(CommonFileStack)
 const Attachments = masked(CommonFileDouble)
 const Trusted = masked(ZipFileLock)
 const Untrusted = masked(ZipFileWarning)
+const Plan = masked(WebpageBullets)
+const TheoremVault = masked(SquareWireframe)
 
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
@@ -133,6 +142,7 @@ const TreeFile = solid(TreeFileMark)
 
 export const Icon = {
   Add,
+  Agent,
   Archive,
   Article,
   Attachment,
@@ -161,11 +171,13 @@ export const Icon = {
   Microphone,
   Moon,
   More,
+  Mute,
   NewChat,
   Next,
   Notes,
   OpenFolder,
   Outline,
+  Plan,
   Previous,
   Project: ProjectRow,
   Projects,
@@ -175,9 +187,11 @@ export const Icon = {
   Send,
   Settings,
   Share,
+  Skill,
   Spaces: PenroseTriangle,
   Stop,
   Sun,
+  TheoremVault,
   TreeFile,
   Trusted,
   Untrusted,

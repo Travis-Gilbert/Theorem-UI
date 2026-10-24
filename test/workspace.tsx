@@ -52,7 +52,7 @@ export function fakeWorkspace(
     answers?: Partial<
       Pick<
         WorkspaceClient,
-        'links' | 'backlinks' | 'graph' | 'search' | 'tags'
+        'links' | 'backlinks' | 'graph' | 'search' | 'tags' | 'theorem'
       >
     >
   } = {},
