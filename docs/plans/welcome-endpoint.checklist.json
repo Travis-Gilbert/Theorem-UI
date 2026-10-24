@@ -5,7 +5,7 @@
       "id": "ui-workaround-removed",
       "item": "Theorem UI's direct OpenRouter route, its test, the openai dependency and the env entry are gone",
       "status": "done",
-      "evidence": "commit on claude/interesting-bohr-cee321 after 6b1053d"
+      "evidence": "53e59cb on claude/interesting-bohr-cee321 (Theorem UI PR 10): tsc clean, bun test 463 pass, Bun and Worker builds pass, no /api/welcome in either output"
     },
     {
       "id": "catalog-row",
