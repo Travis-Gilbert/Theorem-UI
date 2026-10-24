@@ -463,7 +463,7 @@ band, so no correction is recorded and the 1x heavy flag remains.
 
 ## Streamline Ultimate Light marks
 
-These nine PNGs are from the owner's Streamline downloads, "streamline-ultimate-light--48x48-PNG.zip"
+These thirteen PNGs are from the owner's Streamline downloads, "streamline-ultimate-light--48x48-PNG.zip"
 (Streamline Ultimate, Light style, 48 x 48, black ink on a transparent ground).
 Each was copied byte for byte and renamed in lowercase with a `streamline-`
 prefix. The app paints them as CSS masks (`.icon-mask` in `styles.css`), so the
@@ -482,5 +482,9 @@ a paid plan does not.
 | Diagram | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
 | Folder | `streamline/streamline-folder.png` | Folder | `f2c5c9fd0f6f8ad25bf7ef6c61879d89ad68211c06734c68bd4bdc613c8d926e` |
 | FolderOpen | `streamline/streamline-file-open.png` | File Open | `e62ed40466af24caa37dc1b970e9e24d3f76073ebc877701ddda7c8ecf6a637a` |
+| Artifact | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
+| Open | `streamline/streamline-shipment-upload.png` | Shipment Upload (drawn as two masks, lid and body, so the lid can open) | `b0f971ba54602d9521a4a4dda64aaa75f088b6330aef9c31f101b076db25a006` |
+| Download | `streamline/streamline-download-box.png` | Download Box | `883be4b139f91501a74541687e04b8dc8ca85b46aa5ffe7ae501c24046beda97` |
+| Exit | `streamline/streamline-x.png` | X (from a later download, "streamline-ultimate-light--48x48-PNG(10).zip") | `221832f33e28248257d4e619beabb5153b91c8b23a8475c1c2ded08b5284f52b` |
 
 The files they replace in the registry are listed under Retired.

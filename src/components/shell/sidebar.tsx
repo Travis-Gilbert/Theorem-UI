@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks
+// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { describeError } from '@/lib/theorem/client'
+import { Explorer } from './explorer'
 import { modeLabel, useShellMode } from './modes'
 import type { ShellMode } from './modes'
 import { useActiveProject, useCreateProject, useTenant } from './projects'
@@ -179,7 +180,7 @@ function ProjectSwitcher() {
   )
 }
 
-/** Chat's panel: the project, then search, New chat and the conversations. */
+/** Chat's panel: the project, then search, New chat, the conversations and the project's files. */
 function ChatPanel() {
   const [search, setSearch] = useState('')
 
@@ -200,6 +201,7 @@ function ChatPanel() {
       >
         <ThreadListItems searchQuery={search} />
       </nav>
+      <Explorer />
     </ThreadListRoot>
   )
 }

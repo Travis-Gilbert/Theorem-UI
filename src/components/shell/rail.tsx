@@ -1,9 +1,11 @@
-// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook
+// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
+import { PALETTES, usePalette } from '@/lib/palette'
+import type { Palette } from '@/lib/palette'
 import {
   Tooltip,
   TooltipContent,
@@ -26,9 +28,10 @@ const THEMES = [
   { value: 'system', label: 'Match system' },
 ]
 
-/** The signed-in tenant as an initial outlined in the accent, with the theme choice behind it. */
+/** The signed-in tenant as an initial outlined in the accent, with the theme and color choices behind it. */
 function AccountMenu() {
   const { theme, setTheme } = useTheme()
+  const { palette, setPalette } = usePalette()
   const tenant = useTenant()
 
   return (
@@ -77,10 +80,59 @@ function AccountMenu() {
                 ))}
               </Menu.RadioGroup>
             </Menu.Group>
+            <Menu.Separator className="my-1 h-px bg-separator" />
+            <Menu.Group>
+              <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                Colors
+              </Menu.GroupLabel>
+              <Menu.RadioGroup
+                value={palette}
+                onValueChange={(value) => setPalette(value as Palette)}
+              >
+                {PALETTES.map(({ value, label }) => (
+                  <Menu.RadioItem
+                    key={value}
+                    value={value}
+                    className={`${menuItem} data-checked:font-medium`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    <Menu.RadioItemIndicator>
+                      <Icon.Check className="size-3.5" />
+                    </Menu.RadioItemIndicator>
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioGroup>
+            </Menu.Group>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
+  )
+}
+
+/** Shows and hides the agent terminal drawer. */
+function TerminalToggle() {
+  const open = useShell((s) => s.terminalOpen)
+  const setOpen = useShell((s) => s.setTerminalOpen)
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              aria-label="Agent terminal"
+              aria-pressed={open}
+              onClick={() => setOpen(!open)}
+              className={`${railButton} mb-2 aria-pressed:text-ink`}
+            />
+          }
+        >
+          <Icon.Terminal className="size-5" strokeWidth={1.75} />
+        </TooltipTrigger>
+        <TooltipContent side="right">Agent terminal (ctrl+`)</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
@@ -186,6 +238,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
         </nav>
       </TooltipProvider>
       <div className="flex-1" />
+      <TerminalToggle />
       <AccountMenu />
     </div>
   )

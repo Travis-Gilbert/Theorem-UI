@@ -1,4 +1,4 @@
-// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode)
+// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), the agent TerminalDrawer and the tabbed SideTerminal
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { Drawer } from '@base-ui/react/drawer'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
@@ -9,6 +9,8 @@ import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { SideTerminal } from '@/components/terminal/side-terminal'
+import { TerminalDrawer } from '@/components/terminal/terminal-drawer'
 import { DockShell } from './dock'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { Rail } from './rail'
@@ -173,7 +175,7 @@ function SheetSplit(route: DockRoute) {
   return (
     <DockRouteContext.Provider value={route}>
       <SplitviewReact
-        className="sheet-split dockview-theme-stone h-full w-full"
+        className="sheet-split dockview-theme-theorem h-full w-full"
         orientation={Orientation.HORIZONTAL}
         proportionalLayout={false}
         components={splitComponents}
@@ -218,6 +220,8 @@ export function ChatShell({
       ) : (
         <PhoneShell />
       )}
+      <TerminalDrawer />
+      <SideTerminal />
     </div>
   )
 }

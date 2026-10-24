@@ -1,5 +1,6 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode) and ThreadListPrimitive.New, zustand stores for artifact view and saved layouts
-import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
+// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, saved layouts and the drawers
+import { useAuiState } from '@assistant-ui/react'
+import { Menu } from '@base-ui/react/menu'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
   DockviewApi,
@@ -16,8 +17,11 @@ import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { useFileDock } from '@/lib/theorem/project-files'
+import { FilePanel } from './file-panel'
 import { ModeView, modeLabel, useShellMode } from './modes'
 import { useShell } from './shell-state'
+import { menuItem, menuPopup } from './sidebar'
 
 import { flyGhost, popIn } from '@/lib/motion'
 
@@ -27,11 +31,14 @@ const ARTIFACT = 'artifact:'
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
 const artifactIdOf = (panelId: string) =>
   panelId.startsWith(ARTIFACT) ? panelId.slice(ARTIFACT.length) : undefined
+const FILE = 'file:'
+const filePanelId = (path: string) => `${FILE}${path}`
+const isFilePanel = (panelId: string) => panelId.startsWith(FILE)
 
-/** Colours come from the Stone tokens, which already switch under `.dark`. */
+/** Colours come from the palette tokens, which already switch per palette and mode. */
 const theme: DockviewTheme = {
-  name: 'stone',
-  className: 'dockview-theme-stone',
+  name: 'theorem',
+  className: 'dockview-theme-theorem',
 }
 
 /** Subscribes React to a dockview event; dockview events return a disposable. */
@@ -100,9 +107,20 @@ function ArtifactDockPanel({
   )
 }
 
+function FileDockPanel({
+  api,
+  params,
+}: IDockviewPanelProps<{ projectId: string; path: string }>) {
+  useEffect(() => {
+    api.setTitle(params.path.split('/').at(-1) || params.path)
+  }, [api, params.path])
+  return <FilePanel projectId={params.projectId} path={params.path} />
+}
+
 const components = {
   thread: ThreadPanel,
   artifact: ArtifactDockPanel,
+  file: FileDockPanel,
 }
 
 const tabComponents = {
@@ -112,17 +130,49 @@ const tabComponents = {
   ),
 }
 
+/**
+ * Opens a drawer beside the conversation: the terminal, on the right or at
+ * the bottom, and later other tools. New chat lives in the sidebar.
+ */
 function GroupActions({ panels }: IDockviewHeaderActionsProps) {
   if (!panels.some((panel) => panel.id === THREAD)) return null
   return (
     <div className="flex h-full items-center pe-1">
-      <ThreadListPrimitive.New
-        render={
-          <TooltipIconButton tooltip="New chat" className="size-7 p-1.5" />
-        }
-      >
-        <Icon.NewChat className="size-4" />
-      </ThreadListPrimitive.New>
+      <Menu.Root>
+        <Menu.Trigger
+          render={
+            <TooltipIconButton
+              tooltip="Open a panel"
+              className="size-7 p-1.5"
+            />
+          }
+        >
+          <Icon.Panels className="size-4" />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner align="end" sideOffset={6} className="z-50">
+            <Menu.Popup className={`min-w-52 ${menuPopup}`}>
+              <Menu.Item
+                className={menuItem}
+                onClick={() => useShell.getState().setSideDrawer('terminal')}
+              >
+                <Icon.Terminal className="size-4 text-ink-muted" />
+                Terminal on the right
+              </Menu.Item>
+              <Menu.Item
+                className={menuItem}
+                onClick={() => useShell.getState().setTerminalOpen(true)}
+              >
+                <Icon.Terminal className="size-4 text-ink-muted" />
+                Terminal at the bottom
+                <span className="ms-auto ps-4 font-mono text-xs text-ink-faint">
+                  ctrl+`
+                </span>
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
     </div>
   )
 }
@@ -153,35 +203,62 @@ function restoreLayout(
   return false
 }
 
-/** New artifacts join the existing artifact tabs, else open beside the conversation. */
-function openArtifact(api: DockviewApi, artifactId: string) {
-  const id = artifactPanelId(artifactId)
-  const existing = api.getPanel(id)
+/**
+ * New artifacts and files join the existing side tabs, else open beside the
+ * conversation.
+ */
+function openSide(
+  api: DockviewApi,
+  options: {
+    id: string
+    component: string
+    params: Record<string, string>
+    title: string
+  },
+) {
+  const existing = api.getPanel(options.id)
   if (existing) {
     existing.api.setActive()
     return
   }
-  const options = {
-    id,
-    component: 'artifact',
-    params: { artifactId },
-    title: 'Artifact',
-    minimumWidth: 400,
-  }
-  const sibling = api.panels.find((panel) => artifactIdOf(panel.id))
+  const sibling = api.panels.find(
+    (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
+  )
   if (sibling) {
-    api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
+    api.addPanel({
+      ...options,
+      minimumWidth: 400,
+      position: { referenceGroup: sibling.group },
+    })
     return
   }
   const initialWidth = Math.round(api.width * 0.55)
+  const sized = { ...options, minimumWidth: 400, initialWidth }
   if (api.getPanel(THREAD)?.api.location.type === 'grid')
     api.addPanel({
-      ...options,
-      initialWidth,
+      ...sized,
       position: { referencePanel: THREAD, direction: 'right' },
     })
-  else
-    api.addPanel({ ...options, initialWidth, position: { direction: 'right' } })
+  else api.addPanel({ ...sized, position: { direction: 'right' } })
+}
+
+function openArtifact(api: DockviewApi, artifactId: string) {
+  openSide(api, {
+    id: artifactPanelId(artifactId),
+    component: 'artifact',
+    params: { artifactId },
+    title: 'Artifact',
+  })
+}
+
+/** Files belong to the project, so they stay open across conversations. */
+function openFile(api: DockviewApi, projectId: string, path: string) {
+  openSide(api, {
+    id: filePanelId(path),
+    component: 'file',
+    params: { projectId, path },
+    title: path.split('/').at(-1) || path,
+  })
 }
 
 /**
@@ -215,7 +292,9 @@ function springMaximize(dock: DockviewApi) {
             continue
           }
           if (from.width === to.width && from.height === to.height) continue
-          const artifact = group.panels.some((panel) => artifactIdOf(panel.id))
+          const artifact = group.panels.some(
+            (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
+          )
           flyGhost(from, group.element, {
             className: artifact ? 'bg-artifact' : 'bg-background',
             ease: 'settle',
@@ -226,7 +305,7 @@ function springMaximize(dock: DockviewApi) {
   ]
 }
 /**
- * Desktop dock: the conversation and each open artifact as dock panels. Panels render always, so moving or hiding one
+ * Desktop dock: the conversation, each open artifact and each open project file as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
  * per project; artifact panels belong to the conversation they came from.
  */
@@ -274,6 +353,7 @@ export function DockShell({
         },
       },
     })
+    useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -289,6 +369,7 @@ export function DockShell({
     return () => {
       for (const listener of listeners) listener.dispose()
       useArtifactView.setState({ dock: undefined })
+      useFileDock.setState({ open: undefined })
     }
   }, [dock, projectId])
 
