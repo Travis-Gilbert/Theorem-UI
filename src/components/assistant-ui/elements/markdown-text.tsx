@@ -87,10 +87,10 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
       </span>
       <TooltipIconButton tooltip="Copy" onClick={onCopy}>
         {!isCopied && (
-          <Icon.Copy className="animate-in zoom-in-75 fade-in duration-150" />
+          <Icon.Copy className="animate-in fade-in zoom-in-75" />
         )}
         {isCopied && (
-          <Icon.Copied className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+          <Icon.Copied className="animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
         )}
       </TooltipIconButton>
     </div>

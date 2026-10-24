@@ -1,0 +1,14 @@
+[package]
+name = "webview-surface"
+version = "0.1.0"
+edition = "2021"
+description = "Parented native child-surface geometry for contained webviews. No Servo: hide/show/move oracles must not link the engine."
+license = "MIT"
+publish = false
+
+[dependencies]
+dpi = "0.1"
+raw-window-handle = "0.6"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"

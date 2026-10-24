@@ -1,0 +1,179 @@
+{
+  "spec": "docs/plans/infinite-canvas.md",
+  "items": [
+    {
+      "id": "proxy-routes",
+      "item": "Proxy routes for /api/spaces/v1 and /api/documents/v2 inject the bearer server-side",
+      "status": "done",
+      "evidence": "browser: all Spaces and Documents calls went through /api/* with 200s"
+    },
+    {
+      "id": "loro-canonical",
+      "item": "Notes encode as a one-paragraph Loro snapshot; decode reads it back; update keeps history",
+      "status": "done",
+      "evidence": "unit tests; server accepted browser-built snapshots"
+    },
+    {
+      "id": "note-crud",
+      "item": "Create, read, and revise notes with expectedRevision, If-Match and matching idempotency keys",
+      "status": "done",
+      "evidence": "browser: create, read and revise against the local authority"
+    },
+    {
+      "id": "note-conflict",
+      "item": "Stale note revision merges with the server version through Loro and retries; an unmergeable conflict shows a changed-elsewhere banner",
+      "status": "done",
+      "evidence": "browser: forced a stale revision, saw 409 then merge and 200 with both edits; unit tests for the merge"
+    },
+    {
+      "id": "foreign-readonly",
+      "item": "Documents not in the one-paragraph layout open read-only with a label",
+      "status": "done",
+      "evidence": "code and unit test (non-note layouts rejected); no foreign document on the local authority to open"
+    },
+    {
+      "id": "crepe-editor",
+      "item": "Crepe editor with block handles, slash menu, toolbar, tables, task lists, code, LaTeX, themed to Stone tokens",
+      "status": "done",
+      "evidence": "browser: block handles, slash menu, light and dark Stone theme"
+    },
+    {
+      "id": "slash-embed",
+      "item": "Slash menu 'Embed note' inserts a theorem-embed fence via the note picker",
+      "status": "done",
+      "evidence": "browser: Embed note opened the picker and inserted the fence"
+    },
+    {
+      "id": "slash-ask",
+      "item": "Slash menu 'Ask Theorem' opens the agent composer on the note",
+      "status": "done",
+      "evidence": "code: same composer path as right-click, which was exercised"
+    },
+    {
+      "id": "embed-preview",
+      "item": "theorem-embed fences render as cards through Crepe's code-block preview and open the note on click",
+      "status": "done",
+      "evidence": "browser: card renders and opens the note; static, not live (spec updated)"
+    },
+    {
+      "id": "note-panel",
+      "item": "Focused note dock panel note:<documentId> beside the canvas",
+      "status": "done",
+      "evidence": "browser: Expand and embed click open dock tabs titled after the note"
+    },
+    {
+      "id": "save-queue",
+      "item": "One save queue per document shared by the canvas card and the panel",
+      "status": "done",
+      "evidence": "browser: panel edits mirrored into the canvas card"
+    },
+    {
+      "id": "canvas",
+      "item": "React Flow canvas in Spaces mode: pan, zoom, minimap, controls, box select",
+      "status": "done",
+      "evidence": "browser: pan, zoom, minimap, controls"
+    },
+    {
+      "id": "space-per-project",
+      "item": "One Space per project (space:project:<projectId>), created on first save",
+      "status": "done",
+      "evidence": "browser: first placement created space:project:<id>"
+    },
+    {
+      "id": "placements",
+      "item": "Note placements persist rect; resize via NodeResizer; delete removes placement only",
+      "status": "done",
+      "evidence": "browser: drag persisted across reload; delete kept the note document; resize not exercised"
+    },
+    {
+      "id": "connections",
+      "item": "Drag-to-connect persists connections; deleting an edge removes it",
+      "status": "done",
+      "evidence": "browser: handle drag created a persisted connection; edge delete not exercised"
+    },
+    {
+      "id": "space-rebase",
+      "item": "409 stale_space_revision reloads and rebases local changes, then saves again",
+      "status": "done",
+      "evidence": "browser: forced a stale Space revision, saw 409, refetch, 200 with both moves"
+    },
+    {
+      "id": "detail-zoom",
+      "item": "Cards below 0.6x zoom show a read-only excerpt; onlyRenderVisibleElements on",
+      "status": "done",
+      "evidence": "browser: fit view below 0.6x showed excerpts with embed chips"
+    },
+    {
+      "id": "new-note",
+      "item": "Create a new note from the pane (double-click or context menu)",
+      "status": "done",
+      "evidence": "browser: New note; double-click uses the same handler"
+    },
+    {
+      "id": "picker",
+      "item": "Add an existing note by searching documents",
+      "status": "done",
+      "evidence": "browser: Add note placed an existing note"
+    },
+    {
+      "id": "composer-open",
+      "item": "Composer opens on right-click of card, selection, pane, or selected text; Cmd/Ctrl+Enter shortcut",
+      "status": "done",
+      "evidence": "browser: selected text, pane, Cmd+Enter on a selected card"
+    },
+    {
+      "id": "composer-chips",
+      "item": "Context chips for each source, removable",
+      "status": "done",
+      "evidence": "browser: quote and card chips shown"
+    },
+    {
+      "id": "composer-actions",
+      "item": "Standard actions plus free-form prompt",
+      "status": "done",
+      "evidence": "browser: Summarize and Explain ran"
+    },
+    {
+      "id": "composer-thread",
+      "item": "Each request runs in its own thread with spaceContext and inline excerpts",
+      "status": "done",
+      "evidence": "browser: thread created, message with spaceContext accepted (201)"
+    },
+    {
+      "id": "composer-stream",
+      "item": "Streaming status and Stop (run cancel)",
+      "status": "done",
+      "evidence": "browser: text streamed; Stop sent run cancel (200)"
+    },
+    {
+      "id": "composer-result",
+      "item": "Result becomes a note beside the sources with connections and a conversation link",
+      "status": "done",
+      "evidence": "browser: result note placed beside its source with an arrow and conversation link"
+    },
+    {
+      "id": "tests-markdown",
+      "item": "Milkdown Markdown round-trip tests stable after first normalization",
+      "status": "done",
+      "evidence": "bun test: 10 round-trip cases pass"
+    },
+    {
+      "id": "tests-loro",
+      "item": "Loro canonical and digest tests",
+      "status": "done",
+      "evidence": "bun test: canonical, merge and digest cases pass"
+    },
+    {
+      "id": "test-script",
+      "item": "package.json test script runs bun test with happy-dom",
+      "status": "done",
+      "evidence": "bun run test with happy-dom preload"
+    },
+    {
+      "id": "verify",
+      "item": "Typecheck, lint, and a browser check of the canvas against the local authority",
+      "status": "done",
+      "evidence": "typecheck, lint, 23 tests, browser pass on port 3001"
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  useEffect,
+  useRef,
   useState,
   isValidElement
 } from "react";
@@ -27,7 +29,10 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { COMPOSER_TOOLTIP_DELAY } from "@/components/chat/composer-tools";
+import { useIsomorphicLayoutEffect } from "@/components/assistant-ui/utils/useIsomorphicLayoutEffect";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+import { popIn, popOut } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type AttachmentPreviewProps = {
@@ -167,7 +172,7 @@ const AttachmentUI: FC = () => {
                   className={cn(
                     "aui-attachment-tile bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 overflow-hidden rounded-[calc(var(--composer-radius,1rem)-var(--composer-padding,8px))] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-1 motion-reduce:transition-none dark:after:ring-white/10",
                     src
-                      ? "cursor-zoom-in active:scale-[0.96]"
+                      ? "cursor-zoom-in"
                       : "cursor-default",
                     isError &&
                       "after:ring-destructive/60 dark:after:ring-destructive/60",
@@ -222,7 +227,7 @@ const AttachmentRemove: FC<{ name: string }> = ({ name }) => {
       render={
         <TooltipIconButton
           tooltip={`Remove ${name}`}
-          className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! motion-reduce:transition-none"
           side="top"
         />
       }
@@ -252,21 +257,53 @@ export const ComposerAttachments: FC = () => {
   );
 };
 
+/** The folder opens while the file picker is up and closes when it goes. */
+const AttachMark: FC<{ open: boolean }> = ({ open }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const shown = useRef(open);
+  useIsomorphicLayoutEffect(() => {
+    const marks = ref.current;
+    if (!marks || shown.current === open) return;
+    shown.current = open;
+    const enter = marks.querySelector(open ? "[data-open]" : "[data-closed]");
+    const leave = marks.querySelector(open ? "[data-closed]" : "[data-open]");
+    if (leave) popOut(leave);
+    if (enter) popIn(enter, { from: 0.7, rotate: open ? -10 : 8, ease: "lift" });
+  }, [open]);
+  return (
+    <span ref={ref} className="grid size-4 *:col-start-1 *:row-start-1">
+      <Icon.Folder data-closed="" className={cn("size-4", open && "opacity-0")} />
+      <Icon.FolderOpen data-open="" className={cn("size-4", !open && "opacity-0")} />
+    </span>
+  );
+};
+
 export const ComposerAddAttachment: FC = () => {
+  const [picking, setPicking] = useState(false);
+  // The window loses focus to the file picker and gets it back when the
+  // picker closes, whether a file was chosen or not.
+  useEffect(() => {
+    if (!picking) return;
+    const closed = () => setPicking(false);
+    window.addEventListener("focus", closed, { once: true });
+    return () => window.removeEventListener("focus", closed);
+  }, [picking]);
   return (
     <ComposerPrimitive.AddAttachment
+      onClick={() => setPicking(true)}
       render={
         <TooltipIconButton
           tooltip="Add Attachment"
           side="bottom"
+          delay={COMPOSER_TOOLTIP_DELAY}
           variant="ghost"
           size="icon"
-          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-7 rounded-md p-1.5 active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-7 rounded-md p-1.5 motion-reduce:transition-none"
           aria-label="Add Attachment"
         />
       }
     >
-      <Icon.Add className="aui-attachment-add-icon size-4" />
+      <AttachMark open={picking} />
     </ComposerPrimitive.AddAttachment>
   );
 };

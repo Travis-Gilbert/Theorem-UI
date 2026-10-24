@@ -6,7 +6,7 @@
     "prettier.config.js",
     "vite.config.js"
   ],
-  "exclude": ["node_modules", "dist", "Theorem-UI", "ide"],
+  "exclude": ["node_modules", "dist", "Theorem-UI", "test/fixtures", "ide"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
@@ -16,7 +16,7 @@
       "@/*": ["./src/*"]
     },
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    "types": ["vite/client", "bun"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",

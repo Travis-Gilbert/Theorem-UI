@@ -1,6 +1,7 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia), the Index surface
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Index surface
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { Canvas } from '@/components/canvas/canvas'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { Icon } from '@/components/icons'
 import { IndexSurface } from '@/components/index/index-surface'
@@ -51,20 +52,6 @@ export function useOpenMode() {
   }
 }
 
-function ModePlaceholder({ mode }: { mode: ShellMode }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
-        {modeLabel(mode)}
-      </p>
-      <p className="max-w-sm text-sm text-ink-muted">
-        {modeLabel(mode)} is not in Theorem UI yet. Chat returns to the
-        conversation you left.
-      </p>
-    </div>
-  )
-}
-
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
@@ -81,7 +68,7 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'index' && <IndexSurface />}
-      {mode === 'spaces' && <ModePlaceholder mode={mode} />}
+      {mode === 'spaces' && <Canvas />}
     </>
   )
 }

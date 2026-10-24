@@ -21,7 +21,7 @@ bytes and never calls the API or includes credentials.
 
 | Destination | File | Term and creator | Style | SHA-256 |
 |---|---|---|---|---|
-| New chat | `rail/noun-chat-8216252.svg` | chat, Jagat Kreasi | line 8 | `5d54cd67d6439c61fc9a68c6e09578e7fcee4a4bb4728b978cd3f8bd1bdeae5f` |
+| Chat | `rail/noun-chat-52762.svg` | chat (Noun asset 52762); creator not embedded in attachment | Owner-supplied rendition, 1200 view box, drawn solid | `ee96f0c5e4037f45333ef7a24238d9142fab4071926cde73b56da4c23d437540` |
 | Spaces | `rail/noun-penrose-triangle-881122.svg` | Penrose Triangle, Lluisa Iborra | Owner-supplied rendition | `495ff6ca11078ed418eda97490160eede32b42e1ef3f252885dcf3ea3c267241` |
 | Projects collection | `rail/noun-projects-8375031.svg` | Data, Reion | line 14 | `6211d378be4311d19dd02f05f581dba0fb8a457d8e1db7c25069b7d5f5d640fe` |
 
@@ -292,6 +292,7 @@ owner's selections are.
 | `rail/noun-inbox-8216259.svg` | `e079f651db029a747be80cc48f61075ecf4c30808c3cf79b0801c19d8ee201af` | Jagat Kreasi / Noun Project, asset 8216259 | Subscription, as above | Index until the owner's 2026-10-11 swap to `rail/noun-database-8408864.svg`. |
 | `rail/noun-cube-8186312.svg` | `995f93448fec3623c988b52be67534f1bd959e0ec0a0640fe905e359af06fbf5` | sentya irma / Noun Project, asset 8186312 | Subscription, as above | Space until the owner's 2026-10-11 rename to Spaces, drawn with `rail/noun-penrose-triangle-881122.svg`. |
 | `rail/lucide-grip-rail.svg` | `18190f0d782bd1251a1aace6c87c54875f5facaba14bc8ca38d0f57f5bbb932f` | Lucide `grip.svg`, lightened (stroke 1.35, outer centres at the cell edge) | ISC | Apps until the owner's 2026-10-11 swap to `rail/noun-collection-8408872.svg`. |
+| `rail/noun-chat-8216252.svg` | `5d54cd67d6439c61fc9a68c6e09578e7fcee4a4bb4728b978cd3f8bd1bdeae5f` | Jagat Kreasi / Noun Project, asset 8216252 | Subscription, as above | Chat until the owner's 2026-10-23 swap to the attached `rail/noun-chat-52762.svg`, copied byte for byte. |
 | `rail/noun-chat-1747287.svg` | `140ba4aa90126f3a72c40004370058a71ce87630d22af9608bb42b9e859ec29d` | Kaleo / Noun Project, asset 1747287 | Subscription, as above | New chat until the owner's 2026-10-02 swap to `rail/noun-chat-8216252.svg`. |
 | `rail/noun-organize-7934045.svg` | `a01dbea69d2f63121d904a20ee2fede474758cccb5e4738b43a07aeba2be26da` | Koko Robert / Noun Project, asset 7934045 | Subscription, as above | Index until the owner's 2026-10-02 swap to `rail/noun-inbox-8216259.svg`. |
 | `rail/noun-document-1517606.svg` | `ae71c886d43bc7bb11d07b0361a4acce70f91ead19c0244302920a3df9b7a234` | Smashicons / Noun Project, asset 1517606 | Subscription, as above | Notebook until the owner's 2026-10-02 swap to `rail/noun-note-8327985.svg`. |
@@ -388,7 +389,7 @@ are Jagat Kreasi's and 23 are Dierys Design's. Every file is upstream's bytes
 unaltered, retrieved once at authoring time; the app never calls the API.
 The license basis is the one recorded under License above.
 
-Reused from the families already admitted, with no new file: `composer/noun-attachment-8184735.svg` (field Files); `composer/noun-close-8086061.svg` (control Close); `composer/noun-settings-8086044.svg` (control Options); `rail/noun-chat-8216252.svg` (control Discuss); `rail/noun-nodes-138240.svg` (control Data); `rail/noun-note-8327985.svg` (object Note).
+Reused from the families already admitted, with no new file: `composer/noun-attachment-8184735.svg` (field Files); `composer/noun-close-8086061.svg` (control Close); `composer/noun-settings-8086044.svg` (control Options); `rail/noun-chat-8216252.svg` (control Discuss, retired 2026-10-23); `rail/noun-nodes-138240.svg` (control Data); `rail/noun-note-8327985.svg` (object Note).
 
 | File | Draws | Term, creator and asset | Style | SHA-256 |
 | --- | --- | --- | --- | --- |
@@ -462,7 +463,7 @@ band, so no correction is recorded and the 1x heavy flag remains.
 
 ## Streamline Ultimate Light marks
 
-These seven PNGs are from the owner's Streamline download, "streamline-ultimate-light--48x48-PNG.zip"
+These thirteen PNGs are from the owner's Streamline downloads, "streamline-ultimate-light--48x48-PNG.zip"
 (Streamline Ultimate, Light style, 48 x 48, black ink on a transparent ground).
 Each was copied byte for byte and renamed in lowercase with a `streamline-`
 prefix. The app paints them as CSS masks (`.icon-mask` in `styles.css`), so the
@@ -479,5 +480,11 @@ a paid plan does not.
 | Share | `streamline/streamline-share-1.png` | Share 1 | `6dce180df4d355ff4a0597747ac74474aeadc7355ae08c0f312f0ec762586776` |
 | Web | `streamline/streamline-cross-region-data-delivery-2.png` | Amazon Web Service Cross Region Data Delivery 2 | `bf2af3fedbfe2ef27e2326eefa76bc188a32bd7b2f02fb483e1e412cc0fdaeb5` |
 | Diagram | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
+| Folder | `streamline/streamline-folder.png` | Folder | `f2c5c9fd0f6f8ad25bf7ef6c61879d89ad68211c06734c68bd4bdc613c8d926e` |
+| FolderOpen | `streamline/streamline-file-open.png` | File Open | `e62ed40466af24caa37dc1b970e9e24d3f76073ebc877701ddda7c8ecf6a637a` |
+| Artifact | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
+| Open | `streamline/streamline-shipment-upload.png` | Shipment Upload (drawn as two masks, lid and body, so the lid can open) | `b0f971ba54602d9521a4a4dda64aaa75f088b6330aef9c31f101b076db25a006` |
+| Download | `streamline/streamline-download-box.png` | Download Box | `883be4b139f91501a74541687e04b8dc8ca85b46aa5ffe7ae501c24046beda97` |
+| Exit | `streamline/streamline-x.png` | X (from a later download, "streamline-ultimate-light--48x48-PNG(10).zip") | `221832f33e28248257d4e619beabb5153b91c8b23a8475c1c2ded08b5284f52b` |
 
 The files they replace in the registry are listed under Retired.
