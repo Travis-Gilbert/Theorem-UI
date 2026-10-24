@@ -52,8 +52,7 @@ function useOpenView() {
     collections.data?.find((c) => c.collectionId === collectionId)?.name
 
   const pinned = views.data?.find((v) => v.pinned)
-  const viewId =
-    viewParam ??
+  const fallback =
     pinned?.viewId ??
     defaultViewFor(
       scope,
@@ -61,6 +60,15 @@ function useOpenView() {
         ? collectionName(scope.collectionId)
         : undefined,
     ).viewId
+  // The first choice holds until the person navigates: a view pinned
+  // elsewhere and picked up by a poll never replaces the open one, or an
+  // unsaved edit in it.
+  const [held, setHeld] = useState<{ scope: string; viewId: string }>()
+  const heldHere = held?.scope === scopeKey(scope) ? held.viewId : undefined
+  if (viewParam && held) setHeld(undefined)
+  if (!viewParam && views.isSuccess && !heldHere)
+    setHeld({ scope: scopeKey(scope), viewId: fallback })
+  const viewId = viewParam ?? heldHere ?? fallback
   const builtIn = isDefaultView(viewId)
     ? resolveDefaultView(viewId, collectionName)
     : undefined
