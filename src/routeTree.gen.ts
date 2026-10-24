@@ -16,11 +16,13 @@ import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
 import { Route as ApiEnvironmentV1SplatRouteImport } from './routes/api/environment/v1/$'
+import { Route as ApiProjectFilesV1SplatRouteImport } from './routes/api/project-files/v1/$'
 import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
 
@@ -58,6 +60,11 @@ const AuthSignOutRoute = AuthSignOutRouteImport.update({
   path: '/auth/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TheiaSplatRoute = TheiaSplatRouteImport.update({
+  id: '/theia/$',
+  path: '/theia/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
@@ -83,6 +90,11 @@ const ApiEnvironmentV1SplatRoute = ApiEnvironmentV1SplatRouteImport.update({
   path: '/api/environment/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProjectFilesV1SplatRoute = ApiProjectFilesV1SplatRouteImport.update({
+  id: '/api/project-files/v1/$',
+  path: '/api/project-files/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSpacesV1SplatRoute = ApiSpacesV1SplatRouteImport.update({
   id: '/api/spaces/v1/$',
   path: '/api/spaces/v1/$',
@@ -102,11 +114,13 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
+  '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -116,12 +130,14 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
+  '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -133,12 +149,14 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
+  '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -151,11 +169,13 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/c/$threadId'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
+    | '/api/project-files/v1/$'
     | '/api/spaces/v1/$'
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
@@ -165,12 +185,14 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/'
     | '/c/$threadId'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
+    | '/api/project-files/v1/$'
     | '/api/spaces/v1/$'
     | '/v1/theorem/agent/stream/$'
   id:
@@ -181,12 +203,14 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/_chat/'
     | '/_chat/c/$threadId'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
+    | '/api/project-files/v1/$'
     | '/api/spaces/v1/$'
     | '/v1/theorem/agent/stream/$'
   fileRoutesById: FileRoutesById
@@ -196,10 +220,12 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  TheiaSplatRoute: typeof TheiaSplatRoute
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
   ApiEnvironmentV1SplatRoute: typeof ApiEnvironmentV1SplatRoute
+  ApiProjectFilesV1SplatRoute: typeof ApiProjectFilesV1SplatRoute
   ApiSpacesV1SplatRoute: typeof ApiSpacesV1SplatRoute
   V1TheoremAgentStreamSplatRoute: typeof V1TheoremAgentStreamSplatRoute
 }
@@ -255,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignOutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/theia/$': {
+      id: '/theia/$'
+      path: '/theia/$'
+      fullPath: '/theia/$'
+      preLoaderRoute: typeof TheiaSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_chat/c/$threadId': {
       id: '/_chat/c/$threadId'
       path: '/c/$threadId'
@@ -288,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/api/environment/v1/$'
       fullPath: '/api/environment/v1/$'
       preLoaderRoute: typeof ApiEnvironmentV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project-files/v1/$': {
+      id: '/api/project-files/v1/$'
+      path: '/api/project-files/v1/$'
+      fullPath: '/api/project-files/v1/$'
+      preLoaderRoute: typeof ApiProjectFilesV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/spaces/v1/$': {
@@ -328,10 +368,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  TheiaSplatRoute: TheiaSplatRoute,
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
   ApiEnvironmentV1SplatRoute: ApiEnvironmentV1SplatRoute,
+  ApiProjectFilesV1SplatRoute: ApiProjectFilesV1SplatRoute,
   ApiSpacesV1SplatRoute: ApiSpacesV1SplatRoute,
   V1TheoremAgentStreamSplatRoute: V1TheoremAgentStreamSplatRoute,
 }

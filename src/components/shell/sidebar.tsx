@@ -26,11 +26,13 @@ import { useShellMode } from './modes'
 import { useActiveProject, useCreateProject, useTenant } from './projects'
 import { useShell } from './shell-state'
 
+import { Explorer } from './explorer'
+
 export const menuItem =
   'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
 
 export const menuPopup =
-  'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+  'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-(--duration-snap) ease-snap data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
 
 function NewProjectDialog({
   open,
@@ -179,7 +181,7 @@ function ProjectSwitcher() {
   )
 }
 
-/** Chat's panel: the project, then search, New chat and the conversations. */
+/** Chat's panel: the project, then search, New chat, the conversations and the project's files. */
 function ChatPanel() {
   const [search, setSearch] = useState('')
 
@@ -200,6 +202,7 @@ function ChatPanel() {
       >
         <ThreadListItems searchQuery={search} />
       </nav>
+      <Explorer />
     </ThreadListRoot>
   )
 }

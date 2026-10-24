@@ -1,16 +1,9 @@
-// SOURCING: Base UI Dialog (ui/dialog) for Inspect, TooltipIconButton element for header actions, useCopyToClipboard hook; content renders through artifact-renderers
-import type { FC } from 'react'
-import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+// SOURCING: ui/button (ghost icon buttons) for header actions, useCopyToClipboard hook; content renders through artifact-renderers
+import { useLayoutEffect, useRef } from 'react'
 import { Icon } from '@/components/icons'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { flyGhost, takeLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { fileNameFor, kindLabel, useThreadArtifacts } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
@@ -33,7 +26,8 @@ export function ArtifactKindIcon({
   return <Glyph className={className} />
 }
 
-function download(artifact: TheoremArtifact) {
+/** Saves the artifact revision as a file. */
+export function download(artifact: TheoremArtifact) {
   const type = artifact.kind === 'document' ? 'text/markdown' : 'text/plain'
   const url = URL.createObjectURL(new Blob([artifact.content], { type }))
   const link = document.createElement('a')
@@ -41,59 +35,6 @@ function download(artifact: TheoremArtifact) {
   link.download = fileNameFor(artifact)
   link.click()
   URL.revokeObjectURL(url)
-}
-
-export const ArtifactInspect: FC<{ artifact: TheoremArtifact }> = ({
-  artifact,
-}) => {
-  const rows: Array<[string, string | number | undefined]> = [
-    ['Artifact', artifact.artifactId],
-    ['Revision', artifact.revision],
-    ['Patch', artifact.patchSequence],
-    ['Kind', artifact.kind],
-    ['Renderer', artifact.rendererId],
-    ['Contract', artifact.contractVersion],
-    ['Lifecycle', artifact.lifecycle],
-    ['Payload', artifact.payloadRef],
-    ['Run', artifact.runId],
-    ['Tool', artifact.sourceTool],
-  ]
-  return (
-    <Dialog>
-      <DialogTrigger
-        render={
-          <TooltipIconButton tooltip="Inspect" className="size-8 p-1.5" />
-        }
-      >
-        <Icon.Eye className="size-4" />
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-lg font-normal tracking-tight">
-            {artifact.title}
-          </DialogTitle>
-          <DialogDescription>
-            Receipt for this artifact revision.
-          </DialogDescription>
-        </DialogHeader>
-        <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
-          {rows
-            .filter(([, value]) => value !== undefined)
-            .map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="text-ink-faint">{label}</dt>
-                <dd
-                  className="truncate font-mono text-xs"
-                  title={String(value)}
-                >
-                  {value}
-                </dd>
-              </div>
-            ))}
-        </dl>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 /** Canvas for one artifact: header actions, revision switcher, rendered body. */
@@ -115,6 +56,20 @@ export function ArtifactPanel({
   const revision = useArtifactView((s) => s.revisions[artifactId])
   const select = useArtifactView((s) => s.select)
   const { isCopied, copyToClipboard } = useCopyToClipboard()
+  const sectionRef = useRef<HTMLElement>(null)
+
+  // Opened from a chat card, the canvas grows out of that card. The frame
+  // after mount is when the dock or the phone overlay has its final size.
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const origin = takeLaunch(`artifact:${artifactId}`)
+      if (origin && sectionRef.current)
+        flyGhost(origin, sectionRef.current, {
+          className: 'rounded-artifact border border-separator bg-artifact',
+        })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [artifactId])
 
   const versions = artifacts.get(artifactId)
   if (!versions?.length) return null
@@ -134,6 +89,7 @@ export function ArtifactPanel({
 
   return (
     <section
+      ref={sectionRef}
       aria-label={`Artifact: ${artifact.title}`}
       className={cn('flex h-full min-w-0 flex-col bg-artifact', className)}
     >
@@ -153,64 +109,75 @@ export function ArtifactPanel({
 
         {versions.length > 1 && (
           <div className="flex items-center text-xs text-ink-muted">
-            <TooltipIconButton
-              tooltip="Previous version"
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Previous version"
               className="size-7 p-1.5"
               disabled={index === 0}
               onClick={() => goTo(index - 1)}
             >
               <Icon.Previous className="size-3.5" />
-            </TooltipIconButton>
+            </Button>
             <span className="min-w-12 text-center tabular-nums">
               v{index + 1} of {versions.length}
             </span>
-            <TooltipIconButton
-              tooltip="Next version"
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Next version"
               className="size-7 p-1.5"
               disabled={index === versions.length - 1}
               onClick={() => goTo(index + 1)}
             >
               <Icon.Next className="size-3.5" />
-            </TooltipIconButton>
+            </Button>
           </div>
         )}
 
-        <TooltipIconButton
-          tooltip={isCopied ? 'Copied' : 'Copy'}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={isCopied ? 'Copied' : 'Copy'}
           className="size-8 p-1.5"
           onClick={() => copyToClipboard(artifact.content)}
         >
           {isCopied ? (
-            <Icon.Copied className="size-4" />
+            <Icon.Copied className="size-4 animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
           ) : (
-            <Icon.Copy className="size-4" />
+            <Icon.Copy className="size-4 animate-in fade-in zoom-in-75" />
           )}
-        </TooltipIconButton>
-        <TooltipIconButton
-          tooltip="Download"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Download"
           className="size-8 p-1.5"
           onClick={() => download(artifact)}
         >
-          <Icon.Share className="size-4" />
-        </TooltipIconButton>
-        <ArtifactInspect artifact={artifact} />
+          <Icon.Download className="size-4" />
+        </Button>
         {onExpandedChange && (
-          <TooltipIconButton
-            tooltip={expanded ? 'Restore layout' : 'Expand'}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={expanded ? 'Restore layout' : 'Expand'}
             className={cn('size-8 p-1.5', expanded && 'bg-selected')}
             aria-pressed={expanded}
             onClick={() => onExpandedChange(!expanded)}
           >
             <Icon.Expand className="size-4" />
-          </TooltipIconButton>
+          </Button>
         )}
-        <TooltipIconButton
-          tooltip="Close"
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Close"
           className="size-8 p-1.5"
           onClick={onClose}
         >
-          <Icon.Close className="size-4" />
-        </TooltipIconButton>
+          <Icon.X className="size-4" />
+        </Button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">

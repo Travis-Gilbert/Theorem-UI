@@ -8,6 +8,8 @@ import { ThemeProvider } from 'next-themes'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
+import { MotionRoot } from '@/components/motion'
+import { paletteScript } from '@/lib/palette'
 import appCss from '../styles.css?url'
 
 interface RouterContext {
@@ -26,6 +28,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: 'description', content: 'Chat with the Theorem agent.' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
+    scripts: [{ children: paletteScript }],
   }),
   shellComponent: RootDocument,
   notFoundComponent: NotFound,
@@ -46,7 +49,7 @@ function NotFound() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    // next-themes sets the .dark class before paint, so the server markup differs by design.
+    // next-themes sets the .dark class and paletteScript sets data-palette before paint, so the server markup differs by design.
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
@@ -60,6 +63,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
+          <MotionRoot />
           {children}
         </ThemeProvider>
         <Scripts />

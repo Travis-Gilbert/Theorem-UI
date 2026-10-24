@@ -18,6 +18,7 @@ import {
 } from "@assistant-ui/react";
 import type { ToolApprovalAnswer, ToolApprovalOption, ToolApprovalQuestion, ToolCallMessagePart, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import { liveEnter } from "./surfaces";
 import {
   CollapsibleRoot as Collapsible,
   CollapsibleContent,
@@ -26,9 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
-const ANIMATION_DURATION = 200;
-
-const pressable = "active:scale-[0.98]";
+const ANIMATION_DURATION = 320;
 
 export type ToolFallbackRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
@@ -73,6 +72,7 @@ function ToolFallbackRoot({
       onOpenChange={handleOpenChange}
       className={cn(
         "aui-tool-fallback-root group/tool-fallback-root w-full",
+        liveEnter,
         className,
       )}
       style={
@@ -157,7 +157,7 @@ function ToolFallbackTrigger({
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
       className={cn(
-        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit max-w-full origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
+        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit max-w-full origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale]",
         className,
       )}
       {...props}
@@ -167,7 +167,7 @@ function ToolFallbackTrigger({
         className={cn(
           "aui-tool-fallback-trigger-icon size-4 shrink-0",
           isCancelled && "text-muted-foreground",
-          isRunning && "animate-spin [animation-duration:0.6s]",
+          isRunning && "animate-spin",
         )}
       />
       <span
@@ -185,7 +185,7 @@ function ToolFallbackTrigger({
         data-slot="tool-fallback-trigger-chevron"
         className={cn(
           "aui-tool-fallback-trigger-chevron size-4 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          "transition-transform duration-(--duration-snap) ease-snap motion-reduce:transition-none",
           "group-data-open/trigger:rotate-90",
           "group-data-panel-open/trigger:rotate-90",
         )}
@@ -204,22 +204,22 @@ function ToolFallbackContent({
       data-slot="tool-fallback-content"
       className={cn(
         "aui-tool-fallback-content relative overflow-hidden text-sm outline-none",
-        "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+        "group/collapsible-content ease-glide motion-reduce:animate-none",
         "data-closed:animate-collapsible-up",
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "[--tw-duration:var(--animation-duration)]",
+        "[--tw-duration:var(--duration-glide)] data-closed:ease-exit data-closed:[--tw-duration:var(--duration-exit)]",
         className,
       )}
       {...props}
     >
       <div
         className={cn(
-          "flex flex-col gap-2 ps-6 pt-1 pb-2 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+          "flex flex-col gap-2 ps-6 pt-1 pb-2 motion-reduce:animate-none",
           "group-data-open/collapsible-content:animate-in group-data-open/collapsible-content:fade-in-0 group-data-open/collapsible-content:blur-in-[2px] group-data-open/collapsible-content:slide-in-from-top-1",
           "group-data-closed/collapsible-content:animate-out group-data-closed/collapsible-content:fade-out-0 group-data-closed/collapsible-content:blur-out-[2px] group-data-closed/collapsible-content:slide-out-to-top-1",
-          "group-data-closed/collapsible-content:animation-duration-(--animation-duration) group-data-open/collapsible-content:animation-duration-(--animation-duration)",
+          "group-data-open/collapsible-content:animation-duration-(--duration-settle) group-data-open/collapsible-content:ease-settle group-data-closed/collapsible-content:animation-duration-(--duration-exit)",
         )}
       >
         {children}
@@ -611,7 +611,6 @@ function ToolFallbackApprovalQuestions({
                       size="sm"
                       variant={pressed ? "default" : "outline"}
                       className={cn(
-                        pressable,
                         described &&
                           "h-auto flex-col items-start gap-0.5 py-2 text-start whitespace-normal",
                       )}
@@ -653,7 +652,6 @@ function ToolFallbackApprovalQuestions({
       <div className="flex items-center gap-2">
         <Button
           size="sm"
-          className={pressable}
           onClick={send}
           disabled={locked || !complete}
         >
@@ -663,7 +661,6 @@ function ToolFallbackApprovalQuestions({
           <Button
             size="sm"
             variant="outline"
-            className={pressable}
             onClick={onDismiss}
             disabled={locked}
           >
@@ -939,7 +936,6 @@ function ToolFallbackApprovalImpl({
     <Button
       size="sm"
       variant="outline"
-      className={pressable}
       onClick={dismiss}
       disabled={locked}
     >
@@ -971,7 +967,6 @@ function ToolFallbackApprovalImpl({
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className={pressable}
             onClick={submitAnswer}
             disabled={locked}
           >
@@ -1046,7 +1041,6 @@ function ToolFallbackApprovalImpl({
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className={pressable}
             onClick={() => respondWithOption(confirming)}
             disabled={locked}
           >
@@ -1055,7 +1049,6 @@ function ToolFallbackApprovalImpl({
           <Button
             size="sm"
             variant="outline"
-            className={pressable}
             onClick={() => {
               focusPendingGroup();
               setConfirmingId(null);
@@ -1094,7 +1087,6 @@ function ToolFallbackApprovalImpl({
                 key={option.id}
                 size="sm"
                 variant={option === allowOptions[0] ? "default" : "outline"}
-                className={pressable}
                 onClick={() => handleOption(option)}
                 disabled={locked}
               >
@@ -1106,7 +1098,6 @@ function ToolFallbackApprovalImpl({
             <Button
               size="sm"
               variant="outline"
-              className={pressable}
               onClick={() => respond(false)}
               disabled={locked}
             >
@@ -1160,7 +1151,6 @@ function ToolFallbackApprovalImpl({
       <div className="flex items-center gap-2">
         <Button
           size="sm"
-          className={pressable}
           onClick={() => respond(true)}
           disabled={locked}
         >
@@ -1169,7 +1159,6 @@ function ToolFallbackApprovalImpl({
         <Button
           size="sm"
           variant="outline"
-          className={pressable}
           onClick={() => respond(false)}
           disabled={locked}
         >

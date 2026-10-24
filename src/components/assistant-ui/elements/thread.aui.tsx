@@ -26,7 +26,7 @@ import {
   RunningIndicator,
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
-import { ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
+import { COMPOSER_TOOLTIP_DELAY, ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,16 +42,21 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useAuiState
+  useAui,
+  useAuiEvent,
+  useAuiState,
 } from "@assistant-ui/react";
 import type { AssistantState, FileMessagePartComponent, ImageMessagePartComponent, TextMessagePartComponent, ToolCallMessagePartComponent } from "@assistant-ui/react";
 import {
   createContext,
   useContext,
   useLayoutEffect,
-  useRef
+  useRef,
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
+
+import { Magnet, useArrivedLive, useWordsIn } from "@/components/motion";
+import { flyFrom, kick, recordLaunch, riseIn, takeLaunch } from "@/lib/motion";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -181,6 +186,15 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   autoFocus,
 }) => {
   const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
+  const footerRef = useRef<HTMLDivElement>(null);
+  // The first send hands the composer from the middle of the page down to
+  // the bottom, on a spring rather than a jump. It lands against the bottom
+  // edge, so it glides rather than overshooting past it.
+  useLayoutEffect(() => {
+    const origin = takeLaunch("composer-dock");
+    if (!isEmpty && origin && footerRef.current)
+      flyFrom(footerRef.current, origin, { fade: false, ease: "glide" });
+  }, [isEmpty]);
 
   return (
     <ThreadPrimitive.Root
@@ -222,6 +236,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
           </div>
 
           <ThreadPrimitive.ViewportFooter
+            ref={footerRef}
             className={cn(
               "aui-thread-viewport-footer flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
               // Pinned to the sheet's bottom edge, it covers the messages
@@ -343,9 +358,9 @@ const SpokenActionBar: FC = () => {
       className="aui-spoken-action-bar text-muted-foreground flex shrink-0 gap-1"
     >
       <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" className="size-6" />}><AuiIf condition={(s) => s.message.isCopied}>
-                      <Icon.Copied className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+                      <Icon.Copied className="animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
                     </AuiIf><AuiIf condition={(s) => !s.message.isCopied}>
-                      <Icon.Copy className="animate-in zoom-in-75 fade-in duration-150" />
+                      <Icon.Copy className="animate-in fade-in zoom-in-75" />
                     </AuiIf></ActionBarPrimitive.Copy>
     </ActionBarPrimitive.Root>
   );
@@ -417,12 +432,23 @@ const ThreadScrollToBottom: FC = () => {
 };
 
 const ThreadWelcome: FC = () => {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const subRef = useRef<HTMLParagraphElement>(null);
+  // The question arrives word by word, then the line under it.
+  useWordsIn(headingRef, { gap: 55, y: 14, ease: "lift" });
+  useLayoutEffect(() => {
+    if (subRef.current) riseIn(subRef.current, { y: 8, delay: 300 });
+  }, []);
+
   return (
     <div className="aui-thread-welcome-root mb-8 flex flex-col gap-2 px-2">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-heading text-[28px] font-normal tracking-tight leading-tight duration-200">
+      <h1
+        ref={headingRef}
+        className="aui-thread-welcome-message-inner font-heading text-[28px] font-normal tracking-tight leading-tight"
+      >
         What are we working on?
       </h1>
-      <p className="fade-in animate-in fill-mode-both text-ink-muted text-base duration-200 [animation-delay:60ms]">
+      <p ref={subRef} className="text-ink-muted text-base">
         Ask anything. Documents, code and diagrams open beside the conversation.
       </p>
     </div>
@@ -431,7 +457,13 @@ const ThreadWelcome: FC = () => {
 
 const ThreadSuggestions: FC = () => {
   return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-col">
+    <div
+      className={cn(
+        "aui-thread-welcome-suggestions flex w-full flex-col",
+        "[&>*]:animate-in [&>*]:fade-in [&>*]:slide-in-from-bottom-2 [&>*]:fill-mode-both [&>*]:ease-settle [&>*]:duration-(--duration-settle) motion-reduce:[&>*]:animate-none",
+        "[&>*:nth-child(1)]:[animation-delay:380ms] [&>*:nth-child(2)]:[animation-delay:440ms] [&>*:nth-child(3)]:[animation-delay:500ms] [&>*:nth-child(n+4)]:[animation-delay:560ms]",
+      )}
+    >
       <ThreadPrimitive.Suggestions>
         {() => <ThreadSuggestionItem />}
       </ThreadPrimitive.Suggestions>
@@ -441,7 +473,7 @@ const ThreadSuggestions: FC = () => {
 
 const ThreadSuggestionItem: FC = () => {
   return (
-    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
+    <div className="aui-thread-welcome-suggestion-display">
       <SuggestionPrimitive.Trigger send render={<button type="button" className="aui-thread-welcome-suggestion group hover:bg-hover flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors duration-100 motion-reduce:transition-none" />}><span
                       aria-hidden
                       className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none"
@@ -456,15 +488,36 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+  const aui = useAui();
   const applyRequests = useComposerRequests();
+  const shellRef = useRef<HTMLDivElement>(null);
+  // Where the text was, for the new user message to fly up from. Recorded on
+  // submit because the composer.send event arrives a microtask after the
+  // message has already mounted.
+  const recordLaunches = () => {
+    const shell = shellRef.current;
+    if (!shell || !aui.composer.getState().canSend) return;
+    const input = shell.querySelector("textarea") ?? shell;
+    recordLaunch(input.getBoundingClientRect());
+    const footer = shell.closest(".aui-thread-viewport-footer");
+    if (footer) recordLaunch(footer.getBoundingClientRect(), "composer-dock");
+  };
+  // The composer gives a small kick once the send goes through.
+  useAuiEvent("composer.send", (event) => {
+    if (event.messageId === undefined && shellRef.current) kick(shellRef.current);
+  });
+
   return (
     <ComposerPrimitive.Root
-      onSubmit={applyRequests}
+      onSubmit={() => {
+        recordLaunches();
+        applyRequests();
+      }}
       className="aui-composer-root relative flex w-full flex-col"
     >
       {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
-      <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
+      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-10 w-full resize-none bg-transparent py-2 ps-2.5 pe-14 text-base leading-6 outline-none focus-visible:outline-none"
                       rows={1}
@@ -493,10 +546,10 @@ const ComposerAction: FC = () => {
       <div className="absolute end-(--composer-padding) top-(--composer-padding) flex items-center gap-1.5">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
-            <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-10 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
+            <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-10 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
           </AuiIf>
           <AuiIf condition={(s) => s.composer.dictation != null}>
-            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-stop-dictation text-error-ink size-10 rounded-lg" aria-label="Stop voice input" />}><Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" /></ComposerPrimitive.StopDictation>
+            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-stop-dictation text-error-ink size-10 rounded-lg" aria-label="Stop voice input" />}><Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" /></ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
         <AuiIf
@@ -507,10 +560,10 @@ const ComposerAction: FC = () => {
             !shouldShowComposerResume(s)
           }
         >
-          <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="submit" variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Send message" />}><Icon.Send className="aui-composer-send-icon size-5" /></ComposerPrimitive.Send>
+          <Magnet><ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="submit" variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Send message" />}><Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2" /></ComposerPrimitive.Send></Magnet>
         </AuiIf>
         <AuiIf condition={shouldShowComposerResume}>
-          <ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" side="bottom" type="button" variant="default" size="icon" className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-5" /></ComposerPrimitive.Resume>
+          <Magnet><ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="default" size="icon" className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-5 animate-in fade-in zoom-in-50 -spin-in-180 ease-lift duration-(--duration-lift)" /></ComposerPrimitive.Resume></Magnet>
         </AuiIf>
         <AuiIf
           condition={(s) =>
@@ -519,7 +572,7 @@ const ComposerAction: FC = () => {
               s.composer.submission !== undefined)
           }
         >
-          <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40" aria-label={isSending ? "Cancel sending" : "Stop generating"} />}><Icon.Stop className="aui-composer-cancel-icon size-5" /></ComposerPrimitive.Cancel>
+          <Magnet><ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40" aria-label={isSending ? "Cancel sending" : "Stop generating"} />}><Icon.Stop className="aui-composer-cancel-icon size-5 animate-in fade-in zoom-in-30 spin-in-90" /></ComposerPrimitive.Cancel></Magnet>
         </AuiIf>
       </div>
     </div>
@@ -545,6 +598,7 @@ const AssistantMessage: FC = () => {
   } = useContext(ThreadComponentsContext);
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
+  const live = useArrivedLive();
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
@@ -553,7 +607,8 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      data-live={live || undefined}
+      className="data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
       <div
         data-slot="aui_assistant-message-content"
@@ -647,12 +702,17 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="aui-assistant-action-bar-root text-muted-foreground animate-in fade-in col-start-3 row-start-2 -ms-1 flex gap-1 duration-200"
+      className={cn(
+        "aui-assistant-action-bar-root text-muted-foreground col-start-3 row-start-2 -ms-1 flex gap-1",
+        // When a live reply finishes, its actions pop in one after another.
+        "in-data-live:[&>*]:animate-in in-data-live:[&>*]:fade-in in-data-live:[&>*]:zoom-in-50 in-data-live:[&>*]:fill-mode-both in-data-live:[&>*]:ease-snap in-data-live:[&>*]:duration-(--duration-snap)",
+        "in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms]",
+      )}
     >
       <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}><AuiIf condition={(s) => s.message.isCopied}>
-                      <Icon.Copied className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+                      <Icon.Copied className="animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
                     </AuiIf><AuiIf condition={(s) => !s.message.isCopied}>
-                      <Icon.Copy className="animate-in zoom-in-75 fade-in duration-150" />
+                      <Icon.Copy className="animate-in fade-in zoom-in-75" />
                     </AuiIf></ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip="Regenerate" />}><Icon.Reload /></ActionBarPrimitive.Reload>
       <ActionBarMorePrimitive.Root>
@@ -699,16 +759,39 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 );
 
 const UserMessage: FC = () => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  // A message just sent from the composer flies up from where it was typed.
+  useLayoutEffect(() => {
+    const origin = takeLaunch();
+    const content = contentRef.current;
+    if (!origin || !content) return;
+    // The root's content-visibility would clip the flight to its own box.
+    const root = content.closest<HTMLElement>(
+      '[data-slot="aui_user-message-root"]',
+    );
+    root?.style.setProperty("content-visibility", "visible");
+    // The bubble sits at the end of the line, so it rises from the composer's
+    // end edge rather than swinging across from where the text started.
+    const { width } = content.getBoundingClientRect();
+    const start = new DOMRect(origin.right - width, origin.top, width, origin.height);
+    void flyFrom(content, start)?.then(() =>
+      root?.style.removeProperty("content-visibility"),
+    );
+  }, []);
+
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(0,30%)_minmax(0,70%)] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="grid auto-rows-auto grid-cols-[minmax(0,30%)_minmax(0,70%)] content-start gap-y-2 px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 flex min-w-0 justify-end">
-        <div className="aui-user-message-content peer text-ink py-1 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden">
+        <div
+          ref={contentRef}
+          className="aui-user-message-content peer text-ink py-1 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
+        >
           <MessagePrimitive.Parts
             components={{ File: UserFilePart, Image: UserImagePart }}
           />

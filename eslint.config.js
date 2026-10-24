@@ -41,6 +41,7 @@ export default [
       '.output/**',
       '.nitro/**',
       'src/routeTree.gen.ts',
+      'src/terminal-wasm/**',
     ],
   },
 ]
