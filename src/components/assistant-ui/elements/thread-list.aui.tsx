@@ -1,5 +1,6 @@
 "use client";
 
+import { useGlideHighlight, useLayoutSprings } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +14,6 @@ import {
 import type { Theorem } from "@/lib/theorem/client";
 import { cn } from "@/lib/utils";
 import {
-  AuiIf,
   ThreadListItemMorePrimitive,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
@@ -31,7 +31,7 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore
+  useSyncExternalStore,
 } from "react";
 import type { ComponentPropsWithoutRef, FC } from "react";
 
@@ -50,27 +50,57 @@ export const ThreadList: FC = () => {
   );
 };
 
+/**
+ * Search rests as its icon alone. Focusing it springs the field open to an
+ * outlined box; it folds back once it loses focus with nothing typed, and
+ * Escape clears it and lets go.
+ */
 export const ThreadListSearch = forwardRef<
   HTMLInputElement,
   Omit<ComponentPropsWithoutRef<typeof Input>, "value" | "onChange"> & {
     value: string;
     onValueChange: (value: string) => void;
   }
->(({ className, value, onValueChange, ...props }, ref) => {
+>(({ className, value, onValueChange, onFocus, onBlur, onKeyDown, ...props }, ref) => {
+  const [focused, setFocused] = useState(false);
+  const open = focused || value !== "";
   return (
-    <div data-slot="aui_thread-list-search" className="relative">
+    <div
+      data-slot="aui_thread-list-search"
+      data-open={open || undefined}
+      className="relative w-7 transition-[width] duration-(--duration-settle) ease-settle data-open:w-full motion-reduce:transition-none"
+    >
       <Icon.Search
         data-slot="aui_thread-list-search-icon"
-        className="text-ink-faint pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2"
+        className="text-ink-muted pointer-events-none absolute start-1.5 top-1/2 size-4 -translate-y-1/2"
       />
       <Input
         ref={ref}
         type="search"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            onValueChange("");
+            event.currentTarget.blur();
+          }
+          onKeyDown?.(event);
+        }}
         aria-label="Search threads"
-        placeholder="Search"
-        className={cn("bg-ink/6 h-7 rounded-md border-transparent ps-8 text-sm shadow-none dark:bg-ink/6", className)}
+        placeholder={open ? "Search" : ""}
+        className={cn(
+          "hover:bg-hover h-7 cursor-pointer rounded-md border-transparent bg-transparent ps-7 pe-2 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent",
+          open && "border-ink/20 focus-visible:border-ink/30 hover:bg-transparent cursor-text",
+          className,
+        )}
         {...props}
       />
     </div>
@@ -91,21 +121,57 @@ export const ThreadListRoot: FC<
   );
 };
 
+// Each thread moves with its branches, so the tree is the row that springs.
+const LIST_ROWS =
+  '[data-slot="aui_thread-list-item-tree"], [data-slot="aui_thread-list-group-label"]';
+const ACTIVE_ROW =
+  '[data-slot="aui_thread-list-item"][data-active], [data-slot="aui_thread-list-branch"] > [data-active]';
+
 export const ThreadListItems: FC<
   ComponentPropsWithoutRef<"div"> & { searchQuery?: string }
 > = ({ className, searchQuery = "", ...props }) => {
+  const listing = useThreadListGroups(searchQuery);
+  const isLoading = useAuiState((s) => s.threads.isLoading);
+  const listRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  // Rows spring to their new places when the list reorders, and one pill
+  // glides to the open thread or branch.
+  const order = useMemo(() => {
+    const { threadIds, filteredIndices, groups } = listing;
+    if (isLoading) return "loading";
+    if (!groups) return filteredIndices.map((i) => threadIds[i]).join(",");
+    return groups
+      .map((g) => `${g.label}:${g.indices.map((i) => threadIds[i]).join(",")}`)
+      .join("|");
+  }, [listing, isLoading]);
+  useLayoutSprings(listRef, order, LIST_ROWS);
+  useGlideHighlight(listRef, highlightRef, ACTIVE_ROW, "data-active");
+
+  // The pill sits outside the layout root: the layout restores the inline
+  // styles of everything under its root, which would undo the glide.
   return (
     <div
       data-slot="aui_thread-list-items"
-      className={cn("flex flex-col", className)}
+      className={cn("relative", className)}
       {...props}
     >
-      <AuiIf condition={(s) => s.threads.isLoading}>
-        <ThreadListSkeleton />
-      </AuiIf>
-      <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListItemGroups searchQuery={searchQuery} />
-      </AuiIf>
+      <div
+        ref={highlightRef}
+        aria-hidden
+        data-slot="aui_thread-list-highlight"
+        // Inline so the glide owns visibility: an entrance clears its inline
+        // opacity on landing, which a class would then hide again.
+        style={{ opacity: 0 }}
+        className="bg-pill shadow-pill pointer-events-none absolute rounded-md"
+      />
+      <div ref={listRef} className="flex flex-col">
+        {isLoading ? (
+          <ThreadListSkeleton />
+        ) : (
+          <ThreadListItemGroups listing={listing} searchQuery={searchQuery} />
+        )}
+      </div>
     </div>
   );
 };
@@ -229,11 +295,11 @@ export const useThreadListGroups = (searchQuery = "") => {
   }, [threadIds, threadItems, query, startOfToday]);
 };
 
-const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
-  searchQuery = "",
-}) => {
-  const { threadIds, filteredIndices, groups } =
-    useThreadListGroups(searchQuery);
+const ThreadListItemGroups: FC<{
+  listing: ReturnType<typeof useThreadListGroups>;
+  searchQuery?: string;
+}> = ({ listing, searchQuery = "" }) => {
+  const { threadIds, filteredIndices, groups } = listing;
   const query = searchQuery.trim();
 
   if (query && filteredIndices.length === 0) {
@@ -318,16 +384,17 @@ export const ThreadListNew = forwardRef<
                 className,
               )} {...props} />}>{children ?? (
                 <>
-                  <Icon.NewChat
-                    data-slot="aui_thread-list-new-icon"
-                    className="text-ink-muted size-4"
-                  />
                   <span
                     data-slot="aui_thread-list-new-label"
                     className={cn("whitespace-nowrap", labelClassName)}
                   >
                     New chat
                   </span>
+                  {/* The pencil shows only under the pointer or a press. */}
+                  <Icon.NewChat
+                    data-slot="aui_thread-list-new-icon"
+                    className="text-ink-muted ms-auto size-4 opacity-0 group-hover/button:opacity-100 group-focus-visible/button:opacity-100 group-active/button:opacity-100"
+                  />
                 </>
               )}</ThreadListPrimitive.New>
   );
@@ -449,7 +516,7 @@ export const ThreadListItem: FC = () => {
               data-slot="aui_thread-list-item"
               data-active={isCurrent || undefined}
               aria-current={isCurrent || undefined}
-              className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-pill data-active:shadow-pill relative flex h-7 items-center gap-1 rounded-md ps-2 pe-1 text-sm transition-colors duration-100"
+              className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-transparent relative flex h-7 items-center gap-1 rounded-md ps-2 pe-1 text-sm transition-colors duration-100"
             />
           }
         >
@@ -542,7 +609,7 @@ export const ThreadListItem: FC = () => {
       {remoteId && forks.length > 0 && (
         <Collapsible.Panel
           data-slot="aui_thread-list-item-branches"
-          className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-(--ease-structure) data-ending-style:h-0 data-starting-style:h-0"
+          className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-(--duration-glide) ease-glide data-ending-style:h-0 data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-starting-style:h-0"
         >
           {forks.map((branch, index) => (
             <ThreadBranchRow
@@ -589,7 +656,7 @@ const ThreadBranchRow: FC<{
         data-active={isCurrent || undefined}
         aria-current={isCurrent || undefined}
         onClick={onOpen}
-        className="hover:bg-hover focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill flex h-7 w-full min-w-0 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-60"
+        className="hover:bg-hover focus-visible:outline-focus data-active:bg-transparent flex h-7 w-full min-w-0 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-60"
       >
         <span className="truncate">{label || `Branch ${ordinal}`}</span>
       </button>

@@ -45,6 +45,7 @@ export default [
       'src/lib/blocks/vendor/**',
       // Workspace files for tests: block code, not this app's code.
       'test/fixtures/**',
+      'src/terminal-wasm/**',
     ],
   },
 ]

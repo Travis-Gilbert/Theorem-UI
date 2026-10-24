@@ -1,9 +1,11 @@
-// SOURCING: Base UI Menu (account menu), ui/tooltip over Base UI Tooltip, next-themes (theme), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
+import { PALETTES, usePalette } from '@/lib/palette'
+import type { Palette } from '@/lib/palette'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
 import {
   Tooltip,
@@ -19,7 +21,7 @@ import { menuItem, menuPopup } from './sidebar'
 
 /** The rail's square controls: destinations and the account. */
 const railButton =
-  'relative flex size-9 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
+  'relative flex size-8 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
 
 const THEMES = [
   { value: 'light', label: 'Light' },
@@ -27,9 +29,10 @@ const THEMES = [
   { value: 'system', label: 'Match system' },
 ]
 
-/** The signed-in tenant as an initial outlined in the accent, with the theme choice behind it. */
+/** The signed-in tenant as an initial outlined in the accent, with the theme and color choices behind it. */
 function AccountMenu() {
   const { theme, setTheme } = useTheme()
+  const { palette, setPalette } = usePalette()
   const tenant = useTenant()
   const signIn = useSignInConfigured()
 
@@ -79,6 +82,29 @@ function AccountMenu() {
                 ))}
               </Menu.RadioGroup>
             </Menu.Group>
+            <Menu.Separator className="my-1 h-px bg-separator" />
+            <Menu.Group>
+              <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                Colors
+              </Menu.GroupLabel>
+              <Menu.RadioGroup
+                value={palette}
+                onValueChange={(value) => setPalette(value as Palette)}
+              >
+                {PALETTES.map(({ value, label }) => (
+                  <Menu.RadioItem
+                    key={value}
+                    value={value}
+                    className={`${menuItem} data-checked:font-medium`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    <Menu.RadioItemIndicator>
+                      <Icon.Check className="size-3.5" />
+                    </Menu.RadioItemIndicator>
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioGroup>
+            </Menu.Group>
             {signIn && (
               <>
                 <Menu.Separator className="my-1 h-px bg-separator" />
@@ -94,18 +120,51 @@ function AccountMenu() {
   )
 }
 
+/** Shows and hides the agent terminal drawer. */
+function TerminalToggle() {
+  const open = useShell((s) => s.terminalOpen)
+  const setOpen = useShell((s) => s.setTerminalOpen)
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              aria-label="Agent terminal"
+              aria-pressed={open}
+              onClick={() => setOpen(!open)}
+              className={`${railButton} mb-2 aria-pressed:text-ink`}
+            />
+          }
+        >
+          <Icon.Terminal className="size-5" strokeWidth={1.75} />
+        </TooltipTrigger>
+        <TooltipContent side="right">Agent terminal (ctrl+`)</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 /**
  * The sheet reaching into the rail behind the active destination: a tab whose
  * right end flows into the sheet's edge through two concave corners. It paints
  * the sheet's gradient at its own height, so the join has no seam, and slides
  * when the mode changes.
  */
-function Junction({ y, t }: { y: number; t: number }) {
+function Junction({ y, h, t, flush }: Junction) {
   return (
     <div
       aria-hidden="true"
       className="rail-junction"
-      style={{ '--rail-y': `${y}px`, '--rail-t': t } as CSSProperties}
+      data-flush={flush || undefined}
+      style={
+        {
+          '--rail-y': `${y}px`,
+          '--junction-item': `${h}px`,
+          '--rail-t': t,
+        } as CSSProperties
+      }
     >
       <span className="rail-junction-tab" />
       <span className="rail-junction-corner" data-edge="top" />
@@ -114,13 +173,15 @@ function Junction({ y, t }: { y: number; t: number }) {
   )
 }
 
+type Junction = { y: number; h: number; t: number; flush: boolean }
+
 /**
  * The global rail: one destination per mode, and the account at the foot.
  * It is the base the sheet sits on, and stacks above the sheet's shadow and
  * glow so the junction's tab stays level with the panel it joins. The first
- * destination sits low enough that the junction's upper corner clears the
- * sheet's rounded corner. On the desktop the active destination also shows
- * and hides its mode's panel.
+ * destination is flush with the sheet's top, so its tab continues the sheet's
+ * top edge. On the desktop the active destination also shows and hides its
+ * mode's panel.
  */
 export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const mode = useShellMode()
@@ -130,23 +191,29 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
-  const [junction, setJunction] = useState<{ y: number; t: number }>()
+  const [junction, setJunction] = useState<Junction>()
   useLayoutEffect(() => {
     const rail = railRef.current
     const active = destinations.current.get(mode)
     if (!rail || !active) return
     const box = rail.getBoundingClientRect()
-    const y = active.getBoundingClientRect().top - box.top
+    const { top, height } = active.getBoundingClientRect()
+    const y = top - box.top
     // How far down the rail the tab sits, for the glow colour it takes.
-    setJunction({ y, t: box.height ? y / box.height : 0 })
+    setJunction({
+      y,
+      h: height,
+      t: box.height ? y / box.height : 0,
+      flush: mode === MODES[0].mode,
+    })
   }, [mode])
 
   return (
     <div
       ref={railRef}
-      className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-[calc(var(--sheet-inset)+24px)] pb-3"
+      className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-(--sheet-inset) pb-3"
     >
-      {junction && <Junction y={junction.y} t={junction.t} />}
+      {junction && <Junction {...junction} />}
       <TooltipProvider>
         <nav aria-label="Modes" className="flex flex-col gap-1">
           {MODES.map(({ mode: value, label, Mark }) => {
@@ -172,11 +239,11 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
                         if (!active) void openMode(value)
                         else if (collapsible) togglePanel(value)
                       }}
-                      className={`${railButton} aria-[current=page]:text-ink aria-[current=page]:hover:bg-transparent`}
+                      className={`${railButton} h-12 aria-[current=page]:text-ink aria-[current=page]:hover:bg-transparent`}
                     />
                   }
                 >
-                  <Mark className="size-[18px]" />
+                  <Mark className="size-5" />
                 </TooltipTrigger>
                 <TooltipContent side="right">{tooltip}</TooltipContent>
               </Tooltip>
@@ -185,6 +252,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
         </nav>
       </TooltipProvider>
       <div className="flex-1" />
+      <TerminalToggle />
       <AccountMenu />
     </div>
   )

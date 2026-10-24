@@ -15,17 +15,14 @@ export const field =
 export const fieldInteractive =
   "bg-foreground/[0.04] transition-colors hover:bg-foreground/[0.07] forced-colors:border dark:bg-foreground/[0.06] dark:hover:bg-foreground/[0.09]";
 
-export const pressable =
-  "transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.96] motion-reduce:transition-none";
-
 export const ghostButton =
-  "flex items-center justify-center rounded-full text-muted-foreground outline-hidden transition-[background-color,color,scale] duration-150 hover:bg-foreground/[0.06] hover:text-foreground/90 active:scale-[0.96] focus-visible:ring-1 focus-visible:ring-foreground/20 motion-reduce:transition-none dark:hover:bg-foreground/[0.09]";
+  "flex items-center justify-center rounded-full text-muted-foreground outline-hidden transition-[background-color,color,scale] duration-150 hover:bg-foreground/[0.06] hover:text-foreground/90 focus-visible:ring-1 focus-visible:ring-foreground/20 motion-reduce:transition-none dark:hover:bg-foreground/[0.09]";
 
 export const inkButton =
-  "bg-foreground text-background transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:opacity-90 active:scale-[0.96] motion-reduce:transition-none forced-colors:border";
+  "bg-foreground text-background transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:opacity-90 motion-reduce:transition-none forced-colors:border";
 
 export const iconSwap =
-  "[grid-area:1/1] transition-[opacity,scale,filter] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none";
+  "[grid-area:1/1] transition-[opacity,scale,filter] duration-(--duration-snap) ease-snap motion-reduce:transition-none";
 
 export const iconSwapIn = "scale-100 opacity-100 blur-none";
 
@@ -40,9 +37,16 @@ export const labelSwapOut =
   "pointer-events-none select-none opacity-0 blur-[2px]";
 
 export const collapsePanel =
-  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
+  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-(--duration-glide) ease-glide data-[ending-style]:duration-(--duration-exit) data-[ending-style]:ease-exit data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
 
 export const live = "text-redwood-ink";
+
+/**
+ * Pops a part in when its message arrived live (the assistant message root
+ * carries data-live); parts of messages loaded with history render still.
+ */
+export const liveEnter =
+  "in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-95 in-data-live:slide-in-from-bottom-1 in-data-live:ease-settle in-data-live:duration-(--duration-settle)";
 
 export const mono = "font-mono text-[11px] tracking-tight";
 
@@ -53,7 +57,12 @@ export function ShimmerLabel({
 }: ComponentProps<"span"> & { active?: boolean }) {
   return (
     <span
-      className={cn(active && "shimmer motion-reduce:animate-none", className)}
+      className={cn(
+        // One sweep every two beats (--beat is 1200ms), in step with the pulses.
+        active &&
+          "shimmer [--shimmer-duration:1800] [--shimmer-repeat-delay:600] motion-reduce:animate-none",
+        className,
+      )}
       {...props}
     />
   );
@@ -100,7 +109,7 @@ export function SwapLabel({
     <span
       style={width === null ? undefined : { width }}
       className={cn(
-        "grid overflow-x-clip transition-[width] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
+        "grid overflow-x-clip transition-[width] duration-(--duration-glide) ease-glide motion-reduce:transition-none",
         className,
       )}
     >

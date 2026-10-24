@@ -55,10 +55,14 @@ export function ExportToFolder({
       <Menu.Root>
         <Menu.Trigger
           render={
-            <Button variant="outline" size="sm" disabled={exporting.isPending} />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exporting.isPending}
+            />
           }
         >
-          <Icon.FolderOpen />
+          <Icon.TreeFolderOpen />
           Export to folder
         </Menu.Trigger>
         <Menu.Portal>
@@ -70,7 +74,7 @@ export function ExportToFolder({
                   className={menuItem}
                   onClick={() => exporting.mutate(workspace)}
                 >
-                  <Icon.Folder className="size-4 text-ink-faint" />
+                  <Icon.TreeFolder className="size-4 text-ink-faint" />
                   {workspace.name}
                 </Menu.Item>
               ))}

@@ -9,10 +9,12 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
+import { MotionRoot } from '@/components/motion'
 import { getDesktopHost, isDesktopDocument } from '@/lib/desktop/host'
 import { reportUnsaved } from '@/lib/desktop/unsaved'
 import { registerLiveBlocks } from '@/lib/blocks'
 import { registerBuiltinHandlers } from '@/lib/handlers/builtins'
+import { paletteScript } from '@/lib/palette'
 import appCss from '../styles.css?url'
 
 // Every view that shows a workspace file asks the registry which handler opens it.
@@ -35,6 +37,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: 'description', content: 'Chat with the Theorem agent.' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
+    scripts: [{ children: paletteScript }],
   }),
   shellComponent: RootDocument,
   notFoundComponent: NotFound,
@@ -60,7 +63,7 @@ function RootDocument({ children }: { children: ReactNode }) {
     return host ? reportUnsaved(host) : undefined
   }, [])
   return (
-    // next-themes sets the .dark class before paint, so the server markup differs by design.
+    // next-themes sets the .dark class and paletteScript sets data-palette before paint, so the server markup differs by design.
     // data-theorem-desktop is DESKTOP_DOCUMENT_ATTRIBUTE: getDesktopHost() reads it.
     <html
       lang="en"
@@ -79,6 +82,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
+          <MotionRoot />
           {children}
         </ThemeProvider>
         <Scripts />

@@ -70,7 +70,7 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
                   New note
                 </Menu.Item>
                 <Menu.Item className={menuItem} onClick={() => make('folder')}>
-                  <Icon.Folder className="size-4" />
+                  <Icon.TreeFolder className="size-4" />
                   New folder
                 </Menu.Item>
                 <Menu.Item
@@ -89,7 +89,7 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
                 <Menu.Separator className="my-1 h-px bg-separator" />
                 {host && (
                   <Menu.Item className={menuItem} onClick={host.revealInFinder}>
-                    <Icon.FolderOpen className="size-4" />
+                    <Icon.TreeFolderOpen className="size-4" />
                     Reveal in Finder
                   </Menu.Item>
                 )}
@@ -105,7 +105,7 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
           </Menu.Portal>
         </Menu.Root>
       </div>
-      <Collapsible.Panel className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-(--ease-structure) data-ending-style:h-0 data-starting-style:h-0">
+      <Collapsible.Panel className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-(--duration-glide) ease-glide data-ending-style:h-0 data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-starting-style:h-0">
         <WorkspaceTree client={client} />
       </Collapsible.Panel>
     </Collapsible.Root>
