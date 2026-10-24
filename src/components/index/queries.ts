@@ -56,6 +56,8 @@ export const useViews = (scope: Scope, archived = false) =>
     queryKey: keys.views(scope, archived),
     queryFn: () => api.listViews(scope, archived),
     staleTime: 10_000,
+    // The improver adds views in the background, on the proposals' rhythm.
+    refetchInterval: 60_000,
     retry,
   })
 
@@ -278,17 +280,17 @@ function useInvalidateMaterial() {
 }
 
 /**
- * When filing last changed in this page. A view's bindings run inside
- * OpenUI's own query manager, which reads again only for a new tool provider.
+ * Changes whenever a filing write in this page succeeds, in whatever order
+ * they finish: it names every succeeded write, not the latest submitted. A
+ * view's bindings run inside OpenUI's own query manager, which reads again
+ * only when asked. (A write leaving the mutation cache changes it too, which
+ * costs one extra read.)
  */
 export const useMaterialChanged = () =>
-  Math.max(
-    0,
-    ...useMutationState({
-      filters: { mutationKey: MATERIAL, status: 'success' },
-      select: (mutation) => mutation.state.submittedAt,
-    }),
-  )
+  useMutationState({
+    filters: { mutationKey: MATERIAL, status: 'success' },
+    select: (mutation) => mutation.mutationId,
+  }).join()
 
 export function useFileDocument() {
   const invalidate = useInvalidateMaterial()
