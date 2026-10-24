@@ -167,7 +167,8 @@ export function PropertiesEditor({
           const key = name.trim()
           if (key && !(key in properties)) onChange(key, null)
         }}
-        className="mt-1 h-7 max-w-48 border-transparent text-ink-faint hover:border-input"
+        // A quiet row under the last value, its text in line with the keys.
+        className="-ms-2.5 mt-2 h-7 max-w-48 border-transparent bg-transparent text-ink-faint hover:border-input dark:bg-transparent"
       />
     </section>
   )
