@@ -16,6 +16,7 @@ import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
@@ -77,6 +78,11 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
   id: '/auth/sign-out',
   path: '/auth/sign-out',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TheiaSplatRoute = TheiaSplatRouteImport.update({
+  id: '/theia/$',
+  path: '/theia/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/c/$threadId'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/'
     | '/c/$threadId'
     | '/desktop/blocks/app-token'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/theia/$'
     | '/_chat/'
     | '/_chat/c/$threadId'
     | '/desktop/blocks/app-token'
@@ -466,6 +478,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  TheiaSplatRoute: typeof TheiaSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
@@ -544,6 +557,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/sign-out'
       fullPath: '/auth/sign-out'
       preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/theia/$': {
+      id: '/theia/$'
+      path: '/theia/$'
+      fullPath: '/theia/$'
+      preLoaderRoute: typeof TheiaSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_chat/c/$threadId': {
@@ -766,6 +786,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  TheiaSplatRoute: TheiaSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
