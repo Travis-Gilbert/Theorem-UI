@@ -399,8 +399,8 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
               const source = theoremMark(node.theorem)
               const Mark = node.folder
                 ? expanded
-                  ? Icon.FolderOpen
-                  : Icon.Folder
+                  ? Icon.TreeFolderOpen
+                  : Icon.TreeFolder
                 : (source?.Mark ?? Icon.TreeFile)
               const marks = (
                 <>
@@ -485,7 +485,7 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                 className={menuItem}
                 onClick={() => makeIn('folder')}
               >
-                <Icon.Folder className="size-4" />
+                <Icon.TreeFolder className="size-4" />
                 New folder
               </ContextMenu.Item>
               {client.theorem && target.folder && (
@@ -539,7 +539,7 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                   className={menuItem}
                   onClick={host.revealInFinder}
                 >
-                  <Icon.FolderOpen className="size-4" />
+                  <Icon.TreeFolderOpen className="size-4" />
                   Reveal in Finder
                 </ContextMenu.Item>
               )}

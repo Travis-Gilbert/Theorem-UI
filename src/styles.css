@@ -44,8 +44,169 @@
 
 @custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
 
-/* Stone (DESIGN.md). Light is the authored theme. */
+/* Palettes. Two axes set on <html>: next-themes toggles .dark for the mode,
+   and data-palette (src/lib/palette.ts) picks the colours. Every palette keeps
+   the shell's shape: the sheet's vertical gradient on a rail, lifted by a
+   shadow in light and a two-hue glow in dark.
+
+   GitHub Sharp is the default, after joaomoreno's VS Code theme: crisp white
+   surfaces, GitHub ink and hairlines, the theme's blue for the accent and
+   GitHub green for success. */
 :root {
+  --surface-neutral: #f3f3f3;
+  --surface-sidebar: #f3f3f3;
+  --surface-frame: #e6e6e6;
+  --surface-raised: #ffffff;
+  --surface-hover: #eaeff5;
+  --surface-selected: #d0e2f0;
+  --surface-composer: #ffffff;
+  --surface-artifact: #f9f9f9;
+  /* The rail is the base the sheet sits on; the active row is cut from it. */
+  --surface-rail: #e9ebee;
+  --surface-pill: var(--surface-rail);
+  /* The sheet's vertical field, painted once across its full height. */
+  --sheet-from: #ffffff;
+  --sheet-to: #eef0f2;
+  /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
+  --ink-faint-top: #6a737d;
+  --ink-faint-bottom: #5f6770;
+  /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
+  --glow-opacity: 0;
+  --glow-from: transparent;
+  --glow-to: transparent;
+
+  --ink: #24292e;
+  --ink-muted: #586069;
+  --ink-faint: #5f6770;
+  --focus: #2e78b8;
+  --line-control: #c8ccd1;
+  --line-separator: #e1e4e8;
+
+  /* "redwood" is the accent's role name; each palette fills it its own way. */
+  --redwood: #3f77a6;
+  --redwood-hover: #36699a;
+  --redwood-pressed: #2d5a85;
+  --on-redwood: #ffffff;
+  --redwood-container: #d0e2f0;
+  --redwood-ink: #1f4f7a;
+
+  --teal: #22863a;
+  --teal-container: #dcf0e0;
+  --teal-ink: #165c27;
+
+  --ochre: #b08800;
+  --ochre-container: #f5e9b8;
+  --ochre-ink: #735c0f;
+
+  --error-container: #ffeef0;
+  --error-ink: #b31d28;
+
+  --shadow-tint: 36 41 46;
+
+  /* shadcn / assistant-ui element contract */
+  --background: var(--surface-neutral);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--redwood);
+  --primary-foreground: var(--on-redwood);
+  --secondary: var(--teal-container);
+  --secondary-foreground: var(--teal-ink);
+  --muted: var(--surface-hover);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--surface-selected);
+  --accent-foreground: var(--ink);
+  --destructive: var(--error-ink);
+  --destructive-foreground: var(--error-container);
+  --border: var(--line-separator);
+  --input: var(--line-control);
+  --ring: var(--focus);
+  --link: var(--teal-ink);
+
+  --radius: 0.5rem;
+  --link: #005cc5;
+
+  --radius: 0.5rem;
+
+  /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
+     green tags, yellow attachments; from Theorem, teal plans and violet
+     agents' documents. Plain colours, since WebGL reads them. */
+  --graph-note: #4a4b46;
+  --graph-plan: #2c7a72;
+  --graph-agent: #6b5ba6;
+  --graph-tag: #4f7d2c;
+  --graph-attachment: #a8841a;
+  --graph-unresolved: #85827d;
+  --graph-link: #9a9590;
+  --graph-active: var(--redwood);
+  --graph-label: var(--ink);
+}
+
+/* GitHub Sharp Dark: the activity bar's near-black for the rail, the editor's
+   charcoal for the sheet. The glow takes the theme's two signal hues, the
+   orange of its active tab and the blue of its terminal. */
+.dark {
+  --surface-neutral: #1c1d1e;
+  --surface-sidebar: #1c1d1e;
+  --surface-frame: #121213;
+  --surface-raised: #24282a;
+  --surface-hover: #232627;
+  --surface-selected: #2a3538;
+  --surface-composer: #232627;
+  --surface-artifact: #1f2121;
+  --surface-rail: #121213;
+  --surface-pill: var(--surface-rail);
+  --sheet-from: #262a2a;
+  --sheet-to: #1a1b1c;
+  --ink-faint-top: #8f9396;
+  --ink-faint-bottom: #84888b;
+  /* A shadow cannot show on the near-black rail, so the sheet glows instead. */
+  --shadow-sheet: 0 0 #0000;
+  --glow-opacity: 1;
+  --glow-from: rgb(227 98 9 / 0.32);
+  --glow-to: rgb(53 132 185 / 0.38);
+
+  --ink: #c3c6c9;
+  --ink-muted: #a1a5a8;
+  --ink-faint: #84888b;
+  --focus: #2e78b8;
+  --line-control: #454647;
+  --line-separator: #2d2d2d;
+
+  --redwood: #5790be;
+  --redwood-hover: #6a9fc9;
+  --redwood-pressed: #4a80ab;
+  --on-redwood: #0e1114;
+  --redwood-container: #1a3f60;
+  --redwood-ink: #91afd1;
+
+  --teal: #60976d;
+  --teal-container: #1d2e22;
+  --teal-ink: #8fc79a;
+  --ochre: #ddc912;
+  --ochre-container: #3a3415;
+  --ochre-ink: #e4d571;
+  --error-container: #3b1d1f;
+  --error-ink: #e08a8f;
+
+  --shadow-tint: 0 0 0;
+  --popover: var(--surface-raised);
+  --link: #7ea8d6;
+
+  --graph-note: #c9c9c9;
+  --graph-plan: #5fc2b5;
+  --graph-agent: #a898e6;
+  --graph-tag: #79c05a;
+  --graph-attachment: #e2c048;
+  --graph-unresolved: #5e5e5e;
+  --graph-link: #4a4a4a;
+  --graph-label: #d6d6d6;
+}
+
+/* Stone (DESIGN.md), the warm palette the app was authored in. */
+[data-palette="stone"] {
   --surface-neutral: #b4b0ac;
   --surface-sidebar: #b0aca8;
   --surface-frame: #a9a4a1;
@@ -94,47 +255,12 @@
   --error-ink: #762633;
 
   --shadow-tint: 48 49 45;
-
-  /* shadcn / assistant-ui element contract */
-  --background: var(--surface-neutral);
-  --foreground: var(--ink);
-  --card: var(--surface-raised);
-  --card-foreground: var(--ink);
   --popover: var(--surface-raised);
-  --popover-foreground: var(--ink);
-  --primary: var(--redwood);
-  --primary-foreground: var(--on-redwood);
-  --secondary: var(--teal-container);
-  --secondary-foreground: var(--teal-ink);
-  --muted: var(--surface-hover);
-  --muted-foreground: var(--ink-muted);
-  --accent: var(--surface-selected);
-  --accent-foreground: var(--ink);
-  --destructive: var(--error-ink);
-  --destructive-foreground: var(--error-container);
-  --border: var(--line-separator);
-  --input: var(--line-control);
-  --ring: var(--focus);
   --link: var(--teal-ink);
-
-  --radius: 0.5rem;
-
-  /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
-     green tags, yellow attachments; from Theorem, teal plans and violet
-     agents' documents. Plain colours, since WebGL reads them. */
-  --graph-note: #4a4b46;
-  --graph-plan: #2c7a72;
-  --graph-agent: #6b5ba6;
-  --graph-tag: #4f7d2c;
-  --graph-attachment: #a8841a;
-  --graph-unresolved: #85827d;
-  --graph-link: #9a9590;
-  --graph-active: var(--redwood);
-  --graph-label: var(--ink);
 }
 
-/* Legacy dark tokens. */
-.dark {
+/* Stone's dark. */
+.dark[data-palette="stone"] {
   --surface-neutral: #121314;
   --surface-sidebar: #181919;
   --surface-frame: #0b0c0d;
@@ -181,20 +307,11 @@
   --shadow-tint: 0 0 0;
   --popover: #202122;
   --link: #8fd0c4;
-
-  --graph-note: #c9c9c9;
-  --graph-plan: #5fc2b5;
-  --graph-agent: #a898e6;
-  --graph-tag: #79c05a;
-  --graph-attachment: #e2c048;
-  --graph-unresolved: #5e5e5e;
-  --graph-link: #4a4a4a;
-  --graph-label: #d6d6d6;
 }
 
 /* Dock theme. Structure follows dockview's light theme; colours map to the
-   Stone tokens above, so the one class serves light and dark. */
-.dockview-theme-stone {
+   palette tokens above, so the one class serves every palette and mode. */
+.dockview-theme-theorem {
   --dv-paneview-active-outline-color: var(--focus);
   --dv-tabs-and-actions-container-font-size: 13px;
   --dv-tabs-and-actions-container-height: 36px;
@@ -257,7 +374,7 @@
   --dv-scrollbar-background-color: color-mix(in srgb, var(--ink) 25%, transparent);
 }
 
-.dockview-theme-stone .dv-resize-container {
+.dockview-theme-theorem .dv-resize-container {
   background: var(--sheet-from);
 }
 
@@ -270,6 +387,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-oxblood-500: var(--oxblood-500);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -319,6 +437,19 @@
   --color-error-ink: var(--error-ink);
   --color-link: var(--link);
 
+  /* The terminal surfaces (file explorer, agent terminal) keep pi's dark
+     slate in every palette and mode, the way a terminal keeps its own scheme. */
+  --color-term: #202733;
+  --color-term-raised: #273042;
+  --color-term-tool: #273227;
+  --color-term-line: #3a4458;
+  --color-term-ink: #c8d0d8;
+  --color-term-bright: #e4eaee;
+  --color-term-muted: #6c747c;
+  --color-term-sage: #8aa8a0;
+  --color-term-gold: #d6bc8a;
+  --color-term-error: #e08a8f;
+
   --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Libron", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -337,12 +468,10 @@
   /* The sheet sits on the rail; the junction's tab casts the same shadow. */
   --shadow-sheet: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
-  --spacing-rail: 52px;
+  --spacing-rail: 44px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
   --spacing-reading: 720px;
-
-  --ease-structure: cubic-bezier(0.2, 0, 0, 1);
 
   @keyframes collapsible-down {
     from {
@@ -371,6 +500,77 @@
   /* A note's reading column (max-w-note): about 75 characters of body text,
      shared by the properties above it so both start on one edge. */
   --container-note: 42rem;
+}
+
+/* Motion (src/lib/motion.ts). The spring curves are anime.js springs that
+   installMotionTokens() writes onto <html> as CSS linear() curves; the values
+   here only stand in until it runs. Not inline, so utilities like ease-snap
+   read the live variable rather than this fallback. */
+@theme {
+  --ease-snap: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --ease-settle: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --ease-lift: cubic-bezier(0.34, 1.6, 0.64, 1);
+  --ease-glide: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.32, 0, 0.67, 0);
+
+  /* Every looping "working" signal runs on a multiple of one beat, and
+     installBeat() phase-locks them, so the app breathes in one rhythm. */
+  --animate-spin: spin calc(var(--beat) / 2) linear infinite;
+  --animate-pulse: pulse calc(var(--beat) * 2) cubic-bezier(0.4, 0, 0.6, 1)
+    infinite;
+  --animate-heartbeat: heartbeat var(--beat) infinite;
+  --animate-float: float calc(var(--beat) * 3) ease-in-out infinite;
+
+  /* Bobbing in place, with a slight lean, for a mark at rest. */
+  @keyframes float {
+    0%,
+    100% {
+      translate: 0 1px;
+      rotate: -2deg;
+    }
+    50% {
+      translate: 0 -2px;
+      rotate: 2deg;
+    }
+  }
+
+  /* A beat with a kick: a springy swell, then a slower settle. */
+  @keyframes heartbeat {
+    0% {
+      scale: 1;
+      opacity: 0.6;
+      animation-timing-function: var(--ease-snap);
+    }
+    22% {
+      scale: 1.7;
+      opacity: 1;
+      animation-timing-function: var(--ease-settle);
+    }
+    70%,
+    100% {
+      scale: 1;
+      opacity: 0.6;
+    }
+  }
+}
+
+/* The thinking label's shimmer band: deep in light, lifted in dark so it
+   still reads on the sheet. The same in every palette. */
+:root {
+  --oxblood-500: #7b2230;
+}
+
+.dark {
+  --oxblood-500: #c95f6b;
+}
+
+:root {
+  --beat: 1200ms;
+  --duration-snap: 300ms;
+  --duration-settle: 600ms;
+  --duration-lift: 800ms;
+  --duration-glide: 400ms;
+  --duration-exit: 150ms;
 }
 
 @layer base {
@@ -464,6 +664,25 @@
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
+  }
+
+  /* tw-animate entrances spring by default and exits leave flat; an explicit
+     ease-* or duration-* utility on the element still wins. Matched by
+     substring so variant forms like data-open:animate-in count too. A popup
+     that carries both takes the exit curve only while it is closing. */
+  [class*="animate-in"] {
+    --tw-ease: var(--ease-snap);
+    --tw-duration: var(--duration-snap);
+  }
+
+  [class*="animate-out"]:not([class*="animate-in"]),
+  [class*="animate-out"]:is(
+      [data-state="closed"],
+      [data-closed],
+      [data-ending-style]
+    ) {
+    --tw-ease: var(--ease-exit);
+    --tw-duration: var(--duration-exit);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -563,13 +782,13 @@
   initial-value: 0px;
 }
 
+/* --junction-item is the active destination's height, set by rail.tsx. */
 .rail-junction {
-  --junction-item: 36px;
   --junction-corner: 10px;
   position: absolute;
   inset: 0;
   pointer-events: none;
-  transition: --rail-y 180ms var(--ease-structure);
+  transition: --rail-y var(--duration-snap) var(--ease-snap);
   /* The tab is part of the sheet, so it casts the sheet's shadow onto the
      rail. The clip stops at the sheet's edge, where the sheet paints its own. */
   filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18))
@@ -587,11 +806,82 @@
 
 .rail-junction-tab {
   top: var(--rail-y);
-  left: 8px;
+  left: 6px;
   height: var(--junction-item);
   border-start-start-radius: var(--junction-corner);
   border-end-start-radius: var(--junction-corner);
   background-position: 0 calc(var(--sheet-inset) - var(--rail-y));
+}
+
+/* Icon.Open: the shipment box's top face (a rhombus from the top vertex to
+   the front one, 0-45% down the 48px mark) is two flaps that meet at the
+   taped seam, each hinged on the edge parallel to it: the back flap on the
+   back-left edge, the front flap on the front-right one. The body is all
+   below the top face; the rim is the face's outline, shown once the flaps
+   lift off it. */
+.box-body {
+  clip-path: polygon(0 23%, 50% 45%, 100% 23%, 100% 100%, 0 100%);
+}
+
+.box-rim {
+  clip-path: polygon(evenodd, 50% -4%, 104% 23%, 50% 48%, -4% 23%, 50% -4%, 50% 6%, 10% 23%, 50% 40%, 90% 23%, 50% 6%);
+}
+
+/* --flap is how far the flaps have turned up about their hinges, 0deg shut.
+   Both carry the seam's stroke, so neither opens to a bare edge. */
+@property --flap {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+/* A flap turned by --flap about its hinge, drawn in the mark's isometric
+   projection: along the hinge (24, -11) nothing moves, and the flap's depth
+   (12, 5.5) toward the seam turns toward the box's vertical (0, -13.2), so a
+   flap at 90deg stands straight up and one past it leans out over its edge.
+   The front flap's depth points the other way, which flips the sine terms. */
+.box-flap {
+  --side: 1;
+  transition-property: --flap;
+  transform: matrix(
+    calc(0.5 + 0.5 * cos(var(--flap))),
+    calc(0.2292 * (cos(var(--flap)) - 1) - 0.55 * var(--side) * sin(var(--flap))),
+    calc(1.0909 * (cos(var(--flap)) - 1)),
+    calc(0.5 + 0.5 * cos(var(--flap)) - 1.2 * var(--side) * sin(var(--flap))),
+    0,
+    0
+  );
+}
+
+.box-flap[data-flap="back"] {
+  clip-path: polygon(50% -4%, 82.2% 12.1%, 27% 37.4%, -4% 23%);
+  transform-origin: 2% 23%;
+}
+
+.box-flap[data-flap="front"] {
+  --side: -1;
+  clip-path: polygon(74.1% 8%, 104% 23%, 50% 48%, 18.6% 33.5%);
+  transform-origin: 50% 44%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box-flap {
+    transition-property: none;
+  }
+}
+
+/* The first destination's tab meets the sheet's top edge: it has no upper
+   corner, and the sheet squares its own corner to continue into the tab. */
+.rail-junction[data-flush] .rail-junction-corner[data-edge="top"] {
+  display: none;
+}
+
+:has(> .rail-junction[data-flush]) + * > .sheet {
+  border-start-start-radius: 0;
+}
+
+.sheet {
+  transition: border-start-start-radius var(--duration-snap) var(--ease-snap);
 }
 
 .rail-junction-corner {
@@ -616,7 +906,7 @@
   }
 }
 
-/* @tailwindcss/typography, re-pointed at the Stone tokens. A utility rather
+/* @tailwindcss/typography, re-pointed at the palette tokens. A utility rather
    than a component: the plugin's .prose lands in the utilities layer, which
    outranks the components layer and would keep its light-theme grays. The
    tokens already switch per theme, so no prose-invert pairing is needed. */

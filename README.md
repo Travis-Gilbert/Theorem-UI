@@ -44,11 +44,12 @@ bun run lint
 
 ### Cloudflare
 
-`bun run deploy:cloudflare` builds Theia for production, builds the app with Nitro's `cloudflare_module` preset and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain and `THEOREM_API_URL` are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB. Set the secrets once:
+`bun run deploy:cloudflare` builds Theia for production, builds the app with Nitro's `cloudflare_module` preset and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain, `THEOREM_API_URL` and OAuth client id are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB.
+
+People sign in at the personal Theorem (`travis-theorem-personal.fly.dev`), which lists the `theorem-ui` client with its redirect URIs and the extra `models:invoke` scope in `RUSTY_RED_OAUTH_CLIENTS_JSON` on its store. Set the session secret once:
 
 ```bash
 openssl rand -hex 32 | bunx wrangler secret put THEOREM_SESSION_SECRET --name theorem-ui
-bunx wrangler secret put THEOREM_OAUTH_CLIENT_ID --name theorem-ui
 ```
 
 `bunfig.toml` holds back package versions published less than three days ago. Exemptions are listed there with the reason.
@@ -74,7 +75,7 @@ src/
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
 
-`ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The site does not link to it yet.
+`ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The rail's IDE mode shows it in the sheet, served at `/theia`. Until `ide/` is built, `/theia` answers 503 with the build command. `patches/` carries nitro's merged dev fix (nitrojs/nitro#4159), which stops the dev server brotli-compressing Theia's bundle on every load. Drop it once a nitro release includes that fix.
 
 ## Artifacts
 

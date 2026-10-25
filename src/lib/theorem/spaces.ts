@@ -17,6 +17,11 @@ const REBASE_ATTEMPTS = 3
 
 export type Placement = Theorem.SpacePlacement
 export type Connection = Theorem.SpaceConnection
+/** A placed Theorem document: a note card. */
+export type NotePlacement = Theorem.SpacePlacement.Object
+
+export const isNotePlacement = (p: Placement): p is NotePlacement =>
+  p.target === 'object' && p.object.kind === 'document'
 /** One change to a Space, replayable onto a newer revision. */
 export type SpaceEdit = (space: Theorem.Space) => Theorem.Space
 

@@ -18,7 +18,6 @@ import MoreMark from '@/assets/icons/message/theorem-more.svg?react'
 import NextMark from '@/assets/icons/message/theorem-next.svg?react'
 import PreviousMark from '@/assets/icons/message/theorem-previous.svg?react'
 import ReloadMark from '@/assets/icons/message/theorem-reload.svg?react'
-import Chat from '@/assets/icons/rail/noun-chat-8216252.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
@@ -34,6 +33,9 @@ import {
   Trash2 as Delete,
   TableOfContents as Outline,
   Waypoints as Graph,
+  SquareTerminal as Terminal,
+  PanelsTopLeft,
+  X,
 } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
@@ -69,6 +71,13 @@ import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bull
 import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
 import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
 import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
+
+import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
+import FileOpen from '@/assets/icons/streamline/streamline-file-open.png'
+import DownloadBox from '@/assets/icons/streamline/streamline-download-box.png'
+import FolderClosed from '@/assets/icons/streamline/streamline-folder.png'
+import ShipmentUpload from '@/assets/icons/streamline/streamline-shipment-upload.png'
+import XMark from '@/assets/icons/streamline/streamline-x.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -111,14 +120,62 @@ const masked = (src: string): SvgMark =>
       />
     )
   }
-
+const Artifact = masked(SquareWireframe)
 const Copy = masked(CopyPaste)
+const Download = masked(DownloadBox)
 const Diagram = masked(CodeWrite)
 const NewChat = masked(PencilWrite)
 const Search = masked(SearchSquare)
 const Send = masked(SendEmail)
 const Share = masked(ShareBox)
 const Web = masked(CrossRegion)
+const Exit = masked(XMark)
+
+function Panels({ className, ...props }: ComponentProps<typeof PanelsTopLeft>) {
+  return <PanelsTopLeft {...props} className={cn('-scale-x-100', className)} />
+}
+
+const flap =
+  'icon-mask box-flap absolute inset-0 duration-(--duration-exit) ease-exit group-hover/open:duration-(--duration-lift) group-hover/open:ease-lift group-focus-visible/open:duration-(--duration-lift) group-focus-visible/open:ease-lift'
+
+/**
+ * Streamline's shipment box as masks of the one PNG: the body, the rim of its
+ * top face, and the two flaps that meet at the taped seam (.box-* in
+ * styles.css). Hovering or focusing the enclosing `group/open` swings the
+ * flaps up and out from the seam, the back one a beat ahead of the front.
+ */
+function Open({ className, style, ...props }: ComponentProps<'span'>) {
+  const mask = {
+    ...style,
+    '--icon-mask': `url("${ShipmentUpload}")`,
+  } as CSSProperties
+  return (
+    <span
+      aria-hidden="true"
+      {...props}
+      className={cn(
+        'relative inline-block shrink-0 group-hover/open:[--flap:120deg] group-focus-visible/open:[--flap:120deg]',
+        className,
+      )}
+    >
+      <span className="icon-mask box-body absolute inset-0" style={mask} />
+      <span
+        className="icon-mask box-rim absolute inset-0 opacity-0 transition-opacity duration-(--duration-exit) group-hover/open:opacity-100 group-focus-visible/open:opacity-100"
+        style={mask}
+      />
+      <span data-flap="back" className={flap} style={mask} />
+      <span
+        data-flap="front"
+        className={cn(
+          flap,
+          'group-hover/open:delay-60 group-focus-visible/open:delay-60',
+        )}
+        style={mask}
+      />
+    </span>
+  )
+}
+const Chat = solid(ChatMark)
 const Vault = masked(DrawerFile)
 const Files = masked(FolderFile1)
 const OpenFolder = masked(FileOpen1)
@@ -135,9 +192,10 @@ const More = solid(MoreMark)
 const Next = solid(NextMark)
 const Previous = solid(PreviousMark)
 const Reload = solid(ReloadMark)
-// The folder tree's marks are filled outlines on a 24 viewBox, solid like the toolbar's.
-const Folder = solid(FolderMark)
-const FolderOpen = solid(FolderOpenMark)
+const TreeFolder = solid(FolderMark)
+const TreeFolderOpen = solid(FolderOpenMark)
+const Folder = masked(FolderClosed)
+const FolderOpen = masked(FileOpen)
 const TreeFile = solid(TreeFileMark)
 
 export const Icon = {
@@ -198,6 +256,15 @@ export const Icon = {
   UpDown,
   Vault,
   Web,
+  Download,
+  Open,
+  X,
+  Artifact,
+  Exit,
+  Panels,
+  Terminal,
+  TreeFolder,
+  TreeFolderOpen,
 }
 
 export type IconName = keyof typeof Icon
