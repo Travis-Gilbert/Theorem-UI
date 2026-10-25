@@ -141,9 +141,26 @@ const sleep = (ms: number, signal: AbortSignal) =>
   })
 
 /**
- * The person's Theorem vault, or null when there is none to show: nobody is
- * signed in, the backend is unconfigured, or it does not serve the Files API.
+ * Whether a refusal means there is no vault to show: nobody is signed in, the
+ * backend is unconfigured, or it does not serve the Files API. An outage is
+ * not one of these, so a vault already shown stays while Theorem is down.
  */
+function noVault(error: TheoremError): boolean {
+  const { code } = (error.body ?? {}) as Partial<Theorem.FilesProblem>
+  switch (error.statusCode) {
+    case 401:
+    case 403:
+    case 404:
+    case 501:
+      return true
+    case 503:
+      return code === 'theorem_unconfigured'
+    default:
+      return false
+  }
+}
+
+/** The person's Theorem vault, or null when there is none to show. */
 export async function getTheoremVault(): Promise<WorkspaceSummary | null> {
   try {
     const vault = await theorem().files.vault({ schema: SCHEMA })
@@ -155,8 +172,7 @@ export async function getTheoremVault(): Promise<WorkspaceSummary | null> {
       policy: 'ConnectedLive',
     }
   } catch (error) {
-    if (error instanceof TheoremError && error.statusCode !== undefined)
-      return null
+    if (error instanceof TheoremError && noVault(error)) return null
     throw error
   }
 }

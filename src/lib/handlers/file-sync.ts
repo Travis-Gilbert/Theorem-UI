@@ -130,17 +130,15 @@ class TextFileSync {
         this.written.add(hash)
         if (merged) {
           // The store merged this write with a change made since, so it holds
-          // more than `text`: show what it holds.
-          this.set({
-            draft: this.state.draft === text ? null : this.state.draft,
-          })
-          await this.queryClient.refetchQueries({
-            queryKey: this.queryKey,
-            exact: true,
-          })
+          // more than `text`: show what it holds. The draft stays until that
+          // is read, so a failed read leaves the edits and a retry.
+          const stored = await this.client.readText(this.path)
+          this.queryClient.setQueryData<TextData>(this.queryKey, stored)
           // Typing while the write was out was on the text before the merge.
+          const typed = this.state.draft !== text
           this.set({
-            conflict: this.state.draft === null ? null : { hash },
+            draft: typed ? this.state.draft : null,
+            conflict: typed ? { hash } : null,
             saveFailed: false,
           })
           return

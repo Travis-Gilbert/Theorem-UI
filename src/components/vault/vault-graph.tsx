@@ -9,6 +9,7 @@ import { Graph, getRgbaColor } from '@cosmos.gl/graph'
 import { LabelRenderer } from '@interacta/css-labels'
 import type { LabelOptions } from '@interacta/css-labels'
 import { useTheme } from 'next-themes'
+import { extname } from 'pathe'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -454,7 +455,8 @@ function WorkspaceGraphView({
       const target = node.target
       void attempt(
         client.workspace.id,
-        () => openOrCreate(client, `${target}.md`),
+        () =>
+          openOrCreate(client, extname(target) ? target : `${target}.md`),
         () => `“${target}” could not be made.`,
       )
     }
