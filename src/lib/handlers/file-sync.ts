@@ -19,10 +19,21 @@ import { join } from 'pathe'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import { WorkspaceConflictError } from '@/lib/workspace/types'
-import type { WorkspaceClient, WorkspaceEvent } from '@/lib/workspace/types'
+import type {
+  WorkspaceClient,
+  WorkspaceEntry,
+  WorkspaceEvent,
+} from '@/lib/workspace/types'
 
-/** A file in a workspace, as handlers receive it. */
-export type FileRef = { client: WorkspaceClient; path: string }
+/**
+ * A file in a workspace, as handlers receive it; its entry, when given, says
+ * whether Theorem refuses writes to it.
+ */
+export type FileRef = {
+  client: WorkspaceClient
+  path: string
+  entry?: WorkspaceEntry
+}
 
 export const fileTextKey = (workspaceId: string, path: string) =>
   ['desktop', 'workspace', workspaceId, 'file', path, 'text'] as const
@@ -198,6 +209,8 @@ export interface TextFile {
   isError: boolean
   /** Holds a NUL byte, as git decides; such a file is not shown as text. */
   isBinary: boolean
+  /** Theorem refuses writes to it (a plan, an agent's document). */
+  readOnly: boolean
   /** Edits not yet written. */
   dirty: boolean
   /**
@@ -207,7 +220,7 @@ export interface TextFile {
   conflict: boolean
   /** The last write failed for a reason other than a conflict. */
   saveFailed: boolean
-  /** Replaces the text; written after a pause. */
+  /** Replaces the text; written after a pause. Ignored when read-only. */
   setText: (text: string) => void
   /** Keep this view's edits (overwrite the disk) or take the disk's. */
   resolve: (side: 'mine' | 'disk') => Promise<void>
@@ -215,7 +228,7 @@ export interface TextFile {
   flush: () => Promise<void>
 }
 
-export function useTextFile({ client, path }: FileRef): TextFile {
+export function useTextFile({ client, path, entry }: FileRef): TextFile {
   const queryClient = useQueryClient()
   const [sync, setSync] = useState(
     () => new TextFileSync(client, path, queryClient),
@@ -255,16 +268,18 @@ export function useTextFile({ client, path }: FileRef): TextFile {
   }, [sync])
 
   const text = state.draft ?? query.data?.text
+  const readOnly = entry?.theorem?.readOnly ?? false
   return {
     text,
     isPending: query.isPending,
     isError: query.isError,
     isBinary: query.data?.text.includes('\u0000') ?? false,
+    readOnly,
     dirty: state.draft !== null,
     conflict: state.conflict !== null,
     saveFailed: state.saveFailed,
     setText: (next) => {
-      if (next !== text) sync.edit(next)
+      if (!readOnly && next !== text) sync.edit(next)
     },
     resolve: (side) => sync.resolve(side),
     flush: async () => {

@@ -26,7 +26,7 @@ export function MarkdownPanel(file: FileViewProps) {
     return <FileMessage>{message}</FileMessage>
 
   const { head, yaml, body } = splitFrontmatter(text.text)
-  const readOnly = file.entry.theorem?.readOnly ?? false
+  const { readOnly } = text
   return (
     <div className="flex h-full min-h-0 flex-col">
       <FileStatusBar file={text} />
@@ -73,7 +73,7 @@ export function MarkdownCard({ zoom, ...file }: FileCardProps) {
           file={file}
           body={body}
           onBody={(next) => text.setText(head + next)}
-          readOnly={file.entry.theorem?.readOnly ?? false}
+          readOnly={text.readOnly}
           className="theorem-note-card min-h-0 flex-1 overflow-y-auto"
         />
       </div>

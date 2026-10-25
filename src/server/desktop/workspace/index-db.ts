@@ -417,7 +417,7 @@ export class WorkspaceIndex implements LinkLookup {
       const seen = new Set<string>()
       for (const link of note.links) {
         const to = resolveLink(link.target, note.path, link.syntax, this)
-        const key = to ?? `?${nameKey(link.target)}`
+        const key = to ?? `?${link.target.toLowerCase()}`
         if (seen.has(key)) continue
         seen.add(key)
         links.push({ from: note.path, to, target: link.target })

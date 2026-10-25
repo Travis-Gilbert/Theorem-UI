@@ -263,7 +263,7 @@ describe('folder workspace service', () => {
   test('the graph holds every note with its tags and its links, each once', async () => {
     const { id } = await openFolder({
       'Hub.md':
-        '# Hub\n\n[[Ideas]] and [[Ideas#Later]], [[Missing]] #map\n\n![[img/diagram.png]]\n',
+        '# Hub\n\n[[Ideas]] and [[Ideas#Later]], [[Missing]] [[missing]] #map\n\n[[a/Gone]] [[b/Gone]]\n\n![[img/diagram.png]]\n',
       'Ideas.md': '---\ntags: [map, Map]\n---\n## Later\n\nBack to [[Hub]]\n',
       'Lonely.md': 'Nothing links here\n',
       'img/diagram.png': 'not really a png',
@@ -279,6 +279,8 @@ describe('folder workspace service', () => {
     expect(graph.links).toEqual([
       { from: 'Hub.md', to: 'Ideas.md', target: 'Ideas' },
       { from: 'Hub.md', to: null, target: 'Missing' },
+      { from: 'Hub.md', to: null, target: 'a/Gone' },
+      { from: 'Hub.md', to: null, target: 'b/Gone' },
       { from: 'Hub.md', to: 'img/diagram.png', target: 'img/diagram.png' },
       { from: 'Ideas.md', to: 'Hub.md', target: 'Hub' },
     ])
