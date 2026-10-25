@@ -103,13 +103,15 @@ function Section({
 }) {
   return (
     <Collapsible.Root defaultOpen className="border-b border-separator">
-      <Collapsible.Trigger className="group/section flex h-8 w-full items-center gap-1.5 px-3 text-start text-xs font-medium text-ink-faint outline-none hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus">
+      <Collapsible.Trigger className="group/section flex h-8 w-full items-center gap-1.5 px-3 text-start text-xs font-medium text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus">
         <Icon.Next
           aria-hidden="true"
           className="size-2.5 shrink-0 transition-transform duration-150 group-data-panel-open/section:rotate-90"
         />
         <span className="flex-1">{title}</span>
-        {count !== undefined && <span className="tabular-nums">{count}</span>}
+        {count !== undefined && (
+          <span className="text-ink-faint tabular-nums">{count}</span>
+        )}
       </Collapsible.Trigger>
       <Collapsible.Panel className="px-1.5 pb-2">{children}</Collapsible.Panel>
     </Collapsible.Root>

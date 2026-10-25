@@ -368,6 +368,9 @@
 @theme {
   --text-sm: 13px;
   --text-base: 15px;
+  /* A note's reading column (max-w-note): about 75 characters of body text,
+     shared by the properties above it so both start on one edge. */
+  --container-note: 42rem;
 }
 
 @layer base {
@@ -668,7 +671,7 @@
   --crepe-color-selected: var(--surface-selected);
   --crepe-color-inline-area: var(--surface-frame);
 
-  --crepe-base-font-size: 15px;
+  --crepe-base-font-size: 16px;
   --crepe-font-title: var(--font-heading);
   --crepe-font-default: var(--font-sans);
   --crepe-font-code: var(--font-mono);
@@ -677,9 +680,61 @@
   --crepe-shadow-2: 0 4px 12px rgb(var(--shadow-tint) / 0.22);
 }
 
-/* Crepe's reset pads the editor for a full page; the panel and cards are narrower. */
+/* A page of prose: one centred reading column at the panel's width, with
+   room below the last line. Cards set their own padding below. */
 .theorem-note .milkdown .ProseMirror {
-  padding: 24px 48px;
+  max-width: calc(var(--container-note) + 96px);
+  margin-inline: auto;
+  padding: 24px 48px 96px;
+  /* Prose keeps Plex's own spacing; the interface's tighter tracking stays
+     with the interface. */
+  letter-spacing: normal;
+}
+
+.theorem-note .milkdown .ProseMirror :is(p, li) {
+  line-height: 1.625;
+}
+
+/* Crepe's headings run 2.625em to 1.75em before h4, so a title shouts at the
+   body and the levels barely differ from one another. These keep each level a
+   clear step apart and the title close enough to read as the body's own. */
+.theorem-note .milkdown .ProseMirror h1 {
+  font-size: 1.875em;
+  line-height: 1.2;
+  margin-top: 40px;
+}
+
+.theorem-note .milkdown .ProseMirror h2 {
+  font-size: 1.4375em;
+  line-height: 1.3;
+  margin-top: 32px;
+}
+
+.theorem-note .milkdown .ProseMirror h3 {
+  font-size: 1.1875em;
+  line-height: 1.37;
+  margin-top: 24px;
+}
+
+.theorem-note .milkdown .ProseMirror :is(h4, h5, h6) {
+  font-size: 1.0625em;
+  line-height: 1.5;
+  margin-top: 20px;
+}
+
+/* A heading that opens the note already has the editor's padding above it.
+   Crepe puts its widget and, once focused, its virtual cursor ahead of the
+   first block, so the first block is the first child that is neither. */
+.theorem-note .milkdown .ProseMirror
+  > :first-child:not(.ProseMirror-widget, .prosemirror-virtual-cursor),
+.theorem-note .milkdown .ProseMirror
+  > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
+  + :not(.ProseMirror-widget, .prosemirror-virtual-cursor),
+.theorem-note .milkdown .ProseMirror
+  > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
+  + :is(.ProseMirror-widget, .prosemirror-virtual-cursor)
+  + * {
+  margin-top: 0;
 }
 
 /* Canvas cards: a denser editor that fits a small node. */
@@ -688,7 +743,12 @@
 }
 
 .theorem-note-card .milkdown .ProseMirror {
+  max-width: none;
   padding: 12px 16px 12px 40px;
+}
+
+.theorem-note-card .milkdown .ProseMirror :is(p, li) {
+  line-height: 1.5;
 }
 
 .theorem-note-card .milkdown .ProseMirror h1 {
