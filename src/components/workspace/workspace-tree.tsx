@@ -4,7 +4,9 @@
 // chat list; Base UI ContextMenu (the right-click menu, as the chat list has
 // one); entries from useWorkspaceTree (react-query, live); new notes and
 // folders from lib/workspace/notes.ts; zustand (a new entry waiting to be
-// named, and what last failed, so the folder's own menu can ask too).
+// named, and what last failed, so the folder's own menu can ask too). In the
+// Theorem vault, entries Theorem holds as documents or plans take their own
+// marks (entry-mark.tsx) and the menu adds what only Theorem can do.
 import { ContextMenu } from '@base-ui/react/context-menu'
 import {
   dragAndDropFeature,
@@ -25,13 +27,21 @@ import { hostActions } from '@/lib/handlers/actions'
 import { WorkspaceRequestError } from '@/lib/workspace/desktop-client'
 import { newFolder, newNote } from '@/lib/workspace/notes'
 import { openWorkspaceFile } from '@/lib/workspace/open'
+import {
+  exportOkfBundle,
+  importOkfBundle,
+  isDismissed,
+  promoteEntry,
+} from '@/lib/workspace/theorem-actions'
 import type {
+  TheoremSource,
   WorkspaceClient,
   WorkspaceEntry,
   WorkspaceId,
 } from '@/lib/workspace/types'
 import { useWorkspaceTree } from '@/lib/workspace/workspaces'
 import { cn } from '@/lib/utils'
+import { theoremMark } from './entry-mark'
 
 const ROOT = 'root'
 const INDENT = 12
@@ -41,6 +51,7 @@ interface TreeNode {
   path: string
   folder: boolean
   children: Array<string>
+  theorem?: TheoremSource
 }
 
 const collator = new Intl.Collator(undefined, {
@@ -73,6 +84,7 @@ function buildNodes(entries: Array<WorkspaceEntry>) {
       path: entry.path,
       folder: entry.kind === 'directory',
       children: [],
+      theorem: entry.theorem,
     })
   }
   for (const entry of entries) {
@@ -118,9 +130,26 @@ export async function attempt(
   try {
     await change()
   } catch (error) {
-    report(workspaceId, failure(error))
+    // Closing a file dialog is not a failure.
+    if (!isDismissed(error)) report(workspaceId, failure(error))
   }
 }
+
+/** Saves the notes under `folder` as an OKF bundle; failures under the tree. */
+export const exportOkf = (client: WorkspaceClient, folder: string) =>
+  attempt(
+    client.workspace.id,
+    () => exportOkfBundle(client, folder),
+    () => 'The OKF bundle could not be made.',
+  )
+
+/** Imports an OKF bundle the person picks into `folder`. */
+export const importOkf = (client: WorkspaceClient, folder: string) =>
+  attempt(
+    client.workspace.id,
+    () => importOkfBundle(client, folder),
+    () => 'The OKF bundle could not be imported.',
+  )
 
 /**
  * Makes a note or a folder in `folder` and names it in place in the tree, as
@@ -224,7 +253,10 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
       await attempt(
         workspaceId,
         () => client.remove(path),
-        () => `“${name}” could not be moved to the Trash.`,
+        () =>
+          client.theorem
+            ? `“${name}” could not be removed.`
+            : `“${name}” could not be moved to the Trash.`,
       )
   }
 
@@ -317,11 +349,24 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
   const targetItem =
     menu.target === ROOT ? null : tree.getItemInstance(menu.target)
   // Trashing a selected entry trashes the whole selection, as Finder does.
-  const doomed = targetItem?.isSelected()
-    ? tree.getSelectedItems()
-    : targetItem
-      ? [targetItem]
-      : []
+  // Theorem keeps plans; they are not the vault's to remove.
+  const doomed = (
+    targetItem?.isSelected()
+      ? tree.getSelectedItems()
+      : targetItem
+        ? [targetItem]
+        : []
+  ).filter((item) => item.getItemData().theorem?.backing !== 'plan')
+  // In the Theorem vault a document is archived, and anything else deleted.
+  const archives = doomed.every(
+    (item) => item.getItemData().theorem?.backing === 'document',
+  )
+  const removeLabel = !client.theorem
+    ? doomed.length > 1
+      ? `Move ${doomed.length} items to the Trash`
+      : 'Move to Trash'
+    : `${archives ? 'Archive' : 'Delete'}${doomed.length > 1 ? ` ${doomed.length} items` : ''}`
+  const folderPath = target.folder ? target.path : parentOf(target.path)
   const host = hostActions({ client, path: target.path })
   // The folder a drop would land in: the target, or the folder of a file.
   const over = tree.getDragTarget()?.item
@@ -351,11 +396,12 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
             tree.getItems().map((item) => {
               const node = item.getItemData()
               const expanded = item.isExpanded()
+              const source = theoremMark(node.theorem)
               const Mark = node.folder
                 ? expanded
                   ? Icon.TreeFolderOpen
                   : Icon.TreeFolder
-                : Icon.TreeFile
+                : (source?.Mark ?? Icon.TreeFile)
               const marks = (
                 <>
                   <Icon.Next
@@ -366,7 +412,10 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                       !node.folder && 'invisible',
                     )}
                   />
-                  <Mark className="size-4 shrink-0 text-ink-faint" />
+                  <Mark
+                    className="size-4 shrink-0 text-ink-faint"
+                    strokeWidth={1.75}
+                  />
                 </>
               )
               const shared = {
@@ -401,7 +450,12 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                   </div>
                 )
               return (
-                <button key={item.getId()} {...shared} type="button">
+                <button
+                  key={item.getId()}
+                  {...shared}
+                  type="button"
+                  title={source?.label}
+                >
                   {marks}
                   <span className="min-w-0 truncate">{node.name}</span>
                 </button>
@@ -434,8 +488,42 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                 <Icon.TreeFolder className="size-4" />
                 New folder
               </ContextMenu.Item>
+              {client.theorem && target.folder && (
+                <>
+                  <ContextMenu.Separator className="my-1 h-px bg-separator" />
+                  <ContextMenu.Item
+                    className={menuItem}
+                    onClick={() => void importOkf(client, folderPath)}
+                  >
+                    <Icon.Add className="size-4" />
+                    Import OKF bundle…
+                  </ContextMenu.Item>
+                  <ContextMenu.Item
+                    className={menuItem}
+                    onClick={() => void exportOkf(client, folderPath)}
+                  >
+                    <Icon.Share className="size-4" />
+                    Export as OKF bundle…
+                  </ContextMenu.Item>
+                </>
+              )}
               {(targetItem || host) && (
                 <ContextMenu.Separator className="my-1 h-px bg-separator" />
+              )}
+              {client.theorem && target.theorem?.agent && (
+                <ContextMenu.Item
+                  className={menuItem}
+                  onClick={() =>
+                    void attempt(
+                      workspaceId,
+                      () => promoteEntry(client, target.path),
+                      () => `“${target.name}” could not be made yours.`,
+                    )
+                  }
+                >
+                  <Icon.Article className="size-4" />
+                  Make it mine
+                </ContextMenu.Item>
               )}
               {targetItem && (
                 <ContextMenu.Item
@@ -463,10 +551,12 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                   )}
                   onClick={() => void trash(doomed)}
                 >
-                  <Icon.Delete className="size-4" strokeWidth={1.75} />
-                  {doomed.length > 1
-                    ? `Move ${doomed.length} items to the Trash`
-                    : 'Move to Trash'}
+                  {archives && client.theorem ? (
+                    <Icon.Archive className="size-4" />
+                  ) : (
+                    <Icon.Delete className="size-4" strokeWidth={1.75} />
+                  )}
+                  {removeLabel}
                 </ContextMenu.Item>
               )}
             </ContextMenu.Popup>

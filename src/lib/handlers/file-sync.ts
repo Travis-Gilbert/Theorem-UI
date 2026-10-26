@@ -19,10 +19,21 @@ import { join } from 'pathe'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import { WorkspaceConflictError } from '@/lib/workspace/types'
-import type { WorkspaceClient, WorkspaceEvent } from '@/lib/workspace/types'
+import type {
+  WorkspaceClient,
+  WorkspaceEntry,
+  WorkspaceEvent,
+} from '@/lib/workspace/types'
 
-/** A file in a workspace, as handlers receive it. */
-export type FileRef = { client: WorkspaceClient; path: string }
+/**
+ * A file in a workspace, as handlers receive it; its entry, when given, says
+ * whether Theorem refuses writes to it.
+ */
+export type FileRef = {
+  client: WorkspaceClient
+  path: string
+  entry?: WorkspaceEntry
+}
 
 export const fileTextKey = (workspaceId: string, path: string) =>
   ['desktop', 'workspace', workspaceId, 'file', path, 'text'] as const
@@ -123,11 +134,26 @@ class TextFileSync {
       if (text === null) return
       if (this.state.conflict && expectedHash === undefined) return
       try {
-        const { hash } = await this.client.write(this.path, text, {
+        const { hash, merged } = await this.client.write(this.path, text, {
           expectedHash:
             expectedHash === undefined ? this.current()?.hash : expectedHash,
         })
         this.written.add(hash)
+        if (merged) {
+          // The store merged this write with a change made since, so it holds
+          // more than `text`: show what it holds. The draft stays until that
+          // is read, so a failed read leaves the edits and a retry.
+          const stored = await this.client.readText(this.path)
+          this.queryClient.setQueryData<TextData>(this.queryKey, stored)
+          // Typing while the write was out was on the text before the merge.
+          const typed = this.state.draft !== text
+          this.set({
+            draft: typed ? this.state.draft : null,
+            conflict: typed ? { hash } : null,
+            saveFailed: false,
+          })
+          return
+        }
         this.queryClient.setQueryData<TextData>(this.queryKey, { text, hash })
         this.set({
           conflict: null,
@@ -183,6 +209,8 @@ export interface TextFile {
   isError: boolean
   /** Holds a NUL byte, as git decides; such a file is not shown as text. */
   isBinary: boolean
+  /** Theorem refuses writes to it (a plan, an agent's document). */
+  readOnly: boolean
   /** Edits not yet written. */
   dirty: boolean
   /**
@@ -192,7 +220,7 @@ export interface TextFile {
   conflict: boolean
   /** The last write failed for a reason other than a conflict. */
   saveFailed: boolean
-  /** Replaces the text; written after a pause. */
+  /** Replaces the text; written after a pause. Ignored when read-only. */
   setText: (text: string) => void
   /** Keep this view's edits (overwrite the disk) or take the disk's. */
   resolve: (side: 'mine' | 'disk') => Promise<void>
@@ -200,7 +228,7 @@ export interface TextFile {
   flush: () => Promise<void>
 }
 
-export function useTextFile({ client, path }: FileRef): TextFile {
+export function useTextFile({ client, path, entry }: FileRef): TextFile {
   const queryClient = useQueryClient()
   const [sync, setSync] = useState(
     () => new TextFileSync(client, path, queryClient),
@@ -240,16 +268,18 @@ export function useTextFile({ client, path }: FileRef): TextFile {
   }, [sync])
 
   const text = state.draft ?? query.data?.text
+  const readOnly = entry?.theorem?.readOnly ?? false
   return {
     text,
     isPending: query.isPending,
     isError: query.isError,
     isBinary: query.data?.text.includes('\u0000') ?? false,
+    readOnly,
     dirty: state.draft !== null,
     conflict: state.conflict !== null,
     saveFailed: state.saveFailed,
     setText: (next) => {
-      if (next !== text) sync.edit(next)
+      if (!readOnly && next !== text) sync.edit(next)
     },
     resolve: (side) => sync.resolve(side),
     flush: async () => {

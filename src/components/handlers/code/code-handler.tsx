@@ -16,7 +16,12 @@ import { hostActions } from '@/lib/handlers/actions'
 import { useTextFile } from '@/lib/handlers/file-sync'
 import { useHandlerRegistry } from '@/lib/handlers/registry'
 import type { FileCardProps, FileViewProps } from '@/lib/handlers/types'
-import { FileMessage, FileStatusBar, textFileMessage } from '../file-status'
+import {
+  FileMessage,
+  FileStatusBar,
+  TheoremEntryBar,
+  textFileMessage,
+} from '../file-status'
 import { languageFor } from './language'
 
 function useLanguage(path: string) {
@@ -73,9 +78,11 @@ export function CodePanel(file: FileViewProps) {
         )}
       </div>
       <FileStatusBar file={text} />
+      <TheoremEntryBar file={file} />
       <CodeMirror
         value={text.text}
         onChange={text.setText}
+        readOnly={text.readOnly}
         extensions={extensions}
         theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
         height="100%"

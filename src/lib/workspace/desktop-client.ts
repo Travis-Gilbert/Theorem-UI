@@ -9,6 +9,7 @@ import type {
   WorkspaceClient,
   WorkspaceEntry,
   WorkspaceEvent,
+  WorkspaceGraph,
   WorkspaceLink,
   WorkspaceSummary,
 } from './types'
@@ -174,6 +175,7 @@ export function createDesktopWorkspaceClient(
     },
     links: (path) => json<Array<WorkspaceLink>>('links', { path }),
     backlinks: (path) => json<Array<WorkspaceLink>>('backlinks', { path }),
+    graph: () => json<WorkspaceGraph>('graph'),
     search: (query, { limit } = {}) =>
       json<Array<SearchHit>>('search', {
         q: query,

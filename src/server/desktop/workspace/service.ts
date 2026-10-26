@@ -20,6 +20,7 @@ import type {
   SearchHit,
   WorkspaceEntry,
   WorkspaceEvent,
+  WorkspaceGraph,
   WorkspaceId,
   WorkspaceLink,
   WorkspaceSummary,
@@ -264,6 +265,10 @@ export class WorkspaceService {
 
   backlinks(input: string): Array<WorkspaceLink> {
     return this.index.backlinks(this.known(input))
+  }
+
+  graph(): WorkspaceGraph {
+    return this.index.graph()
   }
 
   search(query: string, limit = 20): Array<SearchHit> {

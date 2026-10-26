@@ -249,17 +249,24 @@ export function WorkspaceFileDockPanel({
  * Opens a file in the dock: it joins the open workspace file tabs, else opens
  * beside `besidePanelId` (the conversation) when that sits in the grid. A file
  * already open comes forward, switched to `file.handler` when one is given.
+ * A file `replacing` an open one opens in its place, and that panel closes.
  */
 export function openWorkspaceFilePanel(
   api: DockviewApi,
   file: WorkspaceFileRef,
   besidePanelId: string,
+  replacing?: string,
 ) {
   const id = workspaceFilePanelId(file)
   const existing = api.getPanel(id)
+  const old =
+    replacing === undefined
+      ? undefined
+      : api.getPanel(workspaceFilePanelId({ ...file, path: replacing }))
   if (existing) {
     if (file.handler) existing.api.updateParameters(file)
     existing.api.setActive()
+    old?.api.close()
     return
   }
   const options = {
@@ -268,6 +275,14 @@ export function openWorkspaceFilePanel(
     params: file,
     title: basename(file.path),
     minimumWidth: 360,
+  }
+  if (old) {
+    api.addPanel({
+      ...options,
+      position: { referencePanel: old.id, direction: 'within' },
+    })
+    old.api.close()
+    return
   }
   const sibling = api.panels.find(
     (panel) => panel.view.contentComponent === WORKSPACE_FILE_COMPONENT,

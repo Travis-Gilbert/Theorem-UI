@@ -116,12 +116,23 @@ function useFolderImages(
 const normalize = (text: string) =>
   text.trim().replace(/\s+/g, ' ').toLowerCase()
 
-/** Where `#Heading` or `#^block` is in the document, or null. */
+/**
+ * Where `#Heading` or `#^block` is in the document, or null. A heading whose
+ * own text holds `#` (`C# basics`) matches whole before `A#B` is split.
+ */
 function findSubpath(doc: ProseNode, subpath: string): number | null {
-  const block = subpath.startsWith('#^') ? subpath.slice(2) : null
-  const heading = block
-    ? null
-    : normalize(subpath.slice(1).split('#').at(-1) ?? '')
+  if (subpath.startsWith('#^')) return findIn(doc, null, subpath.slice(2))
+  return (
+    findIn(doc, normalize(subpath.slice(1)), null) ??
+    findIn(doc, normalize(subpath.slice(1).split('#').at(-1) ?? ''), null)
+  )
+}
+
+function findIn(
+  doc: ProseNode,
+  heading: string | null,
+  block: string | null,
+): number | null {
   let found: number | null = null
   doc.descendants((node, pos) => {
     if (found !== null) return false

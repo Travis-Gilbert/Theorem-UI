@@ -178,6 +178,22 @@ describe('MarkdownPanel', () => {
     )
   })
 
+  test('a heading with # in its text is found whole', async () => {
+    const { container } = await openPanel({
+      'Plan.md': '# Notes\n\n## basics\n\nOne.\n\n## C# basics\n\nTwo.\n',
+    })
+    act(() =>
+      useRevealRequest.setState({
+        request: { workspaceId: 'ws_test', path: 'Plan.md', subpath: '#C# basics' },
+      }),
+    )
+    await waitFor(() => useRevealRequest.getState().request === null)
+    const selection = document.getSelection()
+    const [, plain, sharp] = container.querySelectorAll('h1, h2')
+    expect(plain?.contains(selection?.anchorNode ?? null)).toBe(false)
+    expect(sharp?.contains(selection?.anchorNode ?? null)).toBe(true)
+  })
+
   test('runs registered Markdown extensions before the editor is created', async () => {
     const seen: Array<string> = []
     const { registerMarkdownExtension } = await import('@/lib/handlers/registry')

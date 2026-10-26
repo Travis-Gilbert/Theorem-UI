@@ -1,8 +1,15 @@
 // SOURCING: hand-roll — the save state of a file a handler edits (a change on
 // disk while edits were pending, a failed write), laid out with the app's
-// Button. useTextFile decides the states; this only shows them.
+// Button. useTextFile decides the states; this only shows them. A read-only
+// Theorem entry says why, with react-query's useMutation for making an agent's
+// document the person's own.
+import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+import { theoremMark } from '@/components/workspace/entry-mark'
 import type { TextFile } from '@/lib/handlers/file-sync'
+import type { FileViewProps } from '@/lib/handlers/types'
+import { describeError } from '@/lib/theorem/client'
+import { promoteEntry } from '@/lib/workspace/theorem-actions'
 import { cn } from '@/lib/utils'
 
 /** A panel's or card's whole body when there is no file to show yet. */
@@ -66,4 +73,43 @@ export function FileStatusBar({ file }: { file: TextFile }) {
       </div>
     )
   return null
+}
+
+/**
+ * Why a Theorem entry cannot be edited here: Theorem keeps plans, and an
+ * agent's document stays the agent's until the person makes it their own.
+ */
+export function TheoremEntryBar({ file }: { file: FileViewProps }) {
+  const source = file.entry.theorem
+  const promote = useMutation({
+    mutationFn: () => promoteEntry(file.client, file.path),
+  })
+  if (!source?.readOnly) return null
+  const mark = theoremMark(source)
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-separator px-3 py-1.5 text-xs text-ink-muted">
+      {mark && (
+        <mark.Mark aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={1.75} />
+      )}
+      <span className="min-w-0 flex-1">
+        {promote.isError
+          ? `Not made yours: ${describeError(promote.error)}`
+          : source.backing === 'plan'
+            ? 'Theorem keeps this plan; agents change it as they work.'
+            : source.agent
+              ? 'An agent wrote this. Make it yours to edit it.'
+              : 'This document is read-only.'}
+      </span>
+      {source.agent && file.client.theorem && (
+        <Button
+          size="xs"
+          variant="outline"
+          disabled={promote.isPending}
+          onClick={() => promote.mutate()}
+        >
+          Make it mine
+        </Button>
+      )}
+    </div>
+  )
 }

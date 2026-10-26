@@ -1,7 +1,8 @@
 // SOURCING: Base UI Combobox (inline list with keyboard navigation) inside
 // ui/dialog, as file-picker.tsx uses it; fuzzysort (Obsidian-style fuzzy
 // matching over names and paths, ranked, with the matched characters);
-// useAllWorkspaceTrees (react-query, kept current); zustand (open state).
+// useAllWorkspaceTrees (react-query, kept current); zustand (open state);
+// theoremMark for what Theorem holds as more than a file.
 import { Combobox } from '@base-ui/react/combobox'
 import fuzzysort from 'fuzzysort'
 import type { Result } from 'fuzzysort'
@@ -10,6 +11,7 @@ import { useState } from 'react'
 import { create } from 'zustand'
 import { Icon } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { theoremMark } from './entry-mark'
 import { openOrCreate } from '@/lib/workspace/notes'
 import { openWorkspaceFile } from '@/lib/workspace/open'
 import type { WorkspaceClient, WorkspaceEntry } from '@/lib/workspace/types'
@@ -160,6 +162,8 @@ function SwitcherBody() {
               </Combobox.Item>
             )
           const folder = dirname(choice.entry.path)
+          const mark = theoremMark(choice.entry.theorem)
+          const Mark = mark?.Mark ?? Icon.TreeFile
           const where = [
             several && choice.client.workspace.name,
             folder !== '.' && folder,
@@ -170,9 +174,14 @@ function SwitcherBody() {
             <Combobox.Item
               key={keyOf(choice)}
               value={choice}
+              title={mark?.label}
               className="flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none data-highlighted:bg-hover"
             >
-              <Icon.TreeFile className="size-4 shrink-0 text-ink-faint" />
+              <Mark
+                aria-hidden="true"
+                className="size-4 shrink-0 text-ink-faint"
+                strokeWidth={1.75}
+              />
               <span className="min-w-0 truncate text-ink-muted">
                 <Name choice={choice} />
               </span>
