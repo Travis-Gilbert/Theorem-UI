@@ -340,7 +340,9 @@ function ViewColumn() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-4xl flex-col px-6 py-6">
+        {/* Keyed so an editor's draft never carries over to another view. */}
         <ViewHeader
+          key={open.view.viewId}
           view={open.view}
           revision={revision}
           revisions={open.revisions}
