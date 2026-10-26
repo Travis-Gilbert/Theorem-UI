@@ -9,6 +9,7 @@ import {
   waitFor,
 } from '../../../test/workspace'
 import type { FakeWorkspace } from '../../../test/workspace'
+import type { WorkspaceEntry } from '@/lib/workspace/types'
 import { useTextFile } from './file-sync'
 import type { TextFile } from './file-sync'
 
@@ -90,6 +91,67 @@ test('taking the disk drops the edits', async () => {
   await waitFor(() => file.text === 'theirs')
   expect(file.dirty).toBe(false)
   expect(ws.text('a.md')).toBe('theirs')
+})
+
+test('a file Theorem keeps read-only takes no edits', async () => {
+  const ws = fakeWorkspace({ 'a.md': 'plan' })
+  const entry = {
+    ...(await ws.client.tree()).find((e) => e.path === 'a.md')!,
+    theorem: { backing: 'plan', readOnly: true, placed: false, agent: false },
+  } satisfies WorkspaceEntry
+  function ReadOnlyProbe() {
+    report(useTextFile({ client: ws.client, path: 'a.md', entry }))
+    return null
+  }
+  await render(<ReadOnlyProbe />)
+  await waitFor(() => file.text === 'plan')
+  act(() => file.setText('edited'))
+  await act(() => file.flush())
+  expect(file).toMatchObject({ text: 'plan', readOnly: true, dirty: false })
+  expect(ws.writes).toHaveLength(0)
+})
+
+/** Makes every write report that the store merged it with another change. */
+function merging(ws: FakeWorkspace, also: string) {
+  const write = ws.client.write
+  Object.assign(ws.client, {
+    write: async (...args: Parameters<typeof write>) => {
+      await write(...args)
+      const { hash } = await write(args[0], `${String(args[1])}\n${also}`)
+      return { hash, merged: true }
+    },
+  })
+}
+
+test('a merged write shows what the store holds', async () => {
+  const ws = await open('one')
+  merging(ws, 'theirs')
+  act(() => file.setText('mine'))
+  await act(() => file.flush())
+  await settle()
+  expect(file).toMatchObject({
+    text: 'mine\ntheirs',
+    dirty: false,
+    conflict: false,
+    saveFailed: false,
+  })
+})
+
+test('a merged write keeps the edits when the merged text cannot be read', async () => {
+  const ws = await open('one')
+  merging(ws, 'theirs')
+  Object.assign(ws.client, {
+    readText: () => Promise.reject(new Error('offline')),
+  })
+  act(() => file.setText('mine'))
+  await act(() => file.flush())
+  await settle()
+  expect(file).toMatchObject({
+    text: 'mine',
+    dirty: true,
+    isError: false,
+    saveFailed: true,
+  })
 })
 
 test('a write refused with 412 is a conflict', async () => {

@@ -4,7 +4,7 @@
 // React's useSyncExternalStore. A folder's blocks run only once it is trusted.
 import { QueryClientContext } from '@tanstack/react-query'
 import { useContext, useState, useSyncExternalStore } from 'react'
-import { WORKSPACES_KEY } from '@/lib/workspace/workspaces'
+import { THEOREM_VAULT_KEY, WORKSPACES_KEY } from '@/lib/workspace/workspaces'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import { sessionsOf } from './sessions'
 
@@ -43,7 +43,10 @@ export function useFolderTrust(client: WorkspaceClient) {
     setError(null)
     try {
       await setFolderTrust(client, true)
-      await queryClient?.invalidateQueries({ queryKey: WORKSPACES_KEY })
+      await Promise.all([
+        queryClient?.invalidateQueries({ queryKey: WORKSPACES_KEY }),
+        queryClient?.invalidateQueries({ queryKey: THEOREM_VAULT_KEY }),
+      ])
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {

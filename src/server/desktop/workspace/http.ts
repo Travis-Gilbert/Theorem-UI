@@ -233,6 +233,11 @@ export const workspaceRoutes = {
       ),
     ),
   },
+  graph: {
+    GET: route(async ({ params }) =>
+      Response.json((await workspace(params)).graph()),
+    ),
+  },
   search: {
     GET: route(async ({ request, params }) => {
       const service = await workspace(params)

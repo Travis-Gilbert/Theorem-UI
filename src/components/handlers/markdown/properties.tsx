@@ -10,6 +10,16 @@ type Change = (key: string, value: unknown) => void
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
+/**
+ * A value reads as text until it is pointed at or edited. Pulled left by its
+ * padding so the text starts on the value column, as the keys start on theirs.
+ */
+const valueField =
+  'h-7 -ms-2.5 w-[calc(100%+0.625rem)] border-transparent bg-transparent hover:bg-hover dark:bg-transparent'
+
+/** The note's reading column (see --container-note), inside the editor's padding. */
+const column = 'mx-auto w-[calc(100%-6rem)] max-w-note'
+
 /** A text field that commits on Enter or blur, not on every keystroke. */
 function CommitInput({
   value,
@@ -62,7 +72,7 @@ function PropertyValue({
         aria-label={label}
         value={String(value)}
         onCommit={(next) => onChange(next === '' ? null : Number(next))}
-        className="h-7"
+        className={valueField}
       />
     )
   if (Array.isArray(value) && value.every((v) => typeof v !== 'object'))
@@ -79,7 +89,7 @@ function PropertyValue({
               .filter(Boolean),
           )
         }
-        className="h-7"
+        className={valueField}
       />
     )
   if (value instanceof Date || (typeof value === 'string' && DATE.test(value)))
@@ -89,7 +99,7 @@ function PropertyValue({
         aria-label={label}
         value={value instanceof Date ? value.toISOString().slice(0, 10) : value}
         onCommit={(next) => onChange(next || null)}
-        className="h-7"
+        className={valueField}
       />
     )
   if (value === null || typeof value === 'string')
@@ -99,7 +109,7 @@ function PropertyValue({
         value={value ?? ''}
         placeholder="Empty"
         onCommit={(next) => onChange(next || null)}
-        className="h-7"
+        className={valueField}
       />
     )
   return (
@@ -123,18 +133,25 @@ export function PropertiesEditor({
 }) {
   if (properties === null)
     return (
-      <p className="px-12 pt-4 text-xs text-ink-faint">
+      <p className={`${column} pt-4 text-xs text-ink-faint`}>
         This note’s frontmatter is not a list of properties, so it is left as
         written.
       </p>
     )
   const entries = Object.entries(properties)
   return (
-    <section aria-label="Properties" className="px-12 pt-5">
+    <section
+      aria-label="Properties"
+      // The note's header: closed off from the body by a hairline.
+      className={`${column} border-b border-separator pt-6 pb-2`}
+    >
       {entries.length > 0 && (
-        <dl className="grid grid-cols-[minmax(6rem,10rem)_1fr_auto] items-center gap-x-2 gap-y-1 text-sm">
+        <dl className="grid grid-cols-[8rem_1fr_auto] items-center gap-x-4 text-sm">
           {entries.map(([key, value]) => (
-            <div key={key} className="contents">
+            <div
+              key={key}
+              className="group/row col-span-3 grid grid-cols-subgrid items-center"
+            >
               <dt className="truncate text-ink-muted" title={key}>
                 {key}
               </dt>
@@ -150,6 +167,8 @@ export function PropertiesEditor({
                   size="icon-xs"
                   variant="ghost"
                   aria-label={`Remove ${key}`}
+                  // Shown for the row in hand, so the values read as a list.
+                  className="opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
                   onClick={() => onChange(key, undefined)}
                 >
                   <Icon.Close />
@@ -167,7 +186,8 @@ export function PropertiesEditor({
           const key = name.trim()
           if (key && !(key in properties)) onChange(key, null)
         }}
-        className="mt-1 h-7 max-w-48 border-transparent text-ink-faint hover:border-input"
+        // A quiet row under the last value, its text in line with the keys.
+        className="-ms-2.5 mt-1 h-7 max-w-48 border-transparent bg-transparent text-ink-faint hover:bg-hover dark:bg-transparent"
       />
     </section>
   )

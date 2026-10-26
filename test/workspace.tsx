@@ -50,7 +50,10 @@ export function fakeWorkspace(
     path?: string
     /** Answers for the index's queries, which the fake does not compute. */
     answers?: Partial<
-      Pick<WorkspaceClient, 'links' | 'backlinks' | 'search' | 'tags'>
+      Pick<
+        WorkspaceClient,
+        'links' | 'backlinks' | 'graph' | 'search' | 'tags' | 'theorem'
+      >
     >
   } = {},
 ): FakeWorkspace {
@@ -188,6 +191,7 @@ export function fakeWorkspace(
     },
     links: () => Promise.resolve([]),
     backlinks: () => Promise.resolve([]),
+    graph: () => Promise.resolve({ notes: [], links: [] }),
     search: () => Promise.resolve([]),
     tags: () => Promise.resolve([]),
     properties: async (p) => {

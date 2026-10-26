@@ -133,7 +133,6 @@ function FileDockPanel({
   }, [api, params.path])
   return <FilePanel projectId={params.projectId} path={params.path} />
 }
-
 /** A focused note. Notes belong to the project, so they stay across conversations. */
 function NoteDockPanel({
   api,
@@ -283,7 +282,6 @@ function openSide(
   }
   openBeside(api, sized, THREAD, 0.55)
 }
-
 function openArtifact(api: DockviewApi, artifactId: string) {
   openSide(api, {
     id: artifactPanelId(artifactId),
@@ -345,7 +343,6 @@ function springMaximize(dock: DockviewApi) {
     }),
   ]
 }
-
 /** Notes join the open note tabs, else open beside the conversation. */
 function openNote(api: DockviewApi, documentId: string) {
   const id = `${NOTE}${documentId}`
@@ -422,7 +419,10 @@ export function DockShell({
       dock: { open: (documentId) => openNote(dock, documentId) },
     })
     useWorkspaceFileView.setState({
-      dock: { open: (file) => openWorkspaceFilePanel(dock, file, THREAD) },
+      dock: {
+        open: (file, replacing) =>
+          openWorkspaceFilePanel(dock, file, THREAD, replacing),
+      },
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     const listeners = [
