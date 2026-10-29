@@ -284,9 +284,11 @@ function refresh(settings: Config, refreshToken: string) {
       ),
     )
     refreshes.set(refreshToken, pending)
-    const forget = () =>
-      setTimeout(() => refreshes.delete(refreshToken), 60_000)
-    pending.then(forget, forget)
+    // A failed refresh is not kept, so the next request tries again.
+    pending.then(
+      () => setTimeout(() => refreshes.delete(refreshToken), 60_000),
+      () => refreshes.delete(refreshToken),
+    )
   }
   return pending
 }
@@ -309,9 +311,15 @@ export async function personBearer(): Promise<string | undefined> {
   }
   try {
     keep(current, await refresh(settings, current.refreshToken))
-  } catch {
-    current.destroy()
-    return undefined
+  } catch (error) {
+    // While Theorem is unreachable (a deploy, say) the session stays and a
+    // later request refreshes it. A refused refresh token signs the person
+    // out without clearing the cookie: Theorem rotates refresh tokens, so the
+    // refusal may be a request that lost a race with a refresh another worker
+    // made, and an emptied cookie would overwrite the one that refresh set.
+    return error instanceof oauth.ResponseBodyError
+      ? undefined
+      : current.accessToken
   }
   await current.save()
   return current.accessToken
