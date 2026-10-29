@@ -382,7 +382,9 @@ export function Inspector({
                 Ask Theorem
               </Button>
             </div>
+            {/* Keyed so one document's failed or unfinished write never shows on another. */}
             <Filing
+              key={documentId}
               documentId={documentId}
               revision={summary.revision}
               scope={scope}

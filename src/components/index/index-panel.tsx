@@ -123,10 +123,17 @@ function QuickSearch({ scope }: { scope: Scope }) {
               {item.title}
             </Row>
           ))}
-          {!found.isPending && !items.length && (
+          {found.error ? (
             <p className="px-2 py-1.5 text-sm text-ink-faint-sheet">
-              No matches.
+              {describeError(found.error)}
             </p>
+          ) : (
+            found.isSuccess &&
+            !items.length && (
+              <p className="px-2 py-1.5 text-sm text-ink-faint-sheet">
+                No matches.
+              </p>
+            )
           )}
         </div>
       )}
