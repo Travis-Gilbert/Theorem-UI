@@ -100,6 +100,55 @@ test('unconfigured sign-in renders a recoverable login error', async () => {
     ),
   ).toBe('configuration')
 })
+
+test('HTTP sign-in upgrades before setting cookies and sends an HTTPS callback', async () => {
+  const response = await signIn(
+    new Request('http://theorem.rs/auth/sign-in?returnTo=%2Fc%2Fthread'),
+  )
+  expect(response.headers.get('location')).toBe(
+    'https://theorem.rs/auth/sign-in?returnTo=%2Fc%2Fthread',
+  )
+  expect(cookies.size).toBe(0)
+  const secureResponse = await signIn(
+    new Request(response.headers.get('location')),
+  )
+  expect(
+    new URL(secureResponse.headers.get('location')).searchParams.get(
+      'redirect_uri',
+    ),
+  ).toBe('https://theorem.rs/auth/callback')
+})
+
+test('HTTP callback upgrades without consuming the pending session or code', async () => {
+  const { authorization } = await begin()
+  const cookie = cookies.get('theorem_session')
+  const insecure = new URL(callback(authorization).url)
+  insecure.protocol = 'http:'
+  const response = await signInCallback(new Request(insecure))
+  expect(response.headers.get('location')).toBe(callback(authorization).url)
+  expect(cookies.get('theorem_session')).toBe(cookie)
+  expect(exchanges).toBe(0)
+  expect(
+    (
+      await signInCallback(new Request(response.headers.get('location')))
+    ).headers.get('location'),
+  ).toBe('/c/thread?view=chat')
+})
+
+test('local development keeps loopback HTTP callbacks', async () => {
+  for (const origin of [
+    'http://localhost:3011',
+    'http://127.0.0.1:3011',
+    'http://[::1]:3011',
+  ]) {
+    const response = await signIn(new Request(origin + '/auth/sign-in'))
+    expect(
+      new URL(response.headers.get('location')).searchParams.get(
+        'redirect_uri',
+      ),
+    ).toBe(origin + '/auth/callback')
+  }
+})
 test('start creates a sealed, HttpOnly pending session and PKCE request', async () => {
   const { response, authorization } = await begin()
   expect(response.headers.get('cache-control')).toBe('no-store')

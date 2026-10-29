@@ -25,3 +25,11 @@ The user identified theorem.rs as canonical and theoremweb.com as abandoned. The
 The change is prepared for review, not deployed. Deployment to theorem.rs is separate from the already-authorized Mott subdomain deployment. After deployment, the user must complete GitHub authentication in their regular browser and confirm that projects load and a reload retains the session. If it still fails, use the displayed error category to diagnose the authority/callback; do not claim the original live reload was reproduced or fixed by these tests.
 
 The Mott project and a restricted project credential remain unprovisioned. A successful personal login does not itself configure or enable the public Mott runtime.
+
+## HTTP callback mismatch, October 28, 2026
+
+The user supplied the authority error `redirect_uri is not registered for client_id` after the first deployment. Reproduced it exactly: `http://theorem.rs/auth/sign-in` generated `redirect_uri=http://theorem.rs/auth/callback`, which the authority rejected with HTTP 400. Both configured HTTPS origins were accepted and redirected to GitHub. Reaching GitHub in the earlier HTTPS-only check did not cover this entry path.
+
+Sign-in and callback now upgrade non-loopback HTTP requests to the same HTTPS URL before reading/writing the session or deriving the OAuth callback. This preserves return destinations and callback parameters, keeps the pending session intact, and leaves localhost development unchanged. The registered redirect allowlist and OAuth scopes are unchanged.
+
+Validation: 13 tests / 43 assertions pass, including HTTP entry, HTTP callback with an existing pending session, and all three loopback hosts. TypeScript, focused ESLint, production build and full Cloudflare dry run pass. The unchanged embedded IDE production assets were reused from the prior reviewed release.

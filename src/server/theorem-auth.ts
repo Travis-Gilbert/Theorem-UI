@@ -123,6 +123,18 @@ const redirect = (location: string) =>
     },
   })
 
+/** Upgrade before writing a Secure cookie or deriving the registered callback. */
+function requireSecureAuth(request: Request): Response | undefined {
+  const url = new URL(request.url)
+  if (
+    url.protocol === 'http:' &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  ) {
+    url.protocol = 'https:'
+    return redirect(url.href)
+  }
+}
+
 function unconfigured(detail: string) {
   return Response.json(
     { title: 'Sign-in is not configured', status: 503, detail },
@@ -131,6 +143,8 @@ function unconfigured(detail: string) {
 }
 
 export async function signIn(request: Request) {
+  const upgrade = requireSecureAuth(request)
+  if (upgrade) return upgrade
   const returnTo = safeReturnTo(
     new URL(request.url).searchParams.get('returnTo'),
   )
@@ -168,6 +182,8 @@ export async function signIn(request: Request) {
 }
 
 export async function signInCallback(request: Request) {
+  const upgrade = requireSecureAuth(request)
+  if (upgrade) return upgrade
   const settings = config()
   if (typeof settings === 'string')
     return redirect(loginFailureHref('configuration'))
