@@ -211,3 +211,12 @@ rendered the permission explanation and `chatreq-render-check` reference; it
 showed no raw SDK/JSON dump and the full explanation wrapped visibly. This is
 rendering evidence, not a live backend/provider acceptance test. The temporary
 fixture files were removed. No UI deployment has been performed by this repair.
+
+
+Release checks: `NITRO_PRESET=cloudflare_module bun --bun vite build` also
+completed successfully in the isolated checkout. Cloudflare's automatic
+Workers build for PR #19 reported failure (build
+`0169025f-e42c-4ef5-b798-689bb00848e6`). Its dashboard requires sign-in and the
+available Wrangler OAuth token receives 403 from the build-log API, so the
+remote failure's cause is unverified. Do not treat the local build as a
+successful remote build or deployment.
