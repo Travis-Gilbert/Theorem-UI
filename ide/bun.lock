@@ -71,7 +71,7 @@
         "@theia/terminal": "1.76.0",
         "@theia/userstorage": "1.76.0",
         "@theia/workspace": "1.76.0",
-        "@theoremharness/sdk": "file:../../../vendor/theoremharness-sdk-0.4.0.tgz",
+        "@theoremharness/sdk": "file:../../../vendor/theoremharness-sdk-0.5.0.tgz",
         "penpal": "8.0.1",
       },
       "devDependencies": {
@@ -367,7 +367,7 @@
 
     "@theia/workspace": ["@theia/workspace@1.76.0", "", { "dependencies": { "@theia/core": "1.76.0", "@theia/filesystem": "1.76.0", "@theia/variable-resolver": "1.76.0", "jsonc-parser": "^3.3.1", "tslib": "^2.8.1", "valid-filename": "^2.0.1" } }, "sha512-KxR85wdO1HFB3P30zozHp2X/m2BSjeB8VyRQdS/360qOl6rZksJPIfHlDedlbZiD/j6gbVgWnwHVAagZTWn8BA=="],
 
-    "@theoremharness/sdk": ["@theoremharness/sdk@../../../vendor/theoremharness-sdk-0.4.0.tgz", { "peerDependencies": { "@assistant-ui/react": ">=0.15.30 <0.16.0" }, "optionalPeers": ["@assistant-ui/react"] }, "sha512-QuD+WEk6q218Rl7y3K4t2tT8UW0wi/3KtfbFJpItwTNSVj1FQDAXfYzJMD2sn/RTMyMwMl1SevdR+EX+R2hBLA=="],
+    "@theoremharness/sdk": ["@theoremharness/sdk@../../../vendor/theoremharness-sdk-0.5.0.tgz", { "peerDependencies": { "@assistant-ui/react": ">=0.15.30 <0.16.0" }, "optionalPeers": ["@assistant-ui/react"] }, "sha512-CTRBe2mARvGZ5ethVoY4tWanGK+OwYRpiqax34U+Eq//3RYk0q/f3ndTb7nit7Z6d9GMx448D4bdAO0R9qlV+A=="],
 
     "@tootallnate/once": ["@tootallnate/once@2.0.1", "", {}, "sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ=="],
 
