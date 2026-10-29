@@ -40,7 +40,7 @@ import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { follow } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { describeError, mutate, theorem } from '@/lib/theorem/client'
+import { describeError, describeRunFailure, mutate, theorem } from '@/lib/theorem/client'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -576,11 +576,10 @@ const ErrorPart: DataMessagePartComponent = ({ data }) => {
       className="my-3 max-w-md rounded-lg bg-error-container px-4 py-3 text-sm text-error-ink"
     >
       <p className="font-medium">
-        {str(part.message) ?? 'The run reported an error.'}
+        {describeRunFailure(part)}
       </p>
       <p className="mt-0.5 font-mono text-xs opacity-80">
         {str(part.code) ?? 'error'}
-        {part.recoverable === true && ' · use Refresh to try again'}
       </p>
     </div>
   )

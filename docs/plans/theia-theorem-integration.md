@@ -179,3 +179,44 @@ download:plugins` in `ide/`), so the editor has no grammars yet. Files then
 - The host test `a11_installed_host_coding_loop_edit_test_debug_scm_conflict_reopen`
   fails at `tests/common/mod.rs:126`; the other host tests pass. Not yet
   diagnosed.
+
+## Conversational-send repair, 2026-10-29
+
+The deployed personal backend reproduces the known `{text}` versus `{parts}`
+contract mismatch above. The backend repair is being integrated separately on
+Theorem main (branch `Travis-Gilbert/chat-send-errors`), preserving the old
+append API and adding the send/run path with pending-turn replay.
+
+The UI now presents structured API details and correlation references instead
+of the SDK exception dump. If the response body is absent or malformed, HTTP
+status selects the fallback. A partial send explicitly says the message was
+saved. Error text wraps without a two-line truncation. The runtime formats only
+after reconnect handling, retaining the original exception as its cause.
+
+Run failures also use the public event's stage-specific explanation and
+request reference, including saved error parts. The SDK fetch hook journals
+only the send body, idempotency key and revision in sessionStorage. Reload and
+retry reuse them with fresh CSRF, finite timeout and cancellation. Known
+precommit model refusals clear the journal; ambiguous network failures retain
+it. Failed recovery still allows saved history to load. This is a narrow
+compatibility layer for the installed SDK, which discards a failed send's key.
+
+Verification: the formatter and recovery suites pass 15 tests, including an
+actual SDK adapter send followed by recovery through a fresh journal owner.
+The initial formatter regression failed 8 tests before the implementation. After `sh terminal/build.sh` generated
+the required WASM bindings, `bun run typecheck` and focused ESLint passed.
+The real Thread and TheoremRuntimeProvider were also exercised in the in-app
+browser against a temporary 403 response fixture. Sending through the real SDK
+rendered the permission explanation and `chatreq-render-check` reference; it
+showed no raw SDK/JSON dump and the full explanation wrapped visibly. This is
+rendering evidence, not a live backend/provider acceptance test. The temporary
+fixture files were removed. No UI deployment has been performed by this repair.
+
+
+Release checks: `NITRO_PRESET=cloudflare_module bun --bun vite build` also
+completed successfully in the isolated checkout. Cloudflare's automatic
+Workers build for PR #19 reported failure (build
+`0169025f-e42c-4ef5-b798-689bb00848e6`). Its dashboard requires sign-in and the
+available Wrangler OAuth token receives 403 from the build-log API, so the
+remote failure's cause is unverified. Do not treat the local build as a
+successful remote build or deployment.
