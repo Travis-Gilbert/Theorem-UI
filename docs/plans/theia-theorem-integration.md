@@ -235,3 +235,10 @@ Both the complete local Worker build and the `WORKERS_CI=1 bun run build` path
 passed, as did TypeScript and all 15 chat error/recovery tests. The Cloudflare
 build-log API still returns 403 with the refreshed CLI OAuth session, so the
 original remote build log remains unavailable. Deployment verification is pending.
+
+Production inspection found Worker version `dc5ca764-bcab-4279-8dae-cf0b193b076a`
+was built from `cb63a36` (PR #18), whose sign-in recovery and HTTPS callback fixes
+had not reached main. The release branch includes that deployed commit to avoid
+regressing sign-in. The combined release passes the complete CI-selected build,
+TypeScript, and 31 chat/authentication tests. PR #21 carries the build repair and
+this preservation of the deployed source; PR #18's original target is unchanged.
