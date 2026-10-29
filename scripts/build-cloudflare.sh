@@ -9,17 +9,27 @@ cd "$(dirname "$0")/.."
 
 if ! command -v cargo >/dev/null 2>&1; then
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
-    sh -s -- -y --profile minimal --target wasm32-unknown-unknown
+    sh -s -- -y --profile minimal
   . "$HOME/.cargo/env"
+fi
+# terminal/build.sh compiles for wasm32. A toolchain without rustup has to
+# carry the target already.
+if command -v rustup >/dev/null 2>&1; then
+  rustup target add wasm32-unknown-unknown
 fi
 
 # terminal/build.sh needs the wasm-bindgen CLI at the crate's pinned version.
-# The prebuilt release is for x86_64 Linux, which is what Workers Builds runs.
+# Workers Builds runs on x86_64 Linux, which has a prebuilt release; anywhere
+# else cargo builds it.
 if ! command -v wasm-bindgen >/dev/null 2>&1; then
   version=$(sed -n 's/^wasm-bindgen = "=\([^"]*\)".*/\1/p' terminal/Cargo.toml)
-  release="wasm-bindgen-$version-x86_64-unknown-linux-musl"
-  curl -sSfL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$version/$release.tar.gz" |
-    tar -xz -C "$HOME/.cargo/bin" --strip-components=1 "$release/wasm-bindgen"
+  if [ "$(uname -sm)" = "Linux x86_64" ]; then
+    release="wasm-bindgen-$version-x86_64-unknown-linux-musl"
+    curl -sSfL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$version/$release.tar.gz" |
+      tar -xz -C "$HOME/.cargo/bin" --strip-components=1 "$release/wasm-bindgen"
+  else
+    cargo install wasm-bindgen-cli --version "$version" --locked
+  fi
 fi
 
 # The IDE is a Bun workspace of its own, with a hoisted node_modules.
