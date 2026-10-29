@@ -220,3 +220,18 @@ Workers build for PR #19 reported failure (build
 available Wrangler OAuth token receives 403 from the build-log API, so the
 remote failure's cause is unverified. Do not treat the local build as a
 successful remote build or deployment.
+
+### 2026-10-29 Cloudflare release repair
+
+After PR #19 merged, a complete clean-checkout build exposed an IDE dependency
+on the removed `theoremharness-sdk-0.4.0.tgz` archive. The IDE manifest and lockfile
+now use the same checked-in 0.5.0 archive as the app. `build:cloudflare` installs
+the locked IDE dependencies and builds terminal WASM, the IDE extensions, the
+Theia frontend, and the Worker in order. `bun run build` selects this pipeline
+when Cloudflare sets `WORKERS_CI=1`; CI provisions the pinned Rust toolchain and
+matching wasm-bindgen CLI. The terminal build enforces its checked-in lockfile.
+
+Both the complete local Worker build and the `WORKERS_CI=1 bun run build` path
+passed, as did TypeScript and all 15 chat error/recovery tests. The Cloudflare
+build-log API still returns 403 with the refreshed CLI OAuth session, so the
+original remote build log remains unavailable. Deployment verification is pending.

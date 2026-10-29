@@ -44,7 +44,9 @@ bun run lint
 
 ### Cloudflare
 
-`bun run deploy:cloudflare` builds Theia for production, builds the app with Nitro's `cloudflare_module` preset and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain, `THEOREM_API_URL` and OAuth client id are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB.
+`bun run build:cloudflare` installs the IDE's locked dependencies, builds the terminal WebAssembly and Theia for production, then builds the app with Nitro's `cloudflare_module` preset. `bun run deploy:cloudflare` runs that complete build and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain, `THEOREM_API_URL` and OAuth client id are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB.
+
+For Workers Builds, use `bun run build` as the build command and `bunx wrangler deploy` as the deploy command. Cloudflare's `WORKERS_CI=1` selects the complete Worker build automatically. Set `BUN_VERSION=1.4.3` (the version used by both lockfiles). In Workers CI the build provisions the pinned Rust toolchain and the wasm-bindgen CLI version declared in `terminal/Cargo.toml`; local builds use the installed tools. The generated Worker config is discovered through `.wrangler/deploy/config.json`.
 
 People sign in at the personal Theorem (`travis-theorem-personal.fly.dev`), which lists the `theorem-ui` client with its redirect URIs and the extra `models:invoke` scope in `RUSTY_RED_OAUTH_CLIENTS_JSON` on its store. Set the session secret once:
 
