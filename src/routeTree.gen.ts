@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as InstallRouteImport } from './routes/install'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
@@ -58,6 +59,11 @@ const ChatRoute = ChatRouteImport.update({
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
   path: '/install',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -279,6 +285,7 @@ const V1TheoremAgentStreamSplatRoute =
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
@@ -320,6 +327,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
@@ -364,6 +372,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/vault': typeof ChatVaultRoute
@@ -409,6 +418,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/install'
+    | '/login'
     | '/ide'
     | '/spaces'
     | '/vault'
@@ -450,6 +460,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/install'
+    | '/login'
     | '/ide'
     | '/spaces'
     | '/vault'
@@ -493,6 +504,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_chat'
     | '/install'
+    | '/login'
     | '/_chat/ide'
     | '/_chat/spaces'
     | '/_chat/vault'
@@ -537,6 +549,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
   InstallRoute: typeof InstallRoute
+  LoginRoute: typeof LoginRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
@@ -587,6 +600,13 @@ declare module '@tanstack/react-router' {
       path: '/install'
       fullPath: '/install'
       preLoaderRoute: typeof InstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_chat/': {
@@ -886,6 +906,7 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
   InstallRoute: InstallRoute,
+  LoginRoute: LoginRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
