@@ -36,6 +36,7 @@ import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError, describeRunFailure, recoverPendingSend, mutate, mutateThread, theorem } from './client'
 import type { Theorem } from './client'
+import { toHistoryMessages } from './message-history'
 
 const TERMINAL = new Set(['RUN.CLOSED', 'RUN.FAILED', 'RUN.CANCELLED'])
 
@@ -270,7 +271,7 @@ export function createHistoryAdapter(
           !runId || message.runId !== runId || message.role === 'user',
       )
       const repository = ExportedMessageRepository.fromArray(
-        toAssistantMessages(settled, snapshot.thread),
+        toHistoryMessages(settled, snapshot.thread),
       )
       return runId || recoveryError ? { ...repository, unstable_resume: true } : repository
     },

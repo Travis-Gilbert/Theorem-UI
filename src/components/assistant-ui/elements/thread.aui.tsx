@@ -31,6 +31,7 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { hasTheoremError } from "@/lib/theorem/message-history";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -580,6 +581,8 @@ const ComposerAction: FC = () => {
 };
 
 const MessageError: FC = () => {
+  const hasErrorPart = useAuiState((s) => hasTheoremError(s.message.content));
+  if (hasErrorPart) return null;
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="aui-message-error-root bg-error-container text-error-ink mt-2 rounded-lg px-4 py-3 text-sm">
