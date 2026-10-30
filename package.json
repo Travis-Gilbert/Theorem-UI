@@ -8,10 +8,10 @@
   "scripts": {
     "dev": "sh terminal/build.sh && bun --bun vite dev --port 3000",
     "generate-routes": "tsr generate",
-    "build": "sh terminal/build.sh && bun --bun vite build",
+    "build": "sh scripts/build.sh",
+    "build:cloudflare": "sh scripts/build-cloudflare.sh",
     "build:terminal": "sh terminal/build.sh",
     "start": "bun run .output/server/index.mjs",
-    "build:cloudflare": "sh scripts/build-cloudflare.sh",
     "deploy:cloudflare": "bun run build:cloudflare && wrangler deploy",
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",

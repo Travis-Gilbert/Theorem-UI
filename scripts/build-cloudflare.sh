@@ -1,40 +1,34 @@
 #!/bin/sh
 # Builds the theorem-ui Worker: the agent terminal's WebAssembly, the
 # browser-only Theia IDE served under /theia, then the app with Nitro's
-# cloudflare_module preset. Workers Builds runs this on an image with Bun but
-# no Rust and without the IDE's own dependencies, so those are fetched when
-# missing; a machine that already has them goes straight to the build.
+# cloudflare_module preset.
 set -eu
 cd "$(dirname "$0")/.."
 
-if ! command -v cargo >/dev/null 2>&1; then
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
-    sh -s -- -y --profile minimal
-  . "$HOME/.cargo/env"
-fi
-# terminal/build.sh compiles for wasm32. A toolchain without rustup has to
-# carry the target already.
-if command -v rustup >/dev/null 2>&1; then
-  rustup target add wasm32-unknown-unknown
-fi
-
-# terminal/build.sh needs the wasm-bindgen CLI at the crate's pinned version.
-# Workers Builds runs on x86_64 Linux, which has a prebuilt release; anywhere
-# else cargo builds it.
-if ! command -v wasm-bindgen >/dev/null 2>&1; then
-  version=$(sed -n 's/^wasm-bindgen = "=\([^"]*\)".*/\1/p' terminal/Cargo.toml)
-  if [ "$(uname -sm)" = "Linux x86_64" ]; then
-    release="wasm-bindgen-$version-x86_64-unknown-linux-musl"
-    curl -sSfL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$version/$release.tar.gz" |
-      tar -xz -C "$HOME/.cargo/bin" --strip-components=1 "$release/wasm-bindgen"
-  else
-    cargo install wasm-bindgen-cli --version "$version" --locked
+# Workers Builds starts from a clean checkout. Provision the Rust tools only
+# there; local developers keep their existing toolchain and credentials.
+if [ "${WORKERS_CI:-}" = 1 ]; then
+  if ! command -v rustup >/dev/null 2>&1; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/theorem-rustup-init.sh
+    sh /tmp/theorem-rustup-init.sh -y --profile minimal --default-toolchain 1.96.1
+    . "$HOME/.cargo/env"
+  fi
+  rustup toolchain install 1.96.1 --profile minimal --target wasm32-unknown-unknown
+  bindgen_version=$(bun -e 'const manifest = Bun.TOML.parse(await Bun.file("terminal/Cargo.toml").text()); console.log(manifest.dependencies["wasm-bindgen"].replace(/^=/, ""))')
+  if [ "$(wasm-bindgen --version 2>/dev/null || true)" != "wasm-bindgen $bindgen_version" ]; then
+    # The build image is x86_64 Linux, which has a prebuilt release; anywhere
+    # else cargo builds it.
+    if [ "$(uname -sm)" = "Linux x86_64" ]; then
+      release="wasm-bindgen-$bindgen_version-x86_64-unknown-linux-musl"
+      curl -sSfL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$bindgen_version/$release.tar.gz" |
+        tar -xz -C "$HOME/.cargo/bin" --strip-components=1 "$release/wasm-bindgen"
+    else
+      cargo +1.96.1 install wasm-bindgen-cli --version "$bindgen_version" --locked
+    fi
   fi
 fi
 
-# The IDE is a Bun workspace of its own, with a hoisted node_modules.
-[ -d ide/node_modules ] || bun install --cwd ide --frozen-lockfile
-
+bun install --cwd ide --frozen-lockfile
 sh terminal/build.sh
 bun run --cwd ide build:extensions
 bun run --cwd ide/applications/browser build:prod
