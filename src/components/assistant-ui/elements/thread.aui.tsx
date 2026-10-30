@@ -581,7 +581,11 @@ const ComposerAction: FC = () => {
 };
 
 const MessageError: FC = () => {
-  const hasErrorPart = useAuiState((s) => hasTheoremError(s.message.content));
+  const hasErrorPart = useAuiState((s) => {
+    const status = s.message.status;
+    const error = status?.type === "incomplete" ? status.error : undefined;
+    return typeof error === "string" && hasTheoremError(s.message.content, error);
+  });
   if (hasErrorPart) return null;
   return (
     <MessagePrimitive.Error>

@@ -31,6 +31,16 @@ test('a failed turn renders one contextual error, and a plain runtime failure re
   expect(container.textContent).toContain('chatreq-render')
   expect(container.querySelector('.aui-message-error-root')).toBeNull()
   await rerender(<Harness messages={[{
+    id: 'distinct', role: 'assistant',
+    status: { type: 'incomplete', reason: 'error', error: 'The connection was interrupted.' },
+    content: [{ type: 'data', name: 'theorem-error', data: {
+      code: 'agent_iteration_limit', message: explanation, correlationId: 'chatreq-render',
+    } }],
+  }]} />)
+  await waitFor(() => container.querySelector('.aui-message-error-root'))
+  expect(container.textContent).toContain(explanation)
+  expect(container.textContent).toContain('The connection was interrupted.')
+  await rerender(<Harness messages={[{
     id: 'transport', role: 'assistant', content: [{ type: 'text', text: 'Partial answer' }],
     status: { type: 'incomplete', reason: 'error', error: 'The connection was interrupted.' },
   }]} />)

@@ -4,10 +4,14 @@ import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import type { ThreadMessageLike } from '@assistant-ui/react'
 import { describeRunFailure } from './client'
 
-export function hasTheoremError(content: ThreadMessageLike['content']): boolean {
-  return Array.isArray(content) && content.some(
-    (part) => part.type === 'data' && part.name === 'theorem-error',
-  )
+export function hasTheoremError(content: ThreadMessageLike['content'], message?: string): boolean {
+  return Array.isArray(content) && content.some((part) => {
+    if (part.type !== 'data' || part.name !== 'theorem-error') return false
+    if (message === undefined) return true
+    const data = part.data && typeof part.data === 'object' && !Array.isArray(part.data)
+      ? part.data as Record<string, unknown> : {}
+    return describeRunFailure(data) === message || data.message === message
+  })
 }
 
 export function toHistoryMessages(
