@@ -36,6 +36,8 @@ export default [
       'prettier.config.js',
       'Theorem-UI/**',
       'ide/**',
+      // The marketing site at join.theorem.rs: its own package and checks.
+      'site/**',
       'dist/**',
       '.delta/**',
       '.output/**',
