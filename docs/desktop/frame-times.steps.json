@@ -1,0 +1,29 @@
+[
+  {
+    "until": {
+      "js": "document.readyState === 'complete' && !!document.querySelector('#root, main, body > div')",
+      "timeout": 30000
+    }
+  },
+  {
+    "wait": 3000
+  },
+  "frames",
+  {
+    "js": "(() => {\n  const box = document.createElement('div');\n  box.id = 'theorem-spike-box';\n  box.style.cssText = 'position:fixed;left:40px;bottom:40px;width:120px;height:120px;border-radius:12px;z-index:99999;pointer-events:none';\n  document.body.appendChild(box);\n  const started = performance.now();\n  window.theoremSpike = { callbacks: 0, done: false };\n  const tick = (now) => {\n    const t = (now - started) / 1000;\n    window.theoremSpike.callbacks += 1;\n    box.style.transform = `translateX(${Math.round(300 + 280 * Math.sin(t * 2))}px) rotate(${Math.round(t * 90)}deg)`;\n    box.style.background = `hsl(${Math.round(t * 72) % 360} 70% 55%)`;\n    if (t < 6) requestAnimationFrame(tick); else window.theoremSpike.done = true;\n  };\n  requestAnimationFrame(tick);\n  return 'started';\n})()\n"
+  },
+  {
+    "until": {
+      "js": "window.theoremSpike && window.theoremSpike.done",
+      "timeout": 15000
+    }
+  },
+  "frames",
+  {
+    "js": "JSON.stringify(window.theoremSpike)"
+  },
+  {
+    "capture": "page"
+  },
+  "quit"
+]

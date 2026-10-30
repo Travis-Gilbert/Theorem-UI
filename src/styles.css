@@ -129,6 +129,19 @@
   --link: #005cc5;
 
   --radius: 0.5rem;
+
+  /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
+     green tags, yellow attachments; from Theorem, teal plans and violet
+     agents' documents. Plain colours, since WebGL reads them. */
+  --graph-note: #4a4b46;
+  --graph-plan: #2c7a72;
+  --graph-agent: #6b5ba6;
+  --graph-tag: #4f7d2c;
+  --graph-attachment: #a8841a;
+  --graph-unresolved: #85827d;
+  --graph-link: #9a9590;
+  --graph-active: var(--redwood);
+  --graph-label: var(--ink);
 }
 
 /* GitHub Sharp Dark: the activity bar's near-black for the rail, the editor's
@@ -181,6 +194,15 @@
   --shadow-tint: 0 0 0;
   --popover: var(--surface-raised);
   --link: #7ea8d6;
+
+  --graph-note: #c9c9c9;
+  --graph-plan: #5fc2b5;
+  --graph-agent: #a898e6;
+  --graph-tag: #79c05a;
+  --graph-attachment: #e2c048;
+  --graph-unresolved: #5e5e5e;
+  --graph-link: #4a4a4a;
+  --graph-label: #d6d6d6;
 }
 
 /* Stone (DESIGN.md), the warm palette the app was authored in. */
@@ -475,6 +497,9 @@
 @theme {
   --text-sm: 13px;
   --text-base: 15px;
+  /* A note's reading column (max-w-note): about 75 characters of body text,
+     shared by the properties above it so both start on one edge. */
+  --container-note: 42rem;
 }
 
 /* Motion (src/lib/motion.ts). The spring curves are anime.js springs that
@@ -691,6 +716,20 @@
     background-color: currentColor;
     mask: var(--icon-mask) center / contain no-repeat;
   }
+
+  /* Without CSS masks (Servo 0.7) the mask would leave a solid square.
+     Paint the black mark itself, inverted to about the theme's ink; it
+     loses currentColor's hover and state colours until masks land. */
+  @supports not (mask-image: none) {
+    .icon-mask {
+      background: var(--icon-mask) center / contain no-repeat;
+      filter: invert(0.19);
+    }
+
+    .dark .icon-mask {
+      filter: invert(0.8);
+    }
+  }
 }
 
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
@@ -705,6 +744,12 @@
   background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
+
+  /* Without text clipping (Servo 0.7) the gradient would fill the box. */
+  @supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+    color: var(--ink-faint);
+    background-image: none;
+  }
 }
 
 /* Rows on the sheet sit over a gradient, so their hover is translucent ink
@@ -854,6 +899,11 @@
     background-position: 0 calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
     mask: radial-gradient(circle at 0 100%, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
   }
+
+  /* Without CSS masks (Servo 0.7) a corner would paint as a square. */
+  @supports not (mask-image: none) {
+    display: none;
+  }
 }
 
 /* @tailwindcss/typography, re-pointed at the palette tokens. A utility rather
@@ -888,4 +938,342 @@
   & a {
     text-underline-offset: 2px;
   }
+}
+
+/* Milkdown Crepe, re-pointed at the Stone tokens. Only Crepe's common sheet is
+   imported, so these are the whole theme; the tokens switch per theme. */
+.theorem-note .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--ink);
+  --crepe-color-surface: var(--surface-raised);
+  --crepe-color-surface-low: var(--surface-artifact);
+  --crepe-color-on-surface: var(--ink);
+  --crepe-color-on-surface-variant: var(--ink-muted);
+  --crepe-color-outline: var(--line-separator);
+  --crepe-color-primary: var(--redwood);
+  --crepe-color-secondary: var(--redwood-container);
+  --crepe-color-on-secondary: var(--redwood-ink);
+  --crepe-color-inverse: var(--ink);
+  --crepe-color-on-inverse: var(--surface-raised);
+  --crepe-color-inline-code: var(--redwood-ink);
+  --crepe-color-error: var(--error-ink);
+  --crepe-color-hover: var(--surface-hover);
+  --crepe-color-selected: var(--surface-selected);
+  --crepe-color-inline-area: var(--surface-frame);
+
+  --crepe-base-font-size: 16px;
+  --crepe-font-title: var(--font-heading);
+  --crepe-font-default: var(--font-sans);
+  --crepe-font-code: var(--font-mono);
+
+  --crepe-shadow-1: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
+  --crepe-shadow-2: 0 4px 12px rgb(var(--shadow-tint) / 0.22);
+}
+
+/* A page of prose: one centred reading column at the panel's width, with
+   room below the last line. Cards set their own padding below. */
+.theorem-note .milkdown .ProseMirror {
+  max-width: calc(var(--container-note) + 96px);
+  margin-inline: auto;
+  padding: 24px 48px 96px;
+  /* Prose keeps Plex's own spacing; the interface's tighter tracking stays
+     with the interface. */
+  letter-spacing: normal;
+}
+
+.theorem-note .milkdown .ProseMirror :is(p, li) {
+  line-height: 1.625;
+}
+
+/* Crepe's headings run 2.625em to 1.75em before h4, so a title shouts at the
+   body and the levels barely differ from one another. These keep each level a
+   clear step apart and the title close enough to read as the body's own. */
+.theorem-note .milkdown .ProseMirror h1 {
+  font-size: 1.875em;
+  line-height: 1.2;
+  margin-top: 40px;
+}
+
+.theorem-note .milkdown .ProseMirror h2 {
+  font-size: 1.4375em;
+  line-height: 1.3;
+  margin-top: 32px;
+}
+
+.theorem-note .milkdown .ProseMirror h3 {
+  font-size: 1.1875em;
+  line-height: 1.37;
+  margin-top: 24px;
+}
+
+.theorem-note .milkdown .ProseMirror :is(h4, h5, h6) {
+  font-size: 1.0625em;
+  line-height: 1.5;
+  margin-top: 20px;
+}
+
+/* A heading that opens the note already has the editor's padding above it.
+   Crepe puts its widget and, once focused, its virtual cursor ahead of the
+   first block, so the first block is the first child that is neither. */
+.theorem-note .milkdown .ProseMirror
+  > :first-child:not(.ProseMirror-widget, .prosemirror-virtual-cursor),
+.theorem-note .milkdown .ProseMirror
+  > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
+  + :not(.ProseMirror-widget, .prosemirror-virtual-cursor),
+.theorem-note .milkdown .ProseMirror
+  > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
+  + :is(.ProseMirror-widget, .prosemirror-virtual-cursor)
+  + * {
+  margin-top: 0;
+}
+
+/* Canvas cards: a denser editor that fits a small node. */
+.theorem-note-card .milkdown {
+  --crepe-base-font-size: 13px;
+}
+
+.theorem-note-card .milkdown .ProseMirror {
+  max-width: none;
+  padding: 12px 16px 12px 40px;
+}
+
+.theorem-note-card .milkdown .ProseMirror :is(p, li) {
+  line-height: 1.5;
+}
+
+.theorem-note-card .milkdown .ProseMirror h1 {
+  font-size: 1.75em;
+}
+
+.theorem-note-card .milkdown .ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.theorem-note-card .milkdown .ProseMirror h3 {
+  font-size: 1.25em;
+}
+
+/* An embed fence renders as a card; its language picker and copy bar would
+   only expose the JSON behind it. */
+.theorem-note .milkdown .milkdown-code-block:has(.theorem-embed) {
+  padding: 0;
+  background: transparent;
+}
+
+.theorem-note .milkdown-code-block:has(.theorem-embed) .tools {
+  display: none;
+}
+
+/* Crepe's unlayered reset strips button borders, backgrounds and padding,
+   which would outrank the card's utilities. */
+.theorem-note .milkdown .theorem-embed > [data-theorem-embed] {
+  padding: 12px;
+  border: 1px solid var(--line-separator);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--surface-raised);
+  transition: background-color 150ms;
+}
+
+.theorem-note .milkdown .theorem-embed > [data-theorem-embed]:hover {
+  background: var(--surface-hover);
+}
+
+/* The card's excerpt sits inside the editor, so Crepe's page typography would
+   reach it; an excerpt reads as one flat block. */
+.theorem-note .milkdown .theorem-embed :is(h1, h2, h3, h4, h5, h6, p, li) {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.theorem-note .milkdown .theorem-embed :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Folder notes: wikilinks, ![[embeds]] and Obsidian callouts. */
+.theorem-note .milkdown .theorem-wikilink {
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.theorem-note .milkdown .theorem-wikilink[data-unresolved] {
+  opacity: 0.65;
+  text-decoration-style: dashed;
+}
+
+.theorem-note .milkdown .theorem-wikilink[data-selected] {
+  border-radius: 3px;
+  background: var(--crepe-color-selected);
+}
+
+.theorem-note .milkdown .theorem-wiki-embed {
+  display: flex;
+  flex-direction: column;
+  max-height: 24rem;
+  margin: 4px 0;
+  overflow: hidden;
+  border: 1px solid var(--line-separator);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--surface-raised);
+}
+
+.theorem-note .milkdown .theorem-wiki-embed[data-selected] {
+  border-color: var(--focus);
+}
+
+.theorem-note .milkdown .theorem-wiki-embed-title {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--line-separator);
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.theorem-note .milkdown .theorem-wiki-embed-body {
+  min-height: 4rem;
+  font-size: 13px;
+}
+
+.theorem-note .milkdown .theorem-wiki-embed-missing {
+  padding: 8px 12px;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/* Obsidian's callout colours, as its default theme sets them. */
+.theorem-callout {
+  --callout: 8 109 221;
+}
+
+.theorem-note .milkdown .theorem-callout {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) + 2px);
+  background: rgb(var(--callout) / 0.1);
+}
+
+.theorem-callout:is([data-callout='abstract'], [data-callout='summary'], [data-callout='tldr'], [data-callout='tip'], [data-callout='hint'], [data-callout='important']) {
+  --callout: 0 191 188;
+}
+
+.theorem-callout:is([data-callout='success'], [data-callout='check'], [data-callout='done']) {
+  --callout: 8 185 78;
+}
+
+.theorem-callout:is([data-callout='question'], [data-callout='help'], [data-callout='faq'], [data-callout='warning'], [data-callout='caution'], [data-callout='attention']) {
+  --callout: 236 117 0;
+}
+
+.theorem-callout:is([data-callout='failure'], [data-callout='fail'], [data-callout='missing'], [data-callout='danger'], [data-callout='error'], [data-callout='bug']) {
+  --callout: 233 49 71;
+}
+
+.theorem-callout[data-callout='example'] {
+  --callout: 120 82 238;
+}
+
+.theorem-callout:is([data-callout='quote'], [data-callout='cite']) {
+  --callout: 158 158 158;
+}
+
+.theorem-note .milkdown .theorem-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--callout));
+  font-weight: 600;
+}
+
+.theorem-note .milkdown .theorem-callout-title select {
+  max-width: 7rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.theorem-note .milkdown .theorem-callout-title input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.theorem-note .milkdown .theorem-callout-title input::placeholder {
+  color: rgb(var(--callout) / 0.7);
+}
+
+.theorem-note .milkdown .theorem-callout-title button {
+  cursor: pointer;
+}
+
+.theorem-note .milkdown .theorem-callout-title button[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+
+.theorem-note .milkdown .theorem-callout-content > :first-child {
+  margin-top: 4px;
+}
+
+.theorem-note .milkdown .theorem-callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+/* React Flow, re-pointed at the Stone tokens. */
+.react-flow {
+  --xy-background-color: var(--surface-neutral);
+  --xy-background-pattern-color: var(--line-separator);
+  --xy-edge-stroke: var(--ink-faint);
+  --xy-edge-stroke-selected: var(--focus);
+  --xy-connectionline-stroke: var(--focus);
+  --xy-handle-background-color: var(--surface-raised);
+  --xy-handle-border-color: var(--line-control);
+  --xy-selection-background-color: color-mix(in srgb, var(--focus) 10%, transparent);
+  --xy-selection-border: 1px dotted var(--focus);
+  --xy-minimap-background-color: var(--surface-raised);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--surface-frame) 60%, transparent);
+  --xy-minimap-node-background-color: var(--surface-selected);
+  --xy-minimap-node-stroke-color: transparent;
+  --xy-controls-button-background-color: var(--surface-raised);
+  --xy-controls-button-background-color-hover: var(--surface-hover);
+  --xy-controls-button-color: var(--ink-muted);
+  --xy-controls-button-color-hover: var(--ink);
+  --xy-controls-button-border-color: var(--line-separator);
+  --xy-controls-box-shadow: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
+  --xy-attribution-background-color: transparent;
+}
+
+/* Servo 0.7 parses pointer-events only as auto or none, so React Flow's
+   `all` is dropped and nodes and handles inherit the pane's none: nothing on
+   the canvas can be clicked, dragged or connected. For an HTML box, auto is
+   what all means. */
+@supports not (pointer-events: all) {
+  .react-flow__node,
+  .react-flow__nodesselection-rect,
+  .react-flow__handle.connectingfrom,
+  .react-flow__handle.connectionindicator {
+    pointer-events: auto;
+  }
+}
+
+/* Labels in the Vault's graph read as text on the graph, not as chips. */
+.vault-graph {
+  --css-label-background-color: transparent;
+  --css-label-brightness: none;
+}
+.vault-graph .css-label--label {
+  font-weight: 400;
+  text-shadow: 0 0 3px var(--surface-artifact);
 }

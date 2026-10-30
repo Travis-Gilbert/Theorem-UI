@@ -1,0 +1,359 @@
+{
+  "spec": "docs/plans/vault-dynamic-documents.md",
+  "items": [
+    {
+      "id": "decide-engine",
+      "item": "Main-window engine decided: Servo 0.7 (D2)",
+      "status": "done",
+      "evidence": "Owner, 2026-10-22: \"We should upgrade to servo 7. Use servo\""
+    },
+    {
+      "id": "host-app",
+      "item": "New GPUI app in desktop/ on GPUI Kit 0.8 (gpui-pre 0.3.9) embedding Servo 0.7.0 opens a window; links no Theorem GPUI crates (D1, Scope)",
+      "status": "done",
+      "evidence": "desktop/ on gpui-kit =0.8.0 (gpui-pre 0.3.9) with Servo's fork; the window opens in every conformance run (docs/desktop/conformance.md, Phase 0 item 1). The only Theorem crates in desktop/Cargo.lock are theorem-desktop and its protocol."
+    },
+    {
+      "id": "servo-dependency",
+      "item": "Depend on Theorem's Servo 0.7 fork (git rev 87ac5a3d, features webcrypto, webgl, brotli-compression-stream), lock seeded from Theorem apps/browser, one toolchain (1.97.1) for Servo and gpui-pre",
+      "status": "done",
+      "evidence": "desktop/Cargo.toml pins the fork at 87ac5a3 (the conformance pass started at b9d6db9) with webcrypto, webgl and brotli-compression-stream; desktop/rust-toolchain.toml pins 1.97.1 for the whole graph; built and run through the conformance pass at both revisions. zed-font-kit is carried with freetype-sys 0.23 (desktop/vendor/zed-font-kit/THEOREM-PATCH.md)."
+    },
+    {
+      "id": "servo-child-view",
+      "item": "Servo renders through WindowRenderingContext in a child NSView of the GPUI window; frame-ready paints and presents; size and HiDPI scale follow the window (D2 step 1)",
+      "status": "done",
+      "evidence": "The default renderer: webview-surface's child view over WindowRenderingContext, painted and presented on frame-ready, resized and rescaled with the window (desktop/src/page.rs). Every conformance run used it (docs/desktop/conformance.md)."
+    },
+    {
+      "id": "servo-storage",
+      "item": "Servo's config_dir in app data; localStorage layout survives relaunch (D2, D4)",
+      "status": "done",
+      "evidence": "After relaunch the dock layout comes back from localStorage (docs/desktop/conformance.md, Chat)."
+    },
+    {
+      "id": "servo-input",
+      "item": "GPUI mouse, wheel and key events forwarded as Servo input events; unhandled keys reach app shortcuts; cursor and focus follow the page (D2)",
+      "status": "done",
+      "evidence": "Clicks, drags, wheel, keys and shortcut replay checked through the THEOREM_DRIVE driver, which skips AppKit hit testing (docs/desktop/conformance.md)."
+    },
+    {
+      "id": "servo-ime",
+      "item": "GPUI input handler over Servo's input-method control; composition and dismissal reach Crepe (D2)",
+      "status": "in_progress",
+      "evidence": "At 87ac5a3, composition through GPUI's input handler reaches Crepe: the preedit is replaced, the commit lands once, an empty commit removes the preedit, and undo and redo restore the text around it (docs/desktop/conformance.md, gap 6). A real macOS input method has not been driven: the driver calls GPUI's input handler, not AppKit's."
+    },
+    {
+      "id": "servo-clipboard",
+      "item": "ClipboardDelegate over GPUI's clipboard; Edit menu sends Servo editing actions (D2)",
+      "status": "done",
+      "evidence": "Cmd-C reaches the system clipboard (pbpaste) and Cmd-V pastes once after the replay fix in page.rs (docs/desktop/conformance.md, fix B)."
+    },
+    {
+      "id": "servo-embedder-controls",
+      "item": "select, color picker, file picker, alert/confirm/prompt and context menu drawn with GPUI Kit in popup windows or dialogs; window.open goes to the system browser (D2)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-accessibility",
+      "item": "Servo's AccessKit tree forwarded to an AccessKit macOS adapter; VoiceOver reads the transcript and composer (D2, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "local-server",
+      "item": "Host starts .output/server/index.mjs with a bundled Bun on 127.0.0.1 at a stable stored port; restarts it on exit, stops it on quit; host and server talk over a stdin/stdout JSON control channel (D4)",
+      "status": "in_progress",
+      "evidence": "The host starts the server on 127.0.0.1 with ports kept in ports.json, restarts it when it stops and closes its stdin on quit so it shuts down (desktop/src/bridge.rs), and talks over the stdin/stdout control channel (docs/desktop/local-server.md). The bundled Bun is packaging work (Phase 1)."
+    },
+    {
+      "id": "server-boundary",
+      "item": "Launch secret over stdin swapped for an HttpOnly SameSite=Strict cookie; cookie and exact Host header required; a page in another browser cannot reach the server (D4)",
+      "status": "done",
+      "evidence": "src/server/desktop/session.ts swaps the secret for an HttpOnly, SameSite=Strict cookie. From outside the web view, /, the event stream, the bridge, a wrong or missing secret and a Host: localhost request all answered 403 (docs/desktop/conformance.md, Phase 0 item 5)."
+    },
+    {
+      "id": "navigation",
+      "item": "Servo request_navigation keeps the top frame on the app origin and iframes on the app origin or the block listener; other links open in the system browser (D4)",
+      "status": "done",
+      "evidence": "desktop/src/delegate.rs: the_app_and_block_origins_stay_in_the_page and the_rest_of_the_web_opens_in_the_system_browser."
+    },
+    {
+      "id": "conformance-servo",
+      "item": "Conformance pass in Servo 0.7 against Chrome: chat stream, run resume, approval, artifact and pinned revision, thread switch, layout restored after relaunch, React Flow, Crepe (IME, selection, clipboard, / menu), Dockview, Mermaid, Shiki; each gap given a disposition: Theorem UI, Servo, or host (Phase 0)",
+      "status": "done",
+      "evidence": "docs/desktop/conformance.md: Servo against Chrome per component, with a CSSOM diff and a disposition for each gap. Approving a tool was not exercised: no reachable tool asks for approval."
+    },
+    {
+      "id": "composition-spike",
+      "item": "In-scene spike: Servo IOSurface frames painted with gpui::surface() through a BGRA path patched into gpui-pre-apple's Metal renderer; a GPUI overlay above the page in the same window; frame times compared with the child view (D2 step 2, Phase 0)",
+      "status": "in_progress",
+      "evidence": "THEOREM_PAGE_RENDERER=scene draws Servo's IOSurface frames with gpui::surface() through the BGRA patch; the overlay above an upright page is checked through GPUI's headless Metal renderer; Servo-side frame times compared with the child view. GPUI's present-to-draw time and a live-window screenshot are not measured: the screen was locked (docs/desktop/conformance.md, Phase 0 item 6)."
+    },
+    {
+      "id": "in-scene-main-window",
+      "item": "Main window on the in-scene renderer once the spike passes; BGRA renderer patch carried by the app through [patch.crates-io], not offered upstream (D2, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "host-bridge",
+      "item": "Bridge relayed by the local server: JSON-RPC 2.0 over POST /desktop/host/rpc, passed to the host over the control channel; host events over SSE at /desktop/host/events; types generated with ts-rs; src/lib/desktop/host.ts absent on the web (D5)",
+      "status": "in_progress",
+      "evidence": "JSON-RPC relay over /desktop/host/rpc, SSE at /desktop/host/events and ts-rs types (desktop/protocol) are built; every bridge call was checked from the page (docs/desktop/conformance.md, Phase 0 item 5). getDesktopHost() is null outside the desktop document, but src/lib/desktop/host.ts is still in the web bundle: src/routes/__root.tsx imports it."
+    },
+    {
+      "id": "bridge-authority",
+      "item": "Server accepts bridge requests only with the session cookie and the app Origin; an opaque-origin block iframe and a page in another browser are refused (D5)",
+      "status": "done",
+      "evidence": "The page's bridge call answered 200; the same call from a sandboxed iframe (origin null) failed CORS; from outside the web view it answered 403 (docs/desktop/conformance.md, Phase 0 item 5)."
+    },
+    {
+      "id": "native-editor",
+      "item": "pickFolder and openNativeEditor end to end: a GPUI Kit editor window saves a file and the page updates through the watcher (D6, Phase 0)",
+      "status": "in_progress",
+      "evidence": "b093fd2 picked a folder through the bridge and opened the native editor. Saving there and seeing the page update was not rechecked (docs/desktop/conformance.md, Phase 0 item 5)."
+    },
+    {
+      "id": "sdk-unchanged",
+      "item": "Page calls Theorem through TheoremClient against the local server's proxy; client.ts and theorem-proxy.ts unchanged; token never in page JavaScript (D3)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "oauth-keychain",
+      "item": "OAuth PKCE (oauth4webapi) run by the local server with the system browser and a loopback redirect; Keychain only in the host; refresh token passed and rotated over stdin; static token from .env for development (D3)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "packaging",
+      "item": "Signed Theorem.app and .dmg from cargo-packager with the host (Servo linked in), re-signed Bun runtime and .output; runs on a clean machine; menu bar, shortcuts and deep links (D4, Phase 1)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "web-deployment-kept",
+      "item": "Web deployment still works and never exposes workspace or bridge routes (D4, Phase 1)",
+      "status": "in_progress",
+      "evidence": "The Worker build leaves out src/routes/desktop and the desktop nitro routes, and loads loro's wasm as a module (vite.config.ts). Run locally under wrangler dev, / and /spaces answer 200 and every /desktop path answers 404. Not yet deployed."
+    },
+    {
+      "id": "folder-open",
+      "item": "Any folder opens through the native picker; desktop-only routes serve only folders the person opened (D16)",
+      "status": "done",
+      "evidence": "Open folder calls the host's pickFolder (desktop/protocol, src/server/desktop/rpc.ts); the workspace routes answer 404 outside desktop mode, refuse paths that leave the folder, and close a workspace whose grant is withdrawn (service.test.ts)."
+    },
+    {
+      "id": "folder-watch-write",
+      "item": "@parcel/watcher records external edits as reconcile revisions; atomic write then rename; own writes skipped by content hash (D7)",
+      "status": "in_progress",
+      "evidence": "@parcel/watcher (watcher.ts) reports outside edits as external after the debounce; writes are atomic and checked against the hash on disk; the service's own changes are not echoed as external (service.test.ts). Recording each as a Documents v2 revision waits on that backend change in the Theorem repo."
+    },
+    {
+      "id": "folder-identity",
+      "item": "Ids in .theorem/ids.json; renames keep ids; theorem-id frontmatter honored; Spaces place { kind: workspace-file, id } (D8)",
+      "status": "in_progress",
+      "evidence": "Ids live in .theorem/ids.json; a rename in the app or outside it keeps the id, and a theorem-id in frontmatter is honored (service.test.ts). Placing a file in a Space as { kind: workspace-file, id } waits on Documents v2 accepting workspace kinds in the Theorem repo."
+    },
+    {
+      "id": "folder-links",
+      "item": "Wikilinks, heading links, block links and embeds resolve; backlinks listed; links rewrite on rename (D8, D16)",
+      "status": "done",
+      "evidence": "Wikilinks open at a heading or ^block, links to missing notes create them, and ![[Note#Heading]] / ![[Note#^id]] embed that section (markdown-handler.test.tsx, note-sections.test.ts); the Links pane lists backlinks with their line, outgoing links and tags (links-pane.test.tsx); [[ suggests files, headings and blocks (wiki-suggest.test.tsx); a rename rewrites the links to it (service.test.ts)."
+    },
+    {
+      "id": "folder-index",
+      "item": "Rebuildable index (links, backlinks, tags, properties, headings, tasks, full-text search) in embedded Rusty Red in app data (Data ownership)",
+      "status": "done",
+      "evidence": "index-db.ts keeps entries, notes, links, headings, tags, properties, tasks and the full-text index in a Rusty Red graph through @rustyreddb/node at <app data>/workspaces/<id>/index.rr, opened without control events or history and compacted as it grows; it rebuilds from nothing to the same nodes, edges and search hits, drops tags and link keys no note uses any more, and recomputes a renamed note's title; search takes tag: terms with nested tags (service.test.ts). The search dialog and tag list read it (workspace-commands.test.tsx)."
+    },
+    {
+      "id": "folder-layout",
+      "item": ".theorem/ holds only user config; index, compile cache, last-run values and Loro docs live in app data keyed by workspace id (D8)",
+      "status": "done",
+      "evidence": ".theorem/ holds workspace.json, ids.json and settings.json (attachments, daily notes), all user configuration; index.rr, the trust flag and state.loro live in app data under workspaces/<id> (registry.ts, state-document.ts). The compile cache and last-run values are not built yet."
+    },
+    {
+      "id": "folder-conventions",
+      "item": "Tags, frontmatter properties, daily notes from a template, attachments folder and canvases work as Obsidian users expect; no .obsidian config or plugins (D16)",
+      "status": "done",
+      "evidence": "Tags (#a/b, frontmatter) and properties are indexed and searchable; Today's note is made from the folder's template with {{date}}, {{time}} and {{title}} (notes.test.ts); pasted files go to the folder's attachments setting as ![[...]] embeds (attachments.test.tsx); Folder settings edits both (workspace-commands.test.tsx); .canvas files open in the canvas handler. No .obsidian config or plugins are read."
+    },
+    {
+      "id": "file-tree",
+      "item": "File tree for the workspace (Phase 2)",
+      "status": "done",
+      "evidence": "src/components/workspace/workspace-tree.tsx (workspace-tree.test.tsx); the Phase 3 conformance pass opened every file from it (docs/desktop/conformance.md)."
+    },
+    {
+      "id": "handler-registry",
+      "item": "File-handler registry with match, Panel (Dockview), Card and optional create; third-party handlers load through the block sandbox (D13)",
+      "status": "in_progress",
+      "evidence": "src/lib/handlers/registry.ts with match, Panel, Card and create (registry.test.ts); live blocks register through it (registerLiveBlocks). Third-party handlers through the block sandbox are not built."
+    },
+    {
+      "id": "handlers-builtin",
+      "item": "Built-in handlers: md, canvas, executable graph, js/ts/tsx/py, tsx app and html, csv/json, pdf, image/audio/video, unknown; each opens in a panel and as a card (D13)",
+      "status": "in_progress",
+      "evidence": "Built in and checked in Servo: md, canvas, js/ts, csv, jsonc, pdf (no text layer, gap 12), image, audio and video elements, unknown (docs/desktop/conformance.md, File handlers); the .tsx tool and .html app come from Phase 4. Not yet: the executable graph (D14) and running .py."
+    },
+    {
+      "id": "canvas-files",
+      "item": ".canvas files in JSON Canvas 1.0 on React Flow with theorem: namespaced scalar keys; round-trip unchanged; project Space exports to .canvas (D15)",
+      "status": "done",
+      "evidence": "src/lib/canvas/json-canvas.test.ts keeps every byte and unknown keys; theorem:kind shown (canvas-handler.test.tsx); a Space exports to <title>.canvas (src/lib/canvas/space-export.test.ts)."
+    },
+    {
+      "id": "live-node",
+      "item": "Crepe live-block node ($node + $view via @prosemirror-adapter/react, parser priority above code_block) round-trips the fence byte for byte (D9)",
+      "status": "done",
+      "evidence": "src/lib/blocks/format.test.ts round-trips fences byte for byte through Crepe; src/components/handlers/markdown/live-blocks.test.tsx does the same inside the Markdown handler."
+    },
+    {
+      "id": "tool-embeds",
+      "item": "![[tool file]] embeds render the tool live and survive renames (D9)",
+      "status": "in_progress",
+      "evidence": "The .tsx tool handler has a Card (src/components/blocks/tool-handler.test.tsx) and embeds render a handler's Card, but an embedded tool surviving a rename is not tested end to end."
+    },
+    {
+      "id": "live-fences",
+      "item": "Brace-attribute .live fences with #id; plain fences stay inert; query and agent fences render (D9)",
+      "status": "done",
+      "evidence": "src/lib/blocks/format.test.ts and src/components/blocks/live-block-view.test.tsx: .live fences with #id, query and agent fences render, other languages say nothing runs them. Agent runs wait for Phase 5."
+    },
+    {
+      "id": "reactivity",
+      "item": "Observable notebook-kit and runtime recompute only downstream pure blocks; effectful blocks run only on explicit trigger (D9)",
+      "status": "done",
+      "evidence": "src/lib/blocks/runtime.test.ts: a file change recomputes only the blocks that read it; an effectful block runs only when triggered."
+    },
+    {
+      "id": "compile",
+      "item": "Sucrase worker compile; vendored import map with integrity; SHA-256 compile cache; esbuild-wasm only for standalone export (D9)",
+      "status": "done",
+      "evidence": "src/lib/blocks/compile.test.ts and export.test.ts: Sucrase in a worker, the vendored import map (scripts/vendor-block-modules.ts), SHA-256 compile keys, esbuild-wasm for standalone export only."
+    },
+    {
+      "id": "sandbox",
+      "item": "Each block in an opaque-origin sandbox=allow-scripts iframe from a second loopback listener with a strict CSP; separate block subdomain on the web (D9)",
+      "status": "in_progress",
+      "evidence": "Desktop: the second loopback listener with a CSP per cell and frame-ancestors (src/server/desktop/blocks/listener.test.ts), opaque-origin iframes (BLOCK_SANDBOX). The web's block subdomain is described in docs/blocks/live-blocks.md and not built."
+    },
+    {
+      "id": "capability-bridge",
+      "item": "MessageChannel bridge serves only declared capabilities; undeclared calls and non-clonable values are refused (D9)",
+      "status": "done",
+      "evidence": "src/lib/blocks/bridge.test.ts: only declared files, writes and state are served; paths outside the folder are refused. Values that cannot be cloned stay in the block or are sent as a description rather than refused."
+    },
+    {
+      "id": "folder-trust",
+      "item": "Untrusted folders show tool source and do not execute until trusted (D9)",
+      "status": "done",
+      "evidence": "Untrusted folders show the source and a trust gate; the block listener answers 403 (tool-handler.test.tsx, live-block-view.test.tsx)."
+    },
+    {
+      "id": "block-state",
+      "item": "Per-workspace Loro state document shared across blocks, persisted by the workspace service, following the sync policy (D9)",
+      "status": "in_progress",
+      "evidence": "A Loro state document per workspace with snapshot, update and SSE routes (src/server/desktop/blocks/state-document.test.ts). Following the sync policy waits for Phase 7."
+    },
+    {
+      "id": "last-run-values",
+      "item": "Last-run values shown beside code; optional pinned output between theorem:output markers (D9, D13)",
+      "status": "done",
+      "evidence": "Last-run values per source hash in a CodeMirror margin (src/components/blocks/last-run-margin.test.tsx); pin and unpin between theorem:output markers (live-block-view.test.tsx)."
+    },
+    {
+      "id": "embark-layer",
+      "item": "Formulas in QuickJS (quickjs-emscripten worker), mentions, views bound to a subtree and inherited properties (D9, Phase 4)",
+      "status": "done",
+      "evidence": "src/lib/blocks/embark.test.ts: mentions per outline node, properties inherited down the subtree, queries bound to a section or heading, per-day formulas chained in QuickJS (docs/blocks/embark.md)."
+    },
+    {
+      "id": "runs",
+      "item": "Explicit-trigger runs are harness runs recording source revision, dependency revisions, inputs digest, status and outputs; they outlive the view (D10)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "execution",
+      "item": "Synced workspaces run remotely through codemode-kernel; LocalOnly workspaces run in a host-side local runner confined to the folder (sandbox library from the sourcing gate) (D10)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "run-outputs",
+      "item": "Run outputs written as workspace files and referenced by hash; artifact store for binaries (D10)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "exec-graph",
+      "item": "Executable .canvas graphs run pure nodes reactively and effectful nodes as runs (D14)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "journal",
+      "item": "Agent/Journal/<date>.md projection with run markers; text outside markers survives regeneration (D11)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "journal-op",
+      "item": "journal_append op in the Solo regime; namespace.rs assertion updated for that one op (D11)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "sync",
+      "item": "TypeScript sync shared by the desktop server and web deployment: per-file Loro docs over Documents v2 (canonical Loro body, markdownProjection = bytes) plus a directory document (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "replication-policy",
+      "item": "Each workspace has a replication policy (LocalOnly, Synced, ConnectedLive); E2EE implications documented (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "phone-web-app",
+      "item": "Phone runs the web deployment as an installed web app: OPFS copy, offline service worker, Crepe editing, pure live blocks run, effectful blocks trigger remote runs (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "selective-availability",
+      "item": "Phone keeps pinned folders and recent files local; other entries download on open; offline edits merge on reconnect (D12)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "servo-cobrowse",
+      "item": "Co-browsing window: a second Servo web view on the same instance that Theorem drives (input, screenshots, script, request observation); agent and person browse the same page (D6, Phase 8)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "backend-changes",
+      "item": "Theorem backend: workspace document kinds, revision authorship, artifact store, journal_append, run record fields, OAuth project scope (Backend changes)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "sdk-surfaces",
+      "item": "SDK surfaces for documents and sync, runs and artifacts, journals; tool-author surface with generated declarations and handler registration; a third-party handler and tool load from the public surface (D17)",
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "today-e2e",
+      "item": "Today.md with a live fence and an embedded tool; agent run writes a result file and a journal entry; all open offline on the phone and the tool runs (First end-to-end target)",
+      "status": "pending",
+      "evidence": null
+    }
+  ]
+}

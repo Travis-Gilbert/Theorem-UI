@@ -18,18 +18,23 @@ import MoreMark from '@/assets/icons/message/theorem-more.svg?react'
 import NextMark from '@/assets/icons/message/theorem-next.svg?react'
 import PreviousMark from '@/assets/icons/message/theorem-previous.svg?react'
 import ReloadMark from '@/assets/icons/message/theorem-reload.svg?react'
-import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
-// Nor a two-way chevron for switchers, a terminal, a bare close cross, or the
-// panels mark (a top bar over a right-hand panel, drawn here as Lucide's
-// top-left panels mirrored); Lucide's stand in the same way.
+// Nor a two-way chevron for switchers; Lucide's stands in the same way.
+// Nor an outline or a node graph mark; Lucide's stand in the same way.
+// Nor an agent's document or a skill; Lucide's stand in the same way.
+// Nor a mute mark, for a link suggestion not to make again.
 import {
+  BellOff as Mute,
+  Bot as Agent,
   ChevronsUpDown as UpDown,
-  PanelsTopLeft,
-  SquareTerminal as Terminal,
+  GraduationCap as Skill,
   Trash2 as Delete,
+  TableOfContents as Outline,
+  Waypoints as Graph,
+  SquareTerminal as Terminal,
+  PanelsTopLeft,
   X,
 } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
@@ -47,18 +52,31 @@ import Layout from '@/assets/icons/records/noun-layout-8176268.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
+import TreeFileMark from '@/assets/icons/tree/file.svg?react'
+import FolderMark from '@/assets/icons/tree/folder-closed.svg?react'
+import FolderOpenMark from '@/assets/icons/tree/folder-open.svg?react'
 import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
+import CommonFileDouble from '@/assets/icons/streamline/streamline-common-file-double.png'
+import CommonFileStack from '@/assets/icons/streamline/streamline-common-file-stack.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
 import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
+import DrawerFile from '@/assets/icons/streamline/streamline-drawer-file.png'
+import FileOpen1 from '@/assets/icons/streamline/streamline-file-open-1.png'
+import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
+import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
+import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
+import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
+import SquareWireframe from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
+import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bullets.png'
+import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
+import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
+import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
+
+import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
 import FileOpen from '@/assets/icons/streamline/streamline-file-open.png'
 import DownloadBox from '@/assets/icons/streamline/streamline-download-box.png'
 import FolderClosed from '@/assets/icons/streamline/streamline-folder.png'
 import ShipmentUpload from '@/assets/icons/streamline/streamline-shipment-upload.png'
-import WireframeCube from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
-import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
-import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
-import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
-import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
 import XMark from '@/assets/icons/streamline/streamline-x.png'
 
 type SvgMark = FC<
@@ -102,12 +120,9 @@ const masked = (src: string): SvgMark =>
       />
     )
   }
-
-const Artifact = masked(WireframeCube)
+const Artifact = masked(SquareWireframe)
 const Copy = masked(CopyPaste)
 const Download = masked(DownloadBox)
-const Folder = masked(FolderClosed)
-const FolderOpen = masked(FileOpen)
 const Diagram = masked(CodeWrite)
 const NewChat = masked(PencilWrite)
 const Search = masked(SearchSquare)
@@ -160,24 +175,36 @@ function Open({ className, style, ...props }: ComponentProps<'span'>) {
     </span>
   )
 }
-
 const Chat = solid(ChatMark)
+const Vault = masked(DrawerFile)
+const Files = masked(FolderFile1)
+const OpenFolder = masked(FileOpen1)
+const Notes = masked(CommonFileStack)
+const Attachments = masked(CommonFileDouble)
+const Trusted = masked(ZipFileLock)
+const Untrusted = masked(ZipFileWarning)
+const Plan = masked(WebpageBullets)
+const TheoremVault = masked(SquareWireframe)
+
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)
 const Next = solid(NextMark)
 const Previous = solid(PreviousMark)
 const Reload = solid(ReloadMark)
+const TreeFolder = solid(FolderMark)
+const TreeFolderOpen = solid(FolderOpenMark)
+const Folder = masked(FolderClosed)
+const FolderOpen = masked(FileOpen)
+const TreeFile = solid(TreeFileMark)
 
 export const Icon = {
-  Download,
-  Open,
-  X,
-  Artifact,
   Add,
+  Agent,
   Archive,
   Article,
   Attachment,
+  Attachments,
   Chat,
   Check,
   Close,
@@ -188,12 +215,13 @@ export const Icon = {
   Diagram,
   Draft,
   Edit,
-  Exit,
   Expand,
   Eye,
   File,
+  Files,
   Folder,
   FolderOpen,
+  Graph,
   Ide: Shellfile,
   Layout,
   Link,
@@ -201,9 +229,13 @@ export const Icon = {
   Microphone,
   Moon,
   More,
+  Mute,
   NewChat,
   Next,
-  Panels,
+  Notes,
+  OpenFolder,
+  Outline,
+  Plan,
   Previous,
   Project: ProjectRow,
   Projects,
@@ -213,12 +245,26 @@ export const Icon = {
   Send,
   Settings,
   Share,
+  Skill,
   Spaces: PenroseTriangle,
   Stop,
   Sun,
-  Terminal,
+  TheoremVault,
+  TreeFile,
+  Trusted,
+  Untrusted,
   UpDown,
+  Vault,
   Web,
+  Download,
+  Open,
+  X,
+  Artifact,
+  Exit,
+  Panels,
+  Terminal,
+  TreeFolder,
+  TreeFolderOpen,
 }
 
 export type IconName = keyof typeof Icon

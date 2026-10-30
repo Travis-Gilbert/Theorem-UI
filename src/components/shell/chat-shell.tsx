@@ -1,25 +1,44 @@
-// SOURCING: dockview-react SplitviewReact (resizable context panel beside the dock) and DockShell (desktop layout), Base UI Drawer (phone navigation), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), the IDE frame (browser-only Theia fills the sheet in IDE mode), the agent TerminalDrawer and the tabbed SideTerminal
-import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
-import { Drawer } from '@base-ui/react/drawer'
-import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
-import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { ContextPanel } from './sidebar'
+import { DockShell } from './dock'
+import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
+import { ModeView, modeLabel, useShellMode } from './modes'
+import { NotePanel } from '@/components/notes/note-panel'
+import { PANEL_WIDTH, useShell } from './shell-state'
+import { Rail } from './rail'
 import { SideTerminal } from '@/components/terminal/side-terminal'
 import { TerminalDrawer } from '@/components/terminal/terminal-drawer'
+import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
+import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { WorkspaceCommands } from '@/components/workspace/workspace-commands'
+import { WorkspaceFileOverlay } from '@/components/workspace/workspace-file-panel'
 import { cn } from '@/lib/utils'
-import { DockShell } from './dock'
-import { ModeView, modeLabel, useShellMode } from './modes'
-import { Rail } from './rail'
-import { PANEL_WIDTH, useShell } from './shell-state'
-import { ContextPanel } from './sidebar'
+import {
+  Suspense,
+  createContext,
+  lazy,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
+import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { useCanvasView } from '@/components/canvas/canvas-view'
+import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
+import { useNoteView } from '@/components/notes/note-view'
 
 const iconButton = 'size-9 p-2'
+
+const VaultWorkspace = lazy(() =>
+  import('@/components/vault/vault-workspace').then((module) => ({
+    default: module.VaultWorkspace,
+  })),
+)
 
 function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const title = useAuiState((s) => s.threadListItem.title)
@@ -52,15 +71,19 @@ function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 function PhoneShell() {
   const openId = useArtifactView((s) => s.openId)
   const close = useArtifactView((s) => s.close)
+  const noteId = useNoteView((s) => s.openId)
+  const closeNote = useNoteView((s) => s.close)
 
   // A different conversation starts with the artifact closed.
   const threadId = useAuiState((s) => s.threadListItem.id)
   useEffect(() => useArtifactView.getState().reset(), [threadId])
 
-  // The drawer belongs to the thread and mode it was opened from, so picking a
-  // chat or a mode in it closes it without an effect.
+  // The drawer belongs to the thread, mode, open note and canvas focus it was
+  // opened from, so picking a chat, a mode or a note in it closes it without
+  // an effect.
   const mode = useShellMode()
-  const view = `${mode}:${threadId}`
+  const focusCount = useCanvasView((s) => s.focusCount)
+  const view = `${mode}:${threadId}:${noteId}:${focusCount}`
   const [drawerView, setDrawerView] = useState<string | null>(null)
   const drawerOpen = drawerView === view
   const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
@@ -103,15 +126,22 @@ function PhoneShell() {
           className="fixed inset-0 z-40"
         />
       )}
+
+      {noteId && (
+        <NotePanel
+          documentId={noteId}
+          onClose={closeNote}
+          className="fixed inset-0 z-40"
+        />
+      )}
+
+      <WorkspaceFileOverlay />
     </>
   )
 }
 
 /** What the dock beside the context panel shows. */
 type DockRoute = { projectId: string; threadId: string | undefined }
-
-// Splitview panels render through portals, so the route reaches the dock by
-// context rather than by panel parameters.
 const DockRouteContext = createContext<DockRoute | null>(null)
 
 function DockView() {
@@ -119,7 +149,6 @@ function DockView() {
   if (!route) throw new Error('DockView renders inside the desktop sheet')
   return <DockShell projectId={route.projectId} threadId={route.threadId} />
 }
-
 const PANEL = 'panel'
 
 const splitComponents = {
@@ -134,9 +163,9 @@ const splitComponents = {
  */
 function SheetSplit(route: DockRoute) {
   const mode = useShellMode()
-  // Theia covers the split in IDE mode and the rail's IDE button drives its
-  // sidebar, so the split underneath keeps Chat's panel.
-  const panelMode = mode === 'ide' ? 'chat' : mode
+  // Theia and the Vault cover the split, and the rail's button drives their
+  // own side panels, so the split underneath keeps Chat's panel.
+  const panelMode = mode === 'ide' || mode === 'vault' ? 'chat' : mode
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
 
@@ -194,22 +223,27 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode Theia fills the sheet. It loads on the first visit and then
- * stays, hidden, so its editors and layout survive a switch; the panel and
- * dock stay mounted under it for the same reason.
+ * In IDE mode Theia fills the sheet, and in Vault mode the Vault does. Each
+ * loads on its first visit and then stays, hidden, so its editors and layout
+ * survive a switch; the panel and dock stay mounted under them for the same
+ * reason.
  */
 function DesktopShell(route: DockRoute) {
-  const ide = useShellMode() === 'ide'
+  const mode = useShellMode()
+  const ide = mode === 'ide'
+  const vault = mode === 'vault'
   const [ideLoaded, setIdeLoaded] = useState(ide)
   if (ide && !ideLoaded) setIdeLoaded(true)
+  const [vaultLoaded, setVaultLoaded] = useState(vault)
+  if (vault && !vaultLoaded) setVaultLoaded(true)
   return (
     <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
       <Rail collapsible />
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
         <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
-          {/* Dockview layers its panels with z-index; isolate keeps them under Theia. */}
-          <div inert={ide} className="isolate h-full">
+          {/* Dockview layers its panels with z-index; isolate keeps them under Theia and the Vault. */}
+          <div inert={ide || vault} className="isolate h-full">
             <SheetSplit {...route} />
           </div>
           {ideLoaded && (
@@ -220,12 +254,24 @@ function DesktopShell(route: DockRoute) {
               <IdeFrame />
             </div>
           )}
+          {vaultLoaded && (
+            <div
+              inert={!vault}
+              className={cn(
+                'absolute inset-0 isolate bg-sheet',
+                !vault && 'invisible',
+              )}
+            >
+              <Suspense>
+                <VaultWorkspace active={vault} />
+              </Suspense>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
-
 /** Rail, panel, conversation and artifacts. Mounted inside TheoremRuntimeProvider. */
 export function ChatShell({
   projectId,
@@ -242,6 +288,8 @@ export function ChatShell({
       ) : (
         <PhoneShell />
       )}
+      <AgentComposer projectId={projectId} />
+      <WorkspaceCommands />
       <TerminalDrawer />
       <SideTerminal />
     </div>

@@ -1,0 +1,40 @@
+diff --git a/dist/_dev.mjs b/dist/_dev.mjs
+index d59ee567885835805c5c43fcfef9d71acacffcf4..2bb89c22a9fc280798173d1d7f5a257f759b5136 100644
+--- a/dist/_dev.mjs
++++ b/dist/_dev.mjs
+@@ -303,7 +303,8 @@ var NitroDevApp = class {
+ 			app.use(joinURL(assetBase, "**"), (event) => serveStaticDir(event, {
+ 				dir: asset.dir,
+ 				base: assetBase,
+-				fallthrough: asset.fallthrough
++				fallthrough: asset.fallthrough,
++				compress: this.nitro.options.compressPublicAssets
+ 			}));
+ 		}
+ 		const routes = Object.keys(this.nitro.options.devProxy).sort().reverse();
+@@ -319,6 +320,10 @@ var NitroDevApp = class {
+ };
+ function serveStaticDir(event, opts) {
+ 	const dir = resolve(opts.dir) + "/";
++	const compress = opts.compress === true ? {
++		gzip: true,
++		brotli: true
++	} : opts.compress || {};
+ 	const r = (id) => {
+ 		if (!id.startsWith(opts.base) || !extname(id)) return;
+ 		const resolved = join(dir, id.slice(opts.base.length));
+@@ -343,12 +348,12 @@ function serveStaticDir(event, opts) {
+ 			if (!path) return;
+ 			const stream = createReadStream(path);
+ 			const acceptEncoding = event.req.headers.get("accept-encoding") || "";
+-			if (acceptEncoding.includes("br")) {
++			if (compress.brotli && acceptEncoding.includes("br")) {
+ 				event.res.headers.set("Content-Encoding", "br");
+ 				event.res.headers.delete("Content-Length");
+ 				event.res.headers.set("Vary", "Accept-Encoding");
+ 				return stream.pipe(createBrotliCompress());
+-			} else if (acceptEncoding.includes("gzip")) {
++			} else if (compress.gzip && acceptEncoding.includes("gzip")) {
+ 				event.res.headers.set("Content-Encoding", "gzip");
+ 				event.res.headers.delete("Content-Length");
+ 				event.res.headers.set("Vary", "Accept-Encoding");
