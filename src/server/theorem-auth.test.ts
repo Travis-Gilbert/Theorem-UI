@@ -26,7 +26,8 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
   return tokenResponse()
 }) as typeof fetch
 
-const { personBearer, safeReturnTo } = await import('./theorem-auth')
+const { personBearer } = await import('./theorem-auth')
+const { safeReturnTo } = await import('../lib/theorem/auth-navigation')
 
 // A successful refresh is shared for a minute, so each test has its own token.
 let session = 0
@@ -68,7 +69,6 @@ test('a refused refresh token signs out and leaves the cookie alone', async () =
 })
 
 test('sign-in returns only to paths on this origin', () => {
-  const request = new Request('https://theorem.rs/auth/sign-in')
   for (const [value, kept] of [
     ['/c/thread?x=1#end', '/c/thread?x=1#end'],
     ['//evil.example', '/'],
@@ -77,5 +77,5 @@ test('sign-in returns only to paths on this origin', () => {
     ['https://evil.example', '/'],
     [null, '/'],
   ] as const)
-    expect(safeReturnTo(value, request)).toBe(kept)
+    expect(safeReturnTo(value)).toBe(kept)
 })
