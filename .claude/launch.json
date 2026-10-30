@@ -9,6 +9,18 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "theorem-ui-index",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "--bun",
+        "vite",
+        "dev",
+        "--port",
+        "3001"
+      ],
+      "port": 3001
     }
   ]
 }
