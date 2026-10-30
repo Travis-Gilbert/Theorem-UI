@@ -1,29 +1,27 @@
-import {
-  Architecture,
-  Cli,
-  Closing,
-  Faq,
-  Footer,
-  Hero,
-  Nav,
-  Propositions,
-  Thesis,
-} from './components/sections'
+import { Closing } from './components/Closing'
+import { Faq } from './components/Faq'
+import { Features } from './components/Features'
+import { Footer } from './components/Footer'
+import { Header } from './components/Header'
+import { Hero } from './components/Hero'
+import { Marquee } from './components/Marquee'
+import { Statement } from './components/Statement'
+import { Steps } from './components/Steps'
 
 export function App() {
   return (
-    <div className="mx-auto max-w-[1440px] border-x border-line bg-paper">
-      <Nav />
+    <>
+      <Header />
       <main>
         <Hero />
-        <Thesis />
-        <Propositions />
-        <Architecture />
-        <Cli />
+        <Marquee />
+        <Statement />
+        <Steps />
+        <Features />
         <Faq />
         <Closing />
       </main>
       <Footer />
-    </div>
+    </>
   )
 }

@@ -1,80 +1,192 @@
 @import 'tailwindcss';
-@import '@fontsource/ibm-plex-serif/400.css';
-@import '@fontsource/ibm-plex-serif/400-italic.css';
-@import '@fontsource/ibm-plex-serif/500.css';
-@import '@fontsource-variable/ibm-plex-sans';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
+@import 'tw-animate-css';
+@import '@fontsource-variable/eb-garamond';
+@import '@fontsource-variable/eb-garamond/wght-italic.css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
-/* Colours and type are Theorem's own tokens (Theorem design/theorem-tokens.json):
-   the cream ramp for paper and hairlines, terracotta for the human register,
-   teal for the agent's, and the IBM Plex family, with Plex Serif kept to the
-   display register. */
+/* Tokens follow Tailark Veil's names (background, foreground, card, muted,
+   primary, border) so its blocks drop in unchanged. The palette is warm cream
+   and ink with an ember accent; .night flips the same names for the dark
+   section, which is how the figures re-colour without their own variants. */
+:root {
+  --background: #faf7f2;
+  --foreground: #2a231c;
+  --card: #ffffff;
+  --muted: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --muted-foreground: #6f665b;
+  --faint: #a1968a;
+  --primary: #c8612b;
+  --primary-foreground: #ffffff;
+  --secondary: color-mix(in oklab, var(--primary) 14%, transparent);
+  --secondary-foreground: #2a231c;
+  --border: color-mix(in oklab, var(--foreground) 9%, transparent);
+  --ring: var(--primary);
+  --sage: #5e7d73;
+  --gold: #b98b3f;
+  --surface: #f2ebe0;
+}
+
+.night {
+  --background: #15120e;
+  --foreground: #efe6da;
+  --card: #1d1914;
+  --muted-foreground: #a99d8f;
+  --faint: #776c60;
+  --muted: color-mix(in oklab, var(--foreground) 6%, transparent);
+  --secondary: color-mix(in oklab, var(--primary) 16%, transparent);
+  --secondary-foreground: var(--foreground);
+  --border: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --sage: #8fb0a5;
+  --gold: #d4a95c;
+  --primary: #e0763d;
+}
+
+/* The theorem figures draw with these names from inline styles, so they are
+   plain properties rather than theme tokens, declared on .night as well so
+   they resolve against its colours. */
+:root,
+.night {
+  --color-ink: var(--foreground);
+  --color-ink-muted: var(--muted-foreground);
+  --color-ink-faint: var(--faint);
+  --color-paper: var(--card);
+  --color-human: var(--primary);
+  --color-agent: var(--sage);
+  --color-agent-soft: color-mix(in oklab, var(--sage) 18%, transparent);
+  --color-insight: var(--gold);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-sage: var(--sage);
+  --color-gold: var(--gold);
+  --color-surface: var(--surface);
+
+  --font-serif: 'EB Garamond Variable', Georgia, serif;
+  --font-sans: 'Geist Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+}
+
 @theme {
-  --color-paper: #f6f5f4;
-  --color-paper-raised: #fafaf9;
-  --color-well: #eeedeb;
-  --color-line: #d2cfc9;
-  --color-line-strong: #b6b2a8;
-  --color-ink: #26241f;
-  --color-ink-muted: #57544c;
-  --color-ink-faint: #8a867b;
-  --color-human: #c0603f;
-  --color-human-deep: #a5492d;
-  --color-human-soft: #f6e4dc;
-  --color-agent: #2f8578;
-  --color-agent-soft: #dceeea;
-  --color-insight: #b08d3e;
-
-  --font-serif: 'IBM Plex Serif', Georgia, serif;
-  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-
-  --animate-ticker: ticker 48s linear infinite;
-  @keyframes ticker {
+  --animate-marquee: marquee 40s linear infinite;
+  @keyframes marquee {
     to {
       transform: translateX(-50%);
     }
   }
+  --animate-haze: haze 18s ease-in-out infinite alternate;
+  @keyframes haze {
+    0% {
+      transform: translate3d(-4%, 0, 0) scale(1);
+    }
+    100% {
+      transform: translate3d(4%, -3%, 0) scale(1.08);
+    }
+  }
+}
+
+/* shadcn's base rule, which Tailark's blocks assume: hairlines take the
+   border token instead of Tailwind v4's currentColor default. */
+*,
+::before,
+::after {
+  border-color: var(--border);
 }
 
 html {
   color-scheme: light;
-  background: var(--color-paper);
+  background: var(--background);
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
 }
 
 body {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
 }
 
 ::selection {
-  background: var(--color-human-soft);
+  background: color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
-/* The blueprint field behind figures: a fine grid ruled in hairlines. */
-.grid-field {
-  background-image:
-    linear-gradient(
-      to right,
-      color-mix(in oklab, var(--color-line) 55%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in oklab, var(--color-line) 55%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 48px 48px;
-  background-position: -1px -1px;
-}
-
-/* Film grain for the closing band, after Arc's colour fields. */
+/* Film grain for colour fields, after Arc. */
 .grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The copper bezel around dark panels, after Antimetal. */
+.bezel {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, #d08a5a 70%, transparent),
+    color-mix(in oklab, #6b4a33 60%, transparent) 40%,
+    color-mix(in oklab, #2a211a 80%, transparent)
+  );
+  box-shadow:
+    0 30px 80px -30px color-mix(in oklab, #c8612b 45%, transparent),
+    0 0 0 1px color-mix(in oklab, #000 30%, transparent);
+}
+
+/* Particles flowing along dotted edges in the hero graph. */
+@keyframes flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.flow {
+  stroke-dasharray: 0.1 7;
+  animation: flow 1.6s linear infinite;
+}
+
+@keyframes logline {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  3%,
+  88% {
+    opacity: 1;
+    transform: none;
+  }
+  94%,
+  100% {
+    opacity: 0;
+  }
+}
+.logline {
+  opacity: 0;
+  animation: logline 14s infinite both;
+}
+
+@keyframes beat {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+.beat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: beat 2.8s ease-out infinite;
 }
 
 /* Figures are ruled in one pass when they scroll into view. Strokes carry
@@ -111,8 +223,44 @@ body {
   }
 }
 
+/* Entrances: the hero rises on load, later blocks as they scroll in. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .rise {
+    animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--d, 0) * 90ms);
+  }
+  .js .reveal-up {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.8s ease,
+      transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: calc(var(--d, 0) * 90ms);
+  }
+  .js .reveal-up[data-inview] {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-ticker {
+  .pulse {
+    display: none;
+  }
+  .animate-marquee,
+  .animate-haze,
+  .flow,
+  .beat {
     animation: none;
+  }
+  .logline {
+    animation: none;
+    opacity: 1;
   }
 }

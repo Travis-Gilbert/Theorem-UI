@@ -1,5 +1,8 @@
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ArrowRight, Check } from 'lucide-react'
+import { Button } from '@/components/tailark/button'
+import { cn } from '@/lib/utils'
 
 type State =
   | { kind: 'idle' }
@@ -15,13 +18,16 @@ const messages: Record<string, string> = {
 
 export function WaitlistForm({
   source,
-  tone = 'paper',
+  tone = 'light',
+  className,
 }: {
   source: string
-  tone?: 'paper' | 'clay'
+  tone?: 'light' | 'ember'
+  className?: string
 }) {
   const id = useId()
   const [state, setState] = useState<State>({ kind: 'idle' })
+  const ember = tone === 'ember'
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -41,15 +47,14 @@ export function WaitlistForm({
         status?: string
         error?: string
       }
-      if (response.ok) {
+      if (response.ok)
         setState({ kind: 'done', already: body.status === 'already_joined' })
-      } else {
+      else
         setState({
           kind: 'error',
           message:
             messages[body.error ?? ''] ?? 'Something went wrong. Try again.',
         })
-      }
     } catch {
       setState({
         kind: 'error',
@@ -58,37 +63,37 @@ export function WaitlistForm({
     }
   }
 
-  const clay = tone === 'clay'
-
   if (state.kind === 'done') {
     return (
       <p
         role="status"
-        className={`flex items-center gap-3 border px-4 py-3 font-mono text-[12px] tracking-[0.06em] uppercase ${
-          clay ? 'border-paper/40 text-paper' : 'border-line-strong text-ink'
-        }`}
+        className={cn(
+          'mx-auto flex w-fit items-center gap-2.5 rounded-full px-5 py-3 text-[15px] font-medium ring-1',
+          ember
+            ? 'bg-white/15 text-white ring-white/30'
+            : 'bg-card text-foreground shadow-sm ring-foreground/10',
+          className,
+        )}
       >
-        <span
-          aria-hidden
-          className={`size-2.5 ${clay ? 'bg-paper' : 'bg-agent'}`}
+        <Check
+          className={cn('size-4', ember ? 'text-white' : 'text-primary')}
         />
         {state.already
           ? 'You’re already on the list.'
-          : 'You’re on the list. ∎'}
+          : 'You’re on the list. We’ll be in touch.'}
       </p>
     )
   }
 
   return (
-    <form onSubmit={submit} className="w-full">
+    <form onSubmit={submit} className={cn('w-full', className)}>
       <div
-        className={`flex border ${
-          clay
-            ? 'border-paper/50 bg-paper/10'
-            : 'border-line-strong bg-paper-raised'
-        } focus-within:outline-2 focus-within:outline-offset-2 ${
-          clay ? 'focus-within:outline-paper' : 'focus-within:outline-human'
-        }`}
+        className={cn(
+          'relative flex items-center rounded-full p-1.5 pl-5 ring-1 transition-shadow focus-within:ring-2',
+          ember
+            ? 'bg-white/12 ring-white/30 backdrop-blur-sm focus-within:ring-white/70'
+            : 'bg-card shadow-lg shadow-foreground/5 ring-foreground/10 focus-within:ring-primary/50',
+        )}
       >
         <label htmlFor={`${id}-email`} className="sr-only">
           Email address
@@ -100,11 +105,12 @@ export function WaitlistForm({
           required
           autoComplete="email"
           placeholder="you@domain.com"
-          className={`min-w-0 flex-1 bg-transparent px-4 py-3 text-[15px] outline-none ${
-            clay
-              ? 'text-paper placeholder:text-paper/60'
-              : 'text-ink placeholder:text-ink-faint'
-          }`}
+          className={cn(
+            'min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none',
+            ember
+              ? 'text-white placeholder:text-white/65'
+              : 'placeholder:text-faint',
+          )}
         />
         {/* Honeypot, hidden from people and assistive technology. */}
         <input
@@ -115,39 +121,36 @@ export function WaitlistForm({
           aria-hidden
           className="absolute -left-[9999px] h-px w-px opacity-0"
         />
-        <button
+        <Button
           type="submit"
           disabled={state.kind === 'sending'}
-          className={`group flex shrink-0 items-center gap-3 px-4 font-mono text-[12px] tracking-[0.08em] uppercase transition-colors disabled:opacity-60 ${
-            clay
-              ? 'bg-paper text-human-deep hover:bg-paper-raised'
-              : 'bg-ink text-paper hover:bg-human'
-          }`}
+          size="lg"
+          className={cn(
+            'h-10 shrink-0 px-5 text-[15px]',
+            ember &&
+              'bg-white text-[#9b3f17] hover:brightness-100 hover:bg-white/90',
+          )}
         >
           {state.kind === 'sending' ? 'Joining…' : 'Join waitlist'}
-          <span
-            aria-hidden
-            className="transition-transform group-hover:translate-x-0.5"
-          >
-            →
-          </span>
-        </button>
+          <ArrowRight className="opacity-60" />
+        </Button>
       </div>
       <p
         role={state.kind === 'error' ? 'alert' : undefined}
-        className={`mt-2 min-h-[1.25rem] font-mono text-[11px] tracking-[0.04em] ${
+        className={cn(
+          'mt-2.5 min-h-5 text-center text-[13px]',
           state.kind === 'error'
-            ? clay
-              ? 'text-paper'
-              : 'text-human-deep'
-            : clay
-              ? 'text-paper/70'
-              : 'text-ink-faint'
-        }`}
+            ? ember
+              ? 'text-white'
+              : 'text-primary'
+            : ember
+              ? 'text-white/75'
+              : 'text-muted-foreground',
+        )}
       >
         {state.kind === 'error'
           ? state.message
-          : 'Early access, invites in waves.'}
+          : 'No spam. One email when your invite is ready.'}
       </p>
     </form>
   )

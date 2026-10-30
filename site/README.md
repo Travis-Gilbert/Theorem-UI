@@ -8,20 +8,34 @@ its own Cloudflare Worker (`theorem-join`), apart from the app on `theorem.rs`.
 ```
 src/
   content.ts            every word on the page; rewrite copy here
+  App.tsx               section order
   components/
-    sections.tsx        nav, hero, thesis, propositions, architecture, CLI, FAQ, closing, footer
-    WaitlistForm.tsx    posts to /api/waitlist
+    Header, Hero, GraphWindow, Marquee, Statement, Steps,
+    Features, Faq, Closing, Footer, WaitlistForm
+    tailark/            Tailark Veil primitives (button, card, accordion), MIT
     figures/            the theorem drawings, ruled in as they scroll into view
-  styles.css            Theorem's tokens (cream, terracotta, teal, IBM Plex)
+  styles.css            tokens (Veil names, warm cream/ink/ember palette) and motion
   entry-server.tsx      renders the page at build time
 worker/index.ts         serves dist/ and handles POST /api/waitlist
 scripts/prerender.ts    writes the rendered page into dist/index.html
 ```
 
-The figures are real results drawn from their geometry: Euclid I.47 (hero),
-the Petersen graph with a proper 3-colouring, Königsberg's bridges, a
-commutative square, a cobweb converging to the fixed point of cos x, and
-Moroń's squared rectangle.
+The page blends three references: Tailark's Veil kit for the blocks (header,
+bento features, FAQ, footer), Antimetal for motion (the drifting haze, particle
+graph and run log in the hero window, the statement that fills in on scroll,
+the turn to night with copper-bezelled panels), and Arc for the scalloped
+marquee and the grainy closing band. Heron's contribution is the line-art
+theorems and mono section labels.
+
+### Tailark
+
+Tailark's hosted registry (`npx shadcn add @tailark/...`) needs a paid plan, so
+the blocks come from the MIT-licensed open-source repo
+([tailark/blocks](https://github.com/tailark/blocks)), copied in and adapted
+the way a shadcn registry would install them. Copied files say so in their
+first line; the licence is in `src/components/tailark/LICENCE.md`. To pull in
+another block, take it from `registry/bases/base/veil/` in that repo and point
+its imports at `@/components/tailark` and `@/lib/utils`.
 
 ## Commands
 
