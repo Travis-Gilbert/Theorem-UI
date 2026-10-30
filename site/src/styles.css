@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+@import '@fontsource/ibm-plex-serif/400.css';
+@import '@fontsource/ibm-plex-serif/400-italic.css';
+@import '@fontsource/ibm-plex-serif/500.css';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* Colours and type are Theorem's own tokens (Theorem design/theorem-tokens.json):
+   the cream ramp for paper and hairlines, terracotta for the human register,
+   teal for the agent's, and the IBM Plex family, with Plex Serif kept to the
+   display register. */
+@theme {
+  --color-paper: #f6f5f4;
+  --color-paper-raised: #fafaf9;
+  --color-well: #eeedeb;
+  --color-line: #d2cfc9;
+  --color-line-strong: #b6b2a8;
+  --color-ink: #26241f;
+  --color-ink-muted: #57544c;
+  --color-ink-faint: #8a867b;
+  --color-human: #c0603f;
+  --color-human-deep: #a5492d;
+  --color-human-soft: #f6e4dc;
+  --color-agent: #2f8578;
+  --color-agent-soft: #dceeea;
+  --color-insight: #b08d3e;
+
+  --font-serif: 'IBM Plex Serif', Georgia, serif;
+  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --animate-ticker: ticker 48s linear infinite;
+  @keyframes ticker {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+html {
+  color-scheme: light;
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-human-soft);
+}
+
+/* The blueprint field behind figures: a fine grid ruled in hairlines. */
+.grid-field {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-line) 55%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-line) 55%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 48px 48px;
+  background-position: -1px -1px;
+}
+
+/* Film grain for the closing band, after Arc's colour fields. */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Figures are ruled in one pass when they scroll into view. Strokes carry
+   pathLength=1 so one dash length fits every path; --i staggers them. Without
+   scripts (or with reduced motion) they render complete. */
+.figure .draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.figure .reveal {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .js .figure .draw {
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 1.4s cubic-bezier(0.65, 0, 0.35, 1);
+    transition-delay: calc(var(--i, 0) * 90ms);
+  }
+  .js .figure .reveal {
+    opacity: 0;
+    transition: opacity 0.9s ease;
+    transition-delay: calc(var(--i, 0) * 90ms);
+  }
+  /* Arrowheads would sit at the ends of lines not yet ruled. */
+  .js .figure:not([data-inview]) [marker-end] {
+    marker-end: none;
+  }
+  .js .figure[data-inview] .draw {
+    stroke-dashoffset: 0;
+  }
+  .js .figure[data-inview] .reveal {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticker {
+    animation: none;
+  }
+}
