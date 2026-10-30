@@ -1,7 +1,7 @@
 // SOURCING: the thread list's search field (ThreadListSearch), ui/dialog over Base UI Dialog (new collection), Base UI Popover + Switch (what Theorem may change by itself), @tanstack/react-query hooks in ./queries for collections, views, search and policy
 import { Popover } from '@base-ui/react/popover'
 import { Switch } from '@base-ui/react/switch'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ThreadListSearch } from '@/components/assistant-ui/elements/thread-list.aui'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
@@ -21,6 +21,7 @@ import { describeError } from '@/lib/theorem/client'
 import { cn } from '@/lib/utils'
 import type { IndexPolicy, IndexView, Scope } from './contract'
 import { sameScope } from './contract'
+import { useDebounced } from './library'
 import { useIndexNavigate, useIndexSearch } from './navigation'
 import { observer } from './observe'
 import { ATLAS_VIEW_ID } from './programs'
@@ -83,13 +84,21 @@ function Heading({
 }
 
 /** Exact search over everything filed; it works before any embedding exists. */
-function QuickSearch({ scope }: { scope: Scope }) {
+export function QuickSearch({ scope }: { scope: Scope }) {
   const [text, setText] = useState('')
-  const [q, setQ] = useState('')
+  const q = useDebounced(text, 250).trim()
+  // A search counts once it has rested, not per keystroke.
+  const recorded = useDebounced(q, 1200)
+  const last = useRef('')
   useEffect(() => {
-    const timer = setTimeout(() => setQ(text.trim()), 250)
-    return () => clearTimeout(timer)
-  }, [text])
+    if (!recorded || recorded === last.current) return
+    last.current = recorded
+    observer().record({
+      kind: 'search_run',
+      scope,
+      detail: { q: recorded, from: 'panel_search' },
+    })
+  }, [recorded, scope])
   const found = useBinding(
     q ? { kind: 'items', query: { q, limit: 6 } } : undefined,
   )

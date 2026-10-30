@@ -52,7 +52,7 @@ function attributionText(attribution: FilingAttribution) {
 }
 
 /** Where the document is filed, why, how sure Theorem was, and the way to change it. */
-function Filing({
+export function Filing({
   documentId,
   revision,
   scope,
@@ -89,6 +89,11 @@ function Filing({
       </h3>
       {filings.isPending ? (
         <Skeleton className="h-14 w-full" />
+      ) : !filings.data ? (
+        // A failed read is not an empty history: filing again would refile.
+        <p className="rounded-lg border border-dashed border-separator p-3 text-sm text-ink-muted">
+          Filing history could not be read.
+        </p>
       ) : latest ? (
         <div className="flex flex-col gap-2 rounded-lg border border-separator p-3">
           <p className="text-sm">

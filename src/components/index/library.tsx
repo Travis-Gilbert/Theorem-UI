@@ -192,7 +192,7 @@ const Metric = defineComponent({
 
 // Reactive inputs
 
-function useDebounced(value: string, delayMs: number) {
+export function useDebounced(value: string, delayMs: number) {
   const [settled, setSettled] = useState(value)
   useEffect(() => {
     const timer = setTimeout(() => setSettled(value), delayMs)
