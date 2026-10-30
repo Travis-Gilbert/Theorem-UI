@@ -488,11 +488,13 @@ const ProgressPart: DataMessagePartComponent = ({ data }) => {
   // step that completes, so the strip names the outcome from the statuses: the
   // message's, then the last step's.
   const outcome = useAuiState((s) =>
-    s.message.status?.type !== 'incomplete'
-      ? undefined
-      : s.message.status.reason === 'cancelled'
-        ? 'Stopped'
-        : 'Did not finish',
+    s.message.status?.type === 'complete'
+      ? 'Done'
+      : s.message.status?.type === 'incomplete'
+        ? s.message.status.reason === 'cancelled'
+          ? 'Stopped'
+          : 'Did not finish'
+        : undefined,
   )
   const finished = DONE_STATUSES.has(str(object(data).status) ?? 'complete')
   if (!settled || !isLast || labels.length === 0) return null
