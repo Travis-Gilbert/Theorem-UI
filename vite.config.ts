@@ -34,6 +34,15 @@ const loroForWorkers: Plugin = {
 }
 
 const config = defineConfig({
+  optimizeDeps: {
+    // Rolldown's client optimizer follows server-only imports. The native
+    // addon is not JS, and globby's CJS dependency does not re-export `toPath`,
+    // so either one exits the dev server during startup.
+    exclude: ['@rustyreddb/node', 'trash', 'globby', 'unicorn-magic'],
+  },
+  ssr: {
+    external: ['@rustyreddb/node', 'trash'],
+  },
   resolve: {
     tsconfigPaths: true,
     alias: cloudflare
