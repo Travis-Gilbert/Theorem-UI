@@ -20,7 +20,7 @@ import {
 import { act } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
 import { QuickSearch } from './index-panel'
-import { Filing } from './inspector'
+import { Filing, UsedWith } from './inspector'
 import { observer } from './observe'
 
 const json = (body: unknown, status = 200) =>
@@ -89,6 +89,31 @@ describe('Filing', () => {
     const { container } = await render(filing())
     await waitFor(() => container.textContent.includes('Not filed yet'))
     expect(button(container, 'File it')).toBeDefined()
+  })
+})
+
+describe('UsedWith', () => {
+  test('a failed read is not shown as nothing used with this', async () => {
+    const spy = spyOn(globalThis, 'fetch').mockImplementation((async (
+      _input: RequestInfo | URL,
+    ) =>
+      json(
+        { error: { code: 'unavailable', message: 'down' } },
+        503,
+      )) as typeof fetch)
+    restore = () => spy.mockRestore()
+    const { container } = await render(
+      <UsedWith
+        documentId="d1"
+        scope={{ kind: 'home' }}
+        onOpen={() => undefined}
+      />,
+    )
+    await waitFor(() => container.querySelector('[role="alert"]'), {
+      timeout: 4000,
+    })
+    expect(container.textContent).toContain('Used with')
+    expect(container.textContent).not.toContain('once')
   })
 })
 

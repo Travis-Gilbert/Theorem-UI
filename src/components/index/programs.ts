@@ -118,6 +118,19 @@ export const atlasView = (): IndexView =>
     }),
   )
 
+/**
+ * The revision on screen. A built-in view is rebuilt in this page, so a
+ * collection name that arrives after the first paint replaces "Collection".
+ * A stored view keeps the revision this tab opened or last saved.
+ */
+export function revisionOnScreen(
+  view: IndexView,
+  held: ViewRevision | undefined,
+): ViewRevision {
+  if (view.origin === 'default') return view.current
+  return held ?? view.current
+}
+
 /** Every built-in view, for tests and for resolving a default id from the URL. */
 export function resolveDefaultView(
   viewId: string,

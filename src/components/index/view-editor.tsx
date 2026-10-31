@@ -56,9 +56,10 @@ export function ViewEditor({
   const [bindingsText, setBindingsText] = useState(
     JSON.stringify(revision.bindings, null, 2),
   )
-  // The revision the draft started from, so a newer one saved meanwhile
-  // (another tab, the improver) is a conflict rather than overwritten.
-  const [baseRevision] = useState(view.current.revision)
+  // The revision the draft text was copied from. A poll can advance
+  // view.current while this dialog stays open; saving against that newer
+  // number would replace it with this older draft.
+  const [baseRevision] = useState(revision.revision)
   const create = useCreateView()
   const revise = useReviseView()
   const save = copying ? create : revise

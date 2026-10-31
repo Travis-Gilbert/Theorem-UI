@@ -1,5 +1,5 @@
 // SOURCING: ui/dialog over Base UI Dialog (the review), ./view-renderer (the candidate rendered live, as it would run), ./validate (OpenUI's own parser for the client check), @tanstack/react-query hooks in ./queries for proposals, interpretations and their resolution
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -189,24 +189,31 @@ function ProposalReview({
   const validate = useRecordValidation()
   const { bindings, lint, client } = proposal.validation
 
-  // Theorem lints the program by name; only this build's parser can say it
-  // renders, so the first review reports that back once.
+  // The parser is synchronous, so Accept can wait on it. The POST only
+  // records the same result for Theorem; a failed record is not a pass.
+  const local = useMemo(
+    () => checkProgram(proposal.candidate.program, proposal.candidate.bindings),
+    [proposal.candidate.program, proposal.candidate.bindings],
+  )
+  const detail = local.ok
+    ? 'Parses with this build’s library.'
+    : local.problems.join(' ')
   const checked = useRef(false)
   useEffect(() => {
     if (client || checked.current) return
     checked.current = true
-    const result = checkProgram(
-      proposal.candidate.program,
-      proposal.candidate.bindings,
-    )
     validate.mutate({
       proposalId: proposal.proposalId,
-      ok: result.ok,
-      detail: result.ok
-        ? 'Parses with this build’s library.'
-        : result.problems.join(' '),
+      ok: local.ok,
+      detail,
     })
-  }, [client, proposal, validate])
+  }, [client, detail, local.ok, proposal.proposalId, validate])
+  const report = () =>
+    validate.mutate({
+      proposalId: proposal.proposalId,
+      ok: local.ok,
+      detail,
+    })
 
   const resolve = (kind: 'accept' | 'dismiss' | 'revert') =>
     action.mutate(
@@ -264,16 +271,16 @@ function ProposalReview({
                   detail={`${bindings.covered} of ${bindings.expected} documents. ${bindings.detail}`}
                 />
                 <Check label="Program" ok={lint.ok} detail={lint.detail} />
-                {client ? (
-                  <Check
-                    label="Renders"
-                    ok={client.ok}
-                    detail={client.detail}
-                  />
-                ) : (
-                  <Check label="Renders" ok detail="Checking…" />
-                )}
+                <Check label="Renders" ok={local.ok} detail={detail} />
               </ul>
+              {validate.isError && (
+                <p role="alert" className="text-xs text-error-ink">
+                  {describeError(validate.error)}{' '}
+                  <button type="button" className="underline" onClick={report}>
+                    Try again
+                  </button>
+                </p>
+              )}
             </div>
           </section>
           <section className="flex flex-col gap-1.5">
@@ -309,7 +316,7 @@ function ProposalReview({
                 Dismiss
               </Button>
               <Button
-                disabled={action.isPending || client?.ok === false}
+                disabled={action.isPending || !local.ok}
                 onClick={() => resolve('accept')}
               >
                 {proposal.kind === 'new_view'

@@ -320,6 +320,12 @@ function ViewList({
 }) {
   const views = useViews(scope, archived)
   const navigate = useIndexNavigate()
+  if (views.isError)
+    return (
+      <p className="px-2 py-1 text-sm text-ink-faint-sheet">
+        {describeError(views.error)}
+      </p>
+    )
   const list = [...(views.data ?? [])].sort(
     (a, b) =>
       Number(b.pinned) - Number(a.pinned) || b.updatedAtMs - a.updatedAtMs,

@@ -239,7 +239,7 @@ export function Filing({
 }
 
 /** Documents opened alongside this one. Usage, not likeness: the Atlas shows likeness. */
-function UsedWith({
+export function UsedWith({
   documentId,
   scope,
   onOpen,
@@ -256,6 +256,17 @@ function UsedWith({
   const prefer = useSetPreference()
   const [answered, setAnswered] = useState<Record<string, string>>({})
   const items = used.data?.kind === 'used_together' ? used.data.items : []
+  if (used.isError)
+    return (
+      <section className="flex flex-col gap-2">
+        <h3 className="text-xs font-medium tracking-wide text-ink-faint uppercase">
+          Used with
+        </h3>
+        <p role="alert" className="text-sm text-error-ink">
+          {describeError(used.error)}
+        </p>
+      </section>
+    )
   if (!used.isPending && !items.length) return null
 
   const say = (other: string, statement: 'belong_together' | 'not_together') =>
@@ -355,6 +366,7 @@ export function Inspector({
         </h2>
         <TooltipIconButton
           tooltip="Close"
+          data-index-close=""
           className="size-8 p-2"
           onClick={onClose}
         >

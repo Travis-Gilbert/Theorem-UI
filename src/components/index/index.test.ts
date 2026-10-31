@@ -4,7 +4,12 @@ import { mergeBinding } from './bindings'
 import type { Binding, ObservationEvent } from './contract'
 import { OPENUI_CALLABLES, OPENUI_COMPONENTS, indexLibrary } from './library'
 import { MAX_BATCH, createRecorder } from './observe'
-import { atlasView, defaultViewFor, resolveDefaultView } from './programs'
+import {
+  atlasView,
+  defaultViewFor,
+  resolveDefaultView,
+  revisionOnScreen,
+} from './programs'
 import { checkProgram } from './validate'
 
 describe('mergeBinding', () => {
@@ -133,6 +138,28 @@ describe('built-in views', () => {
     ).toBe('Taxes')
     expect(resolveDefaultView('default:atlas')?.viewId).toBe('default:atlas')
     expect(resolveDefaultView('v_123')).toBeUndefined()
+  })
+
+  test('a built-in collection takes its name when it arrives', () => {
+    const early = defaultViewFor({ kind: 'collection', collectionId: 'c1' })
+    const named = defaultViewFor(
+      { kind: 'collection', collectionId: 'c1' },
+      'Taxes',
+    )
+    expect(revisionOnScreen(named, early.current).title).toBe('Taxes')
+  })
+
+  test('a stored view keeps the revision this tab opened', () => {
+    const opened = defaultViewFor({ kind: 'home' })
+    const stored = {
+      ...opened,
+      viewId: 'v_1',
+      origin: 'user' as const,
+      current: { ...opened.current, revision: 2, title: 'Newer' },
+    }
+    const held = { ...opened.current, revision: 1, title: 'Opened' }
+    expect(revisionOnScreen(stored, held).title).toBe('Opened')
+    expect(revisionOnScreen(stored, undefined).title).toBe('Newer')
   })
 })
 

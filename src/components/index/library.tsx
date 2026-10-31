@@ -257,7 +257,10 @@ const Choice = defineComponent({
         <ToggleGroup
           value={[current]}
           onValueChange={(next) => {
-            const value = String(next[0] ?? '')
+            // A second click unpresses the active choice. An empty value
+            // would keep the stored overlay while every chip looks off.
+            const value = next[0]
+            if (value === undefined || value === current) return
             field.setValue(value)
             host.record({
               kind: 'filter_applied',

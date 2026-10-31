@@ -2,7 +2,7 @@
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
@@ -17,7 +17,12 @@ import { Inspector } from './inspector'
 import type { IndexHost } from './library'
 import { useAskTheorem, useIndexNavigate, useIndexSearch } from './navigation'
 import { observer } from './observe'
-import { defaultViewFor, isDefaultView, resolveDefaultView } from './programs'
+import {
+  defaultViewFor,
+  isDefaultView,
+  resolveDefaultView,
+  revisionOnScreen,
+} from './programs'
 import { ProposalNotices } from './proposals'
 import {
   useArchiveView,
@@ -81,7 +86,11 @@ function useOpenView() {
     viewId,
     view: choosing ? undefined : (builtIn ?? stored.data?.view),
     revisions: stored.data?.revisions ?? [],
-    error: views.error ?? stored.error,
+    // A 404 on the list means this Theorem has no Index. A 404 on one view
+    // is that view missing, and must not take over this message.
+    indexMissing: missingIndex(views.error),
+    signedOut: isSignedOut(views.error) || isSignedOut(stored.error),
+    error: views.error && !views.data ? views.error : stored.error,
     pending: choosing || (!builtIn && stored.isPending),
     collectionName,
     // Choose again, after this page archived the view it held.
@@ -112,12 +121,16 @@ function useHeldRevision(view: IndexView | undefined) {
   const [held, setHeld] = useState<{ viewId: string; revision: ViewRevision }>()
   if (view && held?.viewId !== view.viewId)
     setHeld({ viewId: view.viewId, revision: view.current })
-  const revision =
-    held?.viewId === view?.viewId ? held?.revision : view?.current
+  const kept =
+    held && view && held.viewId === view.viewId ? held.revision : undefined
+  const revision = view ? revisionOnScreen(view, kept) : undefined
   return {
     revision,
     newer:
-      view && revision && view.current.revision > revision.revision
+      view &&
+      view.origin !== 'default' &&
+      revision &&
+      view.current.revision > revision.revision
         ? view.current
         : undefined,
     hold: (next: IndexView) =>
@@ -315,15 +328,14 @@ function ViewColumn() {
       }),
   }
 
-  if (missingIndex(open.error))
+  if (open.indexMissing)
     return (
       <Status
         title="The Index is not on this Theorem yet"
         detail="The Theorem this UI talks to does not serve the Index workspace. Chat and documents work as before."
       />
     )
-  if (isSignedOut(open.error))
-    return <Status title="Sign in to see the Index" />
+  if (open.signedOut) return <Status title="Sign in to see the Index" />
   if (!open.view || !revision)
     return open.pending ? (
       <div className="flex flex-col gap-3 p-6">
@@ -467,6 +479,37 @@ function DesktopSplit() {
 }
 
 /**
+ * Below the desktop width the inspector covers the view. The view stays
+ * mounted, so it has to leave the tab order and the keyboard, the way Theia
+ * and the Vault do when they cover the sheet.
+ */
+function PhoneIndex() {
+  const { item } = useIndexSearch()
+  const opener = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!item) {
+      const back = opener.current
+      opener.current = null
+      if (back?.isConnected) back.focus()
+      return
+    }
+    if (opener.current) return
+    const active = document.activeElement
+    if (active instanceof HTMLElement) opener.current = active
+    document.querySelector<HTMLElement>('[data-index-close]')?.focus()
+  }, [item])
+
+  return (
+    <div className="relative h-full">
+      <div inert={!!item} className="h-full">
+        <ViewColumn />
+      </div>
+      {item && <InspectorColumn className="absolute inset-0 z-10" />}
+    </div>
+  )
+}
+
+/**
  * Index mode: a view of the person's material, composed in OpenUI Lang and
  * run against Theorem with no model in the loop, and a working pane for the
  * selected document. The navigation lives in the context panel.
@@ -475,15 +518,8 @@ export function IndexSurface() {
   // The improver composes against the library this build renders.
   useLibraryPublication()
   const desktop = useMediaQuery('(min-width: 1024px)', { noSsr: true })
-  const { item } = useIndexSearch()
 
-  if (!desktop)
-    return (
-      <div className="relative h-full">
-        <ViewColumn />
-        {item && <InspectorColumn className="absolute inset-0 z-10" />}
-      </div>
-    )
+  if (!desktop) return <PhoneIndex />
 
   return (
     <PaneContext.Provider
