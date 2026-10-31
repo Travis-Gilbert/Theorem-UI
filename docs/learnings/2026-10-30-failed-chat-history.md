@@ -22,5 +22,22 @@ message parser is needed.
 Verification: 22 focused tests pass, including rendering the actual Thread with
 assistant-ui's external runtime, one contextual alert and a standalone connection
 error; distinct errors remain visible. Auth regressions also pass. TypeScript and focused ESLint pass. The full Workers build (terminal WASM,
-IDE, Vite, Nitro) passes. Live search and deployed reload acceptance remain
-pending until both artifacts are promoted.
+IDE, Vite, Nitro) passes. Deployed acceptance is recorded below.
+
+## Production verification
+
+UI source `6a4b8cb95a1992f69e8991bca752482e323be819` passed 22 focused
+tests, TypeScript, focused ESLint and the production build. Worker version
+`a7decc77-8f07-4f16-9058-95167b59161c` was promoted to 100% after the paired
+backend became ready. Existing bindings and secrets were preserved.
+
+The signed-in search conversation
+`chatthread_sha256:04fb665887c749b38115cdb37` returned eight native web-search
+results and a final answer linking `https://rust-lang.org/`. Reload retained
+Done status and the saved answer, with no active run or pending turn. The
+original conversation `chatthread_sha256:d940d3d4a7df327973a0d6a87` now reloads
+as Did not finish, displaying one error with its original request reference.
+
+Automatic Cloudflare preview build `d2134ee6-e9b8-4235-b68d-7deb21a00439`
+still failed. The manual production build/upload/promotion succeeded; automatic
+build diagnosis remains blocked on usable build-log credentials.
