@@ -2,8 +2,8 @@
 //
 // In production the page's origin is the Theorem UI product server: it holds the credential,
 // answers `GET /api/environment/v1/bootstrap` (a CSRF token bound to the signed-in session) and
-// forwards `/api/environment/v1/*` to the workspace host with the bearer and tenant headers the
-// host requires. This file does the same three things for a local `apps/theorem-ide-host --http`
+// forwards `/api/environment/v1/*` to the workspace host with the bearer, tenant and caller
+// headers the host requires. This file does the same three things for a local `apps/theorem-ide-host --http`
 // so the page can be driven in a browser without that server. It is not an authentication
 // system: the CSRF token is a random value for the life of the dev server, and the bearer comes
 // from a file outside the repository. Evidence captured through it is `live-local` against the
@@ -19,6 +19,11 @@ export interface StandInOptions {
   hostUrl: string
   /** The tenant the host was started with (`x-theorem-tenant`). */
   tenant: string
+  /**
+   * The caller the product server would name (`x-theorem-actor`, and the bootstrap's principal). The
+   * host keys per-user state by it and refuses a state call that names none.
+   */
+  actor: string
   /** The host's bearer credential. Read it from a file outside the repository. */
   token: string
   fetch?: typeof fetch
@@ -44,7 +49,7 @@ export function createStandIn(options: StandInOptions): (request: Request) => Pr
       return json(200, {
         schema: 'theorem-environment/1',
         tenantId: options.tenant,
-        principalId: 'stand-in:dev',
+        principalId: options.actor,
         csrfToken,
       })
     }
@@ -57,6 +62,7 @@ export function createStandIn(options: StandInOptions): (request: Request) => Pr
     for (const name of ['host', 'cookie', 'x-csrf-token', 'connection', 'content-length']) headers.delete(name)
     headers.set('authorization', `Bearer ${options.token}`)
     headers.set('x-theorem-tenant', options.tenant)
+    headers.set('x-theorem-actor', options.actor)
 
     const hasBody = !SAFE_METHODS.has(request.method) && request.body !== null
     const upstream = await send(new URL(`${url.pathname}${url.search}`, options.hostUrl), {

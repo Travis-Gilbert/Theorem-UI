@@ -3,6 +3,7 @@
 //
 //   THEOREM_IDE_HOST_URL         default http://127.0.0.1:8791
 //   THEOREM_IDE_HOST_TENANT      required: the tenant the host was started with
+//   THEOREM_IDE_HOST_ACTOR       default stand-in:dev: the caller, whose per-user state the page sees
 //   THEOREM_IDE_HOST_TOKEN_FILE  required: a file holding the host's bearer token
 //
 // With the tenant or token missing, the plugin does nothing and the page shows its own "could not
@@ -52,10 +53,11 @@ async function respond(res: ServerResponse, reply: Response): Promise<void> {
 export function workspaceStandIn(): Plugin {
   const hostUrl = process.env.THEOREM_IDE_HOST_URL ?? 'http://127.0.0.1:8791'
   const tenant = process.env.THEOREM_IDE_HOST_TENANT
+  const actor = process.env.THEOREM_IDE_HOST_ACTOR ?? 'stand-in:dev'
   const tokenFile = process.env.THEOREM_IDE_HOST_TOKEN_FILE
   const middleware = (): ((req: IncomingMessage, res: ServerResponse, next: Next) => void) | undefined => {
     if (!tenant || !tokenFile) return undefined
-    const handle = createStandIn({ hostUrl, tenant, token: readFileSync(tokenFile, 'utf8').trim() })
+    const handle = createStandIn({ hostUrl, tenant, actor, token: readFileSync(tokenFile, 'utf8').trim() })
     return (req, res, next) => {
       handle(toRequest(req, res))
         .then((reply) => (reply ? respond(res, reply) : next()))

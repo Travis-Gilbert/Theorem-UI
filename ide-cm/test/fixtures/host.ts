@@ -6,10 +6,13 @@
 // and link targets, directories first in natural order; stat with `probe`, `readonly` and `mode`;
 // ranged reads capped at 1 MiB; base64 create; copy and setMode; `root: "state"` for the caller's
 // own store; text search rows in Unicode scalars and replace previews as scalar edits of the whole
-// text; and every typed refusal as HTTP 409 `{code, message, detail}`, an untyped failure as
-// `ide_operation_failed`. Matching uses JavaScript's RegExp, not ripgrep's engine, and any NUL makes
-// a file binary (the host also lets a BOM or a UTF-16 sniff call it text). It is not the host, and
-// nothing proven here is proven against it.
+// text, scanned for only the files a preview names; file masks as `include` and `exclude` globs
+// with ripgrep's `--glob` meaning; search jobs dropped once complete or cancelled; and every typed
+// refusal as HTTP 409 `{code, message, detail}` with the bare sentence in `message`, an untyped
+// failure as `ide_operation_failed`. Matching uses JavaScript's RegExp, not ripgrep's engine, and
+// masks Bun's glob matcher, not globset. A probe calls a file binary when a NUL is in its first
+// 8 KiB and no UTF-16 byte order mark leads it. It is not the host, and nothing proven here is
+// proven against it.
 // Documents follow what the page observed of the real host: the authority (revision, text, log) is
 // durable, a session seated in the running process is not, and an edit sent to an unseated
 // document is judged against revision 0 (`stale_revision`, `current_revision: 0`).
@@ -68,12 +71,8 @@ const DEFAULT_EXCLUDES = ['.git', 'target', 'node_modules', 'dist']
 export const MAX_RANGE = 1 << 20
 const natural = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 
-/**
- * A typed refusal, as the host sends every one: its `message` is the runtime error's display,
- * which repeats the code (`refused [not_found]: x does not exist`; observed live-local).
- */
-const refuse = (code: string, message: string, detail: unknown = null) =>
-  Response.json({ code, message: `refused [${code}]: ${message}`, detail }, { status: 409 })
+/** A typed refusal, as the host sends every one: the code in `code`, the bare sentence in `message`. */
+const refuse = (code: string, message: string, detail: unknown = null) => Response.json({ code, message, detail }, { status: 409 })
 /** What the host sends for a failure it has no code for: the runtime's sentence alone. */
 const failed = (message: string) => Response.json({ code: 'ide_operation_failed', message, detail: null }, { status: 409 })
 
@@ -87,6 +86,49 @@ function textOf(entry: Entry): string | undefined {
     return text.includes('\0') ? undefined : text
   } catch {
     return undefined
+  }
+}
+
+/** The host's probe window, and its rule: a NUL in it is binary unless a UTF-16 byte order mark leads. */
+const SNIFF_LEN = 8 * 1024
+const looksBinary = (bytes: Uint8Array) => {
+  const utf16 = bytes.length >= 2 && ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff))
+  return !utf16 && bytes.subarray(0, SNIFF_LEN).includes(0)
+}
+
+/**
+ * The host's file masks: each entry split at commas, a leading `!` moving it to the other list,
+ * then ripgrep's `--glob` meaning. The last glob a path matches decides it; a glob with no `/`
+ * matches a name at any depth; an exclude that matches a directory excludes what is under it; and
+ * with any include, a file that matches none is left out. A glob the host cannot parse is thrown
+ * refused (globset's sentence, for the one malformation the tests use: an unclosed class).
+ */
+const maskFilter = (body: any): ((path: string) => boolean) => {
+  const lines = (value: unknown) =>
+    (value == null ? [] : Array.isArray(value) ? value : [value]).flatMap((entry: string) => entry.split(/[,\n]/).map((e) => e.trim()).filter(Boolean))
+  const globs: { glob: Bun.Glob; include: boolean }[] = []
+  const add = (line: string, include: boolean) => {
+    const pattern = line.replace(/^\//, '')
+    const shown = include ? line : `!${line}`
+    if (/\[(?![^\]]*\])/.test(pattern)) {
+      throw refuse('invalid_glob', `error parsing glob '${shown}': unclosed character class; missing ']'`, { glob: shown })
+    }
+    globs.push({ glob: new Bun.Glob(pattern.includes('/') ? pattern : `**/${pattern}`), include })
+  }
+  const included = lines(body.include)
+  const excluded = lines(body.exclude)
+  for (const line of included) line.startsWith('!') ? add(line.slice(1), false) : add(line, true)
+  for (const line of excluded) line.startsWith('!') ? add(line.slice(1), true) : add(line, false)
+  if (globs.length === 0) return () => true
+  const whitelisting = globs.some((g) => g.include)
+  const verdict = (path: string, directory: boolean) => {
+    for (let i = globs.length - 1; i >= 0; i--) if (globs[i]!.glob.match(path)) return globs[i]!.include ? 'keep' : 'drop'
+    return whitelisting && !directory ? 'drop' : 'none'
+  }
+  return (path: string) => {
+    const segments = path.split('/')
+    for (let i = 1; i < segments.length; i++) if (verdict(segments.slice(0, i).join('/'), true) === 'drop') return false
+    return verdict(path, false) !== 'drop'
   }
 }
 
@@ -112,8 +154,8 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
     /** False: the host has no state store bound (`state_unavailable`). */
     stateBound: true,
   }
-  /** Search jobs by id. The host keeps them too, complete or cancelled, until it exits. */
-  const searches = new Map<string, { remaining: string[]; cancelled: boolean; pattern: RegExp | undefined; view: string }>()
+  /** Search jobs by id, as the host holds them: until the last file is scanned or the job is cancelled. */
+  const searches = new Map<string, { remaining: string[]; pattern: RegExp | undefined; view: string }>()
   let searchIds = 0
   const lives: LiveHandle[] = []
   const opens: Headers[] = []
@@ -182,7 +224,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
       mode,
       root: root.name,
     }
-    if (probe && !directory) stat.binary = files.unreadable.has(path) ? null : textOf(entry) === undefined
+    if (probe && !directory) stat.binary = files.unreadable.has(path) ? null : looksBinary(bytesOf(entry))
     return stat
   }
   const excludedPath = (path: string) => path.split('/').some((part) => DEFAULT_EXCLUDES.includes(part))
@@ -234,8 +276,9 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
   }
 
   const readFile = (root: Root, body: any) => {
+    if (!existsIn(root.map, body.path)) return refuse('not_found', `${body.path} does not exist`, { path: body.path })
     const entry = root.map.get(body.path)
-    if (entry === undefined || entry === null) return failed(`${body.path} is not a file`)
+    if (entry === undefined || entry === null) return refuse('not_a_file', `${body.path} is not a file`, { path: body.path })
     const bytes = bytesOf(entry)
     if (body.offset == null && body.length == null) {
       const text = textOf(entry)
@@ -361,12 +404,12 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
     let id: string | undefined = body.id
     let job = id === undefined ? undefined : searches.get(id)
     if (id !== undefined) {
-      if (!job) return failed(`unknown search id ${id}`)
-      if (job.cancelled) return Response.json({ id, complete: true, cancelled: true, view: job.view, results: [] })
+      if (!job) return refuse('unknown_search', `${id} is not a running search`, { id })
     } else {
       if (typeof body.query !== 'string') return failed('query required')
       id = `search:${(searchIds += 1)}`
-      job = { remaining: searchPaths(), cancelled: false, pattern: compile(body), view: body.view ?? 'all' }
+      const inMask = maskFilter(body)
+      job = { remaining: searchPaths().filter(inMask), pattern: compile(body), view: body.view ?? 'all' }
       searches.set(id, job)
     }
     const { remaining, pattern, view } = job
@@ -376,6 +419,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
       const text = searchText(path)
       if (text !== undefined && pattern) results.push(...textRows(path, text, pattern))
     }
+    if (remaining.length === 0) searches.delete(id)
     return Response.json({ id, complete: remaining.length === 0, cancelled: false, view, results })
   }
   /** The host's replace preview: rows of touched lines, `edits` as scalar offsets into the whole text. */
@@ -421,16 +465,29 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
     }
     return rows
   }
+  /** Files a preview read, in order: the named ones when it names any, else every searchable file. */
+  const previewReads: string[] = []
   const replacePreview = (body: any) => {
     if (typeof body.query !== 'string') return failed('query required')
+    const named = body.path !== undefined ? [body.path] : body.paths
+    if (named !== undefined && !(Array.isArray(named) && named.every((p) => typeof p === 'string'))) {
+      return refuse('invalid_paths', 'path is one workspace path and paths a list of them', { path: body.path ?? null, paths: body.paths ?? null })
+    }
     const pattern = compile(body)
+    const inMask = maskFilter(body)
+    const unreadable: string[] = []
     const replacements = pattern
-      ? searchPaths().flatMap((path) => {
+      ? ((named as string[] | undefined) ?? searchPaths()).filter(inMask).flatMap((path) => {
+          if (files.unreadable.has(path)) {
+            unreadable.push(path)
+            return []
+          }
+          previewReads.push(path)
           const text = searchText(path)
           return text === undefined ? [] : previewRows(path, text, pattern, body.replace ?? '', Boolean(body.regex))
         })
       : []
-    return Response.json({ written: false, replacements })
+    return Response.json({ written: false, replacements, unreadable })
   }
 
   const docOf = (path: string): FakeDocument => {
@@ -503,11 +560,9 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
         return setMode(rootOf(body), body)
       case 'search.query':
         return search(body)
-      case 'search.cancel': {
-        const job = searches.get(body.id)
-        if (job) Object.assign(job, { cancelled: true, remaining: [] })
+      case 'search.cancel':
+        searches.delete(body.id)
         return Response.json({ cancelled: true, id: body.id ?? null, complete: true })
-      }
       case 'search.replacePreview':
         return replacePreview(body)
       case 'terminal.open': {
@@ -685,7 +740,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
   /** The process forgot the session (and only that): the authority keeps its revision. */
   const unseat = (path: string) => void (docOf(path).seated = false)
 
-  return { fetchImpl, lives, opens, tree, state, files, searches, operations, shell, restartHost, documents, foreignEdit, rollBack, unseat }
+  return { fetchImpl, lives, opens, tree, state, files, searches, previewReads, operations, shell, restartHost, documents, foreignEdit, rollBack, unseat }
 }
 
 export const memoryStorage = () => {

@@ -18,11 +18,13 @@ bun install
 THEOREM_IDE_HOST_URL=http://127.0.0.1:8791 \
 THEOREM_IDE_HOST_TENANT=<tenant> \
 THEOREM_IDE_HOST_TOKEN_FILE=<path to a file holding the token> \
+THEOREM_IDE_HOST_ACTOR=<caller; default stand-in:dev> \
   bun run dev
 # open http://127.0.0.1:1430/?workspace=<workspace id>&name=<project name>[&file=<path>]
 ```
 
-`dev/` is a STAND-IN for the Theorem UI product server (bootstrap, CSRF, credential forwarding).
+`dev/` is a STAND-IN for the Theorem UI product server (bootstrap, CSRF, credential forwarding,
+and naming the caller, whose per-user state the page reads).
 In production the page's own origin is that server, `/api/environment/v1/*` is its surface, and
 nothing in `dev/` is used.
 

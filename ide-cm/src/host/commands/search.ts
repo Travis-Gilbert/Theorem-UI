@@ -1,11 +1,14 @@
-// SOURCING: the workspace host's `search.query` (view `text`, with `regex`, `case_sensitive` and
-// `whole_word`), `search.cancel` and `search.replacePreview`, through the SDK's `ide.search`
+// SOURCING: the workspace host's `search.query` (view `text`, with `regex`, `case_sensitive`,
+// `whole_word`, and the file masks as `include` and `exclude`), `search.cancel` and
+// `search.replacePreview` (for the one file previewed, as `path`), through the SDK's `ide.search`
 // methods, answer OpenIDEA's Find in Files commands. The host matches with ripgrep's engine
-// (`grep-regex`) and reads an open document's session text in place of the file; its columns are
-// Unicode scalars, which the SDK's `scalarToUtf16` turns into the UTF-16 columns the frontend
-// draws, and CodeMirror's `Text` turns offsets into lines as the editor counts them. What the host
-// has no argument for (file masks, named and pattern scopes, the comments-and-strings filter,
-// preserve case) and the writing half of Replace in Files answer as the unavailable state they are.
+// (`grep-regex`), applies the masks with the `ignore` crate's overrides, and reads an open
+// document's session text in place of the file. Its columns, `ranges`, `text_offset` and the
+// preview's `edits`, count Unicode scalars, which the SDK's `scalarToUtf16` turns into the UTF-16
+// columns the frontend draws, and CodeMirror's `Text` turns offsets into lines as the editor counts
+// them. What the host has no argument for (named and pattern scopes, the comments-and-strings
+// filter, preserve case) and the writing half of Replace in Files answer as the unavailable state
+// they are.
 
 import { Text } from '@codemirror/state'
 import { scalarToUtf16 } from '@theoremharness/sdk'
@@ -56,11 +59,14 @@ const isPositions = (v: unknown): v is Pos[] | null =>
 
 const flags = (query: SearchQuery) => ({ regex: query.isRegex, case_sensitive: query.caseSensitive, whole_word: query.wholeWord })
 
+/**
+ * The frontend's file masks as the host takes them. The host splits an entry at its commas and
+ * reads a leading `!` as a move to the other list, as OpenIDEA's own masks do, so they pass as typed.
+ */
+const masks = (query: SearchQuery) => ({ include: query.include, exclude: query.exclude })
+
 /** What the host's search has no argument for: refused, never searched without. */
 function refuseUnsupported(query: SearchQuery): void {
-  if (query.include.length > 0 || query.exclude.length > 0) {
-    throw unavailable('Searching with a file mask', 'the workspace host’s search takes no file masks')
-  }
   if (query.context !== undefined && query.context !== 'any') {
     throw unavailable('Searching only in or outside comments and strings', 'the workspace host’s search does not know where they are')
   }
@@ -163,7 +169,7 @@ export class WorkspaceSearch {
     this.running.set(request, run)
     try {
       if (query.pattern !== '') {
-        let answer = await this.query({ query: query.pattern, view: 'text', ...flags(query), limit: FILES_PER_CALL })
+        let answer = await this.query({ query: query.pattern, view: 'text', ...flags(query), ...masks(query), limit: FILES_PER_CALL })
         for (;;) {
           for (const file of this.files(answer.results, inScope)) {
             // A match beyond the limit exists: the search stops here and says so.
@@ -216,15 +222,17 @@ export class WorkspaceSearch {
   }
 
   /**
-   * The query as the host would take it. A regular expression is compiled by the host (a zero-file
-   * search), so the reason shown is ripgrep's; a literal is escaped before it is compiled and
-   * cannot be refused for its syntax, so it costs no request.
+   * The query as the host would take it. A regular expression and the file masks are compiled by
+   * the host (a zero-file search), so the reason shown is ripgrep's or the glob parser's; a literal
+   * is escaped before it is compiled and cannot be refused for its syntax, so with no masks it
+   * costs no request.
    */
   async validate(query: SearchQuery): Promise<null> {
     refuseUnsupported(query)
     this.scopeFilter(query)
-    if (!query.isRegex || query.pattern === '') return null
-    const answer = await this.query({ query: query.pattern, view: 'text', ...flags(query), limit: 0 })
+    const masked = query.include.length > 0 || query.exclude.length > 0
+    if (!masked && (!query.isRegex || query.pattern === '')) return null
+    const answer = await this.query({ query: query.pattern, view: 'text', ...flags(query), ...masks(query), limit: 0 })
     this.dropJob(answer.id)
     return null
   }
@@ -239,7 +247,7 @@ export class WorkspaceSearch {
     const relative = this.relativeOf(path)
     const answer = (await this.api.replacePreview({
       ...(await this.context.connection.headers()),
-      body: { query: query.pattern, replace: replacement, ...flags(query) },
+      body: { query: query.pattern, replace: replacement, ...flags(query), path: relative },
     })) as { replacements: ReplacementRow[] }
     const rows = answer.replacements.filter((row) => row.path === relative)
     const text = await this.textOf(path, relative, rows)

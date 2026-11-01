@@ -72,29 +72,30 @@ describe('toFailure', () => {
   test('the host\'s typed refusals, all 409s, map by their code, with the host\'s own sentence', () => {
     const said = (code: string, message: string) =>
       Object.assign(new Error('workspace.files.copy: HTTP 409'), { statusCode: 409, body: { code, message, detail: null } })
-    // As the host words a typed refusal (observed live-local): the runtime error's display, code first.
-    const coded = (code: string, message: string) => said(code, `refused [${code}]: ${message}`)
-    expect(toFailure(coded('not_found', 'a.txt does not exist'))).toEqual({ kind: 'notFound', message: 'a.txt does not exist' })
-    // Only the refusal's own code is taken off; any other text is the host's and is kept.
-    expect(toFailure(said('not_found', 'refused [already_exists]: a.txt')).message).toBe('refused [already_exists]: a.txt')
-    expect(toFailure(said('not_found', 'a.txt does not exist')).message).toBe('a.txt does not exist')
-    expect(toFailure(coded('already_exists', 'b already exists')).kind).toBe('alreadyExists')
-    expect(toFailure(coded('copy_into_itself', 'd/x is inside d')).kind).toBe('invalidInput')
-    expect(toFailure(coded('not_a_directory', 'a.txt is not a directory')).kind).toBe('invalidInput')
-    expect(toFailure(coded('invalid_mode', 'setMode takes exactly one of mode or writable')).kind).toBe('invalidInput')
-    expect(toFailure(coded('invalid_pattern', 'Invalid regular expression: unclosed group'))).toEqual({
+    expect(toFailure(said('not_found', 'a.txt does not exist'))).toEqual({ kind: 'notFound', message: 'a.txt does not exist' })
+    // The code travels in its own field, so the message is the host's sentence and is shown as sent.
+    expect(toFailure(said('not_found', 'refused [not_found]: a.txt')).message).toBe('refused [not_found]: a.txt')
+    expect(toFailure(said('already_exists', 'b already exists')).kind).toBe('alreadyExists')
+    expect(toFailure(said('copy_into_itself', 'd/x is inside d')).kind).toBe('invalidInput')
+    expect(toFailure(said('not_a_directory', 'a.txt is not a directory')).kind).toBe('invalidInput')
+    expect(toFailure(said('not_a_file', 'src is not a file'))).toEqual({ kind: 'invalidInput', message: 'src is not a file' })
+    expect(toFailure(said('invalid_mode', 'setMode takes exactly one of mode or writable')).kind).toBe('invalidInput')
+    expect(toFailure(said('invalid_pattern', 'Invalid regular expression: unclosed group'))).toEqual({
       kind: 'invalidInput',
       message: 'Invalid regular expression: unclosed group',
     })
-    expect(toFailure(coded('withheld', 'withheld')).kind).toBe('permissionDenied')
-    expect(toFailure(coded('state_unavailable', 'no per-user state store is bound')).kind).toBe('unavailable')
-    expect(toFailure(coded('mode_unsupported', 'unsupported')).kind).toBe('unavailable')
+    expect(toFailure(said('invalid_glob', 'invalid glob src/[a: unclosed character class')).kind).toBe('invalidInput')
+    expect(toFailure(said('io_error', 'locked/a.txt could not be read: Permission denied (os error 13)')).kind).toBe('io')
+    expect(toFailure(said('unknown_search', 'search:4 is not a running search')).kind).toBe('notFound')
+    expect(toFailure(said('withheld', 'withheld')).kind).toBe('permissionDenied')
+    expect(toFailure(said('state_unavailable', 'no per-user state store is bound')).kind).toBe('unavailable')
+    expect(toFailure(said('mode_unsupported', 'unsupported')).kind).toBe('unavailable')
     // The host's untyped failure is a failed operation, not a taken name.
-    expect(toFailure(said('ide_operation_failed', 'a.txt is not a file'))).toEqual({ kind: 'io', message: 'a.txt is not a file' })
+    expect(toFailure(said('ide_operation_failed', 'query required'))).toEqual({ kind: 'io', message: 'query required' })
     expect(toFailure(said('host_operation_failed', 'pty session not found')).kind).toBe('io')
     // A code this client does not know, and an inherited property name, fall back to the status.
-    expect(toFailure(coded('brand_new_code', 'x')).kind).toBe('alreadyExists')
-    expect(toFailure(coded('toString', 'x')).kind).toBe('alreadyExists')
+    expect(toFailure(said('brand_new_code', 'x')).kind).toBe('alreadyExists')
+    expect(toFailure(said('toString', 'x')).kind).toBe('alreadyExists')
   })
 
   test('a range error from the SDK offset helpers is invalid input', () => {

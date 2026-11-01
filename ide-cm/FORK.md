@@ -53,6 +53,6 @@ imitated. Each answers with an `unavailable` failure that names the reason, and 
 development, LightEdit, project trust changes, settings export and import, encoding and
 line-ending changes, choosing a terminal's shell, directory or environment, moving or copying
 between the checkout and the state store, the parts of Find in Files the host cannot search by
-(file masks, comment or string context, change-set and pattern scopes, preserve case) and applying
+(comment or string context, change-set and pattern scopes, preserve case) and applying
 a replace, and every command in groups the page does not yet connect (version control,
 language-server, debugger). Theia keeps those workflows until `ide-cm` shows parity.

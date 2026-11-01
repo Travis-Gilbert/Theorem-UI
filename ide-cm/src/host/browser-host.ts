@@ -58,6 +58,7 @@ const KINDS_BY_CODE: Record<string, ErrorKind> = {
   not_found: 'notFound',
   already_exists: 'alreadyExists',
   not_a_directory: 'invalidInput',
+  not_a_file: 'invalidInput',
   copy_into_itself: 'invalidInput',
   invalid_range: 'invalidInput',
   invalid_mode: 'invalidInput',
@@ -65,13 +66,16 @@ const KINDS_BY_CODE: Record<string, ErrorKind> = {
   unknown_encoding: 'invalidInput',
   unknown_root: 'invalidInput',
   invalid_pattern: 'invalidInput',
+  invalid_glob: 'invalidInput',
+  unknown_search: 'notFound',
+  io_error: 'io',
   withheld: 'permissionDenied',
   actor_required: 'permissionDenied',
   state_unavailable: 'unavailable',
   mode_unsupported: 'unavailable',
   unsupported_root: 'unavailable',
-  // The host's untyped failures (a read of a path that is not a file, an unknown search id): the
-  // operation failed, which is not a name already taken.
+  // The host's untyped failures (a missing argument): the operation failed, which is not a name
+  // already taken.
   ide_operation_failed: 'io',
   host_operation_failed: 'io',
 }
@@ -79,18 +83,15 @@ const KINDS_BY_CODE: Record<string, ErrorKind> = {
 /**
  * What a handler threw, as the `IdeError` the frontend shows. SDK errors carry `statusCode` and a
  * coded body; the body's own `message` (the host's sentence, such as the regex engine's reason) is
- * shown in preference to the SDK's status line. The host's message for a typed refusal repeats its
- * code (`refused [invalid_pattern]: Invalid regular expression: unclosed group`, seen live-local);
- * the code is the failure's kind, so the sentence is shown without it.
+ * shown in preference to the SDK's status line. The code travels in its own field and names the
+ * failure's kind; the message is the sentence alone.
  */
 export function toFailure(error: unknown): HostFailure {
   if (isFailure(error)) return error
   const status = (error as { statusCode?: number } | null)?.statusCode
   const body = (error as { body?: { code?: unknown; message?: unknown } } | null)?.body
   const code = typeof body?.code === 'string' ? body.code : undefined
-  const said = typeof body?.message === 'string' ? body.message : error instanceof Error ? error.message : String(error)
-  const repeated = code === undefined ? undefined : `refused [${code}]: `
-  const message = repeated !== undefined && said.startsWith(repeated) ? said.slice(repeated.length) : said
+  const message = typeof body?.message === 'string' ? body.message : error instanceof Error ? error.message : String(error)
   const coded = code !== undefined && Object.hasOwn(KINDS_BY_CODE, code) ? KINDS_BY_CODE[code] : undefined
   if (coded) return failure(coded, message)
   if (status !== undefined) return failure(KINDS_BY_STATUS[status] ?? 'io', message)

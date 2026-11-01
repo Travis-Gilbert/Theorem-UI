@@ -27,6 +27,7 @@ function setup(reply: () => Response = () => new Response('{"ok":true}', { heade
   const handle = createStandIn({
     hostUrl: 'http://host.test:9',
     tenant: 'tenant-a',
+    actor: 'ada',
     token: 'secret-token',
     fetch: fakeHost,
     csrfToken: 'csrf-1',
@@ -44,7 +45,7 @@ describe('workspace stand-in', () => {
     expect(await reply?.json()).toEqual({
       schema: 'theorem-environment/1',
       tenantId: 'tenant-a',
-      principalId: 'stand-in:dev',
+      principalId: 'ada',
       csrfToken: 'csrf-1',
     })
     expect(seen).toHaveLength(0)
@@ -72,17 +73,26 @@ describe('workspace stand-in', () => {
     expect(seen[0]!.body).toBe(body)
   })
 
-  test('the host sees its bearer and tenant, never the page credential headers', async () => {
+  test('the host sees its bearer, tenant and caller, never the page credential headers', async () => {
     const { handle, seen } = setup()
     await handle(
       request('/api/environment/v1/workspaces/demo/live?cursor=e:1', {
-        headers: { authorization: 'Bearer page-supplied', cookie: 'sid=1', 'x-csrf-token': 'csrf-1', 'last-event-id': 'e:1' },
+        headers: {
+          authorization: 'Bearer page-supplied',
+          cookie: 'sid=1',
+          'x-csrf-token': 'csrf-1',
+          'x-theorem-actor': 'grace',
+          'last-event-id': 'e:1',
+        },
       }),
     )
     const sent = seen[0]!
     expect(sent.url).toBe('http://host.test:9/api/environment/v1/workspaces/demo/live?cursor=e:1')
     expect(sent.headers.get('authorization')).toBe('Bearer secret-token')
     expect(sent.headers.get('x-theorem-tenant')).toBe('tenant-a')
+    // The caller is the one the product server names, never the one the page claims: the host keys
+    // per-user state by it and refuses a state call without it.
+    expect(sent.headers.get('x-theorem-actor')).toBe('ada')
     expect(sent.headers.get('cookie')).toBeNull()
     expect(sent.headers.get('x-csrf-token')).toBeNull()
     expect(sent.headers.get('last-event-id')).toBe('e:1')

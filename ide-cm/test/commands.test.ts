@@ -81,14 +81,17 @@ describe('file commands', () => {
   })
 
   test('fs_probe asks the host to look at the file\'s head and reads none of it', async () => {
-    const h = await harness({ 'text.txt': 'é😀', 'blob.bin': bytes(0, 1, 2, 255), 'nul.txt': 'a\0b', dir: null })
+    const h = await harness({ 'text.txt': 'é😀', 'blob.bin': bytes(0, 1, 2, 255), 'nul.txt': 'a\0b', 'le16.txt': bytes(0xff, 0xfe, 104, 0), dir: null })
     expect(await h.call('fs_probe', { path: '/demo/text.txt' })).toEqual({ size: 6, binary: false, tooLarge: false })
     expect(await h.call('fs_probe', { path: '/demo/blob.bin' })).toMatchObject({ size: 4, binary: true })
     expect(await h.call('fs_probe', { path: '/demo/nul.txt' })).toMatchObject({ binary: true })
+    // A UTF-16 byte order mark is the one thing that makes a NUL text.
+    expect(await h.call('fs_probe', { path: '/demo/le16.txt' })).toMatchObject({ binary: false })
     expect(sent(h.server, 'workspace.files.stat').map((o) => o.body)).toEqual([
       { path: 'text.txt', root: 'workspace', probe: true },
       { path: 'blob.bin', root: 'workspace', probe: true },
       { path: 'nul.txt', root: 'workspace', probe: true },
+      { path: 'le16.txt', root: 'workspace', probe: true },
     ])
     expect(sent(h.server, 'workspace.files.read')).toEqual([])
     await expect(h.call('fs_probe', { path: '/demo/dir' })).rejects.toMatchObject({ kind: 'invalidInput' })
@@ -132,11 +135,11 @@ describe('file commands', () => {
   })
 
   test('fs_read_text returns the file, refuses binary, and an open document answers with its own text', async () => {
-    const h = await harness({ 'a.txt': 'on disk', 'blob.bin': bytes(0, 1) })
+    const h = await harness({ 'a.txt': 'on disk', 'blob.bin': bytes(0, 1), dir: null })
     expect(await h.call('fs_read_text', { path: '/demo/a.txt' })).toBe('on disk')
     await expect(h.call('fs_read_text', { path: '/demo/blob.bin' })).rejects.toMatchObject({ kind: 'invalidInput' })
-    // The host refuses a read of something that is not a file without a code of its own.
-    await expect(h.call('fs_read_text', { path: '/demo/missing.txt' })).rejects.toMatchObject({ kind: 'io', message: 'missing.txt is not a file' })
+    await expect(h.call('fs_read_text', { path: '/demo/missing.txt' })).rejects.toMatchObject({ kind: 'notFound', message: 'missing.txt does not exist' })
+    await expect(h.call('fs_read_text', { path: '/demo/dir' })).rejects.toMatchObject({ kind: 'invalidInput', message: 'dir is not a file' })
 
     const reads = () => sent(h.server, 'workspace.files.read').length
     const before = reads()
@@ -367,7 +370,7 @@ describe('Find in Files', () => {
       { path: '/demo/b/c.txt', relPath: 'b/c.txt', matches: [{ line: 0, text: 'needle', ranges: [[0, 6]], textOffset: 0 }] },
     ])
     expect(events.events.at(-1)).toMatchObject({ type: 'done', summary: { files: 2, matches: 4, limitHit: false, cancelled: false } })
-    expect(sent(h.server, 'search.query')[0]!.body).toEqual({ query: 'needle', view: 'text', regex: false, case_sensitive: true, whole_word: false, limit: FILES_PER_CALL })
+    expect(sent(h.server, 'search.query')[0]!.body).toEqual({ query: 'needle', view: 'text', regex: false, case_sensitive: true, whole_word: false, include: [], exclude: [], limit: FILES_PER_CALL })
   })
 
   test('regex, case and whole word reach the host as its own flags', async () => {
@@ -418,8 +421,9 @@ describe('Find in Files', () => {
     expect(calls).toHaveLength(3)
     expect(calls[1]).toEqual({ id: 'search:1', limit: FILES_PER_CALL })
     expect(calls[2]).toEqual({ id: 'search:1', limit: FILES_PER_CALL })
-    // A finished job needs no cancel.
+    // A finished job needs no cancel: the host has dropped it already.
     expect(sent(h.server, 'search.cancel')).toEqual([])
+    expect(h.server.searches.size).toBe(0)
   })
 
   test('the match limit stops the search, says so, and drops the host\'s job', async () => {
@@ -433,7 +437,7 @@ describe('Find in Files', () => {
     expect(sent(h.server, 'search.query')).toHaveLength(1)
     await until(() => sent(h.server, 'search.cancel').length === 1, 'the job cancel')
     expect(sent(h.server, 'search.cancel')[0]!.body).toEqual({ id: 'search:1' })
-    expect(h.server.searches.get('search:1')!.cancelled).toBe(true)
+    expect(h.server.searches.has('search:1')).toBe(false)
   })
 
   test('cancel_request stops a search in flight before its next call, and its summary says cancelled', async () => {
@@ -455,11 +459,35 @@ describe('Find in Files', () => {
     expect(await h.call('cancel_request', { id: 99 })).toBeNull()
   })
 
+  test('file masks reach the host as its include and exclude globs, which narrow the files it reads', async () => {
+    const h = await harness({ 'a.rs': 'needle', 'b.md': 'needle', 'gen/c.rs': 'needle', 'src/d.kt': 'needle' })
+    const paths = async (include: string[], exclude: string[] = []) => {
+      const events = channel<SearchEvent>()
+      await h.call('search_start', { request: 10, query: query('needle', { include, exclude }), onEvent: events })
+      return events.events.flatMap((e) => (e.type === 'file' ? [e.file.relPath] : []))
+    }
+    expect(await paths([])).toEqual(['a.rs', 'b.md', 'gen/c.rs', 'src/d.kt'])
+    expect(await paths(['*.rs'])).toEqual(['a.rs', 'gen/c.rs'])
+    expect(sent(h.server, 'search.query').at(-1)!.body).toEqual({
+      query: 'needle',
+      view: 'text',
+      regex: false,
+      case_sensitive: true,
+      whole_word: false,
+      include: ['*.rs'],
+      exclude: [],
+      limit: FILES_PER_CALL,
+    })
+    expect(await paths(['*.rs'], ['gen'])).toEqual(['a.rs'])
+    // OpenIDEA's own mask syntax: one entry may list several, and `!` moves a mask to the other list.
+    expect(await paths(['*.md, *.kt'])).toEqual(['b.md', 'src/d.kt'])
+    expect(await paths(['!*.md'])).toEqual(['a.rs', 'gen/c.rs', 'src/d.kt'])
+    await expect(h.call('search_start', { request: 10, query: query('needle', { include: ['src/[a'] }), onEvent: channel() })).rejects.toMatchObject({ kind: 'invalidInput' })
+  })
+
   test('what the host cannot search by is refused, never searched without', async () => {
     const h = await harness({ 'a.txt': 'needle' })
     const refused = [
-      query('needle', { include: ['*.rs'] }),
-      query('needle', { exclude: ['*.md'] }),
       query('needle', { context: 'inComments' }),
       query('needle', { scope: { kind: 'fileSet', set: 'changed' } as unknown as SearchQuery['scope'] }),
       query('needle', { scope: { kind: 'pattern', pattern: 'file:*.rs' } as unknown as SearchQuery['scope'] }),
@@ -482,7 +510,13 @@ describe('Find in Files', () => {
     await until(() => sent(h.server, 'search.cancel').length === 1, 'the validation job dropped')
     expect(await h.call('search_validate', { query: query('foo(') })).toBeNull()
     expect(sent(h.server, 'search.query')).toHaveLength(2)
-    await expect(h.call('search_validate', { query: query('x', { include: ['*.rs'] }) })).rejects.toMatchObject({ kind: 'unavailable' })
+    // A file mask is the host's to judge, whatever the pattern.
+    await expect(h.call('search_validate', { query: query('x', { include: ['src/[a'] }) })).rejects.toMatchObject({ kind: 'invalidInput' })
+    expect(await h.call('search_validate', { query: query('', { exclude: ['*.md'] }) })).toBeNull()
+    expect(sent(h.server, 'search.query').slice(2).map((o) => o.body)).toEqual([
+      { query: 'x', view: 'text', regex: false, case_sensitive: true, whole_word: false, include: ['src/[a'], exclude: [], limit: 0 },
+      { query: '', view: 'text', regex: false, case_sensitive: true, whole_word: false, include: [], exclude: ['*.md'], limit: 0 },
+    ])
   })
 
   test('replace_preview answers the whole text before and after, and each edit as UTF-16 positions', async () => {
@@ -503,7 +537,9 @@ describe('Find in Files', () => {
         { range: { start: { line: 1, col: 0 }, end: { line: 1, col: 3 } }, new_text: '3=c' },
       ],
     })
-    expect(sent(h.server, 'search.replacePreview')[0]!.body).toEqual({ query: '(\\w+)=(\\d+)', replace: '$2=$1', regex: true, case_sensitive: true, whole_word: false })
+    // The host is asked about the file being previewed, and reads no other.
+    expect(sent(h.server, 'search.replacePreview')[0]!.body).toEqual({ query: '(\\w+)=(\\d+)', replace: '$2=$1', regex: true, case_sensitive: true, whole_word: false, path: 'x.txt' })
+    expect(h.server.previewReads).toEqual(['x.txt'])
     // Nothing is written by a preview.
     expect(h.server.tree.get('x.txt')).toBe('😀 a=1 b=2\nc=3\n')
   })
