@@ -487,7 +487,11 @@ describe('Find in Files', () => {
       exclude: [],
       limit: FILES_PER_CALL,
     })
-    expect(await paths(['*.rs'], ['gen'])).toEqual(['a.rs'])
+    // OpenIDEA's `FileMask`: a mask without `/` matches a file's name, never a directory's; a mask
+    // with `/` matches the path from the workspace root.
+    expect(await paths(['*.rs'], ['gen'])).toEqual(['a.rs', 'gen/c.rs'])
+    expect(await paths(['*.rs'], ['gen/**'])).toEqual(['a.rs'])
+    expect(await paths(['src/**/*.kt'])).toEqual(['src/d.kt'])
     // OpenIDEA's own mask syntax: one entry may list several, and `!` moves a mask to the other list.
     expect(await paths(['*.md, *.kt'])).toEqual(['b.md', 'src/d.kt'])
     expect(await paths(['!*.md'])).toEqual(['a.rs', 'gen/c.rs', 'src/d.kt'])

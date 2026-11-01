@@ -97,38 +97,38 @@ const looksBinary = (bytes: Uint8Array) => {
 }
 
 /**
- * The host's file masks: each entry split at commas, a leading `!` moving it to the other list,
- * then ripgrep's `--glob` meaning. The last glob a path matches decides it; a glob with no `/`
- * matches a name at any depth; an exclude that matches a directory excludes what is under it; and
- * with any include, a file that matches none is left out. A glob the host cannot parse is thrown
- * refused (globset's sentence, for the one malformation the tests use: an unclosed class).
+ * The host's file masks, OpenIDEA's `FileMask` (`ide-search/src/mask.rs`): each entry split at
+ * commas, a leading `!` moving a mask to the other list. A mask without `/` matches the file's name;
+ * one with `/` matches its path from the workspace root (a leading `./` or `/` dropped). With any
+ * include a file must match one, and a file that matches an exclude is left out. Masks filter files
+ * only. A mask the host cannot parse is thrown refused (globset's sentence, for the one malformation
+ * the tests use: an unclosed class).
  */
 const maskFilter = (body: any): ((path: string) => boolean) => {
-  const lines = (value: unknown) =>
-    (value == null ? [] : Array.isArray(value) ? value : [value]).flatMap((entry: string) => entry.split(/[,\n]/).map((e) => e.trim()).filter(Boolean))
-  const globs: { glob: Bun.Glob; include: boolean }[] = []
-  const add = (line: string, include: boolean) => {
-    const pattern = line.replace(/^\//, '')
-    const shown = include ? line : `!${line}`
-    if (/\[(?![^\]]*\])/.test(pattern)) {
-      throw refuse('invalid_glob', `error parsing glob '${shown}': unclosed character class; missing ']'`, { glob: shown })
+  const entries = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : typeof value === 'string' ? [value] : []
+  const lists = { include: { name: [] as Bun.Glob[], path: [] as Bun.Glob[] }, exclude: { name: [] as Bun.Glob[], path: [] as Bun.Glob[] } }
+  for (const [list, value] of [['include', body.include], ['exclude', body.exclude ?? body.excludes]] as const) {
+    for (const mask of entries(value).flatMap((entry) => entry.split(',')).map((m) => m.trim())) {
+      const negated = mask.startsWith('!')
+      const glob = negated ? mask.slice(1).trim() : mask
+      if (glob === '') continue
+      const target = lists[(list === 'include') !== negated ? 'include' : 'exclude']
+      const bare = glob.replace(/^(\.\/)+/, '')
+      const byPath = bare.includes('/')
+      const pattern = byPath ? bare.replace(/^\/+/, '') : bare
+      if (/\[(?![^\]]*\])/.test(pattern)) {
+        throw refuse('invalid_glob', `error parsing glob '${pattern}': unclosed character class; missing ']'`, { list, mask })
+      }
+      ;(byPath ? target.path : target.name).push(new Bun.Glob(pattern))
     }
-    globs.push({ glob: new Bun.Glob(pattern.includes('/') ? pattern : `**/${pattern}`), include })
   }
-  const included = lines(body.include)
-  const excluded = lines(body.exclude)
-  for (const line of included) line.startsWith('!') ? add(line.slice(1), false) : add(line, true)
-  for (const line of excluded) line.startsWith('!') ? add(line.slice(1), true) : add(line, false)
-  if (globs.length === 0) return () => true
-  const whitelisting = globs.some((g) => g.include)
-  const verdict = (path: string, directory: boolean) => {
-    for (let i = globs.length - 1; i >= 0; i--) if (globs[i]!.glob.match(path)) return globs[i]!.include ? 'keep' : 'drop'
-    return whitelisting && !directory ? 'drop' : 'none'
-  }
+  const any = (globs: Bun.Glob[], text: string) => globs.some((glob) => glob.match(text))
+  const including = lists.include.name.length + lists.include.path.length > 0
   return (path: string) => {
-    const segments = path.split('/')
-    for (let i = 1; i < segments.length; i++) if (verdict(segments.slice(0, i).join('/'), true) === 'drop') return false
-    return verdict(path, false) !== 'drop'
+    const name = path.slice(path.lastIndexOf('/') + 1)
+    if (including && !any(lists.include.name, name) && !any(lists.include.path, path)) return false
+    return !(any(lists.exclude.name, name) || any(lists.exclude.path, path))
   }
 }
 
