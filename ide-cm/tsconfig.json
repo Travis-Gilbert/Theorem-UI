@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@/*": ["./vendor/openidea/src/*"],
+      "@host/*": ["./src/host/*"],
+      "@tauri-apps/api/core": ["./vendor/openidea/src/platform/tauriCore.ts"],
+      "@tauri-apps/api/event": ["./src/host/tauri-event.ts"],
+      "@tauri-apps/api/path": ["./src/host/tauri-path.ts"],
+      "@tauri-apps/api/window": ["./src/host/tauri-window.ts"],
+      "@tauri-apps/api/webview": ["./src/host/tauri-window.ts"],
+      "@tauri-apps/api/webviewWindow": ["./src/host/tauri-window.ts"],
+      "@tauri-apps/plugin-dialog": ["./src/host/plugin-dialog.ts"],
+      "@tauri-apps/plugin-opener": ["./src/host/plugin-opener.ts"],
+      "@codemirror/commands": ["./src/host/cm-commands.ts"]
+    },
+    "types": ["vite/client", "bun"]
+  },
+  "include": ["src", "dev", "test", "vite.config.ts", "vendor/openidea/src/vite-env.d.ts", "vendor/openidea/src/emmet.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}

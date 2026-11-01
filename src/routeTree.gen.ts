@@ -19,6 +19,7 @@ import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as IdeCmSplatRouteImport } from './routes/ide-cm/$'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
@@ -99,6 +100,11 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
   id: '/auth/sign-out',
   path: '/auth/sign-out',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdeCmSplatRoute = IdeCmSplatRouteImport.update({
+  id: '/ide-cm/$',
+  path: '/ide-cm/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TheiaSplatRoute = TheiaSplatRouteImport.update({
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/ide-cm/$': typeof IdeCmSplatRoute
   '/theia/$': typeof TheiaSplatRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
@@ -334,6 +341,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/ide-cm/$': typeof IdeCmSplatRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/ide-cm/$': typeof IdeCmSplatRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/ide-cm/$'
     | '/theia/$'
     | '/c/$threadId'
     | '/desktop/blocks/app-token'
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/ide-cm/$'
     | '/theia/$'
     | '/'
     | '/c/$threadId'
@@ -511,6 +522,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/ide-cm/$'
     | '/theia/$'
     | '/_chat/'
     | '/_chat/c/$threadId'
@@ -553,6 +565,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  IdeCmSplatRoute: typeof IdeCmSplatRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
@@ -656,6 +669,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/sign-out'
       fullPath: '/auth/sign-out'
       preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ide-cm/$': {
+      id: '/ide-cm/$'
+      path: '/ide-cm/$'
+      fullPath: '/ide-cm/$'
+      preLoaderRoute: typeof IdeCmSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/theia/$': {
@@ -910,6 +930,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  IdeCmSplatRoute: IdeCmSplatRoute,
   TheiaSplatRoute: TheiaSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
@@ -955,12 +976,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

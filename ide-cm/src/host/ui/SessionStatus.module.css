@@ -1,0 +1,14 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg-secondary);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.status > [data-dirty='true'],
+.status > [data-pending='true'] {
+  color: var(--fg-emphasis);
+}
