@@ -105,6 +105,15 @@ describe('file commands', () => {
     expect(await h.call('fs_probe', { path: '/demo/open.txt' })).toMatchObject({ binary: false })
   })
 
+  test('a path under a file is an IO failure, not a missing path, and nothing is made there', async () => {
+    const h = await harness({ 'a.txt': 'a' })
+    // The host answers `{type: "missing"}` only for absence; anything else refuses `io_error`.
+    await expect(h.call('fs_probe', { path: '/demo/a.txt/inside' })).rejects.toMatchObject({ kind: 'io' })
+    await expect(h.call('fs_read_text', { path: '/demo/a.txt/inside' })).rejects.toMatchObject({ kind: 'io' })
+    await expect(h.call('fs_create_file', { path: '/demo/a.txt/inside' })).rejects.toMatchObject({ kind: 'io' })
+    expect([...h.server.tree.keys()]).toEqual(['a.txt'])
+  })
+
   test('fs_probe calls a file too large only past the limit the editor opens read-only', async () => {
     const h = await harness({ 'at.txt': 'a'.repeat(TOO_LARGE), 'over.txt': 'a'.repeat(TOO_LARGE + 1) })
     expect(await h.call('fs_probe', { path: '/demo/at.txt' })).toMatchObject({ size: TOO_LARGE, tooLarge: false })

@@ -198,6 +198,10 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
   const isDirectoryIn = (map: Map<string, Entry | null>, path: string) =>
     path === '' || map.get(path) === null || [...map.keys()].some((p) => p.startsWith(`${path}/`))
   const existsIn = (map: Map<string, Entry | null>, path: string) => map.has(path) || isDirectoryIn(map, path)
+  /** Absence is `NotFound` alone on the host: a path under a file is an IO failure there. */
+  const underFile = (map: Map<string, Entry | null>, path: string) =>
+    parents(path).some((parent) => map.get(parent) != null)
+  const notADirectory = (path: string) => refuse('io_error', `${path}: Not a directory (os error 20)`, { path })
 
   type Root = { name: 'workspace' | 'state'; map: Map<string, Entry | null> }
   /** The tree `root` selects; a refusal is thrown as its response. */
@@ -211,6 +215,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
   }
   const modeOf = (root: Root, path: string, directory: boolean) => files.modes.get(`${root.name}:${path}`) ?? (directory ? 0o755 : 0o644)
   const statOf = (root: Root, path: string, probe: boolean) => {
+    if (underFile(root.map, path)) throw notADirectory(path)
     if (!existsIn(root.map, path)) return { path, type: 'missing', root: root.name }
     const entry = root.map.get(path)
     const directory = entry === null || entry === undefined
@@ -276,6 +281,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
   }
 
   const readFile = (root: Root, body: any) => {
+    if (underFile(root.map, body.path)) return notADirectory(body.path)
     if (!existsIn(root.map, body.path)) return refuse('not_found', `${body.path} does not exist`, { path: body.path })
     const entry = root.map.get(body.path)
     if (entry === undefined || entry === null) return refuse('not_a_file', `${body.path} is not a file`, { path: body.path })
