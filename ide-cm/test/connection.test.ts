@@ -65,6 +65,19 @@ describe('WorkspaceConnection', () => {
     second.live.close()
   })
 
+  test('a cursor handed to saveCursor is the one saved, not the stream\'s (a resync listener runs before the SDK adopts the new one)', async () => {
+    const storage = memory()
+    const server = fakeServer()
+    const connection = await connect(server, { storage })
+    server.lives[0]!.push({ kind: 'file.changed', cursor: 'ep1:4', data: { path: 'a.txt', change: 'changed', directory: false } })
+    await until(() => connection.live.cursor === 'ep1:4')
+    connection.saveCursor('ep2:1')
+    expect(storage.held.get('theorem-ide-cm.live-cursor.demo')).toBe('ep2:1')
+    connection.saveCursor()
+    expect(storage.held.get('theorem-ide-cm.live-cursor.demo')).toBe('ep1:4')
+    connection.live.close()
+  })
+
   test('a different workspace does not inherit the cursor', async () => {
     const storage = memory()
     storage.setItem('theorem-ide-cm.live-cursor.demo', 'ep1:4')

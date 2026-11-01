@@ -152,9 +152,10 @@ async function main(): Promise<void> {
   connection.live.onState((state) => hostState.setLive(state))
   connection.live.onAny(saveSoon)
   connection.live.onResync((resync) => {
+    // This listener runs before the SDK adopts the resync's cursor: `live.cursor` is still the old epoch's.
     hostState.addResync(resync.reason)
-    hostState.setCursor(connection.live.cursor)
-    connection.saveCursor()
+    hostState.setCursor(resync.cursor)
+    connection.saveCursor(resync.cursor)
   })
   window.addEventListener('pagehide', () => connection.saveCursor())
   window.addEventListener('beforeunload', (event) => {

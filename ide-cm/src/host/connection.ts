@@ -230,9 +230,11 @@ export class WorkspaceConnection {
     return { ...init, headers }
   }
 
-  /** Remember where the live stream stands, so a reload resumes instead of starting at the head. */
-  saveCursor(): void {
-    const cursor = this.live.cursor
+  /**
+   * Remember where the live stream stands, so a reload resumes instead of starting at the head.
+   * A resync listener runs before the SDK adopts the resync's cursor, so it passes that cursor.
+   */
+  saveCursor(cursor = this.live.cursor): void {
     if (!cursor) return
     try {
       this.options.storage?.setItem(cursorKey(this.workspaceId), cursor)
