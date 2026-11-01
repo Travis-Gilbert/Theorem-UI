@@ -469,15 +469,24 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
   const previewReads: string[] = []
   const replacePreview = (body: any) => {
     if (typeof body.query !== 'string') return failed('query required')
-    const named = body.path !== undefined ? [body.path] : body.paths
-    if (named !== undefined && !(Array.isArray(named) && named.every((p) => typeof p === 'string'))) {
+    // As the host: `path` then `paths`, either may be absent; a named path that is missing or not a
+    // file is refused as a read of it is.
+    const pathOk = body.path == null || typeof body.path === 'string'
+    const pathsOk = body.paths == null || (Array.isArray(body.paths) && body.paths.every((p: unknown) => typeof p === 'string'))
+    if (!pathOk || !pathsOk) {
       return refuse('invalid_paths', 'path is one workspace path and paths a list of them', { path: body.path ?? null, paths: body.paths ?? null })
+    }
+    const named: string[] | undefined =
+      body.path == null && body.paths == null ? undefined : [...(body.path == null ? [] : [body.path]), ...(body.paths ?? [])]
+    for (const path of named ?? []) {
+      if (!existsIn(tree, path)) return refuse('not_found', `${path} does not exist`, { path })
+      if (tree.get(path) == null) return refuse('not_a_file', `${path} is not a file`, { path })
     }
     const pattern = compile(body)
     const inMask = maskFilter(body)
     const unreadable: string[] = []
     const replacements = pattern
-      ? ((named as string[] | undefined) ?? searchPaths()).filter(inMask).flatMap((path) => {
+      ? (named ?? searchPaths()).filter(inMask).flatMap((path) => {
           if (files.unreadable.has(path)) {
             unreadable.push(path)
             return []

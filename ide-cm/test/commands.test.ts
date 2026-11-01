@@ -544,6 +544,16 @@ describe('Find in Files', () => {
     expect(h.server.tree.get('x.txt')).toBe('😀 a=1 b=2\nc=3\n')
   })
 
+  test('replace_preview of a file that is gone, or a directory, is the host\'s refusal, not an empty preview', async () => {
+    const h = await harness({ 'x.txt': 'one', 'B/inner.txt': 'one' })
+    const ask = (path: string) => h.call('replace_preview', { query: query('one'), replacement: '1', preserveCase: false, path, only: null })
+    await expect(ask('/demo/gone.txt')).rejects.toMatchObject({ kind: 'notFound', message: 'gone.txt does not exist' })
+    await expect(ask('/demo/B')).rejects.toMatchObject({ kind: 'invalidInput', message: 'B is not a file' })
+    expect(h.server.previewReads).toEqual([])
+    // Positive control: the file beside them previews.
+    expect(((await ask('/demo/x.txt')) as { after: string }).after).toBe('1')
+  })
+
   test('replace_preview keeps only the replacements the frontend chose', async () => {
     const h = await harness({ 'x.txt': 'one two\none' })
     const preview = (await h.call('replace_preview', {
