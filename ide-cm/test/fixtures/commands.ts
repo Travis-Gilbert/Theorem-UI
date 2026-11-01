@@ -1,6 +1,7 @@
 // FIXTURE (evidence grade: fixture). The command table over a connection to the fake product
 // server and workspace host in ./host.ts. Tests close what it opened with `closeHarnesses()`.
 
+import { toFailure } from '../../src/host/browser-host'
 import { WorkspaceConnection } from '../../src/host/connection'
 import { buildCommands } from '../../src/host/commands'
 import type { EmittedEvent } from '../../src/host/commands/context'
@@ -26,7 +27,8 @@ export async function harness(initial: Record<string, Entry | null> = {}, files:
   const call = (name: string, args: Record<string, unknown> = {}) => {
     const handler = commands.table.get(name)
     if (!handler) throw new Error(`no command ${name}`)
-    return Promise.resolve().then(() => handler(args))
+    // As `BrowserHostImpl.invoke` does: what the frontend sees of a refusal is the mapped failure.
+    return Promise.resolve().then(() => handler(args)).catch((error: unknown) => { throw toFailure(error) })
   }
   return { server, connection, events, context, commands, call, storage }
 }

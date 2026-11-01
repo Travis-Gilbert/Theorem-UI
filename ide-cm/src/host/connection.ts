@@ -1,4 +1,5 @@
-// SOURCING: @theoremharness/sdk — TheoremClient carries every request, WorkspaceLive the resumable
+// SOURCING: @theoremharness/sdk — TheoremClient carries every request (its `fetch` passthrough the
+// operations the vendored 0.5.0 client has no method for), WorkspaceLive the resumable
 // live stream (cursor = `<epoch>:<seq>`, a cursor the host cannot continue from becomes a resync),
 // DocumentSession shared editing, TerminalChannel the shell, WorkspaceLanguage and WorkspaceScm the
 // typed language and git calls. This file only holds one instance of each for the page and
@@ -9,6 +10,7 @@
 import {
   DocumentSession,
   TheoremClient,
+  TheoremError,
   WorkspaceLanguage,
   WorkspaceLive,
   WorkspaceScm,
@@ -23,6 +25,20 @@ export interface OperationHeaders {
 }
 
 export type ChannelOptions = TerminalChannelOptions
+
+/**
+ * The two places a file can live on the host: the checkout (`workspace`), or the caller's own
+ * store (`state`), which the host keys by the actor the product server names and keeps outside
+ * every walk of the checkout.
+ */
+export type FileRoot = 'workspace' | 'state'
+
+/** A frontend path as the host addresses it. */
+export interface Located {
+  root: FileRoot
+  /** Relative to its root; `''` is the root itself. */
+  relative: string
+}
 
 /** A shared document session held until `release` is called. */
 export interface DocumentLease {
@@ -124,6 +140,12 @@ export class WorkspaceConnection {
   readonly name: string
   /** The project root as the frontend sees it: absolute, `/`-separated. */
   readonly root: string
+  /**
+   * The caller's own IDE state (scratches, the application data directory) as the frontend sees
+   * it: `/<name>.ide-state`. It sits beside the project root, never under it, so no checkout path
+   * can be taken for a state path, whatever the workspace is called.
+   */
+  readonly stateRoot: string
   readonly live: WorkspaceLive
   /** Resolves once the workspace is open and the live stream has started. */
   readonly ready: Promise<void>
@@ -138,6 +160,7 @@ export class WorkspaceConnection {
     this.workspaceId = options.workspaceId
     this.name = options.name
     this.root = `/${options.name}`
+    this.stateRoot = `${this.root}.ide-state`
     const send: Send = options.fetch ?? ((input, init) => fetch(input, init))
     this.client = new TheoremClient({
       baseUrl: options.baseUrl,
@@ -273,6 +296,44 @@ export class WorkspaceConnection {
 
   toAbsolute(relative: string): string {
     return relative === '' || relative === '.' ? this.root : `${this.root}/${relative}`
+  }
+
+  /** Which root a frontend path is in, and where in it; undefined for a path in neither. */
+  locate(path: string): Located | undefined {
+    if (path === this.stateRoot) return { root: 'state', relative: '' }
+    if (path.startsWith(`${this.stateRoot}/`)) return { root: 'state', relative: path.slice(this.stateRoot.length + 1) }
+    const relative = this.toRelative(path)
+    return relative === undefined ? undefined : { root: 'workspace', relative }
+  }
+
+  /** The frontend path of `relative` in `root`. */
+  pathIn(root: FileRoot, relative: string): string {
+    if (root === 'workspace') return this.toAbsolute(relative)
+    return relative === '' ? this.stateRoot : `${this.stateRoot}/${relative}`
+  }
+
+  /**
+   * An operation the vendored SDK has no method for (0.5.0 predates `workspace.files.copy` and
+   * `workspace.files.setMode`), sent the way its generated methods send one: through the same
+   * transport, with the same headers, and a refusal thrown as the `TheoremError` they throw.
+   */
+  async operate<T>(name: string, body: Record<string, unknown>): Promise<T> {
+    const { workspaceId, ...headers } = await this.headers()
+    const response = await this.client.fetch(
+      `api/environment/v1/workspaces/${encodeURIComponent(workspaceId)}/operations/${name}`,
+      { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) },
+    )
+    const text = await response.text()
+    let parsed: unknown
+    try {
+      parsed = text === '' ? undefined : JSON.parse(text)
+    } catch {
+      parsed = text
+    }
+    if (!response.ok) {
+      throw new TheoremError({ statusCode: response.status, body: parsed, message: `${name}: HTTP ${response.status}` })
+    }
+    return parsed as T
   }
 
   /** One session per path, shared by every editor and writer on this page. */

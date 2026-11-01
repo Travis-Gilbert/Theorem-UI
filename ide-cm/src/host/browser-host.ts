@@ -48,13 +48,51 @@ const KINDS_BY_STATUS: Record<number, ErrorKind> = {
   503: 'unavailable',
 }
 
-/** What a handler threw, as the `IdeError` the frontend shows. SDK errors carry `statusCode` and a coded body. */
+/**
+ * The workspace host's typed refusals. Every one arrives as HTTP 409 `{code, message, detail}`, so
+ * the status alone would call each of them `alreadyExists`; the code says what the frontend should
+ * do. A code not listed falls back to the status.
+ */
+const KINDS_BY_CODE: Record<string, ErrorKind> = {
+  stale_revision: 'outOfSync',
+  not_found: 'notFound',
+  already_exists: 'alreadyExists',
+  not_a_directory: 'invalidInput',
+  copy_into_itself: 'invalidInput',
+  invalid_range: 'invalidInput',
+  invalid_mode: 'invalidInput',
+  invalid_contents: 'invalidInput',
+  unknown_encoding: 'invalidInput',
+  unknown_root: 'invalidInput',
+  invalid_pattern: 'invalidInput',
+  withheld: 'permissionDenied',
+  actor_required: 'permissionDenied',
+  state_unavailable: 'unavailable',
+  mode_unsupported: 'unavailable',
+  unsupported_root: 'unavailable',
+  // The host's untyped failures (a read of a path that is not a file, an unknown search id): the
+  // operation failed, which is not a name already taken.
+  ide_operation_failed: 'io',
+  host_operation_failed: 'io',
+}
+
+/**
+ * What a handler threw, as the `IdeError` the frontend shows. SDK errors carry `statusCode` and a
+ * coded body; the body's own `message` (the host's sentence, such as the regex engine's reason) is
+ * shown in preference to the SDK's status line. The host's message for a typed refusal repeats its
+ * code (`refused [invalid_pattern]: Invalid regular expression: unclosed group`, seen live-local);
+ * the code is the failure's kind, so the sentence is shown without it.
+ */
 export function toFailure(error: unknown): HostFailure {
   if (isFailure(error)) return error
   const status = (error as { statusCode?: number } | null)?.statusCode
-  const code = (error as { body?: { code?: string } } | null)?.body?.code
-  const message = error instanceof Error ? error.message : String(error)
-  if (code === 'stale_revision') return failure('outOfSync', message)
+  const body = (error as { body?: { code?: unknown; message?: unknown } } | null)?.body
+  const code = typeof body?.code === 'string' ? body.code : undefined
+  const said = typeof body?.message === 'string' ? body.message : error instanceof Error ? error.message : String(error)
+  const repeated = code === undefined ? undefined : `refused [${code}]: `
+  const message = repeated !== undefined && said.startsWith(repeated) ? said.slice(repeated.length) : said
+  const coded = code !== undefined && Object.hasOwn(KINDS_BY_CODE, code) ? KINDS_BY_CODE[code] : undefined
+  if (coded) return failure(coded, message)
   if (status !== undefined) return failure(KINDS_BY_STATUS[status] ?? 'io', message)
   if (error instanceof RangeError || error instanceof TypeError) return failure('invalidInput', message)
   return failure('internal', message)

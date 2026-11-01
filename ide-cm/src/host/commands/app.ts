@@ -73,11 +73,13 @@ export function appCommands(context: CommandContext, settings: SettingsLayers, o
     app_info: async () => ({
       version: APP_VERSION,
       platform: guessOs(),
-      configDir: `${connection.root}/.theorem-ide`,
+      configDir: connection.stateRoot,
     }),
 
-    // The virtual root the `@tauri-apps/api/path` shim names for home and data directories.
+    // The virtual roots the `@tauri-apps/api/path` shim names: home is the project, and the
+    // application data and config directories are the caller's own state store, outside the checkout.
     host_workspace_root: async () => connection.root,
+    host_state_root: async () => connection.stateRoot,
 
     recent_projects: async () => readRecent(),
     remove_recent_project: async (args) => {
@@ -164,7 +166,6 @@ export function appCommands(context: CommandContext, settings: SettingsLayers, o
       throw unavailable('Multi-project workspaces', 'a Theorem workspace is one project root')
     },
 
-    cancel_request: async () => null,
     cancel_task: async () => false,
     log_frontend: async (args) => {
       const level = arg(args, 'level', isString) as keyof typeof LOG

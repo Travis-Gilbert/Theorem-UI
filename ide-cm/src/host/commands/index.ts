@@ -7,6 +7,7 @@ import { appCommands, type AppOptions } from './app'
 import type { CommandContext } from './context'
 import { DocumentRegistry, documentCommands } from './doc'
 import { WorkspaceFiles, fsCommands } from './fs'
+import { WorkspaceSearch, searchCommands } from './search'
 import { SettingsLayers, settingsCommands } from './settings'
 import { Terminals, terminalCommands } from './terminal'
 
@@ -14,13 +15,15 @@ export interface Commands {
   table: ReadonlyMap<string, CommandHandler>
   registry: DocumentRegistry
   files: WorkspaceFiles
+  search: WorkspaceSearch
   terminals: Terminals
 }
 
 export function buildCommands(context: CommandContext, options: AppOptions): Commands {
   const settings = new SettingsLayers(context)
   const registry = new DocumentRegistry(context)
-  const files = new WorkspaceFiles(context, (path) => registry.session(path))
+  const files = new WorkspaceFiles(context, (path) => registry.text(path))
+  const search = new WorkspaceSearch(context, (path) => registry.text(path))
   const terminals = new Terminals(context)
   const table = new Map<string, CommandHandler>()
   for (const group of [
@@ -28,6 +31,7 @@ export function buildCommands(context: CommandContext, options: AppOptions): Com
     settingsCommands(settings),
     documentCommands(registry),
     fsCommands(files),
+    searchCommands(search),
     terminalCommands(terminals),
   ]) {
     for (const [name, handler] of Object.entries(group)) {
@@ -35,5 +39,5 @@ export function buildCommands(context: CommandContext, options: AppOptions): Com
       table.set(name, handler)
     }
   }
-  return { table, registry, files, terminals }
+  return { table, registry, files, search, terminals }
 }

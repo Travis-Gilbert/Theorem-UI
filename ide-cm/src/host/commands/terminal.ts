@@ -7,10 +7,7 @@
 import { TerminalChannel } from '@theoremharness/sdk'
 import type { TerminalInfo, TerminalOptions } from '@/bindings'
 import { failure, unavailable, type HostChannel } from '../host'
-import { arg, isNumber, isString, type CommandContext, type CommandTable } from './context'
-
-const isChannel = (v: unknown): v is HostChannel<string> =>
-  typeof v === 'object' && v !== null && typeof (v as HostChannel).send === 'function'
+import { arg, isChannel, isNumber, isString, type CommandContext, type CommandTable } from './context'
 
 const isOptions = (v: unknown): v is TerminalOptions =>
   typeof v === 'object' && v !== null && isNumber((v as TerminalOptions).cols) && isNumber((v as TerminalOptions).rows)
@@ -92,7 +89,7 @@ export function terminalCommands(terminals: Terminals): CommandTable {
   return {
     term_spawn: (args) => {
       const options = arg(args, 'options', isOptions)
-      return terminals.spawn(options, arg(args, 'onOutput', isChannel))
+      return terminals.spawn(options, arg(args, 'onOutput', isChannel<string>))
     },
     term_write: (args) => terminals.write(arg(args, 'id', isNumber), arg(args, 'data', isString)),
     term_resize: (args) => terminals.resize(arg(args, 'id', isNumber), arg(args, 'cols', isNumber), arg(args, 'rows', isNumber)),

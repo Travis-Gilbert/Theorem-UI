@@ -40,6 +40,10 @@ async function harness(files: Record<string, string> = { 'a.txt': 'hello' }) {
   const connection = {
     root: ROOT,
     toRelative: (path: string) => (path === ROOT ? '' : path.startsWith(`${ROOT}/`) ? path.slice(ROOT.length + 1) : undefined),
+    locate: (path: string) => {
+      const relative = path === ROOT ? '' : path.startsWith(`${ROOT}/`) ? path.slice(ROOT.length + 1) : undefined
+      return relative === undefined ? undefined : { root: 'workspace', relative }
+    },
     acquire: async (relative: string) => {
       counts.acquired += 1
       const authority = authorities.get(relative)

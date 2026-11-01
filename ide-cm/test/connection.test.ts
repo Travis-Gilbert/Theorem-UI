@@ -172,8 +172,8 @@ describe('WorkspaceConnection', () => {
     test('any other 404 is the caller\'s answer and reopens nothing', async () => {
       const server = fakeServer()
       const connection = await connect(server)
-      const read = async () => connection.client.ide.workspace.filesRead({ ...(await connection.headers()), body: { path: 'missing.txt' } })
-      await expect(read()).rejects.toMatchObject({ statusCode: 404 })
+      // A document the host does not know: a 404 that is not `workspace_not_open`.
+      await expect(connection.operate('documents.head', { document_id: 'doc-unknown' })).rejects.toMatchObject({ statusCode: 404, body: { code: 'not_found' } })
       expect(server.opens).toHaveLength(1)
       connection.live.close()
     })
