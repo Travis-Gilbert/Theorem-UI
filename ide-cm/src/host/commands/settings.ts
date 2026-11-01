@@ -1,7 +1,8 @@
 // SOURCING: OpenIDEA's own `validateSettings` / `DEFAULT_SETTINGS` / `putAt` (the frontend's
 // settings schema) shape and edit the values; the browser's `localStorage` holds the two layers
-// the desktop backend keeps in TOML files (global, and per project). A browser tab has no
-// config directory, so these layers live per browser profile, not in the workspace.
+// the desktop backend keeps in TOML files (global, and per project). The host's state store is per
+// workspace and the global layer spans workspaces, so both layers live per browser profile, not in
+// the workspace or its state store.
 
 import { DEFAULT_SETTINGS, putAt, validateSettings } from '@/features/settings/model/schema'
 import { failure, unavailable } from '../host'
