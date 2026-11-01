@@ -49,6 +49,8 @@ export interface FakeTerminal {
   size: { cols: number; rows: number }
   attachments: number
   closed: boolean
+  /** The host process that ran this shell is gone: shells do not survive it. */
+  dead: boolean
 }
 
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
@@ -163,6 +165,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
           size: { cols: body.cols, rows: body.rows },
           attachments: 1,
           closed: false,
+          dead: false,
         }
         terminal.log = encoder.encode(shell.banner)
         terminals.push(terminal)
@@ -182,7 +185,11 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
       }
       case 'terminal.attach': {
         const terminal = terminals.find((t) => t.id === body.session)
-        if (!terminal) return Response.json({ code: 'not_found' }, { status: 404 })
+        // What the live host answered for a session it does not have (observed 2026-11-01, I02): a
+        // generic operation failure, not a typed not-found.
+        if (!terminal || terminal.dead) {
+          return Response.json({ code: 'host_operation_failed', detail: null, message: 'pty session not found' }, { status: 409 })
+        }
         const from = body.from_offset ?? 0
         const end = terminal.start + terminal.log.length
         const truncated = from < terminal.start
@@ -309,6 +316,7 @@ export function fakeServer(initial: Record<string, Entry | null> = {}) {
     workspaceOpen = false
     csrfToken = csrf
     for (const d of documents.values()) d.seated = false
+    for (const t of terminals) t.dead = true
     for (const live of lives) live.end()
   }
 

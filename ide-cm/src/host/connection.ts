@@ -39,6 +39,8 @@ export interface ConnectionOptions {
   fetch?: typeof fetch
   /** Where the live cursor survives a page reload. Absent or failing, a reload starts at the head. */
   storage?: Pick<Storage, 'getItem' | 'setItem'>
+  /** A consumer that could not re-read after a resync (default: a console warning). */
+  onResyncError?: (error: unknown) => void
 }
 
 type Send = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -77,6 +79,28 @@ async function authorityBehind(response: Response): Promise<{ resource: string; 
 
 /** `typeof fetch` also asks for Bun's `preconnect`, which the SDK never calls. */
 const asFetch = (send: Send) => send as typeof fetch
+
+/**
+ * Keep one failing consumer from holding the live stream. `WorkspaceLive` awaits every resync
+ * listener inside the loop that reads the stream and takes a rejection as the stream failing: the
+ * cursor does not move, it reconnects at the same cursor, the host answers the same resync, the
+ * same listener rejects, and every hello resets the back-off. A terminal whose shell died with the
+ * host does exactly that (its re-read is refused for good), and the stream then never delivers
+ * another event. The SDK's own consumers (document sessions, terminal channels) register on this
+ * instance, so wrapping `onResync` here covers them without touching the SDK. A consumer that
+ * failed stays stale until its next event or resync; the failure is reported, not swallowed.
+ */
+function isolateResyncListeners(live: WorkspaceLive, failed: (error: unknown) => void): void {
+  const register = live.onResync.bind(live)
+  live.onResync = (listener) =>
+    register(async (resync) => {
+      try {
+        await listener(resync)
+      } catch (error) {
+        failed(error)
+      }
+    })
+}
 
 const cursorKey = (workspaceId: string) => `theorem-ide-cm.live-cursor.${workspaceId}`
 
@@ -130,6 +154,7 @@ export class WorkspaceConnection {
       workspaceId: this.workspaceId,
       cursor: readCursor(options.storage, this.workspaceId),
     })
+    isolateResyncListeners(this.live, options.onResyncError ?? ((error) => console.warn('[ide-cm] a live consumer could not re-read after a resync', error)))
     this.ready = this.open()
   }
 

@@ -3,8 +3,19 @@
 // real host; the live-local run is in the browser evidence.
 
 import { describe, expect, test } from 'bun:test'
-import { WorkspaceConnection } from '../src/host/connection'
+import { TerminalChannel } from '@theoremharness/sdk'
+import { WorkspaceConnection, type ConnectionOptions } from '../src/host/connection'
 import { fakeServer, hello, memoryStorage as memory, until } from './fixtures/host'
+
+/** A connection whose live stream the test drives: opened, hello'd, and in the `open` state. */
+const connect = async (server: ReturnType<typeof fakeServer>, extra: Partial<ConnectionOptions> = {}) => {
+  const connection = new WorkspaceConnection({ baseUrl: 'http://page.test', workspaceId: 'demo', name: 'demo', fetch: server.fetchImpl, ...extra })
+  await connection.ready
+  await until(() => server.lives.length === 1)
+  server.lives[0]!.push(hello('ep1:0'))
+  await until(() => connection.live.state === 'open')
+  return connection
+}
 
 describe('WorkspaceConnection', () => {
   test('opens the workspace with the bootstrap token and hands the same token to every operation', async () => {
@@ -97,14 +108,6 @@ describe('WorkspaceConnection', () => {
   describe('a host that restarted', () => {
     // The host keeps the workspace on disk but has none open until it is asked, and answers
     // `workspace_not_open` (404) to everything meanwhile. The SDK takes a 404 on the live stream as final.
-    const connect = async (server: ReturnType<typeof fakeServer>) => {
-      const connection = new WorkspaceConnection({ baseUrl: 'http://page.test', workspaceId: 'demo', name: 'demo', fetch: server.fetchImpl })
-      await connection.ready
-      await until(() => server.lives.length === 1)
-      server.lives[0]!.push(hello('ep1:0'))
-      await until(() => connection.live.state === 'open')
-      return connection
-    }
     const list = async (connection: WorkspaceConnection) =>
       connection.client.ide.workspace.filesList({ ...(await connection.headers()), body: {} })
 
@@ -169,14 +172,6 @@ describe('WorkspaceConnection', () => {
     // `current_revision: 0`. The SDK reads the history after its own revision (empty) and sends the
     // same edit again at once: thousands of requests, no end. The connection seats the documents it
     // holds when it reopens the workspace, and bounds the rest.
-    const connect = async (server: ReturnType<typeof fakeServer>) => {
-      const connection = new WorkspaceConnection({ baseUrl: 'http://page.test', workspaceId: 'demo', name: 'demo', fetch: server.fetchImpl })
-      await connection.ready
-      await until(() => server.lives.length === 1)
-      server.lives[0]!.push(hello('ep1:0'))
-      await until(() => connection.live.state === 'open')
-      return connection
-    }
     const edits = (server: ReturnType<typeof fakeServer>) => server.operations.filter((o) => o.name === 'documents.edit')
     const opened = (server: ReturnType<typeof fakeServer>) => server.operations.filter((o) => o.name === 'documents.open')
     const insertAt = (at: number, insert: string) => [{ start: at, end: at, insert }]
@@ -251,6 +246,64 @@ describe('WorkspaceConnection', () => {
       expect(opened(server)).toHaveLength(1)
       expect(edits(server)).toHaveLength(2)
       expect(server.documents.get('a.txt')!.revision).toBe(2)
+      connection.live.close()
+    })
+  })
+
+  describe('a consumer that cannot re-read after a resync', () => {
+    // Found live (I02, 2026-11-01): a shell dies with the host, so after a restart the SDK's terminal
+    // channel re-reads on the resync and the host answers 409 `host_operation_failed` ("pty session
+    // not found"). WorkspaceLive awaits every resync listener inside the loop that reads the stream
+    // and takes a rejection as the stream failing: it reconnects at the SAME cursor, whose epoch the
+    // host no longer knows, gets the same resync, and the same rejection. Every hello resets its
+    // back-off, so that is about four rounds a second, for ever, with no live event delivered.
+    const resync = (cursor: string) => {
+      const [epoch] = cursor.split(':')
+      return { kind: 'resync', cursor, data: { reason: 'epoch_changed', epoch, cursor } }
+    }
+    const changed = (cursor: string, path: string) => ({ kind: 'file.changed', cursor, data: { path, change: 'changed', directory: false } })
+
+    test('a listener that rejects does not stop the cursor, the other listeners or the events after it', async () => {
+      const server = fakeServer()
+      const failures: unknown[] = []
+      const connection = await connect(server, { onResyncError: (error) => void failures.push(error) })
+      const seen: string[] = []
+      connection.live.onResync(() => {
+        throw new Error('cannot re-read')
+      })
+      connection.live.onResync((r) => void seen.push(r.reason))
+      connection.live.on('file.changed', ({ data }) => void seen.push(data.path))
+
+      server.lives[0]!.push(resync('ep2:1'))
+      server.lives[0]!.push(changed('ep2:2', 'a.txt'))
+      await until(() => connection.live.cursor === 'ep2:2', 'the cursor in the new epoch, past the failing listener')
+
+      expect(seen).toEqual(['epoch_changed', 'a.txt'])
+      expect(failures).toHaveLength(1)
+      expect(failures[0]).toMatchObject({ message: 'cannot re-read' })
+      expect(server.lives).toHaveLength(1)
+      connection.live.close()
+    })
+
+    test('a shell that died with the host: the stream resumes in the new epoch once and stays', async () => {
+      const server = fakeServer()
+      const failures: unknown[] = []
+      const connection = await connect(server, { onResyncError: (error) => void failures.push(error) })
+      const terminal = await TerminalChannel.open({ ...(await connection.channelOptions()), cols: 80, rows: 24 })
+      await terminal.attach()
+
+      server.restartHost()
+      await until(() => server.lives.length === 2, 'the stream reconnecting')
+      server.lives[1]!.push(hello('ep2:1'))
+      server.lives[1]!.push(resync('ep2:1'))
+      await until(() => connection.live.cursor === 'ep2:1' && connection.live.state === 'open', 'the stream open in the new epoch')
+
+      // Two back-off periods later: still the one connection, not a reconnect for every round.
+      await new Promise((done) => setTimeout(done, 600))
+      expect(server.lives).toHaveLength(2)
+      expect(failures).toHaveLength(1)
+      expect(failures[0]).toMatchObject({ statusCode: 409 })
+      expect(server.operations.filter((o) => o.name === 'terminal.attach')).toHaveLength(2)
       connection.live.close()
     })
   })
