@@ -25,11 +25,14 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // Nor an outline or a node graph mark; Lucide's stand in the same way.
 // Nor an agent's document or a skill; Lucide's stand in the same way.
 // Nor a mute mark, for a link suggestion not to make again.
+// Nor a pin or a revision history for the Index's views; Lucide's stand in too.
 import {
   BellOff as Mute,
   Bot as Agent,
   ChevronsUpDown as UpDown,
   GraduationCap as Skill,
+  History,
+  Pin,
   Trash2 as Delete,
   TableOfContents as Outline,
   Waypoints as Graph,
@@ -222,7 +225,9 @@ export const Icon = {
   Folder,
   FolderOpen,
   Graph,
+  History,
   Ide: Shellfile,
+  Index: Archive,
   Layout,
   Link,
   Menu,
@@ -235,6 +240,7 @@ export const Icon = {
   Notes,
   OpenFolder,
   Outline,
+  Pin,
   Plan,
   Previous,
   Project: ProjectRow,

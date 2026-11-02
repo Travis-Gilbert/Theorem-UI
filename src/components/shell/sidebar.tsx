@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list)
+// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -11,6 +11,7 @@ import {
 } from '@/components/assistant-ui/elements/thread-list.aui'
 import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
+import { IndexPanel } from '@/components/index/index-panel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -236,16 +237,24 @@ function SpacesPanel() {
 /**
  * The panel beside the rail belongs to the active mode. Theia covers it in
  * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
- * Spaces, so its search, scroll and open branches survive a switch. The
+ * the Index and Spaces, so its search, scroll and open branches survive a switch. The
  * desktop app's folders sit below every mode's panel.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   return (
     <div className="on-sheet flex h-full flex-col">
-      <div hidden={mode === 'spaces'} className="min-h-0 flex-1">
+      <div
+        hidden={mode === 'spaces' || mode === 'index'}
+        className="min-h-0 flex-1"
+      >
         <ChatPanel />
       </div>
+      {mode === 'index' && (
+        <div className="min-h-0 flex-1">
+          <IndexPanel />
+        </div>
+      )}
       {mode === 'spaces' && (
         <div className="min-h-0 flex-1">
           <SpacesPanel />

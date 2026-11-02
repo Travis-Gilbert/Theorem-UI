@@ -33,6 +33,13 @@ const loroForWorkers: Plugin = {
   },
 }
 
+// The personal Theorem serves the API and is its OAuth issuer; it grants the
+// theorem-ui client models:invoke.
+const theoremVars = {
+  THEOREM_API_URL: 'https://travis-theorem-personal.fly.dev',
+  THEOREM_OAUTH_CLIENT_ID: 'theorem-ui',
+}
+
 const config = defineConfig({
   resolve: {
     tsconfigPaths: true,
@@ -77,12 +84,10 @@ const config = defineConfig({
           routes: [{ pattern: 'theorem.rs', custom_domain: true }],
           // Also reachable at theorem-ui.<account>.workers.dev.
           workers_dev: true,
-          // The personal Theorem serves the API and is its OAuth issuer; it
-          // grants the theorem-ui client models:invoke.
-          vars: {
-            THEOREM_API_URL: 'https://travis-theorem-personal.fly.dev',
-            THEOREM_OAUTH_CLIENT_ID: 'theorem-ui',
-          },
+          vars: theoremVars,
+          // Workers Builds deploys other branches with `wrangler preview`,
+          // which takes its vars from here; Previews talk to the same Theorem.
+          previews: { vars: theoremVars },
         },
       },
       publicAssets: [
