@@ -66,6 +66,17 @@ function aliasOf(node: WikiNode): string | null {
   return typeof height === 'string' ? `${width}x${height}` : width
 }
 
+/**
+ * A wikilink or embed as written, `[[value|alias]]`; other nodes give ''.
+ * Not the node's leafText: `[[` suggestions read the text before the caret.
+ */
+export function wikiText(node: ProseNode) {
+  const id = node.type.name
+  if (id !== 'wikiLink' && id !== 'wikiEmbed') return ''
+  const { value, alias } = node.attrs as WikiAttrs
+  return `${id === 'wikiEmbed' ? '!' : ''}[[${value}${alias === null ? '' : `|${alias}`}]]`
+}
+
 function wikiNode(id: 'wikiLink' | 'wikiEmbed', mdast: WikiNode['type']) {
   const attr = id === 'wikiLink' ? 'data-wikilink' : 'data-wiki-embed'
   return $node(id, () => ({
@@ -89,7 +100,7 @@ function wikiNode(id: 'wikiLink' | 'wikiEmbed', mdast: WikiNode['type']) {
       return [
         'span',
         { [attr]: value, ...(alias === null ? {} : { 'data-alias': alias }) },
-        `${id === 'wikiEmbed' ? '!' : ''}[[${value}${alias === null ? '' : `|${alias}`}]]`,
+        wikiText(node),
       ]
     },
     parseMarkdown: {
