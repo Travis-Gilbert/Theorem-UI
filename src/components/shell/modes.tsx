@@ -1,5 +1,6 @@
 // SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Life backdrop behind it, the IDE frame (browser-only Theia)
 import { useMatches, useNavigate } from '@tanstack/react-router'
+import { useCallback } from 'react'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
@@ -38,14 +39,17 @@ export function useShellMode(): ShellMode {
 /** Navigates to a mode; chat returns to the conversation last left. */
 export function useOpenMode() {
   const navigate = useNavigate()
-  return (next: ShellMode) => {
-    if (next === 'spaces') return navigate({ to: '/spaces' })
-    if (next === 'ide') return navigate({ to: '/ide' })
-    const threadId = useShell.getState().chatThreadId
-    return threadId
-      ? navigate({ to: '/c/$threadId', params: { threadId } })
-      : navigate({ to: '/' })
-  }
+  return useCallback(
+    (next: ShellMode) => {
+      if (next === 'spaces') return navigate({ to: '/spaces' })
+      if (next === 'ide') return navigate({ to: '/ide' })
+      const threadId = useShell.getState().chatThreadId
+      return threadId
+        ? navigate({ to: '/c/$threadId', params: { threadId } })
+        : navigate({ to: '/' })
+    },
+    [navigate],
+  )
 }
 
 function ModePlaceholder({ mode }: { mode: ShellMode }) {

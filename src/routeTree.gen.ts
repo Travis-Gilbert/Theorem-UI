@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as DevDelegationRouteImport } from './routes/dev-delegation'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
@@ -31,6 +32,11 @@ import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theor
 
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevDelegationRoute = DevDelegationRouteImport.update({
+  id: '/dev-delegation',
+  path: '/dev-delegation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -127,6 +133,7 @@ const V1TheoremAgentStreamSplatRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/dev-delegation': typeof DevDelegationRoute
   '/settings': typeof SettingsRouteWithChildren
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesByTo {
+  '/dev-delegation': typeof DevDelegationRoute
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -167,6 +175,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/dev-delegation': typeof DevDelegationRoute
   '/settings': typeof SettingsRouteWithChildren
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/spaces': typeof ChatSpacesRoute
@@ -190,6 +199,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dev-delegation'
     | '/settings'
     | '/ide'
     | '/spaces'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/dev-delegation'
     | '/ide'
     | '/spaces'
     | '/auth/callback'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_chat'
+    | '/dev-delegation'
     | '/settings'
     | '/_chat/ide'
     | '/_chat/spaces'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  DevDelegationRoute: typeof DevDelegationRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
@@ -269,6 +282,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-delegation': {
+      id: '/dev-delegation'
+      path: '/dev-delegation'
+      fullPath: '/dev-delegation'
+      preLoaderRoute: typeof DevDelegationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -438,6 +458,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  DevDelegationRoute: DevDelegationRoute,
   SettingsRoute: SettingsRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,

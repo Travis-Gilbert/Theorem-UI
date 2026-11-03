@@ -1,8 +1,9 @@
 // SOURCING: penpal (connect + WindowMessenger) links this frame to the Theorem UI around it;
-// @theia/editor EditorManager, @theia/core ThemeService, CommandService, ApplicationShell and
-// StatusBar do every action,
-// and @theoremharness/sdk converts character units. Only the mapping between Theia's
-// editors and Theorem locations is written here.
+// @theia/editor EditorManager, @theia/core ThemeService, CommandService, ApplicationShell,
+// StatusBar, OpenerService and MessageService do every action,
+// and @theoremharness/sdk converts character units and its WorkspaceLive stream names
+// the run behind each edit. Only the mapping between Theia's editors and Theorem
+// locations is written here.
 // *****************************************************************************
 // Copyright (C) 2026 Theorem UI contributors.
 //
@@ -11,24 +12,35 @@
 
 import { inject, injectable } from '@theia/core/shared/inversify';
 import {
-    ApplicationShell, FrontendApplicationContribution, KeybindingContribution, KeybindingRegistry, StatusBar, StatusBarAlignment
+    ApplicationShell, FrontendApplicationContribution, KeybindingContribution, KeybindingRegistry, open, OpenerService, StatusBar,
+    StatusBarAlignment
 } from '@theia/core/lib/browser';
 import { ThemeService } from '@theia/core/lib/browser/theming';
 import {
-    Command, CommandContribution, CommandRegistry, CommandService, DisposableCollection, MenuContribution, MenuModelRegistry
+    Command, CommandContribution, CommandRegistry, CommandService, DisposableCollection, Emitter, MenuContribution, MenuModelRegistry,
+    MessageService
 } from '@theia/core/lib/common';
 import { Range, TextEditor, TextEditorDocument } from '@theia/editor/lib/browser/editor';
 import { EditorManager } from '@theia/editor/lib/browser/editor-manager';
 import { EditorContextMenu } from '@theia/editor/lib/browser/editor-menu';
-import { scalarToUtf16, utf8ToUtf16, type TheoremLocation, type TheoremRange } from '@theoremharness/sdk';
+import { scalarToUtf16, utf8ToUtf16, type TheoremLocation, type TheoremRange, type WorkspaceLiveEvents } from '@theoremharness/sdk';
 import { connect, WindowMessenger, type RemoteProxy } from 'penpal';
-import type { IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
+import type { ChatMessage, ChatThreadUpdate, DelegationChanges, IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
 import { TheoremConnection } from './theorem-connection';
+import { TheoremDelegations } from './theorem-delegations';
 import { STONE_THEMES } from './theorem-stone-theme';
 
 export const ADD_TO_CHAT: Command = { id: 'theorem.addToChat', label: 'Add Selection to Chat', category: 'Theorem' };
 
 const FOLLOW_ENTRY = 'theorem.follow';
+
+/** The conversation the Theorem UI shows, as its updates leave it. */
+export interface ChatThread {
+    key: string;
+    threadId: string | null;
+    title?: string;
+    messages: ChatMessage[];
+}
 
 /**
  * The frame's side of the link with the Theorem UI: it shows the places the
@@ -45,13 +57,25 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     @inject(CommandService) protected readonly commands: CommandService;
     @inject(ApplicationShell) protected readonly shell: ApplicationShell;
     @inject(StatusBar) protected readonly statusBar: StatusBar;
+    @inject(OpenerService) protected readonly openers: OpenerService;
+    @inject(MessageService) protected readonly messages: MessageService;
+    @inject(TheoremDelegations) protected readonly delegations: TheoremDelegations;
 
-    protected host: RemoteProxy<IdeHostMethods> | undefined;
+    /** The Theorem UI, once linked. */
+    host: RemoteProxy<IdeHostMethods> | undefined;
     /** True while a reveal the UI asked for is moving the editor. */
     protected revealing = false;
     /** Whether `navigated` was sent since the last reveal; the UI only needs it once. */
     protected navigatedSent = false;
+    protected following = false;
+    /** The document authority's actors for the runs Follow the Agent shows. */
+    protected followedActors = new Set<string>();
     protected readonly toDisposeOnEditor = new DisposableCollection();
+
+    /** Absent until the Theorem UI sends its conversation. */
+    thread: ChatThread | undefined;
+    protected readonly onDidUpdateThreadEmitter = new Emitter<ChatThread>();
+    readonly onDidUpdateThread = this.onDidUpdateThreadEmitter.event;
 
     // After the layout exists, so the UI's sidebar state is not undone by the
     // layout Theia restores or creates.
@@ -67,6 +91,11 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             executeCommand: (id, args = []) => this.commands.executeCommand(id, ...args),
             setSidebar: open => this.setSidebar(open),
             setFollowing: following => this.showFollowing(following),
+            setFollowedRuns: runIds => {
+                this.followedActors = new Set(runIds.map(runId => `theorem:run:${runId}`));
+            },
+            openChanges: target => this.openChanges(target),
+            setThread: update => this.setThread(update),
         };
         connect<IdeHostMethods>({ messenger: new WindowMessenger({ remoteWindow: window.parent }), methods: { ...methods } })
             .promise.then(host => {
@@ -74,6 +103,11 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
                 this.shell.leftPanelHandler.tabBar.currentChanged.connect(() => void host.sidebarChanged(this.sidebarOpen()));
                 this.editors.onCurrentEditorChanged(() => this.watchCurrentEditor());
                 this.watchCurrentEditor();
+                this.connection.live.on('document.changed', ({ data }) => {
+                    if (this.following && this.followedActors.has(data.actor)) {
+                        void this.showEdit(data);
+                    }
+                });
             }, error => console.warn('Theorem UI link not established', error));
     }
 
@@ -116,6 +150,56 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
         }
     }
 
+    /** The first change opens in front; the rest open as tabs behind it. */
+    async openChanges(target: DelegationChanges): Promise<boolean> {
+        try {
+            const uris = await this.delegations.targets(target);
+            for (const [index, uri] of uris.entries()) {
+                await open(this.openers, uri, { mode: index === 0 ? 'activate' : 'open' });
+            }
+            return uris.length > 0;
+        } catch (error) {
+            this.messages.error(`The delegated changes could not be opened: ${error instanceof Error ? error.message : String(error)}`);
+            return false;
+        }
+    }
+
+    /**
+     * Where a followed run edited, in the preview editor, without taking focus.
+     * Edits count scalars of the parent revision; the text before the first one
+     * is the same in both revisions, so the open editor places it whether or not
+     * it has the new revision yet.
+     */
+    protected async showEdit({ path, edits }: WorkspaceLiveEvents['document.changed']): Promise<void> {
+        this.revealing = true;
+        this.navigatedSent = false;
+        try {
+            const { editor } = await this.editors.open(this.connection.toUri(path), { mode: 'reveal', preview: true });
+            if (!edits.length) {
+                return;
+            }
+            const text = editor.document.getText();
+            const offset = scalarToUtf16(text, Math.min(...edits.map(edit => edit.start)));
+            const at = editor.document.positionAt(offset);
+            editor.selection = { start: at, end: at, direction: 'ltr' };
+            editor.revealRange({ start: at, end: at }, { at: 'center' });
+        } catch (error) {
+            console.warn(`Follow the Agent could not show ${path}`, error);
+        } finally {
+            this.revealing = false;
+        }
+    }
+
+    /** Unchanged messages keep their objects, so readers can tell what changed by identity. */
+    protected setThread({ key, threadId, title, order, changed }: ChatThreadUpdate): void {
+        const known = new Map(this.thread?.key === key ? this.thread.messages.map(m => [m.id, m]) : []);
+        for (const message of changed) {
+            known.set(message.id, message);
+        }
+        this.thread = { key, threadId, title, messages: order.flatMap(id => known.get(id) ?? []) };
+        this.onDidUpdateThreadEmitter.fire(this.thread);
+    }
+
     protected watchCurrentEditor(): void {
         this.toDisposeOnEditor.dispose();
         const editor = this.editors.currentEditor?.editor;
@@ -153,6 +237,7 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     }
 
     protected showFollowing(following: boolean): void {
+        this.following = following;
         const label = following ? 'Following the agent' : 'Follow the agent';
         this.statusBar.setElement(FOLLOW_ENTRY, {
             text: `$(${following ? 'eye' : 'eye-closed'}) ${label}`,

@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, the IDE frame (browser-only Theia), Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, saved layouts and the drawers
+// SOURCING: dockview-react (docking layout: tabs, splits, floating groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, DelegationPanel, the IDE frame (browser-only Theia), Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, saved layouts and the drawers
 import { useAuiState } from '@assistant-ui/react'
 import { Menu } from '@base-ui/react/menu'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
@@ -15,10 +15,12 @@ import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { DelegationPanel } from '@/components/chat/delegation-panel'
 import { Icon } from '@/components/icons'
 import { useFollow } from '@/components/ide/follow'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { Button } from '@/components/ui/button'
+import { useDelegationDock, useThreadDelegation } from '@/lib/theorem/delegations'
 import { useFileDock } from '@/lib/theorem/project-files'
 import { FilePanel } from './file-panel'
 import { cn } from '@/lib/utils'
@@ -37,6 +39,15 @@ const artifactIdOf = (panelId: string) =>
 const FILE = 'file:'
 const filePanelId = (path: string) => `${FILE}${path}`
 const isFilePanel = (panelId: string) => panelId.startsWith(FILE)
+const DELEGATION = 'delegation:'
+const delegationPanelId = (delegationId: string) =>
+  `${DELEGATION}${delegationId}`
+const isDelegationPanel = (panelId: string) => panelId.startsWith(DELEGATION)
+/** Panels that open beside the conversation and share its side group. */
+const isSidePanel = (panelId: string) =>
+  Boolean(artifactIdOf(panelId)) ||
+  isFilePanel(panelId) ||
+  isDelegationPanel(panelId)
 
 /** Colours come from the palette tokens, which already switch per palette and mode. */
 const theme: DockviewTheme = {
@@ -121,12 +132,24 @@ function FileDockPanel({
   return <FilePanel projectId={params.projectId} path={params.path} />
 }
 
+function DelegationDockPanel({
+  api,
+  params,
+}: IDockviewPanelProps<{ delegationId: string }>) {
+  const roleLabel = useThreadDelegation(params.delegationId)?.roleLabel
+  useEffect(() => {
+    if (roleLabel) api.setTitle(roleLabel)
+  }, [api, roleLabel])
+  return <DelegationPanel delegationId={params.delegationId} />
+}
+
 const components = {
   thread: ThreadPanel,
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
   ide: IdeFrame,
   artifact: ArtifactDockPanel,
   file: FileDockPanel,
+  delegation: DelegationDockPanel,
 }
 
 const tabComponents = {
@@ -247,9 +270,7 @@ function openSide(
     existing.api.setActive()
     return
   }
-  const sibling = api.panels.find(
-    (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
-  )
+  const sibling = api.panels.find((panel) => isSidePanel(panel.id))
   if (sibling) {
     api.addPanel({
       ...options,
@@ -274,6 +295,15 @@ function openArtifact(api: DockviewApi, artifactId: string) {
     component: 'artifact',
     params: { artifactId },
     title: 'Artifact',
+  })
+}
+
+function openDelegation(api: DockviewApi, delegationId: string) {
+  openSide(api, {
+    id: delegationPanelId(delegationId),
+    component: 'delegation',
+    params: { delegationId },
+    title: 'Delegation',
   })
 }
 
@@ -318,9 +348,7 @@ function springMaximize(dock: DockviewApi) {
             continue
           }
           if (from.width === to.width && from.height === to.height) continue
-          const artifact = group.panels.some(
-            (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
-          )
+          const artifact = group.panels.some((panel) => isSidePanel(panel.id))
           flyGhost(from, group.element, {
             className: artifact ? 'bg-artifact' : 'bg-background',
             ease: 'settle',
@@ -380,6 +408,9 @@ export function DockShell({
       },
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
+    useDelegationDock.setState({
+      open: (delegationId) => openDelegation(dock, delegationId),
+    })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -396,10 +427,11 @@ export function DockShell({
       for (const listener of listeners) listener.dispose()
       useArtifactView.setState({ dock: undefined })
       useFileDock.setState({ open: undefined })
+      useDelegationDock.setState({ open: undefined })
     }
   }, [dock, projectId])
 
-  // A different conversation starts without the previous one's artifacts. A
+  // A different conversation starts without the previous one's artifacts and delegations. A
   // new chat gaining its first id is the same conversation, so it keeps them.
   useEffect(() => {
     if (!dock || layoutThread.current === threadId) return
@@ -407,7 +439,8 @@ export function DockShell({
     layoutThread.current = threadId
     if (previous !== undefined) {
       for (const panel of dock.panels)
-        if (artifactIdOf(panel.id)) dock.removePanel(panel)
+        if (artifactIdOf(panel.id) || isDelegationPanel(panel.id))
+          dock.removePanel(panel)
       useArtifactView.getState().reset()
     }
     useShell.getState().saveLayout(projectId, {
