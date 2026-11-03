@@ -189,6 +189,7 @@ function NoteBody({
       ask.question,
       { part: ask.part, text: passage.exact },
       passage,
+      ask.sendKey,
     )
     store.dismiss(file.key, ask.id)
   }

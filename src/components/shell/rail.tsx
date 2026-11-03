@@ -64,10 +64,7 @@ function AccountMenu() {
                 <Menu.Separator className="my-1 h-px bg-separator" />
               </>
             )}
-            <Menu.Item
-              className={menuItem}
-              render={<Link to="/settings" />}
-            >
+            <Menu.Item className={menuItem} render={<Link to="/settings" />}>
               <Icon.Settings className="size-4 text-ink-muted" />
               <span className="min-w-0 flex-1">Settings</span>
             </Menu.Item>
@@ -198,8 +195,8 @@ type Junction = { y: number; h: number; t: number; flush: boolean }
 /**
  * Reveals the files in the navigator beside the rail, over the mode's own
  * list, and hides them again. It changes what the panel shows, not where the
- * person is; from the IDE or the Vault, which cover the panel, it goes back to
- * Chat.
+ * person is. On the desktop the IDE and the Vault cover the panel, so from them
+ * it goes back to Chat; a phone's drawer shows the panel over every mode.
  */
 function FilesControl({ collapsible }: { collapsible: boolean }) {
   const mode = useShellMode()
@@ -207,7 +204,7 @@ function FilesControl({ collapsible }: { collapsible: boolean }) {
   const panelMode = navigatorMode(mode)
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const filesShown = useShell((s) => s.filesShown)
-  const covered = panelMode !== mode
+  const covered = collapsible && panelMode !== mode
   const showing = filesShown && !covered && (panelOpen || !collapsible)
   const toggle = () => {
     const shell = useShell.getState()
