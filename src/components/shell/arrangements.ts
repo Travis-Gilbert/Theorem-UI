@@ -6,9 +6,14 @@ import type {
   DockviewGroupPanel,
   IDockviewPanel,
 } from 'dockview-core'
-import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
+import {
+  INSPECTOR_TOOLS,
+  useInspectedFile,
+} from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { WORKSPACE_FILE_COMPONENT } from '@/components/workspace/workspace-file-panel'
+import { sameFile } from '@/lib/workspace/open'
+import type { WorkspaceFileRef } from '@/lib/workspace/open'
 
 /**
  * Ways to lay out one workspace. Choosing one moves panels, never closes
@@ -32,6 +37,15 @@ const isFile = (panel: IDockviewPanel) =>
 
 const inGrid = (panel: IDockviewPanel) =>
   panel.group.api.location.type === 'grid'
+
+/** The file a panel shows, as its parameters have it now. */
+export const fileOf = (panel: {
+  view: { contentComponent: string }
+  params?: unknown
+}) =>
+  panel.view.contentComponent === WORKSPACE_FILE_COMPONENT
+    ? (panel.params as WorkspaceFileRef)
+    : undefined
 
 /** The grid's group ids in reading order: left to right, top to bottom. */
 function readingOrder(api: DockviewApi) {
@@ -135,5 +149,42 @@ export function arrange(
       addInspector(api, 'links')
       addInspector(api, 'graph')
       return { navigator: 'files' }
+  }
+}
+
+/**
+ * Keeps the inspector on the file in front: the active file tab, else the
+ * one it already shows while that stays open, else the first file open. It
+ * reads each panel's parameters as they change, so a file that learns its
+ * entry or moves stays inspected. Returns the function that stops it.
+ */
+export function followFront(api: DockviewApi) {
+  const inspect = () => {
+    const files = api.panels.map(fileOf)
+    const front = api.activePanel && fileOf(api.activePanel)
+    const shown = useInspectedFile.getState().file
+    const kept = shown && files.find((file) => file && sameFile(file, shown))
+    useInspectedFile.setState({ file: front ?? kept ?? files.find(Boolean) })
+  }
+  const watched = new Map<string, { dispose: () => void }>()
+  const watch = (panel: IDockviewPanel) =>
+    watched.set(panel.id, panel.api.onDidParametersChange(inspect))
+  api.panels.forEach(watch)
+  inspect()
+  const listeners = [
+    api.onDidActivePanelChange(inspect),
+    api.onDidAddPanel((panel) => {
+      watch(panel)
+      inspect()
+    }),
+    api.onDidRemovePanel((panel) => {
+      watched.get(panel.id)?.dispose()
+      watched.delete(panel.id)
+      inspect()
+    }),
+  ]
+  return () => {
+    for (const listener of [...listeners, ...watched.values()])
+      listener.dispose()
   }
 }

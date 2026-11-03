@@ -4,11 +4,18 @@ import { afterEach, expect, test } from 'bun:test'
 import { DockviewComponent } from 'dockview-core'
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-core'
 import { WORKSPACE_FILE_COMPONENT } from '@/components/workspace/workspace-file-panel'
-import { addInspector, arrange, holdsPanelsMenu } from './arrangements'
+import { useInspectedFile } from '@/components/inspector/inspector-state'
+import {
+  addInspector,
+  arrange,
+  followFront,
+  holdsPanelsMenu,
+} from './arrangements'
 
 const opened: Array<DockviewComponent> = []
 afterEach(() => {
   for (const component of opened.splice(0)) component.dispose()
+  useInspectedFile.setState({ file: undefined })
   document.body.innerHTML = ''
 })
 
@@ -144,4 +151,42 @@ test('the panels menu sits with the conversation, and on the group Focus fills',
   ])
   arrange(api, 'focus')
   expect(holdsPanelsMenu(file)).toBe(true)
+})
+
+const ref = (entryId: string, path: string) => ({
+  workspaceId: 'ws',
+  entryId,
+  path,
+})
+const inspected = () => useInspectedFile.getState().file
+
+test('the inspector follows the file in front as it learns its entry and moves', () => {
+  const api = dock()
+  api.addPanel({
+    id: 'f',
+    component: WORKSPACE_FILE_COMPONENT,
+    params: ref('', 'a.md'),
+    position: { direction: 'right' },
+  })
+  const stop = followFront(api)
+  expect(inspected()).toEqual(ref('', 'a.md'))
+  const file = api.getPanel('f')!.api
+  file.updateParameters(ref('e1', 'a.md'))
+  file.updateParameters(ref('e1', 'b.md'))
+  expect(inspected()).toEqual(ref('e1', 'b.md'))
+  stop()
+})
+
+test('the inspector keeps a file another panel has focus over, through a rename', () => {
+  const api = dock()
+  openFile(api, 'a', { direction: 'right' })
+  openFile(api, 'b', { referencePanel: 'workspace-file:ws:a' })
+  const stop = followFront(api)
+  expect(inspected()?.entryId).toBe('b')
+  api.getPanel('thread')!.api.setActive()
+  api
+    .getPanel('workspace-file:ws:b')!
+    .api.updateParameters(ref('b', 'renamed.md'))
+  expect(inspected()).toEqual(ref('b', 'renamed.md'))
+  stop()
 })

@@ -27,10 +27,7 @@ import {
   LinksPanel,
   OutlinePanel,
 } from '@/components/inspector/inspector-panels'
-import {
-  INSPECTOR_TOOLS,
-  useInspectedFile,
-} from '@/components/inspector/inspector-state'
+import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
 import { useNoteView } from '@/components/notes/note-view'
@@ -42,13 +39,13 @@ import {
 } from '@/components/workspace/workspace-file-panel'
 import { useNote } from '@/lib/theorem/notes'
 import { useFileDock } from '@/lib/theorem/project-files'
-import { sameFile, useWorkspaceFileView } from '@/lib/workspace/open'
-import type { WorkspaceFileRef } from '@/lib/workspace/open'
+import { useWorkspaceFileView } from '@/lib/workspace/open'
 import {
   ARRANGEMENTS,
   THREAD,
   addInspector,
   arrange,
+  followFront,
   holdsPanelsMenu,
 } from './arrangements'
 import type { Arrangement } from './arrangements'
@@ -223,13 +220,6 @@ function FollowToggle() {
     </TooltipIconButton>
   )
 }
-const fileOf = (panel: {
-  view: { contentComponent: string }
-  params?: unknown
-}) =>
-  panel.view.contentComponent === WORKSPACE_FILE_COMPONENT
-    ? (panel.params as WorkspaceFileRef)
-    : undefined
 
 /** Lays the dock out as `arrangement` and opens, closes or fills the navigator. */
 export function arrangeWorkspace(
@@ -555,33 +545,17 @@ export function DockShell({
       },
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
-    // The inspector follows the file in front: the active file tab, else the
-    // first one open; it stays while another panel has focus.
-    const inspect = () => {
-      const front = dock.activePanel && fileOf(dock.activePanel)
-      const shown = useInspectedFile.getState().file
-      const stillOpen = dock.panels.some((panel) => {
-        const file = fileOf(panel)
-        return file && shown && sameFile(file, shown)
-      })
-      useInspectedFile.setState({
-        file:
-          front ?? (stillOpen ? shown : dock.panels.map(fileOf).find(Boolean)),
-      })
-    }
-    inspect()
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
         if (artifactId) useArtifactView.getState().focused(artifactId)
-        inspect()
       }),
       dock.onDidRemovePanel((panel) => {
         const artifactId = artifactIdOf(panel.id)
         if (artifactId) useArtifactView.getState().closed(artifactId)
-        inspect()
       }),
       dock.onDidLayoutChange(save),
+      { dispose: followFront(dock) },
       ...springMaximize(dock),
     ]
     return () => {
