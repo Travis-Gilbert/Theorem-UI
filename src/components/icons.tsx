@@ -27,7 +27,8 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // top-left panels mirrored), the settings marks (a star for a picked model, a key, a plugin, a model chip),
 // or the data-table controls (sort arrows and the sort list, a filter, column
 // options, hide and pin, a drag grip, one- and two-step chevrons for pages
-// and selects, a calendar); Lucide's stand in the same way.
+// and selects, a calendar), or the Life controls (play, pause, one step,
+// shuffle); Lucide's stand in the same way.
 import {
   ArrowDown,
   ArrowDownUp as SortList,
@@ -44,12 +45,16 @@ import {
   EyeOff as Hide,
   GripVertical as Grip,
   KeyRound as Key,
+  Pause,
+  Play,
   ListFilter as Filter,
   PanelsTopLeft,
   Pin,
   PinOff as Unpin,
   Puzzle as Plugin,
   Settings2 as Columns,
+  Shuffle,
+  SkipForward as StepForward,
   SquareTerminal as Terminal,
   Star,
   Trash2 as Delete,
@@ -242,7 +247,9 @@ export const Icon = {
   NewChat,
   Next,
   Panels,
+  Pause,
   Pin,
+  Play,
   Plugin,
   Previous,
   Project: ProjectRow,
@@ -253,9 +260,11 @@ export const Icon = {
   Send,
   Settings,
   Share,
+  Shuffle,
   SortList,
   Spaces: PenroseTriangle,
   Star,
+  StepForward,
   Stop,
   Sun,
   Terminal,

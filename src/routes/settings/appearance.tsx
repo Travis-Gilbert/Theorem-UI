@@ -1,4 +1,4 @@
-// SOURCING: next-themes (light/dark), lib/palette (colours), coss ui SegmentedControl, the settings frame
+// SOURCING: next-themes (light/dark), lib/palette (colours), lib/life/store (the field behind the chat), coss ui SegmentedControl, the settings frame
 import { createFileRoute } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import {
@@ -12,6 +12,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from '@/components/settings/settings-frame'
+import { useLifeControls } from '@/lib/life/store'
 import { PALETTES, usePalette } from '@/lib/palette'
 
 export const Route = createFileRoute('/settings/appearance')({
@@ -49,6 +50,7 @@ function Choice({
 function Appearance() {
   const { theme, setTheme } = useTheme()
   const { palette, setPalette } = usePalette()
+  const lifeShown = useLifeControls((state) => state.shown)
   return (
     <SettingsPage title="Appearance" description="How Theorem looks on this device.">
       <SettingsSection title="Display">
@@ -65,6 +67,16 @@ function Appearance() {
               {PALETTES.map(({ value, label }) => (
                 <Choice key={value} label={label} pressed={palette === value} onPress={() => setPalette(value)} />
               ))}
+            </SegmentedControl>
+          </SettingsRow>
+          <SettingsRow
+            Mark={Icon.Grip}
+            title="Life field"
+            description="A Game of Life behind the chat that quickens as the model works. Right-click empty space for its controls."
+          >
+            <SegmentedControl size="sm" aria-label="Life field">
+              <Choice label="On" pressed={lifeShown} onPress={() => useLifeControls.setState({ shown: true })} />
+              <Choice label="Off" pressed={!lifeShown} onPress={() => useLifeControls.setState({ shown: false })} />
             </SegmentedControl>
           </SettingsRow>
         </SettingsBox>

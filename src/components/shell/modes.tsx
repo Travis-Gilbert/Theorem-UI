@@ -1,7 +1,8 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the IDE frame (browser-only Theia)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Life backdrop behind it, the IDE frame (browser-only Theia)
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { Icon } from '@/components/icons'
 import { useShell } from './shell-state'
 
@@ -73,7 +74,9 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
   return (
     <>
       <div hidden={!showThread} className="h-full">
-        <Thread />
+        <LifeBackdrop>
+          <Thread />
+        </LifeBackdrop>
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'spaces' && <ModePlaceholder mode={mode} />}
