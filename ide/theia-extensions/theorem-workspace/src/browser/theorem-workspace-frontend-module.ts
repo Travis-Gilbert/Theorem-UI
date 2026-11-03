@@ -16,6 +16,7 @@ import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
 import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 import { ResourceResolver } from '@theia/core/lib/common/resource';
+import { CallHierarchyService } from '@theia/callhierarchy/lib/browser/callhierarchy-service';
 import { FileSearchService } from '@theia/file-search/lib/common/file-search-service';
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
 import { FileSystemProvider } from '@theia/filesystem/lib/common/files';
@@ -26,6 +27,8 @@ import { TerminalWidget } from '@theia/terminal/lib/browser/base/terminal-widget
 import { TerminalFrontendContribution } from '@theia/terminal/lib/browser/terminal-frontend-contribution';
 import { UserStorageContribution } from '@theia/userstorage/lib/browser/user-storage-contribution';
 import { WorkspaceServer } from '@theia/workspace/lib/common';
+import { TheoremBlame } from './theorem-blame';
+import { TheoremCallHierarchy } from './theorem-call-hierarchy';
 import { TheoremChatAgent } from './theorem-chat';
 import { TheoremConnection } from './theorem-connection';
 import { TheoremDelegations } from './theorem-delegations';
@@ -35,9 +38,11 @@ import { TheoremGrammars } from './theorem-grammars';
 import { TheoremIdeBridge } from './theorem-ide-bridge';
 import { TheoremFileSystemProvider } from './theorem-file-system-provider';
 import { TheoremLanguageFeatures } from './theorem-language-features';
+import { TheoremRun } from './theorem-run';
 import { TheoremScmContribution, TheoremScmResourceResolver } from './theorem-scm';
 import { TheoremFileSearchService, TheoremSearchServer } from './theorem-search';
 import { TheoremStoneTheme } from './theorem-stone-theme';
+import { TheoremHistoryResolver, TheoremTimeline } from './theorem-timeline';
 import { TheoremTerminalFrontendContribution, TheoremTerminalWidget } from './theorem-terminal';
 import {
     TheiaUserStorageProviderContribution, TheoremUserStorageContribution, TheoremWorkspaceServer, theoremEnvVariablesServer
@@ -95,6 +100,22 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     ]) {
         bind(contribution).toService(TheoremScmContribution);
     }
+
+    bind(TheoremHistoryResolver).toSelf().inSingletonScope();
+    bind(ResourceResolver).toService(TheoremHistoryResolver);
+    bind(TheoremTimeline).toSelf().inSingletonScope();
+    for (const contribution of [FrontendApplicationContribution, CommandContribution, MenuContribution]) {
+        bind(contribution).toService(TheoremTimeline);
+    }
+
+    bind(TheoremBlame).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(TheoremBlame);
+    bind(CommandContribution).toService(TheoremBlame);
+
+    bind(CallHierarchyService).to(TheoremCallHierarchy).inSingletonScope();
+
+    bind(TheoremRun).toSelf().inSingletonScope();
+    bind(CommandContribution).toService(TheoremRun);
 
     bind(TheoremStoneTheme).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(TheoremStoneTheme);
