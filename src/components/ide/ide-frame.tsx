@@ -11,7 +11,7 @@ import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import {
   approvalChoice,
@@ -25,8 +25,7 @@ import type {
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
-import { chooseIdeEngine, ENGINE_BASE } from './engine'
-import type { IdeEngine } from './engine'
+import { ENGINE_BASE, useIdeEngine } from './engine'
 import { useFollow, useFollowRuns } from './follow'
 
 /**
@@ -38,18 +37,6 @@ const workspaceIdOf = (projectId: string) =>
 
 // The engine comes from the address's query and the page's storage, neither of which
 // changes under a mounted frame, and neither of which the server can see.
-const unchanging = () => () => {}
-const unknownOnServer = () => undefined
-
-function currentEngine(): IdeEngine | undefined {
-  let storage: Storage | undefined
-  try {
-    storage = window.localStorage
-  } catch {
-    // Blocked site data: the choice then lasts for this load.
-  }
-  return chooseIdeEngine(window.location.search, storage)
-}
 
 /** A reference as composer text: its label, then the excerpt fenced. */
 function referenceText({ label, excerpt, location }: TheoremContextReference) {
@@ -69,11 +56,7 @@ export function IdeFrame() {
   const following = useFollow((s) => s.following)
   const sidebarOpen = useShell((s) => !s.panelCollapsed.ide)
   const workspaceId = project && workspaceIdOf(project.projectId)
-  const engine = useSyncExternalStore<IdeEngine | undefined>(
-    unchanging,
-    currentEngine,
-    unknownOnServer,
-  )
+  const engine = useIdeEngine()
   const src =
     workspaceId && engine
       ? `${ENGINE_BASE[engine]}?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`

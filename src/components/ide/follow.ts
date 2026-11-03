@@ -17,6 +17,7 @@ import type {
   DelegationChanges,
   IdeFrameMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
+import { useIdeEngine } from './engine'
 
 type FollowState = {
   following: boolean
@@ -44,10 +45,13 @@ export function followArtifact(artifactId: string) {
 
 /**
  * Opens a delegation's changes in the IDE. The person asked for them, so this
- * goes to the IDE whether or not Follow the Agent is on.
+ * goes to the IDE whether or not Follow the Agent is on. The CodeMirror IDE has
+ * no such link, so there this is undefined and callers offer nothing.
  */
 export function useOpenChanges() {
   const navigate = useNavigate()
+  const engine = useIdeEngine()
+  if (engine === 'cm') return undefined
   return (target: DelegationChanges) => {
     const { ide } = useFollow.getState()
     if (ide) void ide.openChanges(target)

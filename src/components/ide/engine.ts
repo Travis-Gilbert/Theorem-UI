@@ -1,9 +1,11 @@
-// SOURCING: none — a two-value switch read from the page address and localStorage
+// SOURCING: none — a two-value switch read from the page address and localStorage, through React's useSyncExternalStore
 //
 // Which IDE the frame shows. Theia is the default and the only one with the
 // Follow-the-Agent link and Add to chat; the CodeMirror client (ide-cm/) is
 // opted into with `?ide=cm` on the app's address, and the choice is
 // remembered. `?ide=theia` returns to the default.
+
+import { useSyncExternalStore } from 'react'
 
 export type IdeEngine = 'theia' | 'cm'
 
@@ -45,3 +47,20 @@ export function chooseIdeEngine(search: string, storage?: Store): IdeEngine {
   }
   return remembered(storage) ?? 'theia'
 }
+
+const unchanging = () => () => {}
+const unknownOnServer = () => undefined
+
+function currentEngine(): IdeEngine | undefined {
+  let storage: Storage | undefined
+  try {
+    storage = window.localStorage
+  } catch {
+    // Blocked site data: the choice then lasts for this load.
+  }
+  return chooseIdeEngine(window.location.search, storage)
+}
+
+/** This load's engine; undefined on the server, which sees neither source. */
+export const useIdeEngine = () =>
+  useSyncExternalStore(unchanging, currentEngine, unknownOnServer)
