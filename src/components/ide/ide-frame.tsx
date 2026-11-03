@@ -1,21 +1,30 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
 // inside the sheet, Follow the Agent's switch included; this frame only links
-// it to the conversation, the rail and Follow the Agent.
+// it to the conversation, the rail and Follow the Agent. Theia's chat shows
+// the conversation this window holds and sends through it, so both always
+// show the same turns.
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
 import { useEffect, useRef } from 'react'
+import { useArtifactView } from '@/components/artifacts/artifact-view'
+import {
+  approvalChoice,
+  sendApprovalDecision,
+} from '@/components/chat/theorem-parts'
+import { useOpenMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import type {
   IdeFrameMethods,
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
-import { useFollow, useFollowAgentFiles } from './follow'
+import { useChatMirror } from './chat-mirror'
+import { useFollow, useFollowRuns } from './follow'
 
 /**
  * The project's workspace on the host. Host workspace ids are directory names
@@ -35,6 +44,7 @@ function referenceText({ label, excerpt, location }: TheoremContextReference) {
 export function IdeFrame() {
   const { project } = useActiveProject()
   const aui = useAui()
+  const openMode = useOpenMode()
   const { resolvedTheme } = useTheme()
   const frame = useRef<HTMLIFrameElement>(null)
   const ide = useFollow((s) => s.ide)
@@ -61,20 +71,46 @@ export function IdeFrame() {
         })),
       setFollowing: (next) =>
         next ? useFollow.getState().resume() : useFollow.getState().pause(),
+      send: async (text) => {
+        aui.thread.append(text)
+        return (await aui.threadListItem.initialize()).remoteId
+      },
+      cancel: () => aui.thread.cancelRun(),
+      decideApproval: async ({ approval, allow }) => {
+        const choice = approvalChoice(approval.options, allow)
+        if (!choice) return false
+        try {
+          await sendApprovalDecision(approval.runId, approval, choice)
+          return true
+        } catch {
+          return false
+        }
+      },
+      openThread: (threadId) =>
+        useShell.getState().setChatThreadId(threadId ?? undefined),
+      // The dock stays mounted under the IDE, so the artifact is open when chat shows.
+      openArtifact: (artifactId) => {
+        useArtifactView.getState().open(artifactId)
+        void openMode('chat')
+      },
     }
     const connection = connect<IdeFrameMethods>({
       messenger: new WindowMessenger({ remoteWindow }),
       methods: { ...methods },
     })
     connection.promise.then(
-      (remote) => useFollow.setState({ ide: remote }),
+      (remote) => {
+        const { pendingChanges } = useFollow.getState()
+        useFollow.setState({ ide: remote, pendingChanges: undefined })
+        if (pendingChanges) void remote.openChanges(pendingChanges)
+      },
       () => undefined,
     )
     return () => {
       connection.destroy()
       useFollow.setState({ ide: undefined })
     }
-  }, [src, aui])
+  }, [src, aui, openMode])
 
   useEffect(() => {
     void ide?.setTheme(resolvedTheme === 'dark')
@@ -88,7 +124,8 @@ export function IdeFrame() {
     void ide?.setFollowing(following)
   }, [ide, following])
 
-  useFollowAgentFiles(workspaceId ?? '')
+  useChatMirror(ide)
+  useFollowRuns(ide)
 
   if (!src)
     return (

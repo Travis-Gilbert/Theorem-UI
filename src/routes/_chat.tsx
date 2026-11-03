@@ -36,12 +36,15 @@ function ChatLayout() {
     if (mode === 'chat') useShell.getState().setChatThreadId(threadId)
   }, [mode, threadId])
 
+  // Outside chat the mode stays on screen and only the conversation behind it moves.
   const onThreadIdChange = useCallback(
     (id: string | undefined) => {
-      if (id) void navigate({ to: '/c/$threadId', params: { threadId: id } })
+      if (mode !== 'chat') useShell.getState().setChatThreadId(id)
+      else if (id)
+        void navigate({ to: '/c/$threadId', params: { threadId: id } })
       else void navigate({ to: '/' })
     },
-    [navigate],
+    [navigate, mode],
   )
 
   if (isSignedOut(error))

@@ -54,6 +54,7 @@
     "@observablehq/notebook-kit": "2.7.1",
     "@observablehq/runtime": "6.0.1",
     "@parcel/watcher": "2.6.0",
+    "@pierre/diffs": "1.6.1",
     "@prosemirror-adapter/react": "0.5.5",
     "@rustyreddb/node": "0.1.0-beta.2",
     "@tailwindcss/typography": "^0.5.20",
@@ -67,7 +68,7 @@
     "@tanstack/react-start": "1.169.3",
     "@tanstack/react-table": "9.3.1",
     "@tanstack/react-virtual": "3.14.21",
-    "@theoremharness/sdk": "file:vendor/theoremharness-sdk-0.5.0.tgz",
+    "@theoremharness/sdk": "file:vendor/theoremharness-sdk-0.6.0-alpha.3.tgz",
     "@uiw/react-codemirror": "4.25.12",
     "@xyflow/react": "12.12.0",
     "acorn": "8.19.0",
@@ -183,8 +184,8 @@
     "sharp",
     "unrs-resolver"
   ],
-
   "patchedDependencies": {
+    "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch",
     "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
   }
 }

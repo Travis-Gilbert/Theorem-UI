@@ -34,11 +34,17 @@ import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
-import { describeError, describeRunFailure, recoverPendingSend, mutate, mutateThread, theorem } from './client'
+import {
+  describeError,
+  describeRunFailure,
+  mutate,
+  mutateThread,
+  recoverPendingSend,
+  TERMINAL_RUN_EVENTS,
+  theorem,
+} from './client'
 import type { Theorem } from './client'
 import { pickedModelTurnOptions } from './models'
-
-const TERMINAL = new Set(['RUN.CLOSED', 'RUN.FAILED', 'RUN.CANCELLED'])
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -53,6 +59,8 @@ function toMetadata(thread: Theorem.Thread): RemoteThreadMetadata {
       thread.lastMessageAtMs !== undefined
         ? new Date(thread.lastMessageAtMs)
         : undefined,
+    // The sidebar nests a forked or continued thread under its source.
+    custom: thread.origin ? { origin: thread.origin } : undefined,
   }
 }
 
@@ -184,7 +192,7 @@ export async function* tailRun(
           event.payload.interrupted != null
         )
           interrupted = true
-        if (TERMINAL.has(event.sourceEventType)) {
+        if (TERMINAL_RUN_EVENTS.has(event.sourceEventType)) {
           status =
             event.sourceEventType === 'RUN.CANCELLED'
               ? { type: 'incomplete', reason: 'cancelled' }

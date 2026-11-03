@@ -4,7 +4,6 @@ import { createSendRecovery } from './send-recovery'
 
 let client: TheoremClient | undefined
 let sendRecovery: ReturnType<typeof createSendRecovery> | undefined
-
 /** Browser client. Requests go to this origin; the server route injects the bearer. */
 export function theorem(): TheoremClient {
   sendRecovery ??= createSendRecovery(
@@ -29,7 +28,7 @@ export async function recoverPendingSend(
 ) {
   theorem()
   if (!sendRecovery?.has(threadId)) return undefined
-  const session = await theorem().session.bootstrap({ abortSignal })
+  const session = await theorem().session.bootstrap({}, { abortSignal })
   return sendRecovery.resume(
     threadId,
     window.location.origin,
@@ -50,6 +49,13 @@ export function describeRunFailure(payload: Record<string, unknown>): string {
     ? `${message} Reference: ${reference}`
     : message
 }
+
+/** The events a run's event stream ends on. */
+export const TERMINAL_RUN_EVENTS: ReadonlySet<string> = new Set([
+  'RUN.CLOSED',
+  'RUN.FAILED',
+  'RUN.CANCELLED',
+])
 
 let bootstrapPromise: Promise<Theorem.Bootstrap> | undefined
 
@@ -124,7 +130,6 @@ export function hasStatus(error: unknown, ...codes: number[]): boolean {
     codes.includes(error.statusCode)
   )
 }
-
 export function describeError(error: unknown): string {
   if (error instanceof TheoremError) {
     const body =

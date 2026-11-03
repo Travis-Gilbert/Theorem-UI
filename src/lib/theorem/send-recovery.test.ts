@@ -28,6 +28,7 @@ const options = {
     },
   ],
   abortSignal: new AbortController().signal,
+  runConfig: {},
 } as unknown as ChatModelRunOptions
 
 test('the real SDK adapter keeps a partial send replayable after reload', async () => {

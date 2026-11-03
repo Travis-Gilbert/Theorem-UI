@@ -27,10 +27,12 @@ import {
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
 import { COMPOSER_TOOLTIP_DELAY, ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
+import { ComposerReferences } from "@/components/chat/composer-references";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStartThreadFrom } from "@/lib/theorem/thread-tree";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -518,7 +520,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
     >
       {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
-      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerAttachments /><ComposerPrimitive.Input
+      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-10 w-full resize-none bg-transparent py-2 ps-2.5 pe-14 text-base leading-6 outline-none focus-visible:outline-none"
                       rows={1}
@@ -591,7 +593,8 @@ const MessageError: FC = () => {
   );
 };
 
-const AssistantMessage: FC = () => {
+/** An assistant message's parts as the thread shows them; a delegation panel shows a specialist's run with it. */
+export const AssistantMessageContent: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = TheoremToolCall,
     ToolGroup,
@@ -600,6 +603,86 @@ const AssistantMessage: FC = () => {
   } = useContext(ThreadComponentsContext);
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
+  return (
+    <div
+      data-slot="aui_assistant-message-content"
+      className="text-foreground px-2 leading-6 wrap-break-word"
+    >
+      <MessagePrimitive.GroupedParts groupBy={groupBy}>
+        {({ part, children }) => {
+          switch (part.type) {
+            case "group-chainOfThought":
+              return <div data-slot="aui_chain-of-thought">{children}</div>;
+            case "group-task":
+              return TaskGroupComponent ? (
+                <TaskGroupComponent group={part} />
+              ) : null;
+            case "group-tool":
+              if (ToolGroup) {
+                return <ToolGroup group={part}>{children}</ToolGroup>;
+              }
+              return (
+                <ToolGroupRoot variant="ghost">
+                  <ToolGroupTrigger
+                    count={part.indices.length}
+                    active={part.status.type === "running"}
+                  />
+                  <ToolGroupContent>{children}</ToolGroupContent>
+                </ToolGroupRoot>
+              );
+            case "group-reasoning": {
+              if (ReasoningGroup) {
+                return (
+                  <ReasoningGroup group={part}>{children}</ReasoningGroup>
+                );
+              }
+              const running = part.status.type === "running";
+              return (
+                <ReasoningRoot streaming={running}>
+                  <ReasoningTrigger
+                    active={running}
+                    duration={reasoningDuration(part.timing)}
+                  />
+                  <ReasoningContent aria-busy={running}>
+                    <ReasoningText>{children}</ReasoningText>
+                  </ReasoningContent>
+                </ReasoningRoot>
+              );
+            }
+            case "text":
+              return <MarkdownText />;
+            case "reasoning":
+              return <Reasoning {...part} />;
+            case "tool-call":
+              return part.toolUI ?? <ToolFallbackComponent {...part} />;
+            case "data":
+              return part.dataRendererUI;
+            case "file":
+              return (
+                <div data-slot="aui_assistant-message-file" className="py-1">
+                  <MessageFile {...part} />
+                </div>
+              );
+            case "image":
+              return (
+                <div data-slot="aui_assistant-message-image" className="py-1">
+                  <Image {...part} />
+                </div>
+              );
+            case "indicator":
+              return null;
+            default:
+              return null;
+          }
+        }}
+      </MessagePrimitive.GroupedParts>
+      <RunningIndicator />
+      <MessageError />
+    </div>
+  );
+};
+
+const AssistantMessage: FC = () => {
   const live = useArrivedLive();
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -612,81 +695,7 @@ const AssistantMessage: FC = () => {
       data-live={live || undefined}
       className="data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
-      <div
-        data-slot="aui_assistant-message-content"
-        className="text-foreground px-2 leading-6 wrap-break-word"
-      >
-        <MessagePrimitive.GroupedParts groupBy={groupBy}>
-          {({ part, children }) => {
-            switch (part.type) {
-              case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-task":
-                return TaskGroupComponent ? (
-                  <TaskGroupComponent group={part} />
-                ) : null;
-              case "group-tool":
-                if (ToolGroup) {
-                  return <ToolGroup group={part}>{children}</ToolGroup>;
-                }
-                return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
-                );
-              case "group-reasoning": {
-                if (ReasoningGroup) {
-                  return (
-                    <ReasoningGroup group={part}>{children}</ReasoningGroup>
-                  );
-                }
-                const running = part.status.type === "running";
-                return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger
-                      active={running}
-                      duration={reasoningDuration(part.timing)}
-                    />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
-                );
-              }
-              case "text":
-                return <MarkdownText />;
-              case "reasoning":
-                return <Reasoning {...part} />;
-              case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
-              case "data":
-                return part.dataRendererUI;
-              case "file":
-                return (
-                  <div data-slot="aui_assistant-message-file" className="py-1">
-                    <MessageFile {...part} />
-                  </div>
-                );
-              case "image":
-                return (
-                  <div data-slot="aui_assistant-message-image" className="py-1">
-                    <Image {...part} />
-                  </div>
-                );
-              case "indicator":
-                return null;
-              default:
-                return null;
-            }
-          }}
-        </MessagePrimitive.GroupedParts>
-        <RunningIndicator />
-        <MessageError />
-      </div>
+      <AssistantMessageContent />
 
       <div
         data-slot="aui_assistant-message-footer"
@@ -696,6 +705,31 @@ const AssistantMessage: FC = () => {
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+/** Opens a new thread with this conversation's history through this reply. */
+const ForkFromMessage: FC = () => {
+  const threadId = useAuiState((s) => s.threadListItem.remoteId);
+  const messageId = useAuiState((s) => s.message.id);
+  const runId = useAuiState((s) => s.message.metadata.custom.theoremRunId);
+  const startThread = useStartThreadFrom();
+  if (!threadId) return null;
+  return (
+    <ActionBarMorePrimitive.Item
+      className="aui-action-bar-more-item hover:bg-hover focus:bg-hover flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none select-none"
+      disabled={startThread.isPending}
+      onSelect={() =>
+        startThread.mutate({
+          kind: "forked",
+          threadId,
+          at: { messageId, runId: typeof runId === "string" ? runId : undefined },
+        })
+      }
+    >
+      <Icon.Fork className="size-4" />
+      Fork into new thread
+    </ActionBarMorePrimitive.Item>
   );
 };
 
@@ -725,6 +759,7 @@ const AssistantActionBar: FC = () => {
           sideOffset={6}
           className="aui-action-bar-more-content bg-popover text-popover-foreground shadow-popover data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] overflow-hidden rounded-xl border p-1.5"
         >
+          <ForkFromMessage />
           <ActionBarPrimitive.ExportMarkdown render={<ActionBarMorePrimitive.Item className="aui-action-bar-more-item hover:bg-hover focus:bg-hover flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none select-none" />}><Icon.Share className="size-4" />Export as Markdown
                               </ActionBarPrimitive.ExportMarkdown>
         </ActionBarMorePrimitive.Content>
