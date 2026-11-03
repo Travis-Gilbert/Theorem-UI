@@ -1,6 +1,7 @@
 // SOURCING: bun:test over useTextFile with the in-memory workspace.
 import { afterEach, expect, test } from 'bun:test'
 import { act } from 'react'
+import { create } from 'zustand'
 import {
   cleanup,
   fakeWorkspace,
@@ -109,6 +110,60 @@ test('a file Theorem keeps read-only takes no edits', async () => {
   await act(() => file.flush())
   expect(file).toMatchObject({ text: 'plan', readOnly: true, dirty: false })
   expect(ws.writes).toHaveLength(0)
+})
+
+const entryAt = async (ws: FakeWorkspace, path: string) =>
+  (await ws.client.tree()).find((e) => e.path === path)!
+
+test('a renamed file keeps its unsaved edits and writes them at its new path', async () => {
+  const ws = fakeWorkspace({ 'a.md': 'one' })
+  const first = await entryAt(ws, 'a.md')
+  const where = create<{ path: string; entry: WorkspaceEntry }>(() => ({
+    path: 'a.md',
+    entry: first,
+  }))
+  function MovingProbe() {
+    const { path, entry } = where()
+    report(useTextFile({ client: ws.client, path, entry }))
+    return null
+  }
+  await render(<MovingProbe />)
+  await waitFor(() => file.text === 'one')
+  act(() => file.setText('mine'))
+  await ws.client.rename('a.md', 'b.md')
+  const moved = await entryAt(ws, 'b.md')
+  act(() => where.setState({ path: 'b.md', entry: moved }))
+  expect(file).toMatchObject({ text: 'mine', dirty: true })
+  await act(() => file.flush())
+  await settle()
+  expect(ws.text('b.md')).toBe('mine')
+  expect(ws.text('a.md')).toBeUndefined()
+  expect(file.dirty).toBe(false)
+})
+
+test('two views of one file share one set of edits', async () => {
+  const ws = fakeWorkspace({ 'a.md': 'one' })
+  const entry = await entryAt(ws, 'a.md')
+  const views: Array<TextFile> = []
+  const see = (slot: number, view: TextFile) => (views[slot] = view)
+  function View({ slot }: { slot: number }) {
+    see(slot, useTextFile({ client: ws.client, path: 'a.md', entry }))
+    return null
+  }
+  await render(
+    <>
+      <View slot={0} />
+      <View slot={1} />
+    </>,
+  )
+  await waitFor(() => views[1]?.text === 'one')
+  act(() => views[0]!.setText('mine'))
+  expect(views[1]).toMatchObject({ text: 'mine', dirty: true })
+  await act(() => views[1]!.flush())
+  await settle()
+  expect(ws.text('a.md')).toBe('mine')
+  expect(ws.writes).toHaveLength(1)
+  expect(views[0]!.dirty).toBe(false)
 })
 
 /** Makes every write report that the store merged it with another change. */
