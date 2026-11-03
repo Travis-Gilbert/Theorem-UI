@@ -23,6 +23,20 @@ let cancelled: string[] = []
 let lostReplies = 0
 /** What a send waits for before it is answered. */
 let held: Promise<void> | undefined
+/** How the next sends are answered, in place of a run. */
+let refusals: Response[] = []
+/** What the third send waits for before it is answered. */
+let thirdHeld: Promise<void> | undefined
+
+const revisionConflict = () =>
+  Response.json(
+    {
+      code: 'chat_revision_conflict',
+      title: 'The chat changed before this mutation was committed',
+      detail: 'chat revision conflict: expected 1, current 2',
+    },
+    { status: 409 },
+  )
 
 /** A finished run, whose reply says which run wrote it. */
 const events = (runId: string) =>
@@ -56,10 +70,13 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
     const { text } = (await request.json()) as { text: string }
     sends.push({ key, text })
     await held
+    if (sends.length === 3) await thirdHeld
     if (lostReplies > 0) {
       lostReplies -= 1
       throw new TypeError('Network disconnected')
     }
+    const refusal = refusals.shift()
+    if (refusal) return refusal
     const runId = runIds.get(key) ?? `run-${runIds.size + 1}`
     runIds.set(key, runId)
     return Response.json({ run: { runId } }, { status: 201 })
@@ -121,6 +138,8 @@ beforeEach(() => {
   cancelled = []
   lostReplies = 0
   held = undefined
+  refusals = []
+  thirdHeld = undefined
 })
 
 describe('a send whose reply was lost', () => {
@@ -256,6 +275,121 @@ describe('a send whose reply was lost', () => {
     expect(cancelled).toEqual(['run-1'])
     expect(stored(note, second)?.runId).toBe('run-2')
   })
+})
+
+describe('a send Theorem refuses for good', () => {
+  async function lostSend(note: AskedNote) {
+    lostReplies = 1
+    const first = ask(note, 'First')
+    await settled(note, first, 'failed')
+    refusals = [revisionConflict()]
+    return first
+  }
+
+  test('fails its ask, says why, and lets the next ask through', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+
+    const second = ask(note, 'Second')
+    await settled(note, second, 'done')
+
+    expect(stored(note, first)?.status).toBe('failed')
+    expect(stored(note, first)?.error).toBe(
+      'Your message was not sent. The chat changed before this mutation was committed',
+    )
+    expect(stored(note, second)?.runId).toBe('run-1')
+    expect(sends.map((send) => send.text)).toEqual(['First', 'First', 'Second'])
+    expect(sends[2]?.key).not.toBe(sends[0]?.key ?? '')
+  })
+
+  test('is sent afresh by a retry', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+
+    const retry = ask(note, 'First', stored(note, first)?.sendKey)
+    useDocumentAsks.getState().dismiss(note.key, first)
+    await settled(note, retry, 'done')
+
+    expect(stored(note, retry)).toMatchObject({
+      runId: 'run-1',
+      reply: 'From run-1',
+    })
+    expect(stored(note, retry)?.error).toBeUndefined()
+    expect(sends.map((send) => send.text)).toEqual(['First', 'First', 'First'])
+    expect(sends[1]?.key).toBe(sends[0]?.key ?? '')
+    expect(sends[2]?.key).not.toBe(sends[0]?.key ?? '')
+  })
+
+  test('can still be stopped during the retry that sends it afresh', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+    const { promise, resolve } = Promise.withResolvers<void>()
+    thirdHeld = promise
+
+    const retry = ask(note, 'First', stored(note, first)?.sendKey)
+    useDocumentAsks.getState().dismiss(note.key, first)
+    await waitFor(() => sends.length === 3)
+    stopAsk(note.key, retry)
+    resolve()
+    await waitFor(() => cancelled.length === 1)
+
+    expect(stored(note, retry)?.status).toBe('stopped')
+    expect(cancelled).toEqual(['run-1'])
+  })
+
+  test.each(['stopped', 'dismissed'] as const)(
+    'does not fail the next ask when its ask was %s',
+    async (how) => {
+      const note = aNote()
+      const first = await lostSend(note)
+      if (how === 'stopped') stopAsk(note.key, first)
+      else useDocumentAsks.getState().dismiss(note.key, first)
+
+      const second = ask(note, 'Second')
+      await settled(note, second, 'done')
+
+      expect(stored(note, second)?.error).toBeUndefined()
+      expect(stored(note, second)?.runId).toBe('run-1')
+      expect(cancelled).toEqual([])
+    },
+  )
+
+  test('fails its ask when the note opens again, and frees the note', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+    useDocumentAsks.getState().patch(note.key, first, { status: 'running' })
+
+    resumeAsks(note.key)
+    await settled(note, first, 'failed')
+
+    expect(stored(note, first)?.error).toContain('Your message was not sent.')
+    const second = ask(note, 'Second')
+    await settled(note, second, 'done')
+    expect(stored(note, second)?.runId).toBe('run-1')
+  })
+})
+
+test('a model that cannot start fails the ask without holding up the next', async () => {
+  const note = aNote()
+  refusals = [
+    Response.json(
+      {
+        code: 'chat_run_start_pending',
+        detail: 'chat_model_unknown: no such model',
+      },
+      { status: 422 },
+    ),
+  ]
+  const first = ask(note, 'First')
+  await settled(note, first, 'failed')
+
+  expect(stored(note, first)?.error).toContain('chat_model_unknown')
+  expect(stored(note, first)?.error).not.toContain('Reload')
+
+  const second = ask(note, 'Second')
+  await settled(note, second, 'done')
+  expect(stored(note, second)?.runId).toBe('run-1')
+  expect(sends[1]?.key).not.toBe(sends[0]?.key ?? '')
 })
 
 test('opening a note stops an ask that never reached Theorem', async () => {
