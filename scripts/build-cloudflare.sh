@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the theorem-ui Worker: the agent terminal's WebAssembly, the
-# browser-only Theia IDE served under /theia, then the app with Nitro's
-# cloudflare_module preset.
+# browser-only Theia IDE served under /theia, the CodeMirror IDE served under
+# /ide-cm, then the app with Nitro's cloudflare_module preset.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -29,7 +29,9 @@ if [ "${WORKERS_CI:-}" = 1 ]; then
 fi
 
 bun install --cwd ide --frozen-lockfile
+bun install --cwd ide-cm --frozen-lockfile
 sh terminal/build.sh
 bun run --cwd ide build:extensions
 bun run --cwd ide/applications/browser build:prod
+bun run --cwd ide-cm build
 NITRO_PRESET=cloudflare_module bun --bun vite build
