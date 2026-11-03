@@ -26,7 +26,7 @@ async function open(onCommit: (value: unknown) => void) {
   )
   const option = await waitFor(() =>
     [...document.querySelectorAll('[role="option"]')].find(
-      (item) => item.textContent?.trim() === 'blue',
+      (item) => item.textContent.trim() === 'blue',
     ),
   )
   await act(async () => (option as HTMLElement).click())
