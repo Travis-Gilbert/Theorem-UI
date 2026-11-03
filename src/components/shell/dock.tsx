@@ -61,15 +61,28 @@ import { IdeFrame } from '@/components/ide/ide-frame'
 import { flyGhost, popIn } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
+import { DelegationPanel } from '@/components/chat/delegation-panel'
+import { useDelegationDock, useThreadDelegation } from '@/lib/theorem/delegations'
+
 const ARTIFACT = 'artifact:'
 const NOTE = 'note-panel:'
-
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
 const artifactIdOf = (panelId: string) =>
   panelId.startsWith(ARTIFACT) ? panelId.slice(ARTIFACT.length) : undefined
 const FILE = 'file:'
 const filePanelId = (path: string) => `${FILE}${path}`
 const isFilePanel = (panelId: string) => panelId.startsWith(FILE)
+const DELEGATION = 'delegation:'
+
+const delegationPanelId = (delegationId: string) =>
+  `${DELEGATION}${delegationId}`
+const isDelegationPanel = (panelId: string) => panelId.startsWith(DELEGATION)
+
+/** Panels that open beside the conversation and share its side group. */
+const isSidePanel = (panelId: string) =>
+  Boolean(artifactIdOf(panelId)) ||
+  isFilePanel(panelId) ||
+  isDelegationPanel(panelId)
 /** Colours come from the palette tokens, which already switch per palette and mode. */
 const theme: DockviewTheme = {
   name: 'theorem',
@@ -167,6 +180,17 @@ function NoteDockPanel({
   return <NotePanel documentId={params.documentId} />
 }
 
+function DelegationDockPanel({
+  api,
+  params,
+}: IDockviewPanelProps<{ delegationId: string }>) {
+  const roleLabel = useThreadDelegation(params.delegationId)?.roleLabel
+  useEffect(() => {
+    if (roleLabel) api.setTitle(roleLabel)
+  }, [api, roleLabel])
+  return <DelegationPanel delegationId={params.delegationId} />
+}
+
 const GraphPanel = lazy(() =>
   import('@/components/inspector/graph-panel').then((module) => ({
     default: module.GraphPanel,
@@ -196,6 +220,7 @@ const components = {
   note: NoteDockPanel,
   [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
   file: FileDockPanel,
+  delegation: DelegationDockPanel,
 }
 
 const tabComponents = {
@@ -393,9 +418,7 @@ function openSide(
     return
   }
   const sized = { ...options, minimumWidth: 400 }
-  const sibling = api.panels.find(
-    (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
-  )
+  const sibling = api.panels.find((panel) => isSidePanel(panel.id))
   if (sibling) {
     api.addPanel({ ...sized, position: { referenceGroup: sibling.group } })
     return
@@ -411,6 +434,14 @@ function openArtifact(api: DockviewApi, artifactId: string) {
   })
 }
 
+function openDelegation(api: DockviewApi, delegationId: string) {
+  openSide(api, {
+    id: delegationPanelId(delegationId),
+    component: 'delegation',
+    params: { delegationId },
+    title: 'Delegation',
+  })
+}
 /** Files belong to the project, so they stay open across conversations. */
 function openFile(api: DockviewApi, projectId: string, path: string) {
   openSide(api, {
@@ -485,7 +516,6 @@ function openNote(api: DockviewApi, documentId: string) {
   }
   openBeside(api, options, THREAD, 0.4)
 }
-
 /**
  * Desktop dock: the conversation and each open artifact, note and file as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
@@ -545,6 +575,9 @@ export function DockShell({
       },
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
+    useDelegationDock.setState({
+      open: (delegationId) => openDelegation(dock, delegationId),
+    })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -564,10 +597,11 @@ export function DockShell({
       useNoteView.setState({ dock: undefined })
       useWorkspaceFileView.setState({ dock: undefined })
       useFileDock.setState({ open: undefined })
+      useDelegationDock.setState({ open: undefined })
     }
   }, [dock, projectId])
 
-  // A different conversation starts without the previous one's artifacts. A
+  // A different conversation starts without the previous one's artifacts and delegations. A
   // new chat gaining its first id is the same conversation, so it keeps them.
   useEffect(() => {
     if (!dock || layoutThread.current === threadId) return
@@ -575,7 +609,8 @@ export function DockShell({
     layoutThread.current = threadId
     if (previous !== undefined) {
       for (const panel of dock.panels)
-        if (artifactIdOf(panel.id)) dock.removePanel(panel)
+        if (artifactIdOf(panel.id) || isDelegationPanel(panel.id))
+          dock.removePanel(panel)
       useArtifactView.getState().reset()
     }
     useShell.getState().saveLayout(projectId, {

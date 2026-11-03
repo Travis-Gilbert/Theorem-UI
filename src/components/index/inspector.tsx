@@ -403,7 +403,11 @@ export function Inspector({
             <Filing
               key={documentId}
               documentId={documentId}
-              revision={summary.revision}
+              // Theorem types positions as uint64; the filing body is plain JSON.
+              revision={{
+                ...summary.revision,
+                position: Number(summary.revision.position),
+              }}
               scope={scope}
             />
             {/* Keyed so answers given for one document never show on another. */}

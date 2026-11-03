@@ -1,21 +1,29 @@
-// SOURCING: zustand (follow state, as the artifact view keeps its own), assistant-ui useAuiState (the live run's tool calls), @theoremharness/sdk location types, penpal's RemoteProxy for the IDE frame
+// SOURCING: zustand (follow state, as the artifact view keeps its own), assistant-ui useAuiState (the working turn's run and its delegations), penpal's RemoteProxy for the IDE frame, @tanstack/react-router useNavigate (to the IDE for a delegation's changes); the frame matches these runs to the workspace's document events
 //
-// Follow the Agent: while a run works, the views beside the conversation go
-// where it works. A file it touches opens in the IDE's preview editor without
-// taking focus; an artifact it writes opens in its panel. The person moving
-// somewhere themselves pauses Follow until they resume it.
+// Follow the Agent: while a turn works, the views beside the conversation go
+// where it works. Every edit the document authority accepts names the run that
+// made it, so the IDE frame shows the edits of the turn's run and of the
+// delegations it started, in its preview editor without taking focus; an
+// artifact the turn writes opens in its panel. The person moving somewhere
+// themselves pauses Follow until they resume it.
 import { useAuiState } from '@assistant-ui/react'
-import type { TheoremLocation } from '@theoremharness/sdk'
+import { useNavigate } from '@tanstack/react-router'
 import type { RemoteProxy } from 'penpal'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { create } from 'zustand'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
-import type { IdeFrameMethods } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
+import { DELEGATION_PART, readDelegation } from '@/lib/theorem/delegations'
+import type {
+  DelegationChanges,
+  IdeFrameMethods,
+} from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 
 type FollowState = {
   following: boolean
   /** The IDE frame while one is open and linked. */
   ide: RemoteProxy<IdeFrameMethods> | undefined
+  /** Changes asked for before the IDE frame linked; it opens them once it does. */
+  pendingChanges: DelegationChanges | undefined
   pause: () => void
   resume: () => void
 }
@@ -23,62 +31,55 @@ type FollowState = {
 export const useFollow = create<FollowState>()((set) => ({
   following: true,
   ide: undefined,
+  pendingChanges: undefined,
   pause: () => set({ following: false }),
   resume: () => set({ following: true }),
 }))
 
-/** Shows a place the agent is working on, unless the person paused Follow. */
-export function follow(location: TheoremLocation) {
-  const { following, ide } = useFollow.getState()
-  if (!following) return
-  const { resource } = location
-  if (resource.kind === 'artifact')
-    useArtifactView.getState().open(resource.artifactId)
-  else if (resource.kind === 'file')
-    void ide?.reveal(location, { preserveFocus: true, preview: true })
+/** Opens an artifact the working turn wrote, unless the person paused Follow. */
+export function followArtifact(artifactId: string) {
+  if (useFollow.getState().following)
+    useArtifactView.getState().open(artifactId)
 }
-
-/** Argument names Theorem's and MCP file tools use for the file and line they act on. */
-const PATH_ARGS = ['path', 'file_path', 'filePath', 'file', 'target_file', 'relative_path']
-const LINE_ARGS = ['line', 'start_line', 'line_number', 'startLine']
 
 /**
- * The workspace file a tool call names. Absolute paths are left alone: the
- * UI does not know where the host keeps the checkout.
+ * Opens a delegation's changes in the IDE. The person asked for them, so this
+ * goes to the IDE whether or not Follow the Agent is on.
  */
-export function toolCallLocation(
-  args: Readonly<Record<string, unknown>>,
-  workspaceId: string,
-): TheoremLocation | undefined {
-  const raw = PATH_ARGS.map((name) => args[name]).find(
-    (value): value is string => typeof value === 'string' && value.length > 0,
-  )
-  if (!raw || raw.startsWith('/') || /^[a-z]:[\\/]/i.test(raw)) return undefined
-  const path = raw.replace(/^\.\//, '')
-  const line = LINE_ARGS.map((name) => args[name]).find(
-    (value): value is number => Number.isInteger(value) && (value as number) > 0,
-  )
-  const resource = { kind: 'file' as const, workspaceId, path }
-  if (line === undefined) return { resource }
-  const at = { line: line - 1, character: 0 }
-  return { resource, range: { start: at, end: at, unit: 'utf16' } }
+export function useOpenChanges() {
+  const navigate = useNavigate()
+  return (target: DelegationChanges) => {
+    const { ide } = useFollow.getState()
+    if (ide) void ide.openChanges(target)
+    else useFollow.setState({ pendingChanges: target })
+    void navigate({ to: '/ide' })
+  }
 }
 
-/** Follows the files the live run's tool calls name, each call once. */
-export function useFollowAgentFiles(workspaceId: string) {
-  const parts = useAuiState((s) => {
+/**
+ * Tells the IDE frame whose edits to follow: the working turn's run and the
+ * runs of the delegations it started. The ids travel joined, so the selected
+ * value compares by content.
+ */
+export function useFollowRuns(ide: RemoteProxy<IdeFrameMethods> | undefined) {
+  const runs = useAuiState((s) => {
     const last = s.thread.messages.at(-1)
-    return last?.status?.type === 'running' ? last.content : undefined
+    const working =
+      last?.status?.type === 'running' ||
+      last?.status?.type === 'requires-action'
+    if (!last || !working) return ''
+    return [
+      last.metadata.custom.theoremRunId,
+      ...last.content.map((part) =>
+        part.type === 'data' && part.name === DELEGATION_PART
+          ? readDelegation(part.data)?.childRunId
+          : undefined,
+      ),
+    ]
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      .join(' ')
   })
-  const followed = useRef(new Set<string>())
   useEffect(() => {
-    for (const part of parts ?? []) {
-      if (part.type !== 'tool-call' || followed.current.has(part.toolCallId))
-        continue
-      const location = toolCallLocation(part.args, workspaceId)
-      if (!location) continue
-      followed.current.add(part.toolCallId)
-      follow(location)
-    }
-  }, [parts, workspaceId])
+    void ide?.setFollowedRuns(runs ? runs.split(' ') : [])
+  }, [ide, runs])
 }

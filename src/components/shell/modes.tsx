@@ -6,6 +6,7 @@ import { IndexSurface } from '@/components/index/index-surface'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { VaultPhone } from '@/components/vault/vault-phone'
+import { useCallback } from 'react'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { useShell } from './shell-state'
 
@@ -54,16 +55,19 @@ export function useShellMode(): ShellMode {
 /** Navigates to a mode; chat returns to the conversation last left. */
 export function useOpenMode() {
   const navigate = useNavigate()
-  return (next: ShellMode) => {
-    if (next === 'index') return navigate({ to: '/index' })
-    if (next === 'vault') return navigate({ to: '/vault' })
-    if (next === 'spaces') return navigate({ to: '/spaces' })
-    if (next === 'ide') return navigate({ to: '/ide' })
-    const threadId = useShell.getState().chatThreadId
-    return threadId
-      ? navigate({ to: '/c/$threadId', params: { threadId } })
-      : navigate({ to: '/' })
-  }
+  return useCallback(
+    (next: ShellMode) => {
+      if (next === 'index') return navigate({ to: '/index' })
+      if (next === 'vault') return navigate({ to: '/vault' })
+      if (next === 'spaces') return navigate({ to: '/spaces' })
+      if (next === 'ide') return navigate({ to: '/ide' })
+      const threadId = useShell.getState().chatThreadId
+      return threadId
+        ? navigate({ to: '/c/$threadId', params: { threadId } })
+        : navigate({ to: '/' })
+    },
+    [navigate],
+  )
 }
 /**
  * The view for the current mode. The conversation stays mounted behind the

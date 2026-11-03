@@ -13,6 +13,7 @@ import {
   mutateThread,
   theorem,
 } from '@/lib/theorem/client'
+import type { Theorem } from '@/lib/theorem/client'
 import { pickedModelTurnOptions } from '@/lib/theorem/models'
 import { tailRun } from '@/lib/theorem/runtime'
 import type { ChatModelRunResult } from '@assistant-ui/react'
@@ -116,7 +117,13 @@ async function run(
         threadId,
         branchId: thread.selectedBranchId,
         text: question,
-        contextReferences: askReferences(note, excerpt),
+        // The SDK's union lists only delegation references so far; Theorem's
+        // document markup reads these file references, and the SDK sends the
+        // field as given.
+        contextReferences: askReferences(
+          note,
+          excerpt,
+        ) as Theorem.ChatContextReference[],
         model: pickedModelTurnOptions.model,
       }),
     )

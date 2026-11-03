@@ -4,7 +4,8 @@
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
 // renders them per the theorem-chat-v1 contract, renders Theorem's tool
 // approvals (decided through runs.command, since Theorem owns approvals), and
-// gives the artifact tools a pending card while they run.
+// gives the artifact tools a pending card while they run. Delegated work has
+// its own cards in delegation-parts.
 import { useAui, useAuiState, useAssistantDataUI } from '@assistant-ui/react'
 import { CatchBoundary } from '@tanstack/react-router'
 import type {
@@ -36,11 +37,17 @@ import {
   useThreadArtifacts,
 } from '@/components/artifacts/artifact-model'
 import { download } from '@/components/artifacts/artifact-panel'
+import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { follow } from '@/components/ide/follow'
+import { followArtifact } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { describeError, describeRunFailure, mutate, theorem } from '@/lib/theorem/client'
+import {
+  describeError,
+  describeRunFailure,
+  mutate,
+  theorem,
+} from '@/lib/theorem/client'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -88,7 +95,7 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
         cardRef.current.getBoundingClientRect(),
         `artifact:${artifactId}`,
       )
-    follow({ resource: { kind: 'artifact', artifactId, revision } })
+    followArtifact(artifactId)
   }, [live, artifactId, revision])
 
   if (!artifact)
@@ -295,6 +302,39 @@ export function readApproval(
   }
 }
 
+type ApprovalChoice = { optionId: string } | { decision: 'allow' | 'deny' }
+
+/** What a plain allow or deny sends: allow once, or reject; a bare decision when the approval offers no options. */
+export function approvalChoice(
+  options: TheoremApproval['options'],
+  allow: boolean,
+): ApprovalChoice | undefined {
+  if (!options.length) return { decision: allow ? 'allow' : 'deny' }
+  const byKind = (kind: string) => options.find((o) => o.kind === kind)
+  const option = allow
+    ? byKind('allow_once')
+    : (byKind('reject_once') ?? byKind('reject_always'))
+  return option && { optionId: option.optionId }
+}
+
+/** Sends a decision to the run that asked for the approval. */
+export function sendApprovalDecision(
+  runId: string,
+  approval: Pick<TheoremApproval, 'approvalId' | 'toolCallId'>,
+  choice: ApprovalChoice,
+) {
+  return mutate((headers) =>
+    theorem().chat.runs.command({
+      runId,
+      command: 'approval',
+      approvalId: approval.approvalId,
+      toolCallId: approval.toolCallId,
+      ...choice,
+      ...headers,
+    }),
+  )
+}
+
 /** Pending Theorem approvals render standalone so they are never folded into a tool group. */
 export function isStandaloneToolCall(part: {
   type: string
@@ -326,10 +366,7 @@ const TheoremApprovalCard: FC<{
   )
   const [error, setError] = useState<string>()
 
-  const decide = async (
-    option: { optionId?: string; decision?: 'allow' | 'deny' },
-    granted: boolean,
-  ) => {
+  const decide = async (choice: ApprovalChoice, granted: boolean) => {
     if (!runId) {
       setError('This approval belongs to a run that is no longer live.')
       return
@@ -337,16 +374,7 @@ const TheoremApprovalCard: FC<{
     setError(undefined)
     setState(granted ? 'running' : 'denied')
     try {
-      await mutate((headers) =>
-        theorem().chat.runs.command({
-          runId,
-          command: 'approval',
-          approvalId: approval.approvalId,
-          toolCallId: approval.toolCallId,
-          ...option,
-          ...headers,
-        }),
-      )
+      await sendApprovalDecision(runId, approval, choice)
     } catch (failure) {
       setState('request')
       setError(describeError(failure))
@@ -357,7 +385,8 @@ const TheoremApprovalCard: FC<{
   const allowOnce = byKind('allow_once')
   const allowAlways = byKind('allow_always')
   const reject = byKind('reject_once') ?? byKind('reject_always')
-  const offered = approval.options.length > 0
+  const allow = approvalChoice(approval.options, true)
+  const deny = approvalChoice(approval.options, false)
 
   return (
     <div className="my-3 flex flex-col gap-2">
@@ -368,13 +397,7 @@ const TheoremApprovalCard: FC<{
         command={argsText || undefined}
         icon={<Icon.Settings className="size-4" />}
         className="max-w-md rounded-artifact border-separator bg-artifact"
-        onAllowOnce={
-          !offered
-            ? () => decide({ decision: 'allow' }, true)
-            : allowOnce
-              ? () => decide({ optionId: allowOnce.optionId }, true)
-              : undefined
-        }
+        onAllowOnce={allow && (() => decide(allow, true))}
         allowOnceLabel={allowOnce?.name ?? 'Allow once'}
         onAlwaysAllow={
           allowAlways
@@ -382,13 +405,7 @@ const TheoremApprovalCard: FC<{
             : undefined
         }
         alwaysAllowLabel={allowAlways?.name ?? 'Always allow'}
-        onDeny={
-          !offered
-            ? () => decide({ decision: 'deny' }, false)
-            : reject
-              ? () => decide({ optionId: reject.optionId }, false)
-              : undefined
-        }
+        onDeny={deny && (() => decide(deny, false))}
         denyLabel={reject?.name ?? 'Deny'}
       />
       {error && (
@@ -641,6 +658,7 @@ const RENDERERS = (
     ['theorem-error', ErrorPart],
     ['theorem-attachment', AttachmentPart],
     ['theorem-host_call', HostCallPart],
+    ...DELEGATION_RENDERERS,
   ] satisfies Array<[string, DataMessagePartComponent]>
 )
   .map(([name, render]): [string, DataMessagePartComponent] => [

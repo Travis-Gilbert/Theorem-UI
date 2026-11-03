@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSeen } from "@/hooks/use-seen";
 import {
+  threadOrigin,
   threadTreeKey,
   useBranchLabel,
   useSelectBranch,
+  useStartThreadFrom,
+  useThreadFromFailure,
   useThreadTree,
 } from "@/lib/theorem/thread-tree";
 import type { Theorem } from "@/lib/theorem/client";
@@ -25,8 +28,10 @@ import { ContextMenu } from "@base-ui/react/context-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/icons";
 import {
+  createContext,
   forwardRef,
   Fragment,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -45,11 +50,35 @@ export const ThreadList: FC = () => {
       {hasThreads && (
         <ThreadListSearch value={search} onValueChange={setSearch} />
       )}
+      <ThreadFromFailure />
       <ThreadListItems searchQuery={hasThreads ? search : ""} />
     </ThreadListRoot>
   );
 };
 
+/** Why the last fork or continuation did not start, until it is dismissed. */
+const ThreadFromFailure: FC = () => {
+  const failure = useThreadFromFailure((s) => s.failure);
+  const dismiss = useThreadFromFailure((s) => s.dismiss);
+  if (!failure) return null;
+  return (
+    <div
+      role="alert"
+      data-slot="aui_thread-list-failure"
+      className="bg-error-container text-error-ink mt-2 flex items-start gap-2 rounded-md px-2 py-1.5 text-xs"
+    >
+      <span className="min-w-0 flex-1">The new thread did not start. {failure}</span>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={dismiss}
+        className="hover:bg-error-ink/10 focus-visible:outline-focus flex size-4 shrink-0 items-center justify-center rounded-sm focus-visible:outline-2"
+      >
+        <Icon.X className="size-3" />
+      </button>
+    </div>
+  );
+};
 /**
  * Search rests as its icon alone. Focusing it springs the field open to an
  * outlined box; it folds back once it loses focus with nothing typed, and
@@ -121,9 +150,10 @@ export const ThreadListRoot: FC<
   );
 };
 
-// Each thread moves with its branches, so the tree is the row that springs.
+// Each thread moves with its branches and the threads nested under it, so the
+// top-level tree is the row that springs.
 const LIST_ROWS =
-  '[data-slot="aui_thread-list-item-tree"], [data-slot="aui_thread-list-group-label"]';
+  ':scope > [data-slot="aui_thread-list-item-tree"], :scope > [data-slot="aui_thread-list-group-label"]';
 const ACTIVE_ROW =
   '[data-slot="aui_thread-list-item"][data-active], [data-slot="aui_thread-list-branch"] > [data-active]';
 
@@ -236,12 +266,15 @@ const useStartOfToday = () =>
 
 export type ThreadListGroup = { label: string; indices: number[] };
 
+/** Undated threads are new ones not sent yet, so they sort as the most recent. */
+const UNDATED = Number.MAX_SAFE_INTEGER;
 /**
- * Filters the thread list by title and buckets the matches by last activity
- * (Today, Yesterday, each day of the past week, Older). `groups` is null when
- * no thread carries a date or while the local day start is unknown during
- * server render and hydration, in which case `filteredIndices` keeps the
- * runtime order.
+ * Filters the thread list by title, nests each forked or continued thread
+ * under its source when the source is listed too, and buckets the top-level
+ * trees by last activity (Today, Yesterday, each day of the past week, Older).
+ * A tree is as recent as its latest thread. `groups` is null when no thread
+ * carries a date or while the local day start is unknown during server render
+ * and hydration, in which case `filteredIndices` keeps the runtime order.
  */
 export const useThreadListGroups = (searchQuery = "") => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
@@ -252,8 +285,7 @@ export const useThreadListGroups = (searchQuery = "") => {
 
   return useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    const dates = threadIds.map((id) => itemsById.get(id)?.lastMessageAt);
-    const filteredIndices = threadIds
+    const matches = threadIds
       .map((id, index) => ({ id, index }))
       .filter(
         ({ id }) =>
@@ -261,25 +293,47 @@ export const useThreadListGroups = (searchQuery = "") => {
           (itemsById.get(id)?.title || "New Chat")
             .toLowerCase()
             .includes(query),
-      )
-      .map(({ index }) => index);
+      );
+
+    const idByRemoteId = new Map<string, string>();
+    for (const { id } of matches) {
+      const remoteId = itemsById.get(id)?.remoteId;
+      if (remoteId) idByRemoteId.set(remoteId, id);
+    }
+    const childrenOf = new Map<string, number[]>();
+    const filteredIndices: number[] = [];
+    for (const { id, index } of matches) {
+      const source = threadOrigin(itemsById.get(id)?.custom);
+      const parent = source && idByRemoteId.get(source.threadId);
+      if (parent === undefined || parent === id) filteredIndices.push(index);
+      else childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), index]);
+    }
+
+    const treeTime = (id: string | undefined): number => {
+      if (id === undefined) return UNDATED;
+      const own = itemsById.get(id)?.lastMessageAt?.getTime() ?? UNDATED;
+      const children = childrenOf.get(id) ?? [];
+      return Math.max(own, ...children.map((i) => treeTime(threadIds[i])));
+    };
+    const times = new Map(
+      filteredIndices.map((index) => [index, treeTime(threadIds[index])]),
+    );
     if (
       startOfToday === undefined ||
-      !filteredIndices.some((index) => dates[index])
+      !filteredIndices.some((index) => times.get(index) !== UNDATED)
     ) {
-      return { threadIds, filteredIndices, groups: null };
+      return { threadIds, filteredIndices, groups: null, childrenOf };
     }
 
     const startOfYesterday = daysBefore(startOfToday, 1);
     const startOfWeek = daysBefore(startOfToday, 6);
-    const time = (index: number) =>
-      dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const time = (index: number) => times.get(index) ?? UNDATED;
     const sorted = [...filteredIndices].sort((a, b) => time(b) - time(a));
 
     const result: ThreadListGroup[] = [];
     for (const index of sorted) {
       const label = dateGroupLabel(
-        dates[index],
+        time(index) === UNDATED ? undefined : new Date(time(index)),
         startOfToday,
         startOfYesterday,
         startOfWeek,
@@ -291,15 +345,20 @@ export const useThreadListGroups = (searchQuery = "") => {
         result.push({ label, indices: [index] });
       }
     }
-    return { threadIds, filteredIndices, groups: result };
+    return { threadIds, filteredIndices, groups: result, childrenOf };
   }, [threadIds, threadItems, query, startOfToday]);
 };
 
+/** The listed threads forked or continued from each thread, by its list id. */
+const OriginChildren = createContext<ReadonlyMap<string, readonly number[]>>(
+  new Map(),
+);
+const NO_CHILDREN: readonly number[] = [];
 const ThreadListItemGroups: FC<{
   listing: ReturnType<typeof useThreadListGroups>;
   searchQuery?: string;
 }> = ({ listing, searchQuery = "" }) => {
-  const { threadIds, filteredIndices, groups } = listing;
+  const { threadIds, filteredIndices, groups, childrenOf } = listing;
   const query = searchQuery.trim();
 
   if (query && filteredIndices.length === 0) {
@@ -318,7 +377,7 @@ const ThreadListItemGroups: FC<{
 
   if (!groups) {
     return (
-      <>
+      <OriginChildren.Provider value={childrenOf}>
         {filteredIndices.map((index) => (
           <ThreadListPrimitive.ItemByIndex
             key={threadIds[index]}
@@ -327,12 +386,12 @@ const ThreadListItemGroups: FC<{
           />
         ))}
         <ThreadListShowMore />
-      </>
+      </OriginChildren.Provider>
     );
   }
 
   return (
-    <>
+    <OriginChildren.Provider value={childrenOf}>
       {groups.map((group) => (
         <Fragment key={group.label}>
           <div
@@ -351,7 +410,7 @@ const ThreadListItemGroups: FC<{
         </Fragment>
       ))}
       <ThreadListShowMore />
-    </>
+    </OriginChildren.Provider>
   );
 };
 
@@ -433,18 +492,25 @@ const statusLabel: Record<ThreadStatus, string> = {
   failed: "Last run failed",
 };
 
+const moreItem =
+  "hover:bg-hover focus:bg-hover data-disabled:pointer-events-none data-disabled:opacity-50 flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none select-none";
 const contextMenuItem =
-  "data-highlighted:bg-hover flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none";
+  "data-highlighted:bg-hover data-disabled:opacity-50 flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none";
 
 /**
- * One thread, and under it the branches forked from it. The row is the
- * thread's root branch and each child is a fork, so whichever row is
- * highlighted is the branch the conversation shows. Theorem stores the
- * selection, so opening a row selects its branch and reloads the thread.
+ * One thread, and under it the branches forked from it and the threads forked
+ * or continued from it. The row is the thread's root branch and each branch
+ * child is a fork, so whichever row is highlighted is the branch the
+ * conversation shows. Theorem stores the selection, so opening a row selects
+ * its branch and reloads the thread. A nested thread is a whole thread row of
+ * its own.
  */
 export const ThreadListItem: FC = () => {
   const aui = useAui();
+  const itemId = useAuiState((s) => s.threadListItem.id);
   const remoteId = useAuiState((s) => s.threadListItem.remoteId);
+  const origin = threadOrigin(useAuiState((s) => s.threadListItem.custom));
+  const originChildren = useContext(OriginChildren).get(itemId) ?? NO_CHILDREN;
   const isRunningHere = useAuiState((s) => s.threadListItem.isRunning);
   const isMain = useAuiState(
     (s) => s.threads.mainThreadId === s.threadListItem.id,
@@ -459,7 +525,9 @@ export const ThreadListItem: FC = () => {
   const { data: tree } = useThreadTree(remoteId, seen);
   const forks = tree?.forks ?? [];
   const selectBranch = useSelectBranch();
+  const startThread = useStartThreadFrom();
   const queryClient = useQueryClient();
+  const hasChildren = forks.length > 0 || originChildren.length > 0;
 
   // The open thread's run is live here; any other thread's comes from Theorem.
   const isRunning = isRunningHere || Boolean(tree?.activeRunId);
@@ -470,6 +538,12 @@ export const ThreadListItem: FC = () => {
       : undefined;
   const onFork = tree ? tree.selectedBranchId !== tree.rootBranchId : false;
   const isCurrent = isMain && !onFork;
+  // A fork copies history, so it waits for the run writing it to end.
+  const canStartFrom = remoteId !== undefined && !isRunning && !startThread.isPending;
+  const forkThread = () =>
+    remoteId && startThread.mutate({ kind: "forked", threadId: remoteId });
+  const continueThread = () =>
+    remoteId && startThread.mutate({ kind: "continued", threadId: remoteId });
 
   // An edit or a regenerate forks the thread, and every run moves its outcome.
   const wasRunningRef = useRef(isRunningHere);
@@ -540,13 +614,15 @@ export const ThreadListItem: FC = () => {
                 }}
                 className="focus-visible:before:outline-focus min-w-0 truncate text-start outline-none before:absolute before:inset-0 before:rounded-md focus-visible:before:outline-2 focus-visible:before:-outline-offset-2"
               >
+                {origin && <OriginMark kind={origin.kind} />}
                 <ThreadListItemPrimitive.Title fallback="New Chat" />
+                {origin && <span className="sr-only">, {originLabel[origin.kind]}</span>}
                 {status && <span className="sr-only">, {statusLabel[status]}</span>}
               </ThreadListItemPrimitive.Trigger>
-              {forks.length > 0 && (
+              {hasChildren && (
                 <Collapsible.Trigger
                   data-slot="aui_thread-list-item-branches-toggle"
-                  aria-label={isOpen ? "Hide branches" : "Show branches"}
+                  aria-label={isOpen ? "Collapse" : "Expand"}
                   className="group/branches text-ink-faint hover:text-ink focus-visible:outline-focus relative flex size-5 shrink-0 items-center justify-center rounded-sm focus-visible:outline-2"
                 >
                   <Icon.Next className="size-4 transition-transform duration-150 group-data-panel-open/branches:rotate-90" />
@@ -568,7 +644,12 @@ export const ThreadListItem: FC = () => {
                 )}
               />
             )}
-            <ThreadListItemMore onRename={() => setIsRenaming(true)} />
+            <ThreadListItemMore
+              onRename={() => setIsRenaming(true)}
+              onFork={forkThread}
+              onContinue={continueThread}
+              canStartFrom={canStartFrom}
+            />
           </span>
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
@@ -578,6 +659,23 @@ export const ThreadListItem: FC = () => {
               finalFocus={false}
               className="bg-popover text-popover-foreground shadow-popover border-separator min-w-36 origin-(--transform-origin) rounded-lg border p-1 outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
             >
+              <ContextMenu.Item
+                className={contextMenuItem}
+                disabled={!canStartFrom}
+                onClick={forkThread}
+              >
+                <Icon.Fork className="size-4" />
+                Fork into new thread
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                className={contextMenuItem}
+                disabled={!canStartFrom}
+                onClick={continueThread}
+              >
+                <Icon.Continue className="size-4" />
+                Continue in new thread
+              </ContextMenu.Item>
+              <ContextMenu.Separator className="bg-separator my-1 h-px" />
               <ContextMenu.Item
                 className={contextMenuItem}
                 onClick={() => setIsRenaming(true)}
@@ -606,7 +704,7 @@ export const ThreadListItem: FC = () => {
           </ContextMenu.Positioner>
         </ContextMenu.Portal>
       </ContextMenu.Root>
-      {remoteId && forks.length > 0 && (
+      {remoteId && hasChildren && (
         <Collapsible.Panel
           data-slot="aui_thread-list-item-branches"
           className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-(--duration-glide) ease-glide data-ending-style:h-0 data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-starting-style:h-0"
@@ -617,11 +715,24 @@ export const ThreadListItem: FC = () => {
               threadId={remoteId}
               branch={branch}
               ordinal={index + 2}
-              isLast={index === forks.length - 1}
+              isLast={index === forks.length - 1 && originChildren.length === 0}
               isCurrent={isMain && tree?.selectedBranchId === branch.branchId}
               disabled={isRunning}
               onOpen={() => void openBranch(branch.branchId)}
             />
+          ))}
+          {originChildren.map((index, position) => (
+            <div
+              key={index}
+              data-slot="aui_thread-list-origin-child"
+              className="relative ps-6"
+            >
+              <TreeGuide isLast={position === originChildren.length - 1} />
+              <ThreadListPrimitive.ItemByIndex
+                index={index}
+                components={{ ThreadListItem }}
+              />
+            </div>
           ))}
         </Collapsible.Panel>
       )}
@@ -642,14 +753,7 @@ const ThreadBranchRow: FC<{
   const label = useBranchLabel(threadId, branch.branchId);
   return (
     <div data-slot="aui_thread-list-branch" className="relative ps-6">
-      {/* The guide runs past every child and turns into the last one. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "border-control/50 pointer-events-none absolute start-3 top-0 w-3 border-s",
-          isLast ? "h-1/2 rounded-es-[5px] border-b" : "h-full",
-        )}
-      />
+      <TreeGuide isLast={isLast} />
       <button
         type="button"
         disabled={disabled}
@@ -664,6 +768,36 @@ const ThreadBranchRow: FC<{
   );
 };
 
+/**
+ * The guide runs past every child and turns into the last one, at the middle
+ * of its row so a nested thread's own children stay below the turn.
+ */
+const TreeGuide: FC<{ isLast: boolean }> = ({ isLast }) => (
+  <span
+    aria-hidden="true"
+    className={cn(
+      "border-control/50 pointer-events-none absolute start-3 top-0 w-3 border-s",
+      isLast ? "h-4 rounded-es-[5px] border-b" : "h-full",
+    )}
+  />
+);
+
+const originLabel: Record<Theorem.ThreadOrigin["kind"], string> = {
+  forked: "forked from another thread",
+  continued: "continued from another thread",
+};
+
+/** Marks a thread that began as a fork or a continuation of another. */
+const OriginMark: FC<{ kind: Theorem.ThreadOrigin["kind"] }> = ({ kind }) => {
+  const Mark = kind === "forked" ? Icon.Fork : Icon.Continue;
+  return (
+    <Mark
+      aria-hidden="true"
+      data-slot="aui_thread-list-item-origin"
+      className="text-ink-faint me-1 inline size-3.5 align-[-2px]"
+    />
+  );
+};
 const ThreadListItemRename: FC<{
   onDone: (restoreFocus: boolean) => void;
 }> = ({ onDone }) => {
@@ -730,7 +864,12 @@ const ThreadListItemRename: FC<{
   );
 };
 
-const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
+const ThreadListItemMore: FC<{
+  onRename: () => void;
+  onFork: () => void;
+  onContinue: () => void;
+  canStartFrom: boolean;
+}> = ({ onRename, onFork, onContinue, canStartFrom }) => {
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
       <ThreadListItemMorePrimitive.Trigger render={<Button variant="ghost" size="icon" data-slot="aui_thread-list-item-more" className="data-[state=open]:bg-hover hover:bg-selected absolute inset-0 size-5 rounded-sm p-0 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 data-[state=open]:opacity-100" />}><Icon.More className="size-3.5" /><span className="sr-only">More options</span></ThreadListItemMorePrimitive.Trigger>
@@ -743,7 +882,26 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
       >
         <ThreadListItemMorePrimitive.Item
           data-slot="aui_thread-list-item-more-item"
-          className="hover:bg-hover focus:bg-hover flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none select-none"
+          className={moreItem}
+          disabled={!canStartFrom}
+          onSelect={onFork}
+        >
+          <Icon.Fork className="size-4" />
+          Fork into new thread
+        </ThreadListItemMorePrimitive.Item>
+        <ThreadListItemMorePrimitive.Item
+          data-slot="aui_thread-list-item-more-item"
+          className={moreItem}
+          disabled={!canStartFrom}
+          onSelect={onContinue}
+        >
+          <Icon.Continue className="size-4" />
+          Continue in new thread
+        </ThreadListItemMorePrimitive.Item>
+        <ThreadListItemMorePrimitive.Separator className="bg-separator my-1 h-px" />
+        <ThreadListItemMorePrimitive.Item
+          data-slot="aui_thread-list-item-more-item"
+          className={moreItem}
           onSelect={onRename}
         >
           <Icon.Edit className="size-4" />

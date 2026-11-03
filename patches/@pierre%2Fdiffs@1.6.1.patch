@@ -1,0 +1,20 @@
+diff --git a/dist/components/FileDiff.js b/dist/components/FileDiff.js
+index 12f4f8949f3a1907ac9877f83937b53a966c9411..3b92e0f2fc699b3579f3e624fab26ce58ebfe201 100644
+--- a/dist/components/FileDiff.js
++++ b/dist/components/FileDiff.js
+@@ -369,6 +369,7 @@ var FileDiff = class {
+ 		}
+ 		this.clearAuxiliaryNodes();
+ 		this.annotationCache.clear();
++		this.pre?.remove();
+ 		this.pre = void 0;
+ 		this.codeUnified = void 0;
+ 		this.codeDeletions = void 0;
+@@ -378,6 +379,7 @@ var FileDiff = class {
+ 		this.bufferAfter?.remove();
+ 		this.bufferAfter = void 0;
+ 		this.appliedPreAttributes = void 0;
++		this.headerElement?.remove();
+ 		this.headerElement = void 0;
+ 		this.headerPrefix = void 0;
+ 		this.headerFilenameSuffix = void 0;
