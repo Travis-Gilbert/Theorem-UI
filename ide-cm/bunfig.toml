@@ -1,0 +1,9 @@
+[install]
+# Only install versions that have been public for three days, so a compromised
+# release has time to be caught before it lands here (same gate as the repo root).
+minimumReleaseAge = 259200
+# Vetted at the OpenIDEA pin; held to those versions by bun.lock.
+minimumReleaseAgeExcludes = ["react-resizable-panels"]
+
+[test]
+preload = ["./test/happy-dom.ts", "./test/vite-globs.ts"]

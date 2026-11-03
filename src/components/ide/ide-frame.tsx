@@ -10,7 +10,6 @@ import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
-import { useEffect, useRef } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import {
   approvalChoice,
@@ -24,6 +23,8 @@ import type {
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
+import { chooseIdeEngine, ENGINE_BASE } from './engine'
+import type { IdeEngine } from './engine'
 import { useFollow, useFollowRuns } from './follow'
 
 /**
@@ -32,6 +33,21 @@ import { useFollow, useFollowRuns } from './follow'
  */
 const workspaceIdOf = (projectId: string) =>
   projectId.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80)
+
+// The engine comes from the address's query and the page's storage, neither of which
+// changes under a mounted frame, and neither of which the server can see.
+const unchanging = () => () => {}
+const unknownOnServer = () => undefined
+
+function currentEngine(): IdeEngine | undefined {
+  let storage: Storage | undefined
+  try {
+    storage = window.localStorage
+  } catch {
+    // Blocked site data: the choice then lasts for this load.
+  }
+  return chooseIdeEngine(window.location.search, storage)
+}
 
 /** A reference as composer text: its label, then the excerpt fenced. */
 function referenceText({ label, excerpt, location }: TheoremContextReference) {
@@ -51,13 +67,19 @@ export function IdeFrame() {
   const following = useFollow((s) => s.following)
   const sidebarOpen = useShell((s) => !s.panelCollapsed.ide)
   const workspaceId = project && workspaceIdOf(project.projectId)
-  const src = workspaceId
-    ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
-    : undefined
+  const engine = useSyncExternalStore<IdeEngine | undefined>(
+    unchanging,
+    currentEngine,
+    unknownOnServer,
+  )
+  const src =
+    workspaceId && engine
+      ? `${ENGINE_BASE[engine]}?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
+      : undefined
 
   useEffect(() => {
     const remoteWindow = frame.current?.contentWindow
-    if (!src || !remoteWindow) return
+    if (!src || !remoteWindow || engine !== 'theia') return
     const methods: IdeHostMethods = {
       addToChat: (reference) => {
         const draft = aui.composer.getState().text.trimEnd()
@@ -110,7 +132,7 @@ export function IdeFrame() {
       connection.destroy()
       useFollow.setState({ ide: undefined })
     }
-  }, [src, aui, openMode])
+  }, [src, engine, aui, openMode])
 
   useEffect(() => {
     void ide?.setTheme(resolvedTheme === 'dark')

@@ -100,6 +100,15 @@ const config = defineConfig({
           // Workers cap a static asset at 25 MiB; Theia's source maps exceed it.
           ignore: cloudflare ? ['**/*.map', '**/*.map.gz'] : undefined,
         },
+        // The CodeMirror IDE (ide-cm/): the OpenIDEA frontend over the SDK's
+        // document sessions, an opt-in beside Theia (`?ide=cm`). Absent until
+        // `bun run build` has run in ide-cm/; /ide-cm/$ then answers 503.
+        {
+          baseURL: '/ide-cm',
+          dir: fileURLToPath(new URL('./ide-cm/dist', import.meta.url)),
+          maxAge: 0,
+          ignore: cloudflare ? ['**/*.map', '**/*.map.gz'] : undefined,
+        },
       ],
       // Desktop mode (docs/desktop/local-server.md) lives in the Bun server
       // only: it loads native addons a Worker cannot run. The plugin and every
