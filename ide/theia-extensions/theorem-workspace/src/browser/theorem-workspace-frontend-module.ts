@@ -16,9 +16,11 @@ import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
 import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 import { ResourceResolver } from '@theia/core/lib/common/resource';
+import { FileSearchService } from '@theia/file-search/lib/common/file-search-service';
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
 import { FileSystemProvider } from '@theia/filesystem/lib/common/files';
 import { MonacoEditorModelFactory } from '@theia/monaco/lib/browser/monaco-text-model-service';
+import { SearchInWorkspaceServer } from '@theia/search-in-workspace/lib/common/search-in-workspace-interface';
 import { TerminalWidget } from '@theia/terminal/lib/browser/base/terminal-widget';
 import { TerminalFrontendContribution } from '@theia/terminal/lib/browser/terminal-frontend-contribution';
 import { UserStorageContribution } from '@theia/userstorage/lib/browser/user-storage-contribution';
@@ -32,6 +34,7 @@ import { TheoremIdeBridge } from './theorem-ide-bridge';
 import { TheoremFileSystemProvider } from './theorem-file-system-provider';
 import { TheoremLanguageFeatures } from './theorem-language-features';
 import { TheoremScmContribution, TheoremScmResourceResolver } from './theorem-scm';
+import { TheoremFileSearchService, TheoremSearchServer } from './theorem-search';
 import { TheoremStoneTheme } from './theorem-stone-theme';
 import { TheoremTerminalFrontendContribution, TheoremTerminalWidget } from './theorem-terminal';
 import {
@@ -49,6 +52,9 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     bind(TheiaUserStorageProviderContribution).toSelf().inSingletonScope();
     bind(FileServiceContribution).toService(TheiaUserStorageProviderContribution);
     bindOrRebind(UserStorageContribution).to(TheoremUserStorageContribution).inSingletonScope();
+
+    bindOrRebind(SearchInWorkspaceServer).to(TheoremSearchServer).inSingletonScope();
+    bindOrRebind(FileSearchService).to(TheoremFileSearchService).inSingletonScope();
 
     bind(TheoremDelegations).toSelf().inSingletonScope();
     bind(FileServiceContribution).toService(TheoremDelegations);
