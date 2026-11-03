@@ -1,0 +1,5 @@
+node_modules
+dist
+.prerender
+.wrangler
+worker/worker-configuration.d.ts

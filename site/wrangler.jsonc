@@ -1,0 +1,21 @@
+// The marketing site at join.theorem.rs: a static, prerendered page served
+// from ./dist, with one Worker route that records waitlist signups in KV.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "theorem-join",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "routes": [{ "pattern": "join.theorem.rs", "custom_domain": true }],
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"],
+  },
+  // Create the namespace once (`bunx wrangler kv namespace create
+  // theorem-join-waitlist`) and add its id here before the first deploy.
+  // `wrangler dev` simulates it locally without one.
+  "kv_namespaces": [{ "binding": "WAITLIST" }],
+  "observability": { "enabled": true },
+}
