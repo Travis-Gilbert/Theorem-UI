@@ -1,7 +1,11 @@
 // SOURCING: dockview's DockviewApi (groups, panel moves, maximize). An
 // arrangement only places the dock's own panels; no library models these
 // three, so they are hand-rolled over it.
-import type { DockviewApi, IDockviewPanel } from 'dockview-core'
+import type {
+  DockviewApi,
+  DockviewGroupPanel,
+  IDockviewPanel,
+} from 'dockview-core'
 import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { WORKSPACE_FILE_COMPONENT } from '@/components/workspace/workspace-file-panel'
@@ -36,6 +40,13 @@ function readingOrder(api: DockviewApi) {
     Array.isArray(node.data) ? node.data.flatMap(ids) : [node.data.id]
   return ids(api.toJSON().grid.root)
 }
+
+/**
+ * Whether `group` carries the panels menu: the conversation's group, or the
+ * group Focus fills, which hides every other header and so the way back.
+ */
+export const holdsPanelsMenu = (group: DockviewGroupPanel) =>
+  group.api.isMaximized() || group.panels.some((panel) => panel.id === THREAD)
 
 /** The document in front: the active file, else the first one open. */
 function frontFile(api: DockviewApi) {

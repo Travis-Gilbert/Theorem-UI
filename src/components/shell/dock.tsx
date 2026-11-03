@@ -44,7 +44,13 @@ import { useNote } from '@/lib/theorem/notes'
 import { useFileDock } from '@/lib/theorem/project-files'
 import { sameFile, useWorkspaceFileView } from '@/lib/workspace/open'
 import type { WorkspaceFileRef } from '@/lib/workspace/open'
-import { ARRANGEMENTS, THREAD, addInspector, arrange } from './arrangements'
+import {
+  ARRANGEMENTS,
+  THREAD,
+  addInspector,
+  arrange,
+  holdsPanelsMenu,
+} from './arrangements'
 import type { Arrangement } from './arrangements'
 import { FilePanel } from './file-panel'
 import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
@@ -251,9 +257,12 @@ function useShownInspector(api: DockviewApi) {
  * The conversation's panels menu: the arrangements, the inspector beside the
  * files, and the terminal drawers. New chat lives in the sidebar.
  */
-function GroupActions({ panels, containerApi }: IDockviewHeaderActionsProps) {
-  if (!panels.some((panel) => panel.id === THREAD)) return null
-  return <PanelsMenu api={containerApi} />
+function GroupActions({ group, containerApi }: IDockviewHeaderActionsProps) {
+  const holds = useSyncExternalStore(
+    subscribe(containerApi.onDidMaximizedGroupChange),
+    () => holdsPanelsMenu(group),
+  )
+  return holds ? <PanelsMenu api={containerApi} /> : null
 }
 
 function PanelsMenu({ api }: { api: DockviewApi }) {

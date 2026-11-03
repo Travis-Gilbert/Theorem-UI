@@ -4,7 +4,7 @@ import { afterEach, expect, test } from 'bun:test'
 import { DockviewComponent } from 'dockview-core'
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-core'
 import { WORKSPACE_FILE_COMPONENT } from '@/components/workspace/workspace-file-panel'
-import { addInspector, arrange } from './arrangements'
+import { addInspector, arrange, holdsPanelsMenu } from './arrangements'
 
 const opened: Array<DockviewComponent> = []
 afterEach(() => {
@@ -131,4 +131,17 @@ test('the outline and links share a group; the graph goes below them', () => {
   addInspector(api, 'graph')
   addInspector(api, 'links')
   expect(columns(api)).toEqual([['thread'], ['outline', 'links'], ['graph']])
+})
+
+test('the panels menu sits with the conversation, and on the group Focus fills', () => {
+  const api = dock()
+  openFile(api, 'a', { direction: 'right' })
+  const thread = api.getPanel('thread')!.group
+  const file = api.getPanel('workspace-file:ws:a')!.group
+  expect([holdsPanelsMenu(thread), holdsPanelsMenu(file)]).toEqual([
+    true,
+    false,
+  ])
+  arrange(api, 'focus')
+  expect(holdsPanelsMenu(file)).toBe(true)
 })
