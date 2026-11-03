@@ -30,9 +30,20 @@ import { menuItem, menuPopup } from './sidebar'
 
 import { flyGhost, popIn } from '@/lib/motion'
 
+import { NotePanel } from '@/components/notes/note-panel'
+import { useNoteView } from '@/components/notes/note-view'
+import {
+  WORKSPACE_FILE_COMPONENT,
+  WorkspaceFileDockPanel,
+  openWorkspaceFilePanel,
+} from '@/components/workspace/workspace-file-panel'
+import { useNote } from '@/lib/theorem/notes'
+import { useWorkspaceFileView } from '@/lib/workspace/open'
+import { openBeside } from './open-beside'
+
 const THREAD = 'thread'
 const ARTIFACT = 'artifact:'
-
+const NOTE = 'note-panel:'
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
 const artifactIdOf = (panelId: string) =>
   panelId.startsWith(ARTIFACT) ? panelId.slice(ARTIFACT.length) : undefined
@@ -63,13 +74,17 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation, or the mode's view in Spaces. Theia covers the dock in IDE mode. */
+/** The main panel: the conversation, or the mode's view in the Index and Spaces. Theia covers the dock in IDE mode. */
 function ThreadPanel({ api }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
     () =>
-      api.setTitle(mode === 'spaces' ? modeLabel(mode) : title || 'New chat'),
+      api.setTitle(
+        mode === 'spaces' || mode === 'index'
+          ? modeLabel(mode)
+          : title || 'New chat',
+      ),
     [api, mode, title],
   )
   return (
@@ -78,7 +93,6 @@ function ThreadPanel({ api }: IDockviewPanelProps) {
     </div>
   )
 }
-
 function ArtifactDockPanel({
   api,
   containerApi,
@@ -132,6 +146,18 @@ function FileDockPanel({
   return <FilePanel projectId={params.projectId} path={params.path} />
 }
 
+/** A focused note. Notes belong to the project, so they stay across conversations. */
+function NoteDockPanel({
+  api,
+  params,
+}: IDockviewPanelProps<{ documentId: string }>) {
+  const title = useNote(params.documentId).data?.title
+  useEffect(() => {
+    if (title) api.setTitle(title)
+  }, [api, title])
+  return <NotePanel documentId={params.documentId} />
+}
+
 function DelegationDockPanel({
   api,
   params,
@@ -148,6 +174,8 @@ const components = {
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
   ide: IdeFrame,
   artifact: ArtifactDockPanel,
+  note: NoteDockPanel,
+  [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
   file: FileDockPanel,
   delegation: DelegationDockPanel,
 }
@@ -174,7 +202,6 @@ function FollowToggle() {
     </TooltipIconButton>
   )
 }
-
 /**
  * Opens a drawer beside the conversation: the terminal, on the right or at
  * the bottom, and later other tools. New chat lives in the sidebar.
@@ -270,25 +297,14 @@ function openSide(
     existing.api.setActive()
     return
   }
+  const sized = { ...options, minimumWidth: 400 }
   const sibling = api.panels.find((panel) => isSidePanel(panel.id))
   if (sibling) {
-    api.addPanel({
-      ...options,
-      minimumWidth: 400,
-      position: { referenceGroup: sibling.group },
-    })
+    api.addPanel({ ...sized, position: { referenceGroup: sibling.group } })
     return
   }
-  const initialWidth = Math.round(api.width * 0.55)
-  const sized = { ...options, minimumWidth: 400, initialWidth }
-  if (api.getPanel(THREAD)?.api.location.type === 'grid')
-    api.addPanel({
-      ...sized,
-      position: { referencePanel: THREAD, direction: 'right' },
-    })
-  else api.addPanel({ ...sized, position: { direction: 'right' } })
+  openBeside(api, sized, THREAD, 0.55)
 }
-
 function openArtifact(api: DockviewApi, artifactId: string) {
   openSide(api, {
     id: artifactPanelId(artifactId),
@@ -348,9 +364,10 @@ function springMaximize(dock: DockviewApi) {
             continue
           }
           if (from.width === to.width && from.height === to.height) continue
-          const artifact = group.panels.some((panel) => isSidePanel(panel.id))
+          // Every panel beside the conversation draws on the artifact surface.
+          const side = group.panels.some((panel) => panel.id !== THREAD)
           flyGhost(from, group.element, {
-            className: artifact ? 'bg-artifact' : 'bg-background',
+            className: side ? 'bg-artifact' : 'bg-background',
             ease: 'settle',
           })
         }
@@ -358,8 +375,31 @@ function springMaximize(dock: DockviewApi) {
     }),
   ]
 }
+
+/** Notes join the open note tabs, else open beside the conversation. */
+function openNote(api: DockviewApi, documentId: string) {
+  const id = `${NOTE}${documentId}`
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  const options = {
+    id,
+    component: 'note',
+    params: { documentId },
+    title: 'Note',
+    minimumWidth: 360,
+  }
+  const sibling = api.panels.find((panel) => panel.id.startsWith(NOTE))
+  if (sibling) {
+    api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
+    return
+  }
+  openBeside(api, options, THREAD, 0.4)
+}
 /**
- * Desktop dock: the conversation, each open artifact and each open project file as dock panels. Panels render always, so moving or hiding one
+ * Desktop dock: the conversation and each open artifact, note and file as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
  * per project; artifact panels belong to the conversation they came from.
  */
@@ -407,6 +447,15 @@ export function DockShell({
         },
       },
     })
+    useNoteView.setState({
+      dock: { open: (documentId) => openNote(dock, documentId) },
+    })
+    useWorkspaceFileView.setState({
+      dock: {
+        open: (file, replacing) =>
+          openWorkspaceFilePanel(dock, file, THREAD, replacing),
+      },
+    })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     useDelegationDock.setState({
       open: (delegationId) => openDelegation(dock, delegationId),
@@ -426,6 +475,8 @@ export function DockShell({
     return () => {
       for (const listener of listeners) listener.dispose()
       useArtifactView.setState({ dock: undefined })
+      useNoteView.setState({ dock: undefined })
+      useWorkspaceFileView.setState({ dock: undefined })
       useFileDock.setState({ open: undefined })
       useDelegationDock.setState({ open: undefined })
     }

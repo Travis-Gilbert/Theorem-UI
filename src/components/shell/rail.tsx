@@ -21,6 +21,8 @@ import { useCommandPalette } from './command-palette'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
 
+import { useWorkspaces } from '@/lib/workspace/workspaces'
+
 /** The rail's square controls: destinations and the account. */
 const railButton =
   'relative flex size-8 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
@@ -206,6 +208,10 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const openMode = useOpenMode()
   const panelOpen = useShell((s) => !s.panelCollapsed[mode])
   const togglePanel = useShell((s) => s.togglePanel)
+  const folders = useWorkspaces().available
+  const modes = MODES.filter(
+    (entry) => folders || !('folders' in entry) || entry.mode === mode,
+  )
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
@@ -224,7 +230,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       t: box.height ? y / box.height : 0,
       flush: mode === MODES[0].mode,
     })
-  }, [mode])
+  }, [mode, modes.length])
 
   return (
     <div
@@ -234,7 +240,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       {junction && <Junction {...junction} />}
       <TooltipProvider>
         <nav aria-label="Modes" className="flex flex-col gap-1">
-          {MODES.map(({ mode: value, label, Mark }) => {
+          {modes.map(({ mode: value, label, Mark }) => {
             const active = value === mode
             const toggles = active && collapsible
             const tooltip = toggles

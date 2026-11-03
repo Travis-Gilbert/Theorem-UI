@@ -179,3 +179,113 @@ download:plugins` in `ide/`), so the editor has no grammars yet. Files then
 - The host test `a11_installed_host_coding_loop_edit_test_debug_scm_conflict_reopen`
   fails at `tests/common/mod.rs:126`; the other host tests pass. Not yet
   diagnosed.
+
+## Conversational-send repair, 2026-10-29
+
+The deployed personal backend reproduces the known `{text}` versus `{parts}`
+contract mismatch above. The backend repair is being integrated separately on
+Theorem main (branch `Travis-Gilbert/chat-send-errors`), preserving the old
+append API and adding the send/run path with pending-turn replay.
+
+The UI now presents structured API details and correlation references instead
+of the SDK exception dump. If the response body is absent or malformed, HTTP
+status selects the fallback. A partial send explicitly says the message was
+saved. Error text wraps without a two-line truncation. The runtime formats only
+after reconnect handling, retaining the original exception as its cause.
+
+Run failures also use the public event's stage-specific explanation and
+request reference, including saved error parts. The SDK fetch hook journals
+only the send body, idempotency key and revision in sessionStorage. Reload and
+retry reuse them with fresh CSRF, finite timeout and cancellation. Known
+precommit model refusals clear the journal; ambiguous network failures retain
+it. Failed recovery still allows saved history to load. This is a narrow
+compatibility layer for the installed SDK, which discards a failed send's key.
+
+Verification: the formatter and recovery suites pass 15 tests, including an
+actual SDK adapter send followed by recovery through a fresh journal owner.
+The initial formatter regression failed 8 tests before the implementation. After `sh terminal/build.sh` generated
+the required WASM bindings, `bun run typecheck` and focused ESLint passed.
+The real Thread and TheoremRuntimeProvider were also exercised in the in-app
+browser against a temporary 403 response fixture. Sending through the real SDK
+rendered the permission explanation and `chatreq-render-check` reference; it
+showed no raw SDK/JSON dump and the full explanation wrapped visibly. This is
+rendering evidence, not a live backend/provider acceptance test. The temporary
+fixture files were removed. No UI deployment has been performed by this repair.
+
+
+Release checks: `NITRO_PRESET=cloudflare_module bun --bun vite build` also
+completed successfully in the isolated checkout. Cloudflare's automatic
+Workers build for PR #19 reported failure (build
+`0169025f-e42c-4ef5-b798-689bb00848e6`). Its dashboard requires sign-in and the
+available Wrangler OAuth token receives 403 from the build-log API, so the
+remote failure's cause is unverified. Do not treat the local build as a
+successful remote build or deployment.
+
+### 2026-10-29 Cloudflare release repair
+
+The clean-checkout build referenced the removed IDE SDK 0.4.0 archive and relied
+on generated terminal WASM and IDE output. The IDE manifest/lockfile now use the
+checked-in 0.5.0 archive. `build:cloudflare` installs locked IDE dependencies,
+builds terminal WASM, IDE extensions and Theia, then the Worker. `bun run build`
+selects this pipeline under `WORKERS_CI=1`, provisioning pinned Rust 1.96.1 and
+the matching wasm-bindgen CLI. Terminal compilation uses `--locked`.
+
+Production had deployed `cb63a36` from still-open PR #18; this branch preserves
+its sign-in recovery and HTTPS callback behavior. PR #18's target is unchanged.
+PR #21 carries the complete build repair and deployed sign-in source. A live
+chat also exposed a completion-label bug: a stale running progress part rendered
+"Did not finish" after a completed message. The message's terminal status now
+takes precedence; cancellation and error states retain their own outcomes.
+
+Final UI source: `89f1a85`. Validation passed:
+
+- `WORKERS_CI=1 bun run build` with the isolated terminal target and two Cargo jobs.
+- `bun run typecheck`.
+- 31 tests / 84 assertions across client, send recovery, server auth and sign-in.
+- Cloudflare version upload and production promotion.
+
+Production Worker `theorem-ui` now routes 100% to version
+`e9cdcafa-8ae3-455e-9326-e46d9bf8df34`, deployed 2026-10-29 20:16:52 UTC.
+The live chat client and terminal WASM match local artifacts byte for byte.
+The earlier preview-only version `fd19f6fc-bf91-43dc-976f-7b6c07da2053` was
+superseded by this version after the completion-label correction.
+
+Backend source `1ee5490bca` (merged PR #903) is deployed on store machine
+`8147d9b9996e58` in `travis-theorem-personal-store` as image digest
+`sha256:535d29fde0f429aa4b1395e424b976dbb0a55d2213a20e3d0ee8974329af71e8`.
+The public harness proxies `/api/chat/v1/*` to this private store; it was not
+redeployed. An initial public-harness build was canceled before rollout.
+The backend server release compiled successfully; the optional CLI retains the
+same unavailable placeholder that was already present in production.
+
+Only the store image changed. Environment, injected `/mott-models.json`, services,
+checks, machine size and volume `vol_v8epl5k7njj7zd5v` were verified unchanged.
+This matters because the checked-in Fly manifest omits the deployed model file
+and its environment setting. The existing OpenRouter model/key remain in use.
+The two detached recovery machines were untouched.
+
+Startup exceeded the existing 180-second timeout. The first candidate was
+rolled back when its readiness probe failed; later logs showed it completed
+recovery after 248 seconds just before rollback. The previous image recovered
+in 244 seconds. The candidate was reapplied and verified ready, with Fly's
+`store_ready` passing. This is an existing slow recovery condition, not proof of
+a regression caused by the chat patch. No timeout or readiness assertion was
+weakened. Previous image for recovery:
+`sha256:edcde9c8f31f44ee843632849514d7842472f2651add6e0ce422b9da71f64a6d`.
+
+Live acceptance: in a signed-in browser on theorem.rs, a new conversation
+returned "Chat is working." Reload preserved the answer. After frontend
+promotion, it showed "Done", and a follow-up returned "Second message received."
+with "Done". Thread `chatthread_sha256:a3fe7d1ff0a8e0a942578f29c` holds this
+verification. An unauthenticated SDK-shaped POST now returns 401 with relative
+`/problems/authentication_required`, rather than the former unknown-field 400.
+This verifies conversational sends and continuation, not every artifact/tool flow.
+
+Automatic Workers Builds remains a separate unresolved gate. Build
+`039c979a-8d35-4997-97fc-bacb753e1f16` failed; GitHub supplied no error details and
+Wrangler OAuth receives 403 from the Builds API. A user-scoped token file was
+provided but contained an incomplete value, so logs are still inaccessible.
+The secure token-entry command was supplied again. Next step: retrieve the
+failed build log with a valid user-scoped Workers Builds Configuration token,
+repair its specific failure, and verify an automatic remote build. Manual
+production deployment and live chat success do not establish automatic CI success.

@@ -7,6 +7,7 @@
 import { getCookie, setCookie } from '@tanstack/react-start/server'
 import { getIronSession } from 'iron-session'
 import * as oauth from 'oauth4webapi'
+import { loginFailureHref, safeReturnTo } from '../lib/theorem/auth-navigation'
 
 type Session = {
   accessToken?: string
@@ -14,7 +15,12 @@ type Session = {
   /** Seconds since the epoch. */
   expiresAt?: number
   /** The sign-in in progress, between the redirect out and the callback. */
-  pending?: { state: string; verifier: string; returnTo: string }
+  pending?: {
+    state: string
+    verifier: string
+    returnTo: string
+    startedAt?: number
+  }
 }
 
 /**
@@ -107,13 +113,27 @@ function keep(target: Session, tokens: oauth.TokenEndpointResponse) {
     : undefined
 }
 
-/** Only paths on this origin; anything else returns to the start. */
-function safeReturnTo(value: string | null) {
-  return value?.startsWith('/') && !value.startsWith('//') ? value : '/'
-}
-
 const redirect = (location: string) =>
-  new Response(null, { status: 302, headers: { location } })
+  new Response(null, {
+    status: 302,
+    headers: {
+      location,
+      'cache-control': 'no-store',
+      'referrer-policy': 'no-referrer',
+    },
+  })
+
+/** Upgrade before writing a Secure cookie or deriving the registered callback. */
+function requireSecureAuth(request: Request): Response | undefined {
+  const url = new URL(request.url)
+  if (
+    url.protocol === 'http:' &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  ) {
+    url.protocol = 'https:'
+    return redirect(url.href)
+  }
+}
 
 function unconfigured(detail: string) {
   return Response.json(
@@ -123,42 +143,65 @@ function unconfigured(detail: string) {
 }
 
 export async function signIn(request: Request) {
+  const upgrade = requireSecureAuth(request)
+  if (upgrade) return upgrade
+  const returnTo = safeReturnTo(
+    new URL(request.url).searchParams.get('returnTo'),
+  )
   const settings = config()
-  if (typeof settings === 'string') return unconfigured(settings)
-  const as = await authorizationServer(settings)
-  const verifier = oauth.generateRandomCodeVerifier()
-  const state = oauth.generateRandomState()
-  const current = await session(settings)
-  current.pending = {
-    state,
-    verifier,
-    returnTo: safeReturnTo(new URL(request.url).searchParams.get('returnTo')),
-  }
-  await current.save()
+  if (typeof settings === 'string')
+    return redirect(loginFailureHref('configuration', returnTo))
+  try {
+    const as = await authorizationServer(settings)
+    const verifier = oauth.generateRandomCodeVerifier()
+    const state = oauth.generateRandomState()
+    const current = await session(settings)
+    current.pending = {
+      state,
+      verifier,
+      returnTo,
+      startedAt: Date.now(),
+    }
+    await current.save()
 
-  const authorize = new URL(as.authorization_endpoint!)
-  authorize.search = new URLSearchParams({
-    response_type: 'code',
-    client_id: settings.client.client_id,
-    redirect_uri: callbackUrl(request),
-    scope: SCOPE,
-    state,
-    code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
-    code_challenge_method: 'S256',
-    resource: resourceOf(as),
-  }).toString()
-  return redirect(authorize.href)
+    const authorize = new URL(as.authorization_endpoint!)
+    authorize.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: settings.client.client_id,
+      redirect_uri: callbackUrl(request),
+      scope: SCOPE,
+      state,
+      code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
+      code_challenge_method: 'S256',
+      resource: resourceOf(as),
+    }).toString()
+    return redirect(authorize.href)
+  } catch {
+    return redirect(loginFailureHref('unavailable', returnTo))
+  }
 }
 
 export async function signInCallback(request: Request) {
+  const upgrade = requireSecureAuth(request)
+  if (upgrade) return upgrade
   const settings = config()
-  if (typeof settings === 'string') return unconfigured(settings)
-  const as = await authorizationServer(settings)
+  if (typeof settings === 'string')
+    return redirect(loginFailureHref('configuration'))
   const current = await session(settings)
   const pending = current.pending
-  if (!pending) return redirect('/?signin_error=expired')
+  if (!pending) return redirect(loginFailureHref('expired'))
   current.pending = undefined
+  if (pending.startedAt && Date.now() - pending.startedAt > 10 * 60 * 1000) {
+    await current.save()
+    return redirect(loginFailureHref('expired', pending.returnTo))
+  }
+  // Check before discovery so an invalid callback cannot consume a token code.
+  if (new URL(request.url).searchParams.get('state') !== pending.state) {
+    await current.save()
+    return redirect(loginFailureHref('state_mismatch', pending.returnTo))
+  }
   try {
+    const as = await authorizationServer(settings)
     const parameters = oauth.validateAuthResponse(
       as,
       settings.client,
@@ -192,10 +235,20 @@ export async function signInCallback(request: Request) {
       error instanceof oauth.ResponseBodyError
         ? error.error
         : 'failed'
-    return redirect(`/?signin_error=${encodeURIComponent(code)}`)
+    // Only known protocol codes become UI state; never echo provider details.
+    const publicCode = [
+      'access_denied',
+      'invalid_grant',
+      'invalid_client',
+      'unauthorized_client',
+      'invalid_scope',
+    ].includes(code)
+      ? code
+      : 'failed'
+    return redirect(loginFailureHref(publicCode, pending.returnTo))
   }
   await current.save()
-  return redirect(pending.returnTo)
+  return redirect(safeReturnTo(pending.returnTo))
 }
 
 export async function signOut() {
@@ -231,9 +284,11 @@ function refresh(settings: Config, refreshToken: string) {
       ),
     )
     refreshes.set(refreshToken, pending)
-    const forget = () =>
-      setTimeout(() => refreshes.delete(refreshToken), 60_000)
-    pending.then(forget, forget)
+    // A failed refresh is not kept, so the next request tries again.
+    pending.then(
+      () => setTimeout(() => refreshes.delete(refreshToken), 60_000),
+      () => refreshes.delete(refreshToken),
+    )
   }
   return pending
 }
@@ -256,9 +311,15 @@ export async function personBearer(): Promise<string | undefined> {
   }
   try {
     keep(current, await refresh(settings, current.refreshToken))
-  } catch {
-    current.destroy()
-    return undefined
+  } catch (error) {
+    // While Theorem is unreachable (a deploy, say) the session stays and a
+    // later request refreshes it. A refused refresh token signs the person
+    // out without clearing the cookie: Theorem rotates refresh tokens, so the
+    // refusal may be a request that lost a race with a refresh another worker
+    // made, and an emptied cookie would overwrite the one that refresh set.
+    return error instanceof oauth.ResponseBodyError
+      ? undefined
+      : current.accessToken
   }
   await current.save()
   return current.accessToken

@@ -487,4 +487,32 @@ a paid plan does not.
 | Download | `streamline/streamline-download-box.png` | Download Box | `883be4b139f91501a74541687e04b8dc8ca85b46aa5ffe7ae501c24046beda97` |
 | Exit | `streamline/streamline-x.png` | X (from a later download, "streamline-ultimate-light--48x48-PNG(10).zip") | `221832f33e28248257d4e619beabb5153b91c8b23a8475c1c2ded08b5284f52b` |
 
+Seven more came from a second download of the same set,
+"streamline-ultimate-light--48x48-PNG(11).zip", copied and renamed the same
+way, for the Vault view.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Vault | `streamline/streamline-drawer-file.png` | Drawer File | `b62f3a4540b13b92650c088e7bf6df0f260627999be058aa2172f09fcdb53f81` |
+| Files | `streamline/streamline-folder-file-1.png` | Folder File 1 | `4240bc4dd5ffe1f41f0780d5dd14c80aa3870544ee7696c5fff0b12d20486678` |
+| OpenFolder | `streamline/streamline-file-open-1.png` | File Open 1 | `34474520539779686074d77b42268c53eb51fbfe463f0979f31d622130044413` |
+| Notes | `streamline/streamline-common-file-stack.png` | Common File Stack | `bf5297bf079553db6542d828cba373800566f3b735c11d831db1085e364e0dde` |
+| Attachments | `streamline/streamline-common-file-double.png` | Common File Double | `af123c37654db4734759ef6e8fd2e723822789cb614cf2e5b5d6997176f48865` |
+| Trusted | `streamline/streamline-zip-file-lock.png` | Zip File Lock | `d52444fa4c197a78539428b736187268e8cc512fd9656529ccbb87f87e5072c1` |
+| Untrusted | `streamline/streamline-zip-file-warning.png` | Zip File Warning | `12f856713874d0409829cee132357eacf3b4b2f53ef34b47a6630dd9d963020d` |
+
+Two more mark what comes from Theorem in the Vault, from the downloads
+"streamline-ultimate-light--48x48-PNG(3).zip" and "(5).zip", copied and
+renamed the same way.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Plan | `streamline/streamline-ui-webpage-bullets.png` | Ui Webpage Bullets | `b2672570fdbe15028a0f18287e63ac33dd6e2f5a8ae303557f0d496cc1d15d2d` |
+| TheoremVault | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
+
+Outline and Graph have no owned mark yet; Lucide's TableOfContents and
+Waypoints stand in, as Lucide's trash does for Delete. Nor do an agent's
+document and a skill: Lucide's Bot and GraduationCap stand in the same way,
+and Lucide's BellOff for muting a link suggestion.
+
 The files they replace in the registry are listed under Retired.

@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 import { oauthConfigured } from '@/server/theorem-auth'
+import { safeReturnTo } from './auth-navigation'
 
 const signInConfigured = createServerFn({ method: 'GET' }).handler(() =>
   oauthConfigured(),
@@ -20,7 +21,7 @@ export function useSignInConfigured() {
 
 /** Where to send the person to sign in and come back to this page. */
 export const signInHref = () =>
-  `/auth/sign-in?${new URLSearchParams({ returnTo: window.location.pathname + window.location.search })}`
+  `/login?${new URLSearchParams({ returnTo: safeReturnTo(window.location.pathname + window.location.search) })}`
 
 export async function signOut() {
   await fetch('/auth/sign-out', { method: 'POST' })

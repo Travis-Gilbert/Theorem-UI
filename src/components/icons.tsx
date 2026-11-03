@@ -62,6 +62,12 @@ import {
   Star,
   Trash2 as Delete,
   X,
+  Bot as Agent,
+  GraduationCap as Skill,
+  TableOfContents as Outline,
+  BellOff as Mute,
+  History,
+  Waypoints as Graph,
 } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
@@ -85,12 +91,24 @@ import FileOpen from '@/assets/icons/streamline/streamline-file-open.png'
 import DownloadBox from '@/assets/icons/streamline/streamline-download-box.png'
 import FolderClosed from '@/assets/icons/streamline/streamline-folder.png'
 import ShipmentUpload from '@/assets/icons/streamline/streamline-shipment-upload.png'
-import WireframeCube from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
 import PencilWrite from '@/assets/icons/streamline/streamline-pencil-write-2.png'
 import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png'
 import SendEmail from '@/assets/icons/streamline/streamline-send-email-1.png'
+import SquareWireframe from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
 import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
 import XMark from '@/assets/icons/streamline/streamline-x.png'
+
+import TreeFileMark from '@/assets/icons/tree/file.svg?react'
+import FolderMark from '@/assets/icons/tree/folder-closed.svg?react'
+import FolderOpenMark from '@/assets/icons/tree/folder-open.svg?react'
+import CommonFileDouble from '@/assets/icons/streamline/streamline-common-file-double.png'
+import CommonFileStack from '@/assets/icons/streamline/streamline-common-file-stack.png'
+import DrawerFile from '@/assets/icons/streamline/streamline-drawer-file.png'
+import FileOpen1 from '@/assets/icons/streamline/streamline-file-open-1.png'
+import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
+import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bullets.png'
+import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
+import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -133,12 +151,12 @@ const masked = (src: string): SvgMark =>
       />
     )
   }
-
-const Artifact = masked(WireframeCube)
+const Artifact = masked(SquareWireframe)
 const Copy = masked(CopyPaste)
 const Download = masked(DownloadBox)
 const Folder = masked(FolderClosed)
 const FolderOpen = masked(FileOpen)
+const TreeFile = solid(TreeFileMark)
 const Diagram = masked(CodeWrite)
 const NewChat = masked(PencilWrite)
 const Search = masked(SearchSquare)
@@ -191,15 +209,24 @@ function Open({ className, style, ...props }: ComponentProps<'span'>) {
     </span>
   )
 }
-
 const Chat = solid(ChatMark)
+const Vault = masked(DrawerFile)
+const Files = masked(FolderFile1)
+const OpenFolder = masked(FileOpen1)
+const Notes = masked(CommonFileStack)
+const Attachments = masked(CommonFileDouble)
+const Trusted = masked(ZipFileLock)
+const Untrusted = masked(ZipFileWarning)
+const Plan = masked(WebpageBullets)
+const TheoremVault = masked(SquareWireframe)
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)
 const Next = solid(NextMark)
 const Previous = solid(PreviousMark)
 const Reload = solid(ReloadMark)
-
+const TreeFolder = solid(FolderMark)
+const TreeFolderOpen = solid(FolderOpenMark)
 export const Icon = {
   Download,
   Open,
@@ -276,6 +303,25 @@ export const Icon = {
   Unpin,
   UpDown,
   Web,
+  Agent,
+  Attachments,
+  Files,
+  Graph,
+  History,
+  Index: Archive,
+  Mute,
+  Notes,
+  OpenFolder,
+  Outline,
+  Plan,
+  Skill,
+  TheoremVault,
+  TreeFile,
+  Trusted,
+  Untrusted,
+  Vault,
+  TreeFolder,
+  TreeFolderOpen,
 }
 
 export type IconName = keyof typeof Icon
