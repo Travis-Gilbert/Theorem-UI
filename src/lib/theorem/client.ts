@@ -8,11 +8,15 @@ let sendRecovery: ReturnType<typeof createSendRecovery> | undefined
 export function theorem(): TheoremClient {
   sendRecovery ??= createSendRecovery(
     window.sessionStorage,
-    window.fetch.bind(window),
+    Object.assign(
+      (input: RequestInfo | URL, init?: RequestInit) =>
+        window.fetch(input, init),
+      { preconnect: window.fetch.preconnect },
+    ),
   )
   client ??= new TheoremClient({
     fetch: sendRecovery.fetch,
-    baseUrl: window.location.origin,
+    baseUrl: () => window.location.origin,
     auth: false,
     // Fern's default is 60s; model turns with tools can hold a send longer.
     timeoutInSeconds: 600,
@@ -36,6 +40,12 @@ export async function recoverPendingSend(
     text,
     abortSignal,
   )
+}
+
+/** The idempotency key of the send saved for recovery on this thread, if any. */
+export function pendingSendKey(threadId: string) {
+  theorem()
+  return sendRecovery?.pendingKey(threadId)
 }
 
 /** Only public event descriptions reach the UI; raw diagnostics stay server-side. */

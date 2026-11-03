@@ -28,6 +28,8 @@ export type Ask = {
    */
   quotes?: Readonly<Record<string, Quote>>
   status: 'queued' | 'running' | 'done' | 'failed' | 'stopped'
+  /** Its send's idempotency key, so a send whose reply was lost finds its ask. */
+  sendKey?: string
   runId?: string
   error?: string
 }
