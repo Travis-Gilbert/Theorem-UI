@@ -46,8 +46,17 @@ function tokens(path: string): { kind: 'identifier' | 'string'; text: string }[]
   return out
 }
 
+// Each test below that scans the whole shipped tree parses a few hundred files with the
+// TypeScript parser. That takes about a second on an idle machine and more than ten seconds under a
+// full build queue, so these tests get their own budget instead of bun's 5 s default, and each
+// file's imports are parsed once.
+const SCAN_TIMEOUT_MS = 60_000
+const parsed = new Map<string, string[]>()
+
 /** The module specifiers a file imports, statically or with `import()`. */
 function imports(path: string): string[] {
+  const known = parsed.get(path)
+  if (known) return known
   const source = ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true)
   const out: string[] = []
   const visit = (node: ts.Node) => {
@@ -60,6 +69,7 @@ function imports(path: string): string[] {
     ts.forEachChild(node, visit)
   }
   visit(source)
+  parsed.set(path, out)
   return out
 }
 
@@ -91,7 +101,7 @@ describe('no Tauri package', () => {
     }
     // The one vendored module an alias points at sits on the host and nothing else.
     expect(imports('vendor/openidea/src/platform/tauriCore.ts')).toEqual(['@host/tauri-core', '@host/tauri-core'])
-  })
+  }, SCAN_TIMEOUT_MS)
 })
 
 describe('no Tauri global', () => {
@@ -111,7 +121,7 @@ describe('no Tauri global', () => {
     const rest = found.filter((f) => f !== 'vendor/openidea/src/bindings.ts: identifier __TAURI_INVOKE')
     expect(found.length).toBeGreaterThan(rest.length)
     expect(rest).toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 
   test('the scan sees a Tauri global when one is there (positive control on the desktop entry)', () => {
     expect(tokens('vendor/openidea/src/main.tsx').some((t) => t.text === '__TAURI__')).toBe(true)
@@ -122,7 +132,7 @@ describe('no Tauri global', () => {
     expect(read('index.html')).not.toMatch(/tauri/i)
     const importers = shipped.filter((path) => imports(path).some((s) => /(^|\/)main(\.tsx)?$/.test(s)))
     expect(importers).toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 })
 
 describe('at run time', () => {
