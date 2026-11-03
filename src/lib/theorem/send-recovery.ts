@@ -1,6 +1,7 @@
 import { TheoremError } from '@theoremharness/sdk'
 
 const PREFIX = 'theorem.pending-send:'
+const REFUSED_PREFIX = 'theorem.refused-send:'
 /** The model a turn names cannot run, so replaying that turn fails the same way. */
 const MODEL_SETUP_FAILURES = new Set([
   'chat_model_credential_missing',
@@ -76,6 +77,7 @@ export function createSendRecovery(
   transport: typeof fetch,
 ) {
   const slot = (threadId: string) => `${PREFIX}${threadId}`
+  const refusedSlot = (threadId: string) => `${REFUSED_PREFIX}${threadId}`
   const read = (threadId: string): PendingSend | undefined => {
     const value = storage.getItem(slot(threadId))
     return value ? (JSON.parse(value) as PendingSend) : undefined
@@ -164,6 +166,16 @@ export function createSendRecovery(
     /** The idempotency key of the send saved for this thread. */
     pendingKey(threadId: string) {
       return read(threadId)?.key
+    },
+    /** Keeps a refused send's text, which only this holds, for its chat's composer. */
+    holdRefused(threadId: string, text: string) {
+      const held = storage.getItem(refusedSlot(threadId))
+      storage.setItem(refusedSlot(threadId), held ? `${held}\n\n${text}` : text)
+    },
+    takeRefused(threadId: string) {
+      const text = storage.getItem(refusedSlot(threadId))
+      if (text !== null) storage.removeItem(refusedSlot(threadId))
+      return text ?? undefined
     },
   }
 }

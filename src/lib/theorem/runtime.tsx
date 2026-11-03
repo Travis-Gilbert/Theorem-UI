@@ -11,6 +11,7 @@ import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
   useAui,
+  useAuiState,
   useLocalRuntime,
   useRemoteThreadListRuntime,
 } from '@assistant-ui/react'
@@ -28,7 +29,7 @@ import {
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
 import { createAssistantStream } from 'assistant-stream'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
@@ -36,10 +37,12 @@ import { documentThreadIds } from '@/lib/documents/ask-store'
 import {
   describeError,
   describeRunFailure,
+  holdRefusedText,
   mutate,
   mutateThread,
   pendingSendKey,
   recoverPendingSend,
+  takeRefusedText,
   TERMINAL_RUN_EVENTS,
   theorem,
 } from './client'
@@ -264,8 +267,8 @@ const loadedForResume = new Map<
  */
 export function createHistoryAdapter(
   threadId: () => string | undefined,
-  /** Takes back the text of a saved send that Theorem refused, which history lacks. */
-  restoreDraft?: (text: string) => void,
+  /** A refused send's text was held under its thread, as history lacks it. */
+  onRefused?: () => void,
 ): ThreadHistoryAdapter {
   return {
     async load() {
@@ -276,7 +279,10 @@ export function createHistoryAdapter(
         await recoverPendingSend(remoteId)
       } catch (error) {
         recoveryError = error
-        if (error instanceof RefusedSend) restoreDraft?.(error.text)
+        if (error instanceof RefusedSend) {
+          holdRefusedText(remoteId, error.text)
+          onRefused?.()
+        }
       }
       const snapshot = await theorem().chat.threads.get({
         threadId: remoteId,
@@ -306,21 +312,34 @@ export function createHistoryAdapter(
     async append() {},
   }
 }
+
+/**
+ * Puts a refused send's text in this thread's composer, if this is the open chat.
+ * Only the open chat's composer is reachable, so the text waits until then.
+ */
+function giveBackRefusedText(aui: ReturnType<typeof useAui>) {
+  const { id, remoteId } = aui.threadListItem.getState()
+  if (!remoteId || aui.threads.getState().mainThreadId !== id) return
+  const text = takeRefusedText(remoteId)
+  if (text === undefined) return
+  const composer = aui.threads.thread('main').composer()
+  const draft = composer.getState().text.trimEnd()
+  composer.setText(draft ? `${text}\n\n${draft}` : text)
+}
+
 function useThreadAdapters() {
   const aui = useAui()
+  const open = useAuiState(
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
+  )
+  useEffect(() => {
+    if (open) giveBackRefusedText(aui)
+  }, [aui, open])
   const history = useMemo(
     () =>
       createHistoryAdapter(
         () => aui.threadListItem.getState().remoteId,
-        (text) => {
-          // It may have been left while its send was replayed, and another
-          // thread's composer is no place for this text.
-          const { mainThreadId } = aui.threads.getState()
-          if (mainThreadId !== aui.threadListItem.getState().id) return
-          const composer = aui.threads.thread('main').composer()
-          const draft = composer.getState().text.trimEnd()
-          composer.setText(draft ? `${text}\n\n${draft}` : text)
-        },
+        () => giveBackRefusedText(aui),
       ),
     [aui],
   )

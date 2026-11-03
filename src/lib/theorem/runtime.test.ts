@@ -1,10 +1,30 @@
 // SOURCING: bun:test over the durable thread's history adapter and turn runner
 // with the real SDK client and send recovery. fetch is stubbed, as no Theorem is
 // running.
-import { afterAll, beforeAll, beforeEach, expect, spyOn, test } from 'bun:test'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  spyOn,
+  test,
+} from 'bun:test'
+import { useAuiState } from '@assistant-ui/react'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
-import { mutateThread, pendingSendKey, theorem } from './client'
-import { createHistoryAdapter, runTurn } from './runtime'
+import { act, createElement, useState } from 'react'
+import { cleanup, render, waitFor } from '../../../test/workspace'
+import {
+  mutateThread,
+  pendingSendKey,
+  takeRefusedText,
+  theorem,
+} from './client'
+import {
+  TheoremRuntimeProvider,
+  createHistoryAdapter,
+  runTurn,
+} from './runtime'
 
 type Send = { key: string; text: string }
 
@@ -12,7 +32,7 @@ let sends: Send[] = []
 /** Sends whose reply is lost after Theorem received them. */
 let lostReplies = 0
 /** How the next sends are answered, in place of a run. */
-let answers: Response[] = []
+let answers: Array<Response | Promise<Response>> = []
 /** The run a thread's snapshot says is live. */
 let liveRunId: string | undefined
 
@@ -62,8 +82,14 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
       )
     )
   }
+  if (path.endsWith('/threads')) return Response.json({ items: [] })
   return Response.json({
-    thread: { selectedBranchId: 'branch-1', revision: 1 },
+    thread: {
+      threadId: path.split('/').pop(),
+      status: 'regular',
+      selectedBranchId: 'branch-1',
+      revision: 1,
+    },
     messages: [],
     ...(liveRunId ? { liveRun: { runId: liveRunId } } : {}),
   })
@@ -89,6 +115,7 @@ beforeEach(() => {
   answers = []
   liveRunId = undefined
 })
+afterEach(cleanup)
 
 /** A thread with a send saved for recovery, because its reply was lost. */
 async function threadWithLostSend(text = 'Hello') {
@@ -131,7 +158,10 @@ async function loaded(threadId: string) {
   const restored: string[] = []
   const repository = await createHistoryAdapter(
     () => threadId,
-    (text) => restored.push(text),
+    () => {
+      const text = takeRefusedText(threadId)
+      if (text) restored.push(text)
+    },
   ).load()
   const resume = createHistoryAdapter(() => threadId).resume?.(options(''))
   return { repository, restored, resume: resume ?? (async function* () {})() }
@@ -198,4 +228,78 @@ test('a send stays refused while the saved one has no verdict', async () => {
 
   expect(sends.map((send) => send.text)).toEqual(['Hello', 'Hello'])
   expect(pendingSendKey(threadId)).toBeDefined()
+})
+
+test('with no composer to take it, a refused text stays held for its thread', async () => {
+  const threadId = await threadWithLostSend()
+  answers = [revisionConflict()]
+
+  await createHistoryAdapter(() => threadId).load()
+
+  expect(takeRefusedText(threadId)).toBe('Hello')
+  expect(takeRefusedText(threadId)).toBeUndefined()
+})
+
+/** The real thread list on one chat, with a way to switch to another. */
+async function openChat(threadId: string) {
+  let switchTo = (_: string) => {}
+  function Composer() {
+    const text = useAuiState((s) => s.composer.text)
+    const open = useAuiState((s) => s.threadListItem.remoteId)
+    return createElement('output', { 'data-open': open }, text)
+  }
+  function Chat() {
+    const [open, setOpen] = useState(threadId)
+    switchTo = setOpen
+    return createElement(TheoremRuntimeProvider, {
+      projectId: 'project',
+      threadId: open,
+      onThreadIdChange: () => {},
+      children: createElement(Composer),
+    })
+  }
+  const { container } = await render(createElement(Chat))
+  const composer = () => container.querySelector('output')
+  return {
+    composer,
+    async switchChat(to: string) {
+      await act(async () => switchTo(to))
+      await waitFor(() => composer()?.dataset.open === to)
+    },
+  }
+}
+
+test('a send refused in the open chat goes back in its composer', async () => {
+  const threadId = await threadWithLostSend()
+  answers = [revisionConflict()]
+
+  const { composer } = await openChat(threadId)
+
+  await waitFor(() => composer()?.textContent === 'Hello')
+  expect(takeRefusedText(threadId)).toBeUndefined()
+})
+
+test('a send refused after its chat was left waits for that chat', async () => {
+  const left = await threadWithLostSend()
+  const other = `thread-${crypto.randomUUID()}`
+  let refuse = () => {}
+  answers = [
+    new Promise<Response>((resolve) => {
+      refuse = () => resolve(revisionConflict())
+    }),
+  ]
+
+  const { composer, switchChat } = await openChat(left)
+  await waitFor(() => sends.length === 2)
+  await switchChat(other)
+  refuse()
+  await waitFor(() => pendingSendKey(left) === undefined)
+
+  expect(composer()?.textContent).toBe('')
+
+  await switchChat(left)
+  await waitFor(() => composer()?.textContent === 'Hello')
+
+  await switchChat(other)
+  expect(composer()?.textContent).toBe('')
 })

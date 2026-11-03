@@ -52,6 +52,17 @@ export function pendingSendKey(threadId: string) {
   return sendRecovery?.pendingKey(threadId)
 }
 
+/** Keeps a refused send's text under its thread until that chat can take it. */
+export function holdRefusedText(threadId: string, text: string) {
+  theorem()
+  sendRecovery?.holdRefused(threadId, text)
+}
+
+export function takeRefusedText(threadId: string) {
+  theorem()
+  return sendRecovery?.takeRefused(threadId)
+}
+
 /** Only public event descriptions reach the UI; raw diagnostics stay server-side. */
 export function describeRunFailure(payload: Record<string, unknown>): string {
   const message =

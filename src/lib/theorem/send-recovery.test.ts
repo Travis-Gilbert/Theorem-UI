@@ -331,3 +331,29 @@ test('a first send whose model cannot start leaves nothing saved', async () => {
 
   expect(recovery.has('thread-1')).toBe(false)
 })
+
+test('a refused text outlives a reload and is given back once', () => {
+  const storage = storageFixture()
+  const transport = Object.assign(async () => new Response(), {
+    preconnect: fetch.preconnect,
+  })
+  createSendRecovery(storage, transport).holdRefused('thread-1', 'Hello')
+
+  const reloaded = createSendRecovery(storage, transport)
+
+  expect(reloaded.takeRefused('thread-2')).toBeUndefined()
+  expect(reloaded.takeRefused('thread-1')).toBe('Hello')
+  expect(reloaded.takeRefused('thread-1')).toBeUndefined()
+})
+
+test('two refused texts held for one thread are both kept', () => {
+  const recovery = createSendRecovery(
+    storageFixture(),
+    Object.assign(async () => new Response(), { preconnect: fetch.preconnect }),
+  )
+
+  recovery.holdRefused('thread-1', 'First')
+  recovery.holdRefused('thread-1', 'Second')
+
+  expect(recovery.takeRefused('thread-1')).toBe('First\n\nSecond')
+})
