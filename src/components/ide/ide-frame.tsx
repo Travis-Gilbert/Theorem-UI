@@ -5,11 +5,13 @@
 // inside the sheet, Follow the Agent's switch included; this frame only links
 // it to the conversation, the rail and Follow the Agent. Theia's chat shows
 // the conversation this window holds and sends through it, so both always
-// show the same turns.
+// show the same turns. `?ide=cm` swaps Theia for the CodeMirror client
+// (ide-cm/), which has no frame link: no Follow the Agent or Add to chat there.
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import {
   approvalChoice,

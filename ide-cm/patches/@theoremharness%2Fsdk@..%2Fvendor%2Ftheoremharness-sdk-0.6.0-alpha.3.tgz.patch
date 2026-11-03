@@ -1,8 +1,8 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index af847a753c6b72d5bc4b52f7cbaf967fced22ef8..167141efe35845b4f33d916c649fd33b3a7ceed7 100644
+index 5be6ee919932ffa7fbfaa1fcf87eaa11744a8fa6..6b0a4424319a5f70a6227c18d81b3a57a7657d7b 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
-@@ -43783,8 +43783,10 @@ var DocumentSession = class _DocumentSession {
+@@ -48861,8 +48861,10 @@ var DocumentSession = class _DocumentSession {
          provenance: this.options.provenance
        });
        this.sending = false;
@@ -16,10 +16,10 @@ index af847a753c6b72d5bc4b52f7cbaf967fced22ef8..167141efe35845b4f33d916c649fd33b
      } catch (error) {
        this.sending = false;
 diff --git a/dist/index.js b/dist/index.js
-index 482b122ff51f71544820e81eec30486cbf6af985..45b25b4672f4c91d6b191c5daf45353817533e9a 100644
+index 342b8af985c9da16c4e0b098855ab73e3ab04601..659b0dd692906bd9628a4b36ff8740c1cdd4acdd 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -43730,8 +43730,10 @@ var DocumentSession = class _DocumentSession {
+@@ -48784,8 +48784,10 @@ var DocumentSession = class _DocumentSession {
          provenance: this.options.provenance
        });
        this.sending = false;

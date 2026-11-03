@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as DevDelegationRouteImport } from './routes/dev-delegation'
+import { Route as GraphqlRouteImport } from './routes/graphql'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -22,6 +23,7 @@ import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as IdeCmSplatRouteImport } from './routes/ide-cm/$'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
@@ -68,6 +70,11 @@ const ChatRoute = ChatRouteImport.update({
 const DevDelegationRoute = DevDelegationRouteImport.update({
   id: '/dev-delegation',
   path: '/dev-delegation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GraphqlRoute = GraphqlRouteImport.update({
+  id: '/graphql',
+  path: '/graphql',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstallRoute = InstallRouteImport.update({
@@ -123,6 +130,11 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
   id: '/auth/sign-out',
   path: '/auth/sign-out',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdeCmSplatRoute = IdeCmSplatRouteImport.update({
+  id: '/ide-cm/$',
+  path: '/ide-cm/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -339,6 +351,7 @@ const V1TheoremAgentStreamSplatRoute =
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/dev-delegation': typeof DevDelegationRoute
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -349,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/ide-cm/$': typeof IdeCmSplatRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -390,6 +404,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/dev-delegation': typeof DevDelegationRoute
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/ide': typeof ChatIdeRoute
@@ -399,6 +414,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/ide-cm/$': typeof IdeCmSplatRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -443,6 +459,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
   '/dev-delegation': typeof DevDelegationRoute
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -453,6 +470,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/ide-cm/$': typeof IdeCmSplatRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -498,6 +516,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dev-delegation'
+    | '/graphql'
     | '/install'
     | '/login'
     | '/settings'
@@ -508,6 +527,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/ide-cm/$'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -549,6 +569,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dev-delegation'
+    | '/graphql'
     | '/install'
     | '/login'
     | '/ide'
@@ -558,6 +579,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/ide-cm/$'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -601,6 +623,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_chat'
     | '/dev-delegation'
+    | '/graphql'
     | '/install'
     | '/login'
     | '/settings'
@@ -611,6 +634,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/ide-cm/$'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -655,12 +679,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
   DevDelegationRoute: typeof DevDelegationRoute
+  GraphqlRoute: typeof GraphqlRoute
   InstallRoute: typeof InstallRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  IdeCmSplatRoute: typeof IdeCmSplatRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
@@ -709,6 +735,13 @@ declare module '@tanstack/react-router' {
       path: '/dev-delegation'
       fullPath: '/dev-delegation'
       preLoaderRoute: typeof DevDelegationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/graphql': {
+      id: '/graphql'
+      path: '/graphql'
+      fullPath: '/graphql'
+      preLoaderRoute: typeof GraphqlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/install': {
@@ -786,6 +819,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/sign-out'
       fullPath: '/auth/sign-out'
       preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ide-cm/$': {
+      id: '/ide-cm/$'
+      path: '/ide-cm/$'
+      fullPath: '/ide-cm/$'
+      preLoaderRoute: typeof IdeCmSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -1100,12 +1140,14 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
   DevDelegationRoute: DevDelegationRoute,
+  GraphqlRoute: GraphqlRoute,
   InstallRoute: InstallRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  IdeCmSplatRoute: IdeCmSplatRoute,
   TheiaSplatRoute: TheiaSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
@@ -1152,12 +1194,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
