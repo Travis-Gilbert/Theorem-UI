@@ -3,6 +3,8 @@
 // views.tsx, Crepe's ImageBlock hooks for images kept in the folder, the `[[`
 // suggestions of wiki-suggest.tsx, the attachments of attachments.ts, and the
 // registry's MarkdownExtensions. Milkdown's replaceAll takes changes from disk.
+// On the document screen, $prose adds the markup plugin and the ask shortcut,
+// and Crepe's toolbar an "Ask Theorem" item; document-markup.tsx shows asks.
 //
 // The editor shows a note's body; the frontmatter stays with the panel. It
 // writes only what the person changed: Milkdown normalizes Markdown when it
@@ -18,16 +20,19 @@ import {
 } from '@milkdown/kit/preset/commonmark'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { TextSelection } from '@milkdown/kit/prose/state'
-import { replaceAll } from '@milkdown/kit/utils'
+import { $prose, replaceAll } from '@milkdown/kit/utils'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import {
   ProsemirrorAdapterProvider,
   useNodeViewFactory,
 } from '@prosemirror-adapter/react'
-import { Info } from 'lucide-react'
-import { dirname, join } from 'pathe'
-import { useEffect, useRef, useState } from 'react'
+import { Info, MessageSquareText } from 'lucide-react'
+import { basename, dirname, join } from 'pathe'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { useActiveProject } from '@/components/shell/projects'
+import { DocumentScreen } from '@/components/vault/document-screen'
+import { noteKey } from '@/lib/documents/ask-store'
 import { revealDone, useRevealRequest } from '@/lib/handlers/actions'
 import { markdownExtensions, mimeOf } from '@/lib/handlers/registry'
 import type { FileViewProps } from '@/lib/handlers/types'
@@ -39,6 +44,9 @@ import {
   useAttachmentTarget,
 } from './attachments'
 import type { AttachmentTarget } from './attachments'
+import { DocumentMarkup } from './document-markup'
+import { markupPlugin } from './markup'
+import { askKeymap, createMarkupHost } from './markup-host'
 import {
   calloutNode,
   markdownSyntax,
@@ -57,6 +65,7 @@ import {
 } from './wiki-suggest'
 
 const calloutIcon = renderToStaticMarkup(<Info />)
+const askIcon = renderToStaticMarkup(<MessageSquareText />)
 
 /** A URL Crepe should load itself rather than from the folder. */
 const isRemote = (url: string) => /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url)
@@ -206,6 +215,12 @@ function CrepeFile({
   useEffect(() => {
     onBodyRef.current = onBody
   })
+  // The document screen's notes and asks; the conversation's editors have none.
+  const documentScreen = useContext(DocumentScreen)
+  const [host] = useState(() =>
+    documentScreen ? createMarkupHost() : undefined,
+  )
+  const projectId = useActiveProject().project?.projectId
 
   const { get, loading } = useEditor((root) => {
     const crepe = new Crepe({
@@ -233,8 +248,28 @@ function CrepeFile({
             })
           },
         },
+        ...(host && {
+          [Crepe.Feature.Toolbar]: {
+            buildToolbar: (builder) => {
+              builder.addGroup('theorem', 'Theorem').addItem('ask', {
+                label: 'Ask Theorem',
+                icon: askIcon,
+                active: () => false,
+                onRun: (ctx) => host.ask(ctx.get(editorViewCtx)),
+              })
+            },
+          },
+        }),
       },
     })
+    if (host)
+      crepe.editor
+        .use(
+          $prose(() =>
+            markupPlugin({ onUpdate: host.update, widget: host.element }),
+          ),
+        )
+        .use($prose(() => askKeymap(host)))
     crepe.editor
       .config(obsidianMarkdownStyle)
       .config((ctx) => ctx.set(nodeViewFactoryCtx.key, nodeViewFactory))
@@ -273,11 +308,27 @@ function CrepeFile({
 
   useReveal(get, loading, file)
 
-  return (
+  const editor = (
     <>
       <Milkdown />
       <WikiSuggest store={suggest.store} file={file} />
     </>
+  )
+  if (!host) return editor
+  return (
+    <DocumentMarkup
+      host={host}
+      readOnly={readOnly}
+      file={{
+        key: noteKey(file.client.workspace.id, file.entry.id),
+        projectId,
+        workspaceId: file.client.workspace.id,
+        path: file.path,
+        title: basename(file.path).replace(/\.md$/i, ''),
+      }}
+    >
+      {editor}
+    </DocumentMarkup>
   )
 }
 

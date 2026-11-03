@@ -970,6 +970,13 @@
   --crepe-shadow-2: 0 4px 12px rgb(var(--shadow-tint) / 0.22);
 }
 
+/* Crepe draws toolbar icons in its outline colour, a separator's faintness
+   here; they take the muted ink, and the redwood once active. */
+.theorem-note .milkdown .milkdown-toolbar .toolbar-item:not(.active) svg {
+  color: var(--ink-muted);
+  fill: var(--ink-muted);
+}
+
 /* A page of prose: one centred reading column at the panel's width, with
    room below the last line. Cards set their own padding below. */
 .theorem-note .milkdown .ProseMirror {
@@ -1229,6 +1236,111 @@
 
 .theorem-note .milkdown .theorem-callout-content > :last-child {
   margin-bottom: 0;
+}
+
+/* The document screen's asks. The passage asked about is underlined in ochre,
+   stronger while its note is read; the agent's comments and edits take teal,
+   its highlights a wash of ochre. */
+.theorem-note .milkdown .theorem-ask-passage {
+  background: color-mix(in oklab, var(--ochre-container) 45%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--ochre) 60%, transparent);
+}
+.theorem-note .milkdown .theorem-ask-passage.is-active {
+  background: var(--ochre-container);
+  border-bottom-color: var(--ochre);
+}
+.theorem-note .milkdown .theorem-mark-comment {
+  border-bottom: 2px solid color-mix(in oklab, var(--teal) 70%, transparent);
+  cursor: pointer;
+}
+.theorem-note .milkdown .theorem-mark-highlight {
+  background: var(--ochre-container);
+}
+.theorem-note .milkdown .theorem-mark-edit {
+  background: var(--teal-container);
+  text-decoration: underline dotted var(--teal);
+  text-underline-offset: 3px;
+}
+
+/* Beside a margin the prose column narrows and pads less; the notes sit in
+   the space the frame keeps on its right. */
+.theorem-markup-frame {
+  position: relative;
+}
+.theorem-markup-frame.has-margin .milkdown .ProseMirror {
+  padding-inline: 32px;
+}
+.theorem-margin {
+  position: absolute;
+  inset-block: 0;
+  right: 16px;
+}
+.theorem-margin-slot {
+  position: absolute;
+  left: 0;
+  transition: top 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theorem-margin-slot {
+    transition: none;
+  }
+}
+
+/* A note paints at the sizes margin-layout.ts measures it at: 13px type on a
+   20px line, its padding and border set from the same numbers. */
+.theorem-margin-note {
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--line-separator);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: 400 13px / 20px var(--font-sans);
+  letter-spacing: normal;
+  overflow-wrap: break-word;
+  box-shadow: 0 1px 3px rgb(var(--shadow-tint) / 0.12);
+}
+.theorem-margin-note[data-active] {
+  border-color: var(--ochre);
+}
+.theorem-margin-note.is-comment {
+  /* An inset rule, not a wider border: the text keeps its measured width. */
+  box-shadow:
+    inset 2px 0 0 var(--teal),
+    0 1px 3px rgb(var(--shadow-tint) / 0.12);
+}
+.theorem-margin-note h3 {
+  margin: 0;
+  font: 600 13px / 20px var(--font-sans);
+  /* Headings track tighter; the note's question is measured untracked. */
+  letter-spacing: normal;
+}
+.theorem-margin-note p {
+  margin: 0;
+}
+.theorem-margin-note p.is-status,
+.theorem-margin-note .theorem-note-summary {
+  color: var(--ink-muted);
+}
+.theorem-margin-note .theorem-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline: -8px;
+}
+
+/* Without room for a margin, a note sits under the block it is about. */
+.theorem-note .milkdown .theorem-inline-note {
+  margin-block: 8px 16px;
+}
+.theorem-note .milkdown .ProseMirror .theorem-margin-note :is(p, h3) {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: normal;
+}
+.theorem-note .milkdown .ProseMirror .theorem-margin-note h3 {
+  font-weight: 600;
 }
 
 /* React Flow, re-pointed at the Stone tokens. */
