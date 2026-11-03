@@ -886,17 +886,19 @@ export function RecordTable({
                               )}
                               {isTitle && (
                                 <span className="hidden shrink-0 items-center gap-0.5 group-hover/row:flex">
-                                  <button
-                                    type="button"
-                                    aria-label={`Rename ${recordTitle(objectType, record)}`}
-                                    className="rounded p-0.5 text-ink-faint hover:bg-hover hover:text-ink"
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      startEdit(item.index, column.id)
-                                    }}
-                                  >
-                                    <Icon.Edit className="size-3.5" />
-                                  </button>
+                                  {writable && (
+                                    <button
+                                      type="button"
+                                      aria-label={`Rename ${recordTitle(objectType, record)}`}
+                                      className="rounded p-0.5 text-ink-faint hover:bg-hover hover:text-ink"
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        startEdit(item.index, column.id)
+                                      }}
+                                    >
+                                      <Icon.Edit className="size-3.5" />
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     aria-label={`Open ${recordTitle(objectType, record)}`}
