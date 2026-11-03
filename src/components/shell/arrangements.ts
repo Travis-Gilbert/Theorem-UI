@@ -153,18 +153,19 @@ export function arrange(
 }
 
 /**
- * Keeps the inspector on the file in front: the active file tab, else the
- * one it already shows while that stays open, else the first file open. It
- * reads each panel's parameters as they change, so a file that learns its
- * entry or moves stays inspected. Returns the function that stops it.
+ * Keeps `followed` (the inspector's file, unless the Vault gives its own) on
+ * the file in front: the active file tab, else the one it already shows while
+ * that stays open, else the first file open. It reads each panel's parameters
+ * as they change, so a file that learns its entry or moves stays followed.
+ * Returns the function that stops it.
  */
-export function followFront(api: DockviewApi) {
+export function followFront(api: DockviewApi, followed = useInspectedFile) {
   const inspect = () => {
     const files = api.panels.map(fileOf)
     const front = api.activePanel && fileOf(api.activePanel)
-    const shown = useInspectedFile.getState().file
+    const shown = followed.getState().file
     const kept = shown && files.find((file) => file && sameFile(file, shown))
-    useInspectedFile.setState({ file: front ?? kept ?? files.find(Boolean) })
+    followed.setState({ file: front ?? kept ?? files.find(Boolean) })
   }
   const watched = new Map<string, { dispose: () => void }>()
   const watch = (panel: IDockviewPanel) =>

@@ -1,4 +1,4 @@
-// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -7,6 +7,7 @@ import { Icon } from '@/components/icons'
 import { PALETTES, usePalette } from '@/lib/palette'
 import type { Palette } from '@/lib/palette'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
+import { useWorkspaces } from '@/lib/workspace/workspaces'
 import {
   Tooltip,
   TooltipContent,
@@ -197,7 +198,8 @@ type Junction = { y: number; h: number; t: number; flush: boolean }
 /**
  * Reveals the files in the navigator beside the rail, over the mode's own
  * list, and hides them again. It changes what the panel shows, not where the
- * person is; from the IDE, which covers the panel, it goes back to Chat.
+ * person is; from the IDE or the Vault, which cover the panel, it goes back to
+ * Chat.
  */
 function FilesControl({ collapsible }: { collapsible: boolean }) {
   const mode = useShellMode()
@@ -205,13 +207,14 @@ function FilesControl({ collapsible }: { collapsible: boolean }) {
   const panelMode = navigatorMode(mode)
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const filesShown = useShell((s) => s.filesShown)
-  const showing = filesShown && mode !== 'ide' && (panelOpen || !collapsible)
+  const covered = panelMode !== mode
+  const showing = filesShown && !covered && (panelOpen || !collapsible)
   const toggle = () => {
     const shell = useShell.getState()
     if (showing) return shell.setFilesShown(false)
     shell.setPanelOpen(panelMode, true)
     shell.setFilesShown(true)
-    if (mode === 'ide') void openMode('chat')
+    if (covered) void openMode('chat')
   }
   return (
     <Tooltip>
@@ -248,6 +251,11 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const openMode = useOpenMode()
   const panelOpen = useShell((s) => !s.panelCollapsed[mode])
   const togglePanel = useShell((s) => s.togglePanel)
+  // The Vault works on opened folders, so it is offered where they can be.
+  const folders = useWorkspaces().available
+  const modes = MODES.filter(
+    (entry) => folders || !('folders' in entry) || entry.mode === mode,
+  )
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
@@ -266,7 +274,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       t: box.height ? y / box.height : 0,
       flush: mode === MODES[0].mode,
     })
-  }, [mode])
+  }, [mode, modes.length])
 
   return (
     <div
@@ -276,7 +284,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       {junction && <Junction {...junction} />}
       <TooltipProvider>
         <nav aria-label="Modes" className="flex flex-col gap-1">
-          {MODES.map(({ mode: value, label, Mark }) => {
+          {modes.map(({ mode: value, label, Mark }) => {
             const active = value === mode
             const toggles = active && collapsible
             const tooltip = toggles

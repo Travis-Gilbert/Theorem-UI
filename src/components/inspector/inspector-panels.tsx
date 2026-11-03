@@ -1,8 +1,10 @@
 // SOURCING: LinksPane for Links, react-query over the file's saved text and the
 // workspace's Markdown parser (parseNote) for the outline, openFileAt for the
-// heading a click reveals.
+// heading a click reveals, and the store InspectedFileStore names for the file
+// they follow.
 import { useQuery } from '@tanstack/react-query'
 import { extname } from 'pathe'
+import { useContext } from 'react'
 import { LinksPane } from '@/components/workspace/links-pane'
 import { openFileAt } from '@/lib/handlers/actions'
 import { fileTextKey } from '@/lib/handlers/file-sync'
@@ -13,7 +15,7 @@ import {
   workspaceTreeKey,
 } from '@/lib/workspace/workspaces'
 import { parseNote } from '#/server/desktop/workspace/markdown'
-import { useInspectedFile } from './inspector-state'
+import { InspectedFileStore } from './inspector-state'
 
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="px-3 py-3 text-sm text-ink-faint">{children}</p>
@@ -22,7 +24,7 @@ export function Empty({ children }: { children: React.ReactNode }) {
 /** The inspected file's client and entry, wherever the entry has moved. */
 export function useInspected():
   { client: WorkspaceClient; entry: WorkspaceEntry } | undefined {
-  const file = useInspectedFile((s) => s.file)
+  const file = useContext(InspectedFileStore)((s) => s.file)
   const client = useWorkspaceClient(file?.workspaceId ?? '')
   const entry = useQuery({
     queryKey: workspaceTreeKey(client?.workspace.id ?? ''),

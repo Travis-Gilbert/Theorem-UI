@@ -1,19 +1,23 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Index surface
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface
 import { Canvas } from '@/components/canvas/canvas'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { IndexSurface } from '@/components/index/index-surface'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { VaultPhone } from '@/components/vault/vault-phone'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { useShell } from './shell-state'
 
-export type ShellMode = 'chat' | 'index' | 'spaces' | 'ide'
+export type ShellMode = 'chat' | 'index' | 'vault' | 'spaces' | 'ide'
 
 /** The rail's destinations, in order. */
 export const MODES = [
   { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
   { mode: 'index', label: 'Index', Mark: Icon.Index },
+  // The Vault works on Home and the opened folders; the rail offers it while
+  // there are any.
+  { mode: 'vault', label: 'Vault', Mark: Icon.Vault, folders: true },
   { mode: 'spaces', label: 'Spaces', Mark: Icon.Spaces },
   { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
 ] as const
@@ -22,14 +26,14 @@ export const modeLabel = (mode: ShellMode) =>
   MODES.find((entry) => entry.mode === mode)!.label
 
 /**
- * The mode whose panel beside the rail shows: Theia covers the sheet in IDE
- * mode, so Chat's panel stays under it.
+ * The mode whose panel beside the rail shows: Theia and the Vault cover the
+ * sheet in their modes, so Chat's panel stays under them.
  */
 export const navigatorMode = (mode: ShellMode): ShellMode =>
-  mode === 'ide' ? 'chat' : mode
+  mode === 'ide' || mode === 'vault' ? 'chat' : mode
 
 /**
- * The mode is the route: /index, /spaces and /ide, and chat everywhere else. It reads
+ * The mode is the route: /index, /vault, /spaces and /ide, and chat everywhere else. It reads
  * the router's matches, as useParams does, so the mode and the thread id
  * always describe the same navigation.
  */
@@ -38,6 +42,7 @@ export function useShellMode(): ShellMode {
     select: (matches) => {
       for (const { routeId } of matches) {
         if (routeId === '/_chat/index') return 'index'
+        if (routeId === '/_chat/vault') return 'vault'
         if (routeId === '/_chat/spaces') return 'spaces'
         if (routeId === '/_chat/ide') return 'ide'
       }
@@ -51,6 +56,7 @@ export function useOpenMode() {
   const navigate = useNavigate()
   return (next: ShellMode) => {
     if (next === 'index') return navigate({ to: '/index' })
+    if (next === 'vault') return navigate({ to: '/vault' })
     if (next === 'spaces') return navigate({ to: '/spaces' })
     if (next === 'ide') return navigate({ to: '/ide' })
     const threadId = useShell.getState().chatThreadId
@@ -62,12 +68,13 @@ export function useOpenMode() {
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
- * On the desktop Theia covers the whole sheet, so the dock keeps the
- * conversation laid out beneath it; on a phone it takes the screen.
+ * On the desktop Theia and the Vault cover the whole sheet, so the dock keeps
+ * the conversation laid out beneath them; on a phone they take the screen.
  */
 export function ModeView({ docked = false }: { docked?: boolean }) {
   const mode = useShellMode()
-  const showThread = mode === 'chat' || (docked && mode === 'ide')
+  const showThread =
+    mode === 'chat' || (docked && (mode === 'ide' || mode === 'vault'))
   return (
     <>
       <div hidden={!showThread} className="h-full">
@@ -76,6 +83,7 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
         </LifeBackdrop>
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
+      {mode === 'vault' && !docked && <VaultPhone />}
       {mode === 'index' && <IndexSurface />}
       {mode === 'spaces' && <Canvas />}
     </>

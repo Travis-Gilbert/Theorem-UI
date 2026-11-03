@@ -1,4 +1,4 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
@@ -19,11 +19,24 @@ import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-ic
 import { WorkspaceCommands } from '@/components/workspace/workspace-commands'
 import { WorkspaceFileOverlay } from '@/components/workspace/workspace-file-panel'
 import { cn } from '@/lib/utils'
-import { createContext, useContext, useEffect, useState } from 'react'
+import {
+  Suspense,
+  createContext,
+  lazy,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
+
+const VaultWorkspace = lazy(() =>
+  import('@/components/vault/vault-workspace').then((module) => ({
+    default: module.VaultWorkspace,
+  })),
+)
 
 const iconButton = 'size-9 p-2'
 
@@ -156,8 +169,8 @@ const splitComponents = {
  * closes per mode from the rail.
  */
 function SheetSplit(route: DockRoute) {
-  // Theia covers the split, and the rail's button drives its own side panel,
-  // so the split underneath keeps Chat's panel.
+  // Theia and the Vault cover the split, and the rail's button drives their
+  // own side panels, so the split underneath keeps Chat's panel.
   const panelMode = navigatorMode(useShellMode())
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
@@ -216,22 +229,27 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode Theia fills the sheet. It loads on its first visit and then
- * stays, hidden, so its editors and layout survive a switch; the panel and
- * dock stay mounted under it for the same reason.
+ * In IDE mode Theia fills the sheet, and in Vault mode the Vault does. Each
+ * loads on its first visit and then stays, hidden, so its editors and layout
+ * survive a switch; the panel and dock stay mounted under them for the same
+ * reason.
  */
 function DesktopShell(route: DockRoute) {
-  const ide = useShellMode() === 'ide'
+  const mode = useShellMode()
+  const ide = mode === 'ide'
+  const vault = mode === 'vault'
   const [ideLoaded, setIdeLoaded] = useState(ide)
   if (ide && !ideLoaded) setIdeLoaded(true)
+  const [vaultLoaded, setVaultLoaded] = useState(vault)
+  if (vault && !vaultLoaded) setVaultLoaded(true)
   return (
     <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
       <Rail collapsible />
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
         <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
-          {/* Dockview layers its panels with z-index; isolate keeps them under Theia. */}
-          <div inert={ide} className="isolate h-full">
+          {/* Dockview layers its panels with z-index; isolate keeps them under Theia and the Vault. */}
+          <div inert={ide || vault} className="isolate h-full">
             <SheetSplit {...route} />
           </div>
           {ideLoaded && (
@@ -240,6 +258,19 @@ function DesktopShell(route: DockRoute) {
               className={cn('absolute inset-0', !ide && 'invisible')}
             >
               <IdeFrame />
+            </div>
+          )}
+          {vaultLoaded && (
+            <div
+              inert={!vault}
+              className={cn(
+                'absolute inset-0 isolate bg-sheet',
+                !vault && 'invisible',
+              )}
+            >
+              <Suspense>
+                <VaultWorkspace active={vault} />
+              </Suspense>
             </div>
           )}
         </div>

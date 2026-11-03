@@ -1,6 +1,7 @@
 // SOURCING: zustand + zustand/middleware persist (the graph's settings, per
-// browser, as shell-state.ts keeps the shell's), and a plain zustand store for
-// the file the inspector follows.
+// browser, as shell-state.ts keeps the shell's), a plain zustand store for
+// the file the inspector follows, and a React context naming that store.
+import { createContext } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { WorkspaceFileRef } from '@/lib/workspace/open'
@@ -71,3 +72,9 @@ export const useGraphPrefs = create<GraphPrefs>()(
 export const useInspectedFile = create<{ file: WorkspaceFileRef | undefined }>(
   () => ({ file: undefined }),
 )
+
+/**
+ * The store of the file the inspector's panels follow: the dock's front file,
+ * unless a screen with its own files, such as the Vault, provides another.
+ */
+export const InspectedFileStore = createContext(useInspectedFile)
