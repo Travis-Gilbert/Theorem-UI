@@ -74,6 +74,13 @@ function PhoneShell() {
   const [drawerView, setDrawerView] = useState<string | null>(null)
   const drawerOpen = drawerView === view
   const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
+  // A request to show the files, from an old Vault link, opens the drawer on
+  // them once.
+  const filesRequested = useShell((s) => s.filesRequested)
+  if (filesRequested && !drawerOpen) setDrawerView(view)
+  useEffect(() => {
+    if (filesRequested) useShell.getState().setFilesRequested(false)
+  }, [filesRequested])
 
   return (
     <>

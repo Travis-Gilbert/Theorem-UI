@@ -5,8 +5,7 @@ import { useShell } from '@/components/shell/shell-state'
 // the conversation, so an old link shows them there.
 export const Route = createFileRoute('/_chat/vault')({
   beforeLoad: () => {
-    useShell.getState().setPanelOpen('chat', true)
-    useShell.getState().setFilesShown(true)
+    useShell.getState().showFiles()
     throw redirect({ to: '/' })
   },
 })
