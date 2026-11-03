@@ -211,6 +211,19 @@ describe('line endings', () => {
     e.assertInStep()
   })
 
+  test('a line break another editor inserts keeps its carriage return', async () => {
+    const authority = new Authority('a\r\nb')
+    const mine = await editor(authority)
+    const theirs = await editor(authority)
+    theirs.view.dispatch({ changes: { from: 3, insert: 'x\r\ny' }, userEvent: 'input.paste' })
+    await settle(authority, [mine, theirs])
+    expect(authority.text).toBe('a\r\nx\r\nyb')
+    expect(mine.view.state.doc.toString()).toBe(authority.text)
+    mine.view.dispatch({ changes: { from: authority.text.length, insert: '!' }, userEvent: 'input.type' })
+    await settle(authority, [mine, theirs])
+    expect(authority.text).toBe('a\r\nx\r\nyb!')
+  })
+
   test('a typed line break in a CRLF document is CRLF', async () => {
     const authority = new Authority('a\r\nb')
     const e = await editor(authority)

@@ -64,7 +64,8 @@ export function toSessionChanges(changes: ChangeSet): TextChange[] {
 /** Session changes (UTF-16, against the previous text) as an editor change set. */
 export function toChangeSet(changes: readonly TextChange[], docLength: number): ChangeSet {
   return ChangeSet.of(
-    changes.map((change) => ({ from: change.start, to: change.end, insert: change.insert })),
+    // Split on \n only: given a string, the editor would turn \r\n into \n and part from the session.
+    changes.map((change) => ({ from: change.start, to: change.end, insert: Text.of(change.insert.split('\n')) })),
     docLength,
   )
 }
