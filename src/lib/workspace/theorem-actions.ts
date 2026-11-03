@@ -20,7 +20,10 @@ export const isDismissed = (error: unknown) =>
  */
 export async function promoteEntry(client: WorkspaceClient, path: string) {
   const entry = await abilities(client).promote(path)
-  openWorkspaceFile({ workspaceId: client.workspace.id, path: entry.path }, path)
+  openWorkspaceFile(
+    { workspaceId: client.workspace.id, entryId: entry.id, path: entry.path },
+    path,
+  )
 }
 
 /** Saves the notes under `folder` ('' for all of them) as an OKF bundle. */

@@ -1,9 +1,9 @@
-// SOURCING: the app's FilesystemTree (components/ui/filesystem-item: lucide icons, framer-motion, tree roles and arrow keys), @tanstack/react-query via lib/theorem/project-files (the cached root, children and content reads)
+// SOURCING: the app's FilesystemTree (components/ui/filesystem-tree: lucide icons, framer-motion, tree roles and arrow keys), @tanstack/react-query via lib/theorem/project-files (the cached root, children and content reads)
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { FilesystemTree } from '@/components/ui/filesystem-item'
-import type { FilesystemNode } from '@/components/ui/filesystem-item'
+import { FilesystemTree } from '@/components/ui/filesystem-tree'
+import type { FilesystemNode } from '@/components/ui/filesystem-tree'
 import { describeError } from '@/lib/theorem/client'
 import {
   fileChildrenQuery,

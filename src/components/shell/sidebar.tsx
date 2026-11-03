@@ -235,32 +235,34 @@ function SpacesPanel() {
 }
 
 /**
- * The panel beside the rail belongs to the active mode. Theia covers it in
- * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
- * the Index and Spaces, so its search, scroll and open branches survive a switch. The
- * desktop app's folders sit below every mode's panel.
+ * The navigator beside the rail: the active mode's list above the files.
+ * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
+ * stays mounted behind the Index, Spaces and the revealed files, so its
+ * search, scroll and open branches survive a switch. The rail's Files
+ * control reveals the files over the mode's list.
  */
 export function ContextPanel() {
   const mode = useShellMode()
+  const filesShown = useShell((s) => s.filesShown)
   return (
     <div className="on-sheet flex h-full flex-col">
       <div
-        hidden={mode === 'spaces' || mode === 'index'}
+        hidden={filesShown || mode === 'spaces' || mode === 'index'}
         className="min-h-0 flex-1"
       >
         <ChatPanel />
       </div>
       {mode === 'index' && (
-        <div className="min-h-0 flex-1">
+        <div hidden={filesShown} className="min-h-0 flex-1">
           <IndexPanel />
         </div>
       )}
       {mode === 'spaces' && (
-        <div className="min-h-0 flex-1">
+        <div hidden={filesShown} className="min-h-0 flex-1">
           <SpacesPanel />
         </div>
       )}
-      <FoldersSection />
+      <FoldersSection fill={filesShown} />
     </div>
   )
 }

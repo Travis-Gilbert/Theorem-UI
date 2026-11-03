@@ -124,6 +124,7 @@ function SwitcherBody() {
         if (choice.kind === 'file')
           openWorkspaceFile({
             workspaceId: choice.client.workspace.id,
+            entryId: choice.entry.id,
             path: choice.entry.path,
           })
         else void openOrCreate(choice.client, choice.path)

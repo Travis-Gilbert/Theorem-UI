@@ -1,46 +1,62 @@
 // SOURCING: dockview-react (the Vault's docking layout: tabs, splits, floating
 // groups, maximize, serialization, always-rendered panels), as the shell's
 // DockShell uses it; WorkspaceFileDockPanel (the handler registry's Panel, so
-// notes open in Milkdown Crepe); the Vault's own panels and status bar; zustand
-// stores for the layout, the followed file and the rail's per-mode panel state.
+// notes open in Milkdown Crepe) inside the DocumentScreen context; the
+// inspector's Outline, Links and Graph panels over the Vault's own followed
+// file (InspectedFileStore); the Vault's layout rules (vault-layout.ts), Files
+// and empty tab panels and status bar; zustand stores for the layout, the
+// followed file and the rail's per-mode panel state.
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
 import type {
-  AddPanelPositionOptions,
   DockviewApi,
   DockviewReadyEvent,
   DockviewTheme,
-  IDockviewPanel,
   IDockviewPanelHeaderProps,
+  IDockviewPanelProps,
 } from 'dockview-react'
-import { basename } from 'pathe'
 import { useEffect, useRef, useState } from 'react'
+import { GraphPanel } from '@/components/inspector/graph-panel'
+import {
+  LinksPanel,
+  OutlinePanel,
+} from '@/components/inspector/inspector-panels'
+import { InspectedFileStore } from '@/components/inspector/inspector-state'
+import { followFront } from '@/components/shell/arrangements'
 import { useShell } from '@/components/shell/shell-state'
 import {
   WORKSPACE_FILE_COMPONENT,
   WorkspaceFileDockPanel,
 } from '@/components/workspace/workspace-file-panel'
-import {
-  useWorkspaceFileView,
-  workspaceFilePanelId,
-} from '@/lib/workspace/open'
+import { useWorkspaceFileView } from '@/lib/workspace/open'
 import type { WorkspaceFileRef } from '@/lib/workspace/open'
-import { GraphPanel } from './vault-graph'
+import { DocumentScreen } from './document-screen'
 import {
-  FilesPanel,
-  LinksPanel,
-  OutlinePanel,
-  StartPanel,
-} from './vault-panels'
-import { VAULT_TOOLS, useVaultFile, useVaultPrefs } from './vault-state'
+  START,
+  addTool,
+  buildDefaultLayout,
+  filePanels,
+  keepEditorPlace,
+  keepSideWidths,
+  openVaultFile,
+} from './vault-layout'
+import { FilesPanel, StartPanel } from './vault-panels'
+import { useVaultFile, useVaultLayout } from './vault-state'
 import type { VaultTool } from './vault-state'
 import { VaultStatusBar } from './vault-status-bar'
 
-/** The editor's tab while no file is open. */
-const START = 'start'
-
+/** The dock's theme, whose colours come from the palette tokens. */
 const theme: DockviewTheme = {
-  name: 'stone',
-  className: 'dockview-theme-stone',
+  name: 'theorem',
+  className: 'dockview-theme-theorem',
+}
+
+/** A note in the Vault is on the document screen, where it can be asked about. */
+function VaultFilePanel(props: IDockviewPanelProps<WorkspaceFileRef>) {
+  return (
+    <DocumentScreen value={true}>
+      <WorkspaceFileDockPanel {...props} />
+    </DocumentScreen>
+  )
 }
 
 const components = {
@@ -49,7 +65,7 @@ const components = {
   outline: OutlinePanel,
   links: LinksPanel,
   graph: GraphPanel,
-  [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
+  [WORKSPACE_FILE_COMPONENT]: VaultFilePanel,
 }
 
 const tabComponents = {
@@ -59,149 +75,14 @@ const tabComponents = {
   ),
 }
 
-const fileOf = (panel: IDockviewPanel) =>
-  panel.view.contentComponent === WORKSPACE_FILE_COMPONENT
-    ? (panel.params as WorkspaceFileRef)
-    : undefined
-
-const filePanels = (api: DockviewApi) => api.panels.filter(fileOf)
-
-/** The group files open in: the followed file's, else any file's, else the empty tab's. */
-function editorGroup(api: DockviewApi) {
-  const followed = useVaultFile.getState().file
-  const panel =
-    (followed && api.getPanel(workspaceFilePanelId(followed))) ??
-    filePanels(api)[0] ??
-    api.getPanel(START)
-  return panel?.group
-}
-
 /**
- * Where the editor goes: its group, else right of the files, else a full-height
- * column at the left edge (left of one side panel would only split its row).
- */
-function editorPosition(api: DockviewApi): AddPanelPositionOptions | undefined {
-  const group = editorGroup(api)
-  if (group) return { referenceGroup: group }
-  const files = api.getPanel('files')
-  if (files) return { referencePanel: files, direction: 'right' }
-  return api.panels.length ? { direction: 'left' } : undefined
-}
-
-/**
- * Brings back a closed tool where the default layout has it: Files at the
- * left edge, Outline and Links as tabs at the right, the graph below them.
- */
-function addTool(api: DockviewApi, id: VaultTool) {
-  const options = { id, component: id, title: VAULT_TOOLS[id] }
-  const first = (ids: Array<VaultTool>) =>
-    ids.map((other) => api.getPanel(other)).find(Boolean)
-  if (id === 'files') {
-    api.addPanel({
-      ...options,
-      initialWidth: 260,
-      position: { direction: 'left' },
-    })
-    return
-  }
-  const tabs = first(
-    id === 'graph' ? ['outline', 'links'] : ['outline', 'links', 'graph'],
-  )
-  if (!tabs)
-    api.addPanel({
-      ...options,
-      initialWidth: 300,
-      position: { direction: 'right' },
-    })
-  else if (id === 'graph')
-    api.addPanel({
-      ...options,
-      position: { referenceGroup: tabs.group, direction: 'below' },
-    })
-  else if (tabs.id === 'graph')
-    api.addPanel({
-      ...options,
-      position: { referenceGroup: tabs.group, direction: 'above' },
-    })
-  else api.addPanel({ ...options, position: { referenceGroup: tabs.group } })
-}
-
-function addStart(api: DockviewApi) {
-  const position = editorPosition(api)
-  // A new left column leaves the side panels their width (at most the default
-  // 320, since with no editor they have spread across the dock), not half.
-  const edge =
-    position && !('referenceGroup' in position || 'referencePanel' in position)
-  const side = edge
-    ? api.groups.reduce((width, group) => Math.max(width, group.api.width), 0)
-    : 0
-  api.addPanel({
-    id: START,
-    component: START,
-    tabComponent: 'fixed',
-    title: 'New tab',
-    position,
-    initialWidth: edge
-      ? Math.max(320, api.width - Math.min(side, 320))
-      : undefined,
-  })
-}
-
-/** The first image's arrangement: files, the document, its outline and links over the graph. */
-function buildDefaultLayout(api: DockviewApi) {
-  addStart(api)
-  for (const tool of Object.keys(VAULT_TOOLS) as Array<VaultTool>)
-    addTool(api, tool)
-  // Columns added later squeeze the earlier ones, so the widths are set last.
-  api.getPanel('files')?.group.api.setSize({ width: 260 })
-  api.getPanel('outline')?.group.api.setSize({ width: 320 })
-  api.getPanel('outline')?.api.setActive()
-  api.getPanel(START)?.api.setActive()
-}
-
-/** A file joins the editor's tabs and replaces the empty tab. */
-function openFile(api: DockviewApi, file: WorkspaceFileRef, replacing?: string) {
-  const id = workspaceFilePanelId(file)
-  const existing = api.getPanel(id)
-  const old =
-    replacing === undefined
-      ? undefined
-      : api.getPanel(workspaceFilePanelId({ ...file, path: replacing }))
-  if (existing) {
-    if (file.handler) existing.api.updateParameters(file)
-    existing.api.setActive()
-    old?.api.close()
-    return
-  }
-  api.addPanel({
-    id,
-    component: WORKSPACE_FILE_COMPONENT,
-    params: file,
-    title: basename(file.path),
-    minimumWidth: 320,
-    // A file that took another's place opens in its tab.
-    position: old
-      ? { referencePanel: old.id, direction: 'within' }
-      : editorPosition(api),
-  })
-  old?.api.close()
-  const start = api.getPanel(START)
-  if (start) api.removePanel(start)
-}
-
-/** Follows the active file tab, else the first one open. */
-function followFile(api: DockviewApi) {
-  const active = api.activePanel && fileOf(api.activePanel)
-  useVaultFile.setState({
-    file: active ?? filePanels(api).map(fileOf)[0],
-  })
-}
-
-/**
- * The Vault: an Obsidian-style workspace over the opened folders. Every part
- * is a dock panel the person can move, stack, float or close, and the
- * arrangement is kept. The rail's Vault button shows and hides Files; the
- * status bar brings back any panel and resets the layout.
+ * The Vault: an Obsidian-style workspace over Home and the opened folders,
+ * where a note is read and asked about. Every part is a dock panel the person
+ * can move, stack, float or close, and the arrangement is kept. The rail's
+ * Vault button shows and hides Files; the status bar brings back any panel and
+ * resets the layout. Its outline, links, graph and status bar follow its own
+ * front file (useVaultFile), apart from the dock's inspector, so leaving the
+ * Vault finds the conversation's inspector where it was.
  */
 export function VaultWorkspace({ active }: { active: boolean }) {
   const [dock, setDock] = useState<DockviewApi>()
@@ -213,16 +94,15 @@ export function VaultWorkspace({ active }: { active: boolean }) {
     replacing.current = true
     try {
       build()
-      if (!filePanels(api).length && !api.getPanel(START)) addStart(api)
+      keepEditorPlace(api)
     } finally {
       replacing.current = false
     }
-    useVaultPrefs.getState().saveLayout(api.toJSON())
-    followFile(api)
+    useVaultLayout.getState().saveLayout(api.toJSON())
   }
 
   const onReady = ({ api }: DockviewReadyEvent) => {
-    const saved = useVaultPrefs.getState().layout
+    const saved = useVaultLayout.getState().layout
     arrange(api, () => {
       if (saved)
         try {
@@ -260,46 +140,22 @@ export function VaultWorkspace({ active }: { active: boolean }) {
       if (useShell.getState().panelCollapsed.vault === open)
         useShell.getState().togglePanel('vault')
     }
-    // Only the editor gives or takes the space when a column comes or goes, as
-    // in Obsidian, rather than every column sharing it: widths are taken before
-    // the change and the other columns get theirs back after it.
-    const widths = new Map<string, number>()
     const listeners = [
-      dock.onDidActivePanelChange(({ panel }) => {
-        const file = panel && fileOf(panel)
-        if (file) useVaultFile.setState({ file })
-      }),
       dock.onDidAddPanel((panel) => {
         if (!replacing.current && panel.id === 'files') railShows(true)
       }),
       dock.onDidRemovePanel((panel) => {
         if (replacing.current) return
         if (panel.id === 'files') railShows(false)
-        const followed = useVaultFile.getState().file
-        if (followed && panel.id === workspaceFilePanelId(followed))
-          followFile(dock)
         // The editor keeps its place: the last file to close leaves the empty tab.
-        queueMicrotask(() => {
-          if (!filePanels(dock).length && !dock.getPanel(START)) addStart(dock)
-        })
-      }),
-      dock.onWillMutateLayout(({ kind }) => {
-        if (kind !== 'add' && kind !== 'remove') return
-        widths.clear()
-        for (const group of dock.groups) widths.set(group.id, group.api.width)
-      }),
-      dock.onDidMutateLayout(({ kind }) => {
-        if ((kind !== 'add' && kind !== 'remove') || replacing.current) return
-        const editor = editorGroup(dock)
-        for (const group of dock.groups) {
-          const width = widths.get(group.id)
-          if (group !== editor && width) group.api.setSize({ width })
-        }
+        queueMicrotask(() => keepEditorPlace(dock))
       }),
       dock.onDidLayoutChange(() => {
         if (!replacing.current)
-          useVaultPrefs.getState().saveLayout(dock.toJSON())
+          useVaultLayout.getState().saveLayout(dock.toJSON())
       }),
+      { dispose: keepSideWidths(dock, () => replacing.current) },
+      { dispose: followFront(dock, useVaultFile) },
     ]
     return () => {
       for (const listener of listeners) listener.dispose()
@@ -318,34 +174,36 @@ export function VaultWorkspace({ active }: { active: boolean }) {
   useEffect(() => {
     if (!dock || !active) return
     useWorkspaceFileView.setState({
-      vault: { open: (file, from) => openFile(dock, file, from) },
+      vault: { open: (file, from) => openVaultFile(dock, file, from) },
     })
     return () => useWorkspaceFileView.setState({ vault: undefined })
   }, [dock, active])
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="min-h-0 flex-1">
-        <DockviewReact
-          className="h-full w-full"
-          theme={theme}
-          components={components}
-          tabComponents={tabComponents}
-          defaultRenderer="always"
-          getTabContextMenuItems={({ panel, api }) => {
-            const float = {
-              label: 'Float',
-              action: () =>
-                api.addFloatingGroup(panel, { width: 420, height: 520 }),
-            }
-            return panel.id === START
-              ? ['maximize']
-              : ['maximize', float, 'separator', 'close']
-          }}
-          onReady={onReady}
-        />
+    <InspectedFileStore value={useVaultFile}>
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1">
+          <DockviewReact
+            className="h-full w-full"
+            theme={theme}
+            components={components}
+            tabComponents={tabComponents}
+            defaultRenderer="always"
+            getTabContextMenuItems={({ panel, api }) => {
+              const float = {
+                label: 'Float',
+                action: () =>
+                  api.addFloatingGroup(panel, { width: 420, height: 520 }),
+              }
+              return panel.id === START || !filePanels(api).includes(panel)
+                ? ['maximize']
+                : ['maximize', float, 'separator', 'close']
+            }}
+            onReady={onReady}
+          />
+        </div>
+        <VaultStatusBar dock={dock} onToggle={toggleTool} onReset={reset} />
       </div>
-      <VaultStatusBar dock={dock} onToggle={toggleTool} onReset={reset} />
-    </div>
+    </InspectedFileStore>
   )
 }

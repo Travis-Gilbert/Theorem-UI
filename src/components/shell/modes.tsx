@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Life backdrop behind it, the IDE frame (browser-only Theia)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface
 import { Canvas } from '@/components/canvas/canvas'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
@@ -16,7 +16,8 @@ export type ShellMode = 'chat' | 'index' | 'vault' | 'spaces' | 'ide'
 export const MODES = [
   { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
   { mode: 'index', label: 'Index', Mark: Icon.Index },
-  // The Vault works on opened folders, which only the desktop app has.
+  // The Vault works on Home and the opened folders; the rail offers it while
+  // there are any.
   { mode: 'vault', label: 'Vault', Mark: Icon.Vault, folders: true },
   { mode: 'spaces', label: 'Spaces', Mark: Icon.Spaces },
   { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
@@ -24,6 +25,13 @@ export const MODES = [
 
 export const modeLabel = (mode: ShellMode) =>
   MODES.find((entry) => entry.mode === mode)!.label
+
+/**
+ * The mode whose panel beside the rail shows: Theia and the Vault cover the
+ * sheet in their modes, so Chat's panel stays under them.
+ */
+export const navigatorMode = (mode: ShellMode): ShellMode =>
+  mode === 'ide' || mode === 'vault' ? 'chat' : mode
 
 /**
  * The mode is the route: /index, /vault, /spaces and /ide, and chat everywhere else. It reads

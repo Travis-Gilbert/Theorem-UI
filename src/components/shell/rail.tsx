@@ -1,6 +1,5 @@
-// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out), @tanstack/react-router Link (to settings), the command palette's open state
+// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
-import { Link } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -8,20 +7,21 @@ import { Icon } from '@/components/icons'
 import { PALETTES, usePalette } from '@/lib/palette'
 import type { Palette } from '@/lib/palette'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
+import { useWorkspaces } from '@/lib/workspace/workspaces'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { MODES, useOpenMode, useShellMode } from './modes'
+import { MODES, navigatorMode, useOpenMode, useShellMode } from './modes'
 import type { ShellMode } from './modes'
 import { useTenant } from './projects'
-import { useCommandPalette } from './command-palette'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
 
-import { useWorkspaces } from '@/lib/workspace/workspaces'
+import { Link } from '@tanstack/react-router'
+import { useCommandPalette } from './command-palette'
 
 /** The rail's square controls: destinations and the account. */
 const railButton =
@@ -196,6 +196,49 @@ function Junction({ y, h, t, flush }: Junction) {
 type Junction = { y: number; h: number; t: number; flush: boolean }
 
 /**
+ * Reveals the files in the navigator beside the rail, over the mode's own
+ * list, and hides them again. It changes what the panel shows, not where the
+ * person is; from the IDE or the Vault, which cover the panel, it goes back to
+ * Chat.
+ */
+function FilesControl({ collapsible }: { collapsible: boolean }) {
+  const mode = useShellMode()
+  const openMode = useOpenMode()
+  const panelMode = navigatorMode(mode)
+  const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
+  const filesShown = useShell((s) => s.filesShown)
+  const covered = panelMode !== mode
+  const showing = filesShown && !covered && (panelOpen || !collapsible)
+  const toggle = () => {
+    const shell = useShell.getState()
+    if (showing) return shell.setFilesShown(false)
+    shell.setPanelOpen(panelMode, true)
+    shell.setFilesShown(true)
+    if (covered) void openMode('chat')
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label="Files"
+            aria-pressed={showing}
+            onClick={toggle}
+            className={`${railButton} h-12 aria-pressed:text-ink`}
+          />
+        }
+      >
+        <Icon.Files className="size-5" />
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        {showing ? 'Hide files' : 'Show files'}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+/**
  * The global rail: one destination per mode, and the account at the foot.
  * It is the base the sheet sits on, and stacks above the sheet's shadow and
  * glow so the junction's tab stays level with the panel it joins. The first
@@ -208,6 +251,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const openMode = useOpenMode()
   const panelOpen = useShell((s) => !s.panelCollapsed[mode])
   const togglePanel = useShell((s) => s.togglePanel)
+  // The Vault works on opened folders, so it is offered where they can be.
   const folders = useWorkspaces().available
   const modes = MODES.filter(
     (entry) => folders || !('folders' in entry) || entry.mode === mode,
@@ -274,6 +318,8 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
             )
           })}
         </nav>
+        <div aria-hidden="true" className="my-2 h-px w-5 bg-separator" />
+        <FilesControl collapsible={collapsible} />
       </TooltipProvider>
       <div className="flex-1" />
       <TerminalToggle />

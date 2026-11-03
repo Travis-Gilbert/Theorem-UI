@@ -8,7 +8,7 @@ import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
-import { ModeView, modeLabel, useShellMode } from './modes'
+import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
 import { PANEL_WIDTH, useShell } from './shell-state'
 import { Rail } from './rail'
@@ -32,13 +32,13 @@ import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
 
-const iconButton = 'size-9 p-2'
-
 const VaultWorkspace = lazy(() =>
   import('@/components/vault/vault-workspace').then((module) => ({
     default: module.VaultWorkspace,
   })),
 )
+
+const iconButton = 'size-9 p-2'
 
 function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const title = useAuiState((s) => s.threadListItem.title)
@@ -162,10 +162,9 @@ const splitComponents = {
  * closes per mode from the rail.
  */
 function SheetSplit(route: DockRoute) {
-  const mode = useShellMode()
   // Theia and the Vault cover the split, and the rail's button drives their
   // own side panels, so the split underneath keeps Chat's panel.
-  const panelMode = mode === 'ide' || mode === 'vault' ? 'chat' : mode
+  const panelMode = navigatorMode(useShellMode())
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
 

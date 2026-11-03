@@ -48,6 +48,8 @@ import { pickedModelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
 
+import { documentThreadIds } from '@/lib/documents/ask-store'
+
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
 >
@@ -394,11 +396,15 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
         includeArchived: true,
         limit: 50,
       })
-      // The agent terminal's threads live in its drawer, not among the chats.
-      const terminal = new Set(useShell.getState().terminalThreadIds)
+      // The agent terminal's threads live in its drawer, and each note's
+      // conversation on the document screen, not among the chats.
+      const apart = new Set([
+        ...useShell.getState().terminalThreadIds,
+        ...documentThreadIds(),
+      ])
       return {
         threads: page.items
-          .filter((thread) => !terminal.has(thread.threadId))
+          .filter((thread) => !apart.has(thread.threadId))
           .map(toMetadata),
         nextCursor: page.nextCursor,
       }
@@ -462,37 +468,6 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
     unstable_useAdapters: useThreadAdapters,
   }
 }
-
-// Welcome prompts, one per artifact kind the agent can open beside the thread.
-const config = AuiConfig({
-  suggestions: Suggestions([
-    {
-      title: 'Draft a document',
-      label: 'a one-page brief on a topic you name',
-      prompt:
-        'Draft a one-page brief, as a document artifact, on why typed contracts between an agent and its UI matter.',
-    },
-    {
-      title: 'Write some code',
-      label: 'a small, complete TypeScript module',
-      prompt:
-        'Write a TypeScript module, as a code artifact, that debounces async functions and cancels stale calls.',
-    },
-    {
-      title: 'Sketch a diagram',
-      label: 'a Mermaid flowchart of a process',
-      prompt:
-        'Make a Mermaid diagram artifact of how a chat turn flows from the composer to the agent and back.',
-    },
-    {
-      title: 'Think it through',
-      label: 'a plain answer, no artifact',
-      prompt:
-        'What are the trade-offs between streaming tokens and sending a finished answer?',
-    },
-  ]),
-})
-
 export function TheoremRuntimeProvider({
   projectId,
   threadId,
@@ -512,7 +487,7 @@ export function TheoremRuntimeProvider({
     onThreadIdChange,
   })
   return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
       {children}
     </AssistantRuntimeProvider>

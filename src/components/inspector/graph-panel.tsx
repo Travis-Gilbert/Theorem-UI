@@ -26,15 +26,14 @@ import { openOrCreate } from '@/lib/workspace/notes'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import {
   useIndexQuery,
-  useWorkspaceClient,
   useWorkspaceTree,
   useWorkspaces,
   workspaceClient,
 } from '@/lib/workspace/workspaces'
 import { cn } from '@/lib/utils'
-import { Empty } from './vault-panels'
-import { useVaultFile, useVaultPrefs } from './vault-state'
-import type { GraphSettings } from './vault-state'
+import { Empty, useInspected } from './inspector-panels'
+import { useGraphPrefs } from './inspector-state'
+import type { GraphSettings } from './inspector-state'
 
 const SPACE = 4096
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
@@ -360,8 +359,8 @@ const chip =
   'h-6 rounded-md px-2 text-xs text-ink-faint outline-none transition-colors duration-100 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus aria-pressed:bg-pill aria-pressed:text-ink'
 
 function Controls({ local }: { local: boolean }) {
-  const settings = useVaultPrefs((s) => s.graph)
-  const setGraph = useVaultPrefs((s) => s.setGraph)
+  const settings = useGraphPrefs((s) => s.graph)
+  const setGraph = useGraphPrefs((s) => s.setGraph)
   return (
     <div className="pointer-events-auto flex flex-wrap items-center gap-0.5 rounded-lg bg-artifact/85 p-0.5 backdrop-blur-sm">
       <button
@@ -433,7 +432,7 @@ function WorkspaceGraphView({
 }) {
   const graph = useIndexQuery(client, ['graph'], () => client.graph())
   const tree = useWorkspaceTree(client)
-  const settings = useVaultPrefs((s) => s.graph)
+  const settings = useGraphPrefs((s) => s.graph)
   const model = useMemo(() => {
     if (!graph.data) return undefined
     const files = (tree.data ?? [])
@@ -455,8 +454,7 @@ function WorkspaceGraphView({
       const target = node.target
       void attempt(
         client.workspace.id,
-        () =>
-          openOrCreate(client, extname(target) ? target : `${target}.md`),
+        () => openOrCreate(client, extname(target) ? target : `${target}.md`),
         () => `“${target}” could not be made.`,
       )
     }
@@ -504,16 +502,15 @@ function WorkspaceGraphView({
  * neighbours; a click opens what the node stands for.
  */
 export function GraphPanel() {
-  const file = useVaultFile((s) => s.file)
+  const inspected = useInspected()
   const first = useWorkspaces().workspaces[0]
-  const followed = useWorkspaceClient(file?.workspaceId ?? '')
-  const client = followed ?? (first && workspaceClient(first))
+  const client = inspected?.client ?? (first && workspaceClient(first))
   if (!client) return <Empty>Open a folder to see its graph.</Empty>
   return (
     <WorkspaceGraphView
       key={client.workspace.id}
       client={client}
-      focus={followed ? file?.path : undefined}
+      focus={inspected?.entry.path}
     />
   )
 }

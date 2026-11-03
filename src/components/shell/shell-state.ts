@@ -30,6 +30,11 @@ type ShellState = {
   /** Modes whose context panel the user has closed; each starts open. */
   panelCollapsed: Readonly<Partial<Record<ShellMode, boolean>>>
   /**
+   * Whether the navigator shows the files in full, over the mode's own list.
+   * The rail's Files control reveals them; nothing navigates away.
+   */
+  filesShown: boolean
+  /**
    * Conversation chat mode last showed; undefined for a new chat. Spaces and
    * the IDE keep it open behind them, so switching back returns to it. Not
    * persisted: a reload starts from the URL.
@@ -57,6 +62,8 @@ type ShellState = {
   saveLayout: (projectId: string, layout: SavedLayout) => void
   setPanelWidth: (width: number) => void
   togglePanel: (mode: ShellMode) => void
+  setPanelOpen: (mode: ShellMode, open: boolean) => void
+  setFilesShown: (shown: boolean) => void
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
   setTerminalOpen: (open: boolean) => void
@@ -87,6 +94,7 @@ export const useShell = create<ShellState>()(
       layouts: {},
       panelWidth: PANEL_WIDTH.default,
       panelCollapsed: {},
+      filesShown: false,
       chatThreadId: undefined,
       explorerOpen: true,
       terminalOpen: false,
@@ -107,6 +115,11 @@ export const useShell = create<ShellState>()(
             [mode]: !s.panelCollapsed[mode],
           },
         })),
+      setPanelOpen: (mode, open) =>
+        set((s) => ({
+          panelCollapsed: { ...s.panelCollapsed, [mode]: !open },
+        })),
+      setFilesShown: (filesShown) => set({ filesShown }),
       setChatThreadId: (chatThreadId) => set({ chatThreadId }),
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
@@ -196,6 +209,7 @@ export const useShell = create<ShellState>()(
         layouts,
         panelWidth,
         panelCollapsed,
+        filesShown,
         explorerOpen,
         terminalHeight,
         sideWidth,
@@ -207,6 +221,7 @@ export const useShell = create<ShellState>()(
         layouts,
         panelWidth,
         panelCollapsed,
+        filesShown,
         explorerOpen,
         terminalHeight,
         sideWidth,
