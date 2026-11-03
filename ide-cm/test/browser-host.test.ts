@@ -221,4 +221,15 @@ describe('browser host events and window', () => {
     host.window.setZoom(1.25)
     expect(document.documentElement.style.getPropertyValue('zoom')).toBe('1.25')
   })
+
+  test('onResized hears the page resize until it is unlistened', () => {
+    const { host, listeners } = make()
+    let heard = 0
+    const off = host.window.onResized(() => void (heard += 1))
+    for (const fn of [...(listeners.get('resize') ?? [])]) fn()
+    off()
+    for (const fn of [...(listeners.get('resize') ?? [])]) fn()
+    expect(heard).toBe(1)
+    expect(listeners.get('resize')?.size).toBe(0)
+  })
 })
