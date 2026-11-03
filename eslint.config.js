@@ -23,6 +23,10 @@ export default [
       'src/components/assistant-ui/elements/**',
       'src/components/ui/**',
       'src/hooks/**',
+      // TanStack Table's kitchen-sink-shadcn-base example, vendored.
+      'src/components/data-table/**',
+      'src/lib/composition.ts',
+      'src/lib/data-table.ts',
     ],
     rules: {
       '@typescript-eslint/no-unnecessary-condition': 'off',

@@ -19,6 +19,9 @@ import { useTenant } from './projects'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
 
+import { Link } from '@tanstack/react-router'
+import { useCommandPalette } from './command-palette'
+
 /** The rail's square controls: destinations and the account. */
 const railButton =
   'relative flex size-8 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
@@ -60,6 +63,22 @@ function AccountMenu() {
                 <Menu.Separator className="my-1 h-px bg-separator" />
               </>
             )}
+            <Menu.Item
+              className={menuItem}
+              render={<Link to="/settings" />}
+            >
+              <Icon.Settings className="size-4 text-ink-muted" />
+              <span className="min-w-0 flex-1">Settings</span>
+            </Menu.Item>
+            <Menu.Item
+              className={menuItem}
+              onClick={() => useCommandPalette.getState().setOpen(true)}
+            >
+              <Icon.Search className="size-4 text-ink-muted" />
+              <span className="min-w-0 flex-1">Search</span>
+              <span className="text-xs text-ink-faint">⌘K</span>
+            </Menu.Item>
+            <Menu.Separator className="my-1 h-px bg-separator" />
             <Menu.Group>
               <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
                 Theme
