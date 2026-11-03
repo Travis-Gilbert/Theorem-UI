@@ -29,6 +29,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@headless-tree/core": "1.8.0",
     "@headless-tree/react": "1.8.0",
+    "@pierre/diffs": "1.6.1",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/match-sorter-utils": "9.2.6",
@@ -38,7 +39,7 @@
     "@tanstack/react-router-ssr-query": "1.167.3",
     "@tanstack/react-start": "1.169.3",
     "@tanstack/react-table": "9.3.1",
-    "@theoremharness/sdk": "file:vendor/theoremharness-sdk-0.4.0.tgz",
+    "@theoremharness/sdk": "file:vendor/theoremharness-sdk-0.6.0-alpha.2.tgz",
     "animejs": "4.5.0",
     "assistant-stream": "0.3.53",
     "beautiful-mermaid": "^1.1.3",
@@ -89,5 +90,8 @@
     "lightningcss",
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "patchedDependencies": {
+    "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch"
+  }
 }
