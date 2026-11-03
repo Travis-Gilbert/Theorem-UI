@@ -141,6 +141,54 @@ test('a renamed file keeps its unsaved edits and writes them at its new path', a
   expect(file.dirty).toBe(false)
 })
 
+/** A view of a.md whose path the test moves, as the tree would. */
+async function movingView(ws: FakeWorkspace) {
+  const where = create<{ path: string; entry: WorkspaceEntry }>(() => ({
+    path: 'a.md',
+    entry: undefined as unknown as WorkspaceEntry,
+  }))
+  where.setState({ entry: await entryAt(ws, 'a.md') })
+  function MovingView() {
+    const { path, entry } = where()
+    report(useTextFile({ client: ws.client, path, entry }))
+    return null
+  }
+  await render(<MovingView />)
+  await waitFor(() => file.text === 'one')
+  return async (path: string) => {
+    const entry = await entryAt(ws, path)
+    act(() => where.setState({ path, entry }))
+  }
+}
+
+test('a change at the new path that comes before the view sees the move is kept', async () => {
+  const ws = fakeWorkspace({ 'a.md': 'one' })
+  const moveView = await movingView(ws)
+  // The server rewrites the moved note's links: renamed, then changed.
+  await ws.client.rename('a.md', 'b.md')
+  await ws.external('b.md', 'one, links rewritten')
+  await moveView('b.md')
+  await waitFor(() => file.text === 'one, links rewritten')
+  expect(file).toMatchObject({ dirty: false, conflict: false })
+})
+
+test('a file follows its folder when the folder moves', async () => {
+  const ws = fakeWorkspace({ 'notes/a.md': 'one' })
+  const where = create<{ path: string }>(() => ({ path: 'notes/a.md' }))
+  const entry = await entryAt(ws, 'notes/a.md')
+  function FolderView() {
+    report(useTextFile({ client: ws.client, path: where().path, entry }))
+    return null
+  }
+  await render(<FolderView />)
+  await waitFor(() => file.text === 'one')
+  act(() => file.setText('mine'))
+  await ws.client.rename('notes', 'archive')
+  await act(() => file.flush())
+  await settle()
+  expect(ws.text('archive/a.md')).toBe('mine')
+})
+
 test('two views of one file share one set of edits', async () => {
   const ws = fakeWorkspace({ 'a.md': 'one' })
   const entry = await entryAt(ws, 'a.md')

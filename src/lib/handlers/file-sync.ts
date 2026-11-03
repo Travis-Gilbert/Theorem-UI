@@ -51,6 +51,14 @@ const touches = (event: WorkspaceEvent, path: string) =>
   ((event.type === 'changed' || event.type === 'created') &&
     event.entry.path === path)
 
+/** Where `path` is after `from` moved to `to`, if the move took it along. */
+const movedPath = (path: string, from: string, to: string) =>
+  path === from
+    ? to
+    : path.startsWith(`${from}/`)
+      ? to + path.slice(from.length)
+      : undefined
+
 type TextData = { text: string; hash: string }
 
 type SyncState = {
@@ -183,8 +191,9 @@ class TextFileSync {
 
   /**
    * The file was renamed or moved: its text is the same, now under `path`.
-   * Running it again for the same path changes nothing. The view that says so
-   * is rendering, so its listeners are not told; each view reads the path.
+   * Running it again for the same path changes nothing. The rename event says
+   * so first, so a change at the new path that follows it is not missed; the
+   * view says so again as it renders, and each view reads the path.
    */
   moveTo(path: string) {
     if (path === this.path) return
@@ -261,6 +270,12 @@ class TextFileSync {
   }
 
   onEvent = async (event: WorkspaceEvent) => {
+    // Before any await, so the events after it are read at the new path.
+    if (event.type === 'renamed') {
+      const moved = movedPath(this.path, event.from, event.to)
+      if (moved) this.moveTo(moved)
+      return
+    }
     if (!touches(event, this.path)) return
     // Our own write's event can overtake the write's reply.
     await this.mutex.waitForUnlock()
