@@ -1,5 +1,5 @@
 // SOURCING: @theoremharness/sdk — TheoremClient carries every request (its `fetch` passthrough the
-// operations the vendored 0.5.0 client has no method for), WorkspaceLive the resumable
+// operations the vendored client has no method for), WorkspaceLive the resumable
 // live stream (cursor = `<epoch>:<seq>`, a cursor the host cannot continue from becomes a resync),
 // DocumentSession shared editing, TerminalChannel the shell, WorkspaceLanguage and WorkspaceScm the
 // typed language and git calls. This file only holds one instance of each for the page and
@@ -313,7 +313,7 @@ export class WorkspaceConnection {
   }
 
   /**
-   * An operation the vendored SDK has no method for (0.5.0 predates `workspace.files.copy` and
+   * An operation the vendored SDK has no method for (0.6.0-alpha.3 has no `workspace.files.copy` or
    * `workspace.files.setMode`), sent the way its generated methods send one: through the same
    * transport, with the same headers, and a refusal thrown as the `TheoremError` they throw.
    */
