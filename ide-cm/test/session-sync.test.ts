@@ -12,6 +12,17 @@ afterEach(() => {
   for (const m of open.splice(0)) m.destroy()
 })
 
+/** Whether the promise settles within a second: a stranded buffer never flushes, and a save waits on it. */
+async function settles(promise: Promise<unknown>): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<false>((resolve) => (timer = setTimeout(() => resolve(false), 1000)))
+  try {
+    return await Promise.race([promise.then(() => true as const), late])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function editor(authority: Authority, options?: Parameters<typeof mount>[1]) {
   const { session, live } = await authority.open()
   const m = mount(session, options)
@@ -265,6 +276,24 @@ describe('revisions, stale bases and reconnect', () => {
     expect(b.text()).toBe('> one two')
     expect(a.text()).toBe('> one two')
     b.assertInStep()
+  })
+
+  test('a burst typed while the first edit is in flight reaches the host when our own live record beats the reply', async () => {
+    const authority = new Authority('x')
+    authority.replyAfterLive = true
+    const e = await editor(authority)
+    // The second edit is buffered behind the first, and the first's live record acknowledges it
+    // before the edit's reply returns: the order a real page saw under fast typing.
+    e.view.dispatch({ changes: { from: 0, insert: '// start ' }, userEvent: 'input.type' })
+    e.view.dispatch({ changes: { from: 10, insert: ' end' }, userEvent: 'input.type' })
+    expect(await settles(e.session.flushed())).toBe(true)
+    expect(authority.text).toBe('// start x end')
+    expect(e.sync.state()).toMatchObject({ pending: false, dirty: true })
+    e.assertInStep()
+    // Cmd+S: DocRegistry.save calls session.save(), which waits for the edits in flight first.
+    expect(await settles(e.session.save())).toBe(true)
+    expect(authority.saved).toBe(authority.revision)
+    expect(authority.disk).toBe('// start x end')
   })
 
   test('a reply lost after the host committed is not applied twice', async () => {

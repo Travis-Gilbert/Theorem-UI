@@ -43,6 +43,8 @@ export class Authority {
   saveRequests = 0
   /** Commit the next edit but fail its reply, as a dropped connection would. */
   dropNextReply = false
+  /** Hold each edit's reply until every live stream has delivered its record. */
+  replyAfterLive = false
   /** Edits the host refused after seeing them, by operation id. */
   readonly edits: { base: number; edits: Theorem.IdeTextEdit[] }[] = []
   readonly reconciles: { resource_id: string; keep: string; expected_revision: number }[] = []
@@ -101,6 +103,7 @@ export class Authority {
         if (request.base_revision !== this.revision) throw refusal('stale_revision')
         this.edits.push({ base: request.base_revision as number, edits: request.edits ?? [] })
         const record = this.commit(request.edits ?? [], request.operation_id as string)
+        if (this.replyAfterLive) await Promise.all(this.lives.map((live) => live.idle()))
         if (this.dropNextReply) {
           this.dropNextReply = false
           throw new Error('socket hang up')
