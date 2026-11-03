@@ -1,41 +1,41 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "tw-shimmer";
-@import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource-variable/ibm-plex-sans/wght-italic.css";
-@import "@fontsource-variable/jetbrains-mono";
-@import "dockview-react/dist/styles/dockview.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'tw-shimmer';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource-variable/ibm-plex-sans/wght-italic.css';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'dockview-react/dist/styles/dockview.css';
 @plugin "@tailwindcss/typography";
 
 /* Libron ships 400 and 700 with italics only; never synthesize other weights.
    Licensed under the SIL OFL 1.1 (src/assets/fonts/libron/OFL.txt). */
 @font-face {
-  font-family: "Libron";
+  font-family: 'Libron';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Regular.woff2") format("woff2");
+  src: url('./assets/fonts/libron/Libron-Regular.woff2') format('woff2');
 }
 @font-face {
-  font-family: "Libron";
+  font-family: 'Libron';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Bold.woff2") format("woff2");
+  src: url('./assets/fonts/libron/Libron-Bold.woff2') format('woff2');
 }
 @font-face {
-  font-family: "Libron";
+  font-family: 'Libron';
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Italic.woff2") format("woff2");
+  src: url('./assets/fonts/libron/Libron-Italic.woff2') format('woff2');
 }
 @font-face {
-  font-family: "Libron";
+  font-family: 'Libron';
   font-style: italic;
   font-weight: 700;
   font-display: swap;
-  src: url("./assets/fonts/libron/Libron-BoldItalic.woff2") format("woff2");
+  src: url('./assets/fonts/libron/Libron-BoldItalic.woff2') format('woff2');
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -206,7 +206,7 @@
 }
 
 /* Stone (DESIGN.md), the warm palette the app was authored in. */
-[data-palette="stone"] {
+[data-palette='stone'] {
   --surface-neutral: #b4b0ac;
   --surface-sidebar: #b0aca8;
   --surface-frame: #a9a4a1;
@@ -260,7 +260,7 @@
 }
 
 /* Stone's dark. */
-.dark[data-palette="stone"] {
+.dark[data-palette='stone'] {
   --surface-neutral: #121314;
   --surface-sidebar: #181919;
   --surface-frame: #0b0c0d;
@@ -315,7 +315,11 @@
   --dv-paneview-active-outline-color: var(--focus);
   --dv-tabs-and-actions-container-font-size: 13px;
   --dv-tabs-and-actions-container-height: 36px;
-  --dv-drag-over-background-color: color-mix(in srgb, var(--focus) 22%, transparent);
+  --dv-drag-over-background-color: color-mix(
+    in srgb,
+    var(--focus) 22%,
+    transparent
+  );
   --dv-drag-over-border-color: transparent;
   --dv-edge-dock-indicator-color: var(--focus);
   --dv-tabs-container-scrollbar-color: var(--line-control);
@@ -337,7 +341,9 @@
   --dv-drag-over-border: none;
   --dv-floating-group-dragging-opacity: 0.5;
   --dv-floating-titlebar-height: 22px;
-  --dv-floating-titlebar-background-color: var(--dv-tabs-and-actions-container-background-color);
+  --dv-floating-titlebar-background-color: var(
+    --dv-tabs-and-actions-container-background-color
+  );
   --dv-floating-titlebar-border-bottom: var(--dv-floating-border);
   --dv-floating-box-shadow: var(--shadow-popover);
   --dv-floating-border: 1px solid var(--line-separator);
@@ -371,7 +377,11 @@
   --dv-inactivegroup-hiddenpanel-tab-color: var(--ink-faint);
   --dv-separator-border: var(--line-separator);
   --dv-paneview-header-border-color: var(--line-separator);
-  --dv-scrollbar-background-color: color-mix(in srgb, var(--ink) 25%, transparent);
+  --dv-scrollbar-background-color: color-mix(
+    in srgb,
+    var(--ink) 25%,
+    transparent
+  );
 }
 
 .dockview-theme-theorem .dv-resize-container {
@@ -380,7 +390,11 @@
 
 /* The sheet's split (chat-shell.tsx) draws its divider on the dock's edge;
    with the panel closed the dock meets the rail, and the divider goes too. */
-.sheet-split > .dv-split-view-container > .dv-view-container > .dv-view:not(.visible) + .dv-view::before {
+.sheet-split
+  > .dv-split-view-container
+  > .dv-view-container
+  > .dv-view:not(.visible)
+  + .dv-view::before {
   display: none;
 }
 
@@ -450,9 +464,13 @@
   --color-term-gold: #d6bc8a;
   --color-term-error: #e08a8f;
 
-  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Libron", ui-serif, Georgia, serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans:
+    'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui,
+    sans-serif;
+  --font-heading: 'Libron', ui-serif, Georgia, serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular,
+    monospace;
 
   /* Geometry: control/row 6, popover 8, sheet 12, artifact 14, frame/composer 16. */
   --radius-sm: 4px;
@@ -462,11 +480,17 @@
   --radius-artifact: 14px;
   --radius-2xl: 16px;
 
-  --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
+  --shadow-composer:
+    0 1px 3px rgb(var(--shadow-tint) / 0.1),
+    0 6px 18px rgb(var(--shadow-tint) / 0.07);
   --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
-  --shadow-pill: 0 1px 2px rgb(var(--shadow-tint) / 0.14), 0 2px 8px rgb(var(--shadow-tint) / 0.08);
+  --shadow-pill:
+    0 1px 2px rgb(var(--shadow-tint) / 0.14),
+    0 2px 8px rgb(var(--shadow-tint) / 0.08);
   /* The sheet sits on the rail; the junction's tab casts the same shadow. */
-  --shadow-sheet: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 4px 16px rgb(var(--shadow-tint) / 0.16);
+  --shadow-sheet:
+    0 1px 2px rgb(var(--shadow-tint) / 0.12),
+    0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
   --spacing-rail: 44px;
   --spacing-sidebar: 256px;
@@ -478,12 +502,18 @@
       height: 0;
     }
     to {
-      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
     }
   }
   @keyframes collapsible-up {
     from {
-      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
     }
     to {
       height: 0;
@@ -662,7 +692,7 @@
   }
 
   button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
+  [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
 
@@ -670,17 +700,17 @@
      ease-* or duration-* utility on the element still wins. Matched by
      substring so variant forms like data-open:animate-in count too. A popup
      that carries both takes the exit curve only while it is closing. */
-  [class*="animate-in"] {
+  [class*='animate-in'] {
     --tw-ease: var(--ease-snap);
     --tw-duration: var(--duration-snap);
   }
 
-  [class*="animate-out"]:not([class*="animate-in"]),
-  [class*="animate-out"]:is(
-      [data-state="closed"],
-      [data-closed],
-      [data-ending-style]
-    ) {
+  [class*='animate-out']:not([class*='animate-in']),
+  [class*='animate-out']:is(
+    [data-state='closed'],
+    [data-closed],
+    [data-ending-style]
+  ) {
     --tw-ease: var(--ease-exit);
     --tw-duration: var(--duration-exit);
   }
@@ -703,7 +733,11 @@
    edge, or with an explicit background position. */
 @utility bg-sheet {
   background-color: var(--sheet-to);
-  background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+  background-image: linear-gradient(
+    to bottom,
+    var(--sheet-from),
+    var(--sheet-to)
+  );
   background-size: 100% var(--sheet-h, 100dvh);
   background-repeat: no-repeat;
 }
@@ -740,7 +774,11 @@
    A hover or state colour set with text-* still paints over the fill. */
 @utility text-ink-faint-sheet {
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--ink-faint-top), var(--ink-faint-bottom));
+  background-image: linear-gradient(
+    to bottom,
+    var(--ink-faint-top),
+    var(--ink-faint-bottom)
+  );
   background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
@@ -777,7 +815,7 @@
    within the rail; registering it lets the tab and its corners slide as one,
    each re-sampling the gradient at its own height as it moves. */
 @property --rail-y {
-  syntax: "<length>";
+  syntax: '<length>';
   inherits: true;
   initial-value: 0px;
 }
@@ -792,13 +830,24 @@
   /* The tab is part of the sheet, so it casts the sheet's shadow onto the
      rail. The clip stops at the sheet's edge, where the sheet paints its own. */
   filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18))
-    drop-shadow(0 0 5px color-mix(in srgb, var(--glow-from), var(--glow-to) calc(var(--rail-t, 0) * 100%)));
+    drop-shadow(
+      0 0 5px
+        color-mix(
+          in srgb,
+          var(--glow-from),
+          var(--glow-to) calc(var(--rail-t, 0) * 100%)
+        )
+    );
   clip-path: inset(-24px 0 -24px -24px);
 
   & > * {
     position: absolute;
     right: 0;
-    background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+    background-image: linear-gradient(
+      to bottom,
+      var(--sheet-from),
+      var(--sheet-to)
+    );
     background-size: 100% var(--sheet-h, 100dvh);
     background-repeat: no-repeat;
   }
@@ -824,13 +873,25 @@
 }
 
 .box-rim {
-  clip-path: polygon(evenodd, 50% -4%, 104% 23%, 50% 48%, -4% 23%, 50% -4%, 50% 6%, 10% 23%, 50% 40%, 90% 23%, 50% 6%);
+  clip-path: polygon(
+    evenodd,
+    50% -4%,
+    104% 23%,
+    50% 48%,
+    -4% 23%,
+    50% -4%,
+    50% 6%,
+    10% 23%,
+    50% 40%,
+    90% 23%,
+    50% 6%
+  );
 }
 
 /* --flap is how far the flaps have turned up about their hinges, 0deg shut.
    Both carry the seam's stroke, so neither opens to a bare edge. */
 @property --flap {
-  syntax: "<angle>";
+  syntax: '<angle>';
   inherits: true;
   initial-value: 0deg;
 }
@@ -845,7 +906,9 @@
   transition-property: --flap;
   transform: matrix(
     calc(0.5 + 0.5 * cos(var(--flap))),
-    calc(0.2292 * (cos(var(--flap)) - 1) - 0.55 * var(--side) * sin(var(--flap))),
+    calc(
+      0.2292 * (cos(var(--flap)) - 1) - 0.55 * var(--side) * sin(var(--flap))
+    ),
     calc(1.0909 * (cos(var(--flap)) - 1)),
     calc(0.5 + 0.5 * cos(var(--flap)) - 1.2 * var(--side) * sin(var(--flap))),
     0,
@@ -853,12 +916,12 @@
   );
 }
 
-.box-flap[data-flap="back"] {
+.box-flap[data-flap='back'] {
   clip-path: polygon(50% -4%, 82.2% 12.1%, 27% 37.4%, -4% 23%);
   transform-origin: 2% 23%;
 }
 
-.box-flap[data-flap="front"] {
+.box-flap[data-flap='front'] {
   --side: -1;
   clip-path: polygon(74.1% 8%, 104% 23%, 50% 48%, 18.6% 33.5%);
   transform-origin: 50% 44%;
@@ -872,7 +935,7 @@
 
 /* The first destination's tab meets the sheet's top edge: it has no upper
    corner, and the sheet squares its own corner to continue into the tab. */
-.rail-junction[data-flush] .rail-junction-corner[data-edge="top"] {
+.rail-junction[data-flush] .rail-junction-corner[data-edge='top'] {
   display: none;
 }
 
@@ -888,16 +951,26 @@
   width: var(--junction-corner);
   height: var(--junction-corner);
 
-  &[data-edge="top"] {
+  &[data-edge='top'] {
     top: calc(var(--rail-y) - var(--junction-corner));
-    background-position: 0 calc(var(--sheet-inset) - var(--rail-y) + var(--junction-corner));
-    mask: radial-gradient(circle at 0 0, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
+    background-position: 0
+      calc(var(--sheet-inset) - var(--rail-y) + var(--junction-corner));
+    mask: radial-gradient(
+      circle at 0 0,
+      transparent calc(var(--junction-corner) - 0.5px),
+      #000 calc(var(--junction-corner) + 0.5px)
+    );
   }
 
-  &[data-edge="bottom"] {
+  &[data-edge='bottom'] {
     top: calc(var(--rail-y) + var(--junction-item));
-    background-position: 0 calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
-    mask: radial-gradient(circle at 0 100%, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
+    background-position: 0
+      calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
+    mask: radial-gradient(
+      circle at 0 100%,
+      transparent calc(var(--junction-corner) - 0.5px),
+      #000 calc(var(--junction-corner) + 0.5px)
+    );
   }
 
   /* Without CSS masks (Servo 0.7) a corner would paint as a square. */
@@ -1022,12 +1095,18 @@
 /* A heading that opens the note already has the editor's padding above it.
    Crepe puts its widget and, once focused, its virtual cursor ahead of the
    first block, so the first block is the first child that is neither. */
-.theorem-note .milkdown .ProseMirror
+.theorem-note
+  .milkdown
+  .ProseMirror
   > :first-child:not(.ProseMirror-widget, .prosemirror-virtual-cursor),
-.theorem-note .milkdown .ProseMirror
+.theorem-note
+  .milkdown
+  .ProseMirror
   > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
   + :not(.ProseMirror-widget, .prosemirror-virtual-cursor),
-.theorem-note .milkdown .ProseMirror
+.theorem-note
+  .milkdown
+  .ProseMirror
   > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
   + :is(.ProseMirror-widget, .prosemirror-virtual-cursor)
   + * {
@@ -1166,19 +1245,44 @@
   background: rgb(var(--callout) / 0.1);
 }
 
-.theorem-callout:is([data-callout='abstract'], [data-callout='summary'], [data-callout='tldr'], [data-callout='tip'], [data-callout='hint'], [data-callout='important']) {
+.theorem-callout:is(
+  [data-callout='abstract'],
+  [data-callout='summary'],
+  [data-callout='tldr'],
+  [data-callout='tip'],
+  [data-callout='hint'],
+  [data-callout='important']
+) {
   --callout: 0 191 188;
 }
 
-.theorem-callout:is([data-callout='success'], [data-callout='check'], [data-callout='done']) {
+.theorem-callout:is(
+  [data-callout='success'],
+  [data-callout='check'],
+  [data-callout='done']
+) {
   --callout: 8 185 78;
 }
 
-.theorem-callout:is([data-callout='question'], [data-callout='help'], [data-callout='faq'], [data-callout='warning'], [data-callout='caution'], [data-callout='attention']) {
+.theorem-callout:is(
+  [data-callout='question'],
+  [data-callout='help'],
+  [data-callout='faq'],
+  [data-callout='warning'],
+  [data-callout='caution'],
+  [data-callout='attention']
+) {
   --callout: 236 117 0;
 }
 
-.theorem-callout:is([data-callout='failure'], [data-callout='fail'], [data-callout='missing'], [data-callout='danger'], [data-callout='error'], [data-callout='bug']) {
+.theorem-callout:is(
+  [data-callout='failure'],
+  [data-callout='fail'],
+  [data-callout='missing'],
+  [data-callout='danger'],
+  [data-callout='error'],
+  [data-callout='bug']
+) {
   --callout: 233 49 71;
 }
 
@@ -1226,7 +1330,11 @@
   cursor: pointer;
 }
 
-.theorem-note .milkdown .theorem-callout-title button[aria-expanded='false'] svg {
+.theorem-note
+  .milkdown
+  .theorem-callout-title
+  button[aria-expanded='false']
+  svg {
   transform: rotate(-90deg);
 }
 
@@ -1352,10 +1460,18 @@
   --xy-connectionline-stroke: var(--focus);
   --xy-handle-background-color: var(--surface-raised);
   --xy-handle-border-color: var(--line-control);
-  --xy-selection-background-color: color-mix(in srgb, var(--focus) 10%, transparent);
+  --xy-selection-background-color: color-mix(
+    in srgb,
+    var(--focus) 10%,
+    transparent
+  );
   --xy-selection-border: 1px dotted var(--focus);
   --xy-minimap-background-color: var(--surface-raised);
-  --xy-minimap-mask-background-color: color-mix(in srgb, var(--surface-frame) 60%, transparent);
+  --xy-minimap-mask-background-color: color-mix(
+    in srgb,
+    var(--surface-frame) 60%,
+    transparent
+  );
   --xy-minimap-node-background-color: var(--surface-selected);
   --xy-minimap-node-stroke-color: transparent;
   --xy-controls-button-background-color: var(--surface-raised);
