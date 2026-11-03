@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link
+// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link, the ⌘K palette and the model preferences sync mounted with the shell
 import {
   createFileRoute,
   Outlet,
@@ -7,12 +7,14 @@ import {
 } from '@tanstack/react-router'
 import { useCallback, useEffect } from 'react'
 import { ChatShell, ShellStatus } from '@/components/shell/chat-shell'
+import { CommandPalette } from '@/components/shell/command-palette'
 import { useShellMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { buttonVariants } from '@/components/ui/button'
 import { describeError, isSignedOut } from '@/lib/theorem/client'
 import { signInHref } from '@/lib/theorem/sign-in'
+import { PreferencesSync } from '@/lib/theorem/models'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 
 export const Route = createFileRoute('/_chat')({
@@ -60,6 +62,8 @@ function ChatLayout() {
       onThreadIdChange={onThreadIdChange}
     >
       <ChatShell projectId={project.projectId} threadId={openThreadId} />
+      <CommandPalette />
+      <PreferencesSync />
       <Outlet />
     </TheoremRuntimeProvider>
   )

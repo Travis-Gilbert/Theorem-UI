@@ -1,5 +1,6 @@
-// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out), @tanstack/react-router Link (to settings), the command palette's open state
 import { Menu } from '@base-ui/react/menu'
+import { Link } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -16,6 +17,7 @@ import {
 import { MODES, useOpenMode, useShellMode } from './modes'
 import type { ShellMode } from './modes'
 import { useTenant } from './projects'
+import { useCommandPalette } from './command-palette'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
 
@@ -60,6 +62,22 @@ function AccountMenu() {
                 <Menu.Separator className="my-1 h-px bg-separator" />
               </>
             )}
+            <Menu.Item
+              className={menuItem}
+              render={<Link to="/settings" />}
+            >
+              <Icon.Settings className="size-4 text-ink-muted" />
+              <span className="min-w-0 flex-1">Settings</span>
+            </Menu.Item>
+            <Menu.Item
+              className={menuItem}
+              onClick={() => useCommandPalette.getState().setOpen(true)}
+            >
+              <Icon.Search className="size-4 text-ink-muted" />
+              <span className="min-w-0 flex-1">Search</span>
+              <span className="text-xs text-ink-faint">⌘K</span>
+            </Menu.Item>
+            <Menu.Separator className="my-1 h-px bg-separator" />
             <Menu.Group>
               <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
                 Theme

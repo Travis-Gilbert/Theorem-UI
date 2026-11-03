@@ -36,6 +36,7 @@ import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { mutate, mutateThread, theorem } from './client'
 import type { Theorem } from './client'
+import { pickedModelTurnOptions } from './models'
 
 const TERMINAL = new Set(['RUN.CLOSED', 'RUN.FAILED', 'RUN.CANCELLED'])
 
@@ -328,7 +329,8 @@ function useTheoremThreadRuntime() {
     () => ({
       async *run(options) {
         const { remoteId } = await aui.threadListItem.initialize()
-        yield* runTurn(remoteId, options)
+        // The composer's model pick; read at each send, so switching mid-thread takes effect.
+        yield* runTurn(remoteId, options, pickedModelTurnOptions)
       },
     }),
     [aui],

@@ -27,6 +27,7 @@ import {
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
 import { COMPOSER_TOOLTIP_DELAY, ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
+import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -542,6 +543,7 @@ const ComposerAction: FC = () => {
       <div className="flex items-center gap-1">
         <ComposerAddAttachment />
         <ComposerTools />
+        <ModelPicker />
       </div>
       <div className="absolute end-(--composer-padding) top-(--composer-padding) flex items-center gap-1.5">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
