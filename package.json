@@ -90,6 +90,7 @@
     "esbuild-wasm": "0.28.2",
     "fdir": "6.5.0",
     "filenamify": "7.0.3",
+    "framer-motion": "14.4.0",
     "fuzzysort": "4.0.2",
     "honeycomb-grid": "4.1.5",
     "iron-session": "^9.0.1",
