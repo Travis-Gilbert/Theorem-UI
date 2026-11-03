@@ -1,6 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { useShell } from '@/components/shell/shell-state'
 
-// Vault mode; the _chat layout renders the shell and keeps the last chat open.
+// The Vault was a mode of its own; its files are now the navigator's, beside
+// the conversation, so an old link shows them there.
 export const Route = createFileRoute('/_chat/vault')({
-  component: () => null,
+  beforeLoad: () => {
+    useShell.getState().setPanelOpen('chat', true)
+    useShell.getState().setFilesShown(true)
+    throw redirect({ to: '/' })
+  },
 })

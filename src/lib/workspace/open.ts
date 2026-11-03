@@ -64,31 +64,26 @@ type WorkspaceFileView = {
   file: WorkspaceFileRef | undefined
   /** Set while the desktop dock is mounted. */
   dock: WorkspaceFileDock | undefined
-  /** Set while the Vault is showing; it takes files before the dock. */
-  vault: WorkspaceFileDock | undefined
   close: () => void
 }
 
 export const useWorkspaceFileView = create<WorkspaceFileView>()((set) => ({
   file: undefined,
   dock: undefined,
-  vault: undefined,
   close: () => set({ file: undefined }),
 }))
 
 /**
- * Opens a workspace file in the Vault when it is showing, else in the dock,
- * else over the conversation on a phone. A file that took the place of the
- * one at `replacing` (another entry, perhaps at the same path) opens where
- * that one is open.
+ * Opens a workspace file in the dock, else over the conversation on a phone.
+ * A file that took the place of the one at `replacing` (another entry,
+ * perhaps at the same path) opens where that one is open.
  */
 export function openWorkspaceFile(
   target: WorkspaceFileTarget,
   replacing?: string,
 ) {
   const file = fileRef(target)
-  const { vault, dock } = useWorkspaceFileView.getState()
-  if (vault) vault.open(file, replacing)
-  else if (dock) dock.open(file, replacing)
+  const { dock } = useWorkspaceFileView.getState()
+  if (dock) dock.open(file, replacing)
   else useWorkspaceFileView.setState({ file })
 }

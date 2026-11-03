@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, NotePanel (Milkdown Crepe), WorkspaceFilePanel, the IDE frame (browser-only Theia), Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, note view, workspace file view, saved layouts and the drawers
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, NotePanel (Milkdown Crepe), WorkspaceFilePanel, the inspector's panels (the graph via React.lazy, so cosmos.gl loads only when it opens), the arrangements, the IDE frame (browser-only Theia), Base UI Menu (the panels menu: arrangements, the inspector, the terminal drawers), zustand stores for artifact view, note view, workspace file view, the inspected file, saved layouts and the drawers
 import { useAuiState } from '@assistant-ui/react'
 import { Menu } from '@base-ui/react/menu'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
@@ -10,12 +10,28 @@ import type {
   IDockviewPanelHeaderProps,
   IDockviewPanelProps,
 } from 'dockview-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import {
+  LinksPanel,
+  OutlinePanel,
+} from '@/components/inspector/inspector-panels'
+import {
+  INSPECTOR_TOOLS,
+  useInspectedFile,
+} from '@/components/inspector/inspector-state'
+import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
@@ -26,9 +42,13 @@ import {
 } from '@/components/workspace/workspace-file-panel'
 import { useNote } from '@/lib/theorem/notes'
 import { useFileDock } from '@/lib/theorem/project-files'
-import { useWorkspaceFileView } from '@/lib/workspace/open'
+import { sameFile, useWorkspaceFileView } from '@/lib/workspace/open'
+import type { WorkspaceFileRef } from '@/lib/workspace/open'
+import { ARRANGEMENTS, THREAD, addInspector, arrange } from './arrangements'
+import type { Arrangement } from './arrangements'
 import { FilePanel } from './file-panel'
-import { ModeView, modeLabel, useShellMode } from './modes'
+import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
+import type { ShellMode } from './modes'
 import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
@@ -38,7 +58,6 @@ import { IdeFrame } from '@/components/ide/ide-frame'
 import { flyGhost, popIn } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
-const THREAD = 'thread'
 const ARTIFACT = 'artifact:'
 const NOTE = 'note-panel:'
 
@@ -145,8 +164,29 @@ function NoteDockPanel({
   return <NotePanel documentId={params.documentId} />
 }
 
+const GraphPanel = lazy(() =>
+  import('@/components/inspector/graph-panel').then((module) => ({
+    default: module.GraphPanel,
+  })),
+)
+
+/** The inspector's panels draw on the surface the files beside them do. */
+const inspector = (Panel: React.ComponentType) =>
+  function InspectorPanel() {
+    return (
+      <div className="relative h-full bg-artifact">
+        <Suspense>
+          <Panel />
+        </Suspense>
+      </div>
+    )
+  }
+
 const components = {
   thread: ThreadPanel,
+  outline: inspector(OutlinePanel),
+  links: inspector(LinksPanel),
+  graph: inspector(GraphPanel),
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
   ide: IdeFrame,
   artifact: ArtifactDockPanel,
@@ -177,12 +217,53 @@ function FollowToggle() {
     </TooltipIconButton>
   )
 }
+const fileOf = (panel: {
+  view: { contentComponent: string }
+  params?: unknown
+}) =>
+  panel.view.contentComponent === WORKSPACE_FILE_COMPONENT
+    ? (panel.params as WorkspaceFileRef)
+    : undefined
+
+/** Lays the dock out as `arrangement` and opens, closes or fills the navigator. */
+export function arrangeWorkspace(
+  api: DockviewApi,
+  arrangement: Arrangement,
+  mode: ShellMode,
+) {
+  const { navigator } = arrange(api, arrangement)
+  const shell = useShell.getState()
+  shell.setPanelOpen(navigatorMode(mode), navigator !== 'closed')
+  if (navigator === 'files') shell.setFilesShown(true)
+}
+
+/** Which inspector panels the dock holds, kept current with its layout. */
+function useShownInspector(api: DockviewApi) {
+  const shown = useSyncExternalStore(subscribe(api.onDidLayoutChange), () =>
+    (Object.keys(INSPECTOR_TOOLS) as Array<InspectorTool>)
+      .filter((id) => api.getPanel(id))
+      .join(' '),
+  )
+  return new Set(shown.split(' '))
+}
+
 /**
- * Opens a drawer beside the conversation: the terminal, on the right or at
- * the bottom, and later other tools. New chat lives in the sidebar.
+ * The conversation's panels menu: the arrangements, the inspector beside the
+ * files, and the terminal drawers. New chat lives in the sidebar.
  */
-function GroupActions({ panels }: IDockviewHeaderActionsProps) {
+function GroupActions({ panels, containerApi }: IDockviewHeaderActionsProps) {
   if (!panels.some((panel) => panel.id === THREAD)) return null
+  return <PanelsMenu api={containerApi} />
+}
+
+function PanelsMenu({ api }: { api: DockviewApi }) {
+  const mode = useShellMode()
+  const shown = useShownInspector(api)
+  const toggle = (tool: InspectorTool) => {
+    const panel = api.getPanel(tool)
+    if (panel) api.removePanel(panel)
+    else addInspector(api, tool)
+  }
   return (
     <div className="flex h-full items-center pe-1">
       <FollowToggle />
@@ -200,6 +281,46 @@ function GroupActions({ panels }: IDockviewHeaderActionsProps) {
         <Menu.Portal>
           <Menu.Positioner align="end" sideOffset={6} className="z-50">
             <Menu.Popup className={`min-w-52 ${menuPopup}`}>
+              <Menu.Group>
+                <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                  Arrange
+                </Menu.GroupLabel>
+                {(Object.keys(ARRANGEMENTS) as Array<Arrangement>).map(
+                  (arrangement) => (
+                    <Menu.Item
+                      key={arrangement}
+                      className={menuItem}
+                      onClick={() => arrangeWorkspace(api, arrangement, mode)}
+                    >
+                      {ARRANGEMENTS[arrangement]}
+                    </Menu.Item>
+                  ),
+                )}
+              </Menu.Group>
+              <Menu.Separator className="my-1 h-px bg-separator" />
+              <Menu.Group>
+                <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                  Inspector
+                </Menu.GroupLabel>
+                {(Object.keys(INSPECTOR_TOOLS) as Array<InspectorTool>).map(
+                  (tool) => (
+                    <Menu.CheckboxItem
+                      key={tool}
+                      className={menuItem}
+                      checked={shown.has(tool)}
+                      onCheckedChange={() => toggle(tool)}
+                    >
+                      <span className="flex size-4 items-center justify-center">
+                        <Menu.CheckboxItemIndicator>
+                          <Icon.Check className="size-3.5" />
+                        </Menu.CheckboxItemIndicator>
+                      </span>
+                      {INSPECTOR_TOOLS[tool]}
+                    </Menu.CheckboxItem>
+                  ),
+                )}
+              </Menu.Group>
+              <Menu.Separator className="my-1 h-px bg-separator" />
               <Menu.Item
                 className={menuItem}
                 onClick={() => useShell.getState().setSideDrawer('terminal')}
@@ -425,14 +546,31 @@ export function DockShell({
       },
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
+    // The inspector follows the file in front: the active file tab, else the
+    // first one open; it stays while another panel has focus.
+    const inspect = () => {
+      const front = dock.activePanel && fileOf(dock.activePanel)
+      const shown = useInspectedFile.getState().file
+      const stillOpen = dock.panels.some((panel) => {
+        const file = fileOf(panel)
+        return file && shown && sameFile(file, shown)
+      })
+      useInspectedFile.setState({
+        file:
+          front ?? (stillOpen ? shown : dock.panels.map(fileOf).find(Boolean)),
+      })
+    }
+    inspect()
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
         if (artifactId) useArtifactView.getState().focused(artifactId)
+        inspect()
       }),
       dock.onDidRemovePanel((panel) => {
         const artifactId = artifactIdOf(panel.id)
         if (artifactId) useArtifactView.getState().closed(artifactId)
+        inspect()
       }),
       dock.onDidLayoutChange(save),
       ...springMaximize(dock),

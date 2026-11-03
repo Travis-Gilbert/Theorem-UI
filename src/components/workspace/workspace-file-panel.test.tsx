@@ -91,7 +91,7 @@ afterAll(() => {
 afterEach(() => {
   cleanup()
   client = undefined
-  useWorkspaceFileView.setState({ file: undefined, vault: undefined })
+  useWorkspaceFileView.setState({ file: undefined, dock: undefined })
 })
 
 /** Opens the file at `path`, by its entry's id as the dock does. */
@@ -337,7 +337,7 @@ describe('with the built-in handlers', () => {
       },
     } as unknown as TheoremAbilities
     const opened = mock((_file: WorkspaceFileRef, _replacing?: string) => {})
-    useWorkspaceFileView.setState({ vault: { open: opened } })
+    useWorkspaceFileView.setState({ dock: { open: opened } })
     return {
       ws: {
         ...ws,
