@@ -22,7 +22,7 @@ import type { VaultTool } from './vault-state'
 export const START = 'start'
 
 /** The side columns' widths in the default layout, as Obsidian's. */
-const FILES_WIDTH = 260
+const FILES_WIDTH = 300
 const SIDE_WIDTH = 320
 
 export const filePanels = (api: DockviewApi) =>

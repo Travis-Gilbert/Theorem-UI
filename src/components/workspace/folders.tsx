@@ -1,4 +1,5 @@
-// SOURCING: Base UI Collapsible (each folder folds) and Menu (a folder's own
+// SOURCING: Base UI Collapsible (each folder folds, its row marked as the
+// tree's rows are, by the filesystem-item component) and Menu (a folder's own
 // commands, styled as the project switcher's), the assistant-ui
 // TooltipIconButton (Search, Open folder), WorkspaceTree (@headless-tree/react),
 // the workspace hooks (react-query over the desktop workspace routes and the
@@ -10,6 +11,7 @@ import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-ic
 import { Icon } from '@/components/icons'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { FilesystemMarks } from '@/components/ui/filesystem-item'
 import { hostActions } from '@/lib/handlers/actions'
 import { signInHref, useSignInConfigured } from '@/lib/theorem/sign-in'
 import { cn } from '@/lib/utils'
@@ -53,18 +55,20 @@ function WorkspaceSection({
       <div className="group/title relative flex items-center">
         <Collapsible.Trigger
           title={workspace.path || undefined}
-          className="group/folder flex h-7 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-sm font-medium transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+          className="flex h-8 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-base font-medium transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
         >
-          <Icon.Next
-            aria-hidden="true"
-            className="size-2.5 shrink-0 text-ink-faint transition-transform duration-150 group-data-panel-open/folder:rotate-90"
+          <FilesystemMarks
+            folder
+            open={open}
+            icon={
+              client.theorem && (
+                <Icon.TheoremVault
+                  aria-hidden="true"
+                  className="size-6 shrink-0 text-ink-muted"
+                />
+              )
+            }
           />
-          {client.theorem && (
-            <Icon.TheoremVault
-              aria-hidden="true"
-              className="size-3.5 shrink-0 text-ink-faint"
-            />
-          )}
           <span className="min-w-0 truncate">{name}</span>
         </Collapsible.Trigger>
         <Menu.Root>
@@ -155,7 +159,7 @@ function WorkspaceSection({
 }
 
 const groupLabel =
-  'flex h-7 items-center ps-2 pe-1 text-xs text-ink-faint-sheet'
+  'flex h-8 items-center ps-2 pe-1 text-sm text-ink-faint-sheet'
 
 /** Home while there is no Theorem vault to show. */
 function HomeAbsent() {
@@ -203,7 +207,7 @@ export function FoldersSection({ fill = false }: { fill?: boolean }) {
         fill ? 'flex-1' : 'max-h-[50%] shrink-0 border-t border-separator',
       )}
     >
-      <div className="flex h-9 shrink-0 items-center ps-3.5 pe-2 text-xs font-medium text-ink-faint-sheet">
+      <div className="flex h-10 shrink-0 items-center ps-3.5 pe-2 text-sm font-medium text-ink-faint-sheet">
         <h2 className="flex-1">Files</h2>
         {workspaces.length > 0 && (
           <TooltipIconButton

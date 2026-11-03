@@ -65,7 +65,7 @@ test('the Vault starts as Obsidian does: files, the empty tab, outline and links
     ['outline', 'links'],
     ['graph'],
   ])
-  expect(widthOf(api, 'files')).toBe(260)
+  expect(widthOf(api, 'files')).toBe(300)
   expect(widthOf(api, 'outline')).toBe(320)
   // The graph sits below the tabs, in the same right-hand column.
   expect(widthOf(api, 'graph')).toBe(320)
