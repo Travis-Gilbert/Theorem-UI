@@ -35,12 +35,6 @@ type ShellState = {
    */
   filesShown: boolean
   /**
-   * Whether something outside the shell, such as an old Vault link, asked to
-   * show the files. The phone's drawer opens on it and clears it. Not
-   * persisted.
-   */
-  filesRequested: boolean
-  /**
    * Conversation chat mode last showed; undefined for a new chat. Spaces and
    * the IDE keep it open behind them, so switching back returns to it. Not
    * persisted: a reload starts from the URL.
@@ -70,9 +64,6 @@ type ShellState = {
   togglePanel: (mode: ShellMode) => void
   setPanelOpen: (mode: ShellMode, open: boolean) => void
   setFilesShown: (shown: boolean) => void
-  /** Shows the files in the navigator, wherever the navigator is. */
-  showFiles: () => void
-  setFilesRequested: (requested: boolean) => void
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
   setTerminalOpen: (open: boolean) => void
@@ -104,7 +95,6 @@ export const useShell = create<ShellState>()(
       panelWidth: PANEL_WIDTH.default,
       panelCollapsed: {},
       filesShown: false,
-      filesRequested: false,
       chatThreadId: undefined,
       explorerOpen: true,
       terminalOpen: false,
@@ -130,13 +120,6 @@ export const useShell = create<ShellState>()(
           panelCollapsed: { ...s.panelCollapsed, [mode]: !open },
         })),
       setFilesShown: (filesShown) => set({ filesShown }),
-      showFiles: () =>
-        set((s) => ({
-          panelCollapsed: { ...s.panelCollapsed, chat: false },
-          filesShown: true,
-          filesRequested: true,
-        })),
-      setFilesRequested: (filesRequested) => set({ filesRequested }),
       setChatThreadId: (chatThreadId) => set({ chatThreadId }),
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
