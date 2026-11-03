@@ -44,7 +44,6 @@ import {
   formatAggregate,
 } from './aggregate'
 import type { AggregateOp } from './aggregate'
-import { recordWritesUnavailable } from './api'
 import type { DataModel, FieldSpec, ObjectType, RecordRow } from './contract'
 import {
   FieldDisplay,
@@ -61,6 +60,7 @@ import {
   flattenRows,
   useCreateRecord,
   useDeleteRecords,
+  useRecordWrites,
   useRecords,
   useRelationTitleOf,
   useUpdateRecord,
@@ -118,6 +118,9 @@ export function RecordTable({
   const update = useUpdateRecord(objectType)
   const create = useCreateRecord(objectType)
   const remove = useDeleteRecords(objectType)
+  const writes = useRecordWrites()
+  const writable = writes === true
+  const editable = (field: FieldSpec) => writable && isEditable(field)
   const titleOf = useRelationTitleOf(model, objectType)
 
   const identifier = identifierField(objectType)
@@ -347,7 +350,7 @@ export function RecordTable({
   const startEdit = (rowIndex: number, col: string, typed?: string) => {
     const row = shown[rowIndex]?.original
     const field = fieldOf.get(col)
-    if (!row || !field || !isEditable(field)) return
+    if (!row || !field || !editable(field)) return
     const kind = field.field_type.kind
     if (KIND[kind].edit === 'toggle') {
       write(row, field, !(row.values[field.key] === true))
@@ -404,7 +407,7 @@ export function RecordTable({
       table.resetRowSelection()
     } else if (event.key === 'Backspace' || event.key === 'Delete') {
       const field = fieldOf.get(focus.col)
-      if (row && field && isEditable(field)) {
+      if (row && field && editable(field)) {
         event.preventDefault()
         write(row, field, field.field_type.kind === 'enum_many' ? [] : null)
       }
@@ -517,13 +520,15 @@ export function RecordTable({
                 >
                   <Icon.Download /> Export
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Icon.Delete /> Delete
-                </Button>
+                {writable && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Icon.Delete /> Delete
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -583,15 +588,19 @@ export function RecordTable({
           </div>
         </div>
 
+        {writes === false && (
+          <p className="text-xs text-ink-muted">
+            Read only: this Theorem cannot write records yet.
+          </p>
+        )}
+
         {writeError !== null && (
           <div
             role="alert"
             className="flex items-start gap-3 rounded-lg border border-ochre/40 bg-ochre/8 px-3 py-2 text-sm"
           >
             <p className="min-w-0 flex-1">
-              {recordWritesUnavailable(writeError)
-                ? 'This Theorem cannot write records yet: its GraphQL schema has no invokeRecordVerb mutation. Your change was not saved.'
-                : `Theorem did not save that change. ${describeError(writeError)}`}
+              Theorem did not save that change. {describeError(writeError)}
             </p>
             <button
               type="button"
@@ -731,8 +740,13 @@ export function RecordTable({
                   <EmptyState title={`No ${label} found`} />
                 ) : (
                   <EmptyState
-                    title={`Add your first ${objectType.label_singular}`}
+                    title={
+                      writable
+                        ? `Add your first ${objectType.label_singular}`
+                        : `No ${label} yet`
+                    }
                     action={
+                      writable &&
                       identifier && (
                         <Button
                           variant="outline"
@@ -863,7 +877,7 @@ export function RecordTable({
                                     model={model}
                                     onOpenRelated={onOpenRelated}
                                     onToggle={
-                                      isEditable(field)
+                                      editable(field)
                                         ? (value) => write(record, field, value)
                                         : undefined
                                     }
@@ -907,7 +921,8 @@ export function RecordTable({
               )}
 
               {/* Add New */}
-              {identifier &&
+              {writable &&
+                identifier &&
                 !records.isPending &&
                 (shown.length > 0 || draft !== null) && (
                   <div
@@ -974,6 +989,7 @@ export function RecordTable({
                       <FooterCell
                         field={field}
                         op={view.aggregates[field.key]}
+                        partial={records.hasNextPage}
                         values={table
                           .getFilteredRowModel()
                           .rows.map((r) => r.getValue(field.key))}
@@ -1237,11 +1253,14 @@ const OP_GROUPS: { label: string; ops: AggregateOp[] }[] = [
 function FooterCell({
   field,
   op,
+  partial,
   values,
   onChange,
 }: {
   field: FieldSpec
   op: AggregateOp | undefined
+  /** More pages exist, so the figure covers only the rows loaded so far. */
+  partial: boolean
   values: unknown[]
   onChange: (op: AggregateOp | undefined) => void
 }) {
@@ -1262,6 +1281,11 @@ function FooterCell({
             <span className="font-medium text-ink tabular-nums">
               {formatAggregate(op, computeAggregate(op, values))}
             </span>
+            {partial && (
+              <span className="shrink-0 text-ink-faint">
+                of {values.length} loaded
+              </span>
+            )}
           </>
         ) : (
           <span className="opacity-0 transition-opacity group-hover:opacity-100 group-data-[popup-open]:opacity-100">

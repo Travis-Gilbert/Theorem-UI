@@ -1,7 +1,7 @@
-// SOURCING: platform fetch against Theorem's /graphql (rustyred-thg-mcp's async-graphql schema; a handful of fixed operations need no GraphQL client), the shared CSRF/idempotency helper from lib/theorem/client, TheoremError so describeError and isSignedOut read failures as they do elsewhere
-import { TheoremError } from '@theoremharness/sdk'
+// SOURCING: theoremJson (the SDK's fetch passthrough) against Theorem's /graphql (rustyred-thg-mcp's async-graphql schema; a handful of fixed operations need no GraphQL client) and the shared CSRF/idempotency helper from lib/theorem/client
 import { mutate } from '@/lib/theorem/client'
 import type { MutationHeaders } from '@/lib/theorem/client'
+import { theoremJson } from '@/lib/theorem/passthrough'
 import type {
   DataModel,
   ObjectType,
@@ -24,40 +24,21 @@ export class GraphQLRequestError extends Error {
     this.name = 'GraphQLRequestError'
     this.errors = errors
   }
-
-  /** The schema has no such field: this Theorem does not serve the operation yet. */
-  missingField(field: string) {
-    return this.errors.some((error) =>
-      error.message.includes(`Unknown field "${field}"`),
-    )
-  }
 }
 
 /** The write mutation this UI expects at the register's owner. */
 export const RECORD_WRITE_FIELD = 'invokeRecordVerb'
-
-export const recordWritesUnavailable = (error: unknown) =>
-  error instanceof GraphQLRequestError && error.missingField(RECORD_WRITE_FIELD)
 
 async function post<T>(
   query: string,
   variables: Record<string, unknown>,
   headers?: MutationHeaders,
 ): Promise<T> {
-  const response = await fetch(ENDPOINT, {
+  const body = await theoremJson<unknown>(ENDPOINT, {
     method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: JSON.stringify({ query, variables }),
+    headers,
+    body: { query, variables },
   })
-  const text = await response.text()
-  const body = text ? (JSON.parse(text) as unknown) : undefined
-  if (!response.ok)
-    throw new TheoremError({
-      message: `${response.status} ${response.statusText}`,
-      statusCode: response.status,
-      body,
-    })
   const { data, errors } = (body ?? {}) as {
     data?: T | null
     errors?: GraphQLError[]
@@ -152,55 +133,28 @@ export async function retireObjectType(objectTypeId: string) {
 
 // Records
 
-const RECORD_KEYS = new Set([
-  'id',
-  'node_id',
-  'labels',
-  'label',
-  'properties',
-  'links',
-  'edges',
-  'tombstone',
-])
-
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
- * The Data API returns graph nodes. Accept a node with its values under
- * `properties` or alongside its id, and links as edges in either direction.
+ * One Data API record: values under `fields`, links under `edges` in both
+ * directions. A relation field names what this record points at, so only
+ * outgoing edges fill it, keyed by edge type.
  */
 export function decodeRecord(raw: unknown): RecordRow | undefined {
-  if (!isObject(raw)) return undefined
-  const id =
-    typeof raw.id === 'string'
-      ? raw.id
-      : typeof raw.node_id === 'string'
-        ? raw.node_id
-        : undefined
-  if (!id || raw.tombstone === true) return undefined
-  const values = isObject(raw.properties)
-    ? { ...raw.properties }
-    : Object.fromEntries(
-        Object.entries(raw).filter(([key]) => !RECORD_KEYS.has(key)),
-      )
+  if (!isObject(raw) || typeof raw.id !== 'string') return undefined
   const relations: Record<string, string[]> = {}
-  const links = Array.isArray(raw.links)
-    ? raw.links
-    : Array.isArray(raw.edges)
-      ? raw.edges
-      : []
-  for (const link of links) {
-    if (!isObject(link)) continue
-    const edge = [link.edge_type, link.type, link.label].find(
-      (v): v is string => typeof v === 'string',
-    )
-    const other = [link.to_id, link.target, link.to, link.other_id].find(
-      (v): v is string => typeof v === 'string' && v !== id,
-    )
-    if (edge && other) (relations[edge] ??= []).push(other)
+  for (const link of Array.isArray(raw.edges) ? raw.edges : []) {
+    if (!isObject(link) || link.direction !== 'out') continue
+    const { type, to_id: to } = link
+    if (typeof type === 'string' && typeof to === 'string')
+      (relations[type] ??= []).push(to)
   }
-  return { id, values, relations }
+  return {
+    id: raw.id,
+    values: isObject(raw.fields) ? raw.fields : {},
+    relations,
+  }
 }
 
 export async function readRecords(
@@ -230,10 +184,20 @@ export async function readRecord(id: string) {
     `query Record($id: String!) { dataRecord(id: $id, hydrateLinks: true) }`,
     { id },
   )
-  const raw = isObject(data.dataRecord)
-    ? (data.dataRecord.record ?? data.dataRecord)
-    : undefined
-  return decodeRecord(raw)
+  const records = isObject(data.dataRecord) ? data.dataRecord.records : undefined
+  return decodeRecord(Array.isArray(records) ? records[0] : undefined)
+}
+
+/** Whether this Theorem's schema has the write mutation the table would call. */
+export async function readRecordWritesServed() {
+  const data = await query<{
+    __schema: { mutationType: { fields: { name: string }[] } | null }
+  }>(`query RecordWrites { __schema { mutationType { fields { name } } } }`)
+  return (
+    data.__schema.mutationType?.fields.some(
+      (field) => field.name === RECORD_WRITE_FIELD,
+    ) ?? false
+  )
 }
 
 /**

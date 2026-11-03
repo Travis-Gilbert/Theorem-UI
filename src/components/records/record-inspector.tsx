@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { describeError } from '@/lib/theorem/client'
 import { cn } from '@/lib/utils'
-import { recordWritesUnavailable } from './api'
 import type { DataModel, FieldSpec, ObjectType, RecordRow } from './contract'
 import { FieldDialog } from './field-form'
 import type { FieldDraft } from './field-form'
@@ -32,6 +31,7 @@ import {
   flattenRows,
   useDataModel,
   useDeleteRecords,
+  useRecordWrites,
   useRecord,
   useRecords,
   useUpdateRecord,
@@ -43,6 +43,7 @@ function FieldRow({
   row,
   field,
   model,
+  writable,
   onWrite,
   onOpenRelated,
 }: {
@@ -50,12 +51,13 @@ function FieldRow({
   row: RecordRow
   field: FieldSpec
   model: DataModel
+  writable: boolean
   onWrite: (field: FieldSpec, value: unknown) => void
   onOpenRelated: (nameSingular: string, id: string) => void
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [editing, setEditing] = useState(false)
-  const editable = isEditable(field)
+  const editable = writable && isEditable(field)
   const hint = displayHint(type, field.key)
   const edit = KIND[field.field_type.kind].edit
   const opensEditor =
@@ -298,6 +300,7 @@ function LoadedInspector({
 }) {
   const update = useUpdateRecord(type)
   const remove = useDeleteRecords(type)
+  const writable = useRecordWrites() === true
   const [writeError, setWriteError] = useState<unknown>(null)
   const [deleting, setDeleting] = useState(false)
   const [adding, setAdding] = useState<FieldDraft | null>(null)
@@ -329,7 +332,10 @@ function LoadedInspector({
       {header}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-5 px-4 py-4">
-          {identifier && isEditable(identifier) && titleText !== null ? (
+          {writable &&
+          identifier &&
+          isEditable(identifier) &&
+          titleText !== null ? (
             <input
               autoFocus
               value={titleText}
@@ -347,7 +353,7 @@ function LoadedInspector({
           ) : (
             <button
               type="button"
-              disabled={!identifier || !isEditable(identifier)}
+              disabled={!writable || !identifier || !isEditable(identifier)}
               onClick={() =>
                 identifier &&
                 setTitleText(String(row.values[identifier.key] ?? ''))
@@ -363,9 +369,7 @@ function LoadedInspector({
               role="alert"
               className="rounded-lg border border-ochre/40 bg-ochre/8 px-3 py-2 text-sm"
             >
-              {recordWritesUnavailable(writeError)
-                ? 'This Theorem cannot write records yet: its GraphQL schema has no invokeRecordVerb mutation. Your change was not saved.'
-                : `Theorem did not save that change. ${describeError(writeError)}`}
+              Theorem did not save that change. {describeError(writeError)}
             </p>
           )}
 
@@ -377,6 +381,7 @@ function LoadedInspector({
                 row={row}
                 field={field}
                 model={model}
+                writable={writable}
                 onWrite={write}
                 onOpenRelated={onOpenRecord}
               />
@@ -443,36 +448,38 @@ function LoadedInspector({
             </section>
           )}
 
-          <section className="flex items-center justify-between gap-3 rounded-lg border border-error-ink/30 px-3 py-2">
-            <p className="text-sm text-ink-muted">
-              Delete this {type.label_singular.toLowerCase()} from Theorem.
-            </p>
-            {deleting ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() =>
-                  remove.mutate([row.id], {
-                    onSuccess: onClose,
-                    onError: (error) => {
-                      setDeleting(false)
-                      setWriteError(error)
-                    },
-                  })
-                }
-              >
-                Delete {recordTitle(type, row)}
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleting(true)}
-              >
-                Delete
-              </Button>
-            )}
-          </section>
+          {writable && (
+            <section className="flex items-center justify-between gap-3 rounded-lg border border-error-ink/30 px-3 py-2">
+              <p className="text-sm text-ink-muted">
+                Delete this {type.label_singular.toLowerCase()} from Theorem.
+              </p>
+              {deleting ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() =>
+                    remove.mutate([row.id], {
+                      onSuccess: onClose,
+                      onError: (error) => {
+                        setDeleting(false)
+                        setWriteError(error)
+                      },
+                    })
+                  }
+                >
+                  Delete {recordTitle(type, row)}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleting(true)}
+                >
+                  Delete
+                </Button>
+              )}
+            </section>
+          )}
         </div>
       </div>
       {adding && (

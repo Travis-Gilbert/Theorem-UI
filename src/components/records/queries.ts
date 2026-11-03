@@ -29,6 +29,15 @@ const keys = {
 const retry = (failures: number, error: unknown) =>
   !isSignedOut(error) && failures < 1
 
+/** Whether records can be written here; undefined until the schema answers. */
+export const useRecordWrites = () =>
+  useQuery({
+    queryKey: [...RECORDS, 'writes'],
+    queryFn: api.readRecordWritesServed,
+    staleTime: 5 * 60_000,
+    retry,
+  }).data
+
 export const useDataModel = () =>
   useQuery({
     queryKey: keys.model,

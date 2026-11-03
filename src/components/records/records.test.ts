@@ -266,23 +266,55 @@ describe('layout', () => {
 })
 
 describe('decoding records', () => {
-  test('values under properties or beside the id, links as relations', () => {
+  // The shape of rustyred-thg-core's DataRecord and DataLink as serialized.
+  test('values from fields, outgoing edges as relations by edge type', () => {
     expect(
       decodeRecord({
         id: 'n1',
+        type: 'company',
         labels: ['Company'],
-        properties: { name: 'Acme' },
-        links: [{ edge_type: 'people', to_id: 'p1' }],
+        fields: { name: 'Acme' },
+        edges: [
+          {
+            id: 'e1',
+            from_id: 'n1',
+            to_id: 'p1',
+            type: 'people',
+            direction: 'out',
+            fields: {},
+          },
+          {
+            id: 'e2',
+            from_id: 'n1',
+            to_id: 'n1',
+            type: 'parent',
+            direction: 'out',
+            fields: {},
+          },
+          {
+            id: 'e3',
+            from_id: 'p2',
+            to_id: 'n1',
+            type: 'employer',
+            direction: 'in',
+            fields: {},
+          },
+        ],
+        rank_signals: {},
       }),
     ).toEqual({
       id: 'n1',
       values: { name: 'Acme' },
-      relations: { people: ['p1'] },
+      relations: { people: ['p1'], parent: ['n1'] },
     })
-    expect(
-      decodeRecord({ node_id: 'n2', name: 'Flat', labels: ['X'] }),
-    ).toEqual({ id: 'n2', values: { name: 'Flat' }, relations: {} })
-    expect(decodeRecord({ id: 'gone', tombstone: true })).toBeUndefined()
+  })
+
+  test('a record without fields or edges still decodes; junk does not', () => {
+    expect(decodeRecord({ id: 'n2', labels: ['X'] })).toEqual({
+      id: 'n2',
+      values: {},
+      relations: {},
+    })
     expect(decodeRecord('nope')).toBeUndefined()
   })
 })
