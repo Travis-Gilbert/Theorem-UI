@@ -280,23 +280,21 @@ const ChangeRow: FC<{ delegation: DelegationPart; change: ChangeSetEntry }> = ({
         >
           <Icon.Chat className="size-3.5" />
         </Button>
-        {openChanges && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Open ${change.path} in the IDE`}
-            className="p-1.5"
-            onClick={() =>
-              openChanges({
-                runId: delegation.parentRunId,
-                delegationId: delegation.delegationId,
-                path: change.path,
-              })
-            }
-          >
-            <Icon.Ide className="size-3.5" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Open ${change.path} in the IDE`}
+          className="p-1.5"
+          onClick={() =>
+            openChanges({
+              runId: delegation.parentRunId,
+              delegationId: delegation.delegationId,
+              path: change.path,
+            })
+          }
+        >
+          <Icon.Ide className="size-3.5" />
+        </Button>
       </div>
       {detail && (
         <p className="px-4 pb-1.5 ps-9 text-xs text-error-ink">{detail}</p>
@@ -583,7 +581,7 @@ export const DelegationBody: FC<{
           <Icon.Chat className="size-3.5" />
           Ask about this
         </Button>
-        {openChanges && changes.length > 0 && (
+        {changes.length > 0 && (
           <Button
             variant="ghost"
             size="sm"

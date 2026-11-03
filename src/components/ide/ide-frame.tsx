@@ -5,8 +5,7 @@
 // inside the sheet, Follow the Agent's switch included; this frame only links
 // it to the conversation, the rail and Follow the Agent. Theia's chat shows
 // the conversation this window holds and sends through it, so both always
-// show the same turns. `?ide=cm` swaps Theia for the CodeMirror client
-// (ide-cm/), which has no frame link: no Follow the Agent or Add to chat there.
+// show the same turns.
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
@@ -25,7 +24,6 @@ import type {
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
-import { ENGINE_BASE, useIdeEngine } from './engine'
 import { useFollow, useFollowRuns } from './follow'
 
 /**
@@ -34,9 +32,6 @@ import { useFollow, useFollowRuns } from './follow'
  */
 const workspaceIdOf = (projectId: string) =>
   projectId.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80)
-
-// The engine comes from the address's query and the page's storage, neither of which
-// changes under a mounted frame, and neither of which the server can see.
 
 /** A reference as composer text: its label, then the excerpt fenced. */
 function referenceText({ label, excerpt, location }: TheoremContextReference) {
@@ -56,15 +51,13 @@ export function IdeFrame() {
   const following = useFollow((s) => s.following)
   const sidebarOpen = useShell((s) => !s.panelCollapsed.ide)
   const workspaceId = project && workspaceIdOf(project.projectId)
-  const engine = useIdeEngine()
-  const src =
-    workspaceId && engine
-      ? `${ENGINE_BASE[engine]}?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
-      : undefined
+  const src = workspaceId
+    ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
+    : undefined
 
   useEffect(() => {
     const remoteWindow = frame.current?.contentWindow
-    if (!src || !remoteWindow || engine !== 'theia') return
+    if (!src || !remoteWindow) return
     const methods: IdeHostMethods = {
       addToChat: (reference) => {
         const draft = aui.composer.getState().text.trimEnd()
@@ -117,7 +110,7 @@ export function IdeFrame() {
       connection.destroy()
       useFollow.setState({ ide: undefined })
     }
-  }, [src, engine, aui, openMode])
+  }, [src, aui, openMode])
 
   useEffect(() => {
     void ide?.setTheme(resolvedTheme === 'dark')

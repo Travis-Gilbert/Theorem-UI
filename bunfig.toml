@@ -26,5 +26,3 @@ minimumReleaseAgeExcludes = [
 
 [test]
 preload = ["./test/happy-dom.ts", "./test/vite-imports.ts"]
-# ide-cm/ is its own package with its own bunfig, aliases and preload.
-pathIgnorePatterns = ["ide-cm/**"]

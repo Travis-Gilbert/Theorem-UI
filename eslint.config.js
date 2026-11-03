@@ -40,7 +40,6 @@ export default [
       'prettier.config.js',
       'Theorem-UI/**',
       'ide/**',
-      'ide-cm/**',
       'dist/**',
       '.delta/**',
       '.output/**',

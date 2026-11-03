@@ -1,4 +1,0 @@
-id = "log"
-name = "Log"
-extensions = ["log"]
-indent = { tab-size = 4, insert-spaces = true }

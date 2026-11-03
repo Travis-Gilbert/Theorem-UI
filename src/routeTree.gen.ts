@@ -22,7 +22,6 @@ import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
-import { Route as IdeCmSplatRouteImport } from './routes/ide-cm/$'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
@@ -124,11 +123,6 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
   id: '/auth/sign-out',
   path: '/auth/sign-out',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IdeCmSplatRoute = IdeCmSplatRouteImport.update({
-  id: '/ide-cm/$',
-  path: '/ide-cm/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -355,7 +349,6 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
-  '/ide-cm/$': typeof IdeCmSplatRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -406,7 +399,6 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
-  '/ide-cm/$': typeof IdeCmSplatRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -461,7 +453,6 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
-  '/ide-cm/$': typeof IdeCmSplatRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -517,7 +508,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
-    | '/ide-cm/$'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -568,7 +558,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
-    | '/ide-cm/$'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -622,7 +611,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/sign-in'
     | '/auth/sign-out'
-    | '/ide-cm/$'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -673,7 +661,6 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
-  IdeCmSplatRoute: typeof IdeCmSplatRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
@@ -799,13 +786,6 @@ declare module '@tanstack/react-router' {
       path: '/auth/sign-out'
       fullPath: '/auth/sign-out'
       preLoaderRoute: typeof AuthSignOutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ide-cm/$': {
-      id: '/ide-cm/$'
-      path: '/ide-cm/$'
-      fullPath: '/ide-cm/$'
-      preLoaderRoute: typeof IdeCmSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -1126,7 +1106,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
-  IdeCmSplatRoute: IdeCmSplatRoute,
   TheiaSplatRoute: TheiaSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
