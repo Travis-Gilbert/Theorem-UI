@@ -143,6 +143,7 @@ describe('UnknownPanel', () => {
     act(() => labelled(menu, 'Code editor')?.click())
     expect(useWorkspaceFileView.getState().file).toEqual({
       workspaceId: 'ws_test',
+      entryId: expect.stringMatching(/^vf_/),
       path: 'data.bin',
       handler: 'code',
     })

@@ -2,11 +2,18 @@
 // desktop, panel placement is the dockview layout's), the same seam as
 // components/notes/note-view.ts.
 import { create } from 'zustand'
-import type { WorkspaceId } from './types'
+import type { EntryId, WorkspaceId } from './types'
 
 export interface WorkspaceFileRef {
   workspaceId: WorkspaceId
-  /** Workspace-relative POSIX path. */
+  /**
+   * Which file this is. It survives renames and moves, so a tab, a reference
+   * or a restored layout keeps its file wherever the file goes. '' until the
+   * view finds the entry at `path` (a caller that knew only the path, or a
+   * layout saved before files had ids), when it takes that entry's id.
+   */
+  entryId: EntryId
+  /** Workspace-relative POSIX path: where the file is, not which file it is. */
   path: string
   /**
    * The id of the handler to show the file with, chosen in "Open with".
@@ -15,9 +22,26 @@ export interface WorkspaceFileRef {
   handler?: string
 }
 
+/** A file to open; its entry id may be unknown yet. */
+export type WorkspaceFileTarget = Omit<WorkspaceFileRef, 'entryId'> &
+  Partial<Pick<WorkspaceFileRef, 'entryId'>>
+
+export const fileRef = (target: WorkspaceFileTarget): WorkspaceFileRef => ({
+  ...target,
+  entryId: target.entryId ?? '',
+})
+
+/** Whether `a` and `b` are the same file, by entry where both know it. */
+export const sameFile = (a: WorkspaceFileRef, b: WorkspaceFileRef) =>
+  a.workspaceId === b.workspaceId &&
+  (a.entryId && b.entryId ? a.entryId === b.entryId : a.path === b.path)
+
 /** The Dockview panel id for a file opened from a workspace. */
-export const workspaceFilePanelId = ({ workspaceId, path }: WorkspaceFileRef) =>
-  `workspace-file:${workspaceId}:${path}`
+export const workspaceFilePanelId = ({
+  workspaceId,
+  entryId,
+  path,
+}: WorkspaceFileRef) => `workspace-file:${workspaceId}:${entryId || path}`
 
 /**
  * The desktop dock, which hosts each open workspace file as its own panel.
@@ -47,12 +71,16 @@ export const useWorkspaceFileView = create<WorkspaceFileView>()((set) => ({
 /**
  * Opens a workspace file in the Vault when it is showing, else in the dock,
  * else over the conversation on a phone. A file that took the place of the
- * one at `replacing` opens where that one is open.
+ * one at `replacing` (another entry, perhaps at the same path) opens where
+ * that one is open.
  */
-export function openWorkspaceFile(file: WorkspaceFileRef, replacing?: string) {
+export function openWorkspaceFile(
+  target: WorkspaceFileTarget,
+  replacing?: string,
+) {
+  const file = fileRef(target)
   const { vault, dock } = useWorkspaceFileView.getState()
-  const from = replacing === file.path ? undefined : replacing
-  if (vault) vault.open(file, from)
-  else if (dock) dock.open(file, from)
+  if (vault) vault.open(file, replacing)
+  else if (dock) dock.open(file, replacing)
   else useWorkspaceFileView.setState({ file })
 }

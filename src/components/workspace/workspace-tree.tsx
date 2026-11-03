@@ -276,7 +276,8 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
     },
     onPrimaryAction: (item) => {
       const { folder, path } = item.getItemData()
-      if (!folder) openWorkspaceFile({ workspaceId, path })
+      if (!folder)
+        openWorkspaceFile({ workspaceId, entryId: item.getId(), path })
     },
     onRename: (item, value) => void rename(item, value),
     hotkeys: {

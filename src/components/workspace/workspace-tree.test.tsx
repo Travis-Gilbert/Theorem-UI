@@ -116,6 +116,7 @@ describe('WorkspaceTree', () => {
     await act(async () => row(container, 'note 2.md').click())
     expect(useWorkspaceFileView.getState().file).toEqual({
       workspaceId: 'ws_test',
+      entryId: expect.stringMatching(/^vf_/),
       path: 'docs/note 2.md',
     })
 

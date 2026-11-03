@@ -94,20 +94,24 @@ afterEach(() => {
   useWorkspaceFileView.setState({ file: undefined, vault: undefined })
 })
 
+/** Opens the file at `path`, by its entry's id as the dock does. */
 async function openFile(
-  file: Omit<WorkspaceFileRef, 'workspaceId'>,
+  file: Omit<WorkspaceFileRef, 'workspaceId' | 'entryId'>,
   ws: FakeWorkspace = fakeWorkspace(FILES),
 ) {
   client = ws.client
-  const moves: Array<string> = []
+  const entryId =
+    (await ws.client.tree()).find((e) => e.path === file.path)?.id ??
+    'vf_missing'
+  const moves: Array<WorkspaceFileRef> = []
   const { container } = await render(
     <WorkspaceFilePanel
-      file={{ workspaceId: 'ws_test', ...file }}
-      onMoved={(path) => moves.push(path)}
+      file={{ workspaceId: 'ws_test', entryId, ...file }}
+      onMoved={(next) => moves.push(next)}
     />,
   )
   await settle()
-  return { ws, container, moves }
+  return { ws, container, moves, entryId }
 }
 
 const shown = (container: HTMLElement) =>
@@ -184,6 +188,7 @@ describe('with stand-in handlers', () => {
     await settle()
     expect(useWorkspaceFileView.getState().file).toEqual({
       workspaceId: 'ws_test',
+      entryId: expect.stringMatching(/^vf_/),
       path: 'data/runs.csv',
       handler: 'info',
     })
@@ -217,17 +222,32 @@ describe('with stand-in handlers', () => {
     await waitFor(() => shown(container) === 'table: data/runs.csv')
   })
 
-  test('a renamed file moves the panel to its new path', async () => {
-    const { ws, moves } = await openFile({ path: 'data/runs.csv' })
-    ws.emit({
-      type: 'renamed',
-      id: 'vf_x',
-      from: 'data',
-      to: 'archive/data',
-      origin: 'external',
+  test('a renamed file stays in its panel and reports where it went', async () => {
+    const { ws, container, moves, entryId } = await openFile({
+      path: 'data/runs.csv',
     })
+    const view = container.querySelector('[data-view]')
+    await act(() => ws.client.rename('data', 'archive/data'))
+    await waitFor(() => shown(container) === 'table: archive/data/runs.csv')
+    // The same view, not a new one for the new path.
+    expect(container.querySelector('[data-view]')).toBe(view)
+    expect(moves).toEqual([
+      { workspaceId: 'ws_test', entryId, path: 'archive/data/runs.csv' },
+    ])
+  })
+
+  test('a file found only by its old path takes on its entry', async () => {
+    client = fakeWorkspace(FILES).client
+    const moves: Array<WorkspaceFileRef> = []
+    const { container } = await render(
+      <WorkspaceFilePanel
+        file={{ workspaceId: 'ws_test', entryId: '', path: 'data/runs.csv' }}
+        onMoved={(next) => moves.push(next)}
+      />,
+    )
     await settle()
-    expect(moves).toEqual(['archive/data/runs.csv'])
+    expect(shown(container)).toBe('table: data/runs.csv')
+    expect(moves[0]?.entryId).toMatch(/^vf_/)
   })
 
   test('a path that is not in the folder says so', async () => {
@@ -244,7 +264,11 @@ describe('with stand-in handlers', () => {
   test('a folder that is not open says so', async () => {
     const { container } = await render(
       <WorkspaceFilePanel
-        file={{ workspaceId: 'ws_closed', path: 'data/runs.csv' }}
+        file={{
+          workspaceId: 'ws_closed',
+          entryId: 'vf_1',
+          path: 'data/runs.csv',
+        }}
         onMoved={() => undefined}
       />,
     )
@@ -351,14 +375,16 @@ describe('with the built-in handlers', () => {
     await settle()
     expect(container.textContent).not.toContain('This file was deleted.')
     expect(editable(container)).toBe('true')
-    expect(container.textContent).toContain('Keep the provenance badge durable.')
+    expect(container.textContent).toContain(
+      'Keep the provenance badge durable.',
+    )
     expect(opened).toHaveBeenCalledWith(
-      { workspaceId: 'ws_test', path: 'Mine.md' },
-      undefined,
+      { workspaceId: 'ws_test', entryId: 'doc:mine', path: 'Mine.md' },
+      'Mine.md',
     )
   })
 
-  test('a note made mine elsewhere opens there, in the note\'s tab', async () => {
+  test("a note made mine elsewhere opens there, in the note's tab", async () => {
     const { ws, opened } = theoremVault(
       'Agent/Agent plan.md',
       'Notes/Agent plan.md',
@@ -367,58 +393,82 @@ describe('with the built-in handlers', () => {
     await makeItMine(container)
     await waitFor(() => opened.mock.calls.length > 0)
     expect(opened).toHaveBeenCalledWith(
-      { workspaceId: 'ws_test', path: 'Notes/Agent plan.md' },
+      {
+        workspaceId: 'ws_test',
+        entryId: 'doc:mine',
+        path: 'Notes/Agent plan.md',
+      },
       'Agent/Agent plan.md',
     )
   })
 })
 
 describe('openWorkspaceFilePanel', () => {
-  const file = { workspaceId: 'ws_test', path: 'data/runs.csv' }
+  const file = {
+    workspaceId: 'ws_test',
+    entryId: 'vf_7',
+    path: 'data/runs.csv',
+  }
 
-  function fakeDock(existing: boolean) {
-    const panel = {
+  /** A dock holding `open` file panels. */
+  function fakeDock(open: Array<WorkspaceFileRef>) {
+    const panels = open.map((params) => ({
+      id: `workspace-file:${params.workspaceId}:${params.entryId}`,
+      params,
+      view: { contentComponent: 'workspaceFile' },
+      group: { id: 'files' },
       api: {
         updateParameters: mock(() => undefined),
         setActive: mock(() => undefined),
+        setTitle: mock(() => undefined),
+        close: mock(() => undefined),
       },
-    }
+    }))
     const api = {
-      getPanel: mock(() => (existing ? panel : undefined)),
+      getPanel: mock((id: string) => panels.find((p) => p.id === id)),
       addPanel: mock(() => undefined),
-      panels: [],
+      panels,
       width: 1000,
     }
-    return { api, panel }
+    return { api, panels }
   }
 
   test('an open file comes forward', () => {
-    const { api, panel } = fakeDock(true)
+    const { api, panels } = fakeDock([file])
     openWorkspaceFilePanel(api as unknown as DockviewApi, file, 'chat')
-    expect(panel.api.setActive).toHaveBeenCalled()
-    expect(panel.api.updateParameters).not.toHaveBeenCalled()
+    expect(panels[0]!.api.setActive).toHaveBeenCalled()
+    expect(panels[0]!.api.updateParameters).not.toHaveBeenCalled()
+    expect(api.addPanel).not.toHaveBeenCalled()
+  })
+
+  test('an open file is found by its entry, wherever it has moved', () => {
+    const { api, panels } = fakeDock([{ ...file, path: 'old/runs.csv' }])
+    openWorkspaceFilePanel(api as unknown as DockviewApi, file, 'chat')
+    expect(panels[0]!.api.setActive).toHaveBeenCalled()
+    expect(panels[0]!.api.updateParameters).toHaveBeenCalledWith(file)
     expect(api.addPanel).not.toHaveBeenCalled()
   })
 
   test('an open file switches to the view chosen in "Open with"', () => {
-    const { api, panel } = fakeDock(true)
+    const { api, panels } = fakeDock([file])
     const chosen = { ...file, handler: 'code' }
     openWorkspaceFilePanel(api as unknown as DockviewApi, chosen, 'chat')
-    expect(panel.api.updateParameters).toHaveBeenCalledWith(chosen)
-    expect(panel.api.setActive).toHaveBeenCalled()
+    expect(panels[0]!.api.updateParameters).toHaveBeenCalledWith(chosen)
+    expect(panels[0]!.api.setActive).toHaveBeenCalled()
   })
 
   test('a file replacing an open one opens in its tab, which closes', () => {
-    const old = {
-      id: 'workspace-file:ws_test:Agent/Plan.md',
-      api: { close: mock(() => undefined) },
+    const agent = {
+      workspaceId: 'ws_test',
+      entryId: 'doc:agent',
+      path: 'Agent/Plan.md',
     }
-    const api = {
-      getPanel: mock((id: string) => (id === old.id ? old : undefined)),
-      addPanel: mock(() => undefined),
-      panels: [],
+    const { api, panels } = fakeDock([agent])
+    const mine = {
+      workspaceId: 'ws_test',
+      entryId: 'doc:mine',
+      path: 'Notes/Plan.md',
     }
-    const mine = { workspaceId: 'ws_test', path: 'Notes/Plan.md' }
     openWorkspaceFilePanel(
       api as unknown as DockviewApi,
       mine,
@@ -427,20 +477,20 @@ describe('openWorkspaceFilePanel', () => {
     )
     expect(api.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'workspace-file:ws_test:Notes/Plan.md',
+        id: 'workspace-file:ws_test:doc:mine',
         params: mine,
-        position: { referencePanel: old.id, direction: 'within' },
+        position: { referencePanel: panels[0]!.id, direction: 'within' },
       }),
     )
-    expect(old.api.close).toHaveBeenCalled()
+    expect(panels[0]!.api.close).toHaveBeenCalled()
   })
 
-  test('a file that is not open gets a panel', () => {
-    const { api } = fakeDock(false)
+  test('a file that is not open gets a panel named for its entry', () => {
+    const { api } = fakeDock([])
     openWorkspaceFilePanel(api as unknown as DockviewApi, file, 'chat')
     expect(api.addPanel).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'workspace-file:ws_test:data/runs.csv',
+        id: 'workspace-file:ws_test:vf_7',
         params: file,
         title: 'runs.csv',
       }),
