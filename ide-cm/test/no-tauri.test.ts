@@ -4,7 +4,7 @@
 // writes a `__TAURI*` global, and at run time `invoke` reaches only the installed host. The scan
 // tokenizes with the TypeScript scanner, so comments are not counted and identifiers are.
 
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
@@ -136,7 +136,40 @@ describe('no Tauri global', () => {
 })
 
 describe('at run time', () => {
-  test('invoke reaches only the installed host; without one it fails rather than falling back', async () => {
+  // The frontend's IPC modules hold one host for the whole process, and other test files install
+  // hosts in this one, so the no-host case runs in a process of its own (test/support/no-host-probe.ts).
+  // It plants `__TAURI_INTERNALS__` with an `invoke` that records each call, before those modules
+  // load, and keeps it planted after a host is installed.
+  let probe: { withoutHost: Record<string, any>; withHost: Record<string, any> }
+  beforeAll(() => {
+    const run = Bun.spawnSync({ cmd: [process.execPath, 'test/support/no-host-probe.ts'], cwd: root, stdout: 'pipe', stderr: 'pipe' })
+    if (run.exitCode !== 0) throw new Error(`the no-host probe failed: ${run.stderr.toString()}`)
+    probe = JSON.parse(run.stdout.toString().trim().split('\n').at(-1)!)
+  }, SCAN_TIMEOUT_MS)
+
+  test('with no host installed, a planted Tauri global does not make a backend appear and invoke rejects without reading it', () => {
+    const { withoutHost } = probe
+    expect(withoutHost.hostAvailable).toBe(false)
+    expect(withoutHost.ipcIsTauri).toBe(false)
+    expect(withoutHost.coreIsTauri).toBe(false)
+    expect(withoutHost.invoke).toEqual({ kind: 'rejected', message: expect.stringContaining('No Theorem workspace host is installed') })
+    expect(withoutHost.planted).toEqual([])
+  })
+
+  test('once a host is installed (positive control, same process, global still planted), invoke reaches only that host', () => {
+    const { withHost } = probe
+    expect(withHost.globalStillPlanted).toBe(true)
+    expect(withHost.hostAvailable).toBe(true)
+    expect(withHost.ipcIsTauri).toBe(true)
+    expect(withHost.coreIsTauri).toBe(true)
+    expect(withHost.invoke).toEqual({ kind: 'resolved', value: { name: 'ide-cm' } })
+    expect(withHost.served).toEqual(['app_info'])
+    expect(withHost.refusedCommand).toMatchObject({ kind: 'rejected' })
+    expect(withHost.refusedCount).toBe(1)
+    expect(withHost.planted).toEqual([])
+  })
+
+  test('in this process, nothing defines a Tauri global, and an unprovided command is refused and counted', async () => {
     const core = await import('@tauri-apps/api/core')
     const ipc = await import('@/platform/ipc')
     const { installHost } = await import('../src/host/host')
@@ -159,21 +192,5 @@ describe('at run time', () => {
     expect(host.refused.get('plugin:window|minimize')?.count).toBe(1)
     expect(tauriKeys()).toEqual([])
     expect('__TAURI_INTERNALS__' in window).toBe(false)
-  })
-
-  test('a Tauri global planted on the page does not make a backend appear', async () => {
-    const hostModule = await import('../src/host/host')
-    const ipc = await import('@/platform/ipc')
-    // A fresh copy of the host module has nothing installed.
-    const fresh = await import(`../src/host/host.ts?fresh=${Date.now()}`)
-    expect(fresh.hostAvailable()).toBe(false)
-    expect(() => fresh.currentHost()).toThrow('No Theorem workspace host is installed')
-    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = { invoke: () => Promise.resolve('tauri') }
-    try {
-      // isTauri answers the installed host alone; the planted global changes nothing.
-      expect(ipc.isTauri()).toBe(hostModule.hostAvailable())
-    } finally {
-      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
-    }
   })
 })

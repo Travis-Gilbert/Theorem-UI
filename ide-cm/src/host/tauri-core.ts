@@ -23,7 +23,8 @@ export class Channel<T = unknown> implements HostChannel<T> {
   }
 }
 
-export function invoke<T>(command: string, args?: InvokeArgs, _options?: InvokeOptions): Promise<T> {
+// Async, as Tauri's is: with no host installed the caller gets a rejected promise, not a throw.
+export async function invoke<T>(command: string, args?: InvokeArgs, _options?: InvokeOptions): Promise<T> {
   return currentHost().invoke(command, (args ?? {}) as Record<string, unknown>) as Promise<T>
 }
 
