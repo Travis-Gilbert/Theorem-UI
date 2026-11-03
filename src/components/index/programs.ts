@@ -35,6 +35,18 @@ map = Atlas(m.snapshot, $overlay)`
 
 export const DEFAULT_PREFIX = 'default:'
 export const ATLAS_VIEW_ID = 'default:atlas'
+export const RECORDS_PREFIX = 'default:records:'
+export const DATA_MODEL_VIEW_ID = 'default:data-model'
+
+export const recordsViewId = (nameSingular: string) =>
+  `${RECORDS_PREFIX}${nameSingular}`
+/** The data model, or one object in it. */
+export const dataModelViewId = (focus?: string) =>
+  focus ? `${DATA_MODEL_VIEW_ID}:${focus}` : DATA_MODEL_VIEW_ID
+
+/** Programs that draw tables or diagrams take the view's full width. */
+export const isWideProgram = (program: string) =>
+  /\b(RecordTable|DataModel)\(/.test(program)
 export const isDefaultView = (viewId: string) =>
   viewId.startsWith(DEFAULT_PREFIX)
 
@@ -118,6 +130,36 @@ export const atlasView = (): IndexView =>
     }),
   )
 
+/** One declared object's records, as a table to sort, filter and edit. */
+export const recordsView = (nameSingular: string, labelPlural?: string) =>
+  defaultView(
+    recordsViewId(nameSingular),
+    { kind: 'home' },
+    revision({
+      title: labelPlural ?? nameSingular,
+      purpose: `Every ${(labelPlural ?? nameSingular).toLowerCase()} record, to sort, filter and edit in place.`,
+      program: `root = RecordTable(${JSON.stringify(nameSingular)})`,
+      bindings: {},
+    }),
+  )
+
+/** The schema: what objects there are, how they relate, and what is not declared yet. */
+export const dataModelView = (focus?: string, labelPlural?: string) =>
+  defaultView(
+    dataModelViewId(focus),
+    { kind: 'home' },
+    revision({
+      title: focus ? `${labelPlural ?? focus} · Data model` : 'Data model',
+      purpose: focus
+        ? `The fields and relations of ${(labelPlural ?? focus).toLowerCase()}, and what their records carry beyond them.`
+        : 'The objects Theorem holds, how they relate, and what records carry that is not declared yet.',
+      program: focus
+        ? `root = DataModel(${JSON.stringify(focus)})`
+        : 'root = DataModel()',
+      bindings: {},
+    }),
+  )
+
 /**
  * The revision on screen. A built-in view is rebuilt in this page, so a
  * collection name that arrives after the first paint replaces "Collection".
@@ -135,8 +177,18 @@ export function revisionOnScreen(
 export function resolveDefaultView(
   viewId: string,
   collectionName?: (collectionId: string) => string | undefined,
+  objectLabel?: (nameSingular: string) => string | undefined,
 ): IndexView | undefined {
   if (viewId === ATLAS_VIEW_ID) return atlasView()
+  if (viewId.startsWith(RECORDS_PREFIX)) {
+    const name = viewId.slice(RECORDS_PREFIX.length)
+    return name ? recordsView(name, objectLabel?.(name)) : undefined
+  }
+  if (viewId === DATA_MODEL_VIEW_ID) return dataModelView()
+  if (viewId.startsWith(`${DATA_MODEL_VIEW_ID}:`)) {
+    const name = viewId.slice(DATA_MODEL_VIEW_ID.length + 1)
+    return dataModelView(name, objectLabel?.(name))
+  }
   if (viewId === 'default:home') return defaultViewFor({ kind: 'home' })
   const prefix = 'default:collection:'
   if (viewId.startsWith(prefix)) {

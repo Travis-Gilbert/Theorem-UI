@@ -1,0 +1,146 @@
+{
+  "plan": "docs/plans/record-table-data-model.md",
+  "parityReference": "Twenty fork Travis-Gilbert/twenty at ffca6cee (packages/twenty-front)",
+  "items": [
+    {
+      "id": "graphql-client",
+      "requirement": "The schema register and its records over /graphql through the same-origin proxy; no /mcp",
+      "status": "done",
+      "evidence": [
+        "src/routes/graphql.ts",
+        "src/components/records/api.ts",
+        "src/components/records/queries.ts"
+      ]
+    },
+    {
+      "id": "record-writes",
+      "requirement": "Create, edit and delete records through the register's record verbs",
+      "status": "blocked",
+      "evidence": [
+        "UI side done: api.ts invokeRecordVerb, optimistic writes with rollback in queries.ts",
+        "Blocked on Theorem: rustyred-thg-mcp GraphQL has no invokeRecordVerb mutation; until then the table shows that writes are unavailable"
+      ]
+    },
+    {
+      "id": "table-core",
+      "requirement": "Checkbox column, pinned identifier column, typed headers, resize, virtualized rows, sticky header, active row for the open record",
+      "status": "done",
+      "evidence": [
+        "src/components/records/record-table.tsx",
+        "Verified against a local mock authority"
+      ]
+    },
+    {
+      "id": "column-menu",
+      "requirement": "Filter, Sort, Move left, Move right, Hide; the identifier column only Filter and Sort",
+      "status": "done",
+      "evidence": ["record-table.tsx HeaderMenu"]
+    },
+    {
+      "id": "plus-column",
+      "requirement": "\"+\" column lists hidden fields to show, with Customize fields",
+      "status": "done",
+      "evidence": ["record-table.tsx AddFieldMenu"]
+    },
+    {
+      "id": "focus-edit",
+      "requirement": "Cell focus with arrows, Enter edits, typing a character opens the editor with it, Enter saves and moves down, Tab across, Escape saves, Backspace clears, Cmd/Ctrl+Enter opens the record",
+      "status": "done",
+      "evidence": [
+        "record-table.tsx onGridKeyDown, fields.tsx commitKeys",
+        "Verified: type-to-edit, Enter moves down, Escape saves"
+      ]
+    },
+    {
+      "id": "field-types",
+      "requirement": "Display and editing for every register field kind, plus Twenty's email, link, phone, currency, percent and rating as display hints",
+      "status": "partial",
+      "evidence": [
+        "fields.tsx",
+        "Not yet: Twenty's multi-value Emails/Links/Phones, Address and Full name as composite JSON editors; select option colours chosen by the person"
+      ]
+    },
+    {
+      "id": "add-new",
+      "requirement": "Add New row and empty states (Add your first {Object}, No {Object} found)",
+      "status": "done",
+      "evidence": ["record-table.tsx draft row and EmptyState"]
+    },
+    {
+      "id": "selection-bulk",
+      "requirement": "Select all, shift-range selection, N selected, delete and export the selection",
+      "status": "partial",
+      "evidence": [
+        "record-table.tsx",
+        "Not yet: rectangle drag-select, x hotkey, bulk Update records side panel"
+      ]
+    },
+    {
+      "id": "calculate-footer",
+      "requirement": "Per-column Calculate: Count, Percent, Date and More options, saved per view",
+      "status": "partial",
+      "evidence": [
+        "aggregate.ts with tests",
+        "Computed over loaded rows; server-side aggregates via the Aggregate verb are not wired"
+      ]
+    },
+    {
+      "id": "view-bar",
+      "requirement": "Search any field, filter list with and/or, sort list, fields visibility and order, export, reset",
+      "status": "partial",
+      "evidence": [
+        "Kit FilterList, SortList, ViewOptions",
+        "Not yet: saved named views per object, view picker, advanced filter rule groups"
+      ]
+    },
+    {
+      "id": "view-persistence",
+      "requirement": "A view's arrangement kept in Theorem so it follows the person",
+      "status": "not-started",
+      "evidence": [
+        "view-state.ts keeps it in localStorage; Theorem has dataViews/upsertDataView to build on"
+      ]
+    },
+    {
+      "id": "expanded-record",
+      "requirement": "Record beside the table: editable title, every field inline, relations, records that point here (tasks, notes), delete",
+      "status": "done",
+      "evidence": [
+        "record-inspector.tsx",
+        "Verified: Anthropic opens with People, Opportunities and Tasks sections"
+      ]
+    },
+    {
+      "id": "flexible-model",
+      "requirement": "What records carry beyond their declaration: shown, promoted, or added as a field with a proposed type",
+      "status": "partial",
+      "evidence": [
+        "data-model.tsx Not in the schema yet, record-inspector.tsx Not in the schema",
+        "proposeFieldType in schema-edit.ts is left for the person to write"
+      ]
+    },
+    {
+      "id": "data-model-pages",
+      "requirement": "Objects page (search, system toggle, counts, observed labels to declare), object detail (enforcement, relations, fields), new object, two-step new field, edit and remove field, retire object",
+      "status": "done",
+      "evidence": [
+        "data-model.tsx, field-form.tsx",
+        "Verified: Add field declares against the anchor and keeps other display hints"
+      ]
+    },
+    {
+      "id": "erd",
+      "requirement": "React Flow overview: relation rows with handles on both sides, collapsible {n} fields, smoothstep edges with circle markers and one id per relation field, zoom, fit and lock, observed labels dashed",
+      "status": "done",
+      "evidence": ["data-model.tsx ModelDiagram, layout.ts with tests"]
+    },
+    {
+      "id": "not-yet",
+      "requirement": "Kanban and group-by views, manual row order, soft delete and restore, CSV import, live updates, inverse relation fields, field deactivation, Mostly empty tags",
+      "status": "not-started",
+      "evidence": [
+        "Each needs a register capability first: position, deletedAt, an inverse relation, isActive, SSE"
+      ]
+    }
+  ]
+}
