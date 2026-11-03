@@ -8,19 +8,16 @@
 // *****************************************************************************
 
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
-import { Disposable, Emitter, Event } from '@theia/core/lib/common';
+import { Disposable, Emitter, Event, MessageService } from '@theia/core/lib/common';
 import URI from '@theia/core/lib/common/uri';
 import {
     createFileSystemProviderError, FileChange, FileChangeType, FileDeleteOptions, FileOverwriteOptions, FilePermission,
     FileSystemProviderCapabilities, FileSystemProviderErrorCode, FileSystemProviderWithFileFolderCopyCapability,
     FileSystemProviderWithFileReadWriteCapability, FileType, FileWriteOptions, Stat, WatchOptions
 } from '@theia/filesystem/lib/common/files';
+import { childrenOf, type DirectoryListing } from './directory-listing';
 import { TheoremConnection } from './theorem-connection';
 
-/** One directory as the host lists it. */
-interface DirectoryListing {
-    entries: { name: string; kind: string }[];
-}
 
 interface FileStat {
     type: 'file' | 'directory' | 'missing';
@@ -68,6 +65,9 @@ function base64Of(bytes: Uint8Array): string {
  */
 @injectable()
 export class TheoremFileSystemProvider implements FileSystemProviderWithFileReadWriteCapability, FileSystemProviderWithFileFolderCopyCapability {
+
+    @inject(MessageService)
+    protected readonly messages: MessageService;
 
     @inject(TheoremConnection)
     protected readonly connection: TheoremConnection;
@@ -134,7 +134,7 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
         }
         const listing = await this.call(resource, async headers =>
             (await this.connection.client.ide.workspace.filesList({ ...headers, body: { path } })) as DirectoryListing);
-        return listing.entries.map(({ name, kind }) => [name, fileTypes[kind] ?? FileType.File]);
+        return childrenOf(listing, path).map(({ name, kind }) => [name, fileTypes[kind] ?? FileType.File]);
     }
 
     async mkdir(resource: URI): Promise<void> {
@@ -162,6 +162,7 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
     async copy(from: URI, to: URI, opts: FileOverwriteOptions): Promise<void> {
         const source = this.requirePath(from);
         const target = this.requirePath(to);
+        await this.requireFileServices(from);
         if (await this.exists(to)) {
             if (!opts.overwrite) {
                 throw createFileSystemProviderError(to.toString(), FileSystemProviderErrorCode.FileExists);
@@ -200,9 +201,10 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
         try {
             text = new TextDecoder('utf-8', { fatal: true }).decode(content);
         } catch {
+            await this.requireFileServices(resource);
             await this.call(resource, headers => this.connection.client.ide.workspace.filesCreate({
                 ...headers,
-                body: { path, contents_base64: base64Of(content), overwrite: exists },
+                body: { path, contents: base64Of(content), encoding: 'base64' },
             }));
             return;
         }
@@ -222,6 +224,19 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
             throw providerError(error, resource);
         } finally {
             lease.release();
+        }
+    }
+
+    /**
+     * Copying and writing bytes arrived on the host together. An older host would
+     * store the base64 as the file's text and has no copy to follow the deletion
+     * of what a copy replaces, so they are refused before anything is touched.
+     */
+    protected async requireFileServices(resource: URI): Promise<void> {
+        if (!await this.connection.offers('workspace.files.copy')) {
+            const refusal = `This Theorem host cannot copy or write binary files: ${resource.path.base}`;
+            this.messages.warn(refusal);
+            throw createFileSystemProviderError(refusal, FileSystemProviderErrorCode.Unavailable);
         }
     }
 

@@ -11,6 +11,7 @@
 import { injectable } from '@theia/core/shared/inversify';
 import URI from '@theia/core/lib/common/uri';
 import { DocumentSession, TheoremClient, TheoremError, WorkspaceLanguage, WorkspaceLive, WorkspaceScm } from '@theoremharness/sdk';
+import { workspacePathOf } from './host-paths';
 import { isolateResyncListeners, recoveringSend, type Send } from './workspace-recovery';
 
 /** Headers every workspace operation carries. */
@@ -49,6 +50,8 @@ export class TheoremConnection {
     protected readonly documents = new Map<string, { session: Promise<DocumentSession>; refs: number }>();
     protected languageCalls: Promise<WorkspaceLanguage> | undefined;
     protected scmCalls: Promise<WorkspaceScm> | undefined;
+    protected hostRoots: Promise<string[]> | undefined;
+    protected hostOperations: Promise<Set<string>> | undefined;
 
     constructor() {
         const params = new URLSearchParams(window.location.search);
@@ -113,7 +116,7 @@ export class TheoremConnection {
     }
 
     /**
-     * An operation the vendored SDK has no method for, sent the way its generated methods send one:
+     * An operation the vendored SDK's typed wrappers do not cover, sent the way its generated methods send one:
      * through the same transport, and a refusal thrown as the error they throw.
      */
     async operate<T>(name: string, body: Record<string, unknown>): Promise<T> {
@@ -133,6 +136,19 @@ export class TheoremConnection {
             throw new TheoremError({ statusCode: response.status, body: parsed, message: `${name}: HTTP ${response.status}` });
         }
         return parsed as T;
+    }
+
+    /** Whether this host offers an operation, for what hosts older than it cannot do. */
+    async offers(name: string): Promise<boolean> {
+        const operations = await (this.hostOperations ??= this.client.fetch('api/environment/v1/operations', { method: 'GET' })
+            .then(async response => {
+                if (!response.ok) {
+                    throw new TheoremError({ statusCode: response.status, body: await response.text(), message: `operations: HTTP ${response.status}` });
+                }
+                return new Set(((await response.json()) as { operations: string[] }).operations);
+            })
+            .catch(error => { this.hostOperations = undefined; throw error; }));
+        return operations.has(name);
     }
 
     async headers(): Promise<OperationHeaders> {
@@ -169,6 +185,25 @@ export class TheoremConnection {
 
     toUri(path: string): URI {
         return path === '' || path === '.' ? this.root : this.root.resolve(path);
+    }
+
+    /**
+     * The frame's URI for one a language server named a file by, undefined beyond the workspace.
+     * `resourceId` is any document the host can read: it describes its roots along with that document.
+     */
+    async fromHostUri(raw: string, resourceId: string): Promise<URI | undefined> {
+        const roots = await (this.hostRoots ??= this.operate<{ roots: { path: string }[] }>('workspace.describe', { resource_id: resourceId })
+            .then(({ roots }) => roots.map(root => root.path))
+            .catch(error => {
+                this.hostRoots = undefined;
+                throw error;
+            }));
+        const path = workspacePathOf(raw, roots);
+        if (path !== undefined) {
+            return this.toUri(path);
+        }
+        const asGiven = new URI(raw);
+        return this.toPath(asGiven) !== undefined ? asGiven : undefined;
     }
 
     /** One session per path, shared by every editor and writer in this frame. */
