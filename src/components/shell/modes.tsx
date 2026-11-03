@@ -1,11 +1,12 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface
-import { useMatches, useNavigate } from '@tanstack/react-router'
-import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Life backdrop behind it, the IDE frame (browser-only Theia)
 import { Canvas } from '@/components/canvas/canvas'
-import { IdeFrame } from '@/components/ide/ide-frame'
 import { Icon } from '@/components/icons'
+import { IdeFrame } from '@/components/ide/ide-frame'
 import { IndexSurface } from '@/components/index/index-surface'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
+import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { VaultPhone } from '@/components/vault/vault-phone'
+import { useMatches, useNavigate } from '@tanstack/react-router'
 import { useShell } from './shell-state'
 
 export type ShellMode = 'chat' | 'index' | 'vault' | 'spaces' | 'ide'
@@ -56,7 +57,6 @@ export function useOpenMode() {
       : navigate({ to: '/' })
   }
 }
-
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
@@ -70,7 +70,9 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
   return (
     <>
       <div hidden={!showThread} className="h-full">
-        <Thread />
+        <LifeBackdrop>
+          <Thread />
+        </LifeBackdrop>
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'vault' && !docked && <VaultPhone />}
