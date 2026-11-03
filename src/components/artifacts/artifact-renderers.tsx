@@ -52,12 +52,25 @@ const documentComponents: Components = {
   },
 }
 
-const DocumentArtifact: FC<RendererProps> = ({ artifact }) => (
-  <article className="prose prose-theorem max-w-none text-base leading-6">
+/** Markdown as Theorem documents read, in artifacts and the Index alike. */
+export const MarkdownDocument: FC<{ content: string; className?: string }> = ({
+  content,
+  className,
+}) => (
+  <article
+    className={cn(
+      'prose prose-theorem max-w-none text-base leading-6',
+      className,
+    )}
+  >
     <Markdown remarkPlugins={[remarkGfm]} components={documentComponents}>
-      {artifact.content}
+      {content}
     </Markdown>
   </article>
+)
+
+const DocumentArtifact: FC<RendererProps> = ({ artifact }) => (
+  <MarkdownDocument content={artifact.content} />
 )
 
 const CodeArtifact: FC<RendererProps> = ({ artifact }) => (

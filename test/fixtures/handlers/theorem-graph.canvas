@@ -1,0 +1,14 @@
+{
+  "theorem:version": 1,
+  "nodes": [
+    {"x": 0, "id": "in", "type": "text", "text": "Question", "y": 0, "width": 240, "height": 80, "theorem:kind": "input"},
+    {"id": "tool", "type": "text", "text": "Search the folder", "x": 320, "y": 0, "width": 240, "height": 80, "theorem:kind": "tool", "styleAttributes": {"shape": "pill"}},
+    {"id": "out", "type": "file", "file": "notes/answer.md", "subpath": "#Result", "x": 640, "y": 0, "width": 320, "height": 240, "theorem:kind": "output", "color": "4"},
+    {"id": "web", "type": "link", "url": "https://jsoncanvas.org/spec/1.0/", "x": 0, "y": 160, "width": 400, "height": 300}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "in", "fromSide": "right", "toNode": "tool", "toSide": "left", "theorem:port": "query"},
+    {"id": "e2", "fromNode": "tool", "toNode": "out", "fromEnd": "arrow", "toEnd": "none", "label": "hits", "color": "#3b82f6"}
+  ],
+  "metadata": {"frontmatter": {}}
+}

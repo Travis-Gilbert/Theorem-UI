@@ -34,7 +34,7 @@ import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
-import { mutate, mutateThread, theorem } from './client'
+import { describeError, describeRunFailure, recoverPendingSend, mutate, mutateThread, theorem } from './client'
 import type { Theorem } from './client'
 import { pickedModelTurnOptions } from './models'
 
@@ -66,12 +66,12 @@ function titleFrom(text: string): string {
 
 /** Per-turn run settings, such as the agent terminal's coding execution mode. */
 export type TurnOptions = TheoremChatAdapterOptions['turnOptions']
-
 /**
  * One SDK adapter per durable thread; it remembers local-to-durable message
  * ids. A thread keeps the turn options it was first run with.
  */
 const chatAdapters = new Map<string, ChatModelAdapter>()
+const runFailures = new Map<string, string>()
 function chatAdapterFor(
   threadId: string,
   turnOptions?: TurnOptions,
@@ -82,6 +82,11 @@ function chatAdapterFor(
       client: theorem(),
       threadId,
       turnOptions,
+      onEvent(event) {
+        if (event.sourceEventType === 'RUN.FAILED') {
+          runFailures.set(threadId, describeRunFailure(event.payload))
+        }
+      },
     })
     chatAdapters.set(threadId, adapter)
   }
@@ -141,7 +146,7 @@ function resumeBackoff(attempt: number): Promise<void> {
  * and continues, up to RESUME_ATTEMPTS times. An abort ends silently; the
  * caller settles the run.
  */
-async function* tailRun(
+export async function* tailRun(
   runId: string,
   abortSignal: AbortSignal,
 ): AsyncGenerator<ChatModelRunResult, void> {
@@ -187,7 +192,7 @@ async function* tailRun(
                 ? {
                     type: 'incomplete',
                     reason: 'error',
-                    error: 'The Theorem run failed',
+                    error: describeRunFailure(event.payload),
                   }
                 : { type: 'complete', reason: 'stop' }
         }
@@ -244,10 +249,17 @@ export function createHistoryAdapter(
 ): ThreadHistoryAdapter {
   // Run left open by the last history load; resume reattaches to it.
   let liveRunId: string | undefined
+  let recoveryError: unknown
   return {
     async load() {
       const remoteId = threadId()
       if (!remoteId) return { messages: [] }
+      recoveryError = undefined
+      try {
+        await recoverPendingSend(remoteId)
+      } catch (error) {
+        recoveryError = error
+      }
       const snapshot = await theorem().chat.threads.get({
         threadId: remoteId,
       })
@@ -261,16 +273,16 @@ export function createHistoryAdapter(
       const repository = ExportedMessageRepository.fromArray(
         toAssistantMessages(settled, snapshot.thread),
       )
-      return runId ? { ...repository, unstable_resume: true } : repository
+      return runId || recoveryError ? { ...repository, unstable_resume: true } : repository
     },
     async *resume({ abortSignal }) {
       if (liveRunId) yield* resumeLiveRun(liveRunId, abortSignal)
+      else if (recoveryError) throw new Error(describeError(recoveryError), { cause: recoveryError })
     },
     // Theorem persists every turn itself; nothing to write from the client.
     async append() {},
   }
 }
-
 function useThreadAdapters() {
   const aui = useAui()
   const history = useMemo(
@@ -289,6 +301,14 @@ export async function* runTurn(
   options: ChatModelRunOptions,
   turnOptions?: TurnOptions,
 ): AsyncGenerator<ChatModelRunResult, void> {
+  const text = options.messages.at(-1)?.content
+    .map((part) => part.type === 'text' ? part.text : '').join('\n')
+  const recovered = await recoverPendingSend(threadId, text, options.abortSignal)
+  if (recovered) {
+    yield* resumeLiveRun(recovered, options.abortSignal)
+    return
+  }
+  runFailures.delete(threadId)
   const messages = await alignWithDurableBranch(threadId, options.messages)
   const result = chatAdapterFor(threadId, turnOptions).run({
     ...options,
@@ -304,7 +324,12 @@ export async function* runTurn(
       const custom = step.metadata?.custom as
         { theoremRunId?: string } | undefined
       runId = custom?.theoremRunId ?? runId
-      yield step
+      if (step.status?.type === 'incomplete' && step.status.reason === 'error') {
+        yield { ...step, status: { ...step.status, error: runFailures.get(threadId) ?? describeRunFailure({}) } }
+        runFailures.delete(threadId)
+      } else {
+        yield step
+      }
     }
   } catch (error) {
     // The SDK adapter throws when its event stream dies before a terminal
@@ -318,19 +343,30 @@ export async function* runTurn(
       /^Theorem run (\S+) disconnected before a terminal event/.exec(
         error instanceof Error ? error.message : '',
       )?.[1]
-    if (!known) throw error
+    if (!known) {
+      const resumed = await recoverPendingSend(threadId, text, options.abortSignal)
+      if (!resumed) throw error
+      yield* resumeLiveRun(resumed, options.abortSignal)
+      return
+    }
     yield* resumeLiveRun(known, options.abortSignal)
   }
 }
-
 function useTheoremThreadRuntime() {
   const aui = useAui()
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
-        const { remoteId } = await aui.threadListItem.initialize()
-        // The composer's model pick; read at each send, so switching mid-thread takes effect.
-        yield* runTurn(remoteId, options, pickedModelTurnOptions)
+        try {
+          const { remoteId } = await aui.threadListItem.initialize()
+          // The composer's model pick; read at each send, so switching mid-thread takes effect.
+          yield* runTurn(remoteId, options, pickedModelTurnOptions)
+        } catch (error) {
+          if (options.abortSignal.aborted) throw error
+          // Keep SDK exceptions intact for recovery above; only format at
+          // the presentation boundary consumed by MessagePrimitive.Error.
+          throw new Error(describeError(error), { cause: error })
+        }
       },
     }),
     [aui],
