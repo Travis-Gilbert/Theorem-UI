@@ -94,10 +94,44 @@ export const useUnsavedFiles = create<{ unsaved: boolean }>()(() => ({
   unsaved: false,
 }))
 
-const updateUnsaved = () =>
+/** Told whenever any sync's state changes, or a sync comes or goes. */
+const saveListeners = new Set<() => void>()
+
+const updateUnsaved = () => {
   useUnsavedFiles.setState({
     unsaved: [...syncs.values()].some((sync) => sync.state.draft !== null),
   })
+  for (const listener of saveListeners) listener()
+}
+
+/** Where a file's edits stand: being written, all written, or stopped. */
+export type SaveState = 'saving' | 'saved' | 'stopped'
+
+const saveStateOf = (sync: TextFileSync | undefined): SaveState | null => {
+  if (!sync) return null
+  if (sync.state.conflict || sync.state.saveFailed) return 'stopped'
+  return sync.state.draft === null ? 'saved' : 'saving'
+}
+
+/**
+ * The save state of the file at `entry`, as the views that edit it as text
+ * share it; null while none does.
+ */
+export function useSaveState(
+  client: WorkspaceClient,
+  entry: WorkspaceEntry | undefined,
+): SaveState | null {
+  const snapshot = () =>
+    entry ? saveStateOf(syncs.get(syncKey(client, entry.path, entry))) : null
+  return useSyncExternalStore(
+    (onChange) => {
+      saveListeners.add(onChange)
+      return () => void saveListeners.delete(onChange)
+    },
+    snapshot,
+    snapshot,
+  )
+}
 
 /** Starts every scheduled write now, for a page that is going away. */
 export function flushTextFiles() {
@@ -129,17 +163,13 @@ class TextFileSync {
   }
 
   /**
-   * The file was renamed or moved: its text is the same, now under `path`.
-   * Running it again for the same path changes nothing. The view that says so
-   * is rendering, so its listeners are not told; each view reads the path.
-   */
-  /**
    * Counts a view under `key`. The function it returns uncounts it; the last
    * view out writes what waits and lets the sync go.
    */
   attach(key: string) {
     this.views++
     syncs.set(key, this)
+    updateUnsaved()
     return () => {
       if (--this.views > 0) return
       this.save.cancel()
@@ -151,6 +181,11 @@ class TextFileSync {
     }
   }
 
+  /**
+   * The file was renamed or moved: its text is the same, now under `path`.
+   * Running it again for the same path changes nothing. The view that says so
+   * is rendering, so its listeners are not told; each view reads the path.
+   */
   moveTo(path: string) {
     if (path === this.path) return
     const data = this.current()

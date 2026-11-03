@@ -9,6 +9,8 @@ import { OpenWith } from '@/components/handlers/open-with'
 import { Icon } from '@/components/icons'
 import { openBeside } from '@/components/shell/open-beside'
 import { Button } from '@/components/ui/button'
+import { useSaveState } from '@/lib/handlers/file-sync'
+import type { SaveState } from '@/lib/handlers/file-sync'
 import {
   handlerFor,
   matchInput,
@@ -16,6 +18,7 @@ import {
   useHandlerRegistry,
 } from '@/lib/handlers/registry'
 import {
+  entryOf,
   sameFile,
   useWorkspaceFileView,
   workspaceFilePanelId,
@@ -82,6 +85,33 @@ function Header({
   )
 }
 
+/** Where a save went, said the way the navigator names the place. */
+function SaveNote({
+  client,
+  state,
+}: {
+  client: WorkspaceClient
+  state: SaveState | null
+}) {
+  if (!state) return null
+  const place = client.theorem ? 'to Home' : 'on this device'
+  return (
+    <span
+      role="status"
+      className={cn(
+        'shrink-0 text-xs text-ink-faint',
+        state === 'stopped' && 'text-error-ink',
+      )}
+    >
+      {state === 'saving'
+        ? 'Saving…'
+        : state === 'saved'
+          ? `Saved ${place}`
+          : 'Not saved'}
+    </span>
+  )
+}
+
 function FileView({
   client,
   file,
@@ -94,16 +124,14 @@ function FileView({
   onClose?: () => void
 }) {
   const tree = useWorkspaceTree(client)
-  // The file is its entry, wherever the tree now has it; by path only until
-  // the ref knows the entry.
-  const entry =
-    (file.entryId && tree.data?.find((e) => e.id === file.entryId)) ||
-    tree.data?.find((e) => e.path === file.path)
+  // The file is its entry, wherever the tree now has it.
+  const entry = entryOf(tree.data, file)
   const path = entry?.path ?? file.path
   const properties = useMatchProperties(client, path)
   const handlers = useHandlerRegistry((s) => s.handlers)
   const [deleted, setDeleted] = useState(false)
   const links = useLinksAside()
+  const saveState = useSaveState(client, entry)
 
   const found = entry && { entryId: entry.id, path: entry.path }
   const reportMove = useEffectEvent(() => {
@@ -160,6 +188,7 @@ function FileView({
   return (
     <>
       <Header path={path} onClose={onClose}>
+        {!deleted && <SaveNote client={client} state={saveState} />}
         {entry && handler && !deleted && (
           <Button
             variant="ghost"

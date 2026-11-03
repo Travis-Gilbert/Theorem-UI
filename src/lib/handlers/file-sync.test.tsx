@@ -11,8 +11,8 @@ import {
 } from '../../../test/workspace'
 import type { FakeWorkspace } from '../../../test/workspace'
 import type { WorkspaceEntry } from '@/lib/workspace/types'
-import { useTextFile } from './file-sync'
-import type { TextFile } from './file-sync'
+import { useSaveState, useTextFile } from './file-sync'
+import type { SaveState, TextFile } from './file-sync'
 
 afterEach(cleanup)
 
@@ -164,6 +164,51 @@ test('two views of one file share one set of edits', async () => {
   expect(ws.text('a.md')).toBe('mine')
   expect(ws.writes).toHaveLength(1)
   expect(views[0]!.dirty).toBe(false)
+})
+
+test('another view of the file sees whether its edits are saved', async () => {
+  const ws = fakeWorkspace({ 'a.md': 'one' })
+  const entry = await entryAt(ws, 'a.md')
+  const seen: { state: SaveState | null } = { state: null }
+  const see = (state: SaveState | null) => (seen.state = state)
+  function Header() {
+    see(useSaveState(ws.client, entry))
+    return null
+  }
+  function Editor() {
+    report(useTextFile({ client: ws.client, path: 'a.md', entry }))
+    return null
+  }
+  await render(
+    <>
+      <Header />
+      <Editor />
+    </>,
+  )
+  await waitFor(() => file.text === 'one')
+  expect(seen.state).toBe('saved')
+  act(() => file.setText('two'))
+  expect(seen.state).toBe('saving')
+  await act(() => file.flush())
+  await settle()
+  expect(seen.state).toBe('saved')
+  await ws.external('a.md', 'theirs')
+  act(() => file.setText('mine'))
+  await ws.external('a.md', 'theirs again')
+  expect(seen.state).toBe('stopped')
+})
+
+test('a file no view edits as text has no save state', async () => {
+  const ws = fakeWorkspace({ 'a.md': 'one' })
+  const entry = await entryAt(ws, 'a.md')
+  const seen: { state: SaveState | null } = { state: 'saved' }
+  const see = (state: SaveState | null) => (seen.state = state)
+  function Header() {
+    see(useSaveState(ws.client, entry))
+    return null
+  }
+  await render(<Header />)
+  expect(seen.state).toBeNull()
 })
 
 /** Makes every write report that the store merged it with another change. */

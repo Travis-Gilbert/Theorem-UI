@@ -2,7 +2,7 @@
 // desktop, panel placement is the dockview layout's), the same seam as
 // components/notes/note-view.ts.
 import { create } from 'zustand'
-import type { EntryId, WorkspaceId } from './types'
+import type { EntryId, WorkspaceEntry, WorkspaceId } from './types'
 
 export interface WorkspaceFileRef {
   workspaceId: WorkspaceId
@@ -35,6 +35,14 @@ export const fileRef = (target: WorkspaceFileTarget): WorkspaceFileRef => ({
 export const sameFile = (a: WorkspaceFileRef, b: WorkspaceFileRef) =>
   a.workspaceId === b.workspaceId &&
   (a.entryId && b.entryId ? a.entryId === b.entryId : a.path === b.path)
+
+/** The ref's entry in `entries`: by its id, else at its path. */
+export const entryOf = (
+  entries: ReadonlyArray<WorkspaceEntry> | undefined,
+  { entryId, path }: WorkspaceFileRef,
+) =>
+  (entryId ? entries?.find((e) => e.id === entryId) : undefined) ??
+  entries?.find((e) => e.path === path)
 
 /** The Dockview panel id for a file opened from a workspace. */
 export const workspaceFilePanelId = ({
