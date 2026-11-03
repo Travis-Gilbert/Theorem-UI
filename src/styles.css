@@ -5,6 +5,7 @@
 @import '@fontsource-variable/ibm-plex-sans/wght-italic.css';
 @import '@fontsource-variable/jetbrains-mono';
 @import 'dockview-react/dist/styles/dockview.css';
+@import './palettes.css';
 @plugin "@tailwindcss/typography";
 
 /* Libron ships 400 and 700 with italics only; never synthesize other weights.
@@ -49,57 +50,19 @@
    the shell's shape: the sheet's vertical gradient on a rail, lifted by a
    shadow in light and a two-hue glow in dark.
 
+   The colours themselves are in palettes.css, placed by the rules in
+   scripts/palettes.ts. What follows here is what is not a colour token.
+
    GitHub Sharp is the default, after joaomoreno's VS Code theme: crisp white
    surfaces, GitHub ink and hairlines, the theme's blue for the accent and
    GitHub green for success. */
 :root {
-  --surface-neutral: #f3f3f3;
-  --surface-sidebar: #f3f3f3;
-  --surface-frame: #e6e6e6;
-  --surface-raised: #ffffff;
-  --surface-hover: #eaeff5;
-  --surface-selected: #d0e2f0;
-  --surface-composer: #ffffff;
-  --surface-artifact: #f9f9f9;
   /* The rail is the base the sheet sits on; the active row is cut from it. */
-  --surface-rail: #e9ebee;
   --surface-pill: var(--surface-rail);
-  /* The sheet's vertical field, painted once across its full height. */
-  --sheet-from: #ffffff;
-  --sheet-to: #eef0f2;
-  /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
-  --ink-faint-top: #6a737d;
-  --ink-faint-bottom: #5f6770;
   /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
   --glow-opacity: 0;
   --glow-from: transparent;
   --glow-to: transparent;
-
-  --ink: #24292e;
-  --ink-muted: #586069;
-  --ink-faint: #5f6770;
-  --focus: #2e78b8;
-  --line-control: #c8ccd1;
-  --line-separator: #e1e4e8;
-
-  /* "redwood" is the accent's role name; each palette fills it its own way. */
-  --redwood: #3f77a6;
-  --redwood-hover: #36699a;
-  --redwood-pressed: #2d5a85;
-  --on-redwood: #ffffff;
-  --redwood-container: #d0e2f0;
-  --redwood-ink: #1f4f7a;
-
-  --teal: #22863a;
-  --teal-container: #dcf0e0;
-  --teal-ink: #165c27;
-
-  --ochre: #b08800;
-  --ochre-container: #f5e9b8;
-  --ochre-ink: #735c0f;
-
-  --error-container: #ffeef0;
-  --error-ink: #b31d28;
 
   --shadow-tint: 36 41 46;
 
@@ -108,7 +71,6 @@
   --foreground: var(--ink);
   --card: var(--surface-raised);
   --card-foreground: var(--ink);
-  --popover: var(--surface-raised);
   --popover-foreground: var(--ink);
   --primary: var(--redwood);
   --primary-foreground: var(--on-redwood);
@@ -123,158 +85,40 @@
   --border: var(--line-separator);
   --input: var(--line-control);
   --ring: var(--focus);
-  --link: var(--teal-ink);
-
-  --radius: 0.5rem;
-  --link: #005cc5;
 
   --radius: 0.5rem;
 
-  /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
-     green tags, yellow attachments; from Theorem, teal plans and violet
-     agents' documents. Plain colours, since WebGL reads them. */
-  --graph-note: #4a4b46;
-  --graph-plan: #2c7a72;
-  --graph-agent: #6b5ba6;
-  --graph-tag: #4f7d2c;
-  --graph-attachment: #a8841a;
-  --graph-unresolved: #85827d;
-  --graph-link: #9a9590;
+  /* The Vault's graph (vault-graph.tsx) marks the open note in the accent. */
   --graph-active: var(--redwood);
-  --graph-label: var(--ink);
 }
 
 /* GitHub Sharp Dark: the activity bar's near-black for the rail, the editor's
    charcoal for the sheet. The glow takes the theme's two signal hues, the
    orange of its active tab and the blue of its terminal. */
 .dark {
-  --surface-neutral: #1c1d1e;
-  --surface-sidebar: #1c1d1e;
-  --surface-frame: #121213;
-  --surface-raised: #24282a;
-  --surface-hover: #232627;
-  --surface-selected: #2a3538;
-  --surface-composer: #232627;
-  --surface-artifact: #1f2121;
-  --surface-rail: #121213;
   --surface-pill: var(--surface-rail);
-  --sheet-from: #262a2a;
-  --sheet-to: #1a1b1c;
-  --ink-faint-top: #8f9396;
-  --ink-faint-bottom: #84888b;
   /* A shadow cannot show on the near-black rail, so the sheet glows instead. */
   --shadow-sheet: 0 0 #0000;
   --glow-opacity: 1;
   --glow-from: rgb(227 98 9 / 0.32);
   --glow-to: rgb(53 132 185 / 0.38);
 
-  --ink: #c3c6c9;
-  --ink-muted: #a1a5a8;
-  --ink-faint: #84888b;
-  --focus: #2e78b8;
-  --line-control: #454647;
-  --line-separator: #2d2d2d;
-
-  --redwood: #5790be;
-  --redwood-hover: #6a9fc9;
-  --redwood-pressed: #4a80ab;
-  --on-redwood: #0e1114;
-  --redwood-container: #1a3f60;
-  --redwood-ink: #91afd1;
-
-  --teal: #60976d;
-  --teal-container: #1d2e22;
-  --teal-ink: #8fc79a;
-  --ochre: #ddc912;
-  --ochre-container: #3a3415;
-  --ochre-ink: #e4d571;
-  --error-container: #3b1d1f;
-  --error-ink: #e08a8f;
-
   --shadow-tint: 0 0 0;
-  --popover: var(--surface-raised);
-  --link: #7ea8d6;
-
-  --graph-note: #c9c9c9;
-  --graph-plan: #5fc2b5;
-  --graph-agent: #a898e6;
-  --graph-tag: #79c05a;
-  --graph-attachment: #e2c048;
-  --graph-unresolved: #5e5e5e;
-  --graph-link: #4a4a4a;
-  --graph-label: #d6d6d6;
 }
 
 /* Stone (DESIGN.md), the warm palette the app was authored in. */
 [data-palette='stone'] {
-  --surface-neutral: #b4b0ac;
-  --surface-sidebar: #b0aca8;
-  --surface-frame: #a9a4a1;
-  --surface-raised: #c2bebb;
-  --surface-hover: #bcb7b3;
-  --surface-selected: #a49e9a;
-  --surface-composer: #c2bebb;
-  --surface-artifact: #bab6b2;
-  /* The rail is the base the sheet sits on; the active row is cut from it. */
-  --surface-rail: #dbd7d4;
   --surface-pill: var(--surface-rail);
-  /* The sheet's vertical field, painted once across its full height. */
-  --sheet-from: #d0ccc9;
-  --sheet-to: #aeaaa6;
-  /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
-  --ink-faint-top: #575652;
-  --ink-faint-bottom: #3a3936;
-  /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
   --glow-opacity: 0;
   --glow-from: transparent;
   --glow-to: transparent;
 
-  --ink: #30312d;
-  --ink-muted: #3f403c;
-  --ink-faint: #5b5a56;
-  --focus: #194d60;
-  --line-control: #524e4b;
-  --line-separator: #9e9995;
-
-  --redwood: #8f3f49;
-  --redwood-hover: #7d3440;
-  --redwood-pressed: #6c2c36;
-  --on-redwood: #f5f0ed;
-  --redwood-container: #cdb8b6;
-  --redwood-ink: #672b35;
-
-  --teal: #24685f;
-  --teal-container: #b8c8c1;
-  --teal-ink: #143c35;
-
-  --ochre: #a17b28;
-  --ochre-container: #cfbf9b;
-  --ochre-ink: #5e4411;
-
-  --error-container: #d3b7ba;
-  --error-ink: #762633;
-
   --shadow-tint: 48 49 45;
-  --popover: var(--surface-raised);
-  --link: var(--teal-ink);
 }
 
 /* Stone's dark. */
 .dark[data-palette='stone'] {
-  --surface-neutral: #121314;
-  --surface-sidebar: #181919;
-  --surface-frame: #0b0c0d;
-  --surface-raised: #1f2020;
-  --surface-hover: #1b1c1d;
-  --surface-selected: #26282a;
-  --surface-composer: #1e1f20;
-  --surface-artifact: #18191a;
-  --surface-rail: #0b0c0d;
   --surface-pill: var(--surface-rail);
-  --sheet-from: #232425;
-  --sheet-to: #151617;
-  --ink-faint-top: #8c8c8c;
-  --ink-faint-bottom: #808080;
   /* A shadow cannot show on the near-black rail, so the sheet glows instead:
      the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
      read against the rail, warm at the top and teal at the bottom. */
@@ -283,30 +127,7 @@
   --glow-from: rgb(205 78 24 / 0.36);
   --glow-to: rgb(25 142 169 / 0.36);
 
-  --ink: #cccccc;
-  --ink-muted: #959595;
-  --ink-faint: #7a7a7a;
-  --focus: #3ca6a8;
-  --line-control: #3a3a3a;
-  --line-separator: #303030;
-
-  --redwood: #26b0d7;
-  --redwood-hover: #3dbde1;
-  --redwood-pressed: #1c95b8;
-  --on-redwood: #0b0c0d;
-  --redwood-container: #1d3a44;
-  --redwood-ink: #7fd3ea;
-
-  --teal-container: #183230;
-  --teal-ink: #8fd0c4;
-  --ochre-container: #3a2f17;
-  --ochre-ink: #e0c27e;
-  --error-container: #3b1d22;
-  --error-ink: #f0a3ad;
-
   --shadow-tint: 0 0 0;
-  --popover: #202122;
-  --link: #8fd0c4;
 }
 
 /* Dock theme. Structure follows dockview's light theme; colours map to the
