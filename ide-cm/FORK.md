@@ -11,20 +11,21 @@
 
 `sh scripts/verify-fork.sh` checks everything below that concerns `vendor/openidea`: that the pin is
 the upstream checkout's HEAD, that no vendored file is missing from upstream, that the files that
-differ are exactly the four named here, that `patches/theorem-fork.patch` is exactly that
+differ are exactly the five named here, that `patches/theorem-fork.patch` is exactly that
 difference, and that the only upstream files left out of `src/` are tests.
 
 ## Divergences in `vendor/openidea` (`patches/theorem-fork.patch`)
 
-Four files. Each is a seam, not a rewrite; each is the smallest change that lets the page supply
+Five files. Each is a seam, not a rewrite; each is the smallest change that lets the page supply
 what the desktop build gets from Rust.
 
 | | File | Change | Why |
 | --- | --- | --- | --- |
 | P1 | `src/editor/core/backend.ts`, `src/editor/core/model/document.ts` | `DocBackend` gains an optional `createSync(info, host)`. `DocModel` uses it when present and builds OpenIDEA's own `DocSync` when absent. `DocSyncHandle` and `DocSyncHost` name the surface `DocModel` already used (`localText`, `local`, `whenIdle`, `dispose`). | The desktop `DocSync` is a second operation-transform client over its own `doc_edit` protocol. In the browser the SDK `DocumentSession` is the client. |
-| P2 | `src/platform/ipc.ts` | `isTauri()` is also true when a browser host is installed (`hostAvailable()` from `@host/host`). | Dozens of call sites guard on `isTauri()` to decide whether a backend exists. A Theorem workspace host is a backend. |
+| P2 | `src/platform/ipc.ts` | `isTauri()` answers `hostAvailable()` from `@host/host` and nothing else; `window.__TAURI_INTERNALS__` is not consulted. | Dozens of call sites guard on `isTauri()` to decide whether a backend exists. A Theorem workspace host is the only backend this build has, so a page without one never falls back to a Tauri runtime (`test/no-tauri.test.ts`). |
 | P3 | `src/editor/core/backend.ts` | `setDocBackend(backend)` swaps the module's `docBackend`. | The workspace-backed backend is built after the connection is open, not at import time. |
 | P4 | `src/platform/tauriCore.ts` | Its two imports of `../../node_modules/@tauri-apps/api/core.js` point at `@host/tauri-core`. | The module wraps the real Tauri `invoke` with remote-development routing. There is no Tauri package here; the wrapper stays and the browser host sits below it. |
+| P5 | `public/boot.js` | The check of `window.__TAURI_INTERNALS__` for a `settings-<parent>` window label is removed. | A browser tab is never a Tauri settings window, and the shipped page reads no Tauri global (`test/no-tauri.test.ts` and the built-page check in the lane proof). |
 
 Left out of `vendor/openidea/src`: every `*.test.ts(x)`, every `__tests__/` directory,
 `src/test/` and `src/platform/__fixtures__/`. Nothing else under `src/` is missing.

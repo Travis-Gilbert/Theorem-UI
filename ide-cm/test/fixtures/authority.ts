@@ -131,6 +131,11 @@ export class Authority {
           this.disk = this.text
         }
         this.saved = this.revision
+        // The host publishes `document.saved` whenever the saved revision moves, whatever moved
+        // it (apps/theorem-ide-host/src/session.rs, the `head.saved` comparison).
+        for (const live of this.lives) {
+          live.emit('document.saved', { document_id: 'doc', resource_id: 'a.txt', revision: this.saved })
+        }
         return {}
       },
     }

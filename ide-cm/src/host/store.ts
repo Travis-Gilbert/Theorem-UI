@@ -4,6 +4,7 @@
 
 import { create } from 'zustand'
 import type { WorkspaceLiveState } from '@theoremharness/sdk'
+import type { Refusal } from './host'
 import type { SessionSyncState } from './session-sync'
 
 export interface DocConflict {
@@ -23,6 +24,8 @@ export interface HostState {
   cursor: string | undefined
   docs: Record<string, SessionSyncState>
   conflicts: Record<string, DocConflict>
+  /** What the host has refused on this page (commands and platform features), by key. */
+  unavailable: Record<string, Refusal>
 }
 
 export const useHostState = create<HostState>(() => ({
@@ -31,12 +34,15 @@ export const useHostState = create<HostState>(() => ({
   cursor: undefined,
   docs: {},
   conflicts: {},
+  unavailable: {},
 }))
 
 export const hostState = {
   setLive: (live: HostState['live']) => useHostState.setState({ live }),
   addResync: (reason: string) => useHostState.setState((s) => ({ resyncs: [...s.resyncs, reason] })),
   setCursor: (cursor: string | undefined) => useHostState.setState({ cursor }),
+  setRefusal: (feature: string, refusal: Refusal) =>
+    useHostState.setState((s) => ({ unavailable: { ...s.unavailable, [feature]: refusal } })),
   setDoc: (path: string, state: SessionSyncState) =>
     useHostState.setState((s) => ({ docs: { ...s.docs, [path]: state } })),
   clearDoc: (path: string) =>
@@ -51,6 +57,7 @@ export const hostState = {
     useHostState.setState((s) => ({ conflicts: { ...s.conflicts, [path]: conflict } })),
   clearConflict: (path: string) =>
     useHostState.setState((s) => {
+      if (!(path in s.conflicts)) return s
       const conflicts = { ...s.conflicts }
       delete conflicts[path]
       return { conflicts }

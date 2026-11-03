@@ -364,6 +364,112 @@ describe('external modification', () => {
   })
 })
 
+describe('local selection and the authoritative revision', () => {
+  test('moving the selection sends nothing and leaves the revision alone', async () => {
+    const authority = new Authority('select 😀 me')
+    const e = await editor(authority)
+    const states = e.m.states
+    e.view.dispatch({ selection: { anchor: 0, head: 6 } })
+    e.view.dispatch({ selection: { anchor: 9 } })
+    await settle(authority, [e])
+    expect(authority.records).toEqual([])
+    expect(e.sync.state()).toMatchObject({ revision: 0, pending: false, dirty: false })
+    expect(e.m.states).toBe(states)
+    expect(e.session.revision).toBe(0)
+  })
+
+  test('another writer\'s edit maps this editor\'s selection; neither editor\'s selection reaches the other', async () => {
+    const authority = new Authority('😀 hello world')
+    const a = await editor(authority)
+    const b = await editor(authority)
+    // a selects "world" (UTF-16 9..14), b puts its caret at the end.
+    a.view.dispatch({ selection: { anchor: 9, head: 14 } })
+    b.view.dispatch({ selection: { anchor: b.view.state.doc.length } })
+    b.view.dispatch({ changes: { from: 0, insert: '>> ' } })
+    await settle(authority, [a, b])
+    expect(a.text()).toBe('>> 😀 hello world')
+    // The selection moved with the text it covers, not with the revision.
+    const sel = a.view.state.selection.main
+    expect(a.view.state.sliceDoc(sel.from, sel.to)).toBe('world')
+    // b's caret is where b left it, after its own insert, untouched by a's selection.
+    expect(b.view.state.selection.main.head).toBe(b.view.state.doc.length)
+    expect(authority.records.length).toBe(1)
+    a.assertInStep()
+    b.assertInStep()
+  })
+
+  test('a pending local edit is shown before the authority accepts it, and the selection follows it', async () => {
+    const authority = new Authority('ab')
+    const e = await editor(authority)
+    e.view.dispatch({ changes: { from: 1, insert: '😀' }, selection: { anchor: 3 }, userEvent: 'input.type' })
+    expect(e.text()).toBe('a😀b')
+    expect(e.view.state.selection.main.head).toBe(3)
+    expect(e.sync.state()).toMatchObject({ revision: 0, pending: true })
+    await settle(authority, [e])
+    expect(e.sync.state()).toMatchObject({ revision: 1, pending: false })
+    expect(e.view.state.selection.main.head).toBe(3)
+  })
+})
+
+describe('per-client undo across reconnect and external modification', () => {
+  test('undo after a stream gap reverts only this editor\'s edit, past what the gap carried', async () => {
+    const authority = new Authority('base')
+    const a = await editor(authority)
+    const b = await editor(authority)
+    a.view.dispatch({ changes: { from: 4, insert: ' mine' } })
+    await settle(authority, [a, b])
+    a.live.hold()
+    b.view.dispatch({ changes: { from: 0, insert: 'theirs ' } })
+    await settle(authority, [b])
+    a.live.release(true) // the event is lost; a learns of b's edit only by resync
+    await a.live.resync()
+    await settle(authority, [a, b])
+    expect(a.text()).toBe('theirs base mine')
+    expect(undo(a.view)).toBe(true)
+    await settle(authority, [a, b])
+    expect(authority.text).toBe('theirs base')
+    expect(b.text()).toBe('theirs base')
+    // b's own history is b's: its undo takes back "theirs ", not a's edit.
+    expect(undo(b.view)).toBe(true)
+    await settle(authority, [a, b])
+    expect(authority.text).toBe('base')
+    a.assertInStep()
+    b.assertInStep()
+  })
+
+  test('undoing an edit typed offline takes it back before it is ever sent', async () => {
+    const authority = new Authority('x')
+    const a = await editor(authority)
+    const b = await editor(authority)
+    a.live.hold()
+    b.view.dispatch({ changes: { from: 1, insert: 'b' } })
+    await settle(authority, [b])
+    a.view.dispatch({ changes: { from: 0, insert: 'a' }, userEvent: 'input.type' })
+    expect(undo(a.view)).toBe(true)
+    a.live.release(true)
+    await a.live.resync()
+    await settle(authority, [a, b])
+    expect(authority.text).toBe('xb')
+    expect(a.text()).toBe('xb')
+    a.assertInStep()
+  })
+
+  test('after a checkout change kept as the shared text, undo still reverts this editor\'s edit', async () => {
+    const authority = new Authority('one')
+    const e = await editor(authority)
+    e.view.dispatch({ changes: { from: 3, insert: ' two' } })
+    await settle(authority, [e])
+    authority.externalWrite('from disk')
+    await e.session.resolveConflict('authority')
+    await settle(authority, [e])
+    expect(undo(e.view)).toBe(true)
+    await settle(authority, [e])
+    expect(authority.text).toBe('one')
+    expect(e.text()).toBe('one')
+    e.assertInStep()
+  })
+})
+
 describe('undo, redo, dirty and save', () => {
   test('undo reverts only this editor\'s edit, past another writer\'s change', async () => {
     const authority = new Authority('😀 base')

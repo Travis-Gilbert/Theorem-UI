@@ -1,3 +1,15 @@
+--- a/public/boot.js
++++ b/public/boot.js
+@@ -36,7 +36,5 @@
+ } catch {
+   /* storage unavailable */
+ }
+-// Settings windows (`settings-<parent>`) load this page too: splash.css drops the logo for them.
+-if (window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label?.startsWith("settings-")) {
+-  document.documentElement.dataset.window = "settings";
+-}
++// Settings windows (`settings-<parent>`) load this page in the desktop build; a browser tab is
++// never one, and no Tauri global is read here (patch P5).
 --- a/src/editor/core/backend.ts
 +++ b/src/editor/core/backend.ts
 @@ -22,7 +22,7 @@
@@ -145,17 +157,18 @@
  
  export { commands };
  export type * from "@/bindings";
-@@ -96,6 +97,10 @@
+@@ -96,6 +97,11 @@
    handlers.get("*")?.forEach((h) => h(event));
  }
  
 +/**
-+ * True when commands have a backend: a Tauri runtime, or in this fork the browser host over the
-+ * Theorem SDK (patch P2; the host is installed before the frontend starts).
++ * True when commands have a backend. In this fork that is only ever the browser host over the
++ * Theorem SDK (patch P2; the host is installed before the frontend starts): no Tauri global is
++ * consulted, so a page without a host never falls back to one.
 + */
  export function isTauri(): boolean {
 -  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-+  return typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || hostAvailable());
++  return hostAvailable();
  }
 --- a/src/platform/tauriCore.ts
 +++ b/src/platform/tauriCore.ts

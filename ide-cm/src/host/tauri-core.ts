@@ -1,7 +1,7 @@
 // `@tauri-apps/api/core` as the frontend imports it (a Vite alias points here), answered by the
 // browser host instead of a Tauri runtime. `invoke` goes to the installed host; `Channel` is the
 // stream a command writes to; there is no `__TAURI_INTERNALS__` anywhere.
-import { currentHost, hostAvailable, type HostChannel } from './host'
+import { currentHost, hostAvailable, refusalError, type HostChannel } from './host'
 
 export type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
 export type InvokeOptions = { headers?: HeadersInit }
@@ -31,9 +31,15 @@ export function isTauri(): boolean {
   return hostAvailable()
 }
 
-/** Files are read through the workspace, not through an asset protocol. */
-export function convertFileSrc(path: string): string {
-  return `/api/environment/v1/files/${encodeURIComponent(path)}`
+/**
+ * Files are read through the workspace's file commands; the host serves no URL for a file, so a
+ * caller is refused rather than handed an address that would not load. Nothing in the frontend
+ * calls this today.
+ */
+export function convertFileSrc(_path: string): string {
+  throw refusalError(
+    currentHost().refuse('core.convertFileSrc', 'A URL for a workspace file', 'the workspace host serves files through its file commands, not by URL'),
+  )
 }
 
 export class Resource {

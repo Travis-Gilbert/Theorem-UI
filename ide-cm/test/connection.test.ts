@@ -209,6 +209,24 @@ describe('WorkspaceConnection', () => {
       connection.live.close()
     })
 
+    test('undo after a host restart takes back this client\'s edit: the undo history is the page\'s, not the process\'s', async () => {
+      const server = fakeServer({ 'a.txt': 'hello' })
+      const connection = await connect(server)
+      const { session } = await connection.acquire('a.txt')
+      session.edit(insertAt(5, ' world'))
+      await until(() => !session.pending, 'the edit accepted')
+
+      server.restartHost()
+      expect(session.undo()).toHaveLength(1)
+      await until(() => !session.pending, 'the undo accepted after the restart')
+
+      expect(server.documents.get('a.txt')).toMatchObject({ revision: 2, text: 'hello' })
+      expect(session.redo()).toHaveLength(1)
+      await until(() => !session.pending, 'the redo accepted')
+      expect(server.documents.get('a.txt')).toMatchObject({ revision: 3, text: 'hello world' })
+      connection.live.close()
+    })
+
     test('a document the process forgot is seated again and the edit repeated once', async () => {
       const server = fakeServer({ 'a.txt': 'hello' })
       const connection = await connect(server)

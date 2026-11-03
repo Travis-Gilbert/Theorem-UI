@@ -29,6 +29,12 @@ export const failure = (kind: ErrorKind, message: string): HostFailure => ({ kin
 export const unavailable = (what: string, why = 'this Theorem workspace host does not provide it'): HostFailure =>
   failure('unavailable', `${what} is not available: ${why}`)
 
+/**
+ * A refusal for the plugin shims, whose callers render `e instanceof Error ? e.message : String(e)`:
+ * an `Error` with the failure's sentence that still carries `kind: 'unavailable'`.
+ */
+export const refusalError = (refused: HostFailure): Error & HostFailure => Object.assign(new Error(refused.message), refused)
+
 /** Anything the host's `Channel` arguments can be fed: a stream of messages for one command. */
 export interface HostChannel<T = unknown> {
   readonly id: number
@@ -74,8 +80,22 @@ export interface BrowserHost {
   pick(options: PickOptions): Promise<string | string[] | null>
   save(options: PickOptions): Promise<string | null>
   readonly window: WindowBehaviours
-  /** Commands the frontend asked for that this host does not provide, with a count. */
-  readonly refused: ReadonlyMap<string, number>
+  /**
+   * What the frontend asked for that this host does not provide, keyed by command name or by
+   * platform feature (`window.minimize`, `opener.revealItemInDir`), with how often and why.
+   */
+  readonly refused: ReadonlyMap<string, Refusal>
+  /** Record a refusal of `feature` and return the typed failure to throw or reject with. */
+  refuse(feature: string, what: string, why?: string): HostFailure
+  /** Called each time something is refused; the status bar shows the running list. */
+  onRefused(handler: (feature: string, refusal: Refusal) => void): () => void
+}
+
+/** One unavailable feature as the host has seen it. */
+export interface Refusal {
+  count: number
+  /** The sentence the frontend was given, naming the feature and why it is unavailable. */
+  message: string
 }
 
 let installed: BrowserHost | undefined

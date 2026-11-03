@@ -2,8 +2,9 @@
 // `whole_word`, and the file masks as `include` and `exclude`), `search.cancel` and
 // `search.replacePreview` (for the one file previewed, as `path`), through the SDK's `ide.search`
 // methods, answer OpenIDEA's Find in Files commands. The host matches with ripgrep's engine
-// (`grep-regex`), applies the masks with the `ignore` crate's overrides, and reads an open
-// document's session text in place of the file. Its columns, `ranges`, `text_offset` and the
+// (`grep-regex`), applies the masks as OpenIDEA's own `FileMask` reads them (a mask without `/`
+// matches the name, one with `/` the workspace path; `theorem-ide-runtime` `FileMask`), and reads an
+// open document's session text in place of the file. Its columns, `ranges`, `text_offset` and the
 // preview's `edits`, count Unicode scalars, which the SDK's `scalarToUtf16` turns into the UTF-16
 // columns the frontend draws, and CodeMirror's `Text` turns offsets into lines as the editor counts
 // them. What the host has no argument for (named and pattern scopes, the comments-and-strings

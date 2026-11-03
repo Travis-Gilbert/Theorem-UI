@@ -36,7 +36,5 @@ try {
 } catch {
   /* storage unavailable */
 }
-// Settings windows (`settings-<parent>`) load this page too: splash.css drops the logo for them.
-if (window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label?.startsWith("settings-")) {
-  document.documentElement.dataset.window = "settings";
-}
+// Settings windows (`settings-<parent>`) load this page in the desktop build; a browser tab is
+// never one, and no Tauri global is read here (patch P5).

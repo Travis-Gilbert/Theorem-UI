@@ -108,6 +108,7 @@ async function main(): Promise<void> {
     },
   })
   emitter.current = (event) => host.emit(event)
+  host.onRefused((feature, refusal) => hostState.setRefusal(feature, refusal))
   installHost(host)
 
   try {

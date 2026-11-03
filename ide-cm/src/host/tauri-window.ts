@@ -1,8 +1,8 @@
 // `@tauri-apps/api/window`, `webviewWindow` and `webview` for a browser tab: the behaviours a tab
 // has (title, zoom, unload guard, resize events) are real; the ones only a desktop window has
-// (minimize, maximize, edge dragging, background colour) answer as unavailable instead of
+// (minimize, maximize, edge dragging, background colour) are counted refusals instead of
 // pretending, and the frontend only asks for them when the platform says its window is frameless.
-import { currentHost } from './host'
+import { currentHost, refusalError } from './host'
 import { listen as listenEvent, emit as emitEvent, type EventCallback, type UnlistenFn } from './tauri-event'
 
 /** What the webview reports when files are dragged over it; a tab is never given one. */
@@ -16,7 +16,8 @@ export type DragDropEvent = {
     | { type: 'leave' }
 }
 
-const notInATab = (what: string) => Promise.reject(new Error(`${what} is not available to a browser tab`))
+const notInATab = (feature: string, what: string) =>
+  Promise.reject(refusalError(currentHost().refuse(`window.${feature}`, what, 'a browser tab has the browser’s own window')))
 
 class BrowserWindow {
   get label(): string {
@@ -45,14 +46,14 @@ class BrowserWindow {
     window.focus()
     return Promise.resolve()
   }
-  minimize = () => notInATab('minimize')
-  unminimize = () => notInATab('unminimize')
-  toggleMaximize = () => notInATab('maximize')
-  maximize = () => notInATab('maximize')
-  unmaximize = () => notInATab('unmaximize')
-  startDragging = () => notInATab('window dragging')
-  startResizeDragging = (_dir: string) => notInATab('window resizing')
-  setBackgroundColor = (_color: unknown) => notInATab('window background colour')
+  minimize = () => notInATab('minimize', 'Minimizing the window')
+  unminimize = () => notInATab('unminimize', 'Restoring the window')
+  toggleMaximize = () => notInATab('toggleMaximize', 'Maximizing the window')
+  maximize = () => notInATab('maximize', 'Maximizing the window')
+  unmaximize = () => notInATab('unmaximize', 'Restoring the window')
+  startDragging = () => notInATab('startDragging', 'Dragging the window')
+  startResizeDragging = (_dir: string) => notInATab('startResizeDragging', 'Resizing the window by its edge')
+  setBackgroundColor = (_color: unknown) => notInATab('setBackgroundColor', 'Setting the window background colour')
   async onResized(handler: () => void): Promise<UnlistenFn> {
     return currentHost().window.onResized(handler)
   }
@@ -69,7 +70,10 @@ class BrowserWindow {
     currentHost().window.setZoom(factor)
     return Promise.resolve()
   }
-  /** Files dropped on the page: the browser gives file handles, not paths, so none are reported. */
+  /**
+   * Files dropped on the page: the browser gives file contents, not paths on the workspace host,
+   * so none are reported. The host refuses the drop itself (see `BrowserHostImpl`).
+   */
   async onDragDropEvent(_handler: (event: DragDropEvent) => void): Promise<UnlistenFn> {
     return () => {}
   }

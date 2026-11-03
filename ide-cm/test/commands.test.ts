@@ -641,6 +641,10 @@ describe('application commands', () => {
     for (const command of ['window_new', 'window_open_settings', 'window_open_remote', 'light_edit_open', 'workspace_create']) {
       await expect(h.call(command, {})).rejects.toMatchObject({ kind: 'unavailable' })
     }
+    // OpenIDEA falls back to its in-tab Settings dialog on this refusal; the reason says so.
+    await expect(h.call('window_open_settings', {})).rejects.toMatchObject({
+      message: expect.stringContaining('the settings open as a dialog in this tab'),
+    })
     await expect(h.call('window_open_project', { path: '/demo', newWindow: true })).rejects.toMatchObject({ kind: 'unavailable' })
     expect(await h.call('window_open_project', { path: '/demo', newWindow: false })).toEqual({ kind: 'current' })
     expect(await h.call('window_close_context')).toEqual({ quitting: false, windows: 1 })

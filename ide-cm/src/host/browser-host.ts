@@ -11,6 +11,7 @@ import {
   type ErrorKind,
   type HostFailure,
   type PickOptions,
+  type Refusal,
   type WindowBehaviours,
   unavailable,
 } from './host'
@@ -102,8 +103,9 @@ export function toFailure(error: unknown): HostFailure {
 export class BrowserHostImpl implements BrowserHost {
   readonly description: string
   readonly window: WindowBehaviours
-  readonly refused = new Map<string, number>()
+  readonly refused = new Map<string, Refusal>()
 
+  private readonly refusedHandlers = new Set<(feature: string, refusal: Refusal) => void>()
   private readonly named = new Map<string, Set<(payload: unknown) => void>>()
   private readonly closeHandlers = new Set<(event: { preventDefault(): void }) => void | Promise<void>>()
 
@@ -142,19 +144,48 @@ export class BrowserHostImpl implements BrowserHost {
         doc.documentElement.style.setProperty('zoom', String(factor))
       },
     }
+    // Files dragged in from this computer: left alone the browser opens the file in place of the
+    // page, losing unsent work. The drop is taken and refused, since the files are not on the host.
+    const carriesFiles = (event: Event) => (event as DragEvent).dataTransfer?.types.includes('Files') === true
+    page.addEventListener('dragover', (event) => {
+      if (carriesFiles(event)) event.preventDefault()
+    })
+    page.addEventListener('drop', (event) => {
+      if (!carriesFiles(event)) return
+      event.preventDefault()
+      this.refuse('webview.dragDrop', 'Dropping files from this computer', 'they would have to be uploaded to the workspace host, which this host does not offer')
+    })
   }
 
   async invoke(command: string, args: CommandArgs = {}): Promise<unknown> {
     const handler = this.options.commands.get(command)
-    if (!handler) {
-      this.refused.set(command, (this.refused.get(command) ?? 0) + 1)
-      throw unavailable(`The command "${command}"`)
-    }
+    if (!handler) throw this.refuse(command, `The command "${command}"`)
     try {
       return await handler(args)
     } catch (error) {
-      throw toFailure(error)
+      const failed = toFailure(error)
+      // A command this host answers can still refuse a case it cannot serve (another workspace,
+      // a second window, binary contents); that is an unavailable feature too.
+      if (failed.kind === 'unavailable') this.count(command, failed)
+      throw failed
     }
+  }
+
+  refuse(feature: string, what: string, why?: string): HostFailure {
+    const failed = unavailable(what, why)
+    this.count(feature, failed)
+    return failed
+  }
+
+  onRefused(handler: (feature: string, refusal: Refusal) => void): () => void {
+    this.refusedHandlers.add(handler)
+    return () => this.refusedHandlers.delete(handler)
+  }
+
+  private count(feature: string, failed: HostFailure): void {
+    const refusal = { count: (this.refused.get(feature)?.count ?? 0) + 1, message: failed.message }
+    this.refused.set(feature, refusal)
+    for (const handler of [...this.refusedHandlers]) handler(feature, refusal)
   }
 
   subscribe(handler: (payload: unknown) => void): () => void {
@@ -178,7 +209,9 @@ export class BrowserHostImpl implements BrowserHost {
 
   openExternal(url: string): void {
     // Only web and mail links leave the page; `noopener` keeps the new tab from reaching this one.
-    if (!/^(https?:|mailto:)/i.test(url)) throw unavailable('Opening a non-web address', `"${url}" is not a web or mail link`)
+    if (!/^(https?:|mailto:)/i.test(url)) {
+      throw this.refuse('opener.openUrl', 'Opening a non-web address', `"${url}" is not a web or mail link`)
+    }
     const page = this.options.page ?? (globalThis as unknown as NonNullable<BrowserHostOptions['page']>)
     page.open(url, '_blank', 'noopener,noreferrer')
   }

@@ -168,6 +168,9 @@ export class DocumentRegistry {
   private stateChanged(doc: SessionDoc): void {
     const state = doc.sync?.state() ?? sessionState(doc.lease.session)
     hostState.setDoc(doc.path, state)
+    // A conflict ends when the checkout holds this session's text again, whichever page chose
+    // the side: another page's choice reaches this one only as `document.saved`.
+    if (!state.dirty) hostState.clearConflict(doc.path)
     this.dirtyChanged(doc, state.dirty)
   }
 
@@ -197,8 +200,14 @@ export class DocumentRegistry {
 
   async save(id: number): Promise<void> {
     const doc = this.get(id)
-    // `save` waits for the edits in flight first.
-    if (doc.kind === 'session') return doc.lease.session.save()
+    if (doc.kind === 'session') {
+      const { session } = doc.lease
+      // A save of a document the checkout already holds changes nothing, so it is not sent: the
+      // host refuses an empty save (`empty_graph_transaction`). `dirty` counts edits in flight,
+      // and `save` waits for them first.
+      if (!session.dirty) return
+      return session.save()
+    }
     const text = doc.text
     const { connection } = this.context
     await connection.client.ide.workspace.filesCreate({

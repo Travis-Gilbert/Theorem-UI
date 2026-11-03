@@ -145,7 +145,8 @@ export function appCommands(context: CommandContext, settings: SettingsLayers, o
       throw unavailable('A new window', 'open another browser tab on the workspace address')
     },
     window_open_settings: () => {
-      throw unavailable('The Settings window', 'it is a separate native window; the settings pages are not yet reachable from a tab')
+      // OpenIDEA opens its in-page Settings dialog when this refuses (features/settings/index.ts).
+      throw unavailable('A separate Settings window', 'a browser tab has no second window, so the settings open as a dialog in this tab')
     },
     window_open_file_in_new_window: () => {
       throw unavailable('Opening a file in a new window', 'open another browser tab on the workspace address')

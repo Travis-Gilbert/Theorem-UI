@@ -98,9 +98,10 @@ export function emitLocalIdeEvent(event: IdeEvent) {
 }
 
 /**
- * True when commands have a backend: a Tauri runtime, or in this fork the browser host over the
- * Theorem SDK (patch P2; the host is installed before the frontend starts).
+ * True when commands have a backend. In this fork that is only ever the browser host over the
+ * Theorem SDK (patch P2; the host is installed before the frontend starts): no Tauri global is
+ * consulted, so a page without a host never falls back to one.
  */
 export function isTauri(): boolean {
-  return typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || hostAvailable());
+  return hostAvailable();
 }

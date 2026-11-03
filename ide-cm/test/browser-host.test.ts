@@ -34,7 +34,7 @@ describe('browser host commands', () => {
     expect(await host.invoke('ping')).toBe('pong')
     await expect(host.invoke('vcs_status')).rejects.toMatchObject({ kind: 'unavailable' })
     await expect(host.invoke('vcs_status')).rejects.toMatchObject({ kind: 'unavailable' })
-    expect(host.refused.get('vcs_status')).toBe(2)
+    expect(host.refused.get('vcs_status')).toEqual({ count: 2, message: 'The command "vcs_status" is not available: this Theorem workspace host does not provide it' })
     expect(host.refused.has('ping')).toBe(false)
   })
 
@@ -49,6 +49,90 @@ describe('browser host commands', () => {
     })
     await expect(host.invoke('typed')).rejects.toEqual({ kind: 'notFound', message: 'no such file' })
     await expect(host.invoke('plain')).rejects.toMatchObject({ kind: 'internal', message: 'boom' })
+  })
+})
+
+describe('unavailable features', () => {
+  test('a handler that refuses a case it cannot serve is counted with its reason', async () => {
+    const { host } = make({
+      open_project: () => {
+        throw failure('unavailable', 'Opening /other is not available: this tab is attached to /ws')
+      },
+    })
+    const seen: string[] = []
+    host.onRefused((feature, r) => seen.push(`${feature} ${r.count}`))
+    await expect(host.invoke('open_project')).rejects.toMatchObject({ kind: 'unavailable' })
+    expect(host.refused.get('open_project')).toEqual({ count: 1, message: 'Opening /other is not available: this tab is attached to /ws' })
+    expect(seen).toEqual(['open_project 1'])
+  })
+
+  test('other failures are not counted as unavailable', async () => {
+    const { host } = make({ read: () => { throw failure('notFound', 'gone') } })
+    await expect(host.invoke('read')).rejects.toMatchObject({ kind: 'notFound' })
+    expect(host.refused.size).toBe(0)
+  })
+
+  test('refuse names a platform feature, counts it and returns the typed failure', () => {
+    const { host } = make()
+    expect(host.refuse('window.minimize', 'Minimizing the window', 'a tab has the browser window')).toEqual({
+      kind: 'unavailable',
+      message: 'Minimizing the window is not available: a tab has the browser window',
+    })
+    host.refuse('window.minimize', 'Minimizing the window', 'a tab has the browser window')
+    expect(host.refused.get('window.minimize')?.count).toBe(2)
+  })
+
+  test('only web and mail links leave the page; anything else is a counted refusal', () => {
+    const opened: string[] = []
+    const { host } = make()
+    ;(host as unknown as { options: { page: { open: (u: string) => void } } }).options.page.open = (u) => void opened.push(u)
+    host.openExternal('https://example.com/docs')
+    host.openExternal('mailto:a@example.com')
+    expect(() => host.openExternal('file:///etc/passwd')).toThrow()
+    expect(opened).toEqual(['https://example.com/docs', 'mailto:a@example.com'])
+    expect(host.refused.get('opener.openUrl')?.count).toBe(1)
+  })
+
+  test('files dropped from this computer are taken (the page is not replaced) and refused', () => {
+    const { host, listeners } = make()
+    const fire = (name: string, types: string[]) => {
+      let prevented = false
+      const event = { dataTransfer: { types }, preventDefault: () => void (prevented = true) }
+      for (const fn of listeners.get(name) ?? []) (fn as (e: unknown) => void)(event)
+      return prevented
+    }
+    expect(fire('dragover', ['Files'])).toBe(true)
+    expect(fire('drop', ['Files'])).toBe(true)
+    expect(host.refused.get('webview.dragDrop')?.count).toBe(1)
+    // A drag inside the page (a tab, a tree node) is the frontend's own and is left alone.
+    expect(fire('dragover', ['text/plain'])).toBe(false)
+    expect(fire('drop', ['text/plain'])).toBe(false)
+    expect(host.refused.get('webview.dragDrop')?.count).toBe(1)
+  })
+
+  test('the window and opener shims refuse through the host with an Error whose message says why', async () => {
+    const { installHost } = await import('../src/host/host')
+    const { getCurrentWindow } = await import('../src/host/tauri-window')
+    const opener = await import('../src/host/plugin-opener')
+    const core = await import('../src/host/tauri-core')
+    const { host } = make()
+    installHost(host)
+    const minimized = await getCurrentWindow().minimize().catch((e: unknown) => e)
+    expect(minimized).toBeInstanceOf(Error)
+    expect(minimized).toMatchObject({ kind: 'unavailable', message: 'Minimizing the window is not available: a browser tab has the browser’s own window' })
+    await expect(getCurrentWindow().startDragging()).rejects.toMatchObject({ kind: 'unavailable' })
+    const revealed = await opener.revealItemInDir('/ws/a.txt').catch((e: unknown) => e)
+    expect(revealed).toBeInstanceOf(Error)
+    expect((revealed as Error).message).toBe('Showing a file in the file manager is not available: the files are on the workspace host, not this computer')
+    await expect(opener.openPath('/ws/a.txt')).rejects.toMatchObject({ kind: 'unavailable' })
+    expect(() => core.convertFileSrc('/ws/a.png')).toThrow('A URL for a workspace file is not available')
+    expect([...host.refused.keys()].sort()).toEqual([
+      'core.convertFileSrc',
+      'opener.openPath',
+      'opener.revealItemInDir',
+      'window.minimize',
+      'window.startDragging',
+    ])
   })
 })
 

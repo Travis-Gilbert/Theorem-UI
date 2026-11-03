@@ -203,6 +203,19 @@ describe('dirty, save and unsaved work', () => {
     expect(useHostState.getState().docs[info.path]).toMatchObject({ revision: 2, dirty: false })
   })
 
+  test('saving a document the checkout already holds sends nothing; an edit makes the next save real', async () => {
+    const h = await harness()
+    const info = await h.registry.open(`${ROOT}/a.txt`)
+    await h.registry.save(info.id)
+    expect(h.authority.saveRequests).toBe(0)
+    await h.registry.edit(info.id, 0, [{ from: 5, to: 5, insert: '!' }])
+    await h.registry.save(info.id)
+    expect(h.authority.saveRequests).toBe(1)
+    expect(h.authority.disk).toBe('hello!')
+    await h.registry.save(info.id)
+    expect(h.authority.saveRequests).toBe(1)
+  })
+
   test('saveAll saves every dirty document and leaves the clean one alone', async () => {
     const h = await harness({ 'a.txt': 'one', 'b.txt': 'two' })
     const a = await h.registry.open(`${ROOT}/a.txt`)
@@ -276,6 +289,32 @@ describe('the editor sync and an external modification', () => {
     expect(h.authority.text).toBe('hello!')
     expect(h.authority.disk).toBe('hello!')
     expect(useHostState.getState().conflicts[info.path]).toBeUndefined()
+  })
+
+  test('another page choosing a side ends the conflict on this page too; an edit while it stands does not', async () => {
+    const h = await harness()
+    const info = await h.registry.open(`${ROOT}/a.txt`)
+    const view = host()
+    view.seed(info.text)
+    h.registry.createSync(info, view)
+    await h.registry.edit(info.id, 0, [{ from: 5, to: 5, insert: '!' }])
+    h.authority.externalWrite('disk text')
+    expect(useHostState.getState().conflicts[info.path]).toMatchObject({ revision: 1 })
+
+    // Still unsaved after another edit: the bar stays.
+    await h.registry.edit(info.id, 1, [{ from: 6, to: 6, insert: '?' }])
+    const mine = { session: h.registry.session(info.path)!, live: h.live.get('a.txt')! }
+    await settle(h.authority, [mine])
+    expect(useHostState.getState().conflicts[info.path]).toMatchObject({ revision: 1 })
+
+    // Another page keeps the shared text; this page hears only `document.saved`.
+    const other = await h.authority.open()
+    disposers.push(() => other.session.dispose())
+    await other.session.resolveConflict('authority')
+    await settle(h.authority, [mine, other])
+    expect(h.authority.disk).toBe('hello!?')
+    expect(useHostState.getState().conflicts[info.path]).toBeUndefined()
+    expect(useHostState.getState().docs[info.path]).toMatchObject({ dirty: false })
   })
 
   test('a deleted checkout is reported as deleted', async () => {
