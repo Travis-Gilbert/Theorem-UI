@@ -34,6 +34,7 @@ import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
+import { documentThreadIds } from '@/lib/documents/ask-store'
 import { describeError, describeRunFailure, recoverPendingSend, mutate, mutateThread, theorem } from './client'
 import type { Theorem } from './client'
 import { pickedModelTurnOptions } from './models'
@@ -384,11 +385,15 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
         includeArchived: true,
         limit: 50,
       })
-      // The agent terminal's threads live in its drawer, not among the chats.
-      const terminal = new Set(useShell.getState().terminalThreadIds)
+      // The agent terminal's threads live in its drawer, and each note's
+      // conversation on the document screen, not among the chats.
+      const apart = new Set([
+        ...useShell.getState().terminalThreadIds,
+        ...documentThreadIds(),
+      ])
       return {
         threads: page.items
-          .filter((thread) => !terminal.has(thread.threadId))
+          .filter((thread) => !apart.has(thread.threadId))
           .map(toMetadata),
         nextCursor: page.nextCursor,
       }
