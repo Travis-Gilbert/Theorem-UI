@@ -18,7 +18,6 @@ import {
   MenuSubTrigger,
   MenuTrigger,
 } from '@/components/coss/menu'
-import { Popover, PopoverPopup } from '@/components/coss/popover'
 import { DebouncedInput } from '@/components/data-table/debounced-input'
 import {
   createAppColumnHelper,
@@ -48,6 +47,7 @@ import type { DataModel, FieldSpec, ObjectType, RecordRow } from './contract'
 import {
   FieldDisplay,
   FieldEditor,
+  FieldEditorPopover,
   FieldTypeIcon,
   KIND,
   columnMeta,
@@ -1018,32 +1018,19 @@ export function RecordTable({
         editingRow &&
         editingField &&
         KIND[editingField.field_type.kind].edit === 'popover' && (
-          <Popover
-            open
-            onOpenChange={(open) => {
-              // A click outside saves, as Escape does; the editors save on close.
-              if (!open) setEditing(null)
-            }}
-          >
-            <PopoverPopup
-              anchor={editing.anchor}
-              align="start"
-              sideOffset={-ROW_HEIGHT}
-              className="p-0"
-            >
-              <FieldEditor
-                field={editingField}
-                hint={displayHint(objectType, editingField.key)}
-                value={editingRow.values[editingField.key]}
-                row={editingRow}
-                model={model}
-                onCommit={(value, move) =>
-                  commit(editingRow, editingField, value, move)
-                }
-                onDiscard={() => setEditing(null)}
-              />
-            </PopoverPopup>
-          </Popover>
+          <FieldEditorPopover
+            anchor={editing.anchor}
+            sideOffset={-ROW_HEIGHT}
+            field={editingField}
+            hint={displayHint(objectType, editingField.key)}
+            value={editingRow.values[editingField.key]}
+            row={editingRow}
+            model={model}
+            onCommit={(value, move) =>
+              commit(editingRow, editingField, value, move)
+            }
+            onDiscard={() => setEditing(null)}
+          />
         )}
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>

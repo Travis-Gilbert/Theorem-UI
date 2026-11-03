@@ -1,7 +1,6 @@
-// SOURCING: coss ui Popover (anchored field editors) and the app's Dialog; Twenty's record side panel for its anatomy (an editable title over inline label and value rows, relations as boxed sections, a danger zone), with records of other types that point here standing in for its Tasks and Notes widgets; the register's undeclared properties shown with Add as field
+// SOURCING: coss ui Popover (anchored field editors, through FieldEditorPopover) and the app's Dialog; Twenty's record side panel for its anatomy (an editable title over inline label and value rows, relations as boxed sections, a danger zone), with records of other types that point here standing in for its Tasks and Notes widgets; the register's undeclared properties shown with Add as field
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Popover, PopoverPopup } from '@/components/coss/popover'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -13,6 +12,7 @@ import type { FieldDraft } from './field-form'
 import {
   FieldDisplay,
   FieldEditor,
+  FieldEditorPopover,
   FieldTypeIcon,
   KIND,
   isEditable,
@@ -123,22 +123,19 @@ function FieldRow({
         )}
       </div>
       {editing && edit === 'popover' && (
-        <Popover open onOpenChange={(open) => !open && setEditing(false)}>
-          <PopoverPopup anchor={anchor} align="start" className="p-0">
-            <FieldEditor
-              field={field}
-              hint={hint}
-              value={row.values[field.key]}
-              row={row}
-              model={model}
-              onCommit={(value) => {
-                setEditing(false)
-                onWrite(field, value)
-              }}
-              onDiscard={() => setEditing(false)}
-            />
-          </PopoverPopup>
-        </Popover>
+        <FieldEditorPopover
+          anchor={anchor}
+          field={field}
+          hint={hint}
+          value={row.values[field.key]}
+          row={row}
+          model={model}
+          onCommit={(value) => {
+            setEditing(false)
+            onWrite(field, value)
+          }}
+          onDiscard={() => setEditing(false)}
+        />
       )}
     </div>
   )

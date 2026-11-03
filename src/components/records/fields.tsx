@@ -1,6 +1,6 @@
 // SOURCING: none for the registry itself — Twenty's per-type cell display and input behaviour (twenty-front record-field meta-types: Enter saves and moves down, Tab across, Escape saves, invalid JSON is not saved, booleans and ratings toggle in the cell) mapped onto the schema register's field kinds; coss ui Command for searchable option and record pickers; the app's Icon set and Stone tokens
-import { useMemo, useState } from 'react'
-import type { KeyboardEvent, ReactNode } from 'react'
+import { useImperativeHandle, useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent, ReactNode, Ref } from 'react'
 import {
   Command,
   CommandEmpty,
@@ -9,6 +9,7 @@ import {
   CommandList,
 } from '@/components/coss/command'
 import type { MyColumnMeta } from '@/components/data-table/features'
+import { Popover, PopoverPopup } from '@/components/coss/popover'
 import { Icon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import type {
@@ -634,6 +635,8 @@ export type EditorProps = {
   onCommit: (value: unknown, move?: Move) => void
   /** Leave without saving. */
   onDiscard: () => void
+  /** Lets a popover save what the editor holds when it closes. */
+  commitRef?: Ref<(move?: Move) => void>
 }
 
 /** Twenty's keys: Enter saves and moves down, Tab across, Escape saves too. */
@@ -663,7 +666,7 @@ function parseNumber(text: string, integer: boolean) {
   return integer ? Math.round(n) : n
 }
 
-function TextEditor({ field, value, typed, onCommit }: EditorProps) {
+function TextEditor({ field, value, typed, onCommit, commitRef }: EditorProps) {
   const kind = field.field_type.kind
   const numeric = kind === 'integer' || kind === 'number'
   const multiline = kind === 'long_text'
@@ -675,6 +678,7 @@ function TextEditor({ field, value, typed, onCommit }: EditorProps) {
     if (n === undefined) return setInvalid(true)
     onCommit(n, move)
   }
+  useImperativeHandle(commitRef, () => commit)
   const shared = {
     autoFocus: true,
     value: text,
@@ -716,7 +720,7 @@ function TextEditor({ field, value, typed, onCommit }: EditorProps) {
 }
 
 /** Dates travel as ISO strings: a date as YYYY-MM-DD, a timestamp in UTC. */
-function DateEditor({ field, value, onCommit }: EditorProps) {
+function DateEditor({ field, value, onCommit, commitRef }: EditorProps) {
   const withTime = field.field_type.kind === 'timestamp'
   const initial = (() => {
     if (typeof value !== 'string' && typeof value !== 'number') return ''
@@ -731,6 +735,7 @@ function DateEditor({ field, value, onCommit }: EditorProps) {
     if (!text) return onCommit(null, move)
     onCommit(withTime ? new Date(text).toISOString() : text, move)
   }
+  useImperativeHandle(commitRef, () => commit)
   return (
     <div className="flex items-center gap-2 p-2">
       <input
@@ -753,7 +758,13 @@ function DateEditor({ field, value, onCommit }: EditorProps) {
   )
 }
 
-function JsonEditor({ field, value, onCommit, onDiscard }: EditorProps) {
+function JsonEditor({
+  field,
+  value,
+  onCommit,
+  onDiscard,
+  commitRef,
+}: EditorProps) {
   const [text, setText] = useState(
     value === undefined || value === null ? '' : JSON.stringify(value, null, 2),
   )
@@ -766,6 +777,7 @@ function JsonEditor({ field, value, onCommit, onDiscard }: EditorProps) {
       setError(e instanceof Error ? e.message : 'Not valid JSON')
     }
   }
+  useImperativeHandle(commitRef, () => commit)
   return (
     <div className="flex w-96 flex-col gap-1.5 p-2">
       <textarea
@@ -893,7 +905,7 @@ function OptionList({
   )
 }
 
-function SelectEditor({ field, value, onCommit }: EditorProps) {
+function SelectEditor({ field, value, onCommit, commitRef }: EditorProps) {
   const type = field.field_type
   const multiple = type.kind === 'enum_many'
   const variants =
@@ -906,6 +918,9 @@ function SelectEditor({ field, value, onCommit }: EditorProps) {
         : [asString(value)],
   )
   // Multi-select saves when it closes, with everything picked meanwhile.
+  const commit = (move?: Move) =>
+    onCommit(multiple ? picked : (picked[0] ?? null), move)
+  useImperativeHandle(commitRef, () => commit)
   return (
     <OptionList
       label={field.label}
@@ -921,18 +936,27 @@ function SelectEditor({ field, value, onCommit }: EditorProps) {
           held.includes(v) ? held.filter((x) => x !== v) : [...held, v],
         )
       }}
-      onDone={(move) => onCommit(multiple ? picked : (picked[0] ?? null), move)}
+      onDone={commit}
     />
   )
 }
 
-function RelationEditor({ field, row, model, onCommit }: EditorProps) {
+function RelationEditor({
+  field,
+  row,
+  model,
+  onCommit,
+  commitRef,
+}: EditorProps) {
   const type = field.field_type
   const multiple = type.kind === 'relation' && type.cardinality === 'many'
   const { target, rows, title } = useRelationTitles(model, field)
   const [picked, setPicked] = useState<string[]>(
     row ? relationIds(row, field) : [],
   )
+  const commit = (move?: Move) =>
+    onCommit(multiple ? picked : (picked[0] ?? null), move)
+  useImperativeHandle(commitRef, () => commit)
   if (!target)
     return (
       <p className="w-64 p-3 text-sm text-ink-muted">
@@ -957,7 +981,7 @@ function RelationEditor({ field, row, model, onCommit }: EditorProps) {
           held.includes(id) ? held.filter((x) => x !== id) : [...held, id],
         )
       }}
-      onDone={(move) => onCommit(multiple ? picked : (picked[0] ?? null), move)}
+      onDone={commit}
     />
   )
 }
@@ -983,4 +1007,34 @@ export function FieldEditor(props: EditorProps) {
     default:
       return null
   }
+}
+
+/**
+ * A field's editor in a popover. Clicking away saves, as Escape does, so
+ * choices the editor is still holding are not lost; an editor that refuses its
+ * value stays open and says why.
+ */
+export function FieldEditorPopover({
+  anchor,
+  sideOffset,
+  ...editor
+}: EditorProps & { anchor: Element | null; sideOffset?: number }) {
+  const commit = useRef<(move?: Move) => void>(null)
+  return (
+    <Popover
+      open
+      onOpenChange={(open) => {
+        if (!open) commit.current?.()
+      }}
+    >
+      <PopoverPopup
+        anchor={anchor}
+        align="start"
+        sideOffset={sideOffset}
+        className="p-0"
+      >
+        <FieldEditor {...editor} commitRef={commit} />
+      </PopoverPopup>
+    </Popover>
+  )
 }
