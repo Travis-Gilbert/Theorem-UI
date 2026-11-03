@@ -24,7 +24,8 @@ import { sameScope } from './contract'
 import { useDebounced } from './library'
 import { useIndexNavigate, useIndexSearch } from './navigation'
 import { observer } from './observe'
-import { ATLAS_VIEW_ID } from './programs'
+import { activeObjectTypes, useDataModel } from '@/components/records/queries'
+import { ATLAS_VIEW_ID, DATA_MODEL_VIEW_ID, recordsViewId } from './programs'
 import {
   useBinding,
   useCollections,
@@ -364,6 +365,42 @@ function ViewList({
   )
 }
 
+/** Each declared object, opening its records as a table. */
+function RecordsList({ activeViewId }: { activeViewId: string | undefined }) {
+  const model = useDataModel()
+  const navigate = useIndexNavigate()
+  const types = activeObjectTypes(model.data).filter((type) => !type.system)
+  if (model.isError)
+    return (
+      <>
+        <Heading>Records</Heading>
+        <p className="px-2 py-1 text-sm text-ink-faint-sheet">
+          {describeError(model.error)}
+        </p>
+      </>
+    )
+  if (!types.length) return null
+  return (
+    <>
+      <Heading>Records</Heading>
+      {types.map((type) => (
+        <Row
+          key={type.object_type_id}
+          active={activeViewId === recordsViewId(type.name_singular)}
+          onClick={() =>
+            navigate.openView(recordsViewId(type.name_singular), {
+              kind: 'home',
+            })
+          }
+          trailing={type.record_count}
+        >
+          {type.label_plural}
+        </Row>
+      ))}
+    </>
+  )
+}
+
 /** Index mode's panel: search, the scopes (everything, the Atlas, collections) and the views of the open scope. */
 export function IndexPanel() {
   const { view, scope } = useIndexSearch()
@@ -396,6 +433,13 @@ export function IndexPanel() {
         >
           Atlas
         </Row>
+        <Row
+          active={!!view?.startsWith(DATA_MODEL_VIEW_ID)}
+          onClick={() => navigate.openView(DATA_MODEL_VIEW_ID, home)}
+        >
+          Data model
+        </Row>
+        <RecordsList activeViewId={view} />
         <Heading
           action={
             <TooltipIconButton

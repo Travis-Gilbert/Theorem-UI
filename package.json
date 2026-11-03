@@ -90,6 +90,7 @@
     "esbuild-wasm": "0.28.2",
     "fdir": "6.5.0",
     "filenamify": "7.0.3",
+    "framer-motion": "14.9.0",
     "fuzzysort": "4.0.2",
     "iron-session": "^9.0.1",
     "json-rpc-2.0": "1.8.1",

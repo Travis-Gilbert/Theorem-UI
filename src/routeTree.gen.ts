@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as GraphqlRouteImport } from './routes/graphql'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -62,6 +63,11 @@ import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theor
 
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GraphqlRoute = GraphqlRouteImport.update({
+  id: '/graphql',
+  path: '/graphql',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstallRoute = InstallRouteImport.update({
@@ -332,6 +338,7 @@ const V1TheoremAgentStreamSplatRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -382,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesByTo {
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/ide': typeof ChatIdeRoute
@@ -434,6 +442,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -488,6 +497,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/graphql'
     | '/install'
     | '/login'
     | '/settings'
@@ -538,6 +548,7 @@ export interface FileRouteTypes {
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/graphql'
     | '/install'
     | '/login'
     | '/ide'
@@ -589,6 +600,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_chat'
+    | '/graphql'
     | '/install'
     | '/login'
     | '/settings'
@@ -642,6 +654,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  GraphqlRoute: typeof GraphqlRoute
   InstallRoute: typeof InstallRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -689,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/graphql': {
+      id: '/graphql'
+      path: '/graphql'
+      fullPath: '/graphql'
+      preLoaderRoute: typeof GraphqlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/install': {
@@ -1079,6 +1099,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  GraphqlRoute: GraphqlRoute,
   InstallRoute: InstallRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRouteWithChildren,
