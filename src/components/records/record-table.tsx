@@ -1029,6 +1029,10 @@ export function RecordTable({
             onCommit={(value, move) =>
               commit(editingRow, editingField, value, move)
             }
+            onCommitAway={(value) => {
+              setEditing(null)
+              write(editingRow, editingField, value)
+            }}
             onDiscard={() => setEditing(null)}
           />
         )}

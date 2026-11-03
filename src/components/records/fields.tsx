@@ -1012,19 +1012,30 @@ export function FieldEditor(props: EditorProps) {
 /**
  * A field's editor in a popover. Clicking away saves, as Escape does, so
  * choices the editor is still holding are not lost; an editor that refuses its
- * value stays open and says why.
+ * value stays open and says why. `onCommitAway` receives that save when focus
+ * has gone somewhere the person chose and should stay there.
  */
 export function FieldEditorPopover({
   anchor,
   sideOffset,
+  onCommit,
+  onCommitAway = onCommit,
   ...editor
-}: EditorProps & { anchor: Element | null; sideOffset?: number }) {
+}: EditorProps & {
+  anchor: Element | null
+  sideOffset?: number
+  onCommitAway?: (value: unknown) => void
+}) {
   const commit = useRef<(move?: Move) => void>(null)
+  const away = useRef(false)
   return (
     <Popover
       open
       onOpenChange={(open) => {
-        if (!open) commit.current?.()
+        if (open) return
+        away.current = true
+        commit.current?.()
+        away.current = false
       }}
     >
       <PopoverPopup
@@ -1033,7 +1044,13 @@ export function FieldEditorPopover({
         sideOffset={sideOffset}
         className="p-0"
       >
-        <FieldEditor {...editor} commitRef={commit} />
+        <FieldEditor
+          {...editor}
+          commitRef={commit}
+          onCommit={(value, move) =>
+            away.current ? onCommitAway(value) : onCommit(value, move)
+          }
+        />
       </PopoverPopup>
     </Popover>
   )

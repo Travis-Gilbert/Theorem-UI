@@ -14,13 +14,17 @@ const tags: FieldSpec = {
   system: false,
 }
 
-async function open(onCommit: (value: unknown) => void) {
+async function open(
+  onCommit: (value: unknown) => void,
+  onCommitAway?: (value: unknown) => void,
+) {
   await render(
     <FieldEditorPopover
       anchor={document.body}
       field={tags}
       value={['red']}
       onCommit={onCommit}
+      onCommitAway={onCommitAway}
       onDiscard={() => {}}
     />,
   )
@@ -32,11 +36,8 @@ async function open(onCommit: (value: unknown) => void) {
   await act(async () => (option as HTMLElement).click())
 }
 
-test('clicking away saves what a multi-select is holding', async () => {
-  const onCommit = mock((_value: unknown) => {})
-  await open(onCommit)
-  expect(onCommit).not.toHaveBeenCalled()
-  await act(async () => {
+const clickAway = () =>
+  act(async () => {
     const outside = document.documentElement
     outside.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
     outside.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
@@ -44,13 +45,30 @@ test('clicking away saves what a multi-select is holding', async () => {
     outside.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
     outside.dispatchEvent(new MouseEvent('click', { bubbles: true }))
   })
+
+test('clicking away saves what a multi-select is holding', async () => {
+  const onCommit = mock((_value: unknown) => {})
+  await open(onCommit)
+  expect(onCommit).not.toHaveBeenCalled()
+  await clickAway()
   await waitFor(() => (onCommit.mock.calls.length ? true : undefined))
   expect(onCommit.mock.calls[0]?.[0]).toEqual(['red', 'blue'])
 })
 
-test('Escape saves once, not again through the popover closing', async () => {
+test('clicking away saves through onCommitAway, leaving focus alone', async () => {
   const onCommit = mock((_value: unknown) => {})
-  await open(onCommit)
+  const onCommitAway = mock((_value: unknown) => {})
+  await open(onCommit, onCommitAway)
+  await clickAway()
+  await waitFor(() => (onCommitAway.mock.calls.length ? true : undefined))
+  expect(onCommitAway.mock.calls[0]?.[0]).toEqual(['red', 'blue'])
+  expect(onCommit).not.toHaveBeenCalled()
+})
+
+test('Escape saves once, as a keyboard commit, not through the popover closing', async () => {
+  const onCommit = mock((_value: unknown) => {})
+  const onCommitAway = mock((_value: unknown) => {})
+  await open(onCommit, onCommitAway)
   const input = document.querySelector('input')!
   await act(async () => {
     input.dispatchEvent(
@@ -59,4 +77,5 @@ test('Escape saves once, not again through the popover closing', async () => {
   })
   await waitFor(() => (onCommit.mock.calls.length ? true : undefined))
   expect(onCommit.mock.calls).toHaveLength(1)
+  expect(onCommitAway).not.toHaveBeenCalled()
 })
