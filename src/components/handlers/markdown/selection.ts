@@ -65,7 +65,8 @@ function shared(a: string, b: string, atEnd: boolean) {
 /**
  * Where `quote` is in the document. Of several matches, the one whose
  * surroundings agree most with the quote's, then the one nearest `near`. A
- * quote across blocks runs from its first block's text to its last's.
+ * quote across blocks runs from its first block's text to its last's, and
+ * every block between must read as quoted.
  */
 export function anchorQuote(
   state: EditorState,
@@ -80,7 +81,14 @@ export function anchorQuote(
     const head = anchorIn(state, { exact: first, prefix: quote.prefix }, near)
     const tail =
       head && anchorIn(state, { exact: last, suffix: quote.suffix }, head.to)
-    return head && tail && tail.from > head.to
+    const quoted = quote.exact.slice(
+      quote.exact.indexOf(first),
+      quote.exact.lastIndexOf(last) + last.length,
+    )
+    return head &&
+      tail &&
+      tail.from > head.to &&
+      plainText(state.doc, head.from, tail.to) === quoted
       ? { from: head.from, to: tail.to }
       : undefined
   }
@@ -166,7 +174,15 @@ export function askRange(
   const { from, to, empty } = state.selection
   if (!empty && (pos === undefined || (pos >= from && pos <= to)))
     return { from, to }
-  const $pos = state.doc.resolve(pos ?? from)
+  return blockAt(state.doc, pos ?? from)
+}
+
+/** The text of the block at `pos`; undefined for a block with no text. */
+export function blockAt(
+  doc: ProseNode,
+  pos: number,
+): { from: number; to: number } | undefined {
+  const $pos = doc.resolve(pos)
   for (let depth = $pos.depth; depth > 0; depth--) {
     if (!$pos.node(depth).isTextblock) continue
     const block = { from: $pos.start(depth), to: $pos.end(depth) }

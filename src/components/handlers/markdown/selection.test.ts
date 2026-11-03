@@ -117,6 +117,24 @@ test('a passage across blocks is found from its first block to its last', () => 
   ).toBeUndefined()
 })
 
+test('a passage across blocks is not found once a block between them changed', () => {
+  const state = EditorState.create({
+    doc: schema.node('doc', null, [
+      schema.node('paragraph', null, [schema.text('One.')]),
+      schema.node('paragraph', null, [schema.text('Two.')]),
+      schema.node('paragraph', null, [schema.text('Three.')]),
+    ]),
+  })
+  // The paragraphs' text runs 1–5, 7–11 and 13–19.
+  expect(anchorQuote(state, { exact: 'One.\n\nTwo.\n\nThree.' })).toEqual({
+    from: 1,
+    to: 19,
+  })
+  expect(
+    anchorQuote(state, { exact: 'One.\n\nChanged.\n\nThree.' }),
+  ).toBeUndefined()
+})
+
 const linked = new Schema({
   nodes: {
     doc: { content: 'block+' },

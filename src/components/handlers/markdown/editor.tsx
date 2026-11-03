@@ -12,7 +12,7 @@
 // disk) is what an edit is told apart from.
 import { Crepe } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
-import { commandsCtx, editorViewCtx } from '@milkdown/kit/core'
+import { commandsCtx, editorViewCtx, parserCtx } from '@milkdown/kit/core'
 import type { Editor } from '@milkdown/kit/core'
 import {
   clearTextInCurrentBlockCommand,
@@ -265,8 +265,13 @@ function CrepeFile({
     if (host)
       crepe.editor
         .use(
-          $prose(() =>
-            markupPlugin({ onUpdate: host.update, widget: host.element }),
+          $prose((ctx) =>
+            markupPlugin({
+              onUpdate: host.update,
+              widget: host.element,
+              // Read when an edit is made, once the parser is ready.
+              parse: (markdown) => ctx.get(parserCtx)(markdown),
+            }),
           ),
         )
         .use($prose(() => askKeymap(host)))
