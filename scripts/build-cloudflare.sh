@@ -1,4 +1,7 @@
 #!/bin/sh
+# Builds the theorem-ui Worker: the agent terminal's WebAssembly, the
+# browser-only Theia IDE served under /theia, then the app with Nitro's
+# cloudflare_module preset.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -13,7 +16,15 @@ if [ "${WORKERS_CI:-}" = 1 ]; then
   rustup toolchain install 1.96.1 --profile minimal --target wasm32-unknown-unknown
   bindgen_version=$(bun -e 'const manifest = Bun.TOML.parse(await Bun.file("terminal/Cargo.toml").text()); console.log(manifest.dependencies["wasm-bindgen"].replace(/^=/, ""))')
   if [ "$(wasm-bindgen --version 2>/dev/null || true)" != "wasm-bindgen $bindgen_version" ]; then
-    cargo +1.96.1 install wasm-bindgen-cli --version "$bindgen_version" --locked
+    # The build image is x86_64 Linux, which has a prebuilt release; anywhere
+    # else cargo builds it.
+    if [ "$(uname -sm)" = "Linux x86_64" ]; then
+      release="wasm-bindgen-$bindgen_version-x86_64-unknown-linux-musl"
+      curl -sSfL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$bindgen_version/$release.tar.gz" |
+        tar -xz -C "$HOME/.cargo/bin" --strip-components=1 "$release/wasm-bindgen"
+    else
+      cargo +1.96.1 install wasm-bindgen-cli --version "$bindgen_version" --locked
+    fi
   fi
 fi
 
