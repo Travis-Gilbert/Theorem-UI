@@ -1,19 +1,24 @@
 import { afterEach, expect, test } from 'bun:test'
 import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Thread } from '../assistant-ui/elements/thread.aui'
 import { TheoremPartRenderers } from './theorem-parts'
 import { cleanup, render, waitFor } from '../../../test/blocks/render'
+
+const queryClient = new QueryClient()
 
 function Harness({ messages }: { messages: ThreadMessageLike[] }) {
   const runtime = useExternalStoreRuntime({
     messages, isRunning: false, onNew: async () => {},
     convertMessage: (message: ThreadMessageLike) => message,
   })
-  return <AssistantRuntimeProvider runtime={runtime}>
-    <TheoremPartRenderers />
-    <Thread autoFocus={false} />
-  </AssistantRuntimeProvider>
+  return <QueryClientProvider client={queryClient}>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  </QueryClientProvider>
 }
 afterEach(cleanup)
 

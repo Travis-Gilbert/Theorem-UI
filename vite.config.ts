@@ -33,6 +33,9 @@ const loroForWorkers: Plugin = {
   },
 }
 const serverOnlyPackages = ['trash', '@rustyreddb/node']
+
+// The personal Theorem serves the API and is its OAuth issuer; it grants the
+// theorem-ui client models:invoke.
 const theoremVars = {
   THEOREM_API_URL: 'https://travis-theorem-personal.fly.dev',
   THEOREM_OAUTH_CLIENT_ID: 'theorem-ui',

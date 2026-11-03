@@ -9,9 +9,7 @@
 // reuses the SDK's part mapping via toAssistantMessages).
 import {
   AssistantRuntimeProvider,
-  AuiConfig,
   ExportedMessageRepository,
-  Suggestions,
   useAui,
   useLocalRuntime,
   useRemoteThreadListRuntime,
@@ -34,6 +32,7 @@ import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
+import { documentThreadIds } from '@/lib/documents/ask-store'
 import {
   describeError,
   describeRunFailure,
@@ -47,8 +46,6 @@ import type { Theorem } from './client'
 import { pickedModelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
-
-import { documentThreadIds } from '@/lib/documents/ask-store'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -468,6 +465,7 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
     unstable_useAdapters: useThreadAdapters,
   }
 }
+
 export function TheoremRuntimeProvider({
   projectId,
   threadId,

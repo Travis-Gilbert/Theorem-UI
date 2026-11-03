@@ -27,12 +27,10 @@ import {
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
 import { COMPOSER_TOOLTIP_DELAY, ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
-import { ComposerReferences } from "@/components/chat/composer-references";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStartThreadFrom } from "@/lib/theorem/thread-tree";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -43,7 +41,6 @@ import {
   ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
-  SuggestionPrimitive,
   ThreadPrimitive,
   useAui,
   useAuiEvent,
@@ -58,6 +55,11 @@ import {
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
 
+import { Magnet, useArrivedLive } from "@/components/motion";
+import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
+
+import { ComposerReferences } from "@/components/chat/composer-references";
+import { useStartThreadFrom } from "@/lib/theorem/thread-tree";
 
 import { hasTheoremError } from "@/lib/theorem/message-history";
 
@@ -425,6 +427,7 @@ const ThreadScrollToBottom: FC = () => {
     <ThreadPrimitive.ScrollToBottom render={<TooltipIconButton tooltip="Scroll to bottom" variant="outline" className="aui-thread-scroll-to-bottom border-separator bg-raised absolute -top-12 z-10 size-9 self-center rounded-full p-2 shadow-composer disabled:invisible" />}><Icon.Next className="size-4 rotate-90" /></ThreadPrimitive.ScrollToBottom>
   );
 };
+
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui();
   const applyRequests = useComposerRequests();
