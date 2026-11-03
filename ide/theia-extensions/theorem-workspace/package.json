@@ -21,7 +21,9 @@
     "@theia/userstorage": "1.76.0",
     "@theia/workspace": "1.76.0",
     "@theoremharness/sdk": "file:../../../vendor/theoremharness-sdk-0.6.0-alpha.3.tgz",
-    "penpal": "8.0.1"
+    "linguist-languages": "^9.5.0",
+    "penpal": "8.0.1",
+    "tm-grammars": "^1.32.22"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

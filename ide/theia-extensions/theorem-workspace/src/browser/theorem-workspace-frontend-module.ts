@@ -20,6 +20,7 @@ import { FileSearchService } from '@theia/file-search/lib/common/file-search-ser
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
 import { FileSystemProvider } from '@theia/filesystem/lib/common/files';
 import { MonacoEditorModelFactory } from '@theia/monaco/lib/browser/monaco-text-model-service';
+import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
 import { SearchInWorkspaceServer } from '@theia/search-in-workspace/lib/common/search-in-workspace-interface';
 import { TerminalWidget } from '@theia/terminal/lib/browser/base/terminal-widget';
 import { TerminalFrontendContribution } from '@theia/terminal/lib/browser/terminal-frontend-contribution';
@@ -30,6 +31,7 @@ import { TheoremConnection } from './theorem-connection';
 import { TheoremDelegations } from './theorem-delegations';
 import { TheoremDiagnostics } from './theorem-diagnostics';
 import { TheoremEditorModelFactory } from './theorem-editor-model';
+import { TheoremGrammars } from './theorem-grammars';
 import { TheoremIdeBridge } from './theorem-ide-bridge';
 import { TheoremFileSystemProvider } from './theorem-file-system-provider';
 import { TheoremLanguageFeatures } from './theorem-language-features';
@@ -53,6 +55,7 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     bind(FileServiceContribution).toService(TheiaUserStorageProviderContribution);
     bindOrRebind(UserStorageContribution).to(TheoremUserStorageContribution).inSingletonScope();
 
+    bind(LanguageGrammarDefinitionContribution).to(TheoremGrammars).inSingletonScope();
     bindOrRebind(SearchInWorkspaceServer).to(TheoremSearchServer).inSingletonScope();
     bindOrRebind(FileSearchService).to(TheoremFileSearchService).inSingletonScope();
 
