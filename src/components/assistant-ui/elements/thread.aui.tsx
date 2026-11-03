@@ -61,6 +61,8 @@ import type { ComponentType, FC, PropsWithChildren } from "react";
 import { Magnet, useArrivedLive, useWordsIn } from "@/components/motion";
 import { flyFrom, kick, recordLaunch, riseIn, takeLaunch } from "@/lib/motion";
 
+import { hasTheoremError } from "@/lib/theorem/message-history";
+
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
 const shouldShowComposerResume = (s: AssistantState) =>
@@ -584,6 +586,12 @@ const ComposerAction: FC = () => {
 };
 
 const MessageError: FC = () => {
+  const hasErrorPart = useAuiState((s) => {
+    const status = s.message.status;
+    const error = status?.type === "incomplete" ? status.error : undefined;
+    return typeof error === "string" && hasTheoremError(s.message.content, error);
+  });
+  if (hasErrorPart) return null;
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="aui-message-error-root bg-error-container text-error-ink mt-2 rounded-lg px-4 py-3 text-sm">

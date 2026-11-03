@@ -46,6 +46,8 @@ import {
 import type { Theorem } from './client'
 import { pickedModelTurnOptions } from './models'
 
+import { toHistoryMessages } from './message-history'
+
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
 >
@@ -279,7 +281,7 @@ export function createHistoryAdapter(
           !runId || message.runId !== runId || message.role === 'user',
       )
       const repository = ExportedMessageRepository.fromArray(
-        toAssistantMessages(settled, snapshot.thread),
+        toHistoryMessages(settled, snapshot.thread),
       )
       return runId || recoveryError ? { ...repository, unstable_resume: true } : repository
     },
