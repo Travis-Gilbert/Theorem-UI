@@ -50,3 +50,36 @@ test('an ask sends the passage and the note to quote from, under Home’s own id
     },
   ] as never)
 })
+
+test('a document-backed note names its canonical revision and only quotes the selected passage', () => {
+  const note = {
+    workspaceId: 'theorem:vault',
+    path: 'renamed.md',
+    title: 'Local title',
+    text: 'Unsaved whole note must not become canonical context',
+  }
+  expect(
+    askReferences(
+      note,
+      { part: 'selected text', text: 'Selected passage' },
+      {
+        documentId: 'document-42',
+        documentKind: 'authored',
+        revision: { position: 17, contentDigest: 'hash' },
+      },
+    ),
+  ).toEqual([
+    {
+      location: {
+        resource: {
+          kind: 'graph-object',
+          objectId: 'document-42',
+          objectType: 'authored',
+        },
+        revision: '17',
+      },
+      excerpt: 'Selected passage',
+      label: 'Local title · selected text',
+    },
+  ])
+})

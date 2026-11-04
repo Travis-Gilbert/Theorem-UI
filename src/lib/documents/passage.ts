@@ -4,6 +4,7 @@
 // Asking about a passage sends two references: the passage, and the whole
 // note as the agent's copy to quote from. Viewing a note sends nothing.
 import type { TheoremContextReference } from '@theoremharness/sdk'
+import type { Theorem } from '@/lib/theorem/client'
 import { THEOREM_WORKSPACE_PREFIX } from '@/lib/workspace/theorem-client'
 
 /** The part of a note the person picked, with the text it covers. */
@@ -46,7 +47,26 @@ const resourceWorkspace = (workspaceId: string) =>
 export function askReferences(
   note: { workspaceId: string; path: string; title: string; text: string },
   excerpt: Excerpt,
+  document?: Pick<
+    Theorem.DocumentSummary,
+    'documentId' | 'documentKind' | 'revision'
+  >,
 ): TheoremContextReference[] {
+  if (document)
+    return [
+      {
+        location: {
+          resource: {
+            kind: 'graph-object',
+            objectId: document.documentId,
+            objectType: document.documentKind,
+          },
+          revision: String(document.revision.position),
+        },
+        excerpt: excerpt.text,
+        label: `${note.title} · ${excerpt.part}`,
+      },
+    ]
   const resource = {
     kind: 'file' as const,
     workspaceId: resourceWorkspace(note.workspaceId),

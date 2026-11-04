@@ -20,6 +20,10 @@ import type { Theorem } from '@/lib/theorem/client'
 import { pickedModelTurnOptions } from '@/lib/theorem/models'
 import { tailRun } from '@/lib/theorem/runtime'
 import type { ChatModelRunResult } from '@assistant-ui/react'
+import type { Node as ProseNode } from '@milkdown/kit/prose/model'
+import { fromBase64 } from '@/lib/blocks/state'
+import { noteMarkdown } from '@/lib/theorem/note-canonical'
+import { splitFrontmatter } from '@/components/handlers/markdown/frontmatter'
 import { useDocumentAsks } from './ask-store'
 import type { Ask } from './ask-store'
 import { marksOf, replyOf } from './marks'
@@ -35,6 +39,12 @@ export type AskedNote = {
   title: string
   /** The note's text as the agent quotes it. */
   text: string
+  /** Immutable editor content captured at Ask, compared with the canonical source before pinning. */
+  documentSource?: {
+    documentId: string
+    doc: ProseNode
+    parse: (markdown: string) => ProseNode
+  }
 }
 
 const store = () => useDocumentAsks.getState()
@@ -152,6 +162,27 @@ async function recoverSend(key: string) {
   return ask.id
 }
 
+async function canonicalSource(note: AskedNote, signal: AbortSignal) {
+  const source = note.documentSource
+  if (!source) return undefined
+  const snapshot = await theorem().documents.snapshot(
+    { documentId: source.documentId, schema: 'theorem-document/2' },
+    { abortSignal: signal },
+  )
+  const markdown =
+    snapshot.canonical.placement === 'inline'
+      ? noteMarkdown(fromBase64(snapshot.canonical.bytesBase64))
+      : undefined
+  if (
+    markdown === undefined ||
+    !source.doc.eq(source.parse(splitFrontmatter(markdown).body))
+  )
+    throw new Error(
+      'The selected note differs from its saved document. Save or refresh the note, then select the passage again.',
+    )
+  return snapshot.summary
+}
+
 async function run(
   note: AskedNote,
   id: string,
@@ -163,6 +194,7 @@ async function run(
     // A retry's lost send is its own, so replaying it is the whole turn.
     if ((await recoverSend(note.key)) === id || signal.aborted) return
     store().patch(note.key, id, { status: 'running' })
+    const document = await canonicalSource(note, signal)
     const threadId = await threadFor(note)
     const { thread } = await theorem().chat.threads.get({ threadId })
     const turn = await mutateThread(threadId, (headers) => {
@@ -172,12 +204,12 @@ async function run(
         threadId,
         branchId: thread.selectedBranchId,
         text: question,
-        // The SDK's union lists only delegation references so far; Theorem's
-        // document markup reads these file references, and the SDK sends the
-        // field as given.
+        // The generated SDK union still lacks document locations; its wire
+        // client preserves this shared SDK reference shape unchanged.
         contextReferences: askReferences(
           note,
           excerpt,
+          document,
         ) as Theorem.ChatContextReference[],
         model: pickedModelTurnOptions.model,
       })
