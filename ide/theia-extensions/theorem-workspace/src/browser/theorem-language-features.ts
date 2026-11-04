@@ -252,9 +252,12 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
             languages.registerLinkProvider(SELECTOR, {
                 provideLinks: model => this.ask(model, async target => {
                     const { links } = await this.connection.operate<{ links?: HostDocumentLink[] }>('language.documentLinks', this.document(target));
-                    return {
-                        links: (links ?? []).map(({ range, target: url, tooltip }) => ({ range: this.p2m.asRange(range), url, tooltip })),
-                    };
+                    const mapped = await Promise.all((links ?? []).map(async ({ range, target: url, tooltip }) => {
+                        // A file the server names is a host path; one beyond the workspace cannot be opened here.
+                        const file = url?.startsWith('file:') ? await this.connection.fromHostUri(url, target.resourceId) : undefined;
+                        return url?.startsWith('file:') && !file ? [] : [{ range: this.p2m.asRange(range), url: file?.toString() ?? url, tooltip }];
+                    }));
+                    return { links: mapped.flat() };
                 }),
             }),
             languages.registerLinkedEditingRangeProvider(SELECTOR, {
