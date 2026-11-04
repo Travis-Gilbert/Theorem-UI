@@ -16,6 +16,7 @@ import {
     FileSystemProviderWithFileReadWriteCapability, FileType, FileWriteOptions, Stat, WatchOptions
 } from '@theia/filesystem/lib/common/files';
 import { childrenOf, type DirectoryListing } from './directory-listing';
+import { replaceWithCopy } from './replace-entry';
 import { TheoremConnection } from './theorem-connection';
 
 
@@ -163,13 +164,21 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
         const source = this.requirePath(from);
         const target = this.requirePath(to);
         await this.requireFileServices(from);
-        if (await this.exists(to)) {
-            if (!opts.overwrite) {
-                throw createFileSystemProviderError(to.toString(), FileSystemProviderErrorCode.FileExists);
-            }
-            await this.delete(to, { recursive: true, useTrash: false });
+        const copyTo = (path: string) => this.call(from, () => this.connection.operate('workspace.files.copy', { from: source, to: path })).then(() => undefined);
+        if (!await this.exists(to)) {
+            await copyTo(target);
+            return;
         }
-        await this.call(from, () => this.connection.operate('workspace.files.copy', { from: source, to: target }));
+        if (!opts.overwrite) {
+            throw createFileSystemProviderError(to.toString(), FileSystemProviderErrorCode.FileExists);
+        }
+        await replaceWithCopy(target, {
+            copyTo,
+            rename: (oldPath, newPath) => this.call(to, headers =>
+                this.connection.client.ide.workspace.filesRename({ ...headers, body: { from: oldPath, to: newPath } })).then(() => undefined),
+            remove: path => this.call(to, headers =>
+                this.connection.client.ide.workspace.filesDelete({ ...headers, body: { path } })).then(() => undefined),
+        });
     }
 
     async readFile(resource: URI): Promise<Uint8Array> {
@@ -229,8 +238,8 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
 
     /**
      * Copying and writing bytes arrived on the host together. An older host would
-     * store the base64 as the file's text and has no copy to follow the deletion
-     * of what a copy replaces, so they are refused before anything is touched.
+     * store the base64 as the file's text and has no copy at all, so they are
+     * refused before anything is touched.
      */
     protected async requireFileServices(resource: URI): Promise<void> {
         if (!await this.connection.offers('workspace.files.copy')) {
