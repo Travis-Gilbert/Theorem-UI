@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { appDocumentFixture } from '../../../test/blocks/app-documents'
 import { AppDocument } from './apps'
-import { appContextReference } from './app-references'
+import { appContextReference, captureAppSelection } from './app-references'
 
 test('a selected row keeps the revision actually selected instead of becoming current evidence', async () => {
   const store = await appDocumentFixture()
@@ -34,4 +34,30 @@ test('a selection from replaced App source is never attached to the new source',
   })
   expect(ref.excerpt).toBeUndefined()
   expect(ref.location.revision).toBe('2')
+})
+
+test('pending App state cannot become a saved selection or whole-App reference', async () => {
+  const store = await appDocumentFixture()
+  const app = new AppDocument('app-document', store.api, store.change)
+  const snapshot = { ...(await app.load()), pendingState: true }
+  expect(
+    captureAppSelection(snapshot.html, snapshot, { text: 'Unsaved' }),
+  ).toBeUndefined()
+  expect(() => appContextReference(snapshot)).toThrow(
+    'Save the App changes before asking',
+  )
+})
+
+test('selection capture requires the same saved source and retains its exact revision', async () => {
+  const store = await appDocumentFixture()
+  const app = new AppDocument('app-document', store.api, store.change)
+  const snapshot = await app.load()
+  const selection = { text: 'Saved' }
+  expect(captureAppSelection(snapshot.html, null, selection)).toBeUndefined()
+  expect(captureAppSelection('different', snapshot, selection)).toBeUndefined()
+  expect(captureAppSelection(snapshot.html, snapshot, selection)).toEqual({
+    source: snapshot.html,
+    revision: snapshot.revision,
+    selection,
+  })
 })

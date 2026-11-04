@@ -8,6 +8,7 @@ import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
 import { describeError } from '@/lib/theorem/client'
 import { AppDocument } from '@/lib/theorem/apps'
 import {
+  APP_PENDING_CONTEXT_MESSAGE,
   appContextReference,
   captureAppSelection,
   selectionForSource,
@@ -86,7 +87,7 @@ function AppPreview({
 }: {
   app: AppDocument
   snapshot: AppSnapshot
-  onSelection: (value: AppSelectionContext) => void
+  onSelection: (value: AppSelectionContext | undefined) => void
 }) {
   const source = snapshot.html
   const { state, error: stateError } = useDocumentReplica(app)
@@ -111,7 +112,7 @@ function AppPreview({
             app.getSnapshot(),
             selection,
           )
-          if (context) onSelection(context)
+          onSelection(context)
         },
       },
     [app, source, declarations, state, onSelection],
@@ -230,7 +231,12 @@ function AppToolbar({
       <Button size="xs" variant="outline" onClick={edit}>
         Edit source
       </Button>
-      <Button size="xs" variant="outline" onClick={about}>
+      <Button
+        size="xs"
+        variant="outline"
+        onClick={about}
+        disabled={snapshot.pendingState}
+      >
         {selected ? 'Ask about selection' : 'Ask about this App'}
       </Button>
       <Button size="xs" variant="ghost" onClick={reload}>
@@ -251,6 +257,18 @@ export function DocumentApp({
   return <DocumentAppView app={app} pinnedPosition={pinnedPosition} />
 }
 
+function useAppSelection(app: AppDocument) {
+  const [selection, setSelection] = useState<AppSelectionContext>()
+  useEffect(
+    () =>
+      app.subscribe(() => {
+        if (app.hasPendingState()) setSelection(undefined)
+      }),
+    [app],
+  )
+  return [selection, setSelection] as const
+}
+
 export function DocumentAppView({
   app,
   pinnedPosition,
@@ -261,7 +279,7 @@ export function DocumentAppView({
   const { snapshot, error, attempt } = useAppSnapshot(app)
   const [edit, setEdit] = useState<Edit>()
   const [running, setRunning] = useState(false)
-  const [selection, setSelection] = useState<AppSelectionContext>()
+  const [selection, setSelection] = useAppSelection(app)
   if (!snapshot)
     return (
       <BlockMessage tone={error ? 'error' : undefined}>
@@ -279,10 +297,19 @@ export function DocumentAppView({
           setSelection(undefined)
         }}
         edit={() => setEdit({ html: snapshot.html, base: snapshot })}
-        about={() => askAbout(appContextReference(snapshot, selection))}
+        about={() =>
+          void attempt(async () => {
+            askAbout(appContextReference(app.getSnapshot()!, selection))
+          })
+        }
         selected={Boolean(selectionForSource(snapshot, selection))}
         reload={() => void attempt(() => app.load())}
       />
+      {snapshot.pendingState && (
+        <p role="status" className="text-sm text-ink-muted">
+          {APP_PENDING_CONTEXT_MESSAGE}
+        </p>
+      )}
       <AppSaveError
         error={error || snapshot.saveError}
         app={app}

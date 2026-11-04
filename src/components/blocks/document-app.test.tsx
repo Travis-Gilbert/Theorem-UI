@@ -1,5 +1,13 @@
 import { act } from 'react'
+import { Window } from 'happy-dom'
 import * as esbuild from 'esbuild-wasm'
+import {
+  call,
+  READY_MESSAGE,
+  rpcOver,
+  serve,
+} from '@/lib/blocks/sandbox/protocol'
+import type { PageMethods, SandboxMethods } from '@/lib/blocks/sandbox/protocol'
 import { BLOCK_SANDBOX } from '@/lib/blocks/executor'
 import * as hosted from '@/lib/blocks/hosted-app'
 import { afterEach, expect, spyOn, test } from 'bun:test'
@@ -14,6 +22,8 @@ import {
   waitFor,
 } from '../../../test/blocks/render'
 import { DocumentAppView } from './document-app'
+
+const originalHosted = hosted.hostedAppDocument
 
 afterEach(cleanup)
 
@@ -98,3 +108,122 @@ test('replacing App source unmounts its old sandbox before granting new capabili
     compile.mockRestore()
   }
 }, 20_000)
+
+// Happy DOM does not execute iframe scripts; use its real window and the
+// production MessageChannel handshake to drive exactly the App bridge API.
+async function connectAppFrame(container: HTMLElement) {
+  const frame = await waitFor(() => container.querySelector('iframe'), 10_000)
+  // Page loading is disabled by the test browser; supply its window only.
+  const child = new Window()
+  Object.defineProperty(frame, 'contentWindow', { value: child })
+  let port: MessagePort | undefined
+  const post = spyOn(frame.contentWindow!, 'postMessage').mockImplementation(
+    (_message, _origin, transfer) => {
+      port = transfer?.[0] as MessagePort
+    },
+  )
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      source: frame.contentWindow,
+      data: { type: READY_MESSAGE },
+    }),
+  )
+  post.mockRestore()
+  const rpc = rpcOver(port!)
+  serve<SandboxMethods, 'state.changed'>(rpc, 'state.changed', async () => null)
+  return { rpc, close: () => port!.close() }
+}
+
+for (const failed of [false, true]) {
+  test(`App Ask refuses ${failed ? 'failed' : 'in-flight'} state and drops dirty selection after save`, async () => {
+    useComposerReferences.getState().take()
+    const store = await appDocumentFixture()
+    await store.remote(
+      `<meta name="theorem:uses" content='state("rows")'><p>Stateful</p>`,
+    )
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const revise = store.api.revise
+    store.api.revise = async (request) => {
+      await gate
+      return revise(request)
+    }
+    store.fail(failed)
+    const app = new AppDocument('app-document', store.api, store.change)
+    const compile = spyOn(hosted, 'hostedAppDocument').mockImplementation(
+      (html) => originalHosted(html, esbuild),
+    )
+    let close = () => {}
+    try {
+      const { container } = await render(<DocumentAppView app={app} />)
+      await waitFor(() => buttonNamed(container, 'Run App'))
+      await click(buttonNamed(container, 'Run App')!)
+      const connected = await connectAppFrame(container)
+      close = connected.close
+      const select = (text: string) =>
+        act(() =>
+          call<PageMethods, 'frame.selection'>(
+            connected.rpc,
+            'frame.selection',
+            { text, rowId: 'row' },
+          ),
+        )
+      await select('Saved row')
+      expect(buttonNamed(container, 'Ask about selection')).toBeDefined()
+      let saving!: Promise<unknown>
+      await act(async () => {
+        saving = call<PageMethods, 'state.set'>(connected.rpc, 'state.set', {
+          name: 'rows',
+          key: 'row',
+          value: 'Unsaved row',
+        }).catch(() => undefined)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      })
+      expect(buttonNamed(container, 'Ask about selection')).toBeUndefined()
+      await select('Unsaved row')
+      if (failed) {
+        await act(async () => {
+          release()
+          await saving
+        })
+        await waitFor(() => buttonNamed(container, 'Retry save'))
+      }
+      const ask = buttonNamed(container, /Ask about/)!
+      expect(ask.disabled).toBe(true)
+      expect(container.textContent).toContain(
+        'Save the App changes before asking',
+      )
+      await click(ask)
+      expect(useComposerReferences.getState().take()).toEqual([])
+      if (failed) {
+        store.fail(false)
+        await click(buttonNamed(container, 'Retry save')!)
+      } else {
+        await act(async () => {
+          release()
+          await saving
+        })
+      }
+      await waitFor(() => !buttonNamed(container, /Ask about/)!.disabled)
+      expect(buttonNamed(container, 'Ask about selection')).toBeUndefined()
+      await click(buttonNamed(container, 'Ask about this App')!)
+      const [reference] = useComposerReferences.getState().take()
+      expect(reference.location.revision).toBe('3')
+      expect(reference.excerpt).toBeUndefined()
+      await select('Saved updated row')
+      await click(buttonNamed(container, 'Ask about selection')!)
+      expect(useComposerReferences.getState().take()[0]).toMatchObject({
+        location: { revision: '3' },
+        excerpt: JSON.stringify({
+          selection: { text: 'Saved updated row', rowId: 'row' },
+        }),
+      })
+    } finally {
+      release()
+      close()
+      compile.mockRestore()
+    }
+  }, 20_000)
+}

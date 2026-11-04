@@ -30,6 +30,7 @@ export type AppSnapshot = {
   canonical: Uint8Array
   revision: Theorem.DocumentRevision
   saveError?: string
+  pendingState?: boolean
 }
 
 export class AppDocument {
@@ -59,9 +60,9 @@ export class AppDocument {
   }
 
   private publish(snapshot: AppSnapshot): AppSnapshot {
-    this.current = snapshot
+    this.current = { ...snapshot, pendingState: this.hasPendingState() }
     for (const listener of this.listeners) listener()
-    return snapshot
+    return this.current
   }
 
   private async read(): Promise<AppSnapshot> {
@@ -149,8 +150,7 @@ export class AppDocument {
     if (this.current)
       this.publish({
         ...this.current,
-        saveError:
-          describeError(error,'document'),
+        saveError: describeError(error, 'document'),
       })
     throw error
   }
@@ -178,6 +178,7 @@ export class AppDocument {
 
   async pushState(update: Uint8Array): Promise<void> {
     this.pending.push(update.slice())
+    if (this.current) this.publish(this.current)
     await this.flush()
   }
 
@@ -192,6 +193,7 @@ export class AppDocument {
           for (const update of batch) doc.import(update)
           await this.write(base, doc.export({ mode: 'snapshot' }))
           this.pending.splice(0, batch.length)
+          this.publish(this.current!)
           return
         } catch (error) {
           if (hasStatus(error, 409, 412) && attempt < 2) continue
