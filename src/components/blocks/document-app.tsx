@@ -127,7 +127,7 @@ function AppPreview({
 }
 
 type Attempt = (action: () => Promise<unknown>) => Promise<void>
-function useAppSnapshot(app: AppDocument) {
+function useAppSnapshot(app: AppDocument, pinnedPosition?: number | string) {
   const snapshot = useSyncExternalStore(
     app.subscribe,
     app.getSnapshot,
@@ -144,7 +144,7 @@ function useAppSnapshot(app: AppDocument) {
   }
   useEffect(() => {
     void app.load().catch((failure) => setError(errorText(failure)))
-  }, [app])
+  }, [app, pinnedPosition])
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState === 'visible') void attempt(() => app.load())
@@ -276,7 +276,7 @@ export function DocumentAppView({
   app: AppDocument
   pinnedPosition?: number | string
 }) {
-  const { snapshot, error, attempt } = useAppSnapshot(app)
+  const { snapshot, error, attempt } = useAppSnapshot(app, pinnedPosition)
   const [edit, setEdit] = useState<Edit>()
   const [running, setRunning] = useState(false)
   const [selection, setSelection] = useAppSelection(app)

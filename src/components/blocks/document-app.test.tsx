@@ -118,7 +118,11 @@ async function connectAppFrame(container: HTMLElement) {
   Object.defineProperty(frame, 'contentWindow', { value: child })
   let port: MessagePort | undefined
   const post = spyOn(frame.contentWindow!, 'postMessage').mockImplementation(
-    (_message, _origin, transfer) => {
+    (
+      _message: unknown,
+      _origin?: string | WindowPostMessageOptions,
+      transfer?: Transferable[],
+    ) => {
       port = transfer?.[0] as MessagePort
     },
   )
@@ -210,8 +214,8 @@ for (const failed of [false, true]) {
       expect(buttonNamed(container, 'Ask about selection')).toBeUndefined()
       await click(buttonNamed(container, 'Ask about this App')!)
       const [reference] = useComposerReferences.getState().take()
-      expect(reference.location.revision).toBe('3')
-      expect(reference.excerpt).toBeUndefined()
+      expect(reference).toMatchObject({ location: { revision: '3' } })
+      expect(reference?.excerpt).toBeUndefined()
       await select('Saved updated row')
       await click(buttonNamed(container, 'Ask about selection')!)
       expect(useComposerReferences.getState().take()[0]).toMatchObject({
