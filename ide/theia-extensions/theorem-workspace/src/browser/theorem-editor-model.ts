@@ -18,7 +18,9 @@ import { MonacoToProtocolConverter } from '@theia/monaco/lib/browser/monaco-to-p
 import { ProtocolToMonacoConverter } from '@theia/monaco/lib/browser/protocol-to-monaco-converter';
 import * as monaco from '@theia/monaco-editor-core';
 import type { TextChange } from '@theoremharness/sdk';
+import { changesAgainst, withLineEnding } from './line-map';
 import { DocumentLease, TheoremConnection } from './theorem-connection';
+import { replacement } from './theorem-file-system-provider';
 
 /** Typing within this window joins the previous undo step, as Monaco's own stack does. */
 const TYPING_MERGE_MS = 1000;
@@ -55,6 +57,12 @@ export class TheoremEditorModel extends MonacoEditorModel {
 
     protected applyingSession = false;
     protected lastTyping = 0;
+    /**
+     * True while the model's offsets are not the session's: Monaco holds one line ending per model,
+     * so a file with mixed endings, or another writer's `\n` in a CRLF file, reads differently here.
+     * The session's endings are the ones that reach the checkout.
+     */
+    protected linesDiverged = false;
 
     constructor(
         protected readonly document: TheoremDocumentResource,
@@ -81,16 +89,20 @@ export class TheoremEditorModel extends MonacoEditorModel {
             if (this.applyingSession) {
                 return;
             }
-            const changes = event.changes.map(change => ({
-                start: change.rangeOffset,
-                end: change.rangeOffset + change.rangeLength,
-                insert: change.text,
-            }));
+            const changes = this.linesDiverged
+                ? changesAgainst(session.text, event.changes)
+                : event.changes.map(change => ({
+                    start: change.rangeOffset,
+                    end: change.rangeOffset + change.rangeLength,
+                    insert: change.text,
+                }));
             const typing = changes.length === 1 && changes[0].start === changes[0].end && !changes[0].insert.includes('\n');
             const now = Date.now();
             session.edit(changes, { merge: typing && now - this.lastTyping < TYPING_MERGE_MS });
             this.lastTyping = typing ? now : 0;
+            this.compareLines();
         }));
+        this.compareLines();
         const detach = [
             session.onRemoteChange(changes => this.applySessionChanges(changes)),
             session.onStateChange(() => this.setDirty(session.dirty)),
@@ -121,11 +133,15 @@ export class TheoremEditorModel extends MonacoEditorModel {
         super.setDirty(this.session.dirty);
     }
 
+    protected compareLines(): void {
+        this.linesDiverged = this.model.getValueLength() !== this.session.text.length;
+    }
+
     protected applySessionChanges(changes: TextChange[]): void {
         if (changes.length === 0) {
             return;
         }
-        const operations = changes.map(change => ({
+        const operations = this.linesDiverged ? this.operationsToSessionText() : changes.map(change => ({
             range: monaco.Range.fromPositions(this.model.getPositionAt(change.start), this.model.getPositionAt(change.end)),
             text: change.insert,
             forceMoveMarkers: true,
@@ -136,6 +152,17 @@ export class TheoremEditorModel extends MonacoEditorModel {
         } finally {
             this.applyingSession = false;
         }
+        this.compareLines();
+    }
+
+    /** With offsets apart, the one change that brings the model to the session's text. */
+    protected operationsToSessionText(): monaco.editor.IIdentifiedSingleEditOperation[] {
+        const change = replacement(this.model.getValue(), withLineEnding(this.session.text, this.model.getEOL()));
+        return change ? [{
+            range: monaco.Range.fromPositions(this.model.getPositionAt(change.start), this.model.getPositionAt(change.end)),
+            text: change.insert,
+            forceMoveMarkers: true,
+        }] : [];
     }
 
     protected async askConflict(diskDeleted: boolean): Promise<void> {

@@ -8,24 +8,23 @@
 // *****************************************************************************
 
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
-import { Disposable, Emitter, Event } from '@theia/core/lib/common';
+import { Disposable, Emitter, Event, MessageService } from '@theia/core/lib/common';
 import URI from '@theia/core/lib/common/uri';
 import {
-    createFileSystemProviderError, FileChange, FileChangeType, FileDeleteOptions, FileOverwriteOptions,
-    FileSystemProviderCapabilities, FileSystemProviderErrorCode, FileSystemProviderWithFileReadWriteCapability,
-    FileType, FileWriteOptions, Stat, WatchOptions
+    createFileSystemProviderError, FileChange, FileChangeType, FileDeleteOptions, FileOverwriteOptions, FilePermission,
+    FileSystemProviderCapabilities, FileSystemProviderErrorCode, FileSystemProviderWithFileFolderCopyCapability,
+    FileSystemProviderWithFileReadWriteCapability, FileType, FileWriteOptions, Stat, WatchOptions
 } from '@theia/filesystem/lib/common/files';
+import { childrenOf, type DirectoryListing } from './directory-listing';
+import { replaceWithCopy } from './replace-entry';
 import { TheoremConnection } from './theorem-connection';
 
-interface Listing {
-    files: { path: string }[];
-    directories?: { path: string }[];
-}
 
 interface FileStat {
     type: 'file' | 'directory' | 'missing';
     size?: number;
     mtime_ms?: number;
+    readonly?: boolean;
 }
 
 interface FileContents {
@@ -35,18 +34,16 @@ interface FileContents {
 
 const changeTypes = { created: FileChangeType.ADDED, changed: FileChangeType.UPDATED, deleted: FileChangeType.DELETED };
 
-function parentOf(path: string): string {
-    const slash = path.lastIndexOf('/');
-    return slash === -1 ? '' : path.slice(0, slash);
-}
+const fileTypes: Record<string, FileType> = { directory: FileType.Directory, symlink: FileType.SymbolicLink };
 
 function providerError(error: unknown, uri: URI): Error {
-    const status = (error as { statusCode?: number }).statusCode;
+    const { statusCode: status, body } = error as { statusCode?: number; body?: { code?: unknown } };
     const message = `${uri.path.toString()}: ${error instanceof Error ? error.message : String(error)}`;
-    if (status === 404) {
+    // The host answers a missing path with 409 `not_found` on some routes.
+    if (status === 404 || body?.code === 'not_found') {
         return createFileSystemProviderError(message, FileSystemProviderErrorCode.FileNotFound);
     }
-    if (status === 409) {
+    if (status === 409 && body?.code === 'already_exists') {
         return createFileSystemProviderError(message, FileSystemProviderErrorCode.FileExists);
     }
     if (status === 403) {
@@ -55,42 +52,45 @@ function providerError(error: unknown, uri: URI): Error {
     return createFileSystemProviderError(message, FileSystemProviderErrorCode.Unknown);
 }
 
+function base64Of(bytes: Uint8Array): string {
+    const parts: string[] = [];
+    for (let at = 0; at < bytes.length; at += 0x8000) {
+        parts.push(String.fromCharCode(...bytes.subarray(at, at + 0x8000)));
+    }
+    return btoa(parts.join(''));
+}
+
 /**
  * The `file` scheme over the Theorem workspace at `file:///<name>`. Change
  * events come from the live stream, so `watch` has nothing to start.
  */
 @injectable()
-export class TheoremFileSystemProvider implements FileSystemProviderWithFileReadWriteCapability {
+export class TheoremFileSystemProvider implements FileSystemProviderWithFileReadWriteCapability, FileSystemProviderWithFileFolderCopyCapability {
+
+    @inject(MessageService)
+    protected readonly messages: MessageService;
 
     @inject(TheoremConnection)
     protected readonly connection: TheoremConnection;
 
-    readonly capabilities = FileSystemProviderCapabilities.FileReadWrite | FileSystemProviderCapabilities.PathCaseSensitive;
+    readonly capabilities = FileSystemProviderCapabilities.FileReadWrite | FileSystemProviderCapabilities.FileFolderCopy | FileSystemProviderCapabilities.PathCaseSensitive;
     readonly onDidChangeCapabilities = Event.None;
     readonly onFileWatchError = Event.None;
 
     protected readonly onDidChangeFileEmitter = new Emitter<readonly FileChange[]>();
     readonly onDidChangeFile = this.onDidChangeFileEmitter.event;
 
-    /** Children of every listed directory, cached until a file is created or deleted. */
-    protected listing: Promise<Map<string, [string, FileType][]>> | undefined;
-
     @postConstruct()
     protected init(): void {
         const { live } = this.connection;
         live.on('file.changed', ({ data }) => {
             if (data.path === '.') {
-                this.listing = undefined;
                 this.onDidChangeFileEmitter.fire([{ resource: this.connection.root, type: FileChangeType.UPDATED }]);
                 return;
-            }
-            if (data.change !== 'changed') {
-                this.listing = undefined;
             }
             this.onDidChangeFileEmitter.fire([{ resource: this.connection.toUri(data.path), type: changeTypes[data.change] }]);
         });
         live.onResync(() => {
-            this.listing = undefined;
             this.onDidChangeFileEmitter.fire([{ resource: this.connection.root, type: FileChangeType.UPDATED }]);
         });
     }
@@ -116,7 +116,13 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
             throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileNotFound);
         }
         const mtime = stat.mtime_ms ?? 0;
-        return { type: stat.type === 'directory' ? FileType.Directory : FileType.File, mtime, ctime: mtime, size: stat.size ?? 0 };
+        return {
+            type: stat.type === 'directory' ? FileType.Directory : FileType.File,
+            mtime,
+            ctime: mtime,
+            size: stat.size ?? 0,
+            permissions: stat.readonly ? FilePermission.Readonly : undefined,
+        };
     }
 
     async readdir(resource: URI): Promise<[string, FileType][]> {
@@ -127,32 +133,9 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
             }
             throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileNotFound);
         }
-        const children = (await this.list(resource)).get(path);
-        if (!children) {
-            throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileNotADirectory);
-        }
-        return children;
-    }
-
-    protected list(resource: URI): Promise<Map<string, [string, FileType][]>> {
-        this.listing ??= this.call(resource, async headers => {
-            const listing = (await this.connection.client.ide.workspace.filesList({ ...headers, body: {} })) as Listing;
-            const children = new Map<string, [string, FileType][]>([['', []]]);
-            for (const { path } of listing.directories ?? []) {
-                children.set(path, children.get(path) ?? []);
-            }
-            const add = (path: string, type: FileType) => {
-                const parent = parentOf(path);
-                const siblings = children.get(parent) ?? [];
-                children.set(parent, siblings);
-                siblings.push([path.slice(parent ? parent.length + 1 : 0), type]);
-            };
-            listing.directories?.forEach(({ path }) => add(path, FileType.Directory));
-            listing.files.forEach(({ path }) => add(path, FileType.File));
-            return children;
-        });
-        this.listing.catch(() => this.listing = undefined);
-        return this.listing;
+        const listing = await this.call(resource, async headers =>
+            (await this.connection.client.ide.workspace.filesList({ ...headers, body: { path } })) as DirectoryListing);
+        return childrenOf(listing, path).map(({ name, kind }) => [name, fileTypes[kind] ?? FileType.File]);
     }
 
     async mkdir(resource: URI): Promise<void> {
@@ -177,6 +160,27 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
             this.connection.client.ide.workspace.filesRename({ ...headers, body: { from: source, to: target } }));
     }
 
+    async copy(from: URI, to: URI, opts: FileOverwriteOptions): Promise<void> {
+        const source = this.requirePath(from);
+        const target = this.requirePath(to);
+        await this.requireFileServices(from);
+        const copyTo = (path: string) => this.call(from, () => this.connection.operate('workspace.files.copy', { from: source, to: path })).then(() => undefined);
+        if (!await this.exists(to)) {
+            await copyTo(target);
+            return;
+        }
+        if (!opts.overwrite) {
+            throw createFileSystemProviderError(to.toString(), FileSystemProviderErrorCode.FileExists);
+        }
+        await replaceWithCopy(target, {
+            copyTo,
+            rename: (oldPath, newPath) => this.call(to, headers =>
+                this.connection.client.ide.workspace.filesRename({ ...headers, body: { from: oldPath, to: newPath } })).then(() => undefined),
+            remove: path => this.call(to, headers =>
+                this.connection.client.ide.workspace.filesDelete({ ...headers, body: { path } })).then(() => undefined),
+        });
+    }
+
     async readFile(resource: URI): Promise<Uint8Array> {
         const path = this.requirePath(resource);
         const file = await this.call(resource, async headers =>
@@ -190,26 +194,33 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
     /**
      * A new file is created as given. An existing file is changed through its
      * shared document session and saved, so the authority stays the only writer
-     * and open editors see the change as an edit.
+     * and open editors see the change as an edit. Bytes that are not text have
+     * no document, so the host writes them as given.
      */
     async writeFile(resource: URI, content: Uint8Array, opts: FileWriteOptions): Promise<void> {
         const path = this.requirePath(resource);
+        const exists = await this.exists(resource);
+        if (!exists && !opts.create) {
+            throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileNotFound);
+        }
+        if (exists && !opts.overwrite) {
+            throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileExists);
+        }
         let text: string;
         try {
             text = new TextDecoder('utf-8', { fatal: true }).decode(content);
         } catch {
-            throw createFileSystemProviderError(`${resource.path}: the workspace accepts text files only`, FileSystemProviderErrorCode.NoPermissions);
+            await this.requireFileServices(resource);
+            await this.call(resource, headers => this.connection.client.ide.workspace.filesCreate({
+                ...headers,
+                body: { path, contents: base64Of(content), encoding: 'base64' },
+            }));
+            return;
         }
-        if (!await this.exists(resource)) {
-            if (!opts.create) {
-                throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileNotFound);
-            }
+        if (!exists) {
             await this.call(resource, headers =>
                 this.connection.client.ide.workspace.filesCreate({ ...headers, body: { path, contents: text } }));
             return;
-        }
-        if (!opts.overwrite) {
-            throw createFileSystemProviderError(resource.toString(), FileSystemProviderErrorCode.FileExists);
         }
         const lease = await this.connection.acquire(path);
         try {
@@ -222,6 +233,19 @@ export class TheoremFileSystemProvider implements FileSystemProviderWithFileRead
             throw providerError(error, resource);
         } finally {
             lease.release();
+        }
+    }
+
+    /**
+     * Copying and writing bytes arrived on the host together. An older host would
+     * store the base64 as the file's text and has no copy at all, so they are
+     * refused before anything is touched.
+     */
+    protected async requireFileServices(resource: URI): Promise<void> {
+        if (!await this.connection.offers('workspace.files.copy')) {
+            const refusal = `This Theorem host cannot copy or write binary files: ${resource.path.base}`;
+            this.messages.warn(refusal);
+            throw createFileSystemProviderError(refusal, FileSystemProviderErrorCode.Unavailable);
         }
     }
 

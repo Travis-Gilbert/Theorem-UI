@@ -17,3 +17,10 @@
 :root body .monaco-diff-editor {
   --vscode-editor-background: var(--theia-theoremSheet-editorBackground);
 }
+
+/* The commit after the cursor's line, from Git: Toggle Line Blame. */
+.monaco-editor .theorem-blame {
+  color: var(--vscode-editorInlayHint-foreground, var(--theia-descriptionForeground));
+  font-style: italic;
+  opacity: 0.8;
+}
