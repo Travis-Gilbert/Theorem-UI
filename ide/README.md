@@ -43,13 +43,31 @@ Rebinds the seams Theia's own browser-only modules use:
 - The host's findings for open documents go to `ProblemManager` (owner `theorem`), so editors and
   the Problems view show them. A snapshot is kept only for the text it was computed against.
 - A Source Control provider over SDK `WorkspaceScm`: staged, unstaged and conflicted groups, stage,
-  unstage, discard with Undo, commit, branch create and switch, fetch and push. Revision text is
-  served under the `theorem-scm` scheme, which also gives editors Theia's dirty-diff gutter.
+  unstage, discard with Undo, commit, branch create and switch, merge with Keep Ours and Keep Theirs
+  on conflicts, fetch and push. Revision text is served under the `theorem-scm` scheme, which also
+  gives editors Theia's dirty-diff gutter. Git: Toggle Line Blame shows `scm.blame` after the current line.
+- `CallHierarchyService` over `navigation.hierarchy`. Language servers answer with host paths, which
+  `TheoremConnection.fromHostUri` maps to frame URIs through `workspace.describe`; files beyond the
+  workspace are left out. Requests re-ask while the server reports its content as modified.
+- `TimelineService` has one provider over `history.*` and `scm.log`: open it from the Explorer's
+  context menu under Views. Local revisions last as long as the host session's journal.
+- Run: Add Configuration, Start and Stop over `run.*`, with output in the Output panel's Run channel,
+  one process at a time.
 - Theia's own settings and storage stay in the browser under a `theia-user` scheme.
+- Find in Files and Quick Open run on the host's `search.query` and `workspace.files.list`.
 - `TheoremIdeBridge` links the frame to the Theorem UI with Penpal (contract in
   `src/common/ide-bridge.ts`): reveal, theme, commands, the sidebar and Follow the Agent's state
   one way; Add Selection to Chat, manual navigation (which pauses Follow the Agent), the sidebar
   opening or closing and the status bar's Follow switch the other.
+
+### What it needs from Theorem
+
+Theorem's `main` host runs all of the above except per-directory listing, native copy and binary
+writes, which arrive with the I04 file services (`claude/pm-ide-files`, commits `3cc1cfe15b` and
+`7ad870b944`). Until then the Explorer reads its directories out of the whole-tree listing, excluded
+folders do not appear, and copying and binary writes are refused with a message before anything is
+touched. Reading a run's output while it runs, saving after an undo and describing a workspace with
+no README need `claude/ide-save-unchanged`.
 
 ## Patches
 

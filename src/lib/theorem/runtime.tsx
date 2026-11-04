@@ -50,6 +50,8 @@ import type { Theorem } from './client'
 import { RefusedSend } from './send-recovery'
 import { pickedModelTurnOptions } from './models'
 
+import { toHistoryMessages } from './message-history'
+
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
 >
@@ -294,7 +296,7 @@ export function createHistoryAdapter(
           !runId || message.runId !== runId || message.role === 'user',
       )
       const repository = ExportedMessageRepository.fromArray(
-        toAssistantMessages(settled, snapshot.thread),
+        toHistoryMessages(settled, snapshot.thread),
       )
       if (!runId && !recoveryError) return repository
       loadedForResume.set(remoteId, { runId, recoveryError })

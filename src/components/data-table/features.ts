@@ -1,6 +1,7 @@
 // SOURCING: TanStack Table kitchen-sink-shadcn-base example (vendored from github.com/TanStack/table examples/react/kitchen-sink-shadcn-base/src/hooks/features.ts; imports point at this app)
-// Adapted: row selection, grouping, expanding and aggregation are dropped (no
-// table here uses them), and sortFn_basic is registered for boolean columns.
+// Adapted: grouping, expanding and aggregation are dropped (no table here uses
+// them), row selection is kept for the record table, and sortFn_basic is
+// registered for boolean columns.
 import {
   columnFacetingFeature,
   columnFilteringFeature,
@@ -17,6 +18,7 @@ import {
   globalFilteringFeature,
   metaHelper,
   rowPaginationFeature,
+  rowSelectionFeature,
   rowSortingFeature,
   sortFn_alphanumeric,
   sortFn_basic,
@@ -46,6 +48,7 @@ const fuzzyFilterFn = (
 export const features = tableFeatures({
   rowSortingFeature,
   rowPaginationFeature,
+  rowSelectionFeature,
   columnFilteringFeature,
   columnFacetingFeature,
   columnOrderingFeature,
