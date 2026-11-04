@@ -78,6 +78,8 @@ export const LIVE_DELEGATION_STATES: ReadonlySet<DelegationState> = new Set([
   'started',
 ])
 
+const POLLING_DELEGATION_STATES = new Set([...LIVE_DELEGATION_STATES, 'published'])
+
 /** The side of a change that exists: the new file, or the base of a deletion. */
 export const changeSide = (change: ChangeSetEntry): 'before' | 'after' =>
   change.change === 'delete' ? 'before' : 'after'
@@ -131,6 +133,15 @@ export function useThreadDelegation(
   return useLiveDelegation(stored)
 }
 
+function currentDelegation(
+  seed: DelegationPart | undefined,
+  records: readonly DelegationPart[] | undefined,
+) {
+  if (!seed) return undefined
+  const polled = records?.find((item) => item.delegationId === seed.delegationId)
+  return polled && polled.updatedAtMs >= seed.updatedAtMs ? polled : seed
+}
+
 /** Work outlives its parent response, so its durable record owns the card's status. */
 export function useLiveDelegation(
   seed: DelegationPart | undefined,
@@ -144,19 +155,14 @@ export function useLiveDelegation(
         { abortSignal: signal },
       ),
     refetchInterval: ({ state }) => {
-      const current =
-        state.data?.delegations.find(
-          (item) => item.delegationId === seed?.delegationId,
-        ) ?? seed
-      return current && LIVE_DELEGATION_STATES.has(current.state) ? 2000 : false
+      const current = currentDelegation(seed, state.data?.delegations)
+      if (!current || !POLLING_DELEGATION_STATES.has(current.state)) return undefined
+      if (current.state === 'published' && current.problem) return undefined
+      return 2000
     },
     staleTime: 1000,
   })
-  return (
-    query.data?.delegations.find(
-      (item) => item.delegationId === seed?.delegationId,
-    ) ?? seed
-  )
+  return currentDelegation(seed, query.data?.delegations)
 }
 
 /** Set while the desktop dock is mounted: opens a delegation's panel. */

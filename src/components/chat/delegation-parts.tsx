@@ -51,11 +51,11 @@ const STATE_LABELS: Record<DelegationPart['state'], string> = {
   proposed: 'Proposed',
   admitted: 'Queued',
   started: 'Working',
-  published: 'Awaiting review',
+  published: 'Ready',
   failed: 'Failed',
   cancelled: 'Cancelled',
   stale: 'Stale',
-  reviewed: 'Reviewed',
+  reviewed: 'Discussed',
   refused: 'Refused',
 }
 
