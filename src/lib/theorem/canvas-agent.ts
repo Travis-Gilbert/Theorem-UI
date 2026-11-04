@@ -1,10 +1,11 @@
 // SOURCING: @theoremharness/sdk chat client (threads.create, messages.send with spaceContext, runs.cancel) and the runtime's tailRun
 //
 // Each canvas request is its own conversation in the project, so the chat
-// thread's adapter options stay untouched. The server admits the referenced
-// objects from the saved Space but hands the agent only their identities, so
-// the excerpts travel inline in the message text as well.
+// thread's adapter options stay untouched. Canonical document references pin
+// the saved sources for the front and workers; Space references retain placement.
+import type { TheoremContextReference } from '@theoremharness/sdk'
 import { mutate, theorem } from './client'
+import type { Theorem } from './client'
 import { tailRun } from './runtime'
 
 export type CanvasSource = {
@@ -12,10 +13,12 @@ export type CanvasSource = {
   title: string
   /** The note's Markdown when the request is about the whole note. */
   markdown: string
-  /** Placement on the saved Space; unplaced notes go inline only. */
+  savedMarkdown: string
+  revision: Theorem.DocumentRevision
+  /** Placement on the saved Space; unplaced notes still carry document context. */
   placementId?: string
   /** A text selection inside the note. */
-  selection?: { quote: string; start: number; end: number; revision: string }
+  selection?: { quote: string; range?: { start: number; end: number } }
 }
 
 export type CanvasAction = { id: string; label: string; prompt: string }
@@ -41,27 +44,27 @@ export const CANVAS_ACTIONS: readonly CanvasAction[] = [
   },
 ]
 
-const EXCERPT_LIMIT = 6000
 /** Server limits on one request's references. */
 const MAX_SELECTED = 64
 const MAX_LOCATORS = 256
 
-function excerpt(source: CanvasSource): string {
-  const body = source.selection?.quote ?? source.markdown
-  return body.length > EXCERPT_LIMIT
-    ? `${body.slice(0, EXCERPT_LIMIT)}\n\n[truncated]`
-    : body
-}
-
-export function messageText(prompt: string, sources: readonly CanvasSource[]) {
-  if (!sources.length) return prompt
-  const context = sources
-    .map(
-      (s) =>
-        `### ${s.title} (${s.documentId})${s.selection ? ', selected text' : ''}\n\n${excerpt(s)}`,
-    )
-    .join('\n\n')
-  return `${prompt}\n\nContext from the canvas:\n\n${context}`
+function contextReferencesFor(
+  sources: readonly CanvasSource[],
+): TheoremContextReference[] {
+  return sources.map((source) => {
+    if (source.markdown !== source.savedMarkdown)
+      throw new Error(
+        'The selected note has unsaved changes. Save or refresh the note, then select it again.',
+      )
+    return {
+      location: {
+        resource: { kind: 'graph-object', objectId: source.documentId },
+        revision: String(source.revision.position),
+      },
+      label: source.title,
+      excerpt: source.selection?.quote,
+    }
+  })
 }
 
 /** The chat spaceContext for the sources that are placed on the saved Space. */
@@ -77,16 +80,16 @@ export function spaceContextFor(
     ).values(),
   ].slice(0, MAX_SELECTED)
   const locators = placed
-    .filter((s) => s.selection)
+    .filter((s) => s.selection?.range)
     .slice(0, MAX_LOCATORS)
     .map((s) => ({
       object: { kind: 'document', id: s.documentId },
-      revision: s.selection!.revision,
+      revision: String(s.revision.position),
       placement: s.placementId,
       at: {
         text_range: {
-          start: s.selection!.start,
-          end: s.selection!.end,
+          start: s.selection!.range!.start,
+          end: s.selection!.range!.end,
           quote: s.selection!.quote.slice(0, 4096),
         },
       },
@@ -128,6 +131,7 @@ export async function* askOnCanvas({
   sources: readonly CanvasSource[]
   signal: AbortSignal
 }): AsyncGenerator<CanvasRunUpdate, void> {
+  const contextReferences = contextReferencesFor(sources)
   const title = sources.length
     ? `${prompt.split('\n')[0]!.slice(0, 40)}: ${sources[0]!.title}`
     : prompt.split('\n')[0]!.slice(0, 60)
@@ -141,7 +145,13 @@ export async function* askOnCanvas({
       'If-Match': String(thread.revision),
       threadId: thread.threadId,
       branchId: thread.selectedBranchId,
-      text: messageText(prompt, sources),
+      text: prompt,
+      ...(contextReferences.length
+        ? {
+            contextReferences:
+              contextReferences as Theorem.ChatContextReference[],
+          }
+        : {}),
       ...(spaceContext ? { spaceContext } : {}),
     }),
   )

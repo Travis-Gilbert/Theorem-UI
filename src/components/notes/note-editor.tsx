@@ -8,6 +8,7 @@
 import { Crepe } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
 import { commandsCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core'
+import type { Editor } from '@milkdown/kit/core'
 import { clearTextInCurrentBlockCommand } from '@milkdown/kit/preset/commonmark'
 import type { Serializer } from '@milkdown/kit/transformer'
 import { getMarkdown, insert, replaceAll } from '@milkdown/kit/utils'
@@ -66,14 +67,24 @@ function embedPreview(queryClient: QueryClient) {
   }
 }
 
+/** Flush the current editor state before an action can capture its source. */
+function reportCurrentMarkdown(
+  editor: Editor,
+  report: (markdown: string) => void,
+) {
+  report(editor.action(getMarkdown()))
+}
+
 function CrepeEditor({
   note,
   callbacks,
   onInsertReady,
+  onFlushReady,
 }: {
   note: Note
   callbacks: React.RefObject<Callbacks>
   onInsertReady: (insertMarkdown: (markdown: string) => void) => void
+  onFlushReady: (flush: () => void) => void
 }) {
   const queryClient = useQueryClient()
   const { documentId } = note
@@ -117,6 +128,7 @@ function CrepeEditor({
                 icon: askIcon,
                 onRun: (ctx) => {
                   ctx.get(commandsCtx).call(clearTextInCurrentBlockCommand.key)
+                  reportCurrentMarkdown(crepe.editor, report)
                   callbacks.current.onAsk?.()
                 },
               })
@@ -142,6 +154,7 @@ function CrepeEditor({
       })
     })
     onInsertReady((markdown) => crepe.editor.action(insert(markdown)))
+    onFlushReady(() => reportCurrentMarkdown(crepe.editor, report))
     return crepe
   }, [])
 
@@ -153,8 +166,8 @@ function CrepeEditor({
   // last text before the saves are flushed.
   useEffect(() =>
     onLeavePage(() => {
-      const markdown = get()?.action(getMarkdown())
-      if (markdown !== undefined) report(markdown)
+      const editor = get()
+      if (editor) reportCurrentMarkdown(editor, report)
     }),
   )
 
@@ -185,6 +198,7 @@ export function NoteEditor({
 }) {
   const [picking, setPicking] = useState(false)
   const insertRef = useRef<(markdown: string) => void>(undefined)
+  const flushRef = useRef<() => void>(() => undefined)
   const callbacks = useRef<Callbacks>({
     onAsk,
     onEmbed: () => setPicking(true),
@@ -197,6 +211,8 @@ export function NoteEditor({
   return (
     <div
       className={cn('theorem-note', className)}
+      onContextMenu={() => flushRef.current()}
+      onBlurCapture={() => flushRef.current()}
       onClick={(event) => {
         const embed = (event.target as Element).closest(`[${EMBED_ATTR}]`)
         const documentId = embed?.getAttribute(EMBED_ATTR)
@@ -208,6 +224,7 @@ export function NoteEditor({
           note={note}
           callbacks={callbacks}
           onInsertReady={(fn) => (insertRef.current = fn)}
+          onFlushReady={(fn) => (flushRef.current = fn)}
         />
       </MilkdownProvider>
       <NotePicker
