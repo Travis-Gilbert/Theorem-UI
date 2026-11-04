@@ -2,7 +2,7 @@
 //
 // Renderers are chosen by the part's rendererId. Anything without a renderer
 // gets a named fallback that says what it is and shows the part's fallbackText;
-// artifacts are declarative text, so nothing here executes artifact content.
+// Apps resolve their durable document and run only through the explicit sandbox control.
 import { isValidElement } from 'react'
 import type { FC, ReactElement, ReactNode } from 'react'
 import Markdown from 'react-markdown'
@@ -10,6 +10,7 @@ import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { MermaidDiagram } from '@/components/assistant-ui/elements/mermaid-diagram'
 import { SyntaxHighlighter } from '@/components/assistant-ui/elements/shiki-highlighter'
+import { DocumentApp } from '@/components/blocks/document-app'
 import { cn } from '@/lib/utils'
 import type { TheoremArtifact } from './artifact-model'
 
@@ -85,7 +86,12 @@ const DiagramArtifact: FC<RendererProps> = ({ artifact }) => (
   <MermaidDiagram code={artifact.content} className="rounded-lg bg-raised" />
 )
 
+const AppArtifact: FC<RendererProps> = ({artifact}) => artifact.documentId
+  ? <DocumentApp key={artifact.documentId} documentId={artifact.documentId} pinnedPosition={artifact.documentPosition}/>
+  : <p role="alert">This App result has no saved document reference.</p>
+
 const RENDERERS: Record<string, FC<RendererProps>> = {
+  'theorem-app': AppArtifact,
   'theorem-document': DocumentArtifact,
   'theorem-code': CodeArtifact,
   'theorem-diagram': DiagramArtifact,

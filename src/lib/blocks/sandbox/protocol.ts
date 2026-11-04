@@ -45,6 +45,8 @@ export interface RunOutcome {
   durationMs: number
 }
 
+export interface AppSelection { text: string; rowId?: string; field?: string }
+
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
 export interface PageMethods {
   'files.read': {
@@ -66,6 +68,7 @@ export interface PageMethods {
   }
   'state.delete': { params: { name: string; key: string }; result: null }
   'run.request': { params: { target: string }; result: RunRequestResult }
+  'frame.selection': { params: AppSelection; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
   'frame.snapshot': { params: { html: string }; result: null }

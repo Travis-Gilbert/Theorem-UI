@@ -140,7 +140,7 @@ export function hasStatus(error: unknown, ...codes: number[]): boolean {
     codes.includes(error.statusCode)
   )
 }
-export function describeError(error: unknown): string {
+export function describeError(error: unknown, service: 'chat' | 'document' = 'chat'): string {
   if (error instanceof TheoremError) {
     const body =
       error.body && typeof error.body === 'object'
@@ -164,7 +164,7 @@ export function describeError(error: unknown): string {
           message = 'You do not have permission to perform this action.'
           break
         case 413:
-          message = 'The message or attachment is too large.'
+          message = service === 'document' ? 'The document is too large.' : 'The message or attachment is too large.'
           break
         case 429:
           message = 'Too many requests. Try again shortly.'
@@ -172,12 +172,12 @@ export function describeError(error: unknown): string {
         case 502:
         case 503:
         case 504:
-          message = 'The chat service is unavailable. Try again shortly.'
+          message = `The ${service} service is unavailable. Try again shortly.`
           break
         default:
           message = error.statusCode
             ? `The request could not be completed (HTTP ${error.statusCode}).`
-            : 'The chat service could not be reached. Check your connection.'
+            : `The ${service} service could not be reached. Check your connection.`
       }
     }
     const reference = text(body?.correlationId)

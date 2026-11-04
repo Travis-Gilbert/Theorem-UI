@@ -2,7 +2,7 @@
 import type { Theorem } from './client'
 import { Mutex } from 'async-mutex'
 import { LoroDoc } from 'loro-crdt/base64'
-import { hasStatus, mutate, theorem } from './client'
+import { describeError, hasStatus, mutate, theorem } from './client'
 import { fromBase64, toBase64 } from '../blocks/state'
 import {
   contentDigest,
@@ -12,13 +12,15 @@ import {
 } from './note-canonical'
 
 export interface AppDocuments {
-  get(request: Theorem.GetDocumentsRequest): Promise<Theorem.DocumentSnapshot>
-  snapshot(
+  get: (
+    request: Theorem.GetDocumentsRequest,
+  ) => Promise<Theorem.DocumentSnapshot>
+  snapshot: (
     request: Theorem.SnapshotDocumentsRequest,
-  ): Promise<Theorem.DocumentSnapshot>
-  revise(
+  ) => Promise<Theorem.DocumentSnapshot>
+  revise: (
     request: Theorem.ReviseDocumentRequest,
-  ): Promise<Theorem.DocumentCommitReceipt>
+  ) => Promise<Theorem.DocumentCommitReceipt>
 }
 
 export type AppSnapshot = {
@@ -45,6 +47,8 @@ export class AppDocument {
   private readonly listeners = new Set<() => void>()
   private readonly lock = new Mutex()
   private readonly pending: Uint8Array[] = []
+
+  hasPendingState = (): boolean => this.pending.length > 0
 
   getSnapshot = (): AppSnapshot | null => this.current
   subscribe = (listener: () => void): (() => void) => {
@@ -146,7 +150,7 @@ export class AppDocument {
       this.publish({
         ...this.current,
         saveError:
-          error instanceof Error ? error.message : 'The App could not be saved',
+          describeError(error,'document'),
       })
     throw error
   }

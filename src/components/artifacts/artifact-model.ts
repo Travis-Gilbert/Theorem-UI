@@ -19,6 +19,8 @@ export type TheoremArtifact = {
   payloadRef: string | undefined
   runId: string | undefined
   sourceTool: string | undefined
+  documentId?: string
+  documentPosition?: string | number
 }
 
 export const ARTIFACT_PART = 'theorem-artifact'
@@ -64,6 +66,8 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
     payloadRef: text(part.payloadRef),
     runId: text(part.runId),
     sourceTool: text(part.sourceTool),
+    documentId:text(payload.documentId),
+    documentPosition:typeof object(payload.revision).position === 'number' ? object(payload.revision).position as number : text(object(payload.revision).position),
   }
 }
 
@@ -119,6 +123,8 @@ const EXTENSIONS: Record<string, string> = {
 /** A short label for the artifact kind, used on cards and the panel header. */
 export function kindLabel(artifact: TheoremArtifact): string {
   switch (artifact.kind) {
+    case 'app':
+      return 'App'
     case 'document':
       return 'Document'
     case 'code':
@@ -137,6 +143,7 @@ export function fileNameFor(artifact: TheoremArtifact): string {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') || 'artifact'
+  if (artifact.kind === 'app') return `${base}.html`
   if (artifact.kind === 'document') return `${base}.md`
   if (artifact.kind === 'diagram') return `${base}.mmd`
   const ext = artifact.language

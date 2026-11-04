@@ -24,6 +24,25 @@ const context = connectToPage().then((port) => {
   observeSnapshots((html) => {
     void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', { html })
   })
+  const selection = () => {
+    const selected = window.getSelection()
+    const node = selected?.anchorNode
+    const element = node instanceof Element ? node : node?.parentElement
+    const active = document.activeElement
+    const input = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? active : null
+    const text = input && input.selectionStart !== null
+      ? input.value.slice(input.selectionStart,input.selectionEnd ?? input.selectionStart)
+      : selected?.toString() ?? ''
+    const target = input ?? element
+    const rowId = target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
+    const field = target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
+    void call<PageMethods,'frame.selection'>(rpc,'frame.selection',{
+      text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),
+    }).catch(() => {})
+  }
+  document.addEventListener('selectionchange',selection)
+  document.addEventListener('pointerup',selection)
+  document.addEventListener('keyup',selection)
   return cells
 })
 

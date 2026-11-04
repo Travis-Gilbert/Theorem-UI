@@ -15,13 +15,14 @@ import type {
   Rpc,
   RunRequestResult,
   SandboxMethods,
+  AppSelection,
 } from './sandbox/protocol'
 
 /** Shared state collections, as the page keeps them for a workspace. */
 export interface StateCollections {
   snapshot: (name: string) => Record<string, unknown>
-  set: (name: string, key: string, value: unknown) => void
-  delete: (name: string, key: string) => void
+  set: (name: string, key: string, value: unknown) => void | Promise<void>
+  delete: (name: string, key: string) => void | Promise<void>
   subscribe: (
     name: string,
     listener: (value: Record<string, unknown>) => void,
@@ -30,12 +31,13 @@ export interface StateCollections {
 
 /** What the page lends one sandboxed block. */
 export interface BridgeHost {
-  client: WorkspaceClient
+  client: Pick<WorkspaceClient, 'read' | 'tree' | 'write'>
   capabilities: Capabilities
   state: StateCollections
   /** Starts an agent block; the bridge has already checked the declaration. */
   run: (target: string) => Promise<RunRequestResult>
   onResize?: (height: number) => void
+  onSelection?: (selection: AppSelection) => void
   /** A static copy of the frame, unsanitized: snapshots.ts cleans it before showing it. */
   onSnapshot?: (html: string) => void
 }
@@ -77,6 +79,7 @@ const params = {
   remove: z.object({ name, key: z.string().min(1) }),
   run: z.object({ target: z.string() }),
   resize: z.object({ height: z.number().finite().nonnegative() }),
+  selection: z.object({text:z.string().max(4096),rowId:z.string().max(200).optional(),field:z.string().max(200).optional()}),
   snapshot: z.object({ html: z.string().max(MAX_SNAPSHOT) }),
 }
 
@@ -105,6 +108,10 @@ export function decodeFile(bytes: Uint8Array, as: FileFormat): unknown {
  * Returns a function that stops the state subscriptions it opened.
  */
 export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
+  serve<PageMethods, 'frame.selection'>(rpc, 'frame.selection', raw => {
+    host.onSelection?.(params.selection.parse(raw))
+    return null
+  })
   const { capabilities } = host
   const mayRead = matcher(capabilities.read)
   const mayWrite = matcher(capabilities.write)
@@ -164,15 +171,15 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
     return host.state.snapshot(value)
   })
 
-  serve<PageMethods, 'state.set'>(rpc, 'state.set', (raw) => {
+  serve<PageMethods, 'state.set'>(rpc, 'state.set', async (raw) => {
     const { name: value, key, value: item } = params.set.parse(raw)
-    host.state.set(collection(value), key, item)
+    await host.state.set(collection(value), key, item)
     return null
   })
 
-  serve<PageMethods, 'state.delete'>(rpc, 'state.delete', (raw) => {
+  serve<PageMethods, 'state.delete'>(rpc, 'state.delete', async (raw) => {
     const { name: value, key } = params.remove.parse(raw)
-    host.state.delete(collection(value), key)
+    await host.state.delete(collection(value), key)
     return null
   })
 

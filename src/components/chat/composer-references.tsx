@@ -38,11 +38,10 @@ export const useComposerReferences = create<ComposerReferencesState>()(
   (set, get) => ({
     references: [],
     add: (reference) =>
-      set((s) =>
-        s.references.some((r) => referenceKey(r) === referenceKey(reference))
-          ? s
-          : { references: [...s.references, reference] },
-      ),
+      set((s) => ({references:[
+        ...s.references.filter(existing=>referenceKey(existing)!==referenceKey(reference)),
+        reference,
+      ]})),
     remove: (key) =>
       set((s) => ({
         references: s.references.filter((r) => referenceKey(r) !== key),

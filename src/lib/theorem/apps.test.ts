@@ -1,135 +1,9 @@
 import { expect, test } from 'bun:test'
 import { LoroDoc } from 'loro-crdt/base64'
 import { TheoremError } from '@theoremharness/sdk'
-import { fromBase64, toBase64 } from '../blocks/state'
 import { AppDocument } from './apps'
-import type { AppDocuments } from './apps'
-import type { Theorem, mutate } from './client'
-import {
-  contentDigest,
-  encodeNote,
-  noteMarkdown,
-  reviseNote,
-} from './note-canonical'
-
-async function fixture() {
-  const canonical = encodeNote('<p>Original</p>')
-  const digest = await contentDigest(canonical)
-  let saved: Theorem.DocumentSnapshot = {
-    schema: 'theorem-document/2',
-    summary: {
-      schema: 'theorem-document/2',
-      documentId: 'app-document',
-      documentKind: 'theorem.app',
-      title: 'Comparison',
-      revision: { position: 1, contentDigest: digest },
-      readOnly: false,
-      createdPosition: 1,
-      updatedPosition: 1,
-      actors: [],
-      collectionIds: [],
-      origin: {
-        kind: 'user_authored',
-        actorId: 'builder',
-        originSurface: 'conversation',
-      },
-      projectionDigest: digest,
-    },
-    canonical: {
-      placement: 'inline',
-      bytesBase64: toBase64(canonical),
-      size: canonical.length,
-      digest,
-    },
-    markdownProjection: '<p>Original</p>',
-  }
-  let fail = false
-  const writes: Theorem.ReviseDocumentRequest[] = []
-  const api: AppDocuments = {
-    async get() {
-      return structuredClone(saved)
-    },
-    async snapshot() {
-      return structuredClone(saved)
-    },
-    async revise(request) {
-      if (fail)
-        throw new TheoremError({
-          statusCode: 503,
-          message: 'Document store unavailable',
-        })
-      if (
-        String(request.expectedRevision.position) !==
-        String(saved.summary.revision.position)
-      )
-        throw new TheoremError({
-          statusCode: 412,
-          message: 'Revision conflict',
-        })
-      writes.push(request)
-      const previousRevision = saved.summary.revision
-      saved = {
-        ...saved,
-        canonical: request.body.canonical,
-        markdownProjection: request.body.markdownProjection,
-        summary: {
-          ...saved.summary,
-          documentKind: request.body.documentKind,
-          revision: {
-            position: Number(previousRevision.position) + 1,
-            contentDigest: request.body.canonical.digest,
-          },
-        },
-      }
-      return {
-        schema: 'theorem-document/2',
-        idempotencyKey: request.idempotencyKey,
-        document: saved.summary,
-        previousRevision,
-        memoryProjection: {
-          memoryDocId: 'projection',
-          derivationRef: 'document',
-          contentAddress: 'content',
-          projectionDigest: 'digest',
-        },
-      }
-    },
-  }
-  const change: typeof mutate = async (run) =>
-    run({ 'X-CSRF-Token': 'test-csrf', 'Idempotency-Key': crypto.randomUUID() })
-  return {
-    api,
-    change,
-    writes,
-    saved: () => saved,
-    fail: (value: boolean) => {
-      fail = value
-    },
-    async remote(html: string) {
-      if (saved.canonical.placement !== 'inline')
-        throw new Error('fixture must be inline')
-      const bytes = reviseNote(fromBase64(saved.canonical.bytesBase64), html)
-      const digest = await contentDigest(bytes)
-      saved = {
-        ...saved,
-        markdownProjection: html,
-        canonical: {
-          placement: 'inline',
-          bytesBase64: toBase64(bytes),
-          digest,
-          size: bytes.length,
-        },
-        summary: {
-          ...saved.summary,
-          revision: {
-            position: Number(saved.summary.revision.position) + 1,
-            contentDigest: digest,
-          },
-        },
-      }
-    },
-  }
-}
+import { noteMarkdown } from './note-canonical'
+import { appDocumentFixture as fixture } from '../../../test/blocks/app-documents'
 
 test('editing an App persists the same document and survives a new view', async () => {
   const server = await fixture()
@@ -253,4 +127,26 @@ test('state retries revision conflicts with a bounded number of fresh reads', as
   ).rejects.toThrow()
   expect(attempts).toBe(3)
   expect(server.saved().summary.revision.position).toBe(1)
+})
+
+test('App saves show the public problem detail and reference instead of the SDK JSON dump', async () => {
+  const store = await fixture()
+  const app = new AppDocument('app-document', store.api, store.change)
+  const original = await app.load()
+  store.api.revise = async () => {
+    throw new TheoremError({
+      statusCode: 412,
+      body: {
+        code: 'document_revision_conflict',
+        title: 'App changed',
+        detail: 'This App was updated elsewhere. Reload before saving.',
+        correlationId: 'app-save-reference',
+      },
+    })
+  }
+  await app.saveSource('new source', original.revision).catch(() => {})
+  expect(app.getSnapshot()?.saveError).toBe(
+    'This App was updated elsewhere. Reload before saving. Reference: app-save-reference',
+  )
+  expect(app.getSnapshot()?.saveError).not.toContain('Status code:')
 })
