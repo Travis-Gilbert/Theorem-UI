@@ -29,7 +29,7 @@ const supportsWebGL2 = () =>
  * control) belongs to the chat.
  */
 const CHAT_CONTENT =
-  '[data-message-id], .aui-thread-viewport-footer, .aui-thread-welcome-root, button, a, input, textarea, [contenteditable], [role="menu"]'
+  '[data-message-id], .aui-thread-viewport-footer, button, a, input, textarea, [contenteditable], [role="menu"]'
 
 const isFieldSpace = (target: EventTarget) =>
   target instanceof Element && target.closest(CHAT_CONTENT) === null

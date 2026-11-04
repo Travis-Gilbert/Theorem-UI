@@ -144,8 +144,10 @@ describe('MarkdownPanel', () => {
     const link = container.querySelector<HTMLElement>('.theorem-wikilink')!
     act(() => link.click())
     await waitFor(() => useWorkspaceFileView.getState().file)
+    // A link names a path; the view finds the entry there.
     expect(useWorkspaceFileView.getState().file).toEqual({
       workspaceId: 'ws_test',
+      entryId: '',
       path: 'Other.md',
     })
     expect(useRevealRequest.getState().request).toEqual({

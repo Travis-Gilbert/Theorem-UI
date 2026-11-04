@@ -6,6 +6,9 @@ import { OPENUI_CALLABLES, OPENUI_COMPONENTS, indexLibrary } from './library'
 import { MAX_BATCH, createRecorder } from './observe'
 import {
   atlasView,
+  dataModelView,
+  isWideProgram,
+  recordsView,
   defaultViewFor,
   resolveDefaultView,
   revisionOnScreen,
@@ -120,6 +123,9 @@ describe('built-in views', () => {
     defaultViewFor({ kind: 'home' }),
     defaultViewFor({ kind: 'collection', collectionId: 'c1' }, 'Taxes'),
     atlasView(),
+    recordsView('company', 'Companies'),
+    dataModelView(),
+    dataModelView('company', 'Companies'),
   ]
 
   for (const view of views)
@@ -138,6 +144,23 @@ describe('built-in views', () => {
     ).toBe('Taxes')
     expect(resolveDefaultView('default:atlas')?.viewId).toBe('default:atlas')
     expect(resolveDefaultView('v_123')).toBeUndefined()
+    expect(
+      resolveDefaultView(
+        'default:records:company',
+        undefined,
+        () => 'Companies',
+      )?.current.title,
+    ).toBe('Companies')
+    expect(
+      resolveDefaultView('default:data-model:company')?.current.program,
+    ).toBe('root = DataModel("company")')
+    expect(resolveDefaultView('default:records:')).toBeUndefined()
+  })
+
+  test('record and data model programs take the full width', () => {
+    expect(isWideProgram(recordsView('person').current.program)).toBe(true)
+    expect(isWideProgram(dataModelView().current.program)).toBe(true)
+    expect(isWideProgram(atlasView().current.program)).toBe(false)
   })
 
   test('a built-in collection takes its name when it arrives', () => {

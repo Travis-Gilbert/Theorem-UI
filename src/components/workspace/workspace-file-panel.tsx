@@ -9,6 +9,8 @@ import { OpenWith } from '@/components/handlers/open-with'
 import { Icon } from '@/components/icons'
 import { openBeside } from '@/components/shell/open-beside'
 import { Button } from '@/components/ui/button'
+import { useSaveState } from '@/lib/handlers/file-sync'
+import type { SaveState } from '@/lib/handlers/file-sync'
 import {
   handlerFor,
   matchInput,
@@ -16,7 +18,8 @@ import {
   useHandlerRegistry,
 } from '@/lib/handlers/registry'
 import {
-  openWorkspaceFile,
+  entryOf,
+  sameFile,
   useWorkspaceFileView,
   workspaceFilePanelId,
 } from '@/lib/workspace/open'
@@ -82,6 +85,33 @@ function Header({
   )
 }
 
+/** Where a save went, said the way the navigator names the place. */
+function SaveNote({
+  client,
+  state,
+}: {
+  client: WorkspaceClient
+  state: SaveState | null
+}) {
+  if (!state) return null
+  const place = client.theorem ? 'to Home' : 'on this device'
+  return (
+    <span
+      role="status"
+      className={cn(
+        'shrink-0 text-xs text-ink-faint',
+        state === 'stopped' && 'text-error-ink',
+      )}
+    >
+      {state === 'saving'
+        ? 'Saving…'
+        : state === 'saved'
+          ? `Saved ${place}`
+          : 'Not saved'}
+    </span>
+  )
+}
+
 function FileView({
   client,
   file,
@@ -90,26 +120,32 @@ function FileView({
 }: {
   client: WorkspaceClient
   file: WorkspaceFileRef
-  onMoved: (path: string) => void
+  onMoved: (file: WorkspaceFileRef) => void
   onClose?: () => void
 }) {
-  const { path } = file
   const tree = useWorkspaceTree(client)
-  const entry = tree.data?.find((e) => e.path === path)
+  // The file is its entry, wherever the tree now has it.
+  const entry = entryOf(tree.data, file)
+  const path = entry?.path ?? file.path
   const properties = useMatchProperties(client, path)
   const handlers = useHandlerRegistry((s) => s.handlers)
   const [deleted, setDeleted] = useState(false)
   const links = useLinksAside()
+  const saveState = useSaveState(client, entry)
+
+  const found = entry && { entryId: entry.id, path: entry.path }
+  const reportMove = useEffectEvent(() => {
+    if (found && (found.entryId !== file.entryId || found.path !== file.path))
+      onMoved({ ...file, ...found })
+  })
+  const { entryId: foundId, path: foundPath } = found ?? {}
+  useEffect(() => reportMove(), [foundId, foundPath, file.entryId, file.path])
 
   const onEvent = useEffectEvent((event: WorkspaceEvent) => {
     switch (event.type) {
       case 'changed':
       case 'created':
         if (event.entry.path === path) setDeleted(false)
-        return
-      case 'renamed':
-        if (within(path, event.from))
-          onMoved(event.to + path.slice(event.from.length))
         return
       case 'deleted':
         if (within(path, event.path)) setDeleted(true)
@@ -138,8 +174,8 @@ function FileView({
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
           <handler.Panel
-            // Another file or another view is a new view.
-            key={`${handler.id}:${path}`}
+            // Another file or another view is a new view; a move is not.
+            key={`${handler.id}:${entry.id}`}
             client={client}
             path={path}
             entry={entry}
@@ -152,6 +188,7 @@ function FileView({
   return (
     <>
       <Header path={path} onClose={onClose}>
+        {!deleted && <SaveNote client={client} state={saveState} />}
         {entry && handler && !deleted && (
           <Button
             variant="ghost"
@@ -191,8 +228,8 @@ export function WorkspaceFilePanel({
   className,
 }: {
   file: WorkspaceFileRef
-  /** The file was renamed or moved, to `path`. */
-  onMoved: (path: string) => void
+  /** The file was found at another path, or by its path took on its entry. */
+  onMoved: (file: WorkspaceFileRef) => void
   onClose?: () => void
   className?: string
 }) {
@@ -203,7 +240,7 @@ export function WorkspaceFilePanel({
     <div className={cn('flex h-full flex-col bg-artifact', className)}>
       {client ? (
         <FileView
-          key={file.path}
+          key={file.entryId || file.path}
           client={client}
           file={file}
           onMoved={onMoved}
@@ -222,28 +259,28 @@ export function WorkspaceFilePanel({
 }
 
 /**
- * A workspace file in the dock. The panel id names the path, so a rename
- * replaces the panel with one for the new path, in the same group.
+ * A workspace file in the dock. The panel holds the file's entry, so a rename
+ * or move only changes where the panel says the file is.
  */
 export function WorkspaceFileDockPanel({
   api,
-  containerApi,
   params,
 }: IDockviewPanelProps<WorkspaceFileRef>) {
-  const onMoved = (path: string) => {
-    const next = { ...params, path }
-    if (!containerApi.getPanel(workspaceFilePanelId(next)))
-      containerApi.addPanel({
-        id: workspaceFilePanelId(next),
-        component: WORKSPACE_FILE_COMPONENT,
-        params: next,
-        title: basename(path),
-        position: { referencePanel: api.id, direction: 'within' },
-      })
-    api.close()
+  const onMoved = (next: WorkspaceFileRef) => {
+    api.updateParameters(next)
+    api.setTitle(basename(next.path))
   }
   return <WorkspaceFilePanel file={params} onMoved={onMoved} />
 }
+
+/** The dock's open workspace file panels. */
+const filePanels = (api: DockviewApi) =>
+  api.panels.filter(
+    (panel) => panel.view.contentComponent === WORKSPACE_FILE_COMPONENT,
+  )
+
+const refOf = (panel: { params?: unknown }) =>
+  panel.params as WorkspaceFileRef | undefined
 
 /**
  * Opens a file in the dock: it joins the open workspace file tabs, else opens
@@ -257,18 +294,40 @@ export function openWorkspaceFilePanel(
   besidePanelId: string,
   replacing?: string,
 ) {
-  const id = workspaceFilePanelId(file)
-  const existing = api.getPanel(id)
+  const panels = filePanels(api)
+  const existing = panels.find((panel) => {
+    const ref = refOf(panel)
+    return ref !== undefined && sameFile(ref, file)
+  })
   const old =
     replacing === undefined
       ? undefined
-      : api.getPanel(workspaceFilePanelId({ ...file, path: replacing }))
+      : panels.find((panel) => {
+          const ref = refOf(panel)
+          return (
+            panel !== existing &&
+            ref?.workspaceId === file.workspaceId &&
+            ref.path === replacing
+          )
+        })
   if (existing) {
-    if (file.handler) existing.api.updateParameters(file)
+    const ref = refOf(existing)!
+    const next = { ...ref, ...file, entryId: file.entryId || ref.entryId }
+    if (
+      next.path !== ref.path ||
+      (file.handler && file.handler !== ref.handler)
+    ) {
+      existing.api.updateParameters(next)
+      existing.api.setTitle(basename(next.path))
+    }
     existing.api.setActive()
     old?.api.close()
     return
   }
+  // A panel opened by path may hold the id of a file that has since moved.
+  const id = api.getPanel(workspaceFilePanelId(file))
+    ? `${workspaceFilePanelId(file)}:${crypto.randomUUID()}`
+    : workspaceFilePanelId(file)
   const options = {
     id,
     component: WORKSPACE_FILE_COMPONENT,
@@ -284,9 +343,7 @@ export function openWorkspaceFilePanel(
     old.api.close()
     return
   }
-  const sibling = api.panels.find(
-    (panel) => panel.view.contentComponent === WORKSPACE_FILE_COMPONENT,
-  )
+  const sibling = panels[0]
   if (sibling) {
     api.addPanel({ ...options, position: { referenceGroup: sibling.group } })
     return
@@ -302,7 +359,7 @@ export function WorkspaceFileOverlay() {
   return (
     <WorkspaceFilePanel
       file={file}
-      onMoved={(path) => openWorkspaceFile({ ...file, path })}
+      onMoved={(next) => useWorkspaceFileView.setState({ file: next })}
       onClose={close}
       className="fixed inset-0 z-40"
     />

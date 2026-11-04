@@ -1,5 +1,6 @@
 // Gives bun test a browser DOM, which Milkdown's editor view needs.
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { MotionGlobalConfig } from 'framer-motion'
 
 // Keep Bun's own Fetch API and the streams its bodies use. happy-dom's Request
 // and Headers drop the headers a browser may not set (Host, Cookie, Origin,
@@ -23,6 +24,10 @@ GlobalRegistrator.register()
 // happy-dom has no document.compatMode, and KaTeX (Crepe's math) refuses to
 // render unless it reads standards mode.
 Object.defineProperty(document, 'compatMode', { value: 'CSS1Compat' })
+// framer-motion's switch for tests: each animation jumps to its end. happy-dom
+// rejects a cancelled animation's `finished` without marking it handled, as
+// browsers do, so one cut short would fail whichever test was running.
+MotionGlobalConfig.skipAnimations = true
 
 for (const [name, value] of Object.entries(bunFetchApi)) {
   Object.defineProperty(globalThis, name, {

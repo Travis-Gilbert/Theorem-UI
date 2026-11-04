@@ -13,13 +13,18 @@ import { describeError, isSignedOut } from '@/lib/theorem/client'
 import { cn } from '@/lib/utils'
 import { scopeKey } from './contract'
 import type { IndexView, ViewOrigin, ViewRevision } from './contract'
+import { RecordInspector } from '@/components/records/record-inspector'
+import { objectTypeByName, parseRecordItemId } from '@/components/records/model'
+import { useDataModel } from '@/components/records/queries'
 import { Inspector } from './inspector'
 import type { IndexHost } from './library'
 import { useAskTheorem, useIndexNavigate, useIndexSearch } from './navigation'
 import { observer } from './observe'
 import {
+  dataModelViewId,
   defaultViewFor,
   isDefaultView,
+  isWideProgram,
   resolveDefaultView,
   revisionOnScreen,
 } from './programs'
@@ -53,8 +58,11 @@ function useOpenView() {
   const { view: viewParam, scope } = useIndexSearch()
   const collections = useCollections()
   const views = useViews(scope)
+  const dataModel = useDataModel()
   const collectionName = (collectionId: string) =>
     collections.data?.find((c) => c.collectionId === collectionId)?.name
+  const objectLabel = (nameSingular: string) =>
+    objectTypeByName(dataModel.data, nameSingular)?.label_plural
 
   const pinned = views.data?.find((v) => v.pinned)
   const fallback =
@@ -75,7 +83,7 @@ function useOpenView() {
     setHeld({ scope: scopeKey(scope), viewId: fallback })
   const viewId = viewParam ?? heldHere ?? fallback
   const builtIn = isDefaultView(viewId)
-    ? resolveDefaultView(viewId, collectionName)
+    ? resolveDefaultView(viewId, collectionName, objectLabel)
     : undefined
   const stored = useStoredView(builtIn ? undefined : viewId)
   // Until the scope's views arrive the pinned one is unknown; opening the
@@ -302,6 +310,7 @@ function ViewColumn() {
       navigate.openItem(documentId)
     },
     openCollection: navigate.openCollection,
+    openView: (viewId) => navigate.openView(viewId, open.scope),
     collectionName: open.collectionName,
     record: (event) =>
       observer().record({ ...event, scope: open.scope, viewId: open.viewId }),
@@ -351,7 +360,12 @@ function ViewColumn() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-4xl flex-col px-6 py-6">
+      <div
+        className={cn(
+          'mx-auto flex w-full flex-col px-6 py-6',
+          isWideProgram(revision.program) ? 'max-w-none' : 'max-w-4xl',
+        )}
+      >
         {/* Keyed so an editor's draft never carries over to another view. */}
         <ViewHeader
           key={open.view.viewId}
@@ -396,6 +410,25 @@ function InspectorColumn({ className }: { className?: string }) {
   const { item, scope } = useIndexSearch()
   const navigate = useIndexNavigate()
   if (!item) return null
+  const record = parseRecordItemId(item)
+  if (record)
+    return (
+      <RecordInspector
+        key={item}
+        nameSingular={record.nameSingular}
+        recordId={record.recordId}
+        onOpenRecord={(nameSingular, recordId) => {
+          const opened = `record:${nameSingular}/${recordId}`
+          observer().record({ kind: 'item_opened', scope, subjects: [opened] })
+          navigate.openItem(opened)
+        }}
+        onEditFields={(nameSingular) =>
+          navigate.openView(dataModelViewId(nameSingular), scope)
+        }
+        onClose={navigate.closeItem}
+        className={className}
+      />
+    )
   return (
     <Inspector
       documentId={item}

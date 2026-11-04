@@ -18,14 +18,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString()
 
-/**
- * pdf.js draws text in the PDF's own fonts, which it loads into the document.
- * The desktop app's Servo does not draw canvas text in loaded fonts, so the
- * text came out as empty boxes; pdf.js draws the glyphs as paths instead. A
- * constant, because react-pdf reloads the document when its options change.
- */
-const OPTIONS = { disableFontFace: true }
-
 /** The file as react-pdf takes it, or the message to show instead. */
 function usePdf(file: FileRef) {
   const bytes = useFileBytes(file)
@@ -88,7 +80,6 @@ export function PdfPanel(file: FileViewProps) {
   return (
     <Document
       file={pdf.source}
-      options={OPTIONS}
       suspense={false}
       loading={<FileMessage>Loading…</FileMessage>}
       error={<FileMessage>{NOT_A_PDF}</FileMessage>}
@@ -120,7 +111,6 @@ export function PdfCard({ client, path }: FileCardProps) {
   return (
     <Document
       file={pdf.source}
-      options={OPTIONS}
       suspense={false}
       loading={<FileMessage className="text-xs">Loading…</FileMessage>}
       error={<FileMessage className="text-xs">{NOT_A_PDF}</FileMessage>}

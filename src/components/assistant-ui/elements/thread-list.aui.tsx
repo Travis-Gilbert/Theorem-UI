@@ -79,7 +79,6 @@ const ThreadFromFailure: FC = () => {
     </div>
   );
 };
-
 /**
  * Search rests as its icon alone. Focusing it springs the field open to an
  * outlined box; it folds back once it loses focus with nothing typed, and
@@ -269,7 +268,6 @@ export type ThreadListGroup = { label: string; indices: number[] };
 
 /** Undated threads are new ones not sent yet, so they sort as the most recent. */
 const UNDATED = Number.MAX_SAFE_INTEGER;
-
 /**
  * Filters the thread list by title, nests each forked or continued thread
  * under its source when the source is listed too, and buckets the top-level
@@ -356,7 +354,6 @@ const OriginChildren = createContext<ReadonlyMap<string, readonly number[]>>(
   new Map(),
 );
 const NO_CHILDREN: readonly number[] = [];
-
 const ThreadListItemGroups: FC<{
   listing: ReturnType<typeof useThreadListGroups>;
   searchQuery?: string;
@@ -399,7 +396,7 @@ const ThreadListItemGroups: FC<{
         <Fragment key={group.label}>
           <div
             data-slot="aui_thread-list-group-label"
-            className="text-ink-faint-sheet px-2 pt-4 pb-1 text-xs"
+            className="text-ink-faint-sheet px-2 pt-4 pb-1 text-sm"
           >
             {group.label}
           </div>
@@ -429,7 +426,7 @@ const ThreadListShowMore: FC = () => {
       data-slot="aui_thread-list-show-more"
       disabled={isLoadingMore}
       onClick={() => void aui.threads.loadMore()}
-      className="text-ink-faint-sheet hover:bg-hover hover:text-ink focus-visible:outline-focus mt-2 flex h-7 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-60"
+      className="text-ink-faint-sheet hover:bg-hover hover:text-ink focus-visible:outline-focus mt-2 flex h-8 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-60"
     >
       {isLoadingMore ? "Loading…" : "Show more"}
     </button>
@@ -442,7 +439,7 @@ export const ThreadListNew = forwardRef<
 >(({ className, labelClassName, children, ...props }, ref) => {
   return (
     <ThreadListPrimitive.New render={<Button ref={ref} variant="ghost" data-slot="aui_thread-list-new" className={cn(
-                "hover:bg-hover h-7 justify-start gap-2 rounded-md px-2 text-sm font-normal",
+                "hover:bg-hover h-8 justify-start gap-2 rounded-md px-2 text-base font-normal",
                 className,
               )} {...props} />}>{children ?? (
                 <>
@@ -476,7 +473,7 @@ const ThreadListSkeleton: FC = () => {
           key={i}
           aria-hidden="true"
           data-slot="aui_thread-list-skeleton-wrapper"
-          className="flex h-7 items-center px-2"
+          className="flex h-8 items-center px-2"
         >
           <Skeleton
             data-slot="aui_thread-list-skeleton"
@@ -497,7 +494,6 @@ const statusLabel: Record<ThreadStatus, string> = {
 
 const moreItem =
   "hover:bg-hover focus:bg-hover data-disabled:pointer-events-none data-disabled:opacity-50 flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none select-none";
-
 const contextMenuItem =
   "data-highlighted:bg-hover data-disabled:opacity-50 flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none";
 
@@ -594,7 +590,7 @@ export const ThreadListItem: FC = () => {
               data-slot="aui_thread-list-item"
               data-active={isCurrent || undefined}
               aria-current={isCurrent || undefined}
-              className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-transparent relative flex h-7 items-center gap-1 rounded-md ps-2 pe-1 text-sm transition-colors duration-100"
+              className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-transparent relative flex h-8 items-center gap-1 rounded-md ps-2 pe-1 text-base transition-colors duration-100"
             />
           }
         >
@@ -627,9 +623,9 @@ export const ThreadListItem: FC = () => {
                 <Collapsible.Trigger
                   data-slot="aui_thread-list-item-branches-toggle"
                   aria-label={isOpen ? "Collapse" : "Expand"}
-                  className="group/branches text-ink-faint hover:text-ink focus-visible:outline-focus relative flex size-4 shrink-0 items-center justify-center rounded-sm focus-visible:outline-2"
+                  className="group/branches text-ink-faint hover:text-ink focus-visible:outline-focus relative flex size-5 shrink-0 items-center justify-center rounded-sm focus-visible:outline-2"
                 >
-                  <Icon.Next className="size-2.5 transition-transform duration-150 group-data-panel-open/branches:rotate-90" />
+                  <Icon.Next className="size-4 transition-transform duration-150 group-data-panel-open/branches:rotate-90" />
                 </Collapsible.Trigger>
               )}
               <span className="flex-1" />
@@ -729,7 +725,7 @@ export const ThreadListItem: FC = () => {
             <div
               key={index}
               data-slot="aui_thread-list-origin-child"
-              className="relative ps-5"
+              className="relative ps-6"
             >
               <TreeGuide isLast={position === originChildren.length - 1} />
               <ThreadListPrimitive.ItemByIndex
@@ -756,7 +752,7 @@ const ThreadBranchRow: FC<{
 }> = ({ threadId, branch, ordinal, isLast, isCurrent, disabled, onOpen }) => {
   const label = useBranchLabel(threadId, branch.branchId);
   return (
-    <div data-slot="aui_thread-list-branch" className="relative ps-5">
+    <div data-slot="aui_thread-list-branch" className="relative ps-6">
       <TreeGuide isLast={isLast} />
       <button
         type="button"
@@ -764,7 +760,7 @@ const ThreadBranchRow: FC<{
         data-active={isCurrent || undefined}
         aria-current={isCurrent || undefined}
         onClick={onOpen}
-        className="hover:bg-hover focus-visible:outline-focus data-active:bg-transparent flex h-7 w-full min-w-0 items-center rounded-md px-2 text-start text-sm transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-60"
+        className="hover:bg-hover focus-visible:outline-focus data-active:bg-transparent flex h-8 w-full min-w-0 items-center rounded-md px-2 text-start text-base transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-60"
       >
         <span className="truncate">{label || `Branch ${ordinal}`}</span>
       </button>
@@ -780,8 +776,8 @@ const TreeGuide: FC<{ isLast: boolean }> = ({ isLast }) => (
   <span
     aria-hidden="true"
     className={cn(
-      "border-control/50 pointer-events-none absolute start-3 top-0 w-2 border-s",
-      isLast ? "h-3.5 rounded-es-[5px] border-b" : "h-full",
+      "border-control/50 pointer-events-none absolute start-3 top-0 w-3 border-s",
+      isLast ? "h-4 rounded-es-[5px] border-b" : "h-full",
     )}
   />
 );
@@ -798,11 +794,10 @@ const OriginMark: FC<{ kind: Theorem.ThreadOrigin["kind"] }> = ({ kind }) => {
     <Mark
       aria-hidden="true"
       data-slot="aui_thread-list-item-origin"
-      className="text-ink-faint me-1 inline size-3 align-[-1px]"
+      className="text-ink-faint me-1 inline size-3.5 align-[-2px]"
     />
   );
 };
-
 const ThreadListItemRename: FC<{
   onDone: (restoreFocus: boolean) => void;
 }> = ({ onDone }) => {
@@ -851,7 +846,7 @@ const ThreadListItemRename: FC<{
       data-slot="aui_thread-list-item-rename"
       aria-label="Rename thread"
       value={value}
-      className="-ms-1.5 h-6 min-w-0 flex-1 rounded-md ps-1.5 text-sm"
+      className="-ms-1.5 h-6.5 min-w-0 flex-1 rounded-md ps-1.5 text-base md:text-base"
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => commit(false)}
       onKeyDown={(event) => {

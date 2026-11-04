@@ -16,7 +16,17 @@ import { z } from 'zod/v4'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { DataModelView } from '@/components/records/data-model'
+import {
+  objectTypeByName,
+  parseRecordItemId,
+  recordItemId,
+} from '@/components/records/model'
+import { useDataModel } from '@/components/records/queries'
+import { RecordTable as RecordTableView } from '@/components/records/record-table'
+import { describeError } from '@/lib/theorem/client'
 import { AtlasMap } from './atlas'
+import { dataModelViewId, recordsViewId } from './programs'
 import type {
   AtlasSnapshot,
   Collection,
@@ -33,6 +43,8 @@ export type IndexHost = {
   selectedId: string | undefined
   openItem: (documentId: string) => void
   openCollection: (collectionId: string) => void
+  /** Open another view in this scope, such as an object's records. */
+  openView: (viewId: string) => void
   collectionName: (collectionId: string) => string | undefined
   record: (event: Omit<ObservationEvent, 'atMs' | 'scope' | 'viewId'>) => void
 }
@@ -44,6 +56,7 @@ export const PREVIEW_HOST: IndexHost = {
   selectedId: undefined,
   openItem: () => undefined,
   openCollection: () => undefined,
+  openView: () => undefined,
   collectionName: () => undefined,
   record: () => undefined,
 }
@@ -762,6 +775,65 @@ const Atlas = defineComponent({
   },
 })
 
+// Records
+
+const RecordTable = defineComponent({
+  name: 'RecordTable',
+  description:
+    "One declared object's records as an editable table: sort, filter, hide and reorder columns, a Calculate footer, and records opened beside it. object is the type's name_singular; fields picks and orders the columns. Reads Theorem's schema itself; it takes no Query.",
+  props: z.object({
+    object: z.string(),
+    fields: z.array(z.string()).optional(),
+  }),
+  component: function RecordTableComponent({ props }) {
+    const host = useHost()
+    const model = useDataModel()
+    const type = objectTypeByName(model.data, props.object)
+    if (model.isPending)
+      return <div className="h-80 animate-pulse rounded-lg bg-raised" />
+    if (!model.data || !type)
+      return (
+        <p className="text-sm text-ink-muted">
+          {model.error
+            ? describeError(model.error)
+            : `There is no "${props.object}" object in the schema.`}
+        </p>
+      )
+    const open = parseRecordItemId(host.selectedId ?? '')
+    return (
+      <RecordTableView
+        objectType={type}
+        model={model.data}
+        viewKey={host.viewId}
+        fieldKeys={props.fields}
+        activeRecordId={
+          open?.nameSingular === type.name_singular ? open.recordId : undefined
+        }
+        onOpenRecord={(id) => host.openItem(recordItemId(type, id))}
+        onOpenRelated={(name, id) => host.openItem(`record:${name}/${id}`)}
+        onEditFields={() => host.openView(dataModelViewId(type.name_singular))}
+      />
+    )
+  },
+})
+
+const DataModel = defineComponent({
+  name: 'DataModel',
+  description:
+    "The schema: the declared objects, a diagram of how they relate, and what records carry that is not declared yet. focus opens one object by name_singular. Reads Theorem's schema itself; it takes no Query.",
+  props: z.object({ focus: z.string().optional() }),
+  component: function DataModelComponent({ props }) {
+    const host = useHost()
+    return (
+      <DataModelView
+        focus={props.focus}
+        onFocus={(name) => host.openView(dataModelViewId(name))}
+        onOpenRecords={(name) => host.openView(recordsViewId(name))}
+      />
+    )
+  },
+})
+
 const ActionButton = defineComponent({
   name: 'ActionButton',
   description:
@@ -845,6 +917,8 @@ export const indexLibrary = createLibrary({
     CollectionGrid,
     FilingList,
     Atlas,
+    RecordTable,
+    DataModel,
     ActionButton,
   ],
   componentGroups: [
@@ -864,6 +938,7 @@ export const indexLibrary = createLibrary({
         'Atlas',
       ],
     },
+    { name: 'Records', components: ['RecordTable', 'DataModel'] },
     { name: 'Actions', components: ['ActionButton'] },
   ],
   actions: [OpenItem, AskTheorem, PinView, SetPreference],
@@ -905,6 +980,7 @@ const PROMPT_RULES = [
   'Results: items and used_together bindings return {items, total}; collections returns {collections}; filing_history returns {receipts}; map returns {snapshot}.',
   'Keep views calm: one primary list or comparison, a search field when the material is long, at most one Callout.',
   'Never invent document ids; use the ids the request gives you.',
+  'RecordTable("<object>") and DataModel() read Theorem\'s schema register themselves and take no Query; name objects by their name_singular.',
 ]
 
 const TOOL_EXAMPLE = `$q = ""

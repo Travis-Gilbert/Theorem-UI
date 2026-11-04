@@ -1,0 +1,34 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 5be6ee919932ffa7fbfaa1fcf87eaa11744a8fa6..6b0a4424319a5f70a6227c18d81b3a57a7657d7b 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -48861,8 +48861,10 @@ var DocumentSession = class _DocumentSession {
+         provenance: this.options.provenance
+       });
+       this.sending = false;
+-      if (this.inflight === pending && head.revision === pending.base + 1) {
+-        this.acknowledge(head.revision, pending.op);
++      if (this.inflight === pending) {
++        if (head.revision === pending.base + 1) this.acknowledge(head.revision, pending.op);
++      } else {
++        void this.send();
+       }
+     } catch (error) {
+       this.sending = false;
+diff --git a/dist/index.js b/dist/index.js
+index 342b8af985c9da16c4e0b098855ab73e3ab04601..659b0dd692906bd9628a4b36ff8740c1cdd4acdd 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -48784,8 +48784,10 @@ var DocumentSession = class _DocumentSession {
+         provenance: this.options.provenance
+       });
+       this.sending = false;
+-      if (this.inflight === pending && head.revision === pending.base + 1) {
+-        this.acknowledge(head.revision, pending.op);
++      if (this.inflight === pending) {
++        if (head.revision === pending.base + 1) this.acknowledge(head.revision, pending.op);
++      } else {
++        void this.send();
+       }
+     } catch (error) {
+       this.sending = false;

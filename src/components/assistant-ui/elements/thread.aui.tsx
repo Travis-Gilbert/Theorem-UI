@@ -27,12 +27,10 @@ import {
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
 import { COMPOSER_TOOLTIP_DELAY, ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
-import { ComposerReferences } from "@/components/chat/composer-references";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStartThreadFrom } from "@/lib/theorem/thread-tree";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -43,7 +41,6 @@ import {
   ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
-  SuggestionPrimitive,
   ThreadPrimitive,
   useAui,
   useAuiEvent,
@@ -58,8 +55,13 @@ import {
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
 
-import { Magnet, useArrivedLive, useWordsIn } from "@/components/motion";
-import { flyFrom, kick, recordLaunch, riseIn, takeLaunch } from "@/lib/motion";
+import { Magnet, useArrivedLive } from "@/components/motion";
+import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
+
+import { ComposerReferences } from "@/components/chat/composer-references";
+import { useStartThreadFrom } from "@/lib/theorem/thread-tree";
+
+import { hasTheoremError } from "@/lib/theorem/message-history";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -72,8 +74,8 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
     : Math.round((timing.completedAt - timing.startedAt) / 1000);
 
 /**
- * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
+ * Optional component overrides for the thread. `AssistantMessage` replaces
+ * the whole message; the remaining slots override how the
  * assistant message renders tool calls and part groups. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
  * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
@@ -82,7 +84,6 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
-  Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   ToolGroup?:
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
@@ -188,7 +189,6 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   isEmpty,
   autoFocus,
 }) => {
-  const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
   const footerRef = useRef<HTMLDivElement>(null);
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
@@ -220,9 +220,6 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             isEmpty && "justify-center",
           )}
         >
-          <AuiIf condition={isNewChatView}>
-            <Welcome />
-          </AuiIf>
           <AuiIf condition={isHistoryLoadingView}>
             <ThreadHistorySkeleton />
           </AuiIf>
@@ -250,9 +247,6 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
           >
             <ThreadScrollToBottom />
             <Composer autoFocus={autoFocus} />
-            <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
-              <ThreadSuggestions />
-            </AuiIf>
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
@@ -434,62 +428,6 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const ThreadWelcome: FC = () => {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const subRef = useRef<HTMLParagraphElement>(null);
-  // The question arrives word by word, then the line under it.
-  useWordsIn(headingRef, { gap: 55, y: 14, ease: "lift" });
-  useLayoutEffect(() => {
-    if (subRef.current) riseIn(subRef.current, { y: 8, delay: 300 });
-  }, []);
-
-  return (
-    <div className="aui-thread-welcome-root mb-8 flex flex-col gap-2 px-2">
-      <h1
-        ref={headingRef}
-        className="aui-thread-welcome-message-inner font-heading text-[28px] font-normal tracking-tight leading-tight"
-      >
-        What are we working on?
-      </h1>
-      <p ref={subRef} className="text-ink-muted text-base">
-        Ask anything. Documents, code and diagrams open beside the conversation.
-      </p>
-    </div>
-  );
-};
-
-const ThreadSuggestions: FC = () => {
-  return (
-    <div
-      className={cn(
-        "aui-thread-welcome-suggestions flex w-full flex-col",
-        "[&>*]:animate-in [&>*]:fade-in [&>*]:slide-in-from-bottom-2 [&>*]:fill-mode-both [&>*]:ease-settle [&>*]:duration-(--duration-settle) motion-reduce:[&>*]:animate-none",
-        "[&>*:nth-child(1)]:[animation-delay:380ms] [&>*:nth-child(2)]:[animation-delay:440ms] [&>*:nth-child(3)]:[animation-delay:500ms] [&>*:nth-child(n+4)]:[animation-delay:560ms]",
-      )}
-    >
-      <ThreadPrimitive.Suggestions>
-        {() => <ThreadSuggestionItem />}
-      </ThreadPrimitive.Suggestions>
-    </div>
-  );
-};
-
-const ThreadSuggestionItem: FC = () => {
-  return (
-    <div className="aui-thread-welcome-suggestion-display">
-      <SuggestionPrimitive.Trigger send render={<button type="button" className="aui-thread-welcome-suggestion group hover:bg-hover flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors duration-100 motion-reduce:transition-none" />}><span
-                      aria-hidden
-                      className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none"
-                    >
-                      {">"}
-                    </span><span className="min-w-0 flex-1 truncate">
-                      <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 text-foreground" />{" "}
-                      <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" />
-                    </span></SuggestionPrimitive.Trigger>
-    </div>
-  );
-};
-
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui();
   const applyRequests = useComposerRequests();
@@ -584,6 +522,12 @@ const ComposerAction: FC = () => {
 };
 
 const MessageError: FC = () => {
+  const hasErrorPart = useAuiState((s) => {
+    const status = s.message.status;
+    const error = status?.type === "incomplete" ? status.error : undefined;
+    return typeof error === "string" && hasTheoremError(s.message.content, error);
+  });
+  if (hasErrorPart) return null;
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="aui-message-error-root bg-error-container text-error-ink mt-2 rounded-lg px-4 py-3 text-sm">
@@ -681,7 +625,6 @@ export const AssistantMessageContent: FC = () => {
     </div>
   );
 };
-
 const AssistantMessage: FC = () => {
   const live = useArrivedLive();
   const ACTION_BAR_PT = "pt-1.5";
@@ -732,7 +675,6 @@ const ForkFromMessage: FC = () => {
     </ActionBarMorePrimitive.Item>
   );
 };
-
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root

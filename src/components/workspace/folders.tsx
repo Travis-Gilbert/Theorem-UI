@@ -1,17 +1,22 @@
-// SOURCING: Base UI Collapsible (each folder folds) and Menu (a folder's own
+// SOURCING: Base UI Collapsible (each folder folds, its row marked as the
+// tree's rows are, by the filesystem-item component) and Menu (a folder's own
 // commands, styled as the project switcher's), the assistant-ui
 // TooltipIconButton (Search, Open folder), WorkspaceTree (@headless-tree/react),
-// the workspace hooks (react-query over the desktop workspace routes)
+// the workspace hooks (react-query over the desktop workspace routes and the
+// Theorem Files API), the sign-in helpers (Home's sign-in link)
 import { Collapsible } from '@base-ui/react/collapsible'
 import { Menu } from '@base-ui/react/menu'
 import { useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { FilesystemMarks } from '@/components/ui/filesystem-item'
 import { hostActions } from '@/lib/handlers/actions'
+import { signInHref, useSignInConfigured } from '@/lib/theorem/sign-in'
 import { cn } from '@/lib/utils'
 import { openTodaysNote } from '@/lib/workspace/notes'
+import { isTheoremWorkspace } from '@/lib/workspace/theorem-client'
 import type { WorkspaceSummary } from '@/lib/workspace/types'
 import {
   useOpenFolder,
@@ -28,7 +33,14 @@ import {
   makeEntry,
 } from './workspace-tree'
 
-function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
+function WorkspaceSection({
+  workspace,
+  name = workspace.name,
+}: {
+  workspace: WorkspaceSummary
+  /** What the navigator calls it; the Theorem vault is Home. */
+  name?: string
+}) {
   const client = workspaceClient(workspace)
   const host = hostActions({ client, path: '' })
   const [open, setOpen] = useState(true)
@@ -43,23 +55,25 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
       <div className="group/title relative flex items-center">
         <Collapsible.Trigger
           title={workspace.path || undefined}
-          className="group/folder flex h-7 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-sm font-medium transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+          className="flex h-8 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-base font-medium transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
         >
-          <Icon.Next
-            aria-hidden="true"
-            className="size-2.5 shrink-0 text-ink-faint transition-transform duration-150 group-data-panel-open/folder:rotate-90"
+          <FilesystemMarks
+            folder
+            open={open}
+            icon={
+              client.theorem && (
+                <Icon.TheoremVault
+                  aria-hidden="true"
+                  className="size-6 shrink-0 text-ink-muted"
+                />
+              )
+            }
           />
-          {client.theorem && (
-            <Icon.TheoremVault
-              aria-hidden="true"
-              className="size-3.5 shrink-0 text-ink-faint"
-            />
-          )}
-          <span className="min-w-0 truncate">{workspace.name}</span>
+          <span className="min-w-0 truncate">{name}</span>
         </Collapsible.Trigger>
         <Menu.Root>
           <Menu.Trigger
-            aria-label={`${workspace.name} actions`}
+            aria-label={`${name} actions`}
             render={
               <Button
                 variant="ghost"
@@ -130,7 +144,7 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
                   onClick={() => openFolderSettings(workspace.id)}
                 >
                   <Icon.Settings className="size-4" />
-                  {client.theorem ? 'Vault settings…' : 'Folder settings…'}
+                  {client.theorem ? 'Home settings…' : 'Folder settings…'}
                 </Menu.Item>
               </Menu.Popup>
             </Menu.Positioner>
@@ -144,26 +158,56 @@ function WorkspaceSection({ workspace }: { workspace: WorkspaceSummary }) {
   )
 }
 
+const groupLabel =
+  'flex h-8 items-center ps-2 pe-1 text-sm text-ink-faint-sheet'
+
+/** Home while there is no Theorem vault to show. */
+function HomeAbsent() {
+  const { isPending } = useWorkspaces()
+  const signIn = useSignInConfigured()
+  if (isPending)
+    return <p className="px-2 text-sm text-ink-faint-sheet">Loading…</p>
+  if (signIn)
+    return (
+      <div className="flex flex-col items-start gap-2 px-2 pb-2">
+        <p className="text-sm text-ink-faint-sheet">
+          Sign in to keep your files in Home.
+        </p>
+        <a href={signInHref()} className={buttonVariants({ size: 'sm' })}>
+          Sign in
+        </a>
+      </div>
+    )
+  return (
+    <p className="px-2 text-sm text-ink-faint-sheet">
+      This Theorem does not keep files yet.
+    </p>
+  )
+}
+
 /**
- * The Theorem vault and the folders the person opened, each with its live
- * file tree. The vault shows once someone is signed in; folders only in the
- * desktop app, where the workspace routes answer. Below a mode's panel it
- * takes at most half the height; the Vault's Files panel fills itself.
+ * The navigator's files, by where they live: Home, the person's files in
+ * Theorem, once someone is signed in; then the folders on this device, which
+ * only the desktop app opens. Connected sources will join them as a third
+ * group. Below a mode's list it takes at most half the height; revealed from
+ * the rail it fills the panel and says how to get files where there are none.
  */
-export function FoldersSection({ className }: { className?: string }) {
+export function FoldersSection({ fill = false }: { fill?: boolean }) {
   const { available, workspaces } = useWorkspaces()
   const openFolder = useOpenFolder()
-  if (!available || (!workspaces.length && !openFolder)) return null
+  const home = workspaces.find(isTheoremWorkspace)
+  const device = workspaces.filter((workspace) => workspace !== home)
+  if (!fill && (!available || (!workspaces.length && !openFolder))) return null
 
   return (
     <section
       aria-label="Files"
       className={cn(
-        'flex max-h-[50%] min-h-0 shrink-0 flex-col border-t border-separator',
-        className,
+        'flex min-h-0 flex-col',
+        fill ? 'flex-1' : 'max-h-[50%] shrink-0 border-t border-separator',
       )}
     >
-      <div className="flex h-9 shrink-0 items-center ps-3.5 pe-2 text-xs font-medium text-ink-faint-sheet">
+      <div className="flex h-10 shrink-0 items-center ps-3.5 pe-2 text-sm font-medium text-ink-faint-sheet">
         <h2 className="flex-1">Files</h2>
         {workspaces.length > 0 && (
           <TooltipIconButton
@@ -174,26 +218,45 @@ export function FoldersSection({ className }: { className?: string }) {
             <Icon.Search className="size-4" />
           </TooltipIconButton>
         )}
-        {openFolder && (
-          <TooltipIconButton
-            tooltip="Open folder"
-            className="size-7 p-1.5"
-            disabled={openFolder.isPending}
-            onClick={() => openFolder.mutate()}
-          >
-            <Icon.Add className="size-4" />
-          </TooltipIconButton>
-        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {workspaces.length ? (
-          workspaces.map((workspace) => (
-            <WorkspaceSection key={workspace.id} workspace={workspace} />
-          ))
-        ) : (
-          <p className="px-1.5 text-sm text-ink-faint-sheet">
-            Open a folder to work with its files here.
-          </p>
+        {(home || fill) && (
+          <section aria-label="Home">
+            {home ? (
+              <WorkspaceSection workspace={home} name="Home" />
+            ) : (
+              <>
+                <h3 className={groupLabel}>Home</h3>
+                <HomeAbsent />
+              </>
+            )}
+          </section>
+        )}
+        {(device.length > 0 || openFolder) && (
+          <section aria-label="On this device" className="pt-2">
+            <div className={groupLabel}>
+              <h3 className="flex-1">On this device</h3>
+              {openFolder && (
+                <TooltipIconButton
+                  tooltip="Open folder"
+                  className="size-6 p-1"
+                  disabled={openFolder.isPending}
+                  onClick={() => openFolder.mutate()}
+                >
+                  <Icon.Add className="size-3.5" />
+                </TooltipIconButton>
+              )}
+            </div>
+            {device.length ? (
+              device.map((workspace) => (
+                <WorkspaceSection key={workspace.id} workspace={workspace} />
+              ))
+            ) : (
+              <p className="px-2 text-sm text-ink-faint-sheet">
+                Open a folder to work with its files here.
+              </p>
+            )}
+          </section>
         )}
       </div>
     </section>

@@ -58,6 +58,7 @@ export function OpenWith({
                 onValueChange={(handler) =>
                   openWorkspaceFile({
                     workspaceId: file.client.workspace.id,
+                    entryId: file.entry.id,
                     path: file.path,
                     handler: String(handler),
                   })

@@ -109,5 +109,9 @@ export function createSendRecovery(
     has(threadId: string) {
       return read(threadId) !== undefined
     },
+    /** The idempotency key of the send saved for this thread. */
+    pendingKey(threadId: string) {
+      return read(threadId)?.key
+    },
   }
 }

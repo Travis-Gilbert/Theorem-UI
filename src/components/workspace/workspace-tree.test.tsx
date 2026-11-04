@@ -116,6 +116,7 @@ describe('WorkspaceTree', () => {
     await act(async () => row(container, 'note 2.md').click())
     expect(useWorkspaceFileView.getState().file).toEqual({
       workspaceId: 'ws_test',
+      entryId: expect.stringMatching(/^vf_/),
       path: 'docs/note 2.md',
     })
 
@@ -145,6 +146,23 @@ describe('WorkspaceTree', () => {
       '  note 10.md',
       'a.md',
     ])
+  })
+
+  test('a folder closes again, and its entries leave the tree', async () => {
+    const { client } = fakeClient([
+      entry('vf_d', 'docs', 'directory'),
+      entry('vf_n', 'docs/note.md'),
+      entry('vf_a', 'a.md'),
+    ])
+    const container = await render(client)
+    await act(async () => row(container, 'docs').click())
+    expect(rows(container)).toEqual(['docs', '  note.md', 'a.md'])
+
+    await act(async () => row(container, 'docs').click())
+    // Once the folder has slid shut.
+    await waitFor(() => rows(container).length === 2)
+    expect(rows(container)).toEqual(['docs', 'a.md'])
+    expect(row(container, 'docs').getAttribute('aria-expanded')).toBe('false')
   })
 })
 
