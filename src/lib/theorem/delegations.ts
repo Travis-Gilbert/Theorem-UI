@@ -116,7 +116,7 @@ export function useThreadDelegation(
   delegationId: string,
 ): DelegationPart | undefined {
   const messages = useAuiState((s) => s.thread.messages)
-  return useMemo(() => {
+  const stored = useMemo(() => {
     let latest: DelegationPart | undefined
     for (const message of messages) {
       if (message.role !== 'assistant') continue
@@ -128,6 +128,35 @@ export function useThreadDelegation(
     }
     return latest
   }, [messages, delegationId])
+  return useLiveDelegation(stored)
+}
+
+/** Work outlives its parent response, so its durable record owns the card's status. */
+export function useLiveDelegation(
+  seed: DelegationPart | undefined,
+): DelegationPart | undefined {
+  const query = useQuery({
+    queryKey: ['theorem', 'delegations', seed?.parentRunId],
+    enabled: !!seed,
+    queryFn: ({ signal }) =>
+      theorem().chat.runs.delegations(
+        { runId: seed!.parentRunId },
+        { abortSignal: signal },
+      ),
+    refetchInterval: ({ state }) => {
+      const current =
+        state.data?.delegations.find(
+          (item) => item.delegationId === seed?.delegationId,
+        ) ?? seed
+      return current && LIVE_DELEGATION_STATES.has(current.state) ? 2000 : false
+    },
+    staleTime: 1000,
+  })
+  return (
+    query.data?.delegations.find(
+      (item) => item.delegationId === seed?.delegationId,
+    ) ?? seed
+  )
 }
 
 /** Set while the desktop dock is mounted: opens a delegation's panel. */

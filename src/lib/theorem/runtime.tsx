@@ -28,8 +28,10 @@ import {
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
 import { createAssistantStream } from 'assistant-stream'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
+import { useComposerReferences } from '@/components/chat/composer-references'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
@@ -309,6 +311,7 @@ export async function* runTurn(
   threadId: string,
   options: ChatModelRunOptions,
   turnOptions?: TurnOptions,
+  accepted?: () => void,
 ): AsyncGenerator<ChatModelRunResult, void> {
   const text = options.messages.at(-1)?.content
     .map((part) => part.type === 'text' ? part.text : '').join('\n')
@@ -324,12 +327,16 @@ export async function* runTurn(
     messages,
   })
   if (!(Symbol.asyncIterator in result)) {
-    yield await result
+    const step = await result
+    accepted?.()
+    yield step
     return
   }
   let runId: string | undefined
+  let didAccept = false
   try {
     for await (const step of result) {
+      if (!didAccept) { accepted?.(); didAccept = true }
       const custom = step.metadata?.custom as
         { theoremRunId?: string } | undefined
       runId = custom?.theoremRunId ?? runId
@@ -355,9 +362,11 @@ export async function* runTurn(
     if (!known) {
       const resumed = await recoverPendingSend(threadId, text, options.abortSignal)
       if (!resumed) throw error
+      if (!didAccept) accepted?.()
       yield* resumeLiveRun(resumed, options.abortSignal)
       return
     }
+    if (!didAccept) accepted?.()
     yield* resumeLiveRun(known, options.abortSignal)
   }
 }
@@ -367,9 +376,19 @@ function useTheoremThreadRuntime() {
     () => ({
       async *run(options) {
         try {
+          const references = useComposerReferences.getState().references
           const { remoteId } = await aui.threadListItem.initialize()
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
-          yield* runTurn(remoteId, options, pickedModelTurnOptions)
+          const custom = options.runConfig.custom ?? {}
+          const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
+          const referenced = references.length ? {
+            ...options,
+            runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,contextReferences:references}}},
+          } : options
+          yield* runTurn(remoteId,referenced,pickedModelTurnOptions,()=>{
+            // Recovery replays its saved request; only a newly accepted send consumes these references.
+            useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
+          })
         } catch (error) {
           if (options.abortSignal.aborted) throw error
           // Keep SDK exceptions intact for recovery above; only format at
@@ -380,7 +399,22 @@ function useTheoremThreadRuntime() {
     }),
     [aui],
   )
-  return useLocalRuntime(adapter)
+  const runtime = useLocalRuntime(adapter)
+  useEffect(() => {
+    let busy = false
+    const abort = new AbortController()
+    const refresh = async () => {
+      const remoteId = aui.threadListItem.getState().remoteId
+      if (busy || !remoteId || document.visibilityState !== 'visible') return
+      busy = true
+      try { await refreshConversation(runtime.thread,()=>theorem().chat.threads.get({threadId:remoteId},{abortSignal:abort.signal})) }
+      catch { /* A failed refresh leaves the last confirmed transcript intact. */ }
+      finally { busy = false }
+    }
+    const timer = setInterval(()=>void refresh(),3000)
+    return () => {clearInterval(timer);abort.abort()}
+  },[aui,runtime])
+  return runtime
 }
 
 function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {

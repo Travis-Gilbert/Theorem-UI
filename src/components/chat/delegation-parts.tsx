@@ -33,6 +33,7 @@ import {
   readReview,
   useDelegationContent,
   useDelegationDock,
+  useLiveDelegation,
 } from '@/lib/theorem/delegations'
 import type {
   ChangeAdmission,
@@ -622,7 +623,7 @@ export const DelegationBody: FC<{
 }
 
 const DelegationCard: DataMessagePartComponent = ({ data }) => {
-  const delegation = readDelegation(data)
+  const delegation = useLiveDelegation(readDelegation(data))
   if (!delegation) return null
   return (
     <article
