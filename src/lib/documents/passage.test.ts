@@ -36,6 +36,7 @@ test('an ask sends the passage and the note to quote from, under Home’s own id
     askReferences(note, {
       part: 'selected paragraph',
       text: 'The first paragraph.',
+      at: 10,
     }),
   ).toEqual([
     {
@@ -62,7 +63,7 @@ test('a document-backed note names its canonical revision and only quotes the se
   expect(
     askReferences(
       note,
-      { part: 'selected text', text: 'Selected passage' },
+      { part: 'selected text', text: 'Selected passage', at: 0 },
       {
         documentId: 'document-42',
         documentKind: 'authored',
@@ -103,7 +104,7 @@ test('a selection longer than Theorem takes is sent up to its limit', () => {
   const text = '"'.repeat(20_000)
   const [saved] = askReferences(
     device(text),
-    { part: 'selected passage', text },
+    { part: 'selected passage', text, at: 0 },
     {
       documentId: 'document-1',
       documentKind: 'authored',
@@ -115,6 +116,7 @@ test('a selection longer than Theorem takes is sent up to its limit', () => {
   const [passage, copy] = askReferences(device(text), {
     part: 'selected passage',
     text,
+    at: 0,
   })
   expect(onTheWire(passage)).toBeLessThanOrEqual(8192)
   expect(copy?.excerpt).toBe(text)
@@ -122,10 +124,12 @@ test('a selection longer than Theorem takes is sent up to its limit', () => {
 
 test('a note longer than Theorem takes is sent around the passage asked about', () => {
   const asked = 'The sentence the person asked about.'
-  const text = `${'before '.repeat(150_000)}${asked}${' after'.repeat(150_000)}`
+  const before = 'before '.repeat(150_000)
+  const text = `${before}${asked}${' after'.repeat(150_000)}`
   const [, copy] = askReferences(device(text), {
     part: 'selected text',
     text: asked,
+    at: before.length,
   })
   expect(onTheWire(copy)).toBeLessThanOrEqual(256 * 1024)
   expect(copy?.excerpt).toContain(asked)
@@ -137,6 +141,32 @@ test('clipping never cuts a character in half, which Theorem could not parse', (
   for (const reference of askReferences(device(text), {
     part: 'selected passage',
     text: text.slice(120_001, 130_001),
+    at: 120_001,
   }))
     expect(JSON.stringify(reference)).not.toMatch(/\\ud[89a-f]/i)
+})
+
+test('clipping keeps all that fits when the text is uneven', () => {
+  // Estimating from the whole text's size would keep under 2,000 of these.
+  const letters = 'a'.repeat(7_000)
+  const [passage] = askReferences(device('The note.'), {
+    part: 'selected passage',
+    text: `${letters}${'😀'.repeat(100_000)}`,
+    at: 0,
+  })
+  // 7 KiB of JSON: two quotes, the letters, and 41 four-byte characters.
+  expect(passage?.excerpt).toBe(`${letters}${'😀'.repeat(41)}`)
+})
+
+test('a long note is sent around the very words picked, not an earlier copy of them', () => {
+  const asked = 'The sentence that repeats.'
+  const earlier = `${asked}${' before'.repeat(150_000)}`
+  const text = `${earlier}${asked} Only here.${' after'.repeat(150_000)}`
+  const [, copy] = askReferences(device(text), {
+    part: 'selected text',
+    text: asked,
+    at: earlier.length,
+  })
+  expect(onTheWire(copy)).toBeLessThanOrEqual(256 * 1024)
+  expect(copy?.excerpt).toContain(`${asked} Only here.`)
 })

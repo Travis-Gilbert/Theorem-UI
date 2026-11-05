@@ -38,7 +38,7 @@ export function proseExcerpt(
         whole: from <= start + 1 && to >= end - 1,
       })
   })
-  return { part: blocksPart(blocks), text }
+  return { part: blocksPart(blocks), text, at: plainText(doc, 0, from).length }
 }
 
 /** The selection from `from` to `to` as a quote, with the text around it. */
@@ -47,6 +47,20 @@ export function quoteAt(doc: ProseNode, from: number, to: number): Quote {
     exact: plainText(doc, from, to),
     prefix: plainText(doc, 0, from).slice(-CONTEXT),
     suffix: plainText(doc, to).slice(0, CONTEXT),
+  }
+}
+
+/** An earlier ask's quote as an excerpt, from where it is in the document now. */
+export function quotedExcerpt(
+  state: EditorState,
+  quote: Quote,
+  part: string,
+): Excerpt {
+  const range = anchorQuote(state, quote)
+  return {
+    part,
+    text: quote.exact,
+    at: range ? plainText(state.doc, 0, range.from).length : 0,
   }
 }
 

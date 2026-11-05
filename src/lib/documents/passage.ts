@@ -14,6 +14,8 @@ export type Excerpt = {
   /** How it is named, such as "selected paragraph". */
   part: string
   text: string
+  /** Where it starts in the note's text, which may repeat these words. */
+  at: number
 }
 
 const BLOCK_NAMES: Record<string, string> = {
@@ -56,22 +58,23 @@ const NOTE_BYTES = 250 * 1024
 const jsonBytes = (text: string) =>
   new TextEncoder().encode(JSON.stringify(text)).length
 
-/** As much of the text as fits in that many JSON bytes, in whole characters. */
+/** The longest start of the text within that many JSON bytes, in whole characters. */
 function fit(text: string, bytes: number) {
-  const characters = Array.from(text)
-  let kept = characters.length
-  for (;;) {
-    const fitted = characters.slice(0, kept).join('')
-    const size = jsonBytes(fitted)
-    if (size <= bytes) return fitted
-    kept = Math.floor((kept * bytes) / size)
+  const quotes = jsonBytes('')
+  let used = quotes
+  let end = 0
+  for (const character of text) {
+    used += jsonBytes(character) - quotes
+    if (used > bytes) break
+    end += character.length
   }
+  return text.slice(0, end)
 }
 
-/** A long note's stretch around the passage, starting ahead of it by a margin. */
-function aroundPassage(text: string, passage: string) {
+/** A long note's stretch around `at`, starting ahead of it by a margin. */
+function around(text: string, at: number) {
   if (jsonBytes(text) <= NOTE_BYTES) return text
-  const from = Math.max(0, text.indexOf(passage) - NOTE_BYTES / 4)
+  const from = Math.max(0, at - NOTE_BYTES / 4)
   // The second half of a character on its own is not text Theorem can parse.
   const whole = (text.codePointAt(from - 1) ?? 0) > 0xffff ? from + 1 : from
   return fit(text.slice(whole), NOTE_BYTES)
@@ -117,7 +120,7 @@ export function askReferences(
     },
     {
       location: { resource },
-      excerpt: aroundPassage(note.text, passage),
+      excerpt: around(note.text, excerpt.at),
       label: note.title,
     },
   ]
