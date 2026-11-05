@@ -1,6 +1,10 @@
 // SOURCING: @theoremharness/sdk (TheoremClient, adopted as-is; same-origin cookie mode behind the server proxy)
 import { Theorem, TheoremClient, TheoremError } from '@theoremharness/sdk'
-import { createSendRecovery } from './send-recovery'
+import {
+  RefusedSend,
+  createSendRecovery,
+  modelCannotStart,
+} from './send-recovery'
 
 let client: TheoremClient | undefined
 let sendRecovery: ReturnType<typeof createSendRecovery> | undefined
@@ -46,6 +50,17 @@ export async function recoverPendingSend(
 export function pendingSendKey(threadId: string) {
   theorem()
   return sendRecovery?.pendingKey(threadId)
+}
+
+/** Keeps a refused send's text under its thread until that chat can take it. */
+export function holdRefusedText(threadId: string, text: string) {
+  theorem()
+  sendRecovery?.holdRefused(threadId, text)
+}
+
+export function takeRefusedText(threadId: string) {
+  theorem()
+  return sendRecovery?.takeRefused(threadId)
 }
 
 /** Only public event descriptions reach the UI; raw diagnostics stay server-side. */
@@ -150,9 +165,16 @@ export function describeError(error: unknown, service: 'chat' | 'document' = 'ch
       typeof value === 'string' && value.trim() ? value.trim() : undefined
     const detail = text(body?.detail)
     let message = detail ?? text(body?.title)
-    if (body?.code === 'chat_run_start_pending') {
-      message =
-        'Your message was saved, but its response could not start. Reload this conversation to resume it.'
+    if (error instanceof RefusedSend) {
+      // The title, as the detail talks in revision numbers.
+      const reason = text(body?.title) ?? detail
+      message = reason
+        ? `Your message was not sent. ${reason}`
+        : 'Your message was not sent.'
+    } else if (body?.code === 'chat_run_start_pending') {
+      message = modelCannotStart(body)
+        ? 'Your message was saved, but its model could not start. Fix the model or pick another, then send it again.'
+        : 'Your message was saved, but its response could not start. Reload this conversation to resume it.'
       if (detail) message += ` ${detail}`
     }
     if (!message) {

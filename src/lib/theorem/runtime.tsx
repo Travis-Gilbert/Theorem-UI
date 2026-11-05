@@ -11,6 +11,7 @@ import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
   useAui,
+  useAuiState,
   useLocalRuntime,
   useRemoteThreadListRuntime,
 } from '@assistant-ui/react'
@@ -38,13 +39,17 @@ import { documentThreadIds } from '@/lib/documents/ask-store'
 import {
   describeError,
   describeRunFailure,
+  holdRefusedText,
   mutate,
   mutateThread,
+  pendingSendKey,
   recoverPendingSend,
+  takeRefusedText,
   TERMINAL_RUN_EVENTS,
   theorem,
 } from './client'
 import type { Theorem } from './client'
+import { RefusedSend } from './send-recovery'
 import { pickedModelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
@@ -251,31 +256,42 @@ async function* resumeLiveRun(
 }
 
 /**
+ * What a thread's last history load left for resume. assistant-ui resumes on
+ * whichever adapter is current by then, which may not be the one that loaded.
+ */
+const loadedForResume = new Map<
+  string,
+  { runId?: string; recoveryError?: unknown }
+>()
+
+/**
  * History for one durable thread: the selected branch from threads.get, with
  * a run that was live at load reattached by resume. `threadId` is read at load
  * time; undefined means a thread not created yet.
  */
 export function createHistoryAdapter(
   threadId: () => string | undefined,
+  /** A refused send's text was held under its thread, as history lacks it. */
+  onRefused?: () => void,
 ): ThreadHistoryAdapter {
-  // Run left open by the last history load; resume reattaches to it.
-  let liveRunId: string | undefined
-  let recoveryError: unknown
   return {
     async load() {
       const remoteId = threadId()
       if (!remoteId) return { messages: [] }
-      recoveryError = undefined
+      let recoveryError: unknown
       try {
         await recoverPendingSend(remoteId)
       } catch (error) {
         recoveryError = error
+        if (error instanceof RefusedSend) {
+          holdRefusedText(remoteId, error.text)
+          onRefused?.()
+        }
       }
       const snapshot = await theorem().chat.threads.get({
         threadId: remoteId,
       })
       const runId = snapshot.liveRun?.runId
-      liveRunId = runId
       // The live run's message is rebuilt by resume from sequence zero.
       const settled = snapshot.messages.filter(
         (message) =>
@@ -284,20 +300,51 @@ export function createHistoryAdapter(
       const repository = ExportedMessageRepository.fromArray(
         toHistoryMessages(settled, snapshot.thread),
       )
-      return runId || recoveryError ? { ...repository, unstable_resume: true } : repository
+      if (!runId && !recoveryError) return repository
+      loadedForResume.set(remoteId, { runId, recoveryError })
+      return { ...repository, unstable_resume: true }
     },
     async *resume({ abortSignal }) {
-      if (liveRunId) yield* resumeLiveRun(liveRunId, abortSignal)
+      const remoteId = threadId()
+      const { runId, recoveryError } =
+        (remoteId && loadedForResume.get(remoteId)) || {}
+      if (remoteId) loadedForResume.delete(remoteId)
+      if (runId) yield* resumeLiveRun(runId, abortSignal)
       else if (recoveryError) throw new Error(describeError(recoveryError), { cause: recoveryError })
     },
     // Theorem persists every turn itself; nothing to write from the client.
     async append() {},
   }
 }
+
+/**
+ * Puts a refused send's text in this thread's composer, if this is the open chat.
+ * Only the open chat's composer is reachable, so the text waits until then.
+ */
+function giveBackRefusedText(aui: ReturnType<typeof useAui>) {
+  const { id, remoteId } = aui.threadListItem.getState()
+  if (!remoteId || aui.threads.getState().mainThreadId !== id) return
+  const text = takeRefusedText(remoteId)
+  if (text === undefined) return
+  const composer = aui.threads.thread('main').composer()
+  const draft = composer.getState().text.trimEnd()
+  composer.setText(draft ? `${text}\n\n${draft}` : text)
+}
+
 function useThreadAdapters() {
   const aui = useAui()
+  const open = useAuiState(
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
+  )
+  useEffect(() => {
+    if (open) giveBackRefusedText(aui)
+  }, [aui, open])
   const history = useMemo(
-    () => createHistoryAdapter(() => aui.threadListItem.getState().remoteId),
+    () =>
+      createHistoryAdapter(
+        () => aui.threadListItem.getState().remoteId,
+        () => giveBackRefusedText(aui),
+      ),
     [aui],
   )
   return useMemo(() => ({ history }), [history])
@@ -315,7 +362,11 @@ export async function* runTurn(
 ): AsyncGenerator<ChatModelRunResult, void> {
   const text = options.messages.at(-1)?.content
     .map((part) => part.type === 'text' ? part.text : '').join('\n')
-  const recovered = await recoverPendingSend(threadId, text, options.abortSignal)
+  const recovered = await recoverPendingSend(threadId, text, options.abortSignal).catch((error: unknown) => {
+    // Refused for good: that one is over, so this send is the turn.
+    if (pendingSendKey(threadId)) throw error
+    return undefined
+  })
   if (recovered) {
     yield* resumeLiveRun(recovered, options.abortSignal)
     return

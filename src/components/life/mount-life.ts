@@ -198,6 +198,9 @@ export function mountLife(
   const tone = (name: Tone) => palette[name]
 
   t.setup(() => {
+    // textmode.js finishes loading after destroy and still calls this. Resizing
+    // then throws, and publishing would write a dead field's counts.
+    if (t.isDisposed) return
     // textmode.js measures cells in device pixels, so the font scales with the
     // density to keep cells CELL_SIZE CSS pixels wide on any display.
     t.pixelDensity(density)
