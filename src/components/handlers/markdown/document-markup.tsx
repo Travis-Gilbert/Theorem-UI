@@ -46,7 +46,7 @@ import {
   setMarkup,
 } from './markup'
 import type { MarkupHost } from './markup-host'
-import { plainText } from './selection'
+import { plainText, quotedExcerpt } from './selection'
 
 /** The note being read, less its text, which is taken when an ask is made. */
 export type NoteRef = Omit<
@@ -196,7 +196,7 @@ function NoteBody({
         documentSource: file.captureDocument?.(),
       },
       ask.question,
-      { part: ask.part, text: passage.exact },
+      quotedExcerpt(view.state, passage, ask.part),
       passage,
       ask.sendKey,
     )
