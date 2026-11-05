@@ -556,18 +556,33 @@ const ReasoningSummaryPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/** External evidence links must name an absolute web URL; never infer a destination. */
+function citationUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const CitationPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
   const provenance = object(part.provenance)
   const label = str(part.label) ?? str(part.sourceId) ?? 'Source'
-  const url = str(provenance.url)
+  const url = citationUrl(provenance.url)
   const excerpt = str(provenance.excerpt)
+  const searchSource = part.sourceKind === 'web_search'
+  const title = searchSource
+    ? `Retrieved search result, not independent verification. ${excerpt ?? url ?? label}`
+    : excerpt ?? url
   const chip =
     'me-1.5 mt-2 inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs text-ink-muted'
   const content = (
     <>
       <Icon.Link className="size-3 shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="truncate">{searchSource ? `Search source: ${label}` : label}</span>
     </>
   )
   return url ? (
@@ -575,13 +590,13 @@ const CitationPart: DataMessagePartComponent = ({ data }) => {
       href={url}
       target="_blank"
       rel="noreferrer"
-      title={excerpt ?? url}
+      title={title}
       className={cn(chip, 'hover:text-ink')}
     >
       {content}
     </a>
   ) : (
-    <span title={excerpt} className={chip}>
+    <span title={title} className={chip}>
       {content}
     </span>
   )
