@@ -415,6 +415,14 @@ const Notes: FC<{ title: string; items: string[] }> = ({ title, items }) =>
     </Section>
   ) : null
 
+function workProblems({ receipt, problem }: DelegationPart): string[] {
+  const terminal = receipt?.terminal
+  return [...new Set([
+    terminal?.kind === 'failed' ? terminal.message : undefined,
+    problem,
+  ].filter((message): message is string => Boolean(message)))]
+}
+
 /**
  * A delegation's record: the card in the conversation, and in `detailed`
  * form the dock panel, which adds each check's output and the assumptions.
@@ -486,14 +494,15 @@ export const DelegationBody: FC<{
         )}
       </header>
 
-      {delegation.problem && (
+      {workProblems(delegation).map((problem) => (
         <p
+          key={problem}
           role="alert"
           className="mx-4 mb-3 rounded-lg bg-error-container px-3 py-2 text-sm text-error-ink"
         >
-          {delegation.problem}
+          {problem}
         </p>
-      )}
+      ))}
 
       {reported?.summary && (
         <Section title="Report">
