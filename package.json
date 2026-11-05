@@ -1,6 +1,7 @@
 {
   "name": "theorem-ui",
   "private": true,
+  "packageManager": "bun@1.4.3",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
