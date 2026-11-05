@@ -46,4 +46,4 @@ models can still execute Theorem search and work operations. The settings column
 now says Native tools, with enough width for that label; its type comment states
 the same boundary. No runtime behavior or parser changed, and a test mirroring
 the label would not establish tool execution. Typecheck, affected lint and the
-production build passed; rendered settings verification follows deployment.
+production build passed. Worker4b74f10d-80a2-4304-9132-19bd6e8300e7 is deployed; signed-in settings render Native tools with six configured models. Evidence: live-native-tools-label.txt/.jpg.
