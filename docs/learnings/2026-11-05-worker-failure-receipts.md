@@ -32,4 +32,9 @@ needed, and the worker's report remains inspectable rather than being rewritten.
 
 Logs and executed mutation receipts are under
 `/Volumes/SSD Samsung/theorem-chat-search-evidence/ui-worker-failure-*`.
-Live rendering of the repaired card remains the deployment acceptance gate.
+Deployed UI source5711b42 as Worker version
+a204a385-3627-4f45-8c10-a8a9d9325a1c. Signed-in browser reload shows the
+authoritative iteration-limit failure before the optimistic worker report.
+Full accessibility and screenshot evidence: `live-worker-failure-fixed.txt` and
+`live-worker-failure-fixed.jpg` in the same evidence directory. Runtime builder
+repair and successful App publication remain separate open acceptance gates.
