@@ -214,6 +214,7 @@ test('a document-backed ask reads and sends the canonical note identity and save
       },
       excerpt: 'The whole',
       label: 'Note · selected text',
+      markable: true,
     },
   ])
 })
