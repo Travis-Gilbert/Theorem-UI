@@ -567,22 +567,37 @@ function citationUrl(value: unknown): string | undefined {
   }
 }
 
+const retrievedSourceKinds = new Map<unknown, { label: string; description: string }>([
+  ['web_search', { label: 'Search source', description: 'Retrieved search result' }],
+  ['web_read', { label: 'Page source', description: 'Retrieved page' }],
+])
+
+function citationExcerpt(sourceKind: unknown, excerpt: string | undefined) {
+  if (sourceKind !== 'web_search' || !excerpt) return excerpt
+  // Chat renders on the client. Template contents stay inert and detached;
+  // only text leaves this native parser, never nodes or executable markup.
+  const template = document.createElement('template')
+  template.innerHTML = excerpt
+  template.content.querySelectorAll('script, style').forEach((node) => node.remove())
+  return str(template.content.textContent)
+}
+
 const CitationPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
   const provenance = object(part.provenance)
   const label = str(part.label) ?? str(part.sourceId) ?? 'Source'
   const url = citationUrl(provenance.url)
-  const excerpt = str(provenance.excerpt)
-  const searchSource = part.sourceKind === 'web_search'
-  const title = searchSource
-    ? `Retrieved search result, not independent verification. ${excerpt ?? url ?? label}`
+  const excerpt = citationExcerpt(part.sourceKind, str(provenance.excerpt))
+  const source = retrievedSourceKinds.get(part.sourceKind)
+  const title = source
+    ? `${source.description}, not independent verification. ${excerpt ?? url ?? label}`
     : excerpt ?? url
   const chip =
     'me-1.5 mt-2 inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs text-ink-muted'
   const content = (
     <>
       <Icon.Link className="size-3 shrink-0" />
-      <span className="truncate">{searchSource ? `Search source: ${label}` : label}</span>
+      <span className="truncate">{source ? `${source.label}: ${label}` : label}</span>
     </>
   )
   return url ? (
