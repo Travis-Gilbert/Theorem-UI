@@ -3,7 +3,7 @@ import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { mutate } from './client'
+import { describeError, mutate } from './client'
 import type { Theorem } from './client'
 import { isNotServed, theoremJson } from './passthrough'
 
@@ -111,25 +111,52 @@ export function modelStub(ref: string, name?: string): ModelOption {
 }
 
 export type ModelList = {
-  /** What an unpinned turn runs on (the front role, Inkling); absent when Theorem does not say. */
+  /** What an unpinned turn runs on; absent when Theorem does not say. */
   defaultRef?: string
+  defaultError?: { code: string; message: string }
   models: ModelOption[]
   /** Whether OpenRouter's list is fresh, served from Theorem's cache, or missing. */
   openrouter: 'live' | 'cached' | 'unavailable'
 }
 
+function parseDefaultError(raw: unknown): ModelList['defaultError'] {
+  const error = record(raw)
+  if (typeof error?.code !== 'string' || typeof error.message !== 'string') return undefined
+  return { code: error.code, message: error.message }
+}
+
+/** Shared feedback for the settings, picker and command palette. */
+export function modelCatalogIssue(list: ModelList | undefined, error: unknown): string | undefined {
+  if (error) return `Could not load models. ${describeError(error)} Check AI settings and retry the model list.`
+  const failure = list?.defaultError
+  if (failure) return `${failure.message} (${failure.code}) Choose an available model or correct the default in Theorem's configuration.`
+  return undefined
+}
+
+export function defaultModelDescription(catalog: readonly ModelOption[], ref?: string): string {
+  if (!ref) return 'Theorem has not reported its configured default model.'
+  const name = catalog.find((model) => model.ref === ref)?.name
+  return name ? `${name} (${ref})` : ref
+}
+
+function parseModelOptions(raw: unknown): ModelOption[] {
+  return (Array.isArray(raw) ? raw : []).flatMap((entry) => {
+    const option = parseModelEntry(entry)
+    return option ? [option] : []
+  })
+}
+
 /** The body of `GET /api/chat/v1/models`, parsed once where it enters. */
 export function parseModelList(raw: unknown): ModelList {
-  const body = record(raw)
-  const status = record(body?.openrouter)?.status
+  const body = record(raw) ?? {}
+  const status = record(body.openrouter)?.status
   const list: ModelList = {
-    models: (Array.isArray(body?.models) ? body.models : []).flatMap((entry) => {
-      const option = parseModelEntry(entry)
-      return option ? [option] : []
-    }),
+    models: parseModelOptions(body.models),
     openrouter: status === 'live' || status === 'cached' ? status : 'unavailable',
   }
-  if (typeof body?.defaultRef === 'string') list.defaultRef = body.defaultRef
+  if (typeof body.defaultRef === 'string') list.defaultRef = body.defaultRef
+  const defaultError = parseDefaultError(body.defaultError)
+  if (defaultError) list.defaultError = defaultError
   return list
 }
 

@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  defaultModelDescription,
+  modelCatalogIssue,
   formatContext,
   formatPrice,
   parseModelEntry,
@@ -85,6 +87,14 @@ describe('parseModelEntry', () => {
 })
 
 describe('parseModelList', () => {
+  test('preserves a safe typed default failure without exposing extra fields', () => {
+    const failure = { code: 'chat_model_not_found', message: 'Choose a model or correct the configured default.', credential: 'private' }
+    expect(parseModelList({ models: [], defaultError: failure })).toMatchObject({
+      defaultError: { code: failure.code, message: failure.message },
+    })
+    expect(parseModelList({ defaultError: { code: 3, message: 'invalid' } })).not.toHaveProperty('defaultError')
+  })
+
   test('reads the route body, keeping the default and the OpenRouter status', () => {
     expect(
       parseModelList({
@@ -117,4 +127,22 @@ describe('formatting', () => {
     expect(formatPrice({ promptPrice: 0.075, completionPrice: 0.3 })).toBe('$0.075 / $0.30 per M')
     expect(formatPrice({})).toBeUndefined()
   })
+})
+
+
+test('model default descriptions retain an unknown catalog ref and no issue is invented', () => {
+  expect(defaultModelDescription([], 'provider/actual')).toBe('provider/actual')
+  expect(modelCatalogIssue(undefined, undefined)).toBeUndefined()
+  expect(modelCatalogIssue(parseModelList({}), null)).toBeUndefined()
+  expect(parseModelList({ defaultError: { code: 'bad', message: 42 } })).not.toHaveProperty('defaultError')
+  expect(parseModelList({ defaultError: null })).not.toHaveProperty('defaultError')
+})
+
+
+test('default identity selects the matching row rather than the first catalog model', () => {
+  const list = parseModelList({ models: [{ ref: 'provider/other', name: 'Other' }, { ref: 'provider/actual', name: 'Actual' }], openrouter: { status: 'live' } })
+  expect(defaultModelDescription(list.models, 'provider/actual')).toBe('Actual (provider/actual)')
+  expect(list.openrouter).toBe('live')
+  expect(parseModelList(null)).toEqual({ models: [], openrouter: 'unavailable' })
+  expect(parseModelList({ defaultRef: 42 })).not.toHaveProperty('defaultRef')
 })

@@ -17,12 +17,13 @@ import { Icon } from '@/components/icons'
 import {
   formatContext,
   modelStub,
+  modelCatalogIssue,
   useModelCatalog,
   usePickedModels,
 } from '@/lib/theorem/models'
 import type { ModelOption } from '@/lib/theorem/models'
 
-/** Theorem's own choice, which is the front model (Inkling) unless the person picks another. */
+/** Theorem's configured choice unless the person picks another. */
 const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem default'), vendor: 'theorem' }
 
 type Group = { label: string; items: ModelOption[] }
@@ -39,13 +40,28 @@ function VendorMark({ vendor }: { vendor: string }) {
   )
 }
 
+function pickerGroups(starred: readonly string[], byRef: ReadonlyMap<string, ModelOption>): Group[] {
+  const picks = starred.map((ref) => byRef.get(ref) ?? modelStub(ref))
+  return [
+    { label: 'Default', items: [DEFAULT_ITEM] },
+    ...(picks.length ? [{ label: 'Starred', items: picks }] : []),
+  ]
+}
+
+function pickerSelection(selectedRef: string | undefined, byRef: ReadonlyMap<string, ModelOption>, groups: Group[]) {
+  return selectedRef
+    ? (byRef.get(selectedRef) ?? groups.flatMap((group) => group.items).find((model) => model.ref === selectedRef))
+    : DEFAULT_ITEM
+}
+
 /**
  * The composer's model switch. It lists the models the person starred in
  * Settings, plus Theorem's default; picking one sets the model the next turn
  * runs on.
  */
 export function ModelPicker() {
-  const { data: catalog = [] } = useModelCatalog()
+  const { data: catalog = [], list, error } = useModelCatalog()
+  const issue = modelCatalogIssue(list, error)
   const starred = usePickedModels((s) => s.starred)
   const selectedRef = usePickedModels((s) => s.selected)
   const select = usePickedModels((s) => s.select)
@@ -54,17 +70,8 @@ export function ModelPicker() {
     () => new Map(catalog.map((model) => [model.ref, model])),
     [catalog],
   )
-  const groups = useMemo<Group[]>(() => {
-    const picks = starred.map((ref) => byRef.get(ref) ?? modelStub(ref))
-    return [
-      { label: 'Default', items: [DEFAULT_ITEM] },
-      ...(picks.length ? [{ label: 'Starred', items: picks }] : []),
-    ]
-  }, [starred, byRef])
-
-  const selected = selectedRef
-    ? (byRef.get(selectedRef) ?? groups.flatMap((g) => g.items).find((m) => m.ref === selectedRef))
-    : DEFAULT_ITEM
+  const groups = useMemo(() => pickerGroups(starred, byRef), [starred, byRef])
+  const selected = pickerSelection(selectedRef, byRef, groups)
 
   return (
     <Combobox<ModelOption>
@@ -91,6 +98,7 @@ export function ModelPicker() {
             startAddon={<Icon.Search className="size-3.5" />}
           />
         </div>
+        {issue && <p role="alert" className="px-3 py-2 text-sm text-ink-muted">{issue}</p>}
         <ComboboxEmpty className="px-3 py-4 text-sm text-ink-muted not-empty:block hidden">
           No starred model matches.
         </ComboboxEmpty>
