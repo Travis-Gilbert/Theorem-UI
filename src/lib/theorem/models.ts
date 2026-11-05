@@ -26,7 +26,7 @@ export type ModelOption = {
   source: 'catalog' | 'openrouter'
   /** What a turn can send it: text, image, file, audio. */
   inputs: readonly string[]
-  /** It can call tools, which Theorem's turns lean on. */
+  /** Provider-native tool calling; Theorem can also execute program-based tools. */
   tools: boolean
   /** It can think before answering. */
   reasoning: boolean

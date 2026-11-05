@@ -38,3 +38,12 @@ authoritative iteration-limit failure before the optimistic worker report.
 Full accessibility and screenshot evidence: `live-worker-failure-fixed.txt` and
 `live-worker-failure-fixed.jpg` in the same evidence directory. Runtime builder
 repair and successful App publication remain separate open acceptance gates.
+
+## Model capability wording
+
+The catalog's tools flag reports provider-native tool calling. Program-based
+models can still execute Theorem search and work operations. The settings column
+now says Native tools, with enough width for that label; its type comment states
+the same boundary. No runtime behavior or parser changed, and a test mirroring
+the label would not establish tool execution. Typecheck, affected lint and the
+production build passed; rendered settings verification follows deployment.

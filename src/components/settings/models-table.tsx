@@ -253,8 +253,8 @@ function modelColumns(models: readonly ModelOption[]) {
       cell: () => <BooleanCell />,
       sortFn: 'basic',
       enableGlobalFilter: false,
-      size: 76,
-      meta: { label: 'Tools', variant: 'boolean' },
+      size: 120,
+      meta: { label: 'Native tools', variant: 'boolean' },
     }),
     columnHelper.accessor('reasoning', {
       id: 'reasoning',
