@@ -38,7 +38,7 @@ test('a failed worker shows its authoritative failure before its optimistic repo
 test('worker and interpretation failures both remain visible without duplicate alerts', async () => {
   const first = await view(work('The result could not be interpreted.'))
   expect([...first.container.querySelectorAll('[role="alert"]')].map((node) => node.textContent)).toEqual([
-    failure, 'The result could not be interpreted.',
+    failure, 'Follow-up failed: The result could not be interpreted.',
   ])
   await cleanup()
   const repeated = await view(work(failure))
@@ -62,4 +62,18 @@ test('queued work remains visible before a receipt exists', async () => {
   const { container } = await view(pending)
   expect(container.querySelector('[role="alert"]')).toBeNull()
   expect(container.textContent).toContain('Queued')
+})
+
+// The worker and the later conversation-lead assessment are separate outcomes.
+test('a ready App labels a failed follow-up without declaring the build failed', async () => {
+  const completed = work('agent_service_request_rejected: The service rejected the follow-up.')
+  completed.state = 'published'
+  completed.receipt!.terminal = { kind: 'completed' }
+  const { container } = await view(completed)
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    'Follow-up failed: agent_service_request_rejected: The service rejected the follow-up.',
+  )
+  expect(container.textContent).toContain('Ready')
+  expect(container.textContent).toContain('Built a self-contained App')
+  expect(container.querySelectorAll('[role="alert"]').length).toBe(1)
 })

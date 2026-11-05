@@ -417,10 +417,11 @@ const Notes: FC<{ title: string; items: string[] }> = ({ title, items }) =>
 
 function workProblems({ receipt, problem }: DelegationPart): string[] {
   const terminal = receipt?.terminal
-  return [...new Set([
-    terminal?.kind === 'failed' ? terminal.message : undefined,
-    problem,
-  ].filter((message): message is string => Boolean(message)))]
+  const workerFailure = terminal?.kind === 'failed' ? terminal.message : undefined
+  return [
+    workerFailure,
+    problem && problem !== workerFailure ? `Follow-up failed: ${problem}` : undefined,
+  ].filter((message): message is string => Boolean(message))
 }
 
 /**
