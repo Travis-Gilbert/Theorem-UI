@@ -1,4 +1,5 @@
 // SOURCING: textmode.js (WebGL2 glyph grid, a second layer for the agent's presence, the frame loop and deltaTime, projectClientToGrid for pointer input); the Life field, the presence and how the model's activity lifts them come from src/lib/life
+import { eases } from 'animejs'
 import { textmode } from 'textmode.js'
 import type { Textmodifier } from 'textmode.js'
 import {
@@ -17,8 +18,8 @@ import type { Field } from '@/lib/life/life'
 import { emit, fill } from '@/lib/life/emitter'
 import { RESTING, decay, glow, pace, pulse, restSeconds, sustain } from '@/lib/life/energy'
 import type { Energy, PulseKind } from '@/lib/life/energy'
-import { cellLook } from '@/lib/life/look'
-import type { Tone } from '@/lib/life/look'
+import { cellLook, glyphBetween } from '@/lib/life/look'
+import type { Look, Tone } from '@/lib/life/look'
 import { PATTERNS } from '@/lib/life/patterns'
 import { advance, companion, createPresence, figure } from '@/lib/life/presence'
 import type { Point, Presence } from '@/lib/life/presence'
@@ -70,12 +71,12 @@ function readPalette(element: Element): Palette {
 }
 
 /** Cells near the presence catch more light, so the field shows what it attends to. */
-const ATTENTION_RADIUS = 7
+const ATTENTION_RADIUS = 10
 /** Pointer activity this recent counts as the person drawing. */
 const ACTIVE_SECONDS = 1.2
 const MAX_STEPS_PER_FRAME = 4
 /** A cell's size in CSS pixels. */
-const CELL_SIZE = 14
+const CELL_SIZE = 10
 /** The field sits behind the conversation, so its glyphs stay faint; the presence keeps full weight. */
 const FIELD_WEIGHT = 0.34
 
@@ -124,6 +125,14 @@ export function mountLife(
 
   let palette = readPalette(canvas)
   let field: Field = createField(0, 0)
+  /**
+   * The generation `field` grew from. Each cell eases from its look there to
+   * its look now across the interval to the next step, so births bloom and
+   * deaths fade instead of snapping in on the beat.
+   */
+  let previous: Field = field
+  let sinceStep = 0
+  let fadeSeconds = 1
   let presence: Presence = createPresence({ x: 0, y: 0 })
   let stroke: { on: boolean; last: Point } | undefined
   let hovered: Point | undefined
@@ -151,6 +160,24 @@ export function mountLife(
       // The presence starts in the bottom third, where the field lives.
       presence = createPresence({ x: left(), y: Math.floor((rows() * 5) / 6) })
     }
+    previous = field
+  }
+
+  /**
+   * The person's own edits land in both generations, so what they draw shows
+   * at full weight under the pointer instead of fading in behind it.
+   */
+  const edit = (change: (from: Field) => Field) => {
+    field = change(field)
+    previous = change(previous)
+  }
+
+  /** Advances one generation and starts the fade from the one before. */
+  const advanceField = (steps: number, interval: number, carried: number) => {
+    previous = field
+    for (let i = 0; i < steps; i++) field = step(emit(field, energy.level, Math.random))
+    fadeSeconds = interval
+    sinceStep = carried
   }
 
   const publish = () => {
@@ -175,13 +202,11 @@ export function mountLife(
   /** Cells along the segment, so a fast stroke leaves no gaps. */
   const paintLine = (from: Point, to: Point, on: boolean) => {
     const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1)
-    for (let i = 0; i <= steps; i++)
-      field = paint(
-        field,
-        Math.round(from.x + ((to.x - from.x) * i) / steps),
-        Math.round(from.y + ((to.y - from.y) * i) / steps),
-        on,
-      )
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(from.x + ((to.x - from.x) * i) / steps)
+      const y = Math.round(from.y + ((to.y - from.y) * i) / steps)
+      edit((cells) => paint(cells, x, y, on))
+    }
   }
 
   /** Cells stay clear, so the sheet behind the canvas shows between glyphs. */
@@ -196,6 +221,10 @@ export function mountLife(
   }
 
   const tone = (name: Tone) => palette[name]
+
+  /** A look's colour at `scale` of its weight, faded toward what is behind the canvas. */
+  const shade = (look: Look | undefined, scale: number): Rgb =>
+    look ? mix(palette.background, tone(look.tone), Math.min(1, look.weight * scale)) : palette.background
 
   t.setup(() => {
     // textmode.js finishes loading after destroy and still calls this. Resizing
@@ -213,16 +242,18 @@ export function mountLife(
     const { playing, companion: playsAlong } = useLifeControls.getState()
     const seconds = t.deltaTime() / 1000
     energy = decay(energy, seconds)
+    sinceStep += seconds
     if (playing) {
       pending += seconds
       const interval = 1 / pace(energy.level)
       let steps = 0
       while (pending >= interval && steps < MAX_STEPS_PER_FRAME) {
-        field = step(emit(field, energy.level, Math.random))
         pending -= interval
         steps++
       }
       if (steps === MAX_STEPS_PER_FRAME) pending = 0
+      // What is left over is how long ago the last step was due.
+      if (steps > 0) advanceField(steps, interval, pending)
     }
 
     const personActive = stroke !== undefined || t.secs - lastActivity < ACTIVE_SECONDS
@@ -234,6 +265,7 @@ export function mountLife(
         rest: restSeconds(energy.level),
       })
       presence = next.presence
+      // The agent's seeds land in this generation only, so they bloom in.
       if (next.seed) field = stamp(field, PATTERNS[next.seed.pattern].cells, next.seed.x, next.seed.y)
     }
     publish()
@@ -241,16 +273,20 @@ export function mountLife(
     t.clear()
     const { at } = presence
     const faint = FIELD_WEIGHT * glow(energy.level)
+    const fade = reducedMotion ? 1 : eases.inOutSine(Math.min(1, sinceStep / fadeSeconds))
     for (let y = 0; y < field.rows; y++)
       for (let x = 0; x < field.cols; x++) {
         const i = y * field.cols + x
-        const look = cellLook(ageAt(field, i), ghostAt(field, i))
-        if (!look) continue
+        const age = ageAt(field, i)
+        const after = cellLook(age, ghostAt(field, i))
+        const before = fade < 1 ? cellLook(ageAt(previous, i), ghostAt(previous, i)) : after
+        const glyph = glyphBetween(before, after, age > 0, fade)
+        if (!glyph) continue
         const near = playsAlong
           ? Math.max(0, 1 - Math.hypot((x - at.x) / 2, y - at.y) / ATTENTION_RADIUS)
           : 0
-        const weight = Math.min(1, look.weight * faint * (0.75 + 0.5 * near))
-        drawGlyph(x, y, look.glyph, mix(palette.background, tone(look.tone), weight))
+        const scale = faint * (0.75 + 0.5 * near)
+        drawGlyph(x, y, glyph, mix(shade(before, scale), shade(after, scale), fade))
       }
   })
 
@@ -299,12 +335,12 @@ export function mountLife(
       touch()
       const { brush } = useLifeControls.getState()
       if (brush !== 'cell') {
-        field = stamp(field, PATTERNS[brush].cells, cell.x, cell.y)
+        edit((cells) => stamp(cells, PATTERNS[brush].cells, cell.x, cell.y))
         return
       }
       const on = !alive(field, cell.x, cell.y)
       stroke = { on, last: cell }
-      field = paint(field, cell.x, cell.y, on)
+      edit((cells) => paint(cells, cell.x, cell.y, on))
     },
     drag(clientX, clientY) {
       const cell = toCell(clientX, clientY)
@@ -325,13 +361,15 @@ export function mountLife(
       stroke = undefined
     },
     step() {
-      field = step(emit(field, energy.level, Math.random))
+      advanceField(1, 1 / pace(energy.level), 0)
     },
     clear() {
       field = clear(field)
+      previous = field
     },
     randomize() {
       field = fill(clear(field), Math.random)
+      previous = field
     },
     pulse(kind) {
       energy = pulse(energy, kind)

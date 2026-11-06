@@ -23,3 +23,19 @@ export function cellLook(age: number, ghost: number): Look | undefined {
   if (ghost > 0) return { glyph: '.', tone: 'muted', weight: (ghost / GHOST_FRAMES) * 0.45 }
   return undefined
 }
+
+/**
+ * The glyph a cell shows partway (`t`, 0 to 1) through its fade from one
+ * generation's look to the next. A living cell takes its new glyph at once and
+ * eases toward its new weight; a cell that has just died keeps its old glyph
+ * through the first half of the fade, then hands over to its ghost.
+ */
+export function glyphBetween(
+  before: Look | undefined,
+  after: Look | undefined,
+  alive: boolean,
+  t: number,
+): string | undefined {
+  if (alive || !before) return after?.glyph
+  return t < 0.5 || !after ? before.glyph : after.glyph
+}
