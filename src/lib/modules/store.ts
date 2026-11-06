@@ -9,7 +9,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { isTheoremWorkspace } from '@/lib/workspace/theorem-client'
 import type { WorkspaceClient, WorkspaceEntry } from '@/lib/workspace/types'
 import {
@@ -313,7 +313,13 @@ export function useInstalledModules(client: WorkspaceClient) {
     // `signature` changes exactly when a result does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settled, signature, entries])
-  return { isPending: tree.isPending || !settled }
+  // Pending only until the first full read. A manifest that arrives later
+  // (a module saved from a page, or written by an agent) joins the catalog
+  // without making the catalog pending again: an open page would otherwise
+  // be swapped for its loading state and lose what was being arranged.
+  const [read, setRead] = useState(false)
+  if (!read && !tree.isPending && settled) setRead(true)
+  return { isPending: !read }
 }
 
 /** A sandboxed module's files, read together, as its frame will run them. */

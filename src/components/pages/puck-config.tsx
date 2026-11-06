@@ -299,6 +299,8 @@ export function pageConfig(modules: ReadonlyArray<ModuleDefinition>): Config {
   components[MISSING_TYPE] = missingComponent
   const of = (category: ModuleDefinition['category']) =>
     modules.filter((m) => m.category === category).map((m) => m.id)
+  const installed = of('Installed')
+  const composite = of('Composite')
   return {
     root: {
       fields: {},
@@ -309,8 +311,17 @@ export function pageConfig(modules: ReadonlyArray<ModuleDefinition>): Config {
     categories: {
       layout: { title: 'Layout', components: [...LAYOUT_TYPES] },
       theorem: { title: 'Theorem', components: of('Theorem') },
-      installed: { title: 'Installed', components: of('Installed') },
-      composite: { title: 'Made from modules', components: of('Composite') },
+      // A heading over nothing says nothing, so these show once they hold one.
+      installed: {
+        title: 'Installed',
+        components: installed,
+        visible: installed.length > 0,
+      },
+      composite: {
+        title: 'Made from modules',
+        components: composite,
+        visible: composite.length > 0,
+      },
       other: { title: 'Other', visible: false, components: [MISSING_TYPE] },
     },
     components,

@@ -68,8 +68,16 @@ export interface PageRuntime {
     outerEvent: string,
   ) => () => void
   emit: (instance: string, event: string, payload: unknown) => void
-  /** Stops every route and handler; later calls do nothing. */
+  /**
+   * Stops every route and handler; later calls do nothing until `resume`.
+   * Values already published stay.
+   */
   dispose: () => void
+  /**
+   * Takes calls again after `dispose`, for a view that was hidden and shown
+   * again. Its instances register their routes and handlers afresh.
+   */
+  resume: () => void
 }
 
 export function createPageRuntime(
@@ -204,6 +212,9 @@ export function createPageRuntime(
       wiring.clear()
       handlers.clear()
       forwards.clear()
+    },
+    resume: () => {
+      disposed = false
     },
   }
 }

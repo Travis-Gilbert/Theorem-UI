@@ -40,6 +40,9 @@ const row =
 
 const primary = 'bg-redwood text-on-redwood hover:bg-redwood-hover'
 
+/** The code editor, so a module's page opens to be written, not run. */
+const SOURCE_HANDLER = 'code'
+
 function Heading({
   children,
   action,
@@ -246,11 +249,12 @@ function ModuleRow({
   const grant = useModuleGrants((s) => s.grants[key])
   const revoke = useModuleGrants((s) => s.revoke)
   const { implementation } = definition
-  // A sandboxed module opens at its page, a composite at its manifest.
-  const file =
-    implementation.kind === 'sandboxed-html'
-      ? `${implementation.folder}/${implementation.entry}`
-      : definition.path
+  // A sandboxed module opens at its page, as source to edit, rather than in
+  // the viewer that would run it; a composite opens at its manifest.
+  const sandboxed = implementation.kind === 'sandboxed-html'
+  const file = sandboxed
+    ? `${implementation.folder}/${implementation.entry}`
+    : definition.path
   return (
     <div className="group flex items-center gap-1">
       <button
@@ -260,7 +264,11 @@ function ModuleRow({
         disabled={!file}
         onClick={() =>
           file &&
-          openWorkspaceFile({ workspaceId: client.workspace.id, path: file })
+          openWorkspaceFile({
+            workspaceId: client.workspace.id,
+            path: file,
+            ...(sandboxed && { handler: SOURCE_HANDLER }),
+          })
         }
       >
         <span className="min-w-0 flex-1 truncate">{definition.label}</span>
@@ -382,6 +390,7 @@ function NewModuleDialog({
           openWorkspaceFile({
             workspaceId: client.workspace.id,
             path: `${folder}/index.html`,
+            handler: SOURCE_HANDLER,
           })
         },
       },

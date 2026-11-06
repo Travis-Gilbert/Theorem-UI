@@ -468,4 +468,33 @@ describe('runtime', () => {
     expect(h.attached).toHaveLength(1)
     expect(runtime.outputs.getState()).toEqual({})
   })
+
+  test('a resumed runtime takes calls again; its instances wire afresh', () => {
+    const h = host()
+    const runtime = createPageRuntime(lookup, h)
+    const wiring = {
+      type: 'theorem.test.list',
+      on: {
+        ask: [{ to: { host: 'composer.attach' as const }, convert: true }],
+      },
+    }
+    runtime.wire('a', wiring)
+    runtime.emit('a', 'ask', { id: 'r0' })
+    expect(h.attached).toHaveLength(1)
+    runtime.setOutput('a', 'selected', 1)
+    runtime.dispose()
+    runtime.setOutput('a', 'selected', 2)
+    // What was published before stays, as a hidden view keeps its state.
+    expect(runtime.outputs.getState()).toEqual({ a: { selected: 1 } })
+
+    runtime.resume()
+    runtime.setOutput('a', 'selected', 3)
+    expect(runtime.outputs.getState()).toEqual({ a: { selected: 3 } })
+    // Routes made before the disposal are gone until wired again.
+    runtime.emit('a', 'ask', { id: 'r1' })
+    expect(h.attached).toHaveLength(1)
+    runtime.wire('a', wiring)
+    runtime.emit('a', 'ask', { id: 'r1' })
+    expect(h.attached).toHaveLength(2)
+  })
 })

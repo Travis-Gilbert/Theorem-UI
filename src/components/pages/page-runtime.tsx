@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react'
@@ -64,7 +65,14 @@ export function usePageRuntime(): PageRuntime {
 
 export const useScope = () => useContext(ScopeContext)
 
-/** One runtime per page view; a new page or a reload starts a fresh one. */
+/**
+ * One runtime per page view; a new page or a reload starts a fresh one.
+ *
+ * A view that is hidden and shown again (React's Activity, or StrictMode in
+ * development) keeps its state but runs its effects' cleanups and then the
+ * effects again. So the runtime is disposed and resumed in a layout effect,
+ * which runs before any instance's own effects register with it.
+ */
 export function PageRuntimeProvider({ children }: { children: ReactNode }) {
   const [runtime] = useState(() =>
     createPageRuntime((type) => moduleById(type), {
@@ -76,7 +84,10 @@ export function PageRuntimeProvider({ children }: { children: ReactNode }) {
         })),
     }),
   )
-  useEffect(() => () => runtime.dispose(), [runtime])
+  useLayoutEffect(() => {
+    runtime.resume()
+    return () => runtime.dispose()
+  }, [runtime])
   return (
     <RuntimeContext.Provider value={runtime}>
       {children}

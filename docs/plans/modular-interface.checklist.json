@@ -51,7 +51,10 @@
       "id": "resource-binding",
       "requirement": "A setting can bind an instance to a resource: Index view, object type, vault file, conversation, App",
       "status": "done",
-      "evidence": ["src/components/pages/resource-field.tsx", "contract.ts RESOURCE_KINDS"]
+      "evidence": [
+        "src/components/pages/resource-field.tsx",
+        "contract.ts RESOURCE_KINDS"
+      ]
     },
     {
       "id": "value-bindings",
@@ -60,7 +63,9 @@
       "evidence": [
         "src/components/pages/page-runtime.tsx useInputs, PageScopeProvider",
         "bun test src/components/pages/page.test.tsx: a bound value shows another instance's output, inside a split too",
-        "That test found that no page-level scope was provided, so top-level bindings did not deliver; fixed with PageScopeProvider"
+        "That test found that no page-level scope was provided, so top-level bindings did not deliver; fixed with PageScopeProvider",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): a Value bound to a Text showed it and followed edits while arranging, in use and after reopening",
+        "The browser check found bindings made during a session never delivered: React's effect replay disposed the page runtime while it stayed in use. Fixed with runtime.resume in a layout effect (page-runtime.tsx); bun test page.test.tsx 'a value published after the page is hidden and shown still arrives' and modules.test.ts 'a resumed runtime takes calls again; its instances wire afresh' fail without it"
       ]
     },
     {
@@ -105,7 +110,9 @@
       "id": "configure-module",
       "requirement": "Get a module by configuring an existing one",
       "status": "done",
-      "evidence": ["puck-config.tsx moduleComponent: settings, inputs and routes as Puck fields"]
+      "evidence": [
+        "puck-config.tsx moduleComponent: settings, inputs and routes as Puck fields"
+      ]
     },
     {
       "id": "combine-modules",
@@ -114,7 +121,9 @@
       "evidence": [
         "Split and Tabs layout components (puck-config.tsx)",
         "Save as module: src/components/pages/save-as-module.tsx over layout.ts extractComposite",
-        "bun test: 'extracting a composite exposes what crossed its edge', 'an outside route into the composite is cut; its other routes stay', 'a composite forwards its inner event; disposal stops everything'"
+        "bun test: 'extracting a composite exposes what crossed its edge', 'an outside route into the composite is cut; its other routes stay', 'a composite forwards its inner event; disposal stops everything'",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Save as module on a Split holding a Value bound to an outside Text gave the composite the input 'value'; one instance replaced the Split and the value arrived while arranging, in use and after a reload",
+        "The browser check found Save as module lost the unsaved arrangement: the new manifest made the catalog pending and the page fell back to its loading state. Fixed in store.ts useInstalledModules (pending only until the first read); bun test store.test.tsx fails without it"
       ]
     },
     {
@@ -123,7 +132,9 @@
       "status": "done",
       "evidence": [
         "New module writes Modules/<name>/module.json and index.html (store.ts newModuleFiles, pages-panel.tsx NewModuleDialog)",
-        "Vault manifests join the catalog when the vault reports them (store.ts useInstalledModules)"
+        "Vault manifests join the catalog when the vault reports them (store.ts useInstalledModules)",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): New module wrote Modules/<slug>/module.json and index.html and listed it as Sandboxed",
+        "It now opens index.html in the code editor (handler 'code'); the browser check found the HTML viewer it opened before is blank outside the desktop app"
       ]
     },
     {
@@ -134,7 +145,7 @@
         "src/components/pages/sandboxed-module.tsx (grant gate, Stop, Run, Revoke), src/lib/modules/sandbox.ts, src/lib/modules/grants.ts",
         "bun test src/lib/modules/sandbox.test.ts: undeclared or mistyped outputs and events refused; capabilities are the grant plus the module's own folder, never run; a grant holds only for the digest it was given for",
         "bun test src/lib/blocks/hosted-app.test.ts: 'a page module reaches only the hosts it was allowed, whatever its page declares'",
-        "Not run: a sandboxed module running in a real browser frame"
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): while arranging only its summary (takes, gives, sends) shows; the gate offers Run it; the frame has sandbox=\"allow-scripts\", a blob: src and origin null; its output reached a bound Value; Stop removed the frame, Run restored it, Revoke showed the gate again; an outside edit of index.html made it ask again"
       ]
     },
     {
@@ -152,24 +163,30 @@
       "status": "done",
       "evidence": [
         "page-view.tsx: the held revision, Show it for a newer one, Keep mine or Use the vault's on a save conflict",
-        "Source only: no automated test drives a conflicting save"
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): an outside write was offered ('A newer version…') and replaced the page only on Show it; a conflicting save said 'This page changed in the vault since you opened it.'; Keep mine wrote the page's version; Use the vault's showed the other and left nothing unsaved",
+        "No automated test drives a conflicting save"
       ]
     },
     {
       "id": "chat-modular",
       "requirement": "Chat is modular without a second agent: the conversation binding picks which conversation, moving the composer keeps its draft, selection never auto-attaches",
-      "status": "partial",
+      "status": "done",
       "evidence": [
         "builtins.tsx theorem.conversation on the one runtime; one owner per page; keep or follow the open conversation",
         "Selection reaches the composer only through a route to composer.attach or composer.ask",
-        "Not observed: the draft surviving a move, in a browser against a live conversation"
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): a second conversation instance said 'The conversation shows in another place on this page.'; a typed draft survived switching to Chat mode and back, arranging and Done; a full reload clears it (the draft is per session)",
+        "Not observed: sending (the stub answers 501), or a selection reaching the composer in a browser; the no-auto-attach rule rests on source and unit tests"
       ]
     },
     {
       "id": "browser-check",
       "requirement": "The Pages mode opens, a page can be created, arranged, saved and reopened in a browser",
-      "status": "not-started",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs). Scripts drove: create a page, Arrange, drag Text and Value, bind, Save, Done, reopen from the Pages list; held revisions; a sandboxed module; Save as module; the conversation module",
+        "Found and fixed: bindings not delivering after React's effect replay; Save as module losing the arrangement; New module opening in the running viewer; empty component groups shown",
+        "Not exercised: Index view, Index inspector and Records table against real data"
+      ]
     },
     {
       "id": "templates",

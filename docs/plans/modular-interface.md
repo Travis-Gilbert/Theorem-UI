@@ -8,11 +8,11 @@ in the vault, or a combination of others saved as one. The checklist is
 This is a first release. The owner's design (pasted with the request on
 2026-11-05) is the requirement, together with these decisions:
 
-| Decision | Owner's words |
-| --- | --- |
+| Decision                                                                      | Owner's words                                 |
+| ----------------------------------------------------------------------------- | --------------------------------------------- |
 | Pages and modules are files in the Theorem vault, through the SDK's Files API | "It should like use the files api in the SDK" |
-| Puck builds pages; the chat dock and the Vault stay on Dockview | "Puck for pages, keep Dockview (Recommended)" |
-| PRs #32 and #33 merged into this branch first | "Merge #32 and #33 now" |
+| Puck builds pages; the chat dock and the Vault stay on Dockview               | "Puck for pages, keep Dockview (Recommended)" |
+| PRs #32 and #33 merged into this branch first                                 | "Merge #32 and #33 now"                       |
 
 ## The concepts, kept apart
 
@@ -48,8 +48,11 @@ This is a first release. The owner's design (pasted with the request on
    - one instance of it takes the selection's place, wired as before.
 3. **Create or install** a new implementation, without compiling it into the
    app. **New module** writes a starter `module.json` and `index.html` into
-   `Modules/<name>/`, then opens the page to edit. Any folder there with a valid
-   manifest is in the catalog as soon as the vault reports it.
+   `Modules/<name>/`, then opens that page in the code editor, as source,
+   rather than in the viewer that would run it. Any folder there with a valid
+   manifest is in the catalog as soon as the vault reports it. A manifest that
+   arrives while a page is open joins the catalog without reloading the page,
+   so nothing being arranged is lost.
 
 ## Connections, exactly
 
@@ -69,9 +72,13 @@ This is a first release. The owner's design (pasted with the request on
 - **No model call per click.** Nothing in the runtime calls a model:
   - `composer.attach` adds a context reference to the composer;
   - `composer.ask` adds it and puts the cursor in the visible composer.
-  The person sends.
+    The person sends.
 - **Problems** are reported against each instance's fields while arranging:
   a source that is gone, a missing conversion, a cycle.
+- **One runtime per page view.** A view that React hides and shows again
+  (StrictMode does this in development) keeps its runtime. The runtime stops
+  when the view is hidden and resumes when it is shown, and each instance
+  registers its routes and handlers again.
 
 ## Chat as a module, without a second agent
 
@@ -165,9 +172,46 @@ See the checklist for what each item rests on. In short:
 - **Unit and component tests.** `bun test` runs:
   - `src/lib/modules/modules.test.ts`;
   - `src/lib/modules/sandbox.test.ts`;
+  - `src/lib/modules/store.test.tsx`, over the module catalog against a fake
+    vault;
   - `src/components/pages/page.test.tsx`, which renders through Puck's
     `Render` with the page runtime;
   - the hosted-app network policy test.
-- **Browser.** The browser check ran against a stub Theorem (see
+- **Browser.** Checked on 2026-11-06 with Playwright (Chromium) against the dev
+  server and a stub Theorem (see
   `docs/learnings/2026-11-03-run-a-worktree-against-a-stub-theorem.md`), not
-  live Home. Nothing here has been observed on theorem.rs.
+  live Home. Nothing here has been observed on theorem.rs. What ran:
+  - **A page from start to finish.** Create a page, arrange it, drag in a Text
+    and a Value, bind the Value to the Text, save, finish, and reopen it from
+    the Pages list. The value showed and followed edits while arranging, in
+    use and after reopening.
+  - **Held revisions.** A write from outside was offered with Show it and did
+    not replace the page until chosen. A conflicting save said so; Keep mine
+    wrote the page's version and Use the vault's showed the other.
+  - **A sandboxed module.** New module wrote its two files. While arranging it
+    showed only its summary. Run it started a frame with
+    `sandbox="allow-scripts"`, a blob URL and an opaque origin, and its output
+    reached a bound Value. Stop, Run and Revoke behaved as described. An
+    outside edit of its page made it ask again.
+  - **A composite.** Save as module on a Split gave the composite a named
+    input for the binding that crossed its edge. One instance replaced the
+    Split, and the value still arrived, in use and after a reload.
+  - **The conversation module.** A second instance on the page said the
+    conversation was shown elsewhere. A typed draft survived switching to
+    Chat mode and back, arranging and finishing. A full reload clears it,
+    since the draft lives in the session. The stub cannot answer a message, so
+    nothing was sent.
+- **What the browser check found and fixed.**
+  - Bindings made during a session never delivered. React's effect replay had
+    disposed the page's runtime, which stayed in use. Fixed with the
+    runtime's `resume`; `page.test.tsx` hides and shows a page to cover it.
+  - Save as module lost what was being arranged. The new manifest made the
+    catalog pending again and the page was swapped for its loading state.
+    Fixed in `useInstalledModules`; `store.test.tsx` covers it.
+  - New module opened its page in the viewer that runs it, which is blank
+    outside the desktop app. It now opens in the code editor.
+  - Empty component groups ("Installed", "Made from modules") are hidden.
+- **Not exercised.** The Index view, Index inspector and Records table
+  modules against real data; sending from the conversation module; that a
+  selection never attaches itself to the composer (source and unit tests
+  only).

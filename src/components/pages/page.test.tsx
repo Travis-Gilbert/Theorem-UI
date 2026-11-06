@@ -3,7 +3,9 @@
 // QueryClient). Only the plain built-ins are placed, so nothing reaches a
 // Theorem; fetch is not stubbed because nothing here calls it.
 import { Render } from '@puckeditor/core'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, expect, test } from 'bun:test'
+import { Activity, act } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
 import type { ComponentData, LayoutData } from '@/lib/modules/contract'
 import {
@@ -26,9 +28,9 @@ const instance = (
 
 const known = (type: string) => LAYOUT_TYPES.has(type)
 
-function renderPage(layout: LayoutData) {
+function page(layout: LayoutData) {
   const prepared = prepareLayout(layout, (type) => moduleById(type), known)
-  return render(
+  return (
     <PageRuntimeProvider>
       <PageScopeProvider layout={layout}>
         <Render
@@ -37,9 +39,14 @@ function renderPage(layout: LayoutData) {
           metadata={{ arranging: false }}
         />
       </PageScopeProvider>
-    </PageRuntimeProvider>,
+    </PageRuntimeProvider>
   )
 }
+
+const renderPage = (layout: LayoutData) => render(page(layout))
+
+const shownValues = (container: HTMLElement) =>
+  [...container.querySelectorAll('pre')].map((pre) => pre.textContent)
 
 test("a value bound to another instance's output shows it, inside a split too", async () => {
   const { container } = await renderPage({
@@ -67,6 +74,42 @@ test("a value bound to another instance's output shows it, inside a split too", 
   expect(shown).toBeDefined()
   // The unbound one says so rather than showing a stale or made-up value.
   expect(container.textContent).toContain('Nothing has come in yet.')
+})
+
+// Hiding a page (React's Activity) runs every effect's cleanup and showing it
+// runs them again on the same state, as a remount does; development's
+// StrictMode does the same. The browser check found that this left the
+// page's runtime disposed but still in use: values published before the
+// cleanup stayed, and nothing published after it arrived.
+test('a value published after the page is hidden and shown still arrives', async () => {
+  const layout = (text: string): LayoutData => ({
+    root: { props: {} },
+    content: [
+      instance('theorem.text', 'note', { text }),
+      instance('theorem.value', 'shown', {
+        bind: { value: { from: 'note', port: 'text' } },
+      }),
+    ],
+  })
+  const ui = (text: string, mode: 'visible' | 'hidden') => (
+    <Activity mode={mode}>{page(layout(text))}</Activity>
+  )
+  const { container, queryClient, root } = await render(ui('first', 'visible'))
+  const show = (text: string, mode: 'visible' | 'hidden') =>
+    act(() =>
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          {ui(text, mode)}
+        </QueryClientProvider>,
+      ),
+    )
+  await waitFor(() => shownValues(container).includes('"first"'))
+
+  show('first', 'hidden')
+  show('first', 'visible')
+  show('second', 'visible')
+  await waitFor(() => shownValues(container).includes('"second"'))
+  expect(shownValues(container)).toEqual(['"second"'])
 })
 
 test('a module this app does not have is held in place and comes back unchanged', async () => {
