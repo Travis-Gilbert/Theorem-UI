@@ -406,6 +406,13 @@ fn now() -> f64 {
     js_sys::Date::now()
 }
 
+/// The spinner's frame for now. The index is taken in f64: the clock over
+/// 80 ms is past `u32::MAX`, so a `usize` cast on wasm32 saturates and the
+/// spinner would stop on one frame.
+fn spinner() -> &'static str {
+    SPINNER[(now() / 80.0 % SPINNER.len() as f64) as usize]
+}
+
 /// One tab: an agent thread's transcript and its own prompt line.
 struct Session {
     id: String,
@@ -718,9 +725,8 @@ impl Session {
                 Span::styled(approval.summary.clone(), Style::new().fg(MUTED)),
             ])
         } else if self.snapshot.running {
-            let frame_index = (now() / 80.0) as usize % SPINNER.len();
             Line::from(vec![
-                Span::styled(format!(" {} ", SPINNER[frame_index]), Style::new().fg(GOLD)),
+                Span::styled(format!(" {} ", spinner()), Style::new().fg(GOLD)),
                 Span::styled(
                     self.snapshot.activity.clone().unwrap_or_else(|| "working".to_owned()),
                     Style::new().fg(MUTED),
@@ -1183,7 +1189,7 @@ impl App {
     /// The tab bar: Ratatui's Tabs, with a spinner on running tabs, a close
     /// mark on the active one and a trailing tab that opens another.
     fn draw_tabs(&mut self, frame: &mut Frame, area: Rect) {
-        let spin = SPINNER[(now() / 80.0) as usize % SPINNER.len()];
+        let spin = spinner();
         let mut titles: Vec<Line<'static>> = self
             .sessions
             .iter()
