@@ -66,7 +66,7 @@ function NewProjectDialog({
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-heading text-lg font-normal tracking-tight">
+            <DialogTitle className="font-heading text-lg font-semibold">
               New project
             </DialogTitle>
             <DialogDescription>

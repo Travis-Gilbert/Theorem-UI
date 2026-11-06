@@ -13,7 +13,7 @@ import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
 } from '@assistant-ui/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FC } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
@@ -32,16 +32,11 @@ import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-i
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import {
   ARTIFACT_PART,
-  kindLabel,
   readArtifact,
-  useThreadArtifacts,
 } from '@/components/artifacts/artifact-model'
-import { ArtifactActions } from '@/components/artifacts/artifact-actions'
+import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { followArtifact } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
-import { Button } from '@/components/ui/button'
 import {
   describeError,
   describeRunFailure,
@@ -49,8 +44,7 @@ import {
   theorem,
 } from '@/lib/theorem/client'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
-import { recordLaunch } from '@/lib/motion'
-import { cn } from '@/lib/utils'
+import { cn, humanize } from '@/lib/utils'
 
 type Json = Record<string, unknown>
 
@@ -68,95 +62,13 @@ function str(value: unknown): string | undefined {
 
 const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifact = readArtifact(data)
-  const artifacts = useThreadArtifacts()
-  const { open } = useArtifactView.getState()
-  const selected = useArtifactView(
-    (s) => s.openId !== undefined && s.openId === artifact?.artifactId,
-  )
-  const live = useAuiState((s) => s.message.status?.type === 'running')
-  const artifactId = artifact?.artifactId
-  const revision = artifact?.revision
-  const cardRef = useRef<HTMLDivElement>(null)
-  // The panel an artifact opens in flies out of this card.
-  const launch = () => {
-    if (cardRef.current && artifactId)
-      recordLaunch(
-        cardRef.current.getBoundingClientRect(),
-        `artifact:${artifactId}`,
-      )
-  }
-
-  // A revision produced by the run in progress opens beside the conversation,
-  // unless the person paused Follow the Agent.
-  useEffect(() => {
-    if (!live || !artifactId) return
-    if (cardRef.current)
-      recordLaunch(
-        cardRef.current.getBoundingClientRect(),
-        `artifact:${artifactId}`,
-      )
-    followArtifact(artifactId)
-  }, [live, artifactId, revision])
-
-  if (!artifact)
-    return <PartNotice name="theorem-artifact" note="could not be read" />
-  const versions = artifacts.get(artifact.artifactId) ?? [artifact]
-  const position = versions.findIndex((v) => v.revision === artifact.revision)
-  const latest = position === versions.length - 1
-  const show = () => {
-    launch()
-    open(artifact.artifactId, latest ? undefined : artifact.revision)
-  }
-
-  return (
-    <div
-      ref={cardRef}
-      data-slot="theorem-artifact-card"
-      data-artifact-id={artifact.artifactId}
-      data-selected={selected || undefined}
-      className={cn(
-        'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
-        'transition-colors duration-100',
-        selected && 'bg-selected outline outline-1 outline-redwood-ink',
-      )}
-    >
-      <button
-        type="button"
-        onClick={show}
-        className="flex min-w-0 flex-1 items-center gap-3 text-start"
-        aria-label={`Open ${artifact.title}`}
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
-          <Icon.Artifact className="size-5 animate-float motion-reduce:animate-none" />
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span
-            className={cn(
-              'truncate text-sm',
-              selected ? 'font-semibold' : 'font-medium',
-            )}
-          >
-            {artifact.title}
-          </span>
-          <span className="truncate text-xs text-ink-faint">
-            {kindLabel(artifact)}
-            {versions.length > 1 && ` · v${position + 1}`}
-          </span>
-        </span>
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Open"
-          className="group/open size-8 p-1.5"
-          onClick={show}
-        >
-          <Icon.Open className="size-4" />
-        </Button>
-        <ArtifactActions key={artifact.revision} artifact={artifact} />
-      </div>
-    </div>
+  return artifact ? (
+    <ArtifactMessage
+      key={`${artifact.artifactId}:${artifact.rendererId}:${artifact.documentId ?? ''}`}
+      artifact={artifact}
+    />
+  ) : (
+    <PartNotice name="theorem-artifact" />
   )
 }
 
@@ -240,7 +152,7 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
             : 'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-30 in-data-live:-spin-in-45',
         )}
       />
-      <span className="font-mono">{name}</span>
+      <span>{humanize(name)}</span>
       {failed && ' · failed'}
       {state === 'pending' && !running && ' · did not finish'}
     </span>
@@ -295,6 +207,12 @@ export function readApproval(
 }
 
 type ApprovalChoice = { optionId: string } | { decision: 'allow' | 'deny' }
+
+/** The tool, and its risk when Theorem marks it above low. */
+function approvalSubtitle({ toolName, risk }: TheoremApproval) {
+  const elevated = risk === 'medium' || risk === 'high'
+  return elevated ? `${humanize(toolName)} · ${risk} risk` : humanize(toolName)
+}
 
 /** What a plain allow or deny sends: allow once, or reject; a bare decision when the approval offers no options. */
 export function approvalChoice(
@@ -385,7 +303,7 @@ const TheoremApprovalCard: FC<{
       <ApprovalCard
         state={state}
         title={approval.summary}
-        subtitle={`${approval.toolName} · risk: ${approval.risk.replace(/_/g, ' ')}`}
+        subtitle={approvalSubtitle(approval)}
         command={argsText || undefined}
         icon={<Icon.Settings className="size-4" />}
         className="max-w-md rounded-artifact border-separator bg-artifact"
@@ -577,8 +495,8 @@ function citationExcerpt(sourceKind: unknown, excerpt: string | undefined) {
 const CitationPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
   const provenance = object(part.provenance)
-  const label = str(part.label) ?? str(part.sourceId) ?? 'Source'
   const url = citationUrl(provenance.url)
+  const label = str(part.label) ?? (url && new URL(url).hostname) ?? 'Source'
   const excerpt = citationExcerpt(part.sourceKind, str(provenance.excerpt))
   const source = retrievedSourceKinds.get(part.sourceKind)
   const title = source
@@ -616,14 +534,17 @@ const ErrorPart: DataMessagePartComponent = ({ data }) => {
       role="alert"
       className="my-3 max-w-md rounded-lg bg-error-container px-4 py-3 text-sm text-error-ink"
     >
-      <p className="font-medium">
-        {describeRunFailure(part)}
-      </p>
-      <p className="mt-0.5 font-mono text-xs opacity-80">
-        {str(part.code) ?? 'error'}
-      </p>
+      <p className="font-medium">{describeRunFailure(part)}</p>
     </div>
   )
+}
+
+/** Upload states worth a word; a ready attachment needs none. */
+const ATTACHMENT_STATES: Partial<Record<string, string>> = {
+  pending: 'uploading',
+  uploading: 'uploading',
+  failed: 'failed',
+  refused: 'refused',
 }
 
 const AttachmentPart: DataMessagePartComponent = ({ data }) => {
@@ -632,9 +553,8 @@ const AttachmentPart: DataMessagePartComponent = ({ data }) => {
     <span className="me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted">
       <Icon.Attachment className="size-3" />
       {str(part.name) ?? 'Attachment'}
-      {str(part.state) &&
-        str(part.state) !== 'ready' &&
-        ` · ${str(part.state)}`}
+      {ATTACHMENT_STATES[str(part.state) ?? 'ready'] &&
+        ` · ${ATTACHMENT_STATES[str(part.state) ?? 'ready']}`}
     </span>
   )
 }
@@ -679,15 +599,18 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
-/** Named placeholder for a part this client cannot draw. */
-const PartNotice: FC<{ name: string; note: string }> = ({ name, note }) => (
-  <p className="my-2 inline-flex items-center gap-1.5 rounded-md border border-dashed border-separator px-2 py-1 font-mono text-xs text-ink-faint">
-    {name.replace(/^theorem-/, '')} part · {note}
+/** Placeholder for a part this client cannot draw; the part's name stays in the DOM for debugging. */
+const PartNotice: FC<{ name: string }> = ({ name }) => (
+  <p
+    data-part={name}
+    className="my-2 inline-flex items-center gap-1.5 rounded-md border border-dashed border-separator px-2 py-1 text-xs text-ink-faint"
+  >
+    This content can't be shown here.
   </p>
 )
 
 const FallbackPart: DataMessagePartComponent = ({ name }) => (
-  <PartNotice name={name} note="not rendered by Theorem UI yet" />
+  <PartNotice name={name} />
 )
 
 /** Keeps a part that throws inside its own slot instead of unmounting the chat. */
@@ -696,7 +619,7 @@ function guarded(
   Render: DataMessagePartComponent,
 ): DataMessagePartComponent {
   const errorComponent = () => (
-    <PartNotice name={name} note="could not be rendered" />
+    <PartNotice name={name} />
   )
   return (props) => (
     <CatchBoundary

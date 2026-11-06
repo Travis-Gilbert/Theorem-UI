@@ -14,7 +14,7 @@ import { DocumentApp } from '@/components/blocks/document-app'
 import { cn } from '@/lib/utils'
 import type { TheoremArtifact } from './artifact-model'
 
-type RendererProps = { artifact: TheoremArtifact }
+type RendererProps = { artifact: TheoremArtifact; initiallyRunning?: boolean }
 
 const codeSurface =
   '[&_pre]:rounded-lg! [&_pre]:border! [&_pre]:border-separator! [&_pre]:bg-raised!'
@@ -86,9 +86,17 @@ const DiagramArtifact: FC<RendererProps> = ({ artifact }) => (
   <MermaidDiagram code={artifact.content} className="rounded-lg bg-raised" />
 )
 
-const AppArtifact: FC<RendererProps> = ({artifact}) => artifact.documentId
-  ? <DocumentApp key={artifact.documentId} documentId={artifact.documentId} pinnedPosition={artifact.documentPosition}/>
-  : <p role="alert">This App result has no saved document reference.</p>
+const AppArtifact: FC<RendererProps> = ({ artifact, initiallyRunning }) =>
+  artifact.documentId ? (
+    <DocumentApp
+      key={artifact.documentId}
+      documentId={artifact.documentId}
+      pinnedPosition={artifact.documentPosition}
+      initiallyRunning={initiallyRunning}
+    />
+  ) : (
+    <p role="alert">This App couldn't be opened.</p>
+  )
 
 const RENDERERS: Record<string, FC<RendererProps>> = {
   'theorem-app': AppArtifact,
@@ -101,15 +109,15 @@ export function hasRenderer(artifact: TheoremArtifact): boolean {
   return artifact.rendererId in RENDERERS
 }
 
-/** Named fallback: says which renderer is missing and shows the part's text summary. */
+/** Fallback for a renderer this client lacks: the part's text summary; the renderer id stays in the DOM for debugging. */
 const UnsupportedArtifact: FC<RendererProps> = ({ artifact }) => (
-  <div className="flex flex-col gap-3">
+  <div
+    data-renderer={artifact.rendererId}
+    data-contract={artifact.contractVersion}
+    className="flex flex-col gap-3"
+  >
     <p className="text-sm text-ink-muted">
-      Theorem UI has no renderer for{' '}
-      <span className="font-mono text-[13px] text-ink">
-        {artifact.rendererId}
-      </span>{' '}
-      ({artifact.kind}, {artifact.contractVersion}). Showing its text summary.
+      A preview isn't available for this result. Showing its summary.
     </p>
     <p className="whitespace-pre-wrap rounded-lg border border-separator bg-raised p-4 text-sm leading-6">
       {artifact.fallbackText}
@@ -117,7 +125,10 @@ const UnsupportedArtifact: FC<RendererProps> = ({ artifact }) => (
   </div>
 )
 
-export const ArtifactBody: FC<RendererProps> = ({ artifact }) => {
+export const ArtifactBody: FC<RendererProps> = ({
+  artifact,
+  initiallyRunning,
+}) => {
   const Renderer = RENDERERS[artifact.rendererId] ?? UnsupportedArtifact
-  return <Renderer artifact={artifact} />
+  return <Renderer artifact={artifact} initiallyRunning={initiallyRunning} />
 }

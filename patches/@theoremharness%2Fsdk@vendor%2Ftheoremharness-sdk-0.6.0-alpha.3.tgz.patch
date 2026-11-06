@@ -1,0 +1,119 @@
+diff --git a/dist/assistant-ui.cjs b/dist/assistant-ui.cjs
+index 631df4f7dfe0c35a8f86e9c90044e5f30d3406a8..d3006e76d3cd6e33bb8f4dc3981bcfaed4c7b0b7 100644
+--- a/dist/assistant-ui.cjs
++++ b/dist/assistant-ui.cjs
+@@ -1,4 +1,5 @@
+ "use strict";
++const sendWithBackgroundRetry = require("./background-send-retry.cjs");
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+ var __getOwnPropNames = Object.getOwnPropertyNames;
+@@ -275,13 +276,13 @@ function createTheoremChatAdapter(options) {
+             ...requestTurnOptions
+           });
+         } else {
+-          turn = await client.chat.messages.send({
++          turn = await sendWithBackgroundRetry(client, {
+             threadId,
+             branchId: snapshot.thread.selectedBranchId,
+             text,
+             ...headers,
+             ...requestTurnOptions
+-          });
++          }, snapshot, abortSignal);
+         }
+         run = turn.run;
+         const record = "message" in turn.record ? turn.record.message : turn.record;
+diff --git a/dist/assistant-ui.js b/dist/assistant-ui.js
+index 1953a5a476432c8a5927a8801f3a9f870083ed87..80d48c744d055b90f3a6ca37e14a5f4ba7d209ca 100644
+--- a/dist/assistant-ui.js
++++ b/dist/assistant-ui.js
+@@ -1,3 +1,4 @@
++import sendWithBackgroundRetry from "./background-send-retry.cjs";
+ import "./chunk-U67V476Y.js";
+ 
+ // src/assistant-ui.ts
+@@ -251,13 +252,13 @@ function createTheoremChatAdapter(options) {
+             ...requestTurnOptions
+           });
+         } else {
+-          turn = await client.chat.messages.send({
++          turn = await sendWithBackgroundRetry(client, {
+             threadId,
+             branchId: snapshot.thread.selectedBranchId,
+             text,
+             ...headers,
+             ...requestTurnOptions
+-          });
++          }, snapshot, abortSignal);
+         }
+         run = turn.run;
+         const record = "message" in turn.record ? turn.record.message : turn.record;
+diff --git a/node_modules/@theoremharness/sdk/dist/background-send-retry.cjs b/dist/background-send-retry.cjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..e598bb648c194d86cc79b6286a905e8a535e0286
+--- /dev/null
++++ b/dist/background-send-retry.cjs
+@@ -0,0 +1,62 @@
++const { dequal: equal } = require("dequal");
++
++// Only delivery lifecycle fields may differ. Titles, branch and all unknown
++// thread/snapshot scope metadata remain part of the exact comparison.
++function stableScope(snapshot) {
++  const { messages, liveRun, thread, ...scope } = snapshot;
++  const { revision, updatedAtMs, lastMessageAtMs, activeRunCursor, lastRun, ...identity } = thread;
++  return { ...scope, thread: identity };
++}
++
++function idle(snapshot) {
++  return !snapshot.liveRun && !snapshot.thread.activeRunId && !snapshot.thread.pendingTurn;
++}
++
++function completionChain(messages, parentId) {
++  return messages.every((message) => {
++    if (message.role !== "assistant" || message.parentMessageId !== parentId ||
++        typeof message.runId !== "string" || !message.runId) return false;
++    parentId = message.messageId;
++    return true;
++  });
++}
++
++function onlyCompletionAppend(before, after) {
++  const count = before.messages.length;
++  const parent = before.messages.at(-1);
++  return parent?.role === "assistant" && after.messages.length > count &&
++    equal(before.messages, after.messages.slice(0, count)) &&
++    completionChain(after.messages.slice(count), parent.messageId);
++}
++
++function safeBackgroundAdvance(before, after) {
++  return idle(before) && idle(after) && after.thread.revision > before.thread.revision &&
++    equal(stableScope(before), stableScope(after)) && onlyCompletionAppend(before, after);
++}
++
++// The SDK's native send is the only caller: this exact problem code denotes a
++// precommit revision refusal, unlike transport failures or a pending run start.
++function revisionRefused(error) {
++  return error?.statusCode === 409 && error?.body?.code === "chat_revision_conflict";
++}
++
++async function sendWithBackgroundRetry(client, request, snapshot, abortSignal) {
++  try {
++    return await client.chat.messages.send(request);
++  } catch (error) {
++    if (!revisionRefused(error)) throw error;
++    abortSignal.throwIfAborted();
++    const current = await client.chat.threads.get({ threadId: request.threadId }, { abortSignal });
++    abortSignal.throwIfAborted();
++    if (!safeBackgroundAdvance(snapshot, current)) throw error;
++    // expectedRevision participates in the durable idempotency hash. A refused
++    // attempt needs a new key; ambiguous sends still use normal saved replay.
++    return client.chat.messages.send({
++      ...request,
++      "If-Match": String(current.thread.revision),
++      "Idempotency-Key": crypto.randomUUID(),
++    });
++  }
++}
++
++module.exports = sendWithBackgroundRetry;

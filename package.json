@@ -21,6 +21,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@assistant-ui/core": "0.3.30",
     "@assistant-ui/react": "0.15.30",
     "@assistant-ui/react-markdown": "^0.14.23",
     "@base-ui/react": "^1.9.0",
@@ -37,6 +38,7 @@
     "@dnd-kit/modifiers": "9.0.0",
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
+    "@floating-ui/react-dom": "^2.1.9",
     "@flowershow/remark-wiki-link": "3.4.0",
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
@@ -120,6 +122,7 @@
     "next-themes": "^0.4.6",
     "oauth4webapi": "^3.8.8",
     "object-inspect": "1.13.4",
+    "p-map": "7.1.1",
     "papaparse": "5.7.0",
     "pathe": "2.0.3",
     "pdfjs-dist": "6.3.289",
@@ -193,6 +196,7 @@
   ],
   "patchedDependencies": {
     "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch",
-    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
+    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
+    "@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.3.tgz": "patches/@theoremharness%2Fsdk@vendor%2Ftheoremharness-sdk-0.6.0-alpha.3.tgz.patch"
   }
 }

@@ -23,6 +23,7 @@ import {
 import {
   TheoremRuntimeProvider,
   createHistoryAdapter,
+  createThreadListAdapter,
   runTurn,
 } from './runtime'
 
@@ -35,6 +36,20 @@ let lostReplies = 0
 let answers: Array<Response | Promise<Response>> = []
 /** The run a thread's snapshot says is live. */
 let liveRunId: string | undefined
+const titleThreads = new Map<string, { title: string; revision: number; text: string }>()
+const inaccessibleTitles = new Set<string>()
+let titleEvents: string[] = []
+let concurrentTitle: string | undefined
+let titleReadGate: (() => Promise<void>) | undefined
+let titleReads: string[] = []
+
+function titleSnapshot(threadId: string) {
+  const saved = titleThreads.get(threadId)!
+  return {
+    thread: { threadId, title: saved.title, revision: saved.revision, status: 'regular', selectedBranchId: 'branch-1' },
+    messages: saved.text ? [{ messageId: 'first-user', role: 'user', parts: [{ partId: 'text-1', type: 'text', payload: { text: saved.text } }] }] : [],
+  }
+}
 
 const revisionConflict = () =>
   Response.json(
@@ -68,6 +83,7 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
     })
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
+    titleEvents.push(`send:${request.headers.get('If-Match')}`)
     const { text } = (await request.json()) as { text: string }
     sends.push({ key: request.headers.get('Idempotency-Key') ?? '', text })
     if (lostReplies > 0) {
@@ -82,7 +98,28 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
       )
     )
   }
-  if (path.endsWith('/threads')) return Response.json({ items: [] })
+  if (path.endsWith('/threads')) return Response.json({ items: [...titleThreads.keys()].map((id) => titleSnapshot(id).thread) })
+  const threadId = path.split('/').pop()!
+  if (inaccessibleTitles.has(threadId)) return Response.json({ code: 'forbidden' }, { status: 403 })
+  if (titleThreads.has(threadId)) {
+    if (request.method === 'PATCH') {
+      titleEvents.push(`title:${request.headers.get('If-Match')}`)
+      const saved = titleThreads.get(threadId)!
+      if (concurrentTitle) {
+        saved.title = concurrentTitle
+        saved.revision += 1
+        concurrentTitle = undefined
+        return revisionConflict()
+      }
+      const body = await request.json() as { title: string }
+      saved.title = body.title
+      saved.revision += 1
+      return Response.json({ record: titleSnapshot(threadId).thread })
+    }
+    titleReads.push(threadId)
+    await titleReadGate?.()
+    return Response.json(titleSnapshot(threadId))
+  }
   return Response.json({
     thread: {
       threadId: path.split('/').pop(),
@@ -114,6 +151,12 @@ beforeEach(() => {
   lostReplies = 0
   answers = []
   liveRunId = undefined
+  titleThreads.clear()
+  inaccessibleTitles.clear()
+  titleEvents = []
+  concurrentTitle = undefined
+  titleReadGate = undefined
+  titleReads = []
 })
 afterEach(cleanup)
 
@@ -321,4 +364,103 @@ test('a send refused after its chat was left waits for that chat', async () => {
 
   await switchChat(other)
   expect(composer()?.textContent).toBe('')
+})
+
+
+test('existing New Chat rows get meaningful projected titles without revision writes', async () => {
+  titleThreads.set('title-old', {
+    title: 'New Chat',
+    revision: 1,
+    text: 'Compare SQLite and PostgreSQL',
+  })
+  titleThreads.set('title-custom', {
+    title: 'My database notes',
+    revision: 2,
+    text: 'An older prompt',
+  })
+  titleThreads.set('title-inaccessible', {
+    title: 'New Chat',
+    revision: 1,
+    text: 'Private',
+  })
+  inaccessibleTitles.add('title-inaccessible')
+  const adapter = createThreadListAdapter('project')
+  const page = await adapter.list()
+  expect(page.threads.map((thread) => thread.title)).toEqual([
+    'Compare SQLite and PostgreSQL',
+    'My database notes',
+    'New Chat',
+  ])
+  expect((await adapter.fetch('title-old')).title).toBe(
+    'Compare SQLite and PostgreSQL',
+  )
+  expect(titleEvents).toEqual([])
+  expect(titleReads).not.toContain('title-custom')
+})
+
+test.each(['New Chat', ''])(
+  'automatic title generation is read-only for %j',
+  async (title) => {
+    titleThreads.set('title-stream', { title, revision: 1, text: '' })
+    const stream = await createThreadListAdapter('project').generateTitle(
+      'title-stream',
+      options('Plan a small notes app').messages,
+    )
+    const reader = stream.getReader()
+    let text = ''
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      if (value.type === 'text-delta') text += value.textDelta
+    }
+    expect(text).toBe('Plan a small notes app')
+    expect(titleEvents).toEqual([])
+  },
+)
+
+test('durable automatic title is written before the revision-checked SDK send', async () => {
+  const threadId = `title-run-${crypto.randomUUID()}`
+  titleThreads.set(threadId, { title: 'New Chat', revision: 1, text: '' })
+  await drain(runTurn(threadId, options('Plan a small notes app')))
+  expect(titleThreads.get(threadId)?.title).toBe('Plan a small notes app')
+  expect(titleEvents).toEqual(['title:1', 'send:2'])
+})
+
+test('a concurrent custom rename wins over automatic naming', async () => {
+  const threadId = `title-rename-${crypto.randomUUID()}`
+  titleThreads.set(threadId, { title: 'New Chat', revision: 1, text: '' })
+  concurrentTitle = 'My chosen title'
+  await drain(runTurn(threadId, options('Plan a small notes app')))
+  expect(titleThreads.get(threadId)?.title).toBe('My chosen title')
+  expect(titleEvents).toEqual(['title:1', 'send:2'])
+})
+
+test('old title recovery bounds concurrent history reads', async () => {
+  for (let index = 0; index < 9; index += 1) {
+    titleThreads.set(`title-bound-${index}`, {
+      title: 'New Chat',
+      revision: 1,
+      text: `Question ${index}`,
+    })
+  }
+  let active = 0
+  let peak = 0
+  const releases: Array<() => void> = []
+  titleReadGate = async () => {
+    active += 1
+    peak = Math.max(peak, active)
+    await new Promise<void>((resolve) => releases.push(resolve))
+    active -= 1
+  }
+  const pending = createThreadListAdapter('project').list()
+  await waitFor(() => titleReads.length === 4)
+  expect(active).toBe(4)
+  releases.splice(0).forEach((release) => release())
+  await waitFor(() => titleReads.length === 8)
+  releases.splice(0).forEach((release) => release())
+  await waitFor(() => titleReads.length === 9)
+  releases.splice(0).forEach((release) => release())
+  expect((await pending).threads).toHaveLength(9)
+  expect(peak).toBe(4)
+  expect(titleEvents).toEqual([])
 })

@@ -208,11 +208,13 @@ function AppToolbar({
   reload: () => void
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-      <span>Current revision {String(snapshot.revision.position)}</span>
+    <div
+      data-revision={String(snapshot.revision.position)}
+      className="flex flex-wrap items-center gap-2 text-xs text-ink-muted"
+    >
       {pinnedPosition !== undefined &&
         String(pinnedPosition) !== String(snapshot.revision.position) && (
-          <span>· Result referenced revision {pinnedPosition}</span>
+          <span>Changed since this result</span>
         )}
       <Button size="xs" variant="outline" onClick={toggle}>
         {running ? 'Stop App' : 'Run App'}
@@ -238,12 +240,20 @@ function AppToolbar({
 export function DocumentApp({
   documentId,
   pinnedPosition,
+  initiallyRunning = false,
 }: {
   documentId: string
   pinnedPosition?: number | string
+  initiallyRunning?: boolean
 }) {
   const app = useMemo(() => appDocumentFor(documentId), [documentId])
-  return <DocumentAppView app={app} pinnedPosition={pinnedPosition} />
+  return (
+    <DocumentAppView
+      app={app}
+      pinnedPosition={pinnedPosition}
+      initiallyRunning={initiallyRunning}
+    />
+  )
 }
 
 function useAppSelection(app: AppDocument) {
@@ -261,13 +271,15 @@ function useAppSelection(app: AppDocument) {
 export function DocumentAppView({
   app,
   pinnedPosition,
+  initiallyRunning = false,
 }: {
   app: AppDocument
   pinnedPosition?: number | string
+  initiallyRunning?: boolean
 }) {
   const { snapshot, error, attempt } = useAppSnapshot(app, pinnedPosition)
   const [edit, setEdit] = useState<Edit>()
-  const [running, setRunning] = useState(false)
+  const [running, setRunning] = useState(initiallyRunning)
   const [selection, setSelection] = useAppSelection(app)
   if (!snapshot)
     return (
