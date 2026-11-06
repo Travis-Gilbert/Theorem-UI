@@ -419,16 +419,22 @@ export function TerminalAgent(props: AgentProps) {
 /**
  * The WASM module, initialised once for every terminal. Two concurrent inits
  * each instantiate it, and the second replaces the first under the first
- * terminal's live closures.
+ * terminal's live closures. Every terminal draws in the colours the page
+ * works out from the workspace around it.
  */
 let wasmModule: Promise<typeof TerminalWasm> | undefined
 const loadWasm = () =>
-  (wasmModule ??= import('@/terminal-wasm/theorem_terminal').then(
-    async (wasm) => {
-      await wasm.default()
-      return wasm
-    },
-  ))
+  (wasmModule ??= Promise.all([
+    import('@/terminal-wasm/theorem_terminal'),
+    import('./live-terminal-theme'),
+  ]).then(async ([wasm, { useTerminalTheme }]) => {
+    await wasm.default()
+    const paint = ({ theme }: { theme: object }) =>
+      wasm.set_palette(JSON.stringify(theme))
+    paint(useTerminalTheme.getState())
+    useTerminalTheme.subscribe(paint)
+    return wasm
+  }))
 
 /** One Ratzilla mount per host element; its frames stop when the element leaves the page. */
 const mounts = new WeakMap<HTMLElement, Promise<TerminalHandle>>()
