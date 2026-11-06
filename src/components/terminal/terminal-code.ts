@@ -96,6 +96,64 @@ export function highlightLines(code: string, lang = ''): Token[][] {
   return lines
 }
 
+/** Lines of output a tool row carries for ctrl+o; the rest is counted. */
+export const OUTPUT_LINES = 40
+
+export type Output = { lang: string; lines: Token[][]; more: number }
+
+const DIFF = /^(diff --git |@@ -\d|--- \S|\+\+\+ \S)/m
+
+/** The language a file path's extension names, if one is registered. */
+function languageOf(path: string | undefined) {
+  const ext = path?.match(/\.([\w-]+)$/)?.[1]
+  const lang = highlighter.normalizeLanguage(ext ?? '')
+  return lang === 'plaintext' ? '' : lang
+}
+
+/**
+ * A tool's result as the terminal shows it under its row: text as returned,
+ * a unified diff as a diff, file content in its path's language, structured
+ * results as JSON. Long output keeps its first lines and counts the rest.
+ */
+export function toolOutput(
+  result: unknown,
+  path: string | undefined,
+): Output | undefined {
+  if (result === undefined || result === null || result === '') return
+  const content =
+    typeof result === 'object' && 'content' in result
+      ? result.content
+      : undefined
+  const texts = Array.isArray(content)
+    ? content.flatMap((item: unknown) =>
+        item &&
+        typeof item === 'object' &&
+        'text' in item &&
+        typeof item.text === 'string'
+          ? [item.text]
+          : [],
+      )
+    : []
+  const text =
+    typeof result === 'string'
+      ? result
+      : texts.length
+        ? texts.join('\n')
+        : JSON.stringify(result, null, 2)
+  const lang =
+    typeof result !== 'string' && !texts.length
+      ? 'json'
+      : DIFF.test(text)
+        ? 'diff'
+        : languageOf(path)
+  const rows = text.replace(/\n$/, '').split('\n')
+  return {
+    lang,
+    lines: highlightLines(rows.slice(0, OUTPUT_LINES).join('\n'), lang),
+    more: Math.max(0, rows.length - OUTPUT_LINES),
+  }
+}
+
 /**
  * The agent's markdown with its top-level code blocks lifted out and
  * highlighted, in order. Code nested in a list or quote stays in the prose

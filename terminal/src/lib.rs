@@ -72,6 +72,10 @@ const INDENT: &str = "  ";
 const NOTICE_MS: f64 = 4000.0;
 /// Columns at the right of the header bar left clear for the page's close button.
 const CLOSE_COLUMNS: u16 = 4;
+/// Finished tools in a row that fold into one line while output is hidden.
+const GROUP_AT: usize = 3;
+/// Marks where the agent is writing while its run works.
+const CARET: &str = "▍";
 /// The hollow cursor's blink half-period; it holds solid this long after a key.
 const BLINK_MS: f64 = 530.0;
 
@@ -121,6 +125,8 @@ struct Snapshot {
     error: Option<String>,
     /// The run's pending approval, answered with y or n.
     approval: Option<Approval>,
+    /// What the run says it is doing, from its latest progress part.
+    activity: Option<String>,
     messages: Vec<Message>,
     /// What the person sent while a run worked that the transcript does not
     /// show yet: still sending, queued, refused, or going as the next turn.
@@ -166,6 +172,15 @@ enum Part {
         /// running, complete, error or approval.
         #[serde(default)]
         status: String,
+        /// What it returned, shown under the row with ctrl+o.
+        #[serde(default)]
+        output: Option<Output>,
+    },
+    /// The program the native agent writes and runs, streaming as it types.
+    Program {
+        lines: Vec<Vec<Token>>,
+        #[serde(default)]
+        streaming: bool,
     },
     /// Sent while the run worked, drawn where the run took it in.
     Input(Sent),
@@ -177,6 +192,14 @@ enum Part {
     },
     #[serde(other)]
     Other,
+}
+
+/// A tool's result, highlighted, its first lines and a count of the rest.
+#[derive(Deserialize)]
+struct Output {
+    lines: Vec<Vec<Token>>,
+    #[serde(default)]
+    more: usize,
 }
 
 /// A run of code text and its highlight class (TanStack Highlight's names).
@@ -260,10 +283,13 @@ fn indented(mut line: Line<'static>) -> Line<'static> {
     line
 }
 
+/// Transcript lines carry their indent, so blank means nothing but spaces.
+fn blank(line: &Line) -> bool {
+    line.spans.iter().all(|span| span.content.trim().is_empty())
+}
+
 /// Ends the transcript so far with one blank line, unless it already does.
 fn separate(lines: &mut Vec<Line<'static>>) {
-    // Transcript lines carry their indent, so blank means nothing but spaces.
-    let blank = |line: &Line| line.spans.iter().all(|span| span.content.trim().is_empty());
     if lines.last().is_some_and(|line| !blank(line)) {
         lines.push(Line::default());
     }
@@ -288,22 +314,67 @@ fn token_style(class: Option<&str>) -> Style {
     }
 }
 
+/// Code tokens as one line in the slate's colours.
+fn token_line(tokens: &[Token]) -> Vec<Span<'static>> {
+    tokens
+        .iter()
+        .map(|token| {
+            // A tab would leave the cell grid; it takes four columns.
+            Span::styled(token.t.replace('\t', "    "), token_style(token.c.as_deref()))
+        })
+        .collect()
+}
+
+/// A tool's output under its row, aligned with the tool's name.
+fn output_lines(output: &Output) -> Vec<Line<'static>> {
+    let lead = format!("{INDENT}  ");
+    let mut lines: Vec<Line<'static>> = output
+        .lines
+        .iter()
+        .map(|tokens| {
+            let mut spans = vec![Span::raw(lead.clone())];
+            spans.extend(token_line(tokens));
+            Line::from(spans)
+        })
+        .collect();
+    if output.more > 0 {
+        let more = output.more;
+        lines.push(Line::styled(
+            format!("{lead}… {more} more line{}", if more == 1 { "" } else { "s" }),
+            Style::new().fg(MUTED),
+        ));
+    }
+    lines
+}
+
+/// Finished tools in a row as one line: how many, and which, in order.
+fn group_row(parts: &[Part], width: u16) -> Line<'static> {
+    let mut counts: Vec<(&str, usize)> = Vec::new();
+    for part in parts {
+        if let Part::Tool { name, .. } = part {
+            match counts.iter_mut().find(|(seen, _)| seen == name) {
+                Some((_, count)) => *count += 1,
+                None => counts.push((name, 1)),
+            }
+        }
+    }
+    let summary = counts
+        .iter()
+        .map(|(name, count)| if *count > 1 { format!("{name} ×{count}") } else { (*name).to_owned() })
+        .collect::<Vec<_>>()
+        .join(" · ");
+    tool_row(&format!("{} tools", parts.len()), &summary, "complete", width)
+}
+
 /// A code block between its fences, the opening one naming the language.
-fn code_lines(lang: &str, code: &[Vec<Token>]) -> Vec<Line<'static>> {
+/// A block still being written has no closing fence yet.
+fn code_lines(lang: &str, code: &[Vec<Token>], closed: bool) -> Vec<Line<'static>> {
     let fence = Style::new().fg(MUTED);
     let mut lines = vec![Line::styled(format!("```{lang}"), fence)];
-    lines.extend(code.iter().map(|tokens| {
-        Line::from(
-            tokens
-                .iter()
-                .map(|token| {
-                    // A tab would leave the cell grid; it takes four columns.
-                    Span::styled(token.t.replace('\t', "    "), token_style(token.c.as_deref()))
-                })
-                .collect::<Vec<_>>(),
-        )
-    }));
-    lines.push(Line::styled("```", fence));
+    lines.extend(code.iter().map(|tokens| Line::from(token_line(tokens))));
+    if closed {
+        lines.push(Line::styled("```", fence));
+    }
     lines
 }
 
@@ -327,6 +398,10 @@ struct Session {
     /// Body height at the last draw, for paging.
     page: usize,
     help: bool,
+    /// Whether tool output and finished programs show (ctrl+o).
+    expanded: bool,
+    /// Whether the transcript has output for ctrl+o to show.
+    has_output: bool,
     notice: Option<(String, f64)>,
     /// Transcript lines, rebuilt when the snapshot or the width changes.
     lines: Vec<Line<'static>>,
@@ -346,6 +421,8 @@ impl Session {
             scroll_back: 0,
             page: 10,
             help: false,
+            expanded: false,
+            has_output: false,
             notice: None,
             lines: Vec::new(),
             built_for: None,
@@ -366,7 +443,12 @@ impl Session {
         let mut lines: Vec<Line<'static>> = Vec::new();
         let options = Options::new(Slate).table_width(width.saturating_sub(INDENT.len() as u16));
 
-        for message in &self.snapshot.messages {
+        let last_message = self.snapshot.messages.len().saturating_sub(1);
+        let mut caret = None;
+        self.has_output = self.snapshot.messages.iter().flat_map(|m| &m.parts).any(|part| {
+            matches!(part, Part::Tool { output: Some(_), .. } | Part::Program { streaming: false, .. })
+        });
+        for (index, message) in self.snapshot.messages.iter().enumerate() {
             if message.role == "user" {
                 let text: String = message
                     .parts
@@ -391,14 +473,37 @@ impl Session {
                 lines.push(Line::default());
                 continue;
             }
+            let parts = &message.parts;
+            let writing = self.snapshot.running && index == last_message;
             // A code block keeps a blank line from what comes before and after it.
             let mut after_code = false;
-            for part in &message.parts {
-                let is_code = matches!(part, Part::Code { .. });
+            let mut at = 0;
+            while at < parts.len() {
+                // Finished tools in a row fold into one line while output is hidden.
+                let finished = parts[at..]
+                    .iter()
+                    .take_while(|part| matches!(part, Part::Tool { status, .. } if status == "complete"))
+                    .count();
+                if !self.expanded && finished >= GROUP_AT {
+                    if after_code {
+                        separate(&mut lines);
+                        after_code = false;
+                    }
+                    lines.push(group_row(&parts[at..at + finished], width));
+                    at += finished;
+                    continue;
+                }
+                let part = &parts[at];
+                let last_part = at + 1 == parts.len();
+                // A finished program folds to a row unless shown; the one being written shows.
+                let open_program = matches!(part, Part::Program { streaming, .. }
+                    if *streaming || self.expanded || (writing && last_part));
+                let is_code = matches!(part, Part::Code { .. }) || open_program;
                 if is_code || after_code {
                     separate(&mut lines);
                 }
                 after_code = is_code;
+                let start = lines.len();
                 match part {
                     Part::Text { text } => {
                         let rendered = tui_markdown::from_str_with_options(text, &options);
@@ -415,18 +520,51 @@ impl Session {
                         name,
                         summary,
                         status,
-                    } => lines.push(tool_row(name, summary, status, width)),
+                        output,
+                    } => {
+                        lines.push(tool_row(name, summary, status, width));
+                        if let Some(output) = output.as_ref().filter(|_| self.expanded) {
+                            lines.extend(output_lines(output));
+                        }
+                    }
+                    Part::Program {
+                        lines: code,
+                        streaming,
+                    } => {
+                        if open_program {
+                            lines.extend(code_lines("program", code, !streaming).into_iter().map(indented));
+                        } else {
+                            let count = code.len();
+                            let summary = format!("{count} line{}", if count == 1 { "" } else { "s" });
+                            lines.push(tool_row("program", &summary, "complete", width));
+                        }
+                    }
                     Part::Input(sent) => {
                         lines.extend(sent_lines(sent));
                         lines.push(Line::default());
                     }
                     Part::Code { lang, lines: code } => {
-                        lines.extend(code_lines(lang, code).into_iter().map(indented));
+                        lines.extend(code_lines(lang, code, true).into_iter().map(indented));
                     }
                     Part::Other => {}
                 }
+                if writing && last_part {
+                    caret = match part {
+                        Part::Text { .. } => (start..lines.len()).rev().find(|&row| !blank(&lines[row])),
+                        // In a block, the line before its closing fence.
+                        Part::Code { .. } => lines.len().checked_sub(2),
+                        Part::Program { streaming: true, .. } => lines.len().checked_sub(1),
+                        Part::Program { .. } if open_program => lines.len().checked_sub(2),
+                        _ => None,
+                    };
+                }
+                at += 1;
             }
             lines.push(Line::default());
+        }
+
+        if let Some(row) = caret {
+            lines[row].spans.push(Span::styled(CARET, Style::new().fg(GOLD)));
         }
 
         for sent in &self.snapshot.outgoing {
@@ -453,6 +591,7 @@ impl Session {
                 ("pgup pgdn", "scroll the transcript"),
                 ("alt+⌫", "delete a word"),
                 ("y / n", "allow or deny a pending approval"),
+                ("ctrl+o", "show or hide tool output and programs"),
             ];
             if self.tabbed {
                 commands.extend([
@@ -516,7 +655,10 @@ impl Session {
             let frame_index = (now() / 80.0) as usize % SPINNER.len();
             Line::from(vec![
                 Span::styled(format!(" {} ", SPINNER[frame_index]), Style::new().fg(GOLD)),
-                Span::styled("working", Style::new().fg(MUTED)),
+                Span::styled(
+                    self.snapshot.activity.clone().unwrap_or_else(|| "working".to_owned()),
+                    Style::new().fg(MUTED),
+                ),
             ])
         } else if let Some((text, _)) = &self.notice {
             Line::styled(format!(" {text}"), Style::new().fg(GOLD))
@@ -530,6 +672,9 @@ impl Session {
             format!("↓ {} more · pgdn ", self.scroll_back)
         } else if self.snapshot.running {
             "enter sends · ctrl+c stop ".to_owned()
+        } else if self.has_output {
+            let what = if self.expanded { "hide" } else { "show" };
+            format!("ctrl+o {what} output ")
         } else {
             String::new()
         };
@@ -646,6 +791,11 @@ impl Session {
             }
             KeyCode::Char('l') if ctrl => {
                 self.scroll_back = 0;
+                None
+            }
+            KeyCode::Char('o') if ctrl => {
+                self.expanded = !self.expanded;
+                self.built_for = None;
                 None
             }
             KeyCode::Char(_) if ctrl => return (false, None),

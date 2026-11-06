@@ -1,5 +1,10 @@
 import { expect, test } from 'bun:test'
-import { highlightLines, proseAndCode } from './terminal-code'
+import {
+  highlightLines,
+  OUTPUT_LINES,
+  proseAndCode,
+  toolOutput,
+} from './terminal-code'
 
 test('an answer splits into its prose and its highlighted code, in order', () => {
   const parts = proseAndCode(
@@ -51,4 +56,27 @@ test('prose without code, and code nested in a list, stay markdown', () => {
   ])
   const nested = '- step one\n\n  ```sh\n  make\n  ```\n'
   expect(proseAndCode(nested)).toEqual([{ type: 'text', text: nested }])
+})
+
+test('tool output keeps its first lines in the language of what it returned', () => {
+  const read = toolOutput('fn main() {}\n', 'src/main.rs')
+  expect(read?.lang).toBe('rust')
+  expect(read?.lines[0]?.[0]).toEqual({ t: 'fn', c: 'keyword' })
+  expect(
+    toolOutput('--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b', 'x.ts')?.lang,
+  ).toBe('diff')
+  expect(toolOutput({ ok: true }, undefined)).toMatchObject({
+    lang: 'json',
+    more: 0,
+  })
+  expect(
+    toolOutput({ content: [{ type: 'text', text: 'plain words' }] }, undefined),
+  ).toEqual({ lang: '', lines: [[{ t: 'plain words' }]], more: 0 })
+  const long = toolOutput(
+    Array.from({ length: OUTPUT_LINES + 5 }, (_, i) => `line ${i}`).join('\n'),
+    undefined,
+  )
+  expect(long?.lines).toHaveLength(OUTPUT_LINES)
+  expect(long?.more).toBe(5)
+  expect(toolOutput(undefined, undefined)).toBeUndefined()
 })

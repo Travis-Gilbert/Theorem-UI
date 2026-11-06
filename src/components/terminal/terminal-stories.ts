@@ -43,6 +43,10 @@ function tool(
   }
 }
 
+function data(name: string, payload: Record<string, unknown>) {
+  return { type: 'data', name: `theorem-${name}`, data: payload }
+}
+
 function input(inputId: string, text: string, status: string, reason?: string) {
   return {
     type: 'data',
@@ -68,6 +72,69 @@ export type TerminalStory = {
   messages: ThreadMessage[]
   outbox: Outgoing[]
   running: boolean
+  /** Keys the oracle presses after the story draws, as Playwright names them. */
+  keys?: string[]
+}
+
+const PROGRAM = [
+  "hits = search_code(query='parse_header')",
+  'for hit in hits[:2]:',
+  '    source = read_file(path=hit.path)',
+  "    if 'trim_end_matches' in source:",
+  "        print(hit.path, 'keeps a trailing comma')",
+  "{'checked': len(hits)}",
+].join('\n')
+
+const PARSER = [
+  'pub fn fields(line: &str) -> Vec<&str> {',
+  "    let trimmed = line.trim_end_matches(',');",
+  "    trimmed.split(',').map(str::trim).collect()",
+  '}',
+].join('\n')
+
+const EDIT = [
+  '--- a/src/parser.rs',
+  '+++ b/src/parser.rs',
+  '@@ -2,3 +2,3 @@',
+  "-    let trimmed = line.trim_end_matches(',');",
+  "+    let trimmed = line.strip_suffix(',').unwrap_or(line);",
+  "     trimmed.split(',').map(str::trim).collect()",
+].join('\n')
+
+/** A run that has done some work and is writing up what it found. */
+function activity(): ThreadMessage[] {
+  return [
+    message('u1', 'user', [text('Why does the parser drop the last field?')]),
+    message(
+      'a1',
+      'assistant',
+      [
+        data('program', { source: PROGRAM, streaming: false }),
+        data('host_call', {
+          name: 'search_code',
+          effect: 'read',
+          state: 'succeeded',
+        }),
+        data('host_call', {
+          name: 'read_file',
+          effect: 'read',
+          state: 'succeeded',
+        }),
+        data('host_call', {
+          name: 'read_file',
+          effect: 'read',
+          state: 'succeeded',
+        }),
+        tool('c1', 'read_file', { path: 'src/parser.rs' }, PARSER),
+        tool('c2', 'edit_file', { path: 'src/parser.rs' }, EDIT),
+        data('progress', { label: 'Writing up the fix', status: 'running' }),
+        text(
+          'It trims every trailing comma, so a line ending in an empty field loses it. The fix keeps',
+        ),
+      ],
+      true,
+    ),
+  ]
 }
 
 export const TERMINAL_STORIES: TerminalStory[] = [
@@ -155,6 +222,50 @@ export const TERMINAL_STORIES: TerminalStory[] = [
           ].join('\n'),
         ),
       ]),
+    ],
+    outbox: [],
+  },
+  {
+    id: 'terminal-activity',
+    title: 'Compact activity while the agent writes',
+    claim:
+      'Finished work folds into compact rows (three or more tools as one line, a finished program as one row); the caret marks where the agent is writing; the status names what the run is doing.',
+    running: true,
+    messages: activity(),
+    outbox: [],
+  },
+  {
+    id: 'terminal-activity-expanded',
+    title: 'Tool output shown with ctrl+o',
+    claim:
+      "ctrl+o unfolds the same transcript: every tool row, the program it ran, and each tool's output highlighted under its row (file content in its language, an edit as a diff).",
+    running: true,
+    messages: activity(),
+    outbox: [],
+    keys: ['Control+o'],
+  },
+  {
+    id: 'terminal-program-streaming',
+    title: 'Watching the agent type its program',
+    claim:
+      'The program the native agent is writing streams in as highlighted code, with the caret at the end of what has arrived.',
+    running: true,
+    messages: [
+      message('u1', 'user', [
+        text('Check every parser for the trailing comma bug'),
+      ]),
+      message(
+        'a1',
+        'assistant',
+        [
+          data('progress', { label: 'Writing a program', status: 'running' }),
+          data('program', {
+            source: PROGRAM.split('\n').slice(0, 4).join('\n'),
+            streaming: true,
+          }),
+        ],
+        true,
+      ),
     ],
     outbox: [],
   },

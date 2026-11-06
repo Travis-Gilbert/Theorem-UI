@@ -4,8 +4,8 @@
 // a session's thread and what the session sent while a run worked. Pure, so
 // the delivery states are tested without a runtime or a terminal.
 import type { ThreadMessage } from '@assistant-ui/react'
-import { proseAndCode } from './terminal-code'
-import type { CodePart, ProsePart } from './terminal-code'
+import { highlightLines, proseAndCode, toolOutput } from './terminal-code'
+import type { CodePart, Output, ProsePart, Token } from './terminal-code'
 import { readApproval } from '@/components/chat/theorem-parts'
 import { describeError } from '@/lib/theorem/client'
 
@@ -35,7 +35,14 @@ export type Outgoing = {
 type TerminalPart =
   | { type: 'text' | 'reasoning'; text: string }
   | CodePart
-  | { type: 'tool'; name: string; summary: string; status: string }
+  | {
+      type: 'tool'
+      name: string
+      summary: string
+      status: string
+      output?: Output
+    }
+  | { type: 'program'; lines: Token[][]; streaming: boolean }
   | { type: 'input'; text: string; status: string; reason?: string }
 
 /** A `user_input` part's fields; history drops type and partId, a stream keeps them. */
@@ -71,6 +78,27 @@ function answerParts(part: { text: string }) {
   return parts
 }
 
+const record = (data: unknown) =>
+  (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
+const str = (value: unknown) => (typeof value === 'string' ? value : undefined)
+
+/** A native program, highlighted once per part object like an answer. */
+const programs = new WeakMap<object, Token[][]>()
+function programLines(part: object, source: string) {
+  let lines = programs.get(part)
+  if (!lines) {
+    // The native agent writes Monty, a Python subset.
+    lines = highlightLines(source, 'python')
+    programs.set(part, lines)
+  }
+  return lines
+}
+
+/** A tool's path argument, which names the language of what it read. */
+function pathOf(args: Record<string, unknown>) {
+  return str(args.path) ?? str(args.file_path) ?? str(args.file)
+}
+
 /** A tool call's one-line summary: its first string argument, else the raw args. */
 function toolSummary(args: Record<string, unknown>, argsText: string) {
   const first = Object.values(args).find((v) => typeof v === 'string')
@@ -90,6 +118,8 @@ export function snapshotOf(
   const shown = new Set<string>()
   let approval: Approval | undefined
   let pending: { tool: string; summary: string } | undefined
+  /** What the run says it is doing, from its latest progress part. */
+  let activity: string | undefined
   const last = messages.at(-1)
   const status = last?.role === 'assistant' ? last.status : undefined
   const error =
@@ -128,6 +158,51 @@ export function snapshotOf(
           },
         ]
       }
+      if (part.type === 'data' && part.name === 'theorem-program') {
+        const program = record(part.data)
+        const source = str(program.source)
+        if (!source) return []
+        return [
+          {
+            type: 'program',
+            lines: programLines(part, source),
+            streaming:
+              program.streaming === true && message === last && running,
+          },
+        ]
+      }
+      if (part.type === 'data' && part.name === 'theorem-host_call') {
+        const call = record(part.data)
+        const state = str(call.state) ?? 'pending'
+        const live = message === last && running
+        return [
+          {
+            type: 'tool',
+            name: str(call.name) ?? 'host call',
+            summary:
+              state === 'pending' && !live
+                ? 'did not finish'
+                : (str(call.effect) ?? ''),
+            status:
+              state === 'pending'
+                ? live
+                  ? 'running'
+                  : 'error'
+                : state === 'failed'
+                  ? 'error'
+                  : 'complete',
+          },
+        ]
+      }
+      if (
+        part.type === 'data' &&
+        part.name === 'theorem-progress' &&
+        message === last &&
+        running
+      ) {
+        activity = str(record(part.data).label) ?? activity
+        return []
+      }
       if (part.type !== 'tool-call') return []
       const asked = readApproval(part.interrupt)
       const waiting =
@@ -160,6 +235,7 @@ export function snapshotOf(
               : message === last && running
                 ? 'running'
                 : 'complete',
+          output: toolOutput(part.result, pathOf(part.args)),
         },
       ]
     })
@@ -185,6 +261,7 @@ export function snapshotOf(
       project,
       error,
       approval: pending,
+      activity,
       messages: rows,
       outgoing,
     }),

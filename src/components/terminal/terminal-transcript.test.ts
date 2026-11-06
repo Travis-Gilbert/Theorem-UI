@@ -195,3 +195,39 @@ test("an answer's fenced code reaches the terminal highlighted; the person's wor
     lang: 'sh',
   })
 })
+
+test("the native agent's program, host calls and progress reach the terminal", () => {
+  const data = (name: string, payload: Part) => ({
+    type: 'data',
+    name: `theorem-${name}`,
+    data: payload,
+  })
+  const parts: Part[] = [
+    data('progress', { label: 'Reading the parser' }),
+    data('program', { source: 'x = 1', streaming: true }),
+    data('host_call', { name: 'read_file', effect: 'read', state: 'pending' }),
+    data('host_call', { name: 'search_code', effect: 'read', state: 'failed' }),
+  ]
+  const live = JSON.parse(
+    snapshotOf([message('assistant', parts)], true, 'theorem', []).json,
+  ) as Drawn & { activity?: string }
+  expect(live.activity).toBe('Reading the parser')
+  expect(live.messages[0]?.parts).toEqual([
+    {
+      type: 'program',
+      lines: [[{ t: 'x = ' }, { t: '1', c: 'number' }]],
+      streaming: true,
+    },
+    { type: 'tool', name: 'read_file', summary: 'read', status: 'running' },
+    { type: 'tool', name: 'search_code', summary: 'read', status: 'error' },
+  ])
+  // Once the run is over, a call still pending did not finish.
+  const after = draw([message('assistant', parts)], [], false)
+  expect(after.messages[0]?.parts[0]).toMatchObject({ streaming: false })
+  expect(after.messages[0]?.parts[1]).toEqual({
+    type: 'tool',
+    name: 'read_file',
+    summary: 'did not finish',
+    status: 'error',
+  })
+})
