@@ -17,6 +17,7 @@ import type { AppendMessage, ThreadMessageLike } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Thread } from '../assistant-ui/elements/thread.aui'
 import { cleanup, render, waitFor } from '../../../test/blocks/render'
+import { useWebSearch, webTurnOptions } from './composer-tools'
 
 /** What GET /api/environment/v1/tools answers: MCP-shaped native descriptors. */
 const CATALOG = {
@@ -73,6 +74,7 @@ beforeEach(() => {
 afterEach(async () => {
   await cleanup()
   window.fetch = realFetch
+  useWebSearch.setState({ on: false })
 })
 
 function Draft({ text }: { text: string }) {
@@ -168,6 +170,17 @@ test('a slash lists the native tools, with their first sentence and what they ch
     'rememberwritesStore a memory for this person.',
     'rustyweb_searchSearch the web.',
   ])
+})
+
+test('the tools heading shows only while the slash list is open', async () => {
+  const { container } = await mount(<Harness text="" sent={[]} />)
+  expect(container.textContent).not.toContain('Theorem tools')
+  await type(inputOf(container), '/')
+  await waitFor(() => options().length === 4)
+  expect(container.textContent).toContain('Theorem tools')
+  await type(inputOf(container), 'Hello')
+  await waitFor(() => !options().length)
+  expect(container.textContent).not.toContain('Theorem tools')
 })
 
 test('typing after the slash narrows the list, best name match first', async () => {
@@ -290,4 +303,36 @@ test('blank composer stays disabled and Shift+Enter does not send or alter the d
   )
   expect(sent).toHaveLength(0)
   expect(input.value).toBe('Draft')
+})
+
+test('the Web chip scopes later turns to RustyRed web until it is turned off', async () => {
+  const sent: AppendMessage[] = []
+  const { container } = await mount(
+    <Harness text="Latest Rust release" sent={sent} />,
+  )
+  const web = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Web search"]',
+  )!
+  expect(web.getAttribute('aria-pressed')).toBe('false')
+  expect(webTurnOptions()).toEqual({})
+
+  await act(() => web.click())
+  expect(web.getAttribute('aria-pressed')).toBe('true')
+  expect(webTurnOptions()).toEqual({
+    capabilityScope: ['web_search', 'web_read'],
+  })
+
+  // A send leaves it on and the message as typed: the scope, not a line of text, asks for the web.
+  const send = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Send message"]',
+  )!
+  await waitFor(() => !send.disabled)
+  await act(() => send.click())
+  await waitFor(() => sent.length)
+  expect(sentText(sent[0]!)).toBe('Latest Rust release')
+  expect(web.getAttribute('aria-pressed')).toBe('true')
+
+  await act(() => web.click())
+  expect(web.getAttribute('aria-pressed')).toBe('false')
+  expect(webTurnOptions()).toEqual({})
 })

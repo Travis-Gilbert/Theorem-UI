@@ -1,16 +1,92 @@
-// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools
+// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web toggle state the composer and the runtime share), Base UI Toggle (the Web chip), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's capabilityScope turn option carries Web to the server, which restricts the turn's tools to the named native operations
 import type {
   TriggerAdapter,
   TriggerItem,
   TriggerMatcher,
 } from '@assistant-ui/react'
-import { useMemo } from 'react'
+import { Toggle } from '@base-ui/react/toggle'
+import { useMemo, useRef } from 'react'
+import type { ComponentProps } from 'react'
+import { create } from 'zustand'
 import { ComposerTriggerPopover } from '@/components/assistant-ui/elements/composer-trigger-popover.aui'
+import { Icon } from '@/components/icons'
+import { useSpin } from '@/components/motion'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { searchTools, useToolCatalog } from '@/lib/theorem/tools'
 import type { NativeTool, ToolCatalogState } from '@/lib/theorem/tools'
 
 /** The composer's buttons are passed on the way to typing, so their tooltips wait for a resting pointer. */
 export const COMPOSER_TOOLTIP_DELAY = 700
+
+/**
+ * The native operations RustyRed web answers through: `web_search` finds
+ * pages and `web_read` reads one.
+ */
+export const WEB_SCOPE: readonly string[] = ['web_search', 'web_read']
+
+type WebSearchState = { on: boolean; toggle: () => void }
+
+/**
+ * Whether the next turn searches the web. It stays on across sends until the
+ * person turns it off, as a mode of the conversation rather than of one
+ * message.
+ */
+export const useWebSearch = create<WebSearchState>()((set) => ({
+  on: false,
+  toggle: () => set((state) => ({ on: !state.on })),
+}))
+
+/**
+ * The turn option Web adds, read at send time. A turn it is on for is scoped
+ * to the RustyRed web operations, so the model answers from the web rather
+ * than being asked to in the message; the server keeps only the named tools
+ * (and the person's workspace tool), so such a turn has no other tools.
+ */
+export const webTurnOptions = (): { capabilityScope?: string[] } =>
+  useWebSearch.getState().on ? { capabilityScope: [...WEB_SCOPE] } : {}
+
+/** The web mark turns while the pointer rests on its toggle, faster on a press. */
+function WebMark(props: ComponentProps<'svg'>) {
+  const ref = useRef<SVGSVGElement>(null)
+  useSpin(ref)
+  return <Icon.Web ref={ref} {...props} />
+}
+
+/** The Web chip beside the attachment button: pressed, it scopes each turn to RustyRed web. */
+export function ComposerWebToggle() {
+  const on = useWebSearch((state) => state.on)
+  const toggle = useWebSearch((state) => state.toggle)
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          delay={COMPOSER_TOOLTIP_DELAY}
+          render={
+            <Toggle
+              pressed={on}
+              onPressedChange={toggle}
+              aria-label="Web search"
+              className="text-ink-muted hover:bg-hover hover:text-ink data-pressed:bg-redwood/15 data-pressed:text-redwood data-pressed:hover:bg-redwood/25 flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:outline-focus"
+            />
+          }
+        >
+          <WebMark className="size-4" />
+          <span className="pe-0.5">Web</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          {on
+            ? 'Answering from the web with RustyRed, without other tools. Click to turn off.'
+            : 'Answer from the web with RustyRed'}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
 
 const toItem = (tool: NativeTool): TriggerItem => ({
   id: tool.name,

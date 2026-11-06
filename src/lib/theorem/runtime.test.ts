@@ -10,10 +10,11 @@ import {
   spyOn,
   test,
 } from 'bun:test'
-import { useAuiState } from '@assistant-ui/react'
+import { useAui, useAuiState } from '@assistant-ui/react'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
-import { act, createElement, useState } from 'react'
+import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
+import { useWebSearch } from '@/components/chat/composer-tools'
 import {
   mutateThread,
   pendingSendKey,
@@ -27,7 +28,7 @@ import {
   runTurn,
 } from './runtime'
 
-type Send = { key: string; text: string }
+type Send = { key: string; text: string; capabilityScope?: string[] }
 
 let sends: Send[] = []
 /** Sends whose reply is lost after Theorem received them. */
@@ -84,8 +85,12 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text } = (await request.json()) as { text: string }
-    sends.push({ key: request.headers.get('Idempotency-Key') ?? '', text })
+    const { text, capabilityScope } = (await request.json()) as Omit<Send, 'key'>
+    sends.push({
+      key: request.headers.get('Idempotency-Key') ?? '',
+      text,
+      ...(capabilityScope ? { capabilityScope } : {}),
+    })
     if (lostReplies > 0) {
       lostReplies -= 1
       throw new TypeError('Network disconnected')
@@ -157,6 +162,7 @@ beforeEach(() => {
   concurrentTitle = undefined
   titleReadGate = undefined
   titleReads = []
+  useWebSearch.setState({ on: false })
 })
 afterEach(cleanup)
 
@@ -366,6 +372,36 @@ test('a send refused after its chat was left waits for that chat', async () => {
   expect(composer()?.textContent).toBe('')
 })
 
+
+test.each<[boolean, string[] | undefined]>([
+  [true, ['web_search', 'web_read']],
+  [false, undefined],
+])('a send with Web %p asks Theorem for scope %p', async (on, scope) => {
+  useWebSearch.setState({ on })
+  const threadId = `thread-${crypto.randomUUID()}`
+  function Sender() {
+    const aui = useAui()
+    useEffect(() => {
+      aui.composer.setText('Latest Rust release')
+      aui.composer.send()
+    }, [aui])
+    return null
+  }
+  await render(
+    createElement(TheoremRuntimeProvider, {
+      projectId: 'project',
+      threadId,
+      onThreadIdChange: () => {},
+      children: createElement(Sender),
+    }),
+  )
+  await waitFor(() => sends.length === 1)
+  expect(sends[0]).toEqual({
+    key: expect.any(String),
+    text: 'Latest Rust release',
+    ...(scope ? { capabilityScope: scope } : {}),
+  })
+})
 
 test('existing New Chat rows get meaningful projected titles without revision writes', async () => {
   titleThreads.set('title-old', {

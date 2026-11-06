@@ -28,7 +28,7 @@ import {
   RunningIndicator,
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
-import { COMPOSER_TOOLTIP_DELAY, ComposerToolTrigger } from "@/components/chat/composer-tools";
+import { COMPOSER_TOOLTIP_DELAY, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
 import { DirectiveText } from "./directive-text.aui";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
@@ -484,9 +484,12 @@ const ComposerAction: FC = () => {
 
   return (
     <div className="aui-composer-action-wrapper flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-      <ComposerAddAttachment />
-      {/* Claims 8rem beside the attachment button, so a long model name
-          truncates first; the row wraps only when less than that is left. */}
+      <div className="flex items-center gap-1.5">
+        <ComposerAddAttachment />
+        <ComposerWebToggle />
+      </div>
+      {/* Claims 8rem beside the attachment button and Web, so a long model
+          name truncates first; the row wraps only when less than that is left. */}
       <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>

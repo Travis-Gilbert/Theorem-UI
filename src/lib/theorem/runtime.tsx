@@ -34,6 +34,7 @@ import { useEffect, useMemo } from 'react'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
 import { useComposerReferences } from '@/components/chat/composer-references'
+import { webTurnOptions } from '@/components/chat/composer-tools'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
@@ -459,11 +460,13 @@ function useTheoremThreadRuntime() {
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
-          const referenced = references.length ? {
+          // The composer's context and Web toggle, read at each send like the model pick.
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions()}
+          const composed = Object.keys(added).length ? {
             ...options,
-            runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,contextReferences:references}}},
+            runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
           } : options
-          yield* runTurn(remoteId,referenced,pickedModelTurnOptions,()=>{
+          yield* runTurn(remoteId,composed,pickedModelTurnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
