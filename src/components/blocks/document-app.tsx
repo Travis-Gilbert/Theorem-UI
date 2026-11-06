@@ -6,7 +6,7 @@ import { documentAppHost, documentAppState } from '@/lib/blocks/document-app'
 import { hostedAppDocument } from '@/lib/blocks/hosted-app'
 import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
 import { describeError } from '@/lib/theorem/client'
-import { AppDocument } from '@/lib/theorem/apps'
+import { appDocumentFor } from '@/lib/theorem/apps'
 import {
   APP_PENDING_CONTEXT_MESSAGE,
   appContextReference,
@@ -14,22 +14,11 @@ import {
   selectionForSource,
 } from '@/lib/theorem/app-references'
 import type { AppSelectionContext } from '@/lib/theorem/app-references'
-import type { AppSnapshot } from '@/lib/theorem/apps'
+import type { AppDocument, AppSnapshot } from '@/lib/theorem/apps'
 import { BlockFrame } from './block-frame'
 import { BlockMessage } from './block-status'
 import { appDeclarations } from './html-app-handler'
 import { SourceEditor } from './source-editor'
-
-// Every view of an App shares its save queue, including a closed view's retry.
-const documents = new Map<string, AppDocument>()
-function documentFor(id: string) {
-  let app = documents.get(id)
-  if (!app) {
-    app = new AppDocument(id)
-    documents.set(id, app)
-  }
-  return app
-}
 
 function useDocumentReplica(app: AppDocument) {
   const [state, setState] = useState<ReturnType<typeof documentAppState>>()
@@ -253,7 +242,7 @@ export function DocumentApp({
   documentId: string
   pinnedPosition?: number | string
 }) {
-  const app = useMemo(() => documentFor(documentId), [documentId])
+  const app = useMemo(() => appDocumentFor(documentId), [documentId])
   return <DocumentAppView app={app} pinnedPosition={pinnedPosition} />
 }
 

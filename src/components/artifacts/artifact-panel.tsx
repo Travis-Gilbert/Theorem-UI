@@ -2,13 +2,15 @@
 import { useLayoutEffect, useRef } from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { flyGhost, takeLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
-import { fileNameFor, kindLabel, useThreadArtifacts } from './artifact-model'
+import { kindLabel, useThreadArtifacts } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
+import { ArtifactActions } from './artifact-actions'
 import { ArtifactBody } from './artifact-renderers'
 import { useArtifactView } from './artifact-view'
+
+export { download } from './artifact-actions'
 
 export function ArtifactKindIcon({
   kind,
@@ -24,17 +26,6 @@ export function ArtifactKindIcon({
         ? Icon.Diagram
         : Icon.Article
   return <Glyph className={className} />
-}
-
-/** Saves the artifact revision as a file. */
-export function download(artifact: TheoremArtifact) {
-  const type = artifact.kind === 'document' ? 'text/markdown' : 'text/plain'
-  const url = URL.createObjectURL(new Blob([artifact.content], { type }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileNameFor(artifact)
-  link.click()
-  URL.revokeObjectURL(url)
 }
 
 /** Canvas for one artifact: header actions, revision switcher, rendered body. */
@@ -129,9 +120,8 @@ function ArtifactPanelHeader({
   onExpandedChange?: (expanded: boolean) => void
   onClose: () => void
 }) {
-  const { isCopied, copyToClipboard } = useCopyToClipboard()
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-separator px-3">
+    <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-separator px-3">
       <ArtifactKindIcon
         kind={artifact.kind}
         className="size-4 shrink-0 text-ink-muted"
@@ -171,28 +161,7 @@ function ArtifactPanelHeader({
         </div>
       )}
 
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={isCopied ? 'Copied' : 'Copy'}
-        className="size-8 p-1.5"
-        onClick={() => copyToClipboard(artifact.content)}
-      >
-        {isCopied ? (
-          <Icon.Copied className="size-4 animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
-        ) : (
-          <Icon.Copy className="size-4 animate-in fade-in zoom-in-75" />
-        )}
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Download"
-        className="size-8 p-1.5"
-        onClick={() => download(artifact)}
-      >
-        <Icon.Download className="size-4" />
-      </Button>
+      <ArtifactActions key={artifact.revision} artifact={artifact} copy />
       {onExpandedChange && (
         <Button
           variant="ghost"

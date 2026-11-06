@@ -36,7 +36,7 @@ import {
   readArtifact,
   useThreadArtifacts,
 } from '@/components/artifacts/artifact-model'
-import { download } from '@/components/artifacts/artifact-panel'
+import { ArtifactActions } from '@/components/artifacts/artifact-actions'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { followArtifact } from '@/components/ide/follow'
@@ -154,15 +154,7 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
         >
           <Icon.Open className="size-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Download"
-          className="size-8 p-1.5"
-          onClick={() => download(artifact)}
-        >
-          <Icon.Download className="size-4" />
-        </Button>
+        <ArtifactActions key={artifact.revision} artifact={artifact} />
       </div>
     </div>
   )

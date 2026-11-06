@@ -203,3 +203,14 @@ export class AppDocument {
     })
   }
 }
+
+// Every view and source action shares the same save queue and revision owner.
+const documents = new Map<string, AppDocument>()
+export function appDocumentFor(id: string): AppDocument {
+  let app = documents.get(id)
+  if (!app) {
+    app = new AppDocument(id)
+    documents.set(id, app)
+  }
+  return app
+}
