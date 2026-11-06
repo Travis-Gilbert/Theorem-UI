@@ -62,9 +62,14 @@ function str(value: unknown): string | undefined {
 
 const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifact = readArtifact(data)
-  return artifact
-    ? <ArtifactMessage key={artifact.artifactId} artifact={artifact} />
-    : <PartNotice name="theorem-artifact" note="could not be read" />
+  return artifact ? (
+    <ArtifactMessage
+      key={`${artifact.artifactId}:${artifact.rendererId}:${artifact.documentId ?? ''}`}
+      artifact={artifact}
+    />
+  ) : (
+    <PartNotice name="theorem-artifact" note="could not be read" />
+  )
 }
 
 /** Stand-in card while an artifact tool runs; the artifact part replaces it. */

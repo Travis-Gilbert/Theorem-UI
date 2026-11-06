@@ -184,3 +184,16 @@ test('a failed App load shows the actual failure inline and never starts a frame
     window.location.href = originalUrl
   }
 })
+
+test('replacing a card with another saved App requires a new click', async () => {
+  const { container, rerender } = await render(<Harness documentId="" />)
+  await click(
+    await waitFor(() =>
+      container.querySelector('[aria-label="Open Browser shortlist"]'),
+    ),
+  )
+  expect(container.querySelector('[data-slot="inline-app"]')).not.toBeNull()
+  await rerender(<Harness documentId="replacement-app" />)
+  expect(container.querySelector('[data-slot="inline-app"]')).toBeNull()
+  expect(container.querySelector('[aria-expanded="false"]')).not.toBeNull()
+})
