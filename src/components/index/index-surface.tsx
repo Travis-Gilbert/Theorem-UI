@@ -113,7 +113,7 @@ const missingIndex = (error: unknown) =>
 function Status({ title, detail }: { title: string; detail?: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-      <p className="font-heading text-[20px] tracking-tight">{title}</p>
+      <p className="font-heading text-[20px] font-medium">{title}</p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}
     </div>
   )
@@ -190,7 +190,7 @@ function ViewHeader({
   return (
     <header className="flex flex-col gap-1 pb-5">
       <div className="flex items-center gap-2">
-        <h1 className="min-w-0 flex-1 truncate font-heading text-[22px] tracking-tight">
+        <h1 className="min-w-0 flex-1 truncate font-heading text-[22px] font-medium">
           {revision.title}
         </h1>
         <span className="flex shrink-0 items-center">

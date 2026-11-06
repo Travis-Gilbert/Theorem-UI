@@ -44,7 +44,7 @@ import {
   theorem,
 } from '@/lib/theorem/client'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
-import { cn } from '@/lib/utils'
+import { cn, humanize } from '@/lib/utils'
 
 type Json = Record<string, unknown>
 
@@ -68,7 +68,7 @@ const ArtifactPart: DataMessagePartComponent = ({ data }) => {
       artifact={artifact}
     />
   ) : (
-    <PartNotice name="theorem-artifact" note="could not be read" />
+    <PartNotice name="theorem-artifact" />
   )
 }
 
@@ -152,7 +152,7 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
             : 'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-30 in-data-live:-spin-in-45',
         )}
       />
-      <span className="font-mono">{name}</span>
+      <span>{humanize(name)}</span>
       {failed && ' · failed'}
       {state === 'pending' && !running && ' · did not finish'}
     </span>
@@ -207,6 +207,12 @@ export function readApproval(
 }
 
 type ApprovalChoice = { optionId: string } | { decision: 'allow' | 'deny' }
+
+/** The tool, and its risk when Theorem marks it above low. */
+function approvalSubtitle({ toolName, risk }: TheoremApproval) {
+  const elevated = risk === 'medium' || risk === 'high'
+  return elevated ? `${humanize(toolName)} · ${risk} risk` : humanize(toolName)
+}
 
 /** What a plain allow or deny sends: allow once, or reject; a bare decision when the approval offers no options. */
 export function approvalChoice(
@@ -297,7 +303,7 @@ const TheoremApprovalCard: FC<{
       <ApprovalCard
         state={state}
         title={approval.summary}
-        subtitle={`${approval.toolName} · risk: ${approval.risk.replace(/_/g, ' ')}`}
+        subtitle={approvalSubtitle(approval)}
         command={argsText || undefined}
         icon={<Icon.Settings className="size-4" />}
         className="max-w-md rounded-artifact border-separator bg-artifact"
@@ -489,8 +495,8 @@ function citationExcerpt(sourceKind: unknown, excerpt: string | undefined) {
 const CitationPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
   const provenance = object(part.provenance)
-  const label = str(part.label) ?? str(part.sourceId) ?? 'Source'
   const url = citationUrl(provenance.url)
+  const label = str(part.label) ?? (url && new URL(url).hostname) ?? 'Source'
   const excerpt = citationExcerpt(part.sourceKind, str(provenance.excerpt))
   const source = retrievedSourceKinds.get(part.sourceKind)
   const title = source
@@ -528,14 +534,17 @@ const ErrorPart: DataMessagePartComponent = ({ data }) => {
       role="alert"
       className="my-3 max-w-md rounded-lg bg-error-container px-4 py-3 text-sm text-error-ink"
     >
-      <p className="font-medium">
-        {describeRunFailure(part)}
-      </p>
-      <p className="mt-0.5 font-mono text-xs opacity-80">
-        {str(part.code) ?? 'error'}
-      </p>
+      <p className="font-medium">{describeRunFailure(part)}</p>
     </div>
   )
+}
+
+/** Upload states worth a word; a ready attachment needs none. */
+const ATTACHMENT_STATES: Partial<Record<string, string>> = {
+  pending: 'uploading',
+  uploading: 'uploading',
+  failed: 'failed',
+  refused: 'refused',
 }
 
 const AttachmentPart: DataMessagePartComponent = ({ data }) => {
@@ -544,9 +553,8 @@ const AttachmentPart: DataMessagePartComponent = ({ data }) => {
     <span className="me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted">
       <Icon.Attachment className="size-3" />
       {str(part.name) ?? 'Attachment'}
-      {str(part.state) &&
-        str(part.state) !== 'ready' &&
-        ` · ${str(part.state)}`}
+      {ATTACHMENT_STATES[str(part.state) ?? 'ready'] &&
+        ` · ${ATTACHMENT_STATES[str(part.state) ?? 'ready']}`}
     </span>
   )
 }
@@ -591,15 +599,18 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
-/** Named placeholder for a part this client cannot draw. */
-const PartNotice: FC<{ name: string; note: string }> = ({ name, note }) => (
-  <p className="my-2 inline-flex items-center gap-1.5 rounded-md border border-dashed border-separator px-2 py-1 font-mono text-xs text-ink-faint">
-    {name.replace(/^theorem-/, '')} part · {note}
+/** Placeholder for a part this client cannot draw; the part's name stays in the DOM for debugging. */
+const PartNotice: FC<{ name: string }> = ({ name }) => (
+  <p
+    data-part={name}
+    className="my-2 inline-flex items-center gap-1.5 rounded-md border border-dashed border-separator px-2 py-1 text-xs text-ink-faint"
+  >
+    This content can't be shown here.
   </p>
 )
 
 const FallbackPart: DataMessagePartComponent = ({ name }) => (
-  <PartNotice name={name} note="not rendered by Theorem UI yet" />
+  <PartNotice name={name} />
 )
 
 /** Keeps a part that throws inside its own slot instead of unmounting the chat. */
@@ -608,7 +619,7 @@ function guarded(
   Render: DataMessagePartComponent,
 ): DataMessagePartComponent {
   const errorComponent = () => (
-    <PartNotice name={name} note="could not be rendered" />
+    <PartNotice name={name} />
   )
   return (props) => (
     <CatchBoundary

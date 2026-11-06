@@ -127,7 +127,7 @@ function ArtifactPanelHeader({
         className="size-4 shrink-0 text-ink-muted"
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <h2 className="truncate font-heading text-[16px] font-normal leading-tight tracking-tight">
+        <h2 className="truncate font-heading text-[16px] font-semibold leading-tight">
           {artifact.title}
         </h2>
         <p className="truncate text-xs text-ink-faint">{kindLabel(artifact)}</p>

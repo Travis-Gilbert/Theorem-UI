@@ -23,3 +23,20 @@ export function cellLook(age: number, ghost: number): Look | undefined {
   if (ghost > 0) return { glyph: '.', tone: 'muted', weight: (ghost / GHOST_FRAMES) * 0.45 }
   return undefined
 }
+
+/**
+ * What a cell draws while it fades from one generation's look to the next.
+ * `glyph` goes on the field. When the cell keeps its glyph it eases from the
+ * old weight to the new one; when the glyph changes (a newborn ageing, a death
+ * leaving its ghost) the new glyph fades in from nothing and the old one is
+ * handed over as `leaving`, to fade out on the layer above. No glyph is ever
+ * swapped within a single frame.
+ */
+export function crossFade(
+  before: Look | undefined,
+  after: Look | undefined,
+): { glyph: string | undefined; leaving?: string } {
+  if (before && after && before.glyph !== after.glyph)
+    return { glyph: after.glyph, leaving: before.glyph }
+  return { glyph: (after ?? before)?.glyph }
+}

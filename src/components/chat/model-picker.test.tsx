@@ -45,7 +45,9 @@ test('command palette exposes invalid default while keeping available model sele
   useCommandPalette.setState({ open: true })
   await models(true)
   await waitFor(() => document.querySelector('[role="alert"]'))
-  expect(document.querySelector('[role="alert"]')?.textContent).toContain('invalid_default')
+  // The cause in words, not the backend's code for it.
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain('The configured default is missing.')
+  expect(document.querySelector('[role="alert"]')?.textContent).not.toContain('invalid_default')
   const option = await waitFor(() => [...document.querySelectorAll('[role="option"]')].find((item) => item.textContent.includes('Available')))
   await click(option)
   expect(pickedModelTurnOptions.model).toEqual({ provider: 'provider', model: 'vendor/available' })

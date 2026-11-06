@@ -48,7 +48,7 @@ export const live = "text-redwood-ink";
 export const liveEnter =
   "in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-95 in-data-live:slide-in-from-bottom-1 in-data-live:ease-settle in-data-live:duration-(--duration-settle)";
 
-export const mono = "font-mono text-[11px] tracking-tight";
+export const mono = "font-mono text-[11px]";
 
 export function ShimmerLabel({
   active = true,

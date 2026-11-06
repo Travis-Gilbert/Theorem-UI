@@ -102,7 +102,7 @@ test('a newly published App revision refreshes source without discarding the ope
     expect(content.textContent).toContain('My unsaved draft')
     await store.remote('<p>Worker published source</p>')
     await rerender(<Harness messages={[message(1), message(2)]} />)
-    await waitFor(() => container.textContent.includes('Current revision 2'))
+    await waitFor(() => container.querySelector('[data-revision="2"]'))
     expect(container.querySelector('.cm-content') === content).toBe(true)
     expect(content.textContent).toContain('My unsaved draft')
     await click(container.querySelector('[aria-label="Previous version"]')!)

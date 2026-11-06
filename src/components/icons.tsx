@@ -7,7 +7,6 @@ import type { CSSProperties, ComponentProps, FC } from 'react'
 import { cn } from '@/lib/utils'
 import Attachment from '@/assets/icons/composer/noun-attachment-8184735.svg?react'
 import Close from '@/assets/icons/composer/noun-close-8086061.svg?react'
-import Draft from '@/assets/icons/composer/noun-draft-8216278.svg?react'
 import Microphone from '@/assets/icons/composer/noun-microphone-8216254.svg?react'
 import Refresh from '@/assets/icons/composer/noun-refresh-8086048.svg?react'
 import Settings from '@/assets/icons/composer/noun-settings-8086044.svg?react'
@@ -24,12 +23,12 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
 // Nor a two-way chevron for switchers, a terminal, a bare close cross, the
 // panels mark (a top bar over a right-hand panel, drawn here as Lucide's
-// top-left panels mirrored), marks for a forked or continued thread, or the
+// top-left panels mirrored), a mark for a continued thread, or the
 // settings marks (a star for a picked model, a key, a plugin, a model chip),
 // or the data-table controls (sort arrows and the sort list, a filter, column
 // options, hide and pin, a drag grip, one- and two-step chevrons for pages
-// and selects, a calendar), or the Life controls (play, pause, one step,
-// shuffle); Lucide's stand in the same way.
+// and selects, a calendar), the Life controls (play, pause, one step,
+// shuffle), or a mark for the composer's tools; Lucide's stand in the same way.
 import {
   ArrowDown,
   ArrowDownUp as SortList,
@@ -45,7 +44,6 @@ import {
   CornerDownRight as Continue,
   Cpu as Model,
   EyeOff as Hide,
-  GitFork as Fork,
   GripVertical as Grip,
   KeyRound as Key,
   Pause,
@@ -58,29 +56,25 @@ import {
   Settings2 as Columns,
   Shuffle,
   SkipForward as StepForward,
+  SlidersHorizontal as Tools,
   SquareTerminal as Terminal,
   Star,
   Trash2 as Delete,
   X,
-  Bot as Agent,
   GraduationCap as Skill,
-  TableOfContents as Outline,
   BellOff as Mute,
   History,
-  Waypoints as Graph,
 } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
 import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
 import Add from '@/assets/icons/records/noun-add-8086054.svg?react'
 import Archive from '@/assets/icons/records/noun-archive-8315826.svg?react'
-import Article from '@/assets/icons/records/noun-article-8259879.svg?react'
 import Check from '@/assets/icons/records/noun-checkmark-8086058.svg?react'
 import Coding from '@/assets/icons/records/noun-coding-8259870.svg?react'
 import Expand from '@/assets/icons/records/noun-expand-8086092.svg?react'
 import Eye from '@/assets/icons/records/noun-eye-8086063.svg?react'
 import File from '@/assets/icons/records/noun-file-8259863.svg?react'
-import Layout from '@/assets/icons/records/noun-layout-8176268.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
@@ -109,6 +103,14 @@ import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
 import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bullets.png'
 import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
 import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
+import CommonFileTextEdit from '@/assets/icons/streamline/streamline-common-file-text-edit.png'
+import OfficeFileText from '@/assets/icons/streamline/streamline-office-file-text.png'
+import BrowserPageLayout from '@/assets/icons/streamline/streamline-browser-page-layout.png'
+import WorkflowBranch from '@/assets/icons/streamline/streamline-workflow-branch.png'
+import AstronomyConstellation from '@/assets/icons/streamline/streamline-astronomy-constellation.png'
+import Hierarchy2 from '@/assets/icons/streamline/streamline-hierarchy-2.png'
+import AiFileRobot from '@/assets/icons/streamline/streamline-ai-file-robot.png'
+import AiRoutingAgent from '@/assets/icons/streamline/streamline-ai-routing-agent-direction-1.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -219,6 +221,14 @@ const Trusted = masked(ZipFileLock)
 const Untrusted = masked(ZipFileWarning)
 const Plan = masked(WebpageBullets)
 const TheoremVault = masked(SquareWireframe)
+const Draft = masked(CommonFileTextEdit)
+const Article = masked(OfficeFileText)
+const Layout = masked(BrowserPageLayout)
+const Fork = masked(WorkflowBranch)
+const Graph = masked(AstronomyConstellation)
+const Outline = masked(Hierarchy2)
+const Agent = masked(AiFileRobot)
+const Delegate = masked(AiRoutingAgent)
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)
@@ -300,11 +310,13 @@ export const Icon = {
   Stop,
   Sun,
   Terminal,
+  Tools,
   Unpin,
   UpDown,
   Web,
   Agent,
   Attachments,
+  Delegate,
   Files,
   Graph,
   History,

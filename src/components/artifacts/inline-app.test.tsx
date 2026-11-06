@@ -150,7 +150,7 @@ test('an App without a saved document reports the missing reference inline', asy
     ),
   )
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    'no saved document reference',
+    "This App couldn't be opened.",
   )
   expect(container.querySelector('iframe')).toBeNull()
   expect(useArtifactView.getState().openId).toBeUndefined()
