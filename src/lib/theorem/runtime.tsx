@@ -29,6 +29,7 @@ import {
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
 import { createAssistantStream } from 'assistant-stream'
+import pMap from 'p-map'
 import { useEffect, useMemo } from 'react'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
@@ -40,6 +41,7 @@ import {
   describeError,
   describeRunFailure,
   holdRefusedText,
+  hasStatus,
   mutate,
   mutateThread,
   pendingSendKey,
@@ -53,16 +55,20 @@ import { RefusedSend } from './send-recovery'
 import { pickedModelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
+import { isUntitledTitle, threadTitle } from './thread-title'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
 >
 
-function toMetadata(thread: Theorem.Thread): RemoteThreadMetadata {
+function toMetadata(
+  thread: Theorem.Thread,
+  title = thread.title,
+): RemoteThreadMetadata {
   return {
     status: thread.status === 'archived' ? 'archived' : 'regular',
     remoteId: thread.threadId,
-    title: thread.title || undefined,
+    title: title || undefined,
     lastMessageAt:
       thread.lastMessageAtMs !== undefined
         ? new Date(thread.lastMessageAtMs)
@@ -72,12 +78,32 @@ function toMetadata(thread: Theorem.Thread): RemoteThreadMetadata {
   }
 }
 
-function titleFrom(text: string): string {
-  const line = text.replace(/\s+/g, ' ').trim()
-  if (line.length <= 60) return line || 'New chat'
-  const cut = line.slice(0, 60)
-  const space = cut.lastIndexOf(' ')
-  return `${space > 30 ? cut.slice(0, space) : cut}...`
+/** Title writes belong before the SDK reads the revision for its send. */
+async function titleUntitledThread(
+  threadId: string,
+  messages: ChatModelRunOptions['messages'],
+) {
+  const client = theorem()
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const snapshot = await client.chat.threads.get({ threadId })
+    const title = threadTitle(snapshot, messages)
+    if (!isUntitledTitle(snapshot.thread.title) || isUntitledTitle(title))
+      return
+    try {
+      await mutate((headers) =>
+        client.chat.threads.update({
+          threadId,
+          title,
+          ...headers,
+          'If-Match': String(snapshot.thread.revision),
+        }),
+      )
+      return
+    } catch (error) {
+      // Re-read both title and revision: a concurrent custom rename wins.
+      if (!hasStatus(error, 409, 412)) throw error
+    }
+  }
 }
 
 /** Per-turn run settings, such as the agent terminal's coding execution mode. */
@@ -372,6 +398,7 @@ export async function* runTurn(
     return
   }
   runFailures.delete(threadId)
+  await titleUntitledThread(threadId, options.messages)
   const messages = await alignWithDurableBranch(threadId, options.messages)
   const result = chatAdapterFor(threadId, turnOptions).run({
     ...options,
@@ -468,7 +495,7 @@ function useTheoremThreadRuntime() {
   return runtime
 }
 
-function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
+export function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
   const client = theorem()
   return {
     async list(params) {
@@ -485,9 +512,23 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
         ...documentThreadIds(),
       ])
       return {
-        threads: page.items
-          .filter((thread) => !apart.has(thread.threadId))
-          .map(toMetadata),
+        threads: await pMap(
+          page.items.filter((thread) => !apart.has(thread.threadId)),
+          async (thread) => {
+            if (!isUntitledTitle(thread.title)) return toMetadata(thread)
+            try {
+              const snapshot = await client.chat.threads.get(
+                { threadId: thread.threadId },
+                { timeoutInSeconds: 10, maxRetries: 0 },
+              )
+              return toMetadata(snapshot.thread, threadTitle(snapshot))
+            } catch {
+              // One inaccessible history must not hide the rest of the chats.
+              return toMetadata(thread)
+            }
+          },
+          { concurrency: 4 },
+        ),
         nextCursor: page.nextCursor,
       }
     },
@@ -527,22 +568,12 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
     },
     async fetch(remoteId) {
       const snapshot = await client.chat.threads.get({ threadId: remoteId })
-      return toMetadata(snapshot.thread)
+      return toMetadata(snapshot.thread, threadTitle(snapshot))
     },
+    // This callback runs concurrently with sends; only runTurn writes titles.
     async generateTitle(remoteId, messages) {
       const snapshot = await client.chat.threads.get({ threadId: remoteId })
-      let title = snapshot.thread.title
-      if (!title) {
-        const first = messages.find((message) => message.role === 'user')
-        const text =
-          first?.content
-            .map((part) => (part.type === 'text' ? part.text : ''))
-            .join(' ') ?? ''
-        title = titleFrom(text)
-        await mutateThread(remoteId, (headers) =>
-          client.chat.threads.update({ threadId: remoteId, title, ...headers }),
-        )
-      }
+      const title = threadTitle(snapshot, messages)
       return createAssistantStream((controller) => {
         controller.appendText(title)
       })
