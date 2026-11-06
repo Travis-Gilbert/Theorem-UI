@@ -13,4 +13,12 @@ The visible control is now a native submit button. The existing assistant-ui for
 5. Changed owners have 100% reported coverage and CRAP 3–9. Dryer at 0.8 reports only the pre-existing, unchanged UserFilePart/UserImagePart wrapper pair, outside this repair; no new duplicate was introduced.
 6. Typecheck, scoped ESLint, and the Cloudflare Vite/Nitro build passed. The build reused unchanged terminal/Theia assets and ran no local Rust compiler.
 
-Private evidence uses the `composer-search-*` prefix under `/Volumes/SSD Samsung/theorem-chat-search-evidence`. Main deployment and signed-in request/search verification belong to the parent task.
+Private evidence uses the `composer-search-*` prefix under `/Volumes/SSD Samsung/theorem-chat-search-evidence`. The parent task performed the signed-in acceptance below.
+
+## Production acceptance
+
+The automatic Cloudflare build `6f55aec4-9e23-4e65-be9f-6c5d106f769e` succeeded for exact source `f52494c691dc352fb2e44747cd59d0b86c38d21d`. Its logged version `f3653583-c64f-4fa6-8ebc-fe6549a54b7b` matches production deployment `668551b5-d4ee-4540-ad5d-5a4f2ee5bcd9` at 100%, created 2026-11-06 04:15:45 UTC. The automatic build also rebuilt the terminal and Theia assets. `composer-search-auto-production.json` records this mapping; all 9 log pages (10,523 lines) were preserved without truncation.
+
+After a fresh signed-in reload, the parent captured both click and Enter requests containing exactly one search instruction and observed the sent draft empty. `live-composer-click-green.json` and `live-composer-enter-green.json` preserve those wire checks. The Enter run completed actual web search and `web_read` of a SQLite primary page with a source link; `live-composer-enter-success.txt` and `.jpg` preserve the rendered result. The search toggle was restored to off afterward.
+
+The initial comparison click run did execute search but later encountered a provider HTTP 400. Its cause remains a separate backend investigation; the correctly augmented wire request establishes that it was not this composer bypass. Answer-quality concerns, including an insufficiently qualified backup claim in the SQLite answer, remain with the backend conversation work and are not claimed resolved by this UI fix.
