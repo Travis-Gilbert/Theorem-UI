@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
+import { Route as ChatCanvasRouteImport } from './routes/_chat/canvas'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
@@ -93,6 +94,11 @@ const ChatChar91indexChar93Route = ChatChar91indexChar93RouteImport.update({
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatCanvasRoute = ChatCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatIdeRoute = ChatIdeRouteImport.update({
@@ -342,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
   '/spaces': typeof ChatSpacesRoute
@@ -392,6 +399,7 @@ export interface FileRoutesByTo {
   '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
+  '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
   '/spaces': typeof ChatSpacesRoute
@@ -446,6 +454,7 @@ export interface FileRoutesById {
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/_chat/canvas': typeof ChatCanvasRoute
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/index': typeof ChatChar91indexChar93Route
   '/_chat/spaces': typeof ChatSpacesRoute
@@ -501,6 +510,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/login'
     | '/settings'
+    | '/canvas'
     | '/ide'
     | '/index'
     | '/spaces'
@@ -551,6 +561,7 @@ export interface FileRouteTypes {
     | '/graphql'
     | '/install'
     | '/login'
+    | '/canvas'
     | '/ide'
     | '/index'
     | '/spaces'
@@ -604,6 +615,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/login'
     | '/settings'
+    | '/_chat/canvas'
     | '/_chat/ide'
     | '/_chat/index'
     | '/_chat/spaces'
@@ -744,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/canvas': {
+      id: '/_chat/canvas'
+      path: '/canvas'
+      fullPath: '/canvas'
+      preLoaderRoute: typeof ChatCanvasRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/ide': {
@@ -1058,6 +1077,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface ChatRouteChildren {
+  ChatCanvasRoute: typeof ChatCanvasRoute
   ChatIdeRoute: typeof ChatIdeRoute
   ChatChar91indexChar93Route: typeof ChatChar91indexChar93Route
   ChatSpacesRoute: typeof ChatSpacesRoute
@@ -1067,6 +1087,7 @@ interface ChatRouteChildren {
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatCanvasRoute: ChatCanvasRoute,
   ChatIdeRoute: ChatIdeRoute,
   ChatChar91indexChar93Route: ChatChar91indexChar93Route,
   ChatSpacesRoute: ChatSpacesRoute,
@@ -1152,12 +1173,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

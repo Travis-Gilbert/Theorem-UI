@@ -1,3 +1,5 @@
+import '@/lib/openui-devtools-off'
+
 import {
   HeadContent,
   Link,
@@ -46,9 +48,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function NotFound() {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-background text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
-        Nothing here
-      </p>
+      <p className="text-[20px] font-medium">Nothing here</p>
       <Link to="/" className="text-sm text-link underline underline-offset-2">
         Start a new chat
       </Link>

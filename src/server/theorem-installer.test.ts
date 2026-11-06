@@ -1,7 +1,11 @@
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 
 let upstream: () => Response
 const requested: Array<string> = []
+const realFetch = globalThis.fetch
+afterAll(() => {
+  globalThis.fetch = realFetch
+})
 globalThis.fetch = (async (input: RequestInfo | URL) => {
   requested.push(String(input instanceof Request ? input.url : input))
   return upstream()

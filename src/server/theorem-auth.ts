@@ -12,6 +12,8 @@ import { loginFailureHref, safeReturnTo } from '../lib/theorem/auth-navigation'
 type Session = {
   accessToken?: string
   refreshToken?: string
+  /** The scopes this session was granted, space separated. */
+  scope?: string
   /** Seconds since the epoch. */
   expiresAt?: number
   /** The sign-in in progress, between the redirect out and the callback. */
@@ -26,9 +28,13 @@ type Session = {
 /**
  * Chat and run routes accept run:read and run:write in place of tenant:read
  * and tenant:write; starting a run also needs models:invoke, which Theorem
- * grants only to clients configured with it.
+ * grants only to clients configured with it. The canvas calls native tools,
+ * which sit behind graph:read, and programs and life doors write under
+ * graph:write.
  */
-const SCOPE = 'run:read run:write models:invoke'
+const SCOPE =
+  'run:read run:write models:invoke graph:read graph:write agency:approve'
+const SCOPES = SCOPE.split(' ')
 
 /** Refresh this long before the access token expires. */
 const REFRESH_MARGIN_SECONDS = 60
@@ -107,6 +113,7 @@ function session({ password }: Config) {
 
 function keep(target: Session, tokens: oauth.TokenEndpointResponse) {
   target.accessToken = tokens.access_token
+  target.scope = tokens.scope ?? target.scope ?? SCOPE
   if (tokens.refresh_token) target.refreshToken = tokens.refresh_token
   target.expiresAt = tokens.expires_in
     ? Math.floor(Date.now() / 1000) + tokens.expires_in
@@ -302,6 +309,13 @@ export async function personBearer(): Promise<string | undefined> {
   if (typeof settings === 'string') throw new Error(settings)
   const current = await session(settings)
   if (!current.accessToken) return undefined
+  // A session from before a scope was added cannot gain it by refreshing; a
+  // sign-in grants the whole set.
+  const granted = current.scope?.split(' ') ?? []
+  if (!SCOPES.every((scope) => granted.includes(scope))) {
+    current.destroy()
+    return undefined
+  }
   const now = Math.floor(Date.now() / 1000)
   if (!current.expiresAt || current.expiresAt - REFRESH_MARGIN_SECONDS > now)
     return current.accessToken

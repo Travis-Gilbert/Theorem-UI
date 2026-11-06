@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import { useShallow } from "zustand/react/shallow";
 
-const useFileSrc = (file: File | undefined) => {
-  const [entry, setEntry] = useState<{ file: File; url: string } | undefined>(
+export const useFileSrc = (file: Blob | undefined) => {
+  const [entry, setEntry] = useState<{ file: Blob; url: string } | undefined>(
     undefined,
   );
 

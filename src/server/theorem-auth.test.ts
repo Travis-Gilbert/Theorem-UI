@@ -1,4 +1,4 @@
-import { beforeEach, expect, mock, test } from 'bun:test'
+import { afterAll, beforeEach, expect, mock, test } from 'bun:test'
 import { sealData } from 'iron-session'
 
 const ISSUER = 'https://issuer.test'
@@ -15,6 +15,10 @@ mock.module('@tanstack/react-start/server', () => ({
 }))
 
 let tokenResponse: () => Response
+const realFetch = globalThis.fetch
+afterAll(() => {
+  globalThis.fetch = realFetch
+})
 globalThis.fetch = (async (input: RequestInfo | URL) => {
   const url = new URL(input instanceof Request ? input.url : input)
   if (url.pathname === '/.well-known/oauth-authorization-server')
@@ -29,6 +33,9 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
 const { personBearer } = await import('./theorem-auth')
 const { safeReturnTo } = await import('../lib/theorem/auth-navigation')
 
+const GRANTED =
+  'run:read run:write models:invoke graph:read graph:write agency:approve'
+
 // A successful refresh is shared for a minute, so each test has its own token.
 let session = 0
 beforeEach(async () => {
@@ -39,11 +46,29 @@ beforeEach(async () => {
       {
         accessToken: 'old',
         refreshToken: `refresh-${++session}`,
+        scope: GRANTED,
         expiresAt: 1,
       },
       { password: PASSWORD },
     ),
   )
+})
+
+test('a session from before a scope was added signs in again', async () => {
+  jar.set(
+    'theorem_session',
+    await sealData(
+      {
+        accessToken: 'old',
+        refreshToken: `refresh-${++session}`,
+        scope: 'run:read run:write models:invoke',
+        expiresAt: 1,
+      },
+      { password: PASSWORD },
+    ),
+  )
+  expect(await personBearer()).toBeUndefined()
+  expect(jar.get('theorem_session')).toBeUndefined()
 })
 
 test('an unreachable Theorem keeps the session, and the next request refreshes it', async () => {

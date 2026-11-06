@@ -16,12 +16,12 @@ export function SignIn({
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 py-12 text-foreground">
       <section aria-labelledby="sign-in-heading" className="w-full max-w-sm">
-        <a href="/" className="font-heading text-xl tracking-tight">
+        <a href="/" className="font-medium text-xl">
           Theorem
         </a>
         <h1
           id="sign-in-heading"
-          className="mt-12 font-heading text-3xl tracking-tight"
+          className="font-medium mt-12 text-3xl"
         >
           Your work, continued.
         </h1>

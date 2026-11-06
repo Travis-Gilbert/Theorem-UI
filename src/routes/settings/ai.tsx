@@ -25,14 +25,20 @@ export const Route = createFileRoute('/settings/ai')({
 const TABS = [
   { value: 'models', label: 'Models', Mark: Icon.Model },
   { value: 'plugins', label: 'Plugins', Mark: Icon.Plugin },
-  { value: 'skills', label: 'Skills', Mark: Icon.Article },
+  { value: 'skills', label: 'Skills', Mark: Icon.Skill },
 ] as const
 
 function AiSettings() {
   return (
-    <SettingsPage title="AI" description="The models Theorem can run, and the plugins and skills it brings to a conversation.">
+    <SettingsPage
+      title="AI"
+      description="The models Theorem can run, and the plugins and skills it brings to a conversation."
+    >
       <Tabs defaultValue="models" className="gap-6">
-        <TabsList variant="underline" className="w-full justify-start border-b border-separator">
+        <TabsList
+          variant="underline"
+          className="w-full justify-start border-b border-separator"
+        >
           {TABS.map(({ value, label, Mark }) => (
             <TabsTab key={value} value={value} className="grow-0 gap-1.5">
               <Mark className="size-3.5" />
@@ -66,15 +72,26 @@ function DefaultModel({
   const model = catalog.find((m) => m.ref === selected)
   const fallback = catalog.find((m) => m.ref === defaultRef)?.name ?? 'Inkling'
   return (
-    <SettingsSection title="Default" description="The model a new turn runs on until you pick another in the composer.">
+    <SettingsSection
+      title="Default"
+      description="The model a new turn runs on until you pick another in the composer."
+    >
       <SettingsBox>
         <SettingsRow
           Mark={Icon.Chat}
           title={selected ? (model?.name ?? selected) : 'Theorem default'}
-          description={selected ? selected : `${fallback}, which converses and hands work to the mixture of models.`}
+          description={
+            selected
+              ? selected
+              : `${fallback}, which converses and hands work to the mixture of models.`
+          }
         >
           {selected && (
-            <Button variant="outline" size="sm" onClick={() => select(undefined)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => select(undefined)}
+            >
               Use Theorem default
             </Button>
           )}
@@ -96,22 +113,33 @@ function ModelsTab() {
       <SettingsSection
         title="In the model picker"
         description={`Star the models you want in the composer's model picker. ${starred.length} starred${
-          list?.openrouter === 'cached' ? '. OpenRouter did not answer, so this is the last list Theorem saw' : ''
+          list?.openrouter === 'cached'
+            ? '. OpenRouter did not answer, so this is the last list Theorem saw'
+            : ''
         }.`}
       >
         {error ? (
           <Empty className="rounded-lg border border-separator">
             <EmptyTitle>
-              {isNotServed(error) ? 'This Theorem does not list models yet' : 'Theorem did not list its models'}
+              {isNotServed(error)
+                ? 'This Theorem does not list models yet'
+                : 'Theorem did not list its models'}
             </EmptyTitle>
             <EmptyDescription>
-              {isNotServed(error) ? 'Turns run on Theorem\'s default model until it does.' : describeError(error)}
+              {isNotServed(error)
+                ? "Turns run on Theorem's default model until it does."
+                : describeError(error)}
             </EmptyDescription>
           </Empty>
         ) : isPending ? (
           <p className="px-1 text-sm text-ink-muted">Loading models...</p>
         ) : (
-          <ModelsTable models={catalog} starred={starred} onToggleStar={toggleStar} selected={selected} />
+          <ModelsTable
+            models={catalog}
+            starred={starred}
+            onToggleStar={toggleStar}
+            selected={selected}
+          />
         )}
       </SettingsSection>
     </>
@@ -123,7 +151,12 @@ function CatalogList({
   Mark,
   empty,
 }: {
-  items: readonly { id: string; name: string; description?: string; plugin?: string }[]
+  items: readonly {
+    id: string
+    name: string
+    description?: string
+    plugin?: string
+  }[]
   Mark: ComponentType<SVGProps<SVGSVGElement>>
   empty: string
 }) {
@@ -136,7 +169,9 @@ function CatalogList({
           key={item.id}
           Mark={Mark}
           title={item.name}
-          description={[item.plugin, item.description].filter(Boolean).join(' · ')}
+          description={[item.plugin, item.description]
+            .filter(Boolean)
+            .join(' · ')}
         />
       ))}
     </SettingsBox>
@@ -146,11 +181,18 @@ function CatalogList({
 function PluginsTab() {
   const { plugins, error } = useCatalogEntries()
   return (
-    <SettingsSection title="Plugins" description="Bundles of tools and skills installed in your Theorem.">
+    <SettingsSection
+      title="Plugins"
+      description="Bundles of tools and skills installed in your Theorem."
+    >
       {error ? (
         <p className="text-sm text-ink-muted">{describeError(error)}</p>
       ) : (
-        <CatalogList items={plugins} Mark={Icon.Plugin} empty="No plugins installed." />
+        <CatalogList
+          items={plugins}
+          Mark={Icon.Plugin}
+          empty="No plugins installed."
+        />
       )}
     </SettingsSection>
   )
@@ -159,11 +201,18 @@ function PluginsTab() {
 function SkillsTab() {
   const { skills, error } = useCatalogEntries()
   return (
-    <SettingsSection title="Skills" description="Instructions Theorem loads when a conversation needs them.">
+    <SettingsSection
+      title="Skills"
+      description="Instructions Theorem loads when a conversation needs them."
+    >
       {error ? (
         <p className="text-sm text-ink-muted">{describeError(error)}</p>
       ) : (
-        <CatalogList items={skills} Mark={Icon.Article} empty="No skills available." />
+        <CatalogList
+          items={skills}
+          Mark={Icon.Skill}
+          empty="No skills available."
+        />
       )}
     </SettingsSection>
   )

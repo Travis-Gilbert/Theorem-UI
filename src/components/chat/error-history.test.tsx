@@ -2,13 +2,23 @@ import { afterEach, expect, test } from 'bun:test'
 import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+} from '@tanstack/react-router'
+import { createContext, useContext } from 'react'
 import { Thread } from '../assistant-ui/elements/thread.aui'
 import { TheoremPartRenderers } from './theorem-parts'
 import { cleanup, render, waitFor } from '../../../test/blocks/render'
 
 const queryClient = new QueryClient()
 
-function Harness({ messages }: { messages: ThreadMessageLike[] }) {
+const Messages = createContext<ThreadMessageLike[]>([])
+
+function Chat() {
+  const messages = useContext(Messages)
   const runtime = useExternalStoreRuntime({
     messages, isRunning: false, onNew: async () => {},
     convertMessage: (message: ThreadMessageLike) => message,
@@ -19,6 +29,18 @@ function Harness({ messages }: { messages: ThreadMessageLike[] }) {
       <Thread autoFocus={false} />
     </AssistantRuntimeProvider>
   </QueryClientProvider>
+}
+
+// The thread reads its route for the project context chip.
+const router = createRouter({
+  routeTree: createRootRoute({ component: Chat }),
+  history: createMemoryHistory(),
+})
+
+function Harness({ messages }: { messages: ThreadMessageLike[] }) {
+  return <Messages.Provider value={messages}>
+    <RouterProvider router={router} />
+  </Messages.Provider>
 }
 afterEach(cleanup)
 

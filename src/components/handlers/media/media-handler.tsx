@@ -42,7 +42,13 @@ function Unplayable(file: FileRef) {
   )
 }
 
-export function MediaPanel(file: FileViewProps) {
+export function MediaPanel({
+  fill,
+  ...file
+}: FileViewProps & {
+  /** Take the whole container, as a canvas node's body does. */
+  fill?: boolean
+}) {
   const media = useMediaUrl(file)
   const [failed, setFailed] = useState<string>()
   if (!media.url) return <FileMessage>{media.message}</FileMessage>
@@ -51,7 +57,13 @@ export function MediaPanel(file: FileViewProps) {
   const onError = () => setFailed(media.url)
   const name = basename(file.path)
   return (
-    <div className="flex h-full min-h-0 items-center justify-center overflow-auto bg-frame p-4">
+    <div
+      className={
+        fill
+          ? 'flex h-full min-h-0 items-center justify-center bg-raised'
+          : 'flex h-full min-h-0 items-center justify-center overflow-auto bg-frame p-4'
+      }
+    >
       {media.kind === 'image' && (
         <img
           src={media.url}
@@ -66,7 +78,7 @@ export function MediaPanel(file: FileViewProps) {
           controls
           onError={onError}
           aria-label={name}
-          className="w-full max-w-xl"
+          className={fill ? 'w-full px-2' : 'w-full max-w-xl'}
         />
       )}
       {media.kind === 'video' && (
@@ -76,7 +88,7 @@ export function MediaPanel(file: FileViewProps) {
           playsInline
           onError={onError}
           aria-label={name}
-          className="max-h-full max-w-full"
+          className={fill ? 'size-full bg-black object-contain' : 'max-h-full max-w-full'}
         />
       )}
     </div>

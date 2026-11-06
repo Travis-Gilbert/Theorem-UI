@@ -1,5 +1,6 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface, the program canvas (React Flow)
 import { Canvas } from '@/components/canvas/canvas'
+import { ProgramSurface } from '@/components/program/program-surface'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { IndexSurface } from '@/components/index/index-surface'
@@ -10,7 +11,13 @@ import { useCallback } from 'react'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import { useShell } from './shell-state'
 
-export type ShellMode = 'chat' | 'index' | 'vault' | 'spaces' | 'ide'
+export type ShellMode =
+  | 'chat'
+  | 'index'
+  | 'vault'
+  | 'spaces'
+  | 'canvas'
+  | 'ide'
 
 /** The rail's destinations, in order. */
 export const MODES = [
@@ -20,6 +27,7 @@ export const MODES = [
   // there are any.
   { mode: 'vault', label: 'Vault', Mark: Icon.Vault, folders: true },
   { mode: 'spaces', label: 'Spaces', Mark: Icon.Spaces },
+  { mode: 'canvas', label: 'Canvas', Mark: Icon.Canvas },
   { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
 ] as const
 
@@ -34,7 +42,7 @@ export const navigatorMode = (mode: ShellMode): ShellMode =>
   mode === 'ide' || mode === 'vault' ? 'chat' : mode
 
 /**
- * The mode is the route: /index, /vault, /spaces and /ide, and chat everywhere else. It reads
+ * The mode is the route: /index, /vault, /spaces, /canvas and /ide, and chat everywhere else. It reads
  * the router's matches, as useParams does, so the mode and the thread id
  * always describe the same navigation.
  */
@@ -45,6 +53,7 @@ export function useShellMode(): ShellMode {
         if (routeId === '/_chat/index') return 'index'
         if (routeId === '/_chat/vault') return 'vault'
         if (routeId === '/_chat/spaces') return 'spaces'
+        if (routeId === '/_chat/canvas') return 'canvas'
         if (routeId === '/_chat/ide') return 'ide'
       }
       return 'chat'
@@ -60,6 +69,7 @@ export function useOpenMode() {
       if (next === 'index') return navigate({ to: '/index' })
       if (next === 'vault') return navigate({ to: '/vault' })
       if (next === 'spaces') return navigate({ to: '/spaces' })
+      if (next === 'canvas') return navigate({ to: '/canvas' })
       if (next === 'ide') return navigate({ to: '/ide' })
       const threadId = useShell.getState().chatThreadId
       return threadId
@@ -90,6 +100,7 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
       {mode === 'vault' && !docked && <VaultPhone />}
       {mode === 'index' && <IndexSurface />}
       {mode === 'spaces' && <Canvas />}
+      {mode === 'canvas' && <ProgramSurface />}
     </>
   )
 }

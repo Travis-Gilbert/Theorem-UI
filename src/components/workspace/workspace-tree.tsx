@@ -421,7 +421,7 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
       'data-menu-target':
         (menu.open && menu.target === item.getId()) || undefined,
       className:
-        'flex h-8 w-full shrink-0 items-center gap-1.5 rounded-md pe-2 text-start text-base transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill data-menu-target:bg-hover data-drop-target:bg-hover data-drop-target:outline-1 data-drop-target:-outline-offset-1 data-drop-target:outline-focus',
+        'flex h-8 w-full shrink-0 items-center gap-1.5 rounded-md pe-2 text-start text-sm transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill data-menu-target:bg-hover data-drop-target:bg-hover data-drop-target:outline-1 data-drop-target:-outline-offset-1 data-drop-target:outline-focus',
     }
     const row = item.isRenaming() ? (
       <div {...shared}>
@@ -433,7 +433,7 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
           // A name is kept when the field loses focus, as in Finder.
           onBlur={() => tree.isRenamingItem() && tree.completeRenaming()}
           onClick={(event) => event.stopPropagation()}
-          className="h-6.5 min-w-0 flex-1 rounded-sm bg-background px-1 text-base outline-1 outline-focus"
+          className="h-6.5 min-w-0 flex-1 rounded-sm bg-background px-1 text-sm outline-1 outline-focus"
         />
       </div>
     ) : (

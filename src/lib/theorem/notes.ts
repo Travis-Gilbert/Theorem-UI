@@ -16,6 +16,7 @@ import {
   mergeNote,
   reviseNote,
 } from './note-canonical'
+import { noteLabel } from './note-kinds'
 
 const SCHEMA = 'theorem-document/2'
 const KIND = 'authored'
@@ -47,11 +48,7 @@ const toBase64 = (bytes: Uint8Array) =>
 
 /** A note's title: its first line without heading marks. */
 export function titleOf(markdown: string): string {
-  const line = markdown
-    .split('\n')
-    .map((l) => l.replace(/^#{1,6}\s+/, '').trim())
-    .find(Boolean)
-  return line ? line.slice(0, 120) : 'Untitled note'
+  return noteLabel(markdown)?.slice(0, 120) ?? 'Untitled note'
 }
 
 function toNote(snapshot: Theorem.DocumentSnapshot): Note {

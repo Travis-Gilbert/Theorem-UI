@@ -62,7 +62,10 @@ const base64Url = (text: string) =>
  * Sends a file's bytes to the project's uploads route, the same intake chat
  * attachments use, and returns its upload id for an `upload` import.
  */
-async function uploadFile(projectId: string, file: File): Promise<string> {
+export async function uploadFile(
+  projectId: string,
+  file: File,
+): Promise<{ uploadId: string; sha256: string }> {
   const digest = hex(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))
   return mutate(async (headers) => {
     const response = await theorem().fetch(
@@ -80,16 +83,16 @@ async function uploadFile(projectId: string, file: File): Promise<string> {
       },
     )
     const body = (await response.json().catch(() => undefined)) as
-      | { uploadId?: string; upload?: { uploadId?: string } }
+      | { record?: { uploadId?: string } }
       | undefined
-    const uploadId = body?.upload?.uploadId ?? body?.uploadId
+    const uploadId = body?.record?.uploadId
     if (!response.ok || !uploadId)
       throw new TheoremError({
         message: `Upload of ${file.name} answered ${response.status}`,
         statusCode: response.status,
         body,
       })
-    return uploadId
+    return { uploadId, sha256: digest }
   })
 }
 
@@ -110,7 +113,7 @@ export function useImportMutations(projectId: string | undefined) {
   })
   const startFile = useMutation({
     mutationFn: async (file: File) => {
-      const uploadId = await uploadFile(projectId!, file)
+      const { uploadId } = await uploadFile(projectId!, file)
       return start.mutateAsync({ kind: 'upload', uploadId })
     },
   })

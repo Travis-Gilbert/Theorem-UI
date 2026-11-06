@@ -133,11 +133,11 @@ const Heading = defineComponent({
   }),
   component: ({ props }) =>
     props.level === 1 ? (
-      <h2 className="font-heading text-[22px] font-normal tracking-tight">
+      <h2 className="text-[22px] font-medium">
         {props.text}
       </h2>
     ) : (
-      <h3 className="font-heading text-[17px] font-normal tracking-tight">
+      <h3 className="text-[17px] font-medium">
         {props.text}
       </h3>
     ),
@@ -196,7 +196,7 @@ const Metric = defineComponent({
   component: ({ props }) => (
     <div className="flex flex-col gap-0.5 rounded-lg border border-separator px-3 py-2">
       <span className="text-xs text-ink-faint">{props.label}</span>
-      <span className="font-heading text-[22px] leading-tight tabular-nums">
+      <span className="font-medium text-[22px] leading-tight tabular-nums">
         {props.value}
       </span>
     </div>

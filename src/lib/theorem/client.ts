@@ -149,7 +149,11 @@ export function describeError(error: unknown): string {
     const text = (value: unknown) =>
       typeof value === 'string' && value.trim() ? value.trim() : undefined
     const detail = text(body?.detail)
-    let message = detail ?? text(body?.title)
+    let message =
+      detail ??
+      text(body?.title) ??
+      text(body?.message) ??
+      text(body?.error)
     if (body?.code === 'chat_run_start_pending') {
       message =
         'Your message was saved, but its response could not start. Reload this conversation to resume it.'
