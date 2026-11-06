@@ -16,7 +16,7 @@ The web frontend for the Theorem agent. It provides a chat interface, artifacts 
 | Styling                                    | Tailwind CSS v4 `src/styles.css`                                                                                              |
 | Runtime and hosting                        | Bun: installs, scripts, dev server, and the production server built by Nitro's `bun` preset, run beside the Theorem authority |
 
-Type: IBM Plex Sans for prose, Libron for titles and headings, JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
+Type: IBM Plex Sans for prose and titles (titles at a heavier weight, tracked as IBM's Carbon type sets track Plex), JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
 
 ## Setup
 
@@ -31,6 +31,8 @@ Fill in `.env`:
 
 - `THEOREM_API_URL`: the Theorem authority. The default is `http://127.0.0.1:8082`.
 - `THEOREM_API_TOKEN`: a bearer with `tenant:read`, `tenant:write` and `models:invoke` scopes.
+
+The Explorer reads one project folder from the Theorem server, which binds it from `THEOREMWEB_PROJECT_ROOT` and `THEOREMWEB_PROJECT_ID`. Without them, the Explorer says no project folder is connected.
 
 The token stays on the server. Browser requests go to this origin, and `src/server/theorem-proxy.ts` forwards `/api/chat/v1/*` and `/v1/theorem/agent/stream/*` with the bearer attached. Never put a token in client code. Bun loads `.env` into `process.env` for both the dev and production servers.
 

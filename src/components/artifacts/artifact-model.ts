@@ -1,6 +1,7 @@
 // SOURCING: none — a typed reader for the theorem-artifact-v1 part contract (apps/theoremweb/contracts/theorem-chat-v1.json); no library models Theorem's artifact parts
 import { useAuiState } from '@assistant-ui/react'
 import { useMemo } from 'react'
+import { humanize } from '@/lib/utils'
 
 /** One revision of an agent-produced artifact, read from a `theorem-artifact` data part. */
 export type TheoremArtifact = {
@@ -132,7 +133,7 @@ export function kindLabel(artifact: TheoremArtifact): string {
     case 'diagram':
       return 'Diagram'
     default:
-      return artifact.kind
+      return humanize(artifact.kind)
   }
 }
 

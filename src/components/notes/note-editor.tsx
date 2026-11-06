@@ -18,7 +18,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import askIcon from '@/assets/icons/rail/noun-chat-52762.svg?raw'
-import embedIcon from '@/assets/icons/records/noun-article-8259879.svg?raw'
+import { Icon } from '@/components/icons'
 import { EMBED_LANGUAGE, embedFence, parseEmbed } from '@/lib/theorem/embeds'
 import { editNote, fetchNote, noteKey, onLeavePage } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
@@ -116,7 +116,7 @@ function CrepeEditor({
             const group = builder.addGroup('theorem', 'Theorem')
             group.addItem('embed-note', {
               label: 'Embed note',
-              icon: embedIcon,
+              icon: renderToStaticMarkup(<Icon.Article />),
               onRun: (ctx) => {
                 ctx.get(commandsCtx).call(clearTextInCurrentBlockCommand.key)
                 callbacks.current.onEmbed()

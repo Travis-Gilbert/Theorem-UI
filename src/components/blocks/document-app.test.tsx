@@ -27,6 +27,9 @@ const originalHosted = hosted.hostedAppDocument
 
 afterEach(cleanup)
 
+const revision = (container: HTMLElement) =>
+  container.querySelector('[data-revision]')?.getAttribute('data-revision')
+
 test('the App view identifies its current revision and sends a precise durable reference', async () => {
   const store = await appDocumentFixture()
   await store.remote('<p>Updated</p>')
@@ -35,8 +38,9 @@ test('the App view identifies its current revision and sends a precise durable r
     <DocumentAppView app={app} pinnedPosition={1} />,
   )
   await waitFor(() => buttonNamed(container, 'Ask about this App'))
-  expect(container.textContent).toContain('Current revision 2')
-  expect(container.textContent).toContain('Result referenced revision 1')
+  expect(revision(container)).toBe('2')
+  expect(container.textContent).toContain('Changed since this result')
+  expect(container.textContent).not.toMatch(/revision \d/i)
   expect(container.querySelector('iframe')).toBeNull()
   await click(buttonNamed(container, 'Ask about this App')!)
   expect(useComposerReferences.getState().take()).toMatchObject([
@@ -69,7 +73,7 @@ test('the App view exposes the actual failed save and retry recovers the same do
   store.fail(false)
   await act(() => app.saveSource('<p>Changed</p>', snapshot.revision))
   await waitFor(() => !container.querySelector('[role="alert"]'))
-  expect(container.textContent).toContain('Current revision 2')
+  expect(revision(container)).toBe('2')
 })
 
 test('replacing App source unmounts its old sandbox before granting new capabilities', async () => {
