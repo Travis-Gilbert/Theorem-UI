@@ -86,7 +86,7 @@ export function ModelPicker() {
     >
       <ComboboxTrigger
         aria-label="Model"
-        className="flex h-8 max-w-48 items-center gap-1 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
+        className="flex h-8 max-w-48 min-w-0 items-center gap-1 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
       >
         <span className="truncate">{selected?.name ?? 'Model'}</span>
         <Icon.UpDown className="size-3.5 shrink-0" />

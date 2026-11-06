@@ -484,12 +484,14 @@ const ComposerAction: FC = () => {
   );
 
   return (
-    <div className="aui-composer-action-wrapper flex items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-1">
+    <div className="aui-composer-action-wrapper flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+      <div className="flex items-center gap-1">
         <ComposerAddAttachment />
         <ComposerTools />
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
+      {/* Claims 8rem beside the tools, so a long model name truncates first;
+          the row wraps only when the tools leave less than that. */}
+      <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
