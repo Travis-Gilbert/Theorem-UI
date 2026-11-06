@@ -42,19 +42,110 @@ use tui_input::{Input, InputRequest};
 use tui_markdown::{Options, StyleSheet};
 use wasm_bindgen::prelude::*;
 
-// pi's terminal slate; the drawer keeps it in every palette and mode. Tool
-// rows sit on the raised slate: green belongs to a diff's added lines.
-const BG: Color = Color::Rgb(0x20, 0x27, 0x33);
-const RAISED: Color = Color::Rgb(0x27, 0x30, 0x42);
-const LINE: Color = Color::Rgb(0x3a, 0x44, 0x58);
-const INK: Color = Color::Rgb(0xc8, 0xd0, 0xd8);
-const BRIGHT: Color = Color::Rgb(0xe4, 0xea, 0xee);
-// pi's muted grey (#6c747c) lifted in OKLCH lightness only, 0.555 to 0.675,
-// to read at 4.5:1 on the slate and the raised slate.
-const MUTED: Color = Color::Rgb(0x8f, 0x98, 0xa0);
-const SAGE: Color = Color::Rgb(0x8a, 0xa8, 0xa0);
-const GOLD: Color = Color::Rgb(0xd6, 0xbc, 0x8a);
-const ERROR: Color = Color::Rgb(0xe0, 0x8a, 0x8f);
+/// The terminal's colours. The page works them out from the workspace around
+/// the terminal (src/components/terminal/terminal-theme.ts) and sets them with
+/// `set_palette`; until then the terminal draws pi's slate.
+#[derive(Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Palette {
+    #[serde(deserialize_with = "colour")]
+    bg: Color,
+    /// Tool rows: green belongs to a diff's added lines.
+    #[serde(deserialize_with = "colour")]
+    raised: Color,
+    #[serde(deserialize_with = "colour")]
+    line: Color,
+    #[serde(deserialize_with = "colour")]
+    ink: Color,
+    #[serde(deserialize_with = "colour")]
+    bright: Color,
+    #[serde(deserialize_with = "colour")]
+    muted: Color,
+    /// The prompt's cursor while the terminal is not focused.
+    #[serde(deserialize_with = "colour")]
+    idle: Color,
+    #[serde(deserialize_with = "colour")]
+    sage: Color,
+    #[serde(deserialize_with = "colour")]
+    gold: Color,
+    #[serde(deserialize_with = "colour")]
+    error: Color,
+    #[serde(deserialize_with = "colour")]
+    removed_line: Color,
+    #[serde(deserialize_with = "colour")]
+    added_line: Color,
+    #[serde(deserialize_with = "colour")]
+    removed_words: Color,
+    #[serde(deserialize_with = "colour")]
+    added_words: Color,
+    /// A comment's changed words: the code grey, lifted to read on either tint.
+    #[serde(deserialize_with = "colour")]
+    comment_on_words: Color,
+}
+
+// pi's slate as it is drawn in GitHub Sharp, where every other palette's
+// terminal is derived from (terminal-theme.ts keeps the same values, and
+// terminal-palette.test.ts holds the two equal). On the slate:
+// - pi's muted grey (#6c747c, the idle cursor) is lifted in OKLCH lightness
+//   only, 0.555 to 0.675, to read at 4.5:1 on the slate and the raised slate;
+// - a diff's rows are set in OKLCH rather than laid over it: GitHub Dark's
+//   translucent diff colours, mixed over a blue slate, drift to plum and
+//   teal. Each pair keeps the hue of GitHub Dark's diff red (#da3633, 26.8)
+//   or green (#238636, 146.3) and shares one lightness and chroma, so neither
+//   side reads stronger. Text contrast caps how light changed words can be,
+//   so they stand apart from their row by chroma, with a quiet row: a row
+//   has chroma 0.02, below GitHub's 0.03, because red and green sit across
+//   the hue circle from the slate's blue; changed words have chroma 0.09, a
+//   little above GitHub's 0.08; each is at the highest lightness where its
+//   text keeps 4.5:1: every code colour on a row, every one but a comment's
+//   on changed words;
+// - a comment's changed words take its grey lifted in lightness, 0.662 to
+//   0.714, to read at 4.5:1 on either word tint.
+const SLATE: Palette = Palette {
+    bg: Color::Rgb(0x20, 0x27, 0x33),
+    raised: Color::Rgb(0x27, 0x30, 0x42),
+    line: Color::Rgb(0x3a, 0x44, 0x58),
+    ink: Color::Rgb(0xc8, 0xd0, 0xd8),
+    bright: Color::Rgb(0xe4, 0xea, 0xee),
+    muted: Color::Rgb(0x8f, 0x98, 0xa0),
+    idle: Color::Rgb(0x6c, 0x74, 0x7c),
+    sage: Color::Rgb(0x8a, 0xa8, 0xa0),
+    gold: Color::Rgb(0xd6, 0xbc, 0x8a),
+    error: Color::Rgb(0xe0, 0x8a, 0x8f),
+    removed_line: Color::Rgb(0x36, 0x29, 0x27), // oklch(0.295 0.020 28.4)
+    added_line: Color::Rgb(0x26, 0x2f, 0x26),   // oklch(0.293 0.020 145.0)
+    removed_words: Color::Rgb(0x5e, 0x21, 0x1d), // oklch(0.339 0.090 26.7)
+    added_words: Color::Rgb(0x0e, 0x43, 0x18),  // oklch(0.338 0.090 146.3)
+    comment_on_words: Color::Rgb(0x9a, 0xa4, 0xae),
+};
+
+thread_local! {
+    /// One palette for the page: every terminal on it sits in the same workspace.
+    static PALETTE: Cell<Palette> = const { Cell::new(SLATE) };
+}
+
+/// A palette colour from its `#rrggbb` string, by Ratatui's own parser.
+fn colour<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Color, D::Error> {
+    String::deserialize(deserializer)?
+        .parse()
+        .map_err(serde::de::Error::custom)
+}
+
+/// The colours to draw in.
+fn palette() -> Palette {
+    PALETTE.get()
+}
+
+/// Sets every terminal's colours: JSON with terminal-theme.ts's
+/// `TerminalTheme` keys, each a `#rrggbb` colour. Each terminal redraws in
+/// them at its next frame.
+#[wasm_bindgen]
+pub fn set_palette(json: &str) -> Result<(), JsValue> {
+    let palette =
+        serde_json::from_str(json).map_err(|error| JsValue::from_str(&error.to_string()))?;
+    PALETTE.set(palette);
+    Ok(())
+}
 
 // Code: Stone dark's code theme, GitHub Dark, which Monaco and the chat's
 // Shiki also use. These are TanStack Highlight's github-dark token colours
@@ -68,26 +159,6 @@ const GREEN: Color = Color::Rgb(0x7e, 0xe7, 0x87);
 const GREY: Color = Color::Rgb(0x8b, 0x94, 0x9e);
 const LINK_BLUE: Color = Color::Rgb(0x58, 0xa6, 0xff);
 
-// A diff's rows, set in OKLCH on the slate rather than laid over it: GitHub
-// Dark's translucent diff colours, mixed over a blue slate, drift to plum
-// and teal. Each pair keeps the hue of GitHub Dark's diff red (#da3633,
-// 26.8) or green (#238636, 146.3) and shares one lightness and chroma, so
-// neither side reads stronger. Text contrast caps how light changed words can
-// be, so they stand apart from their row by chroma, with a quiet row:
-// - a row has chroma 0.02, below GitHub's 0.03, because red and green sit
-//   across the hue circle from the slate's blue: at 0.03 a row stood out
-//   more against the slate than GitHub's rows do against theirs;
-// - changed words have chroma 0.09, a little above GitHub's 0.08;
-// - each is at the highest lightness where its text keeps 4.5:1: every code
-//   colour on a row, every one but a comment's on changed words.
-// terminal-palette.test.ts checks these against the slate.
-const REMOVED_LINE: Color = Color::Rgb(0x36, 0x29, 0x27); // oklch(0.295 0.020 28.4)
-const ADDED_LINE: Color = Color::Rgb(0x26, 0x2f, 0x26); // oklch(0.293 0.020 145.0)
-const REMOVED_WORDS: Color = Color::Rgb(0x5e, 0x21, 0x1d); // oklch(0.339 0.090 26.7)
-const ADDED_WORDS: Color = Color::Rgb(0x0e, 0x43, 0x18); // oklch(0.338 0.090 146.3)
-/// A comment's changed words: its grey lifted in lightness, 0.662 to 0.714,
-/// to read at 4.5:1 on either word tint.
-const COMMENT_ON_WORDS: Color = Color::Rgb(0x9a, 0xa4, 0xae);
 /// Edit diffs show this many lines under their row until ctrl+o.
 const DIFF_FOLD: usize = 12;
 
@@ -105,40 +176,40 @@ const CARET: &str = "▍";
 /// The hollow cursor's blink half-period; it holds solid this long after a key.
 const BLINK_MS: f64 = 530.0;
 
-/// Markdown in the terminal's colours instead of tui-markdown's ANSI defaults.
+/// Markdown in the terminal's palette instead of tui-markdown's ANSI defaults.
 #[derive(Clone, Copy)]
-struct Slate;
+struct Markdown;
 
-impl StyleSheet for Slate {
+impl StyleSheet for Markdown {
     fn heading(&self, level: u8) -> Style {
         match level {
-            1 | 2 => Style::new().fg(GOLD).bold(),
-            _ => Style::new().fg(GOLD),
+            1 | 2 => Style::new().fg(palette().gold).bold(),
+            _ => Style::new().fg(palette().gold),
         }
     }
     fn code(&self) -> Style {
-        Style::new().fg(SAGE).bg(RAISED)
+        Style::new().fg(palette().sage).bg(palette().raised)
     }
     fn link(&self) -> Style {
-        Style::new().fg(SAGE).underlined()
+        Style::new().fg(palette().sage).underlined()
     }
     fn blockquote(&self) -> Style {
-        Style::new().fg(MUTED).italic()
+        Style::new().fg(palette().muted).italic()
     }
     fn heading_meta(&self) -> Style {
-        Style::new().fg(MUTED)
+        Style::new().fg(palette().muted)
     }
     fn html(&self) -> Style {
-        Style::new().fg(MUTED)
+        Style::new().fg(palette().muted)
     }
     fn table_header(&self) -> Style {
-        Style::new().fg(BRIGHT).bold()
+        Style::new().fg(palette().bright).bold()
     }
     fn table_border(&self) -> Style {
-        Style::new().fg(LINE)
+        Style::new().fg(palette().line)
     }
     fn list_marker(&self) -> Style {
-        Style::new().fg(MUTED)
+        Style::new().fg(palette().muted)
     }
 }
 
@@ -376,11 +447,11 @@ fn token_style(class: Option<&str>) -> Style {
         Some("tag" | "selector" | "inserted") => style.fg(GREEN),
         Some("comment" | "meta") => style.fg(GREY),
         Some("link") => style.fg(LINK_BLUE),
-        _ => style.fg(INK),
+        _ => style.fg(palette().ink),
     }
 }
 
-/// Code tokens as one line in the slate's colours.
+/// Code tokens as one line in the terminal's colours.
 fn token_line(tokens: &[Token]) -> Vec<Span<'static>> {
     tokens
         .iter()
@@ -412,7 +483,7 @@ fn output_lines(output: &Output, shown: usize) -> Vec<(Line<'static>, Option<Col
         lines.push((
             Line::styled(
                 format!("{lead}… {more} more line{}", if more == 1 { "" } else { "s" }),
-                Style::new().fg(MUTED),
+                Style::new().fg(palette().muted),
             ),
             None,
         ));
@@ -447,13 +518,13 @@ fn diff_lines(diff: &[DiffLine], lead: &str) -> Vec<(Line<'static>, Option<Color
     diff.iter()
         .map(|line| {
             let (marker, mark, fill, words) = match line.k.as_str() {
-                "del" => ("-", RED, Some(REMOVED_LINE), REMOVED_WORDS),
-                "add" => ("+", GREEN, Some(ADDED_LINE), ADDED_WORDS),
-                "ctx" => (" ", MUTED, None, BG),
+                "del" => ("-", RED, Some(palette().removed_line), palette().removed_words),
+                "add" => ("+", GREEN, Some(palette().added_line), palette().added_words),
+                "ctx" => (" ", palette().muted, None, palette().bg),
                 // A file it changes, then each hunk's header.
                 quiet => {
                     let style = if quiet == "file" {
-                        Style::new().fg(INK).bold()
+                        Style::new().fg(palette().ink).bold()
                     } else {
                         Style::new().fg(GREY)
                     };
@@ -470,7 +541,7 @@ fn diff_lines(diff: &[DiffLine], lead: &str) -> Vec<(Line<'static>, Option<Color
             for column in 0..indent {
                 guides.push(if column % unit == 0 { '│' } else { ' ' });
             }
-            spans.push(Span::styled(guides, Style::new().fg(LINE)));
+            spans.push(Span::styled(guides, Style::new().fg(palette().line)));
             // The indent is drawn as guides; the code follows from there.
             let mut skip = indent;
             for token in &line.t {
@@ -483,7 +554,7 @@ fn diff_lines(diff: &[DiffLine], lead: &str) -> Vec<(Line<'static>, Option<Color
                 }
                 let style = token_style(token.c.as_deref());
                 spans.push(Span::styled(rest, match (token.e, style.fg) {
-                    (true, Some(GREY)) => style.fg(COMMENT_ON_WORDS).bg(words),
+                    (true, Some(GREY)) => style.fg(palette().comment_on_words).bg(words),
                     (true, _) => style.bg(words),
                     (false, _) => style,
                 }));
@@ -519,7 +590,7 @@ fn group_row(parts: &[Part], width: u16) -> Line<'static> {
 /// A code block between its fences, the opening one naming the language.
 /// A block still being written has no closing fence yet.
 fn code_lines(lang: &str, code: &[Vec<Token>], closed: bool) -> Vec<Line<'static>> {
-    let fence = Style::new().fg(MUTED);
+    let fence = Style::new().fg(palette().muted);
     let mut lines = vec![Line::styled(format!("```{lang}"), fence)];
     lines.extend(code.iter().map(|tokens| Line::from(token_line(tokens))));
     if closed {
@@ -560,7 +631,7 @@ struct Session {
     /// Whether the transcript has output for ctrl+o to show.
     has_output: bool,
     notice: Option<(String, f64)>,
-    /// Transcript lines, rebuilt when the snapshot or the width changes.
+    /// Transcript lines, rebuilt when the snapshot, the width or the palette changes.
     lines: Vec<Line<'static>>,
     /// Each line's first row once wrapped, then the total, for clicks.
     rows: Vec<usize>,
@@ -571,7 +642,7 @@ struct Session {
     /// The body's area and its first shown row at the last draw.
     body: Rect,
     top: usize,
-    built_for: Option<u16>,
+    built_for: Option<(u16, Palette)>,
 }
 
 impl Session {
@@ -612,7 +683,7 @@ impl Session {
 
     fn build(&mut self, width: u16) {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        let options = Options::new(Slate).table_width(width.saturating_sub(INDENT.len() as u16));
+        let options = Options::new(Markdown).table_width(width.saturating_sub(INDENT.len() as u16));
 
         let last_message = self.snapshot.messages.len().saturating_sub(1);
         let mut caret = None;
@@ -645,13 +716,13 @@ impl Session {
                     .join("\n");
                 for (index, row) in text.lines().enumerate() {
                     let lead = if index == 0 {
-                        Span::styled(PROMPT, Style::new().fg(GOLD).bold())
+                        Span::styled(PROMPT, Style::new().fg(palette().gold).bold())
                     } else {
                         Span::raw(INDENT)
                     };
                     lines.push(Line::from(vec![
                         lead,
-                        Span::styled(row.to_owned(), Style::new().fg(BRIGHT)),
+                        Span::styled(row.to_owned(), Style::new().fg(palette().bright)),
                     ]));
                 }
                 lines.push(Line::default());
@@ -698,7 +769,7 @@ impl Session {
                         lines.extend(own(rendered).into_iter().map(indented));
                     }
                     Part::Reasoning { text } => {
-                        let style = Style::new().fg(MUTED).add_modifier(Modifier::ITALIC);
+                        let style = Style::new().fg(palette().muted).add_modifier(Modifier::ITALIC);
                         lines.extend(
                             text.lines()
                                 .map(|row| indented(Line::styled(row.to_owned(), style))),
@@ -742,7 +813,7 @@ impl Session {
                         lines.push(Line::default());
                     }
                     Part::Code { lang, lines: code, diff } if !diff.is_empty() => {
-                        let fence = Style::new().fg(MUTED);
+                        let fence = Style::new().fg(palette().muted);
                         lines.push(indented(Line::styled(format!("```{lang}"), fence)));
                         filled(&mut lines, &mut fills, diff_lines(diff, INDENT));
                         lines.push(indented(Line::styled("```", fence)));
@@ -768,7 +839,7 @@ impl Session {
         }
 
         if let Some(row) = caret {
-            lines[row].spans.push(Span::styled(CARET, Style::new().fg(GOLD)));
+            lines[row].spans.push(Span::styled(CARET, Style::new().fg(palette().gold)));
         }
 
         for sent in &self.snapshot.outgoing {
@@ -779,7 +850,7 @@ impl Session {
         if let Some(error) = &self.snapshot.error {
             lines.push(indented(Line::styled(
                 format!("✗ {error}"),
-                Style::new().fg(ERROR),
+                Style::new().fg(palette().error),
             )));
             lines.push(Line::default());
         }
@@ -809,8 +880,8 @@ impl Session {
             }
             for (command, what) in commands {
                 lines.push(indented(Line::from(vec![
-                    Span::styled(format!("{command:<11}"), Style::new().fg(GOLD)),
-                    Span::styled(what, Style::new().fg(MUTED)),
+                    Span::styled(format!("{command:<11}"), Style::new().fg(palette().gold)),
+                    Span::styled(what, Style::new().fg(palette().muted)),
                 ])));
             }
             lines.push(Line::default());
@@ -828,7 +899,7 @@ impl Session {
         self.links = links;
         self.fills = fills;
         self.lines = lines;
-        self.built_for = Some(width);
+        self.built_for = Some((width, palette()));
     }
 
     /// The tool row a cell lands on, if a click opens it.
@@ -845,11 +916,11 @@ impl Session {
 
     /// The single-session bar: what this is and where.
     fn header(&self) -> Line<'static> {
-        let mut spans = vec![Span::styled(" ◆ agent", Style::new().fg(SAGE).bold())];
+        let mut spans = vec![Span::styled(" ◆ agent", Style::new().fg(palette().sage).bold())];
         if !self.snapshot.project.is_empty() {
             spans.push(Span::styled(
                 format!(" · {}", self.snapshot.project),
-                Style::new().fg(MUTED),
+                Style::new().fg(palette().muted),
             ));
         }
         Line::from(spans)
@@ -857,7 +928,7 @@ impl Session {
 
     fn draw_body(&mut self, frame: &mut Frame, area: Rect) {
         let inner = area.inner(ratatui::layout::Margin::new(1, 0));
-        if self.built_for != Some(inner.width) {
+        if self.built_for != Some((inner.width, palette())) {
             self.build(inner.width);
         }
         let paragraph = Paragraph::new(self.lines.clone()).wrap(Wrap { trim: false });
@@ -891,20 +962,20 @@ impl Session {
         }
         let left = if let Some(approval) = &self.snapshot.approval {
             Line::from(vec![
-                Span::styled(" ? ", Style::new().fg(GOLD).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("{} ", approval.tool), Style::new().fg(BRIGHT)),
-                Span::styled(approval.summary.clone(), Style::new().fg(MUTED)),
+                Span::styled(" ? ", Style::new().fg(palette().gold).add_modifier(Modifier::BOLD)),
+                Span::styled(format!("{} ", approval.tool), Style::new().fg(palette().bright)),
+                Span::styled(approval.summary.clone(), Style::new().fg(palette().muted)),
             ])
         } else if self.snapshot.running {
             Line::from(vec![
-                Span::styled(format!(" {} ", spinner()), Style::new().fg(GOLD)),
+                Span::styled(format!(" {} ", spinner()), Style::new().fg(palette().gold)),
                 Span::styled(
                     self.snapshot.activity.clone().unwrap_or_else(|| "working".to_owned()),
-                    Style::new().fg(MUTED),
+                    Style::new().fg(palette().muted),
                 ),
             ])
         } else if let Some((text, _)) = &self.notice {
-            Line::styled(format!(" {text}"), Style::new().fg(GOLD))
+            Line::styled(format!(" {text}"), Style::new().fg(palette().gold))
         } else {
             Line::default()
         };
@@ -923,25 +994,25 @@ impl Session {
         };
         // Span-styled: a styled Line would repaint the status drawn under it.
         frame.render_widget(
-            Line::from(Span::styled(right, Style::new().fg(MUTED))).right_aligned(),
+            Line::from(Span::styled(right, Style::new().fg(palette().muted))).right_aligned(),
             area,
         );
     }
 
     /// What the next turn carries, over the prompt.
     fn draw_references(&self, frame: &mut Frame, area: Rect) {
-        let mut spans = vec![Span::styled(" with ", Style::new().fg(MUTED))];
+        let mut spans = vec![Span::styled(" with ", Style::new().fg(palette().muted))];
         for (index, label) in self.snapshot.references.iter().enumerate() {
             if index > 0 {
-                spans.push(Span::styled(" · ", Style::new().fg(MUTED)));
+                spans.push(Span::styled(" · ", Style::new().fg(palette().muted)));
             }
-            spans.push(Span::styled(format!("@{label}"), Style::new().fg(GOLD)));
+            spans.push(Span::styled(format!("@{label}"), Style::new().fg(palette().gold)));
         }
         frame.render_widget(Line::from(spans), area);
         if self.input.value().is_empty() {
             // Span-styled: a styled Line would repaint the labels drawn under it.
             frame.render_widget(
-                Line::from(Span::styled("⌫ drops the last ", Style::new().fg(MUTED))).right_aligned(),
+                Line::from(Span::styled("⌫ drops the last ", Style::new().fg(palette().muted))).right_aligned(),
                 area,
             );
         }
@@ -952,7 +1023,7 @@ impl Session {
         let block = Block::new()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::new().fg(if focused { SAGE } else { LINE }));
+            .border_style(Style::new().fg(if focused { palette().sage } else { palette().line }));
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
@@ -961,12 +1032,12 @@ impl Session {
         let scroll = self.input.visual_scroll(width);
         let text = Span::styled(
             self.input.value().chars().skip(scroll).collect::<String>(),
-            Style::new().fg(BRIGHT),
+            Style::new().fg(palette().bright),
         );
         frame.render_widget(
             Line::from(vec![
                 Span::raw(" "),
-                Span::styled(PROMPT, Style::new().fg(GOLD).bold()),
+                Span::styled(PROMPT, Style::new().fg(palette().gold).bold()),
                 text,
             ]),
             inner,
@@ -1161,30 +1232,30 @@ fn refusal(reason: Option<&str>) -> Option<&'static str> {
 fn sent_lines(sent: &Sent) -> Vec<Line<'static>> {
     let taken = sent.status == "delivered";
     let (glyph, ink) = if taken {
-        (Style::new().fg(GOLD).bold(), Style::new().fg(BRIGHT))
+        (Style::new().fg(palette().gold).bold(), Style::new().fg(palette().bright))
     } else {
-        (Style::new().fg(MUTED), Style::new().fg(INK))
+        (Style::new().fg(palette().muted), Style::new().fg(palette().ink))
     };
     let (tag, tag_style) = match sent.status.as_str() {
-        "delivered" => (None, Style::new().fg(MUTED)),
-        "sending" => (Some("sending".to_owned()), Style::new().fg(MUTED)),
-        "next" => (Some("goes as the next turn".to_owned()), Style::new().fg(GOLD)),
-        "resent" => (Some("sent as the next turn".to_owned()), Style::new().fg(MUTED)),
+        "delivered" => (None, Style::new().fg(palette().muted)),
+        "sending" => (Some("sending".to_owned()), Style::new().fg(palette().muted)),
+        "next" => (Some("goes as the next turn".to_owned()), Style::new().fg(palette().gold)),
+        "resent" => (Some("sent as the next turn".to_owned()), Style::new().fg(palette().muted)),
         "not_delivered" => (
             Some(match refusal(sent.reason.as_deref()) {
                 Some(why) => format!("not delivered: {why}"),
                 None => "not delivered".to_owned(),
             }),
-            Style::new().fg(ERROR),
+            Style::new().fg(palette().error),
         ),
         "failed" => (
             Some(match &sent.reason {
                 Some(why) => format!("not sent: {why}"),
                 None => "not sent".to_owned(),
             }),
-            Style::new().fg(ERROR),
+            Style::new().fg(palette().error),
         ),
-        _ => (Some("queued for its next step".to_owned()), Style::new().fg(MUTED)),
+        _ => (Some("queued for its next step".to_owned()), Style::new().fg(palette().muted)),
     };
     let rows: Vec<&str> = sent.text.lines().collect();
     let last = rows.len().saturating_sub(1);
@@ -1213,10 +1284,10 @@ fn sent_lines(sent: &Sent) -> Vec<Line<'static>> {
 /// terminal draws a hyperlink.
 fn tool_row(name: &str, summary: &str, status: &str, link: bool, width: u16) -> Line<'static> {
     let (glyph, color) = match status {
-        "complete" => ("✓", SAGE),
-        "error" => ("✗", ERROR),
-        "approval" => ("?", GOLD),
-        _ => ("◌", GOLD),
+        "complete" => ("✓", palette().sage),
+        "error" => ("✗", palette().error),
+        "approval" => ("?", palette().gold),
+        _ => ("◌", palette().gold),
     };
     let lead = format!("{INDENT}{glyph} ");
     let used = lead.chars().count() + name.chars().count() + 2;
@@ -1228,19 +1299,19 @@ fn tool_row(name: &str, summary: &str, status: &str, link: bool, width: u16) -> 
     let fill = (width as usize).saturating_sub(used + summary.chars().count());
     Line::from(vec![
         Span::styled(lead, Style::new().fg(color)),
-        Span::styled(name.to_owned(), Style::new().fg(BRIGHT).bold()),
+        Span::styled(name.to_owned(), Style::new().fg(palette().bright).bold()),
         Span::raw("  "),
         Span::styled(
             summary,
             if link {
-                Style::new().fg(MUTED).add_modifier(Modifier::UNDERLINED)
+                Style::new().fg(palette().muted).add_modifier(Modifier::UNDERLINED)
             } else {
-                Style::new().fg(MUTED)
+                Style::new().fg(palette().muted)
             },
         ),
         Span::raw(" ".repeat(fill)),
     ])
-    .style(Style::new().bg(RAISED))
+    .style(Style::new().bg(palette().raised))
 }
 
 /// The terminal's tabs, one session each, and what spans them: focus, the
@@ -1318,7 +1389,7 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        frame.render_widget(Block::new().style(Style::new().bg(BG).fg(INK)), area);
+        frame.render_widget(Block::new().style(Style::new().bg(palette().bg).fg(palette().ink)), area);
         let referenced = self
             .sessions
             .get(self.active)
@@ -1334,7 +1405,7 @@ impl App {
 
         let block = Block::new()
             .borders(Borders::BOTTOM)
-            .border_style(Style::new().fg(LINE));
+            .border_style(Style::new().fg(palette().line));
         let bar = block.inner(header);
         frame.render_widget(block, header);
         // The bar's last columns stay clear for the page's close button.
@@ -1368,9 +1439,9 @@ impl App {
             .map(|(index, session)| {
                 let mut spans = Vec::new();
                 if session.snapshot.approval.is_some() {
-                    spans.push(Span::styled("? ", Style::new().fg(GOLD)));
+                    spans.push(Span::styled("? ", Style::new().fg(palette().gold)));
                 } else if session.snapshot.running {
-                    spans.push(Span::styled(format!("{spin} "), Style::new().fg(GOLD)));
+                    spans.push(Span::styled(format!("{spin} "), Style::new().fg(palette().gold)));
                 }
                 let mut title: String = session.title.chars().take(18).collect();
                 if session.title.chars().count() > 18 {
@@ -1379,7 +1450,7 @@ impl App {
                 }
                 spans.push(Span::raw(title));
                 if index == self.active {
-                    spans.push(Span::styled(" ×", Style::new().fg(MUTED)));
+                    spans.push(Span::styled(" ×", Style::new().fg(palette().muted)));
                 }
                 Line::from(spans)
             })
@@ -1409,9 +1480,9 @@ impl App {
         frame.render_widget(
             Tabs::new(titles)
                 .select(self.active)
-                .style(Style::new().fg(MUTED))
-                .highlight_style(Style::new().fg(BRIGHT).add_modifier(Modifier::BOLD))
-                .divider(Span::styled("│", Style::new().fg(LINE)))
+                .style(Style::new().fg(palette().muted))
+                .highlight_style(Style::new().fg(palette().bright).add_modifier(Modifier::BOLD))
+                .divider(Span::styled("│", Style::new().fg(palette().line)))
                 .padding(" ", " "),
             area,
         );
@@ -1690,9 +1761,9 @@ impl Screen {
             Some(at) => {
                 let lit = !app.focused || ((now() - app.typed_at) / BLINK_MS) as u64 % 2 == 0;
                 let color = match (lit, app.focused) {
-                    (false, _) => "transparent",
-                    (true, true) => "#8aa8a0",
-                    (true, false) => "#6c747c",
+                    (false, _) => "transparent".to_owned(),
+                    (true, true) => palette().sage.to_string(),
+                    (true, false) => palette().idle.to_string(),
                 };
                 let (width, height) = app.cell;
                 format!(

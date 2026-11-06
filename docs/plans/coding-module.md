@@ -48,8 +48,10 @@ is the agent.
     maps each token class to them.
   - The diff tints keep `github-dark-default`'s diff hues but are set in
     OKLCH on the terminal's background (see the colour assessment below).
-  - The terminal's chrome (background, rules, muted text) stays pi's slate,
-    as `src/styles.css` already keeps it in every palette and mode.
+  - The terminal's chrome (background, rules, muted text) is pi's slate in
+    GitHub Sharp. In any other palette, mode or set of a person's own
+    colours, it is worked out from the workspace around it (see "The
+    terminal follows the workspace" below).
 - **Diffs: Delta's, not a whole-line colour.** A diff used to colour each
   whole line by its kind, which is all TanStack Highlight's `diff` grammar
   does. A diff is now drawn the way Delta draws one:
@@ -161,6 +163,95 @@ constants and checks these rules:
 
 With pi's muted grey put back, the test fails. With the old plum and teal
 rows, it fails too.
+
+## The terminal follows the workspace
+
+Workspaces have many palettes, and people can set their own colours. So
+the terminal has no colour scheme per palette. It keeps the relationship
+pi's slate has to GitHub Sharp, and works its colours out again from
+whatever workspace surrounds it. DESIGN.md asks for this: keep role
+relationships across themes, not the same hex values, through one adapter.
+
+`src/components/terminal/terminal-theme.ts` is that adapter. It reads 15
+workspace tokens (surfaces, sheet, inks and lines) and measures two things:
+
+- **The workspace's tint:** the mean OKLab a/b of its neutrals. GitHub Sharp
+  is nearly grey, at chroma 0.0058 and hue 251.
+- **Its anchor:** the ink's lightness in a light mode, the sheet's in a dark
+  one.
+
+Then each terminal colour keeps the slate's relation to those:
+
+- **Background:** the slate is 4.3 times GitHub Sharp's tint, turned 10
+  degrees, so every workspace's terminal is its own tint times 4.3, turned
+  the same way. A grey workspace gets a grey terminal; Stone gets a warm
+  brown one. Its lightness sits as far below the anchor as the slate does,
+  and never lighter than the slate.
+- **Raised surface, rules and idle text:** the slate's steps in lightness,
+  chroma and hue from its background.
+- **Text and statuses:** the slate's contrast, lifted where needed to read
+  at 4.5:1 on the background and raised surface.
+- **Diff rows and changed words:** GitHub Dark's diff hues, at least as far
+  (ΔE00) from what they sit on as on the slate. A row starts at the slate's
+  chroma, 0.020. Changed words get lighter first, as far as code still
+  reads at 4.5:1 on them, then more chromatic, and stop at the edge of
+  sRGB. A red at the edge of sRGB reads as an alarm, so they go no further.
+
+In GitHub Sharp the adapter gives back pi's slate exactly. Measured in the
+other built-in modes and a person's own plum:
+
+| Workspace          | Background | Raised    | Ink       | Rows, removed / added | Changed words         | Row ΔE00 to background | Words ΔE00 to row |
+| ------------------ | ---------- | --------- | --------- | --------------------- | --------------------- | ---------------------- | ----------------- |
+| GitHub Sharp       | `#202733`  | `#273042` | `#c8d0d8` | `#362927` / `#262f26` | `#5e211d` / `#0e4318` | 12.6 / 14.1            | 15.5 / 15.6       |
+| GitHub Sharp dark  | `#22272e`  | `#2a303b` | `#cad0d4` | `#382825` / `#223023` | `#67231f` / `#014412` | 12.7 / 14.3            | 15.4 / 14.4       |
+| Stone              | `#2e2519`  | `#3a2e1b` | `#d7cdc6` | `#412320` / `#223023` | `#78090e` / `#014412` | 13.0 / 14.2            | 15.5 / 14.4       |
+| Stone dark         | `#25221a`  | `#2f2b1f` | `#cdc9c3` | `#37211f` / `#172e1a` | `#6e1c19` / `#014412` | 12.8 / 14.3            | 15.6 / 11.1       |
+| Plum (own colours) | `#2e222d`  | `#3b2938` | `#d2ccd5` | `#45201d` / `#262f26` | `#7b0009` / `#0e4318` | 12.8 / 21.1            | 14.6 / 15.6       |
+
+Where changed words stand nearer their row than on the slate (added words
+off GitHub Sharp, Stone dark's added words), they are at the edge of sRGB.
+On warm workspaces the removed words are more saturated than on the slate
+(Stone `#78090e`, plum `#7b0009`), because the warm background takes red's
+distance away.
+
+How it reaches the page:
+
+- `scripts/palettes.ts` writes each built-in mode's `--term-*` into
+  `src/palettes.css`, so the first paint is right.
+- `src/components/terminal/live-terminal-theme.ts` loads after that. It reads
+  the live tokens through a probe element, so any CSS colour arrives
+  resolved, and works the colours out again whenever the root's class,
+  `data-palette` or style changes. It sets `--term-*` on the root, which the
+  Tailwind `term` colours read, and hands the full palette to the WASM
+  terminal through `set_palette`. Every session redraws when it changes.
+- The crate's default palette is the slate, and
+  `terminal-palette.test.ts` checks it equals what `terminal-theme.ts`
+  derives.
+
+`src/components/terminal/terminal-theme.test.ts` checks the four built-in
+modes and four workspaces of a person's own (plum, red, green light, and a
+darker pure grey):
+
+- every text colour reads at 4.5:1 on each surface it is drawn on;
+- diff tints keep GitHub Dark's hues;
+- rows stand at least as far from the background as on the slate, and
+  changed words as far from their row or at the sRGB edge, lighter and
+  more chromatic than the row;
+- the background is never lighter than the slate;
+- a grey workspace gives a grey terminal, and a tinted one's terminal takes
+  its hue turned as the slate's is.
+
+A workspace's rules hold exactly; their hex colours can show them only to
+within rounding, 0.0025 in OKLab at these lightnesses (measured over
+200,000 colours). The hue and lightness checks allow that much and no more.
+
+In Chromium, on the `terminal-code` story: each built-in mode painted its
+own colours (the counts of pixels in each derived colour matched across
+modes); switching `data-palette` on an open page moved the terminal to
+Stone's; and setting plum tokens on the root moved it to plum's, with no
+pixel of the old palette left. The shots, each framed in its workspace's
+sidebar and sheet colours, are in
+`evidence/coding-module/terminal-follows-workspace.png`.
 
 ## Chart
 

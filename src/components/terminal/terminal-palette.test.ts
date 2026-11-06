@@ -1,12 +1,15 @@
 // SOURCING: culori (a dependency) for OKLCH and WCAG contrast; @tanstack/highlight's githubDarkTheme for the code colours. The test only reads the crate's colour constants.
 //
-// The terminal crate draws in fixed colours. These checks hold them to
-// DESIGN.md's rules: text at 4.5:1 on the surface it is drawn on, and the
-// diff tints set in OKLCH at GitHub Dark's diff hues.
+// The terminal crate draws its code in fixed colours, and the rest in pi's
+// slate until the page sets its palette (terminal-theme.ts works out every
+// other one from the slate). These checks hold the slate to DESIGN.md's
+// rules: text at 4.5:1 on the surface it is drawn on, and the diff tints set
+// in OKLCH at GitHub Dark's diff hues.
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'bun:test'
 import { githubDarkTheme } from '@tanstack/highlight/themes/github-dark'
 import { converter, differenceCiede2000, wcagContrast } from 'culori'
+import { SLATE } from './terminal-theme'
 
 const oklch = converter('oklch')
 const deltaE = differenceCiede2000()
@@ -15,11 +18,28 @@ const source = readFileSync(
   new URL('../../../terminal/src/lib.rs', import.meta.url),
   'utf8',
 )
+const hex = (r?: string, g?: string, b?: string) =>
+  `#${r}${g}${b}`.toLowerCase()
+/** The crate's colours by name: its code constants, and its slate's fields in capitals. */
 const colour: Record<string, string> = {}
 for (const [, name, r, g, b] of source.matchAll(
   /const (\w+): Color = Color::Rgb\(0x(\w\w), 0x(\w\w), 0x(\w\w)\);/g,
 ))
-  colour[name!] = `#${r}${g}${b}`.toLowerCase()
+  colour[name!] = hex(r, g, b)
+const slateSource = /const SLATE: Palette = Palette \{([^}]*)\};/.exec(
+  source,
+)?.[1]
+const slate: Record<string, string> = {}
+for (const [, name, r, g, b] of (slateSource ?? '').matchAll(
+  /(\w+): Color::Rgb\(0x(\w\w), 0x(\w\w), 0x(\w\w)\)/g,
+)) {
+  slate[name!.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())] = hex(
+    r,
+    g,
+    b,
+  )
+  colour[name!.toUpperCase()] = hex(r, g, b)
+}
 
 const CHROME = ['INK', 'BRIGHT', 'MUTED', 'SAGE', 'GOLD', 'ERROR']
 const CODE = [
@@ -40,6 +60,10 @@ const below = (fgs: string[], bgs: string[]) =>
       .map((fg) => ({ fg, bg, ratio: wcagContrast(colour[fg]!, colour[bg]!) }))
       .filter(({ ratio }) => ratio < 4.5),
   )
+
+test("the crate's default palette is the slate terminal-theme.ts derives every other from", () => {
+  expect(slate).toEqual(SLATE)
+})
 
 test("code draws in GitHub Dark's token colours, which Stone dark's Monaco uses", () => {
   const byClass: Record<string, string> = {
@@ -74,7 +98,7 @@ test("a diff's tints keep GitHub Dark's diff hues, with removed and added alike 
     if (!parsed) throw new Error(`terminal/src/lib.rs has no colour ${name}`)
     return parsed
   }
-  const hue = (hex: string) => oklch(hex)!.h!
+  const hue = (value: string) => oklch(value)!.h!
   const apart = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
   for (const [side, github] of [
     ['REMOVED', '#da3633'],

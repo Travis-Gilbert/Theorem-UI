@@ -272,17 +272,19 @@
   --color-error-ink: var(--error-ink);
   --color-link: var(--link);
 
-  /* The terminal surfaces (file explorer, agent terminal) keep pi's dark
-     slate in every palette and mode, the way a terminal keeps its own scheme. */
-  --color-term: #202733;
-  --color-term-raised: #273042;
-  --color-term-line: #3a4458;
-  --color-term-ink: #c8d0d8;
-  --color-term-bright: #e4eaee;
-  --color-term-muted: #8f98a0;
-  --color-term-sage: #8aa8a0;
-  --color-term-gold: #d6bc8a;
-  --color-term-error: #e08a8f;
+  /* The terminal surfaces (file explorer, agent terminal) relate to the
+     palette around them as pi's slate relates to GitHub Sharp
+     (components/terminal/terminal-theme.ts): palettes.css carries each
+     mode's, and the page sets them again when a person's own colours change. */
+  --color-term: var(--term-bg);
+  --color-term-raised: var(--term-raised);
+  --color-term-line: var(--term-line);
+  --color-term-ink: var(--term-ink);
+  --color-term-bright: var(--term-bright);
+  --color-term-muted: var(--term-muted);
+  --color-term-sage: var(--term-sage);
+  --color-term-gold: var(--term-gold);
+  --color-term-error: var(--term-error);
 
   --font-sans:
     'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui,
