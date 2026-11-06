@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/highlight's createHighlighter/tokenize for class-based code tokens, with the languages a coding agent writes; mdast-util-from-markdown for where fenced code sits in the agent's markdown; colours are the terminal crate's (terminal/src/lib.rs)
+// SOURCING: @tanstack/highlight's createHighlighter/tokenize for class-based code tokens, with the languages a coding agent writes; mdast-util-from-markdown for where fenced code sits in the agent's markdown; jsdiff's parsePatch for the lines an edit changed; colours are the terminal crate's (terminal/src/lib.rs)
 //
 // Code the agent writes, highlighted for the terminal. The terminal draws
 // markdown itself (tui-markdown, highlighting off); fenced code is lifted out
@@ -33,6 +33,7 @@ import { toml } from '@tanstack/highlight/languages/toml'
 import { ts } from '@tanstack/highlight/languages/ts'
 import { tsx } from '@tanstack/highlight/languages/tsx'
 import { yaml } from '@tanstack/highlight/languages/yaml'
+import { parsePatch } from 'diff'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 
 const highlighter = createHighlighter({
@@ -110,18 +111,11 @@ function languageOf(path: string | undefined) {
   return lang === 'plaintext' ? '' : lang
 }
 
-/**
- * A tool's result as the terminal shows it under its row: text as returned,
- * a unified diff as a diff, file content in its path's language, structured
- * results as JSON. Long output keeps its first lines and counts the rest.
- */
-export function toolOutput(
-  result: unknown,
-  path: string | undefined,
-): Output | undefined {
-  if (result === undefined || result === null || result === '') return
+/** A tool's result as text: as returned, its text content, else JSON. */
+function resultText(result: unknown) {
+  if (typeof result === 'string') return { text: result, structured: false }
   const content =
-    typeof result === 'object' && 'content' in result
+    typeof result === 'object' && result !== null && 'content' in result
       ? result.content
       : undefined
   const texts = Array.isArray(content)
@@ -134,24 +128,79 @@ export function toolOutput(
           : [],
       )
     : []
-  const text =
-    typeof result === 'string'
-      ? result
-      : texts.length
-        ? texts.join('\n')
-        : JSON.stringify(result, null, 2)
-  const lang =
-    typeof result !== 'string' && !texts.length
-      ? 'json'
-      : DIFF.test(text)
-        ? 'diff'
-        : languageOf(path)
+  return texts.length
+    ? { text: texts.join('\n'), structured: false }
+    : { text: JSON.stringify(result, null, 2), structured: true }
+}
+
+/**
+ * A tool's result as the terminal shows it under its row: text as returned,
+ * a unified diff as a diff, file content in its path's language, structured
+ * results as JSON. Long output keeps its first lines and counts the rest.
+ */
+export function toolOutput(
+  result: unknown,
+  path: string | undefined,
+): Output | undefined {
+  if (result === undefined || result === null || result === '') return
+  const { text, structured } = resultText(result)
+  const lang = structured ? 'json' : DIFF.test(text) ? 'diff' : languageOf(path)
   const rows = text.replace(/\n$/, '').split('\n')
   return {
     lang,
     lines: highlightLines(rows.slice(0, OUTPUT_LINES).join('\n'), lang),
     more: Math.max(0, rows.length - OUTPUT_LINES),
   }
+}
+
+/** Where a tool's file opens in the editor: one-based lines, both ends included. */
+export type Open = { path: string; start?: number; end?: number }
+
+const lineArg = (value: unknown) =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : undefined
+
+/** An edit's first hunk; a diff whose counts disagree with its lines has none. */
+function firstHunk(text: string) {
+  try {
+    return parsePatch(text)
+      .flatMap((patch) => patch.hunks)
+      .at(0)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The file a tool worked on and the lines it touched: the first hunk an edit
+ * returned as a diff, else the lines it was asked to read.
+ */
+export function openOf(
+  path: string | undefined,
+  args: Record<string, unknown>,
+  result: unknown,
+): Open | undefined {
+  if (!path) return
+  if (result !== undefined && result !== null && result !== '') {
+    const { text } = resultText(result)
+    if (DIFF.test(text)) {
+      const hunk = firstHunk(text)
+      if (hunk)
+        return {
+          path,
+          start: hunk.newStart,
+          end: hunk.newStart + Math.max(hunk.newLines, 1) - 1,
+        }
+    }
+  }
+  const start =
+    lineArg(args.start_line) ?? lineArg(args.line) ?? lineArg(args.offset)
+  const limit = lineArg(args.limit)
+  const end =
+    lineArg(args.end_line) ??
+    (start !== undefined && limit !== undefined ? start + limit - 1 : undefined)
+  return { path, start, end: end ?? start }
 }
 
 /**

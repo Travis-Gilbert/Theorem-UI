@@ -1,10 +1,11 @@
 // SOURCING: @tanstack/react-router file route; the terminal is terminal-screen's TerminalScreen (the real Ratzilla WASM build) on a committed fixture from terminal-stories
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   showStory,
   TerminalScreen,
 } from '@/components/terminal/terminal-screen'
+import type { TerminalAction } from '@/components/terminal/terminal-screen'
 import {
   storySnapshot,
   TERMINAL_STORIES,
@@ -12,7 +13,8 @@ import {
 
 /**
  * One story: a component in one fixed state at a fixed size, for oracles to
- * screenshot and diff. Listed at /stories.json.
+ * screenshot and diff. Listed at /stories.json. The last action the terminal
+ * emitted is kept on `data-action`, for interaction oracles; nothing runs it.
  */
 export const Route = createFileRoute('/story/$id')({
   // The terminal is WebAssembly drawing into the DOM; there is nothing to render on the server.
@@ -31,10 +33,12 @@ export const Route = createFileRoute('/story/$id')({
 function Story() {
   const { id, title, snapshot } = Route.useLoaderData()
   const key = `story:${id}`
+  const [action, setAction] = useState<TerminalAction>()
   useEffect(() => showStory(key, snapshot), [key, snapshot])
   return (
     <main
       data-story={id}
+      data-action={action && JSON.stringify(action)}
       className="flex h-[640px] w-[900px] flex-col overflow-hidden"
     >
       <TerminalScreen
@@ -42,7 +46,7 @@ function Story() {
         tabbed={false}
         tabs={[{ id: key, title }]}
         active={key}
-        onAction={() => {}}
+        onAction={setAction}
       />
     </main>
   )

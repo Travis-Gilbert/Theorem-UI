@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import {
   highlightLines,
+  openOf,
   OUTPUT_LINES,
   proseAndCode,
   toolOutput,
@@ -79,4 +80,40 @@ test('tool output keeps its first lines in the language of what it returned', ()
   expect(long?.lines).toHaveLength(OUTPUT_LINES)
   expect(long?.more).toBe(5)
   expect(toolOutput(undefined, undefined)).toBeUndefined()
+})
+
+test('a tool row opens its file at the lines it changed, else the lines it read', () => {
+  const edit =
+    '--- a/src/parser.rs\n+++ b/src/parser.rs\n@@ -2,3 +2,4 @@\n-a\n+b\n+c\n d\n e'
+  expect(openOf('src/parser.rs', {}, edit)).toEqual({
+    path: 'src/parser.rs',
+    start: 2,
+    end: 5,
+  })
+  expect(
+    openOf(
+      'src/parser.rs',
+      { path: 'src/parser.rs', offset: 10, limit: 5 },
+      'fn x',
+    ),
+  ).toEqual({ path: 'src/parser.rs', start: 10, end: 14 })
+  expect(openOf('a.ts', { start_line: 3, end_line: 7 }, undefined)).toEqual({
+    path: 'a.ts',
+    start: 3,
+    end: 7,
+  })
+  expect(openOf('a.ts', {}, 'contents')).toEqual({
+    path: 'a.ts',
+    start: undefined,
+    end: undefined,
+  })
+  expect(openOf(undefined, { query: 'x' }, 'found')).toBeUndefined()
+  // A hunk whose header miscounts its lines is not trusted; the asked range is.
+  expect(
+    openOf(
+      'a.ts',
+      { start_line: 8 },
+      '--- a/a.ts\n+++ b/a.ts\n@@ -1,3 +1,3 @@\n-a\n+b',
+    ),
+  ).toEqual({ path: 'a.ts', start: 8, end: 8 })
 })

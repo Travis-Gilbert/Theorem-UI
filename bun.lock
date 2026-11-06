@@ -72,6 +72,7 @@
         "d3-array": "3.2.4",
         "d3-dsv": "3.0.1",
         "date-fns": "4.4.0",
+        "diff": "9.0.0",
         "dockview-react": "8.6.1",
         "dompurify": "3.4.17",
         "esbuild-wasm": "0.28.2",

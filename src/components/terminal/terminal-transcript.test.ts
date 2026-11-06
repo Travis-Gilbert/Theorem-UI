@@ -231,3 +231,28 @@ test("the native agent's program, host calls and progress reach the terminal", (
     status: 'error',
   })
 })
+
+test('a tool that names a file opens it, and the next turn shows what it carries', () => {
+  const read = {
+    type: 'tool-call',
+    toolCallId: 'call-2',
+    toolName: 'read_file',
+    args: { path: 'src/parser.rs', offset: 4, limit: 2 },
+    argsText: '{}',
+    result: 'fn fields() {}',
+  }
+  const drawn = JSON.parse(
+    snapshotOf(
+      [message('assistant', [read])],
+      false,
+      'theorem',
+      [],
+      ['src/parser.rs:2-4'],
+    ).json,
+  ) as Drawn & { references: string[] }
+  expect(drawn.messages[0]?.parts[0]).toMatchObject({
+    type: 'tool',
+    open: { path: 'src/parser.rs', start: 4, end: 5 },
+  })
+  expect(drawn.references).toEqual(['src/parser.rs:2-4'])
+})

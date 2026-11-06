@@ -4,8 +4,13 @@
 // a session's thread and what the session sent while a run worked. Pure, so
 // the delivery states are tested without a runtime or a terminal.
 import type { ThreadMessage } from '@assistant-ui/react'
-import { highlightLines, proseAndCode, toolOutput } from './terminal-code'
-import type { CodePart, Output, ProsePart, Token } from './terminal-code'
+import {
+  highlightLines,
+  openOf,
+  proseAndCode,
+  toolOutput,
+} from './terminal-code'
+import type { CodePart, Open, Output, ProsePart, Token } from './terminal-code'
 import { readApproval } from '@/components/chat/theorem-parts'
 import { describeError } from '@/lib/theorem/client'
 
@@ -41,6 +46,8 @@ type TerminalPart =
       summary: string
       status: string
       output?: Output
+      /** The file it worked on, which a click opens in the editor. */
+      open?: Open
     }
   | { type: 'program'; lines: Token[][]; streaming: boolean }
   | { type: 'input'; text: string; status: string; reason?: string }
@@ -105,12 +112,16 @@ function toolSummary(args: Record<string, unknown>, argsText: string) {
   return (typeof first === 'string' ? first : argsText).replace(/\s+/g, ' ')
 }
 
-/** The thread as the terminal draws it, plus the run's pending approval. */
+/**
+ * The thread as the terminal draws it, plus the run's pending approval.
+ * `references` names what the next turn carries, shown over the prompt.
+ */
 export function snapshotOf(
   messages: readonly ThreadMessage[],
   running: boolean,
   project: string,
   outbox: readonly Outgoing[],
+  references: readonly string[] = [],
 ) {
   const ours = new Map(
     outbox.flatMap((o) => (o.inputId ? [[o.inputId, o] as const] : [])),
@@ -236,6 +247,7 @@ export function snapshotOf(
                 ? 'running'
                 : 'complete',
           output: toolOutput(part.result, pathOf(part.args)),
+          open: openOf(pathOf(part.args), part.args, part.result),
         },
       ]
     })
@@ -264,6 +276,7 @@ export function snapshotOf(
       activity,
       messages: rows,
       outgoing,
+      references,
     }),
   }
 }

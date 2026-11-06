@@ -1,11 +1,13 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's sessions (the docked terminal's references and runs), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
 // inside the sheet, Follow the Agent's switch included; this frame only links
-// it to the conversation, the rail and Follow the Agent. Theia's chat shows
-// the conversation this window holds and sends through it, so both always
-// show the same turns.
+// it to the conversation, the rail and Follow the Agent. Alone, Theia's chat
+// shows the conversation this window holds and sends through it, so both
+// always show the same turns. With the agent terminal docked beside it, the
+// terminal is the conversation: Theia's chat closes, Add to chat attaches the
+// selection to the terminal's next turn, and Follow follows its active tab.
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
@@ -19,19 +21,21 @@ import {
 import { useOpenMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
+import {
+  addReference,
+  useTerminalRuns,
+} from '@/components/terminal/terminal-screen'
 import type {
   IdeFrameMethods,
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
-import { useFollow, useFollowRuns } from './follow'
-
-/**
- * The project's workspace on the host. Host workspace ids are directory names
- * of ASCII letters, digits, `_` and `-`; project ids carry a `:`.
- */
-const workspaceIdOf = (projectId: string) =>
-  projectId.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80)
+import {
+  useChatRuns,
+  useFollow,
+  useFollowRuns,
+  workspaceIdOf,
+} from './follow'
 
 /** A reference as composer text: its label, then the excerpt fenced. */
 function referenceText({ label, excerpt, location }: TheoremContextReference) {
@@ -41,7 +45,17 @@ function referenceText({ label, excerpt, location }: TheoremContextReference) {
   return excerpt ? `${name}\n\`\`\`\n${excerpt}\n\`\`\`` : `\`${name}\``
 }
 
-export function IdeFrame() {
+/**
+ * The IDE. `terminal` is the host element of the agent terminal docked
+ * beside it, when one is.
+ */
+/** The tab the project's terminal shows, read at the moment it is needed. */
+const activeTabOf = (projectId: string | undefined) =>
+  projectId
+    ? useShell.getState().terminalTabs[projectId]?.active
+    : undefined
+
+export function IdeFrame({ terminal }: { terminal?: string }) {
   const { project } = useActiveProject()
   const aui = useAui()
   const openMode = useOpenMode()
@@ -50,6 +64,10 @@ export function IdeFrame() {
   const ide = useFollow((s) => s.ide)
   const following = useFollow((s) => s.following)
   const sidebarOpen = useShell((s) => !s.panelCollapsed.ide)
+  const activeTab = useShell((s) =>
+    project ? s.terminalTabs[project.projectId]?.active : undefined,
+  )
+  const docked = terminal !== undefined
   const workspaceId = project && workspaceIdOf(project.projectId)
   const src = workspaceId
     ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
@@ -60,6 +78,12 @@ export function IdeFrame() {
     if (!src || !remoteWindow) return
     const methods: IdeHostMethods = {
       addToChat: (reference) => {
+        const tab = terminal && activeTabOf(project?.projectId)
+        if (terminal && tab) {
+          addReference(tab, reference)
+          document.getElementById(terminal)?.focus()
+          return
+        }
         const draft = aui.composer.getState().text.trimEnd()
         const text = referenceText(reference)
         aui.composer.setText(draft ? `${draft}\n\n${text}\n` : `${text}\n`)
@@ -100,9 +124,9 @@ export function IdeFrame() {
     })
     connection.promise.then(
       (remote) => {
-        const { pendingChanges } = useFollow.getState()
-        useFollow.setState({ ide: remote, pendingChanges: undefined })
-        if (pendingChanges) void remote.openChanges(pendingChanges)
+        const { pending } = useFollow.getState()
+        useFollow.setState({ ide: remote, pending: undefined })
+        pending?.(remote)
       },
       () => undefined,
     )
@@ -110,7 +134,7 @@ export function IdeFrame() {
       connection.destroy()
       useFollow.setState({ ide: undefined })
     }
-  }, [src, aui, openMode])
+  }, [src, aui, openMode, terminal, project?.projectId])
 
   useEffect(() => {
     void ide?.setTheme(resolvedTheme === 'dark')
@@ -124,8 +148,15 @@ export function IdeFrame() {
     void ide?.setFollowing(following)
   }, [ide, following])
 
-  useChatMirror(ide)
-  useFollowRuns(ide)
+  // A frame built before closeChatView rejects it; its chat then stays open.
+  useEffect(() => {
+    if (docked) ide?.closeChatView().catch(() => undefined)
+  }, [ide, docked])
+
+  const chatRuns = useChatRuns()
+  const terminalRuns = useTerminalRuns(activeTab)
+  useChatMirror(docked ? undefined : ide)
+  useFollowRuns(ide, docked ? terminalRuns : chatRuns)
 
   if (!src)
     return (

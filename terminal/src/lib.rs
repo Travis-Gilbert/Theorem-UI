@@ -13,8 +13,9 @@
 //! terminal smaller than the window draws past the grid. Here the viewport is
 //! fixed to the grid the backend actually built.
 //!
-//! One crate serves both drawers: the bottom one mounts a single session, the
-//! right one mounts with tabs, each tab its own agent thread.
+//! One crate serves both drawers and the IDE: the bottom drawer mounts a
+//! single session, the right drawer and the terminal docked beside the IDE
+//! mount with tabs, each tab its own agent thread.
 
 use std::{
     cell::{Cell, RefCell},
@@ -131,6 +132,8 @@ struct Snapshot {
     /// What the person sent while a run worked that the transcript does not
     /// show yet: still sending, queued, refused, or going as the next turn.
     outgoing: Vec<Sent>,
+    /// What the next turn carries, added from the IDE, shown over the prompt.
+    references: Vec<String>,
 }
 
 /// Words the person sent to a working run, and how far they got.
@@ -175,6 +178,9 @@ enum Part {
         /// What it returned, shown under the row with ctrl+o.
         #[serde(default)]
         output: Option<Output>,
+        /// The file it worked on, which a click on the row opens.
+        #[serde(default)]
+        open: Option<Open>,
     },
     /// The program the native agent writes and runs, streaming as it types.
     Program {
@@ -202,6 +208,16 @@ struct Output {
     more: usize,
 }
 
+/// A file and the lines a tool touched in it, one-based, both ends included.
+#[derive(Deserialize, Clone)]
+struct Open {
+    path: String,
+    #[serde(default)]
+    start: Option<u32>,
+    #[serde(default)]
+    end: Option<u32>,
+}
+
 /// A run of code text and its highlight class (TanStack Highlight's names).
 #[derive(Deserialize)]
 struct Token {
@@ -223,6 +239,10 @@ enum Action {
     NewTab,
     CloseTab,
     SelectTab,
+    /// Open a file a tool worked on, in the IDE.
+    Open(Open),
+    /// Drop the last reference the next turn carries.
+    Unreference,
 }
 
 impl Action {
@@ -237,6 +257,10 @@ impl Action {
             Action::NewTab => json!({ "type": "newTab", "tab": tab }),
             Action::CloseTab => json!({ "type": "closeTab", "tab": tab }),
             Action::SelectTab => json!({ "type": "selectTab", "tab": tab }),
+            Action::Open(Open { path, start, end }) => {
+                json!({ "type": "open", "tab": tab, "path": path, "start": start, "end": end })
+            }
+            Action::Unreference => json!({ "type": "unreference", "tab": tab }),
         }
         .to_string()
     }
@@ -363,7 +387,7 @@ fn group_row(parts: &[Part], width: u16) -> Line<'static> {
         .map(|(name, count)| if *count > 1 { format!("{name} ×{count}") } else { (*name).to_owned() })
         .collect::<Vec<_>>()
         .join(" · ");
-    tool_row(&format!("{} tools", parts.len()), &summary, "complete", width)
+    tool_row(&format!("{} tools", parts.len()), &summary, "complete", false, width)
 }
 
 /// A code block between its fences, the opening one naming the language.
@@ -405,6 +429,13 @@ struct Session {
     notice: Option<(String, f64)>,
     /// Transcript lines, rebuilt when the snapshot or the width changes.
     lines: Vec<Line<'static>>,
+    /// Each line's first row once wrapped, then the total, for clicks.
+    rows: Vec<usize>,
+    /// The tool rows a click opens, by line.
+    links: Vec<(usize, Open)>,
+    /// The body's area and its first shown row at the last draw.
+    body: Rect,
+    top: usize,
     built_for: Option<u16>,
 }
 
@@ -425,6 +456,10 @@ impl Session {
             has_output: false,
             notice: None,
             lines: Vec::new(),
+            rows: Vec::new(),
+            links: Vec::new(),
+            body: Rect::default(),
+            top: 0,
             built_for: None,
         }
     }
@@ -445,6 +480,7 @@ impl Session {
 
         let last_message = self.snapshot.messages.len().saturating_sub(1);
         let mut caret = None;
+        let mut links = Vec::new();
         self.has_output = self.snapshot.messages.iter().flat_map(|m| &m.parts).any(|part| {
             matches!(part, Part::Tool { output: Some(_), .. } | Part::Program { streaming: false, .. })
         });
@@ -521,8 +557,12 @@ impl Session {
                         summary,
                         status,
                         output,
+                        open,
                     } => {
-                        lines.push(tool_row(name, summary, status, width));
+                        if let Some(open) = open {
+                            links.push((lines.len(), open.clone()));
+                        }
+                        lines.push(tool_row(name, summary, status, open.is_some(), width));
                         if let Some(output) = output.as_ref().filter(|_| self.expanded) {
                             lines.extend(output_lines(output));
                         }
@@ -536,7 +576,7 @@ impl Session {
                         } else {
                             let count = code.len();
                             let summary = format!("{count} line{}", if count == 1 { "" } else { "s" });
-                            lines.push(tool_row("program", &summary, "complete", width));
+                            lines.push(tool_row("program", &summary, "complete", false, width));
                         }
                     }
                     Part::Input(sent) => {
@@ -592,6 +632,8 @@ impl Session {
                 ("alt+⌫", "delete a word"),
                 ("y / n", "allow or deny a pending approval"),
                 ("ctrl+o", "show or hide tool output and programs"),
+                ("click", "open the file a tool row names in the IDE"),
+                ("⌫", "on an empty prompt, drop the last reference"),
             ];
             if self.tabbed {
                 commands.extend([
@@ -610,8 +652,30 @@ impl Session {
             lines.push(Line::default());
         }
 
+        // Each line wraps on its own, so the rows add up line by line.
+        let mut rows = Vec::with_capacity(lines.len() + 1);
+        let mut row = 0;
+        for line in &lines {
+            rows.push(row);
+            row += Paragraph::new(line.clone()).wrap(Wrap { trim: false }).line_count(width);
+        }
+        rows.push(row);
+        self.rows = rows;
+        self.links = links;
         self.lines = lines;
         self.built_for = Some(width);
+    }
+
+    /// The tool row a cell lands on, if a click opens it.
+    fn link_at(&self, cell: Position) -> Option<&Open> {
+        if !self.body.contains(cell) {
+            return None;
+        }
+        let row = self.top + usize::from(cell.y - self.body.y);
+        self.links
+            .iter()
+            .find(|(line, _)| self.rows.get(*line) == Some(&row))
+            .map(|(_, open)| open)
     }
 
     /// The single-session bar: what this is and where.
@@ -638,6 +702,8 @@ impl Session {
         let max_back = total.saturating_sub(height);
         self.scroll_back = self.scroll_back.min(max_back);
         let top = (max_back - self.scroll_back).min(u16::MAX as usize) as u16;
+        self.body = inner;
+        self.top = usize::from(top);
         frame.render_widget(paragraph.scroll((top, 0)), inner);
     }
 
@@ -678,10 +744,30 @@ impl Session {
         } else {
             String::new()
         };
+        // Span-styled: a styled Line would repaint the status drawn under it.
         frame.render_widget(
-            Line::styled(right, Style::new().fg(MUTED)).right_aligned(),
+            Line::from(Span::styled(right, Style::new().fg(MUTED))).right_aligned(),
             area,
         );
+    }
+
+    /// What the next turn carries, over the prompt.
+    fn draw_references(&self, frame: &mut Frame, area: Rect) {
+        let mut spans = vec![Span::styled(" with ", Style::new().fg(MUTED))];
+        for (index, label) in self.snapshot.references.iter().enumerate() {
+            if index > 0 {
+                spans.push(Span::styled(" · ", Style::new().fg(MUTED)));
+            }
+            spans.push(Span::styled(format!("@{label}"), Style::new().fg(GOLD)));
+        }
+        frame.render_widget(Line::from(spans), area);
+        if self.input.value().is_empty() {
+            // Span-styled: a styled Line would repaint the labels drawn under it.
+            frame.render_widget(
+                Line::from(Span::styled("⌫ drops the last ", Style::new().fg(MUTED))).right_aligned(),
+                area,
+            );
+        }
     }
 
     /// Draws the prompt line and returns the cell its cursor sits on.
@@ -808,6 +894,11 @@ impl Session {
                 edit(&mut self.input, InputRequest::InsertChar(c));
                 self.history_at = None;
                 None
+            }
+            KeyCode::Backspace
+                if self.input.value().is_empty() && !self.snapshot.references.is_empty() =>
+            {
+                Some(Action::Unreference)
             }
             KeyCode::Backspace if alt || ctrl => {
                 edit(&mut self.input, InputRequest::DeletePrevWord);
@@ -941,7 +1032,9 @@ fn sent_lines(sent: &Sent) -> Vec<Line<'static>> {
         .collect()
 }
 
-fn tool_row(name: &str, summary: &str, status: &str, width: u16) -> Line<'static> {
+/// One tool's row. A row that opens a file underlines its summary, as a
+/// terminal draws a hyperlink.
+fn tool_row(name: &str, summary: &str, status: &str, link: bool, width: u16) -> Line<'static> {
     let (glyph, color) = match status {
         "complete" => ("✓", SAGE),
         "error" => ("✗", ERROR),
@@ -960,7 +1053,14 @@ fn tool_row(name: &str, summary: &str, status: &str, width: u16) -> Line<'static
         Span::styled(lead, Style::new().fg(color)),
         Span::styled(name.to_owned(), Style::new().fg(BRIGHT).bold()),
         Span::raw("  "),
-        Span::styled(summary, Style::new().fg(MUTED)),
+        Span::styled(
+            summary,
+            if link {
+                Style::new().fg(MUTED).add_modifier(Modifier::UNDERLINED)
+            } else {
+                Style::new().fg(MUTED)
+            },
+        ),
         Span::raw(" ".repeat(fill)),
     ])
     .style(Style::new().bg(TOOL))
@@ -1042,10 +1142,15 @@ impl App {
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
         frame.render_widget(Block::new().style(Style::new().bg(BG).fg(INK)), area);
-        let [header, body, status, prompt] = Layout::vertical([
+        let referenced = self
+            .sessions
+            .get(self.active)
+            .is_some_and(|session| !session.snapshot.references.is_empty());
+        let [header, body, status, references, prompt] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
             Constraint::Length(1),
+            Constraint::Length(u16::from(referenced)),
             Constraint::Length(3),
         ])
         .areas(area);
@@ -1069,6 +1174,9 @@ impl App {
         };
         session.draw_body(frame, body);
         session.draw_status(frame, status);
+        if referenced {
+            session.draw_references(frame, references);
+        }
         self.cursor = Some(session.draw_prompt(frame, prompt, self.focused));
     }
 
@@ -1182,10 +1290,17 @@ impl App {
             .map(|(_, _, hit)| *hit)
     }
 
-    /// The CSS cursor for a point: a pointer over the tab bar's targets, a
-    /// text cursor over the prompt, and the arrow everywhere else.
+    /// The active session's tool row under a point that a click opens.
+    fn link_at(&self, x: f64, y: f64) -> Option<&Open> {
+        let cell = self.cell_at(x, y)?;
+        self.sessions.get(self.active)?.link_at(cell)
+    }
+
+    /// The CSS cursor for a point: a pointer over the tab bar's targets and
+    /// the rows that open a file, a text cursor over the prompt, and the
+    /// arrow everywhere else.
     fn cursor_at(&self, x: f64, y: f64) -> &'static str {
-        if self.hit_at(x, y).is_some() {
+        if self.hit_at(x, y).is_some() || self.link_at(x, y).is_some() {
             "pointer"
         } else if self.cell_at(x, y).is_some_and(|cell| self.prompt.contains(cell)) {
             "text"
@@ -1195,6 +1310,9 @@ impl App {
     }
 
     fn click(&self, x: f64, y: f64) -> Option<(Action, String)> {
+        if let Some(open) = self.link_at(x, y) {
+            return self.tab(self.active, Action::Open(open.clone()));
+        }
         match self.hit_at(x, y)? {
             Hit::Select(index) => self.tab(index, Action::SelectTab),
             Hit::Close(index) => self.tab(index, Action::CloseTab),

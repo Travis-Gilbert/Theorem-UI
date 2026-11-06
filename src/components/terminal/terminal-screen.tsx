@@ -1,16 +1,20 @@
-// SOURCING: Ratzilla (ratatui in the browser, built from terminal/ into src/terminal-wasm) draws the terminal, its tab bar (ratatui Tabs) and prompt; assistant-ui useLocalRuntime runs each session's turns through the same Theorem SDK adapter, history and resume as the chat (lib/theorem/runtime); zustand carries each session's snapshot and outbox between its runtime and the WASM; what the person sends while a run works goes to the run's inbox through the SDK's runs.command (command input); the close button is the shared TooltipIconButton with Streamline's X; closing on a double-click outside is a document listener, since Base UI's drawer only dismisses on an outside press
+// SOURCING: Ratzilla (ratatui in the browser, built from terminal/ into src/terminal-wasm) draws the terminal, its tab bar (ratatui Tabs) and prompt; assistant-ui useLocalRuntime runs each session's turns through the same Theorem SDK adapter, history and resume as the chat (lib/theorem/runtime); zustand carries each session's snapshot and outbox between its runtime and the WASM; what the person sends while a run works goes to the run's inbox through the SDK's runs.command (command input); a selection added from the IDE rides the next turn as a typed context reference (the chat's composer-references keys), and a file a tool worked on opens in the IDE through Follow's reveal; the close button is the shared TooltipIconButton with Streamline's X; closing on a double-click outside is a document listener, since Base UI's drawer only dismisses on an outside press
 import { useLocalRuntime } from '@assistant-ui/react'
 import type {
   AssistantRuntime,
   ChatModelAdapter,
   ThreadMessage,
 } from '@assistant-ui/react'
+import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { referenceKey } from '@/components/chat/composer-references'
 import { Icon } from '@/components/icons'
+import { useRevealFile, workingRuns } from '@/components/ide/follow'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
+import type { Theorem } from '@/lib/theorem/client'
 import {
   createHistoryAdapter,
   runTurn,
@@ -34,6 +38,10 @@ type Session = {
   /** The session's durable thread, once it has one. */
   thread?: () => string | undefined
   outbox: Outgoing[]
+  /** What the next turn carries, added from the IDE. */
+  references: readonly TheoremContextReference[]
+  /** The working turn's runs, as Follow's workingRuns joins them. */
+  runs: string
 }
 
 /**
@@ -44,7 +52,15 @@ const useTerminalSessions = create<Partial<Record<string, Session>>>(() => ({}))
 
 function patchSession(key: string, change: Partial<Session>) {
   useTerminalSessions.setState((s) => ({
-    [key]: { snapshot: '{}', generation: 0, outbox: [], ...s[key], ...change },
+    [key]: {
+      snapshot: '{}',
+      generation: 0,
+      outbox: [],
+      references: [],
+      runs: '',
+      ...s[key],
+      ...change,
+    },
   }))
 }
 
@@ -122,19 +138,59 @@ function sendInput(key: string, text: string) {
   flushOutbox(key)
 }
 
+/** A selection from the IDE for the session's next turn; the same place twice is kept once. */
+export function addReference(key: string, reference: TheoremContextReference) {
+  const references = useTerminalSessions.getState()[key]?.references ?? []
+  const added = referenceKey(reference)
+  patchSession(key, {
+    references: [
+      ...references.filter((r) => referenceKey(r) !== added),
+      reference,
+    ],
+  })
+}
+
+const referenceLabel = ({ label, location }: TheoremContextReference) =>
+  label ??
+  (location.resource.kind === 'file' ? location.resource.path : 'reference')
+
+/** A session's working runs, for Follow the Agent. */
+export const useTerminalRuns = (key: string | undefined) =>
+  useTerminalSessions((s) => (key ? (s[key]?.runs ?? '') : ''))
+
 export type TerminalAction =
   | { type: 'submit' | 'input'; tab: string; text: string }
   | { type: 'approve'; tab: string; allow: boolean }
+  | { type: 'open'; tab: string; path: string; start?: number; end?: number }
   | {
-      type: 'cancel' | 'close' | 'new' | 'newTab' | 'closeTab' | 'selectTab'
+      type:
+        | 'cancel'
+        | 'close'
+        | 'new'
+        | 'newTab'
+        | 'closeTab'
+        | 'selectTab'
+        | 'unreference'
       tab: string
     }
 
 /**
- * Runs what a session's own prompt asked for: a turn, a stop or an approval.
- * Returns false for the actions the drawer answers itself.
+ * Runs what a session's own prompt asked for: a turn, a stop, an approval,
+ * dropping a reference or opening a file in the IDE. The handler returns
+ * false for the actions the terminal's host answers itself.
  */
-export function runSessionAction(action: TerminalAction): boolean {
+export function useSessionAction() {
+  const reveal = useRevealFile()
+  return (action: TerminalAction) => {
+    if (action.type === 'open') {
+      reveal(action.path, action.start, action.end)
+      return true
+    }
+    return runSessionAction(action)
+  }
+}
+
+function runSessionAction(action: TerminalAction): boolean {
   const session = useTerminalSessions.getState()[action.tab]
   switch (action.type) {
     case 'submit':
@@ -145,6 +201,11 @@ export function runSessionAction(action: TerminalAction): boolean {
       return true
     case 'cancel':
       session?.runtime?.thread.cancelRun()
+      return true
+    case 'unreference':
+      patchSession(action.tab, {
+        references: session?.references.slice(0, -1) ?? [],
+      })
       return true
     case 'approve': {
       const approval = session?.approval
@@ -249,10 +310,24 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
           threadId = created.record.threadId
           recordThread(projectId, tabId, threadId, title)
         }
-        yield* runTurn(threadId, options, TURN_OPTIONS)
+        const references =
+          useTerminalSessions.getState()[sessionKey]?.references ?? []
+        const turnOptions = references.length
+          ? {
+              ...TURN_OPTIONS,
+              contextReferences: references as Theorem.ChatContextReference[],
+            }
+          : TURN_OPTIONS
+        yield* runTurn(threadId, options, turnOptions, () => {
+          // Only an accepted send consumes them; recovery replays its own request.
+          const now = useTerminalSessions.getState()[sessionKey]?.references
+          patchSession(sessionKey, {
+            references: now?.filter((r) => !references.includes(r)) ?? [],
+          })
+        })
       },
     }),
-    [projectId, tabId],
+    [projectId, tabId, sessionKey],
   )
   const history = useMemo(
     () => createHistoryAdapter(() => threadOf(projectId, tabId)),
@@ -283,14 +358,20 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
     }
     const publish = () => {
       const { messages, isRunning } = runtime.thread.getState()
-      const outbox = useTerminalSessions.getState()[sessionKey]?.outbox ?? []
+      const session = useTerminalSessions.getState()[sessionKey]
+      const outbox = session?.outbox ?? []
       const { json, approval } = snapshotOf(
         messages,
         isRunning,
         project,
         outbox,
+        (session?.references ?? []).map(referenceLabel),
       )
-      patchSession(sessionKey, { snapshot: json, approval })
+      patchSession(sessionKey, {
+        snapshot: json,
+        approval,
+        runs: workingRuns(messages),
+      })
       if (!isRunning) resendLeftovers(messages, outbox)
     }
     patchSession(sessionKey, {
@@ -300,7 +381,11 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
     publish()
     const unsubscribe = runtime.thread.subscribe(publish)
     const unsubscribeOutbox = useTerminalSessions.subscribe((s, prev) => {
-      if (s[sessionKey]?.outbox !== prev[sessionKey]?.outbox) publish()
+      if (
+        s[sessionKey]?.outbox !== prev[sessionKey]?.outbox ||
+        s[sessionKey]?.references !== prev[sessionKey]?.references
+      )
+        publish()
     })
     // Input waiting for the run's id goes once the run's stream names it.
     const unsubscribeRuns = useLiveRuns.subscribe(() => flushOutbox(sessionKey))
@@ -374,7 +459,7 @@ function pushSnapshots(handle: TerminalHandle, ids: readonly string[]) {
 /**
  * The Ratzilla terminal, with React forwarding input to it. `tabs` are the
  * sessions it shows; with `tabbed` it draws them as a tab bar, otherwise it
- * shows the one session's header.
+ * shows the one session's header. A docked terminal has no close button.
  */
 export function TerminalScreen({
   hostId,
@@ -382,12 +467,14 @@ export function TerminalScreen({
   tabs,
   active,
   onAction,
+  closable = true,
 }: {
   hostId: string
   tabbed: boolean
   tabs: readonly { id: string; title: string }[]
   active: string
   onAction: (action: TerminalAction) => void
+  closable?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const handle = useRef<TerminalHandle>(undefined)
@@ -493,14 +580,16 @@ export function TerminalScreen({
       />
       {/* Over the header bar's last columns, which the terminal leaves
           clear. Outside the host, whose contents Ratzilla replaces. */}
-      <TooltipIconButton
-        tooltip="Close"
-        side="left"
-        onClick={() => latest.current({ type: 'close', tab: active })}
-        className="absolute top-[calc(0.5lh-12px)] right-1 size-6 p-1.5 text-term-muted hover:bg-term-line/60 hover:text-term-ink"
-      >
-        <Icon.Exit className="size-3" />
-      </TooltipIconButton>
+      {closable && (
+        <TooltipIconButton
+          tooltip="Close"
+          side="left"
+          onClick={() => latest.current({ type: 'close', tab: active })}
+          className="absolute top-[calc(0.5lh-12px)] right-1 size-6 p-1.5 text-term-muted hover:bg-term-line/60 hover:text-term-ink"
+        >
+          <Icon.Exit className="size-3" />
+        </TooltipIconButton>
+      )}
     </div>
   )
 }

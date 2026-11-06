@@ -74,6 +74,10 @@ export type TerminalStory = {
   running: boolean
   /** Keys the oracle presses after the story draws, as Playwright names them. */
   keys?: string[]
+  /** References waiting on the prompt, as the terminal labels them. */
+  references?: string[]
+  /** Text the oracle clicks after the story draws; the story records the action. */
+  click?: string
 }
 
 const PROGRAM = [
@@ -95,7 +99,7 @@ const PARSER = [
 const EDIT = [
   '--- a/src/parser.rs',
   '+++ b/src/parser.rs',
-  '@@ -2,3 +2,3 @@',
+  '@@ -2,2 +2,2 @@',
   "-    let trimmed = line.trim_end_matches(',');",
   "+    let trimmed = line.strip_suffix(',').unwrap_or(line);",
   "     trimmed.split(',').map(str::trim).collect()",
@@ -269,9 +273,40 @@ export const TERMINAL_STORIES: TerminalStory[] = [
     ],
     outbox: [],
   },
+  {
+    id: 'terminal-references',
+    title: 'Code rows open in the IDE; references ride the next turn',
+    claim:
+      "A tool row that names a file is a link: clicking it asks the IDE to open that file at the lines the tool read or changed. Lines sent from the editor's Add to chat wait over the prompt as references for the next turn, and backspace on an empty prompt drops the last one.",
+    running: false,
+    messages: [
+      message('u1', 'user', [text('Why does the parser drop the last field?')]),
+      message('a1', 'assistant', [
+        tool(
+          'c1',
+          'read_file',
+          { path: 'src/parser.rs', offset: 1, limit: 4 },
+          PARSER,
+        ),
+        tool('c2', 'edit_file', { path: 'src/parser.rs' }, EDIT),
+        text(
+          'It trimmed every trailing comma, so a line ending in an empty field lost it. It now strips one.',
+        ),
+      ]),
+    ],
+    outbox: [],
+    references: ['src/parser.rs:2-3', 'tests/parser.rs'],
+    click: 'edit_file',
+  },
 ]
 
 /** A story's snapshot JSON, as the terminal session would hold it. */
 export function storySnapshot(story: TerminalStory) {
-  return snapshotOf(story.messages, story.running, 'theorem', story.outbox).json
+  return snapshotOf(
+    story.messages,
+    story.running,
+    'theorem',
+    story.outbox,
+    story.references,
+  ).json
 }
