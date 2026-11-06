@@ -44,10 +44,10 @@ export const pace = (level: number) => between(1.5, 24, level)
 
 /**
  * How far the field is through the current generation, from 0 (it just
- * stepped) to 1 (the next is due), advanced at the pace of the moment. The fade
- * between generations reads this phase and a step lands only when it reaches 1,
- * so a pulse speeds a fade up but never cuts it short. Paused, a fade in flight
- * still runs out, and no step is taken.
+ * stepped) to 1 (the next is due), advanced at the pace of the moment. A step
+ * lands only when the phase reaches 1, so a pulse hurries the generation in
+ * hand on from where it stood rather than starting a new one. Paused, the
+ * phase runs up to 1 and no step is taken.
  */
 export function beat(
   phase: number,
