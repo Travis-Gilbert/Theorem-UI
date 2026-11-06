@@ -1,0 +1,40 @@
+{
+  "terminal-input-states": {
+    "motion": {
+      "after_ms": 400,
+      "pixels": 85,
+      "box": [9, 564, 15, 573]
+    }
+  },
+  "terminal-activity": {
+    "motion": {
+      "after_ms": 400,
+      "pixels": 69,
+      "box": [9, 564, 15, 573]
+    }
+  },
+  "terminal-activity-expanded": {
+    "motion": {
+      "after_ms": 400,
+      "pixels": 244,
+      "box": [9, 568, 38, 612]
+    }
+  },
+  "terminal-program-streaming": {
+    "motion": {
+      "after_ms": 400,
+      "pixels": 69,
+      "box": [9, 564, 15, 573]
+    }
+  },
+  "terminal-references": {
+    "click": "edit_file",
+    "action": {
+      "end": 3,
+      "path": "src/parser.rs",
+      "start": 2,
+      "tab": "story:terminal-references",
+      "type": "open"
+    }
+  }
+}

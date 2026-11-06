@@ -7,14 +7,17 @@ export const Route = createFileRoute('/stories.json')({
     handlers: {
       GET: () =>
         Response.json(
-          TERMINAL_STORIES.map(({ id, title, claim, keys, click }) => ({
-            id,
-            title,
-            claim,
-            keys: keys ?? [],
-            click,
-            url: `/story/${id}`,
-          })),
+          TERMINAL_STORIES.map(
+            ({ id, title, claim, keys, click, running }) => ({
+              id,
+              title,
+              claim,
+              running,
+              keys: keys ?? [],
+              click,
+              url: `/story/${id}`,
+            }),
+          ),
         ),
     },
   },
