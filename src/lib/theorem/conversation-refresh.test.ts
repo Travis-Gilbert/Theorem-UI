@@ -348,3 +348,193 @@ test('an optimistic head omitted from export cannot acquire an orphaned backgrou
   )
   expect(f.imports).toHaveLength(0)
 })
+
+test('a background completion inserted before a later turn is reconciled without a reload', async () => {
+  const followup: ThreadMessageLike = {
+    id: 'local-followup',
+    role: 'user',
+    content: 'Remember the priority',
+  }
+  const reply: ThreadMessageLike = {
+    id: 'local-reply',
+    role: 'assistant',
+    content: 'I remember',
+    metadata: { custom: { theoremRunId: 'later-run' } },
+  }
+  const f = fixture([question, answer, followup, reply])
+  f.runtime.thread.composer.setText('An unsent draft')
+  const exported = f.thread.export()
+  const next = exported.messages.find(
+    (entry) => entry.message.id === 'local-followup',
+  )!
+  next.runConfig = { custom: { theoremTurnOptions: { model: 'chosen-model' } } }
+  f.thread.export = () => exported
+  const remote = {
+    ...f.snapshot,
+    messages: [
+      stored(question),
+      stored(answer, 'front-run'),
+      { ...f.snapshot.messages[2]!, parentMessageId: 'answer' },
+      stored({ ...followup, id: 'durable-followup' }),
+      {
+        ...stored({ ...reply, id: 'durable-reply' }, 'later-run'),
+        parentMessageId: 'durable-followup',
+      },
+    ],
+  }
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(true)
+  expect(
+    f.runtime.thread.getState().messages.map((message) => message.id),
+  ).toEqual([
+    'question',
+    'answer',
+    'work-answer',
+    'local-followup',
+    'local-reply',
+  ])
+  expect(f.runtime.thread.composer.getState().text).toBe('An unsent draft')
+  const imported = f.imports[0]!.messages.find(
+    (entry) => entry.message.id === 'local-followup',
+  )!
+  expect(imported.parentId).toBe('work-answer')
+  expect(imported.runConfig).toEqual(next.runConfig)
+  f.thread.export = () => f.runtime.thread.export()
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(false)
+  expect(f.imports).toHaveLength(1)
+})
+
+test('a completion already on a side branch retains its local metadata and configuration', async () => {
+  const followup: ThreadMessageLike = {
+    id: 'followup',
+    role: 'user',
+    content: 'Next question',
+  }
+  const reply: ThreadMessageLike = {
+    id: 'reply',
+    role: 'assistant',
+    content: 'Next answer',
+  }
+  const completion: ThreadMessageLike = {
+    id: 'work-answer',
+    role: 'assistant',
+    content: 'Here are the findings.',
+    metadata: { custom: { retained: 'local value' } },
+  }
+  const f = fixture()
+  f.runtime.thread.import(
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { message: question, parentId: null },
+        { message: answer, parentId: 'question' },
+        { message: followup, parentId: 'answer' },
+        { message: reply, parentId: 'followup' },
+        { message: completion, parentId: 'answer' },
+        {
+          message: { ...answer, id: 'other-answer', content: 'Alternate' },
+          parentId: 'question',
+        },
+      ],
+      { headId: 'reply' },
+    ),
+  )
+  const exported = f.thread.export()
+  const existing = exported.messages.find(
+    (entry) => entry.message.id === 'work-answer',
+  )!
+  existing.runConfig = {
+    custom: { theoremTurnOptions: { model: 'selected-model' } },
+  }
+  f.thread.export = () => exported
+  const remote = {
+    ...f.snapshot,
+    messages: [
+      stored(question),
+      stored(answer),
+      { ...stored(completion, 'delivery-run'), parentMessageId: 'answer' },
+      stored(followup),
+      stored(reply),
+    ],
+  }
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(true)
+  expect(
+    f.imports[0]!.messages.find((entry) => entry.message.id === 'work-answer'),
+  ).toEqual(existing)
+  expect(
+    f.runtime.thread.getState().messages.map((message) => message.id),
+  ).toEqual(['question', 'answer', 'work-answer', 'followup', 'reply'])
+  f.runtime.thread
+    .getMessageById('answer')
+    .switchToBranch({ branchId: 'other-answer' })
+  expect(f.runtime.thread.getState().messages.at(-1)?.id).toBe('other-answer')
+})
+
+test('an unmatched ordinary reply cannot be mistaken for a background completion', async () => {
+  const localAnswer: ThreadMessageLike = { ...answer, id: 'unknown-answer' }
+  const later: ThreadMessageLike = {
+    id: 'later',
+    role: 'assistant',
+    content: 'Later',
+  }
+  const f = fixture([question, localAnswer, later])
+  const remote = {
+    ...f.snapshot,
+    messages: [
+      stored(question),
+      { ...stored(answer), parentMessageId: 'question' },
+      stored(later),
+    ],
+  }
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(false)
+  expect(f.imports).toHaveLength(0)
+})
+
+test('a middle assistant with another canonical parent cannot enter the visible branch', async () => {
+  const later: ThreadMessageLike = {
+    id: 'later',
+    role: 'assistant',
+    content: 'Later',
+  }
+  const f = fixture([question, answer, later])
+  const remote = {
+    ...f.snapshot,
+    messages: [
+      stored(question),
+      stored(answer),
+      {
+        ...f.snapshot.messages[2]!,
+        parentMessageId: 'different-branch-answer',
+      },
+      stored(later),
+    ],
+  }
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(false)
+  expect(f.imports).toHaveLength(0)
+})
+
+test('a chain of middle deliveries is inserted once before the next local turn', async () => {
+  const later: ThreadMessageLike = {
+    id: 'later',
+    role: 'assistant',
+    content: 'Later',
+  }
+  const f = fixture([question, answer, later])
+  const second = stored(
+    { id: 'second-delivery', role: 'assistant', content: 'Second findings' },
+    'second-run',
+  )
+  const remote = {
+    ...f.snapshot,
+    messages: [
+      stored(question),
+      stored(answer),
+      { ...f.snapshot.messages[2]!, parentMessageId: 'answer' },
+      { ...second, parentMessageId: 'work-answer' },
+      stored(later),
+    ],
+  }
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(true)
+  expect(
+    f.runtime.thread.getState().messages.map((message) => message.id),
+  ).toEqual(['question', 'answer', 'work-answer', 'second-delivery', 'later'])
+  expect(await refreshConversation(f.thread, async () => remote)).toBe(false)
+})

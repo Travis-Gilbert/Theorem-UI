@@ -194,6 +194,7 @@
   ],
   "patchedDependencies": {
     "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch",
-    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
+    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
+    "@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.3.tgz": "patches/@theoremharness%2Fsdk@vendor%2Ftheoremharness-sdk-0.6.0-alpha.3.tgz.patch"
   }
 }
