@@ -1,0 +1,187 @@
+{
+  "plan": "docs/plans/modular-interface.md",
+  "items": [
+    {
+      "id": "storage-files-api",
+      "requirement": "Pages and modules are files in the Theorem vault through the SDK Files API (theorem-files/1): Pages/<name>.page.json and Modules/<name>/module.json; saves are revision-checked",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/store.ts (usePages, usePage, useSavePage with expectedHash, useInstalledModules, useCreateModule)",
+        "src/lib/modules/contract.ts (theorem.page/1, theorem.module/1)"
+      ]
+    },
+    {
+      "id": "module-definition",
+      "requirement": "A module definition carries id, version, entry, settings, inputs, outputs, events, actions, requested capabilities and migrations",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/contract.ts moduleManifest",
+        "src/lib/modules/registry.ts ModuleDefinition, builtin, fromManifest",
+        "bun test src/lib/modules/modules.test.ts: 'module files'"
+      ]
+    },
+    {
+      "id": "module-instance",
+      "requirement": "An instance is one placement with its own id, title, settings version, settings and wiring; host-owned props are reserved",
+      "status": "done",
+      "evidence": [
+        "contract.ts InstanceProps and RESERVED_PROPS",
+        "bun test: 'a vault module may not take a theorem id or a host prop name'"
+      ]
+    },
+    {
+      "id": "page-definition",
+      "requirement": "A page is a durable object with its own navigation entry, not a route or ShellMode branch per page",
+      "status": "done",
+      "evidence": [
+        "One route, src/routes/_chat/pages.$pageId.tsx, keyed by vault entry id",
+        "One 'pages' ShellMode (src/components/shell/modes.tsx); the Pages panel lists every page, pinned first (src/components/pages/pages-panel.tsx)"
+      ]
+    },
+    {
+      "id": "puck-pages",
+      "requirement": "Pages are built with Puck; the chat dock and the Vault stay on Dockview",
+      "status": "done",
+      "evidence": [
+        "@puckeditor/core 0.24.0; src/components/pages/puck-config.tsx and page-view.tsx (Render in use, Puck with Components, Outline, Preview and Fields while arranging)",
+        "src/components/shell/dock.tsx unchanged apart from the panel title in Pages mode"
+      ]
+    },
+    {
+      "id": "resource-binding",
+      "requirement": "A setting can bind an instance to a resource: Index view, object type, vault file, conversation, App",
+      "status": "done",
+      "evidence": ["src/components/pages/resource-field.tsx", "contract.ts RESOURCE_KINDS"]
+    },
+    {
+      "id": "value-bindings",
+      "requirement": "Value bindings: one instance's output drives another's input (selection drives an inspector)",
+      "status": "done",
+      "evidence": [
+        "src/components/pages/page-runtime.tsx useInputs, PageScopeProvider",
+        "bun test src/components/pages/page.test.tsx: a bound value shows another instance's output, inside a split too",
+        "That test found that no page-level scope was provided, so top-level bindings did not deliver; fixed with PageScopeProvider"
+      ]
+    },
+    {
+      "id": "events-actions",
+      "requirement": "Events route to actions and to host actions (attach to the composer, ask in the composer), declared per composition, never a global bus",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/runtime.ts (one runtime per page view)",
+        "src/components/pages/connection-fields.tsx RoutesField",
+        "bun test: 'an event reaches the actions and host routes it is wired to'"
+      ]
+    },
+    {
+      "id": "explicit-transforms",
+      "requirement": "Explicit transforms where types differ; nothing is converted silently",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/values.ts compatibility, convert, pick",
+        "bun test: 'conversions are explicit and checked', 'a route that does not say to convert delivers nothing', 'a binding across types must ask to convert'"
+      ]
+    },
+    {
+      "id": "loop-guards",
+      "requirement": "Loop and stale-effect guards",
+      "status": "done",
+      "evidence": [
+        "Cycles refused and reported: bun test 'cycles are refused before they are made, and found when present'",
+        "Depth limit 8 and 30 events/s: bun test 'events handed round in a loop stop at the depth limit', 'an instance flooding events is stopped'",
+        "Equal outputs change nothing: bun test 'an equal output changes nothing'",
+        "Action handlers are the latest render's (useEffectEvent in useModuleAction): source only"
+      ]
+    },
+    {
+      "id": "no-model-per-click",
+      "requirement": "No model call per click",
+      "status": "done",
+      "evidence": [
+        "Source: the runtime's only host effects are composer.attach (adds a reference) and composer.ask (adds it and focuses the composer); neither sends"
+      ]
+    },
+    {
+      "id": "configure-module",
+      "requirement": "Get a module by configuring an existing one",
+      "status": "done",
+      "evidence": ["puck-config.tsx moduleComponent: settings, inputs and routes as Puck fields"]
+    },
+    {
+      "id": "combine-modules",
+      "requirement": "Get a module by combining existing ones, and reuse the combination as a module with named inputs",
+      "status": "done",
+      "evidence": [
+        "Split and Tabs layout components (puck-config.tsx)",
+        "Save as module: src/components/pages/save-as-module.tsx over layout.ts extractComposite",
+        "bun test: 'extracting a composite exposes what crossed its edge', 'an outside route into the composite is cut; its other routes stay', 'a composite forwards its inner event; disposal stops everything'"
+      ]
+    },
+    {
+      "id": "create-module",
+      "requirement": "Create or install a new implementation without compiling it into the host catalog, in the first release",
+      "status": "done",
+      "evidence": [
+        "New module writes Modules/<name>/module.json and index.html (store.ts newModuleFiles, pages-panel.tsx NewModuleDialog)",
+        "Vault manifests join the catalog when the vault reports them (store.ts useInstalledModules)"
+      ]
+    },
+    {
+      "id": "sandbox",
+      "requirement": "Untrusted modules run in an isolated sandbox with a scoped bridge; requested permissions are not grants; the person can stop or revoke",
+      "status": "done",
+      "evidence": [
+        "src/components/pages/sandboxed-module.tsx (grant gate, Stop, Run, Revoke), src/lib/modules/sandbox.ts, src/lib/modules/grants.ts",
+        "bun test src/lib/modules/sandbox.test.ts: undeclared or mistyped outputs and events refused; capabilities are the grant plus the module's own folder, never run; a grant holds only for the digest it was given for",
+        "bun test src/lib/blocks/hosted-app.test.ts: 'a page module reaches only the hosts it was allowed, whatever its page declares'",
+        "Not run: a sandboxed module running in a real browser frame"
+      ]
+    },
+    {
+      "id": "missing-placeholder",
+      "requirement": "An unavailable module becomes a placeholder that keeps its state",
+      "status": "done",
+      "evidence": [
+        "bun test: 'a missing module becomes a placeholder and comes back unchanged', 'a placeholder resumes once its module arrives'",
+        "bun test page.test.tsx: 'a module this app does not have is held in place and comes back unchanged' (rendered)"
+      ]
+    },
+    {
+      "id": "held-revision",
+      "requirement": "Pages hold their displayed revision",
+      "status": "done",
+      "evidence": [
+        "page-view.tsx: the held revision, Show it for a newer one, Keep mine or Use the vault's on a save conflict",
+        "Source only: no automated test drives a conflicting save"
+      ]
+    },
+    {
+      "id": "chat-modular",
+      "requirement": "Chat is modular without a second agent: the conversation binding picks which conversation, moving the composer keeps its draft, selection never auto-attaches",
+      "status": "partial",
+      "evidence": [
+        "builtins.tsx theorem.conversation on the one runtime; one owner per page; keep or follow the open conversation",
+        "Selection reaches the composer only through a route to composer.attach or composer.ask",
+        "Not observed: the draft surviving a move, in a browser against a live conversation"
+      ]
+    },
+    {
+      "id": "browser-check",
+      "requirement": "The Pages mode opens, a page can be created, arranged, saved and reopened in a browser",
+      "status": "not-started",
+      "evidence": []
+    },
+    {
+      "id": "templates",
+      "requirement": "Shipped Index and coding layouts become templates",
+      "status": "not-started",
+      "evidence": ["Deferred by the design: 'later'"]
+    },
+    {
+      "id": "platinum",
+      "requirement": "Platinum shares the contracts",
+      "status": "not-started",
+      "evidence": ["Out of scope by the design"]
+    }
+  ]
+}
