@@ -83,7 +83,7 @@ const storageReference = 'chatreq_01M6QFM64PDHBTYJ7T036GDB3K'
 
 test('a source-bound store-full problem explains capacity without guessing persistence', () => {
   const message = describeError(new TheoremError({ statusCode: 500, body: {
-    type: 'https://theorem.rs/problems/chat_store_error',
+    type: '/problems/chat_store_error',
     code: 'chat_store_error', title: 'The chat graph could not satisfy the request',
     detail: journalFullDetail, correlationId: storageReference,
   } }))
@@ -93,7 +93,7 @@ test('a source-bound store-full problem explains capacity without guessing persi
 
 test.each([
   ['chat_store_error', 'chunk_store_journal_io: append journal record: Permission denied (os error 13)'],
-  ['chat_store_error', 'chunk_store_poisoned: No space left on device (os error 28)'],
+  ['chat_store_error', 'chunk_store_journal_poisoned: No space left on device (os error 28)'],
   ['other_failure', journalFullDetail],
 ])('unrelated storage conditions retain their actual detail: %s %s', (code, detail) => {
   expect(describeError(new TheoremError({ statusCode: 500, body: { code, detail, correlationId: storageReference } }))).toBe(`${detail} Reference: ${storageReference}`)
