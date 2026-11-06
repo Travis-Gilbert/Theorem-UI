@@ -1,9 +1,15 @@
-// SOURCING: zustand (toggle state the composer and the runtime share), Base UI Toggle, ui/tooltip over Base UI Tooltip, assistant-ui composer scope (useAui), the shared useSpin over anime.js
+// SOURCING: zustand (toggle state the composer and the runtime share), coss ui Menu over Base UI Menu (the Tools button and its list of checkbox items), Base UI Toggle (the chip that shows a tool is on), ui/tooltip over Base UI Tooltip, assistant-ui composer scope (useAui), the shared useSpin over anime.js
 import { useAui } from '@assistant-ui/react'
 import { Toggle } from '@base-ui/react/toggle'
 import { useRef } from 'react'
 import type { ComponentProps } from 'react'
 import { create } from 'zustand'
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuPopup,
+  MenuTrigger,
+} from '@/components/coss/menu'
 import { Icon } from '@/components/icons'
 import { useSpin } from '@/components/motion'
 import {
@@ -44,6 +50,7 @@ const TOOLS = [
     on: 'Web search on',
     off: 'Search the web',
     Mark: WebMark,
+    ListMark: Icon.Web,
   },
   {
     tool: 'diagram',
@@ -51,6 +58,7 @@ const TOOLS = [
     on: 'Diagram requested',
     off: 'Ask for a diagram',
     Mark: Icon.Diagram,
+    ListMark: Icon.Diagram,
   },
 ] as const
 
@@ -88,32 +96,63 @@ export function useComposerRequests() {
 /** The composer's buttons are passed on the way to typing, so their tooltips wait for a resting pointer. */
 export const COMPOSER_TOOLTIP_DELAY = 700
 
-/** Web and Diagram, beside the attachment button. */
+const CONTROL =
+  'flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:outline-focus'
+
+/**
+ * The Tools button beside the attachment button, and its list. A tool that is
+ * on shows as a chip after the button, so the person sees what the next turn
+ * asks for and can turn it off without opening the list.
+ */
 export function ComposerTools() {
   const tools = useComposerTools()
   return (
-    <TooltipProvider>
-      {TOOLS.map(({ tool, label, on, off, Mark }) => (
-        <Tooltip key={tool}>
-          <TooltipTrigger
-            delay={COMPOSER_TOOLTIP_DELAY}
-            render={
-              <Toggle
-                pressed={tools[tool]}
-                onPressedChange={() => tools.toggle(tool)}
-                aria-label={off}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-pressed:bg-redwood/15 data-pressed:text-redwood"
-              />
-            }
-          >
-            <Mark className="size-4" />
-            {tools[tool] && <span className="pe-0.5">{label}</span>}
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            {tools[tool] ? on : off}
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </TooltipProvider>
+    <>
+      <Menu>
+        <MenuTrigger
+          className={`${CONTROL} text-ink-muted hover:bg-hover hover:text-ink data-popup-open:bg-hover data-popup-open:text-ink`}
+        >
+          <Icon.Tools className="size-4" />
+          <span className="pe-0.5">Tools</span>
+        </MenuTrigger>
+        <MenuPopup side="top" align="start" className="w-56">
+          {TOOLS.map(({ tool, off, ListMark }) => (
+            <MenuCheckboxItem
+              key={tool}
+              checked={tools[tool]}
+              onCheckedChange={() => tools.toggle(tool)}
+            >
+              <span className="flex items-center gap-2">
+                <ListMark className="size-4" />
+                {off}
+              </span>
+            </MenuCheckboxItem>
+          ))}
+        </MenuPopup>
+      </Menu>
+      <TooltipProvider>
+        {TOOLS.filter(({ tool }) => tools[tool]).map(
+          ({ tool, label, on, off, Mark }) => (
+            <Tooltip key={tool}>
+              <TooltipTrigger
+                delay={COMPOSER_TOOLTIP_DELAY}
+                render={
+                  <Toggle
+                    pressed
+                    onPressedChange={() => tools.toggle(tool)}
+                    aria-label={off}
+                    className={`${CONTROL} bg-redwood/15 text-redwood hover:bg-redwood/25`}
+                  />
+                }
+              >
+                <Mark className="size-4" />
+                <span className="pe-0.5">{label}</span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{on}. Click to turn off.</TooltipContent>
+            </Tooltip>
+          ),
+        )}
+      </TooltipProvider>
+    </>
   )
 }

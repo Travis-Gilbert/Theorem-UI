@@ -53,6 +53,20 @@ afterEach(async () => {
   await cleanup()
   useComposerTools.setState({ web: false, diagram: false })
 })
+/** Opens the Tools list and picks one of its items. */
+async function pickTool(container: HTMLElement, name: string) {
+  const trigger = [...container.querySelectorAll('button')].find(
+    (button) => button.textContent === 'Tools',
+  )!
+  await act(() => trigger.click())
+  await waitFor(() => document.querySelector('[role="menuitemcheckbox"]'))
+  const item = [
+    ...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]'),
+  ].find((option) => option.textContent.includes(name))!
+  await act(() => item.click())
+  return item
+}
+
 const sentText = (message: AppendMessage) =>
   message.content
     .map((part) => (part.type === 'text' ? part.text : ''))
@@ -64,11 +78,11 @@ for (const method of ['click', 'Enter'] as const) {
     const { container } = await render(
       <Harness text="Compare Chrome and Firefox" sent={sent} />,
     )
-    const web = container.querySelector<HTMLButtonElement>(
+    await pickTool(container, 'Search the web')
+    const chip = container.querySelector<HTMLButtonElement>(
       '[aria-label="Search the web"]',
     )!
-    await act(() => web.click())
-    expect(web.getAttribute('aria-pressed')).toBe('true')
+    expect(chip.getAttribute('aria-pressed')).toBe('true')
     const input = container.querySelector<HTMLTextAreaElement>(
       '[aria-label="Message input"]',
     )!
@@ -180,4 +194,20 @@ test('blank composer stays disabled and Shift+Enter does not send or alter the d
   )
   expect(sent).toHaveLength(0)
   expect(input.value).toBe('Draft')
+})
+
+test('the Tools list shows what is on, and a chip turns its tool off', async () => {
+  const sent: AppendMessage[] = []
+  const { container } = await render(<Harness text="Draft" sent={sent} />)
+  expect(container.querySelector('[aria-label="Ask for a diagram"]')).toBeNull()
+  const item = await pickTool(container, 'Ask for a diagram')
+  expect(item.getAttribute('aria-checked')).toBe('true')
+  expect(useComposerTools.getState().diagram).toBe(true)
+  const chip = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Ask for a diagram"]',
+  )!
+  expect(chip.textContent).toBe('Diagram')
+  await act(() => chip.click())
+  expect(useComposerTools.getState().diagram).toBe(false)
+  expect(container.querySelector('[aria-label="Ask for a diagram"]')).toBeNull()
 })
