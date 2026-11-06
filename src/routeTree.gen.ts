@@ -14,6 +14,7 @@ import { Route as GraphqlRouteImport } from './routes/graphql'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StoriesDotjsonRouteImport } from './routes/stories[.]json'
 import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
@@ -27,6 +28,7 @@ import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsImportRouteImport } from './routes/settings/import'
 import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
+import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
@@ -83,6 +85,11 @@ const LoginRoute = LoginRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoriesDotjsonRoute = StoriesDotjsonRouteImport.update({
+  id: '/stories.json',
+  path: '/stories.json',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatChar91indexChar93Route = ChatChar91indexChar93RouteImport.update({
@@ -149,6 +156,11 @@ const SettingsKeysRoute = SettingsKeysRouteImport.update({
   id: '/keys',
   path: '/keys',
   getParentRoute: () => SettingsRoute,
+} as any)
+const StoryIdRoute = StoryIdRouteImport.update({
+  id: '/story/$id',
+  path: '/story/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TheiaSplatRoute = TheiaSplatRouteImport.update({
   id: '/theia/$',
@@ -342,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/stories.json': typeof StoriesDotjsonRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
   '/spaces': typeof ChatSpacesRoute
@@ -353,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/settings/': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
@@ -392,6 +406,7 @@ export interface FileRoutesByTo {
   '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
+  '/stories.json': typeof StoriesDotjsonRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
   '/spaces': typeof ChatSpacesRoute
@@ -403,6 +418,7 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -446,6 +462,7 @@ export interface FileRoutesById {
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/stories.json': typeof StoriesDotjsonRoute
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/index': typeof ChatChar91indexChar93Route
   '/_chat/spaces': typeof ChatSpacesRoute
@@ -457,6 +474,7 @@ export interface FileRoutesById {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -501,6 +519,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/login'
     | '/settings'
+    | '/stories.json'
     | '/ide'
     | '/index'
     | '/spaces'
@@ -512,6 +531,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/story/$id'
     | '/theia/$'
     | '/settings/'
     | '/c/$threadId'
@@ -551,6 +571,7 @@ export interface FileRouteTypes {
     | '/graphql'
     | '/install'
     | '/login'
+    | '/stories.json'
     | '/ide'
     | '/index'
     | '/spaces'
@@ -562,6 +583,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/story/$id'
     | '/theia/$'
     | '/'
     | '/settings'
@@ -604,6 +626,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/login'
     | '/settings'
+    | '/stories.json'
     | '/_chat/ide'
     | '/_chat/index'
     | '/_chat/spaces'
@@ -615,6 +638,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/story/$id'
     | '/theia/$'
     | '/_chat/'
     | '/settings/'
@@ -658,9 +682,11 @@ export interface RootRouteChildren {
   InstallRoute: typeof InstallRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  StoriesDotjsonRoute: typeof StoriesDotjsonRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  StoryIdRoute: typeof StoryIdRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
@@ -730,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stories.json': {
+      id: '/stories.json'
+      path: '/stories.json'
+      fullPath: '/stories.json'
+      preLoaderRoute: typeof StoriesDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_chat/index': {
@@ -822,6 +855,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/keys'
       preLoaderRoute: typeof SettingsKeysRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/story/$id': {
+      id: '/story/$id'
+      path: '/story/$id'
+      fullPath: '/story/$id'
+      preLoaderRoute: typeof StoryIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/theia/$': {
       id: '/theia/$'
@@ -1103,9 +1143,11 @@ const rootRouteChildren: RootRouteChildren = {
   InstallRoute: InstallRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  StoriesDotjsonRoute: StoriesDotjsonRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  StoryIdRoute: StoryIdRoute,
   TheiaSplatRoute: TheiaSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,

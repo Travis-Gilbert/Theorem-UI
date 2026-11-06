@@ -33,7 +33,7 @@ test('configured default names the actual catalog model without assuming worker 
 test('invalid configured default shows its safe cause while retaining explicit choices', async () => {
   const { container } = await settings({ models: [{ ref: 'provider/available', name: 'Available' }], defaultError: { code: 'chat_model_not_found', message: 'The configured default is absent. Choose another model.' } })
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('The configured default is absent. Choose another model.')
-  expect(container.textContent).toContain('chat_model_not_found')
+  expect(container.textContent).not.toContain('chat_model_not_found')
   expect(container.textContent).toContain('Available')
   expect(container.textContent).not.toContain('Inkling')
 })
@@ -70,7 +70,7 @@ test('an explicit selection remains selected when the configured default is inva
   const { container } = await settings({ models: [{ ref: 'provider/available', name: 'Available' }], defaultError: { code: 'invalid_default', message: 'Default is unavailable.' } })
   expect(container.textContent).toContain('Availableprovider/available')
   expect(usePickedModels.getState().selected).toBe('provider/available')
-  await click(buttonNamed(container, 'Use Theorem default')!)
+  await click(buttonNamed(container, 'Use the default')!)
   expect(usePickedModels.getState().selected).toBeUndefined()
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Default is unavailable.')
 })

@@ -345,7 +345,7 @@ function LoadedInspector({
                   commitTitle()
                 }
               }}
-              className="font-heading w-full rounded-md bg-background px-1.5 text-[22px] tracking-tight text-ink outline-none ring-1 ring-focus"
+              className="font-heading w-full rounded-md bg-background px-1.5 text-[22px] font-medium text-ink outline-none ring-1 ring-focus"
             />
           ) : (
             <button
@@ -355,7 +355,7 @@ function LoadedInspector({
                 identifier &&
                 setTitleText(String(row.values[identifier.key] ?? ''))
               }
-              className="font-heading -mx-1.5 rounded-md px-1.5 text-start text-[22px] tracking-tight text-ink hover:bg-hover disabled:hover:bg-transparent"
+              className="font-heading -mx-1.5 rounded-md px-1.5 text-start text-[22px] font-medium text-ink hover:bg-hover disabled:hover:bg-transparent"
             >
               {recordTitle(type, row)}
             </button>

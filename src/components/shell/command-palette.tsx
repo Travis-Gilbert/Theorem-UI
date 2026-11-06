@@ -101,7 +101,7 @@ function useGroups(close: () => void): Group[] {
         items: [
           {
             id: 'model:default',
-            label: 'Theorem default',
+            label: 'Default model',
             hint: defaultName,
             Mark: Icon.Spaces,
             active: !selected,

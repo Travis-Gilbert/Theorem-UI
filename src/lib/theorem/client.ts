@@ -210,7 +210,7 @@ export function describeError(error: unknown, service: 'chat' | 'document' = 'ch
           break
         default:
           message = error.statusCode
-            ? `The request could not be completed (HTTP ${error.statusCode}).`
+            ? 'The request could not be completed.'
             : `The ${service} service could not be reached. Check your connection.`
       }
     }
@@ -221,3 +221,13 @@ export function describeError(error: unknown, service: 'chat' | 'document' = 'ch
 }
 
 export { Theorem }
+
+/**
+ * A backend message without the machine code it can lead with:
+ * "agent_iteration_limit: worker reached its step limit" reads
+ * "Worker reached its step limit".
+ */
+export function withoutCode(message: string): string {
+  const plain = message.replace(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)+:\s+/, '')
+  return plain.charAt(0).toUpperCase() + plain.slice(1)
+}

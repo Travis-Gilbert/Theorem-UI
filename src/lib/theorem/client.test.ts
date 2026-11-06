@@ -55,7 +55,7 @@ test('malformed problem fields are never rendered as objects', () => {
     describeError(
       new TheoremError({ statusCode: 400, body: { detail: {}, title: 12 } }),
     ),
-  ).toBe('The request could not be completed (HTTP 400).')
+  ).toBe('The request could not be completed.')
 })
 
 test('ordinary errors keep their message', () => {

@@ -215,7 +215,7 @@ const components = {
   links: inspector(LinksPanel),
   graph: inspector(GraphPanel),
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
-  ide: IdeFrame,
+  ide: () => <IdeFrame />,
   artifact: ArtifactDockPanel,
   note: NoteDockPanel,
   [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
@@ -434,12 +434,12 @@ function openArtifact(api: DockviewApi, artifactId: string) {
   })
 }
 
-function openDelegation(api: DockviewApi, delegationId: string) {
+function openDelegation(api: DockviewApi, delegationId: string, title: string) {
   openSide(api, {
     id: delegationPanelId(delegationId),
     component: 'delegation',
     params: { delegationId },
-    title: 'Delegation',
+    title,
   })
 }
 /** Files belong to the project, so they stay open across conversations. */
@@ -576,7 +576,7 @@ export function DockShell({
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     useDelegationDock.setState({
-      open: (delegationId) => openDelegation(dock, delegationId),
+      open: (delegationId, title) => openDelegation(dock, delegationId, title),
     })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {

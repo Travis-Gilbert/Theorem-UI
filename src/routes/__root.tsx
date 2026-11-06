@@ -46,7 +46,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function NotFound() {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-background text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
+      <p className="font-heading text-[20px] font-medium">
         Nothing here
       </p>
       <Link to="/" className="text-sm text-link underline underline-offset-2">
@@ -61,6 +61,11 @@ function RootDocument({ children }: { children: ReactNode }) {
   useEffect(() => {
     const host = getDesktopHost()
     return host ? reportUnsaved(host) : undefined
+  }, [])
+  // The terminal surfaces follow colours a person sets on the root; each
+  // built-in palette's own are already in palettes.css for the first paint.
+  useEffect(() => {
+    void import('@/components/terminal/live-terminal-theme')
   }, [])
   return (
     // next-themes sets the .dark class and paletteScript sets data-palette before paint, so the server markup differs by design.

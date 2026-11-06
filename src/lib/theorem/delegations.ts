@@ -71,6 +71,32 @@ export function readIntent(data: unknown): IntentPart | undefined {
     : undefined
 }
 
+const ID = String.raw`(?:[a-z][\w.-]*:)?(?:[0-9a-f]{12,}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})`
+const HAS_ID = new RegExp(String.raw`\b${ID}\b`, 'i')
+const ID_CLAUSE = new RegExp(String.raw`[^;,]*\b${ID}\b[^;,]*[;,]?`, 'gi')
+const ID_TOKEN = new RegExp(String.raw`\s*\b${ID}\b`, 'gi')
+
+/** An aside that names ids keeps the rest of what it says, and goes when nothing is left. */
+function asideWithoutIds(aside: string, inner: string): string {
+  if (!HAS_ID.test(inner)) return aside
+  const rest = inner.replace(ID_CLAUSE, '').replace(/^[\s;,]+|[\s;,]+$/g, '')
+  return rest ? ` (${rest})` : ''
+}
+
+/**
+ * The objective as a person reads it: the front role writes the object ids
+ * the worker needs into its prompt ("(documentId note:8183…; keep the
+ * shortcuts)"), and those clauses stay with the worker.
+ */
+export function plainObjective(objective: string): string {
+  return objective
+    .replace(/\s*\(([^()]*)\)/g, asideWithoutIds)
+    .replace(ID_TOKEN, '')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 /** States in which the specialist has not settled yet. */
 export const LIVE_DELEGATION_STATES: ReadonlySet<DelegationState> = new Set([
   'proposed',
@@ -167,7 +193,7 @@ export function useLiveDelegation(
 
 /** Set while the desktop dock is mounted: opens a delegation's panel. */
 export const useDelegationDock = create<{
-  open?: (delegationId: string) => void
+  open?: (delegationId: string, title: string) => void
 }>(() => ({}))
 
 const RESUME_ATTEMPTS = 8
