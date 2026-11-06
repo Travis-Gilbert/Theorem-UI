@@ -36,7 +36,7 @@ type KindInfo = {
 }
 
 const glyph = (text: string) => (
-  <span className="font-mono text-[10px] leading-none font-semibold tracking-tight">
+  <span className="font-mono text-[10px] leading-none font-semibold">
     {text}
   </span>
 )

@@ -133,11 +133,11 @@ const Heading = defineComponent({
   }),
   component: ({ props }) =>
     props.level === 1 ? (
-      <h2 className="font-heading text-[22px] font-normal tracking-tight">
+      <h2 className="font-heading text-[22px] font-medium">
         {props.text}
       </h2>
     ) : (
-      <h3 className="font-heading text-[17px] font-normal tracking-tight">
+      <h3 className="font-heading text-[17px] font-semibold">
         {props.text}
       </h3>
     ),
