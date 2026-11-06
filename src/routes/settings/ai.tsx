@@ -70,12 +70,12 @@ function DefaultModel({
       <SettingsBox>
         <SettingsRow
           Mark={Icon.Chat}
-          title={selected ? (model?.name ?? selected) : 'Theorem default'}
+          title={selected ? (model?.name ?? selected) : 'Default'}
           description={selected ? selected : fallback}
         >
           {selected && (
             <Button variant="outline" size="sm" onClick={() => select(undefined)}>
-              Use Theorem default
+              Use the default
             </Button>
           )}
         </SettingsRow>

@@ -17,7 +17,7 @@ import {
   useToolCallElapsed
 } from "@assistant-ui/react";
 import type { ToolApprovalAnswer, ToolApprovalOption, ToolApprovalQuestion, ToolCallMessagePart, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { cn } from "@/lib/utils";
+import { cn, humanize } from "@/lib/utils";
 import { liveEnter } from "./surfaces";
 import {
   CollapsibleRoot as Collapsible,
@@ -178,7 +178,7 @@ function ToolFallbackTrigger({
           isRunning && "shimmer motion-reduce:animate-none",
         )}
       >
-        {label}: <b>{toolName}</b>
+        {label}: <b>{humanize(toolName)}</b>
       </span>
       <ToolFallbackDuration />
       <Icon.Next
@@ -347,7 +347,7 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
   (isKnownKind(option.kind)
     ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
     : undefined) ??
-  option.id;
+  humanize(option.id);
 
 /**
  * A request that declares how it wants to be presented is asking a question,
@@ -367,7 +367,9 @@ const answerLabels = (
   answer: ToolApprovalAnswer | undefined,
 ) => [
   ...(answer?.optionIds ?? []).map(
-    (id) => question.options?.find((option) => option.id === id)?.label ?? id,
+    (id) =>
+      question.options?.find((option) => option.id === id)?.label ??
+      humanize(id),
   ),
   ...(answer?.text?.trim() ? [answer.text] : []),
 ];
@@ -407,7 +409,7 @@ const approvalReceipt = (
       ? approvalOptionLabel(chosen)
       : approval.optionId === undefined
         ? undefined
-        : approval.optionId;
+        : humanize(approval.optionId);
   const answered =
     isQuestion(approval) || (chosen !== undefined && !isKnownKind(chosen.kind));
   const automatic = approval.isAutomatic ? " automatically" : "";

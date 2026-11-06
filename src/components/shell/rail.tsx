@@ -44,7 +44,7 @@ function AccountMenu() {
     <Menu.Root>
       <Menu.Trigger
         aria-label={tenant ? `Account, ${tenant}` : 'Account'}
-        className="flex size-8 items-center justify-center rounded-[9px] border-[1.5px] border-redwood pt-px font-heading text-[18px] leading-none text-redwood transition-colors duration-100 outline-none hover:bg-redwood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-popup-open:bg-redwood/15"
+        className="flex size-8 items-center justify-center rounded-[9px] border-[1.5px] border-redwood pt-px font-heading text-[18px] font-semibold leading-none text-redwood transition-colors duration-100 outline-none hover:bg-redwood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-popup-open:bg-redwood/15"
       >
         {tenant?.charAt(0).toUpperCase()}
       </Menu.Trigger>

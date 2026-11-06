@@ -103,15 +103,7 @@ function ExplorerBody({ projectId }: { projectId: string }) {
   if (root.error)
     return isUnconfigured(root.error) ? (
       <p className="px-3 py-2 text-sm leading-relaxed text-ink-muted">
-        No folder is bound to this server. Start it with{' '}
-        <code className="font-mono text-xs text-ink">
-          THEOREMWEB_PROJECT_ROOT
-        </code>{' '}
-        and{' '}
-        <code className="font-mono text-xs text-ink">
-          THEOREMWEB_PROJECT_ID
-        </code>
-        .
+        No project folder is connected.
       </p>
     ) : (
       <p className="px-3 py-2 text-sm leading-relaxed text-error-ink">

@@ -24,7 +24,7 @@ import {
 import type { ModelOption } from '@/lib/theorem/models'
 
 /** Theorem's configured choice unless the person picks another. */
-const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem default'), vendor: 'theorem' }
+const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Default'), vendor: 'theorem' }
 
 type Group = { label: string; items: ModelOption[] }
 
@@ -72,6 +72,8 @@ export function ModelPicker() {
   )
   const groups = useMemo(() => pickerGroups(starred, byRef), [starred, byRef])
   const selected = pickerSelection(selectedRef, byRef, groups)
+  // What "Default" resolves to, so the person knows what an unpinned turn runs on.
+  const defaultName = list?.defaultRef ? byRef.get(list.defaultRef)?.name : undefined
 
   return (
     <Combobox<ModelOption>
@@ -84,7 +86,7 @@ export function ModelPicker() {
     >
       <ComboboxTrigger
         aria-label="Model"
-        className="flex h-7 max-w-44 items-center gap-1 rounded-md px-1.5 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
+        className="flex h-8 max-w-48 min-w-0 items-center gap-1 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
       >
         <span className="truncate">{selected?.name ?? 'Model'}</span>
         <Icon.UpDown className="size-3.5 shrink-0" />
@@ -114,6 +116,9 @@ export function ModelPicker() {
                     <div className="flex items-center gap-2">
                       <VendorMark vendor={model.vendor} />
                       <span className="min-w-0 flex-1 truncate">{model.name}</span>
+                      {!model.ref && defaultName && (
+                        <span className="min-w-0 truncate text-xs text-ink-faint">{defaultName}</span>
+                      )}
                       {model.contextLength && (
                         <span className="shrink-0 text-xs text-ink-faint tabular-nums">
                           {formatContext(model.contextLength)}
