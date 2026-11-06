@@ -129,7 +129,7 @@ function parseDefaultError(raw: unknown): ModelList['defaultError'] {
 export function modelCatalogIssue(list: ModelList | undefined, error: unknown): string | undefined {
   if (error) return `Could not load models. ${describeError(error)} Check AI settings and retry the model list.`
   const failure = list?.defaultError
-  if (failure) return `${failure.message} (${failure.code}) Choose an available model or correct the default in Theorem's configuration.`
+  if (failure) return `${failure.message} Choose an available model or correct the default in Theorem's configuration.`
   return undefined
 }
 

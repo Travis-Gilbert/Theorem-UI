@@ -24,7 +24,7 @@ import {
 import type { ModelOption } from '@/lib/theorem/models'
 
 /** Theorem's configured choice unless the person picks another. */
-const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem default'), vendor: 'theorem' }
+const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Default'), vendor: 'theorem' }
 
 type Group = { label: string; items: ModelOption[] }
 
@@ -72,6 +72,8 @@ export function ModelPicker() {
   )
   const groups = useMemo(() => pickerGroups(starred, byRef), [starred, byRef])
   const selected = pickerSelection(selectedRef, byRef, groups)
+  // What "Default" resolves to, so the person knows what an unpinned turn runs on.
+  const defaultName = list?.defaultRef ? byRef.get(list.defaultRef)?.name : undefined
 
   return (
     <Combobox<ModelOption>
@@ -114,6 +116,9 @@ export function ModelPicker() {
                     <div className="flex items-center gap-2">
                       <VendorMark vendor={model.vendor} />
                       <span className="min-w-0 flex-1 truncate">{model.name}</span>
+                      {!model.ref && defaultName && (
+                        <span className="min-w-0 truncate text-xs text-ink-faint">{defaultName}</span>
+                      )}
                       {model.contextLength && (
                         <span className="shrink-0 text-xs text-ink-faint tabular-nums">
                           {formatContext(model.contextLength)}

@@ -25,9 +25,11 @@ import { askAbout } from '@/components/chat/composer-references'
 import { useOpenChanges } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { withoutCode } from '@/lib/theorem/client'
 import {
   LIVE_DELEGATION_STATES,
   changeSide,
+  plainObjective,
   readDelegation,
   readIntent,
   readReview,
@@ -55,7 +57,7 @@ const STATE_LABELS: Record<DelegationPart['state'], string> = {
   failed: 'Failed',
   cancelled: 'Cancelled',
   stale: 'Stale',
-  reviewed: 'Discussed',
+  reviewed: 'Reviewed',
   refused: 'Refused',
 }
 
@@ -74,9 +76,13 @@ const ADMISSION_LABELS: Record<ChangeAdmission['state'], string> = {
   admitted: 'Admitted',
   conflict: 'Conflict',
   out_of_scope: 'Out of scope',
-  refused: 'Refused',
+  refused: 'Not applied',
   direct: 'Direct',
 }
+
+/** Admitted and direct changes are the normal case; only the rest earn a chip. */
+const quietAdmission = (admission: ChangeAdmission) =>
+  admission.state === 'admitted' || admission.state === 'direct'
 
 const CHECK_LABELS: Record<ReceiptCheck['status'], string> = {
   passed: 'passed',
@@ -246,19 +252,19 @@ const ChangeRow: FC<{ delegation: DelegationPart; change: ChangeSetEntry }> = ({
             </span>
           )}
         </CollapsibleTrigger>
-        <span
-          title={detail}
-          className={cn(
-            'shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium',
-            troubled(admission)
-              ? 'bg-error-container text-error-ink'
-              : admission.state === 'admitted' || admission.state === 'direct'
-                ? 'bg-raised text-ink-muted'
+        {!quietAdmission(admission) && (
+          <span
+            title={detail}
+            className={cn(
+              'shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium',
+              troubled(admission)
+                ? 'bg-error-container text-error-ink'
                 : 'text-ink-faint',
-          )}
-        >
-          {ADMISSION_LABELS[admission.state]}
-        </span>
+            )}
+          >
+            {ADMISSION_LABELS[admission.state]}
+          </span>
+        )}
         <Button
           variant="ghost"
           size="icon-sm"
@@ -419,8 +425,10 @@ function workProblems({ receipt, problem }: DelegationPart): string[] {
   const terminal = receipt?.terminal
   const workerFailure = terminal?.kind === 'failed' ? terminal.message : undefined
   return [
-    workerFailure,
-    problem && problem !== workerFailure ? `Follow-up failed: ${problem}` : undefined,
+    workerFailure && withoutCode(workerFailure),
+    problem && problem !== workerFailure
+      ? `Follow-up failed: ${withoutCode(problem)}`
+      : undefined,
   ].filter((message): message is string => Boolean(message))
 }
 
@@ -454,6 +462,11 @@ export const DelegationBody: FC<{
       Number(usage.reasoningTokens ?? 0)
   const changes = receipt?.changes ?? []
   const reported = receipt?.reported
+  const objective = plainObjective(delegation.objective)
+  // A criterion that only restates the objective says nothing new.
+  const criteria = delegation.criteria.filter(
+    (criterion) => plainObjective(criterion) !== objective,
+  )
   const target = {
     runId: delegation.parentRunId,
     delegationId: delegation.delegationId,
@@ -473,11 +486,18 @@ export const DelegationBody: FC<{
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="flex min-w-0 items-baseline gap-2 text-sm">
             <span className="truncate font-medium">{delegation.roleLabel}</span>
-            <span className="truncate font-mono text-xs text-ink-faint">
-              {modelName(delegation.model)}
-            </span>
+            {detailed && (
+              <span className="truncate font-mono text-xs text-ink-faint">
+                {modelName(delegation.model)}
+              </span>
+            )}
           </p>
-          <p className="text-sm text-ink-muted">{delegation.objective}</p>
+          <p
+            className={cn('text-sm text-ink-muted', !detailed && 'line-clamp-3')}
+            title={detailed ? undefined : objective}
+          >
+            {objective}
+          </p>
         </div>
         {live ? (
           <ShimmerLabel className="shrink-0 text-xs text-ink-faint">
@@ -513,25 +533,34 @@ export const DelegationBody: FC<{
         </Section>
       )}
 
-      {delegation.criteria.length > 0 && (
+      {criteria.length > 0 && (
         <Section title="Criteria">
-          <ul className="flex flex-col gap-1 text-sm">
-            {delegation.criteria.map((criterion, index) => {
-              const met = reported?.completedCriteria.includes(criterion)
-              return (
-                <li key={index} className="flex items-start gap-2">
-                  {met ? (
-                    <Icon.Check className="mt-0.5 size-3.5 shrink-0 text-ink-muted" />
-                  ) : (
-                    <span className="mt-1 size-3 shrink-0 rounded-full border border-ink-faint/50" />
-                  )}
-                  <span className={cn(!met && receipt && 'text-ink-muted')}>
-                    {criterion}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
+          {reported ? (
+            <ul className="flex flex-col gap-1 text-sm">
+              {criteria.map((criterion, index) => {
+                const met = reported.completedCriteria.includes(criterion)
+                return (
+                  <li key={index} className="flex items-start gap-2">
+                    {met ? (
+                      <Icon.Check className="mt-0.5 size-3.5 shrink-0 text-ink-muted" />
+                    ) : (
+                      <span className="mt-1 size-3 shrink-0 rounded-full border border-ink-faint/50" />
+                    )}
+                    <span className={cn(!met && 'text-ink-muted')}>
+                      {plainObjective(criterion)}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            // Nothing is met or missed before the specialist reports.
+            <ul className="ms-4 list-disc text-sm leading-6">
+              {criteria.map((criterion, index) => (
+                <li key={index}>{plainObjective(criterion)}</li>
+              ))}
+            </ul>
+          )}
         </Section>
       )}
 
@@ -573,7 +602,7 @@ export const DelegationBody: FC<{
           {detailed && (
             <Notes title="Assumptions" items={reported.assumptions} />
           )}
-          <Notes title="Unresolved" items={reported.unresolved} />
+          <Notes title="Open questions" items={reported.unresolved} />
         </>
       )}
 
@@ -584,7 +613,7 @@ export const DelegationBody: FC<{
           className="h-7 gap-1.5 px-2 text-xs"
           onClick={() =>
             askAbout({
-              label: `${delegation.roleLabel}: ${delegation.objective}`,
+              label: `${delegation.roleLabel}: ${objective}`,
               location: { resource: { kind: 'delegation', ...target } },
             })
           }
@@ -608,25 +637,29 @@ export const DelegationBody: FC<{
             variant="ghost"
             size="sm"
             className="h-7 gap-1.5 px-2 text-xs"
-            onClick={() => openDetails(delegation.delegationId)}
+            onClick={() =>
+              openDetails(delegation.delegationId, delegation.roleLabel)
+            }
           >
             <Icon.Expand className="size-3.5" />
             Details
           </Button>
         )}
-        <span className="ms-auto truncate px-2 text-xs text-ink-faint">
-          {[
-            receipt && `${receipt.commandCount} commands`,
-            tokens ? `${tokens.toLocaleString()} tokens` : undefined,
-            cost(
-              usage?.costMicrounits === undefined
-                ? undefined
-                : Number(usage.costMicrounits),
-            ),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </span>
+        {detailed && (
+          <span className="ms-auto truncate px-2 text-xs text-ink-faint">
+            {[
+              receipt && `${receipt.commandCount} commands`,
+              tokens ? `${tokens.toLocaleString()} tokens` : undefined,
+              cost(
+                usage?.costMicrounits === undefined
+                  ? undefined
+                  : Number(usage.costMicrounits),
+              ),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        )}
       </footer>
     </>
   )
@@ -676,9 +709,6 @@ const ReviewCard: DataMessagePartComponent = ({ data }) => {
           <span className="line-clamp-2 text-sm text-ink-muted">
             {review.summary}
           </span>
-        </span>
-        <span className="shrink-0 text-xs text-ink-faint">
-          {review.reviewerRole}
         </span>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -748,8 +778,7 @@ const IntentCard: DataMessagePartComponent = ({ data }) => {
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-xs text-ink-faint">
-            Intent
-            {intent.revision > 1 && ` · revision ${intent.revision}`}
+            {intent.revision > 1 ? 'Revised goal' : 'Goal'}
           </span>
           <span className="line-clamp-2 text-sm font-medium">
             {intent.goal}
