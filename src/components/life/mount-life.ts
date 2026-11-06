@@ -16,7 +16,7 @@ import {
 } from '@/lib/life/life'
 import type { Field } from '@/lib/life/life'
 import { emit, fill } from '@/lib/life/emitter'
-import { RESTING, decay, glow, pace, pulse, restSeconds, sustain } from '@/lib/life/energy'
+import { RESTING, beat, decay, glow, pace, pulse, restSeconds, sustain } from '@/lib/life/energy'
 import type { Energy, PulseKind } from '@/lib/life/energy'
 import { cellLook, crossFade } from '@/lib/life/look'
 import type { Look, Tone } from '@/lib/life/look'
@@ -137,19 +137,17 @@ export function mountLife(
   let field: Field = createField(0, 0)
   /**
    * The generation `field` grew from. Each cell eases from its look there to
-   * its look now across the interval to the next step, so births bloom and
-   * deaths fade instead of snapping in on the beat.
+   * its look now as `phase` runs to the next step, so births bloom and deaths
+   * fade instead of snapping in on the beat.
    */
   let previous: Field = field
-  let sinceStep = 0
-  let fadeSeconds = 1
+  let phase = 0
   /** The base layer draws first, so it collects these for `fading` each frame. */
   const leaving: { x: number; y: number; glyph: string; color: Rgb }[] = []
   let presence: Presence = createPresence({ x: 0, y: 0 })
   let stroke: { on: boolean; last: Point } | undefined
   let hovered: Point | undefined
   let lastActivity = -Infinity
-  let pending = 0
   let energy: Energy = RESTING
 
   const cols = () => t.grid?.cols ?? 0
@@ -184,12 +182,11 @@ export function mountLife(
     previous = change(previous)
   }
 
-  /** Advances one generation and starts the fade from the one before. */
-  const advanceField = (steps: number, interval: number, carried: number) => {
+  /** Advances the field and starts the fade from the generation before. */
+  const advanceField = (steps: number, carried: number) => {
     previous = field
     for (let i = 0; i < steps; i++) field = step(emit(field, energy.level, Math.random))
-    fadeSeconds = interval
-    sinceStep = carried
+    phase = carried
   }
 
   const publish = () => {
@@ -254,19 +251,10 @@ export function mountLife(
     const { playing, companion: playsAlong } = useLifeControls.getState()
     const seconds = t.deltaTime() / 1000
     energy = decay(energy, seconds)
-    sinceStep += seconds
-    if (playing) {
-      pending += seconds
-      const interval = 1 / pace(energy.level)
-      let steps = 0
-      while (pending >= interval && steps < MAX_STEPS_PER_FRAME) {
-        pending -= interval
-        steps++
-      }
-      if (steps === MAX_STEPS_PER_FRAME) pending = 0
-      // What is left over is how long ago the last step was due.
-      if (steps > 0) advanceField(steps, interval, pending)
-    }
+    const tick = beat(phase, seconds, energy.level, playing)
+    phase = tick.phase
+    if (tick.steps >= MAX_STEPS_PER_FRAME) advanceField(MAX_STEPS_PER_FRAME, 0)
+    else if (tick.steps > 0) advanceField(tick.steps, tick.phase)
 
     const personActive = stroke !== undefined || t.secs - lastActivity < ACTIVE_SECONDS
     presence = advance(presence, seconds, { still: reducedMotion, quiet: personActive })
@@ -289,7 +277,7 @@ export function mountLife(
     t.background(...palette.background, 0)
     const { at } = presence
     const faint = FIELD_WEIGHT * glow(energy.level)
-    const fade = reducedMotion ? 1 : eases.inOutSine(Math.min(1, sinceStep / fadeSeconds))
+    const fade = reducedMotion ? 1 : eases.inOutSine(phase)
     // Each pixel keeps whichever glyph stands further from the sheet, so the
     // two cross without one covering the other. The fade is in the colour:
     // layer opacity would thin a glyph twice over transparent pixels.
@@ -389,7 +377,7 @@ export function mountLife(
       stroke = undefined
     },
     step() {
-      advanceField(1, 1 / pace(energy.level), 0)
+      advanceField(1, 0)
     },
     clear() {
       field = clear(field)
