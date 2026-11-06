@@ -391,11 +391,12 @@ export function mountLife(
       advanceField(1)
       phase = 0
     },
+    // Like a pointer edit, a clear or a new random field shows at once.
     clear() {
-      field = clear(field)
+      edit(clear)
     },
     randomize() {
-      field = fill(clear(field), Math.random)
+      edit((cells) => fill(clear(cells), Math.random))
     },
     pulse(kind) {
       energy = pulse(energy, kind)

@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test'
+import { QueryClient } from '@tanstack/react-query'
 import {
   defaultModelDescription,
   modelCatalogIssue,
   formatContext,
   formatPrice,
+  modelListQuery,
+  modelTurnOptions,
   parseModelEntry,
   parseModelList,
-  pickedModelTurnOptions,
   resolvedModel,
   useModelEffort,
   usePickedModels,
@@ -164,16 +166,44 @@ test('default identity selects the matching row rather than the first catalog mo
 })
 
 describe('effort', () => {
+  const PRO = { ref: 'openrouter/deepseek/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro', effort_levels: ['high', 'max'] }
+  const FLASH = { ref: 'openrouter/deepseek/deepseek-v4-flash', name: 'DeepSeek V4 Flash', effort_levels: ['low', 'high'] }
+  const SONNET = { ref: 'openrouter/anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' }
+  /** A query client holding the model list Theorem served, with `defaultRef` as its default. */
+  const listed = (defaultRef: string) => {
+    const client = new QueryClient()
+    client.setQueryData(modelListQuery.queryKey, parseModelList({ defaultRef, models: [PRO, FLASH, SONNET] }))
+    return client
+  }
+
   test('a send carries the level chosen for the model it runs on, and none for another', () => {
-    useModelEffort.setState({ byModel: { 'openrouter/deepseek/deepseek-v4-pro-0813': 'max', '': 'high' } })
+    useModelEffort.setState({ byModel: { [PRO.ref]: 'max', '': 'high' } })
+    const options = modelTurnOptions(listed(FLASH.ref))
     try {
-      usePickedModels.setState({ selected: 'openrouter/deepseek/deepseek-v4-pro-0813' })
-      expect(pickedModelTurnOptions.effort).toBe('max')
+      usePickedModels.setState({ selected: PRO.ref })
+      expect(options.effort).toBe('max')
       usePickedModels.setState({ selected: undefined })
-      expect(pickedModelTurnOptions.effort).toBe('high')
-      usePickedModels.setState({ selected: 'openrouter/anthropic/claude-sonnet-4.5' })
-      expect(pickedModelTurnOptions.effort).toBeUndefined()
-      expect({ ...pickedModelTurnOptions }.effort).toBeUndefined()
+      expect(options.effort).toBe('high')
+      usePickedModels.setState({ selected: SONNET.ref })
+      expect(options.effort).toBeUndefined()
+      expect({ ...options }.effort).toBeUndefined()
+    } finally {
+      useModelEffort.setState({ byModel: {} })
+      usePickedModels.setState({ selected: undefined })
+    }
+  })
+
+  test('a stored level goes out only once the model list says the model takes it', () => {
+    useModelEffort.setState({ byModel: { '': 'high', [SONNET.ref]: 'high' } })
+    try {
+      // Before the list loads, nothing says the default model takes it.
+      expect(modelTurnOptions(new QueryClient()).effort).toBeUndefined()
+      expect(modelTurnOptions(undefined).effort).toBeUndefined()
+      expect(modelTurnOptions(listed(FLASH.ref)).effort).toBe('high')
+      // The default moved to a model that takes none, so the stored level stays home.
+      expect(modelTurnOptions(listed(SONNET.ref)).effort).toBeUndefined()
+      usePickedModels.setState({ selected: SONNET.ref })
+      expect(modelTurnOptions(listed(FLASH.ref)).effort).toBeUndefined()
     } finally {
       useModelEffort.setState({ byModel: {} })
       usePickedModels.setState({ selected: undefined })

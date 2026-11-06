@@ -1,5 +1,6 @@
 // SOURCING: zustand + zustand/middleware persist (the person's starred and picked models, as lib/palette keeps the palette), @tanstack/react-query (the model list Theorem serves at /api/chat/v1/models, OpenRouter's fields passed through)
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -268,23 +269,40 @@ export const useModelEffort = create<ModelEffortState>()(
   ),
 )
 
+/** The picked model as a send carries it; undefined leaves it to Theorem's default. */
+export function pickedModel(): Theorem.ResolvedModel | undefined {
+  const ref = usePickedModels.getState().selected
+  return ref ? resolvedModel(ref) : undefined
+}
+
 /**
- * Turn options that carry the picked model and the effort level chosen for
- * it. The SDK's chat adapter spreads its turn options into every send, retry
- * and edit, so the getters read the pick at send time and a thread's adapter
- * never needs rebuilding. Theorem refuses a level the model's route does not
- * send, so only a level the composer offered goes out.
+ * The level chosen for the model the next turn runs on, when `catalog` lists
+ * it for that model. Theorem refuses a level the model's route does not send,
+ * so until the model list has loaded no level goes out.
  */
-export const pickedModelTurnOptions = {
+export function sendableEffort(catalog: ModelList | undefined): string | undefined {
+  const selected = usePickedModels.getState().selected
+  const level = useModelEffort.getState().byModel[selected ?? '']
+  const ref = selected ?? catalog?.defaultRef
+  const model = ref ? catalog?.models.find((option) => option.ref === ref) : undefined
+  return level && model?.effortLevels.includes(level) ? level : undefined
+}
+
+/**
+ * Turn options that carry the picked model and its effort level. The SDK's
+ * chat adapter spreads its turn options into every send, retry and edit, so
+ * the getters read the pick at send time and a thread's adapter never needs
+ * rebuilding. The level is checked then against the model list in
+ * `queryClient`'s cache; without a client no level goes out.
+ */
+export const modelTurnOptions = (queryClient: QueryClient | undefined) => ({
   get model(): Theorem.ResolvedModel | undefined {
-    const ref = usePickedModels.getState().selected
-    return ref ? resolvedModel(ref) : undefined
+    return pickedModel()
   },
   get effort(): string | undefined {
-    const ref = usePickedModels.getState().selected ?? ''
-    return useModelEffort.getState().byModel[ref]
+    return sendableEffort(queryClient?.getQueryData(modelListQuery.queryKey))
   },
-}
+})
 
 type Preferences = {
   starredModels: string[]

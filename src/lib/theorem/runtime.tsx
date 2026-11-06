@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -28,9 +28,10 @@ import {
   toAssistantMessages,
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
+import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useEffect, useMemo } from 'react'
+import { useContext, useEffect, useMemo } from 'react'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
 import { useComposerReferences } from '@/components/chat/composer-references'
@@ -54,7 +55,7 @@ import {
 } from './client'
 import type { Theorem } from './client'
 import { RefusedSend } from './send-recovery'
-import { pickedModelTurnOptions } from './models'
+import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
@@ -458,6 +459,9 @@ export function draftedPlan(step: ChatModelRunResult): boolean {
 }
 function useTheoremThreadRuntime() {
   const aui = useAui()
+  // Absent outside the app's query provider; a send there carries no effort level.
+  const queryClient = useContext(QueryClientContext)
+  const turnOptions = useMemo(() => modelTurnOptions(queryClient), [queryClient])
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
@@ -473,7 +477,7 @@ function useTheoremThreadRuntime() {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
           } : options
-          const turn = runTurn(remoteId,composed,pickedModelTurnOptions,()=>{
+          const turn = runTurn(remoteId,composed,turnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
@@ -490,7 +494,7 @@ function useTheoremThreadRuntime() {
         }
       },
     }),
-    [aui],
+    [aui, turnOptions],
   )
   const runtime = useLocalRuntime(adapter)
   useEffect(() => {

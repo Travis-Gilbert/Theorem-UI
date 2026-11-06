@@ -1,4 +1,4 @@
-// SOURCING: @xyflow/react 12 (custom task nodes with hidden Handles, smoothstep edges with closed-arrow markers, useNodesState for drag and selection, Controls, dotted Background, fitView) after the records data-model diagram's conventions, laid out by @dagrejs/dagre through lib/theorem/plans; @tanstack/react-query for Theorem's live copy of the plan; assistant-ui's ToolCallMessagePartComponent for the draft_plan call, with the installed ToolFallback and ThinkingIndicator for its failed and running states
+// SOURCING: @xyflow/react 12 (custom task nodes with hidden Handles, smoothstep edges with closed-arrow markers, useNodesState for drag and selection, Controls, dotted Background, fitView) after the records data-model diagram's conventions, laid out by @dagrejs/dagre through lib/theorem/plans; @tanstack/react-query for Theorem's live copy of the plan, polled while framer-motion's useInView sees the card; assistant-ui's ToolCallMessagePartComponent for the draft_plan call, with the installed ToolFallback and ThinkingIndicator for its failed and running states
 import {
   Background,
   BackgroundVariant,
@@ -14,13 +14,15 @@ import type { Edge, Node, NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useInView } from 'framer-motion'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FC } from 'react'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import { Icon } from '@/components/icons'
 import { describeError } from '@/lib/theorem/client'
 import {
+  LIVE_PLAN_REFRESH_MS,
   draftPlanView,
   layoutPlan,
   livePlanQuery,
@@ -238,9 +240,13 @@ export function PlanGraph({ view, note }: { view: PlanView; note?: string | unde
 
 /** A written plan: Theorem's live copy once it reads back, the drafted one until then. */
 const WrittenPlan: FC<{ draft: PlanView }> = ({ draft }) => {
+  const card = useRef<HTMLDivElement>(null)
+  // Past messages stay mounted off screen, so only a card in view keeps polling.
+  const inView = useInView(card)
   const live = useQuery({
     ...livePlanQuery(draft.planId ?? ''),
     enabled: draft.planId !== undefined,
+    refetchInterval: inView ? LIVE_PLAN_REFRESH_MS : false,
   })
   const view = live.data ?? draft
   const note = live.error
@@ -248,7 +254,11 @@ const WrittenPlan: FC<{ draft: PlanView }> = ({ draft }) => {
     : live.data === null
       ? 'Theorem no longer has this plan; showing it as drafted.'
       : undefined
-  return <PlanGraph view={view} note={note} />
+  return (
+    <div ref={card}>
+      <PlanGraph view={view} note={note} />
+    </div>
+  )
 }
 
 /** The draft_plan call: a pending line while the model writes it, then the plan's graph. */

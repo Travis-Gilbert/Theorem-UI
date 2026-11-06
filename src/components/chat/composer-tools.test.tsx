@@ -23,7 +23,7 @@ import {
   useWebSearch,
   webTurnOptions,
 } from './composer-tools'
-import { pickedModelTurnOptions, useModelEffort, usePickedModels } from '@/lib/theorem/models'
+import { modelTurnOptions, useModelEffort, usePickedModels } from '@/lib/theorem/models'
 
 /** What GET /api/environment/v1/tools answers: MCP-shaped native descriptors. */
 const CATALOG = {
@@ -398,10 +398,10 @@ test("the effort menu offers the default model's levels, and a pick goes out wit
     return found.length ? found : undefined
   })
   expect(items.map((item) => item.textContent)).toEqual(['DefaultLow', 'Low', 'High', 'Max'])
-  expect(pickedModelTurnOptions.effort).toBeUndefined()
+  expect(modelTurnOptions(client).effort).toBeUndefined()
 
   await act(() => items[2]!.click())
-  expect(pickedModelTurnOptions.effort).toBe('high')
+  expect(modelTurnOptions(client).effort).toBe('high')
   await waitFor(() => trigger.textContent === 'High')
 })
 
@@ -411,5 +411,5 @@ test('a model whose route sends no effort has no effort menu, and a stale level 
   const { container } = await mount(<Harness text="Hello" sent={[]} />)
   await waitFor(() => useModelEffort.getState().byModel[''] === undefined)
   expect(container.querySelector('[aria-label="Reasoning effort"]')).toBeNull()
-  expect(pickedModelTurnOptions.effort).toBeUndefined()
+  expect(modelTurnOptions(client).effort).toBeUndefined()
 })

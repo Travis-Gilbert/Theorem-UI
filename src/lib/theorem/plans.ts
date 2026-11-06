@@ -46,8 +46,10 @@ const list = (value: unknown): Json[] => (Array.isArray(value) ? value.map(objec
 
 /**
  * The plan a `draft_plan` call wrote, from its arguments (the tasks in full)
- * and its result (the plan id and each alias's task id). Dependencies stay
- * aliases here, since the arguments name tasks that way.
+ * and its result (the plan id and each alias's task id). Tasks and their
+ * dependencies take the ids Theorem wrote, so the live copy that replaces
+ * this view names the same tasks; a task the result names no id for keeps
+ * its alias.
  */
 export function draftPlanView(args: unknown, result: unknown): PlanView | undefined {
   const draft = object(args)
@@ -55,6 +57,14 @@ export function draftPlanView(args: unknown, result: unknown): PlanView | undefi
   const title = text(written.title) ?? text(draft.title)
   const tasks = list(draft.tasks).length ? list(draft.tasks) : list(written.tasks)
   if (!title || !tasks.length) return undefined
+  const saved = new Map(
+    list(written.tasks).flatMap((task) => {
+      const alias = text(task.alias)
+      const id = text(task.taskId)
+      return alias && id ? [[alias, id] as const] : []
+    }),
+  )
+  const idOf = (alias: string) => saved.get(alias) ?? alias
   const view: PlanView = {
     title,
     tasks: tasks.flatMap((task) => {
@@ -62,11 +72,11 @@ export function draftPlanView(args: unknown, result: unknown): PlanView | undefi
       const taskTitle = text(task.title)
       if (!alias || !taskTitle) return []
       const item: PlanTaskView = {
-        id: alias,
+        id: idOf(alias),
         alias,
         title: taskTitle,
         acceptanceCriteria: texts(task.acceptanceCriteria),
-        dependencies: texts(task.dependencies),
+        dependencies: texts(task.dependencies).map(idOf),
       }
       const goal = text(task.goal)
       const description = text(task.description)
@@ -87,11 +97,15 @@ const PLAN = `query Plan($planId: String!) {
     planId
     reason
     plan { title objective status }
-    tasks { id alias title goal description acceptanceCriteria status dependencies }
+    tasks { id alias title goal description acceptanceCriteria status planStatus dependencies }
   }
 }`
 
-/** The plan as Theorem holds it now, or undefined when Theorem has no such plan. */
+/**
+ * The plan as Theorem holds it now, or undefined when Theorem has no such
+ * plan. A task's status is the plan's own (`planStatus`: pending, claimed,
+ * done); `status` is the task protocol's, where every open task is working.
+ */
 export function parseLivePlan(raw: unknown): PlanView | undefined {
   const payload = object(raw)
   const plan = object(payload.plan)
@@ -113,7 +127,7 @@ export function parseLivePlan(raw: unknown): PlanView | undefined {
       }
       const goal = text(task.goal)
       const description = text(task.description)
-      const status = text(task.status)
+      const status = text(task.planStatus) ?? text(task.status)
       if (goal) item.goal = goal
       if (description) item.description = description
       if (status) item.status = status
@@ -127,13 +141,15 @@ export function parseLivePlan(raw: unknown): PlanView | undefined {
   return view
 }
 
-/** Theorem's copy of a plan, read again while its card stays on screen. */
+/** How often a plan card on screen reads Theorem's copy again. */
+export const LIVE_PLAN_REFRESH_MS = 15_000
+
+/** Theorem's copy of a plan; its card polls it with `LIVE_PLAN_REFRESH_MS` while in view. */
 export const livePlanQuery = (planId: string) =>
   queryOptions({
     queryKey: ['theorem', 'plan', planId],
     queryFn: async () =>
       parseLivePlan((await graphql<{ plan: unknown }>(PLAN, { planId })).plan) ?? null,
-    refetchInterval: 15_000,
     staleTime: 5_000,
   })
 

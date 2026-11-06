@@ -32,12 +32,19 @@ const task = (id: string, dependencies: string[] = [], status?: string): PlanTas
 })
 
 describe('draftPlanView', () => {
-  test('a written draft is its tasks in full, by alias, with the plan id', () => {
+  test('a written draft is its tasks in full, by the ids Theorem wrote, with the plan id', () => {
     const view = draftPlanView(ARGS, RESULT)!
     expect(view.planId).toBe('plan:1')
     expect(view.objective).toBe('Live in Denver by March')
-    expect(view.tasks.map((t) => t.id)).toEqual(['find-flat', 'book-movers', 'pack'])
+    expect(view.tasks.map((t) => t.id)).toEqual(['t1', 't2', 't3'])
+    expect(view.tasks.map((t) => t.alias)).toEqual(['find-flat', 'book-movers', 'pack'])
     expect(view.tasks[0]).toMatchObject({ goal: 'A signed lease', acceptanceCriteria: ['Lease signed'] })
+    expect(view.tasks[1]!.dependencies).toEqual(['t1'])
+  })
+
+  test('a task the result names no id for keeps its alias', () => {
+    const view = draftPlanView(ARGS, { planId: 'plan:1', title: 'Move to Denver', tasks: [] })!
+    expect(view.tasks.map((t) => t.id)).toEqual(['find-flat', 'book-movers', 'pack'])
     expect(view.tasks[1]!.dependencies).toEqual(['find-flat'])
   })
 
@@ -47,13 +54,14 @@ describe('draftPlanView', () => {
 })
 
 describe('parseLivePlan', () => {
-  test("Theorem's copy keys tasks by id and keeps their status", () => {
+  test("Theorem's copy keys tasks by id and reads the plan's own status", () => {
     const view = parseLivePlan({
       planId: 'plan:1',
       plan: { title: 'Move to Denver', objective: 'Live in Denver by March', status: 'active' },
       tasks: [
-        { id: 't1', alias: 'find-flat', title: 'Find a flat', goal: '', acceptanceCriteria: [], status: 'done', dependencies: [] },
-        { id: 't2', alias: 'book-movers', title: 'Book movers', goal: '', acceptanceCriteria: [], status: 'pending', dependencies: ['t1'] },
+        // As Theorem answers: `status` is the task protocol's, where an open task is working.
+        { id: 't1', alias: 'find-flat', title: 'Find a flat', goal: '', acceptanceCriteria: [], status: 'completed', planStatus: 'done', dependencies: [] },
+        { id: 't2', alias: 'book-movers', title: 'Book movers', goal: '', acceptanceCriteria: [], status: 'working', planStatus: 'pending', dependencies: ['t1'] },
       ],
     })!
     expect(view.status).toBe('active')
