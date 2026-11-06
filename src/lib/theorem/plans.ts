@@ -184,7 +184,7 @@ export function layoutPlan(
   size: { width: number; height: number },
 ): Record<string, Point> {
   const graph = new Graph()
-  graph.setGraph({ rankdir: 'LR', nodesep: 20, ranksep: 56, marginx: 8, marginy: 8 })
+  graph.setGraph({ rankdir: 'LR', nodesep: 16, ranksep: 40, marginx: 8, marginy: 8 })
   graph.setDefaultEdgeLabel(() => ({}))
   const ids = new Set(tasks.map((task) => task.id))
   for (const task of tasks) graph.setNode(task.id, { ...size })

@@ -29,7 +29,7 @@ import {
 import type { PlanTaskView, PlanView, TaskTone } from '@/lib/theorem/plans'
 import { cn } from '@/lib/utils'
 
-const NODE = { width: 208, height: 64 }
+const NODE = { width: 176, height: 60 }
 
 const TONE: Readonly<Record<TaskTone, { label: string; dot: string }>> = {
   done: { label: 'Done', dot: 'bg-teal' },
