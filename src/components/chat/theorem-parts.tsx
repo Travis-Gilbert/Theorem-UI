@@ -169,7 +169,33 @@ export type TheoremApproval = {
   risk: string
   status: string
   approved: boolean | undefined
+  /** The host's words for an approval that settled unanswered: expired or replaced. */
+  reason: string | undefined
   options: Array<{ optionId: string; name: string; kind: string }>
+}
+
+/** What became of an approval, as `ApprovalPart::outcome` in theorem-surface-contracts collapses it. */
+export type ApprovalOutcome =
+  | 'awaiting'
+  | 'approved'
+  | 'declined'
+  | 'failed'
+  | 'unanswered'
+
+const AWAITING_STATUSES = new Set(['requires_action', 'pending', 'open'])
+
+/**
+ * An approval is awaited only while its status says so. An expired or
+ * replaced request settles `incomplete` with `approved` still unset, so an
+ * unset decision alone is not a question anyone can answer.
+ */
+export function approvalOutcome(
+  approval: Pick<TheoremApproval, 'status' | 'approved'>,
+): ApprovalOutcome {
+  if (AWAITING_STATUSES.has(approval.status)) return 'awaiting'
+  if (approval.approved === true) return 'approved'
+  if (approval.approved === false) return 'declined'
+  return approval.status === 'failed' ? 'failed' : 'unanswered'
 }
 
 export function readApproval(
@@ -202,6 +228,7 @@ export function readApproval(
     risk: str(part.risk) ?? 'unknown',
     status: str(part.status) ?? 'pending',
     approved: typeof part.approved === 'boolean' ? part.approved : undefined,
+    reason: str(part.reason),
     options,
   }
 }
@@ -250,7 +277,7 @@ export function isStandaloneToolCall(part: {
   const approval = readApproval(
     part.interrupt as ToolCallMessagePartProps['interrupt'],
   )
-  return approval !== undefined && approval.approved === undefined
+  return approval !== undefined && approvalOutcome(approval) === 'awaiting'
 }
 
 const TheoremApprovalCard: FC<{
@@ -269,6 +296,10 @@ const TheoremApprovalCard: FC<{
         : 'denied',
   )
   const [error, setError] = useState<string>()
+  // The part can settle while the card is open; a request nobody answered
+  // offers no buttons, and the host's reason says why.
+  const outcome = approvalOutcome(approval)
+  const unanswered = outcome === 'unanswered' || outcome === 'failed'
 
   const decide = async (choice: ApprovalChoice, granted: boolean) => {
     if (!runId) {
@@ -295,7 +326,13 @@ const TheoremApprovalCard: FC<{
   return (
     <div className="my-3 flex flex-col gap-2">
       <ApprovalCard
-        state={state}
+        state={unanswered ? 'denied' : state}
+        statusLabel={
+          unanswered
+            ? (approval.reason ??
+              (outcome === 'failed' ? 'The request failed' : 'Not answered'))
+            : undefined
+        }
         title={approval.summary}
         subtitle={`${approval.toolName} · risk: ${approval.risk.replace(/_/g, ' ')}`}
         command={argsText || undefined}

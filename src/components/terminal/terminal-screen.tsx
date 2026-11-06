@@ -8,11 +8,12 @@ import type {
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { readApproval } from '@/components/chat/theorem-parts'
+import { approvalOutcome, readApproval } from '@/components/chat/theorem-parts'
 import { Icon } from '@/components/icons'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
 import { createHistoryAdapter, runTurn } from '@/lib/theorem/runtime'
+import { useKitSource } from '@/lib/kit/store'
 import type { TurnOptions } from '@/lib/theorem/runtime'
 import type { TerminalHandle } from '@/terminal-wasm/theorem_terminal'
 import type * as TerminalWasm from '@/terminal-wasm/theorem_terminal'
@@ -187,7 +188,7 @@ function snapshotOf(
       const asked = readApproval(part.interrupt)
       const waiting =
         asked !== undefined &&
-        asked.approved === undefined &&
+        approvalOutcome(asked) === 'awaiting' &&
         part.result === undefined
       if (waiting && runId && !approval) {
         const kind = (k: string) =>
@@ -264,6 +265,7 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
     [projectId, tabId],
   )
   const runtime = useLocalRuntime(adapter, { adapters: { history } })
+  useKitSource(runtime)
 
   useEffect(() => {
     const publish = () => {

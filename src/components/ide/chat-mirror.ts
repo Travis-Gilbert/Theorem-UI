@@ -7,7 +7,7 @@ import { useAuiState } from '@assistant-ui/react'
 import type { ThreadMessage } from '@assistant-ui/react'
 import type { RemoteProxy } from 'penpal'
 import { useEffect, useRef } from 'react'
-import { readApproval } from '@/components/chat/theorem-parts'
+import { approvalOutcome, readApproval } from '@/components/chat/theorem-parts'
 import { describeError } from '@/lib/theorem/client'
 import type {
   ChatMessage,
@@ -26,7 +26,12 @@ function toPart(
     case 'reasoning':
       return { type: part.type, text: part.text }
     case 'tool-call': {
-      const approval = readApproval(part.interrupt)
+      const asked = readApproval(part.interrupt)
+      // The frame offers a decision for any approval it is given, so one that
+      // settled unanswered (expired or replaced) goes as a plain tool call.
+      const outcome = asked && approvalOutcome(asked)
+      const approval =
+        outcome === 'unanswered' || outcome === 'failed' ? undefined : asked
       return {
         type: 'tool-call',
         toolCallId: part.toolCallId,

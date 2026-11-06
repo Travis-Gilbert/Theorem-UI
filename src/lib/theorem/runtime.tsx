@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit)
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -37,6 +37,7 @@ import { useComposerReferences } from '@/components/chat/composer-references'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
+import { settleKitExpression, useKitClock, useKitSource } from '@/lib/kit/store'
 import {
   describeError,
   describeRunFailure,
@@ -317,6 +318,9 @@ export function createHistoryAdapter(
       const snapshot = await theorem().chat.threads.get({
         threadId: remoteId,
       })
+      // The agent's manner lives on its identity, not the thread; the owner's
+      // snapshot carries it so the figure opens as the agent last chose.
+      settleKitExpression(snapshot.figureExpression)
       const runId = snapshot.liveRun?.runId
       // The live run's message is rebuilt by resume from sequence zero.
       const settled = snapshot.messages.filter(
@@ -478,6 +482,7 @@ function useTheoremThreadRuntime() {
     [aui],
   )
   const runtime = useLocalRuntime(adapter)
+  useKitSource(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()
@@ -600,6 +605,7 @@ export function TheoremRuntimeProvider({
     threadId,
     onThreadIdChange,
   })
+  useKitClock()
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
