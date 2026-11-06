@@ -182,3 +182,12 @@ test('an objective drops the object ids the front role wrote for the worker', ()
   )
   expect(plainObjective('Compare (the two) sources')).toBe('Compare (the two) sources')
 })
+
+test('an objective keeps the instructions written beside an id in the same aside', () => {
+  expect(
+    plainObjective('Update the app (documentId note:8183258f7f2db3a1c9e0; preserve keyboard shortcuts)'),
+  ).toBe('Update the app (preserve keyboard shortcuts)')
+  expect(
+    plainObjective('Tidy the page (keep the header, footer and nav; run 0b9d2f8e-6c1a-4f3e-9a7b-2c4d6e8f0a1b) today.'),
+  ).toBe('Tidy the page (keep the header, footer and nav) today.')
+})

@@ -72,17 +72,25 @@ export function readIntent(data: unknown): IntentPart | undefined {
 }
 
 const ID = String.raw`(?:[a-z][\w.-]*:)?(?:[0-9a-f]{12,}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})`
-const ID_ASIDE = new RegExp(String.raw`\s*\([^()]*\b${ID}\b[^()]*\)`, 'gi')
+const HAS_ID = new RegExp(String.raw`\b${ID}\b`, 'i')
+const ID_CLAUSE = new RegExp(String.raw`[^;,]*\b${ID}\b[^;,]*[;,]?`, 'gi')
 const ID_TOKEN = new RegExp(String.raw`\s*\b${ID}\b`, 'gi')
+
+/** An aside that names ids keeps the rest of what it says, and goes when nothing is left. */
+function asideWithoutIds(aside: string, inner: string): string {
+  if (!HAS_ID.test(inner)) return aside
+  const rest = inner.replace(ID_CLAUSE, '').replace(/^[\s;,]+|[\s;,]+$/g, '')
+  return rest ? ` (${rest})` : ''
+}
 
 /**
  * The objective as a person reads it: the front role writes the object ids
- * the worker needs into its prompt ("(documentId note:8183…)"), and those
- * stay with the worker.
+ * the worker needs into its prompt ("(documentId note:8183…; keep the
+ * shortcuts)"), and those clauses stay with the worker.
  */
 export function plainObjective(objective: string): string {
   return objective
-    .replace(ID_ASIDE, '')
+    .replace(/\s*\(([^()]*)\)/g, asideWithoutIds)
     .replace(ID_TOKEN, '')
     .replace(/\s+([.,;:])/g, '$1')
     .replace(/\s{2,}/g, ' ')
