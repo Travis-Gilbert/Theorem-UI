@@ -14,7 +14,7 @@ import { DocumentApp } from '@/components/blocks/document-app'
 import { cn } from '@/lib/utils'
 import type { TheoremArtifact } from './artifact-model'
 
-type RendererProps = { artifact: TheoremArtifact }
+type RendererProps = { artifact: TheoremArtifact; initiallyRunning?: boolean }
 
 const codeSurface =
   '[&_pre]:rounded-lg! [&_pre]:border! [&_pre]:border-separator! [&_pre]:bg-raised!'
@@ -86,9 +86,17 @@ const DiagramArtifact: FC<RendererProps> = ({ artifact }) => (
   <MermaidDiagram code={artifact.content} className="rounded-lg bg-raised" />
 )
 
-const AppArtifact: FC<RendererProps> = ({artifact}) => artifact.documentId
-  ? <DocumentApp key={artifact.documentId} documentId={artifact.documentId} pinnedPosition={artifact.documentPosition}/>
-  : <p role="alert">This App result has no saved document reference.</p>
+const AppArtifact: FC<RendererProps> = ({ artifact, initiallyRunning }) =>
+  artifact.documentId ? (
+    <DocumentApp
+      key={artifact.documentId}
+      documentId={artifact.documentId}
+      pinnedPosition={artifact.documentPosition}
+      initiallyRunning={initiallyRunning}
+    />
+  ) : (
+    <p role="alert">This App result has no saved document reference.</p>
+  )
 
 const RENDERERS: Record<string, FC<RendererProps>> = {
   'theorem-app': AppArtifact,
@@ -117,7 +125,10 @@ const UnsupportedArtifact: FC<RendererProps> = ({ artifact }) => (
   </div>
 )
 
-export const ArtifactBody: FC<RendererProps> = ({ artifact }) => {
+export const ArtifactBody: FC<RendererProps> = ({
+  artifact,
+  initiallyRunning,
+}) => {
   const Renderer = RENDERERS[artifact.rendererId] ?? UnsupportedArtifact
-  return <Renderer artifact={artifact} />
+  return <Renderer artifact={artifact} initiallyRunning={initiallyRunning} />
 }

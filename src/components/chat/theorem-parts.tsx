@@ -13,7 +13,7 @@ import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
 } from '@assistant-ui/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FC } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
@@ -32,16 +32,11 @@ import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-i
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import {
   ARTIFACT_PART,
-  kindLabel,
   readArtifact,
-  useThreadArtifacts,
 } from '@/components/artifacts/artifact-model'
-import { ArtifactActions } from '@/components/artifacts/artifact-actions'
+import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { followArtifact } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
-import { Button } from '@/components/ui/button'
 import {
   describeError,
   describeRunFailure,
@@ -49,7 +44,6 @@ import {
   theorem,
 } from '@/lib/theorem/client'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
-import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 type Json = Record<string, unknown>
@@ -68,96 +62,9 @@ function str(value: unknown): string | undefined {
 
 const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifact = readArtifact(data)
-  const artifacts = useThreadArtifacts()
-  const { open } = useArtifactView.getState()
-  const selected = useArtifactView(
-    (s) => s.openId !== undefined && s.openId === artifact?.artifactId,
-  )
-  const live = useAuiState((s) => s.message.status?.type === 'running')
-  const artifactId = artifact?.artifactId
-  const revision = artifact?.revision
-  const cardRef = useRef<HTMLDivElement>(null)
-  // The panel an artifact opens in flies out of this card.
-  const launch = () => {
-    if (cardRef.current && artifactId)
-      recordLaunch(
-        cardRef.current.getBoundingClientRect(),
-        `artifact:${artifactId}`,
-      )
-  }
-
-  // A revision produced by the run in progress opens beside the conversation,
-  // unless the person paused Follow the Agent.
-  useEffect(() => {
-    if (!live || !artifactId) return
-    if (cardRef.current)
-      recordLaunch(
-        cardRef.current.getBoundingClientRect(),
-        `artifact:${artifactId}`,
-      )
-    followArtifact(artifactId)
-  }, [live, artifactId, revision])
-
-  if (!artifact)
-    return <PartNotice name="theorem-artifact" note="could not be read" />
-  const versions = artifacts.get(artifact.artifactId) ?? [artifact]
-  const position = versions.findIndex((v) => v.revision === artifact.revision)
-  const latest = position === versions.length - 1
-  const show = () => {
-    launch()
-    open(artifact.artifactId, latest ? undefined : artifact.revision)
-  }
-
-  return (
-    <div
-      ref={cardRef}
-      data-slot="theorem-artifact-card"
-      data-artifact-id={artifact.artifactId}
-      data-selected={selected || undefined}
-      className={cn(
-        'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
-        'transition-colors duration-100',
-        selected && 'bg-selected outline outline-1 outline-redwood-ink',
-      )}
-    >
-      <button
-        type="button"
-        onClick={show}
-        className="flex min-w-0 flex-1 items-center gap-3 text-start"
-        aria-label={`Open ${artifact.title}`}
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
-          <Icon.Artifact className="size-5 animate-float motion-reduce:animate-none" />
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span
-            className={cn(
-              'truncate text-sm',
-              selected ? 'font-semibold' : 'font-medium',
-            )}
-          >
-            {artifact.title}
-          </span>
-          <span className="truncate text-xs text-ink-faint">
-            {kindLabel(artifact)}
-            {versions.length > 1 && ` · v${position + 1}`}
-          </span>
-        </span>
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Open"
-          className="group/open size-8 p-1.5"
-          onClick={show}
-        >
-          <Icon.Open className="size-4" />
-        </Button>
-        <ArtifactActions key={artifact.revision} artifact={artifact} />
-      </div>
-    </div>
-  )
+  return artifact
+    ? <ArtifactMessage key={artifact.artifactId} artifact={artifact} />
+    : <PartNotice name="theorem-artifact" note="could not be read" />
 }
 
 /** Stand-in card while an artifact tool runs; the artifact part replaces it. */

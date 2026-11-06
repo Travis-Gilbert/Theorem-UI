@@ -238,12 +238,20 @@ function AppToolbar({
 export function DocumentApp({
   documentId,
   pinnedPosition,
+  initiallyRunning = false,
 }: {
   documentId: string
   pinnedPosition?: number | string
+  initiallyRunning?: boolean
 }) {
   const app = useMemo(() => appDocumentFor(documentId), [documentId])
-  return <DocumentAppView app={app} pinnedPosition={pinnedPosition} />
+  return (
+    <DocumentAppView
+      app={app}
+      pinnedPosition={pinnedPosition}
+      initiallyRunning={initiallyRunning}
+    />
+  )
 }
 
 function useAppSelection(app: AppDocument) {
@@ -261,13 +269,15 @@ function useAppSelection(app: AppDocument) {
 export function DocumentAppView({
   app,
   pinnedPosition,
+  initiallyRunning = false,
 }: {
   app: AppDocument
   pinnedPosition?: number | string
+  initiallyRunning?: boolean
 }) {
   const { snapshot, error, attempt } = useAppSnapshot(app, pinnedPosition)
   const [edit, setEdit] = useState<Edit>()
-  const [running, setRunning] = useState(false)
+  const [running, setRunning] = useState(initiallyRunning)
   const [selection, setSelection] = useAppSelection(app)
   if (!snapshot)
     return (
