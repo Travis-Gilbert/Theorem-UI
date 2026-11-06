@@ -233,8 +233,9 @@ its lines) threw in jsdiff's `parsePatch` and took the transcript route down.
   (Boa with OXC) and Rust (Blaze). The terminal highlights a program in the
   language its part names in `language` (`typescript`, `rust`, or any name
   TanStack Highlight knows), and treats a part with none, or `monty`, as
-  Monty. The backend's `program` part does not carry `language` yet; the new
-  runtimes need to set it.
+  Monty. The backend's `program` part names its `language` (Theorem#944):
+  the agent stamps `monty` on every program event today, and a new runtime
+  names its own language there.
 - **"Watch the agent type" depends on how the backend streams.** The native
   agent streams its program as deltas, but its answer arrives whole, as one
   `TranscriptEvent::Final { text }` (`crates/agent/src/turn_loop.rs`). The
