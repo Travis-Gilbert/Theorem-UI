@@ -176,11 +176,7 @@ export type TheoremApproval = {
 
 /** What became of an approval, as `ApprovalPart::outcome` in theorem-surface-contracts collapses it. */
 export type ApprovalOutcome =
-  | 'awaiting'
-  | 'approved'
-  | 'declined'
-  | 'failed'
-  | 'unanswered'
+  'awaiting' | 'approved' | 'declined' | 'failed' | 'unanswered'
 
 const AWAITING_STATUSES = new Set(['requires_action', 'pending', 'open'])
 
