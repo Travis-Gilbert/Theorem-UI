@@ -91,11 +91,13 @@ const str = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
 /** A native program, highlighted once per part object like an answer. */
 const programs = new WeakMap<object, Token[][]>()
-function programLines(part: object, source: string) {
+function programLines(part: object, source: string, language?: string) {
   let lines = programs.get(part)
   if (!lines) {
-    // The native agent writes Monty, a Python subset.
-    lines = highlightLines(source, 'python')
+    // A program names the language it runs in (TypeScript on Boa, Rust, ...).
+    // Without one it is Monty, the Python subset the native agent writes.
+    const lang = !language || language === 'monty' ? 'python' : language
+    lines = highlightLines(source, lang)
     programs.set(part, lines)
   }
   return lines
@@ -176,7 +178,7 @@ export function snapshotOf(
         return [
           {
             type: 'program',
-            lines: programLines(part, source),
+            lines: programLines(part, source, str(program.language)),
             streaming:
               program.streaming === true && message === last && running,
           },

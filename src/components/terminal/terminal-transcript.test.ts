@@ -232,6 +232,32 @@ test("the native agent's program, host calls and progress reach the terminal", (
   })
 })
 
+test('a program is highlighted in the language it names, Monty when it names none', () => {
+  const program = (source: string, language?: string) => ({
+    type: 'data',
+    name: 'theorem-program',
+    data: { source, streaming: false, language },
+  })
+  const drawn = draw(
+    [
+      message('assistant', [
+        program('const n: number = 1', 'typescript'),
+        program('let n = 1;', 'rust'),
+        program('n = 1'),
+      ]),
+    ],
+    [],
+    false,
+  )
+  const [ts, rust, monty] = (drawn.messages[0]?.parts ?? []) as {
+    lines: { t: string; c?: string }[][]
+  }[]
+  expect(ts?.lines[0]?.[0]).toEqual({ t: 'const', c: 'keyword' })
+  expect(rust?.lines[0]?.[0]).toEqual({ t: 'let', c: 'keyword' })
+  // Python has no `let`, so the keyword stays plain there.
+  expect(monty?.lines[0]).toEqual([{ t: 'n = ' }, { t: '1', c: 'number' }])
+})
+
 test('a tool that names a file opens it, and the next turn shows what it carries', () => {
   const read = {
     type: 'tool-call',

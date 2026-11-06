@@ -140,6 +140,12 @@ its lines) threw in jsdiff's `parsePatch` and took the transcript route down.
   the docked split was not screenshotted with a real Theia frame.
 - **V.** The live scenario needs a running Theorem with a model, and the
   collages need the owner's seal.
+- **Programs in other languages.** Programs will also run in TypeScript
+  (Boa with OXC) and Rust (Blaze). The terminal highlights a program in the
+  language its part names in `language` (`typescript`, `rust`, or any name
+  TanStack Highlight knows), and treats a part with none, or `monty`, as
+  Monty. The backend's `program` part does not carry `language` yet; the new
+  runtimes need to set it.
 - **"Watch the agent type" depends on how the backend streams.** The native
   agent streams its program as deltas, but its answer arrives whole, as one
   `TranscriptEvent::Final { text }` (`crates/agent/src/turn_loop.rs`). The
