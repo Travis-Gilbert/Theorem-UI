@@ -205,10 +205,11 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root @container flex h-full flex-col"
       style={{
-        ["--thread-max-width" as string]: "var(--spacing-reading)",
+        // The reading measure is the text's width; the column's side padding sits outside it.
+        ["--thread-max-width" as string]: "calc(var(--spacing-reading) + 2rem)",
         ["--composer-bg" as string]: "var(--surface-composer)",
         ["--composer-radius" as string]: "var(--radius-2xl)",
-        ["--composer-padding" as string]: "10px",
+        ["--composer-padding" as string]: "12px",
       }}
     >
       <ThreadPrimitive.Viewport
@@ -462,7 +463,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
       <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem"
-                      className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-60 min-h-10 w-full resize-none bg-transparent py-2 ps-2.5 pe-14 text-base leading-6 outline-none focus-visible:outline-none"
+                      className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-72 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-2 text-[1rem] leading-6 outline-none focus-visible:outline-none"
                       rows={1}
                       autoFocus={autoFocus}
                       enterKeyHint="send"
@@ -483,19 +484,19 @@ const ComposerAction: FC = () => {
   );
 
   return (
-    <div className="aui-composer-action-wrapper flex items-center justify-between">
-      <div className="flex items-center gap-1">
+    <div className="aui-composer-action-wrapper flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-1">
         <ComposerAddAttachment />
         <ComposerTools />
-        <ModelPicker />
       </div>
-      <div className="absolute end-(--composer-padding) top-(--composer-padding) flex items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-1.5">
+        <ModelPicker />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
-            <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-10 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
+            <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-9 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
           </AuiIf>
           <AuiIf condition={(s) => s.composer.dictation != null}>
-            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-stop-dictation text-error-ink size-10 rounded-lg" aria-label="Stop voice input" />}><Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" /></ComposerPrimitive.StopDictation>
+            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="button" variant="ghost" size="icon" className="aui-composer-stop-dictation text-error-ink size-9 rounded-lg" aria-label="Stop voice input" />}><Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" /></ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
         <AuiIf
@@ -506,10 +507,10 @@ const ComposerAction: FC = () => {
             !shouldShowComposerResume(s)
           }
         >
-          <Magnet><TooltipIconButton tooltip="Send message" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="submit" disabled={sendDisabled} variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Send message"><Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2" /></TooltipIconButton></Magnet>
+          <Magnet><TooltipIconButton tooltip="Send message" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="submit" disabled={sendDisabled} variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-9 rounded-lg disabled:opacity-40 p-2" aria-label="Send message"><Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2" /></TooltipIconButton></Magnet>
         </AuiIf>
         <AuiIf condition={shouldShowComposerResume}>
-          <Magnet><ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="default" size="icon" className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-5 animate-in fade-in zoom-in-50 -spin-in-180 ease-lift duration-(--duration-lift)" /></ComposerPrimitive.Resume></Magnet>
+          <Magnet><ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="button" variant="default" size="icon" className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-9 rounded-lg disabled:opacity-40 p-2" aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-5 animate-in fade-in zoom-in-50 -spin-in-180 ease-lift duration-(--duration-lift)" /></ComposerPrimitive.Resume></Magnet>
         </AuiIf>
         <AuiIf
           condition={(s) =>
@@ -518,7 +519,7 @@ const ComposerAction: FC = () => {
               s.composer.submission !== undefined)
           }
         >
-          <Magnet><ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40" aria-label={isSending ? "Cancel sending" : "Stop generating"} />}><Icon.Stop className="aui-composer-cancel-icon size-5 animate-in fade-in zoom-in-30 spin-in-90" /></ComposerPrimitive.Cancel></Magnet>
+          <Magnet><ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-9 rounded-lg disabled:opacity-40" aria-label={isSending ? "Cancel sending" : "Stop generating"} />}><Icon.Stop className="aui-composer-cancel-icon size-5 animate-in fade-in zoom-in-30 spin-in-90" /></ComposerPrimitive.Cancel></Magnet>
         </AuiIf>
       </div>
     </div>

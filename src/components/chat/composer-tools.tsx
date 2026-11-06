@@ -102,7 +102,7 @@ export function ComposerTools() {
                 pressed={tools[tool]}
                 onPressedChange={() => tools.toggle(tool)}
                 aria-label={off}
-                className="flex h-7 items-center gap-1.5 rounded-md px-1.5 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-pressed:bg-redwood/15 data-pressed:text-redwood"
+                className="flex h-8 items-center gap-1.5 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-pressed:bg-redwood/15 data-pressed:text-redwood"
               />
             }
           >
