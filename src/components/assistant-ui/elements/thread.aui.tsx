@@ -28,7 +28,8 @@ import {
   RunningIndicator,
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
-import { COMPOSER_TOOLTIP_DELAY, ComposerTools, useComposerRequests } from "@/components/chat/composer-tools";
+import { COMPOSER_TOOLTIP_DELAY, ComposerToolTrigger } from "@/components/chat/composer-tools";
+import { DirectiveText } from "./directive-text.aui";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -433,7 +434,6 @@ const ThreadScrollToBottom: FC = () => {
 
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui();
-  const applyRequests = useComposerRequests();
   const shellRef = useRef<HTMLDivElement>(null);
   // Where the text was, for the new user message to fly up from. Recorded on
   // submit because the composer.send event arrives a microtask after the
@@ -452,17 +452,16 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   });
 
   return (
+    <ComposerPrimitive.TriggerPopoverRoot>
     <ComposerPrimitive.Root
-      onSubmit={() => {
-        recordLaunches();
-        applyRequests();
-      }}
+      onSubmit={recordLaunches}
       className="aui-composer-root relative flex w-full flex-col"
     >
+      <ComposerToolTrigger />
       {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
       <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
-                      placeholder="Message Theorem"
+                      placeholder="Message Theorem, / for tools"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-72 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-2 text-[1rem] leading-6 outline-none focus-visible:outline-none"
                       rows={1}
                       autoFocus={autoFocus}
@@ -470,11 +469,11 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
                       aria-label="Message input"
                     /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 };
 
 const ComposerAction: FC = () => {
-  // Root submits both button and Enter sends after applying request toggles.
   const { disabled: sendDisabled } = useComposerSend();
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
@@ -485,12 +484,9 @@ const ComposerAction: FC = () => {
 
   return (
     <div className="aui-composer-action-wrapper flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-      <div className="flex items-center gap-1">
-        <ComposerAddAttachment />
-        <ComposerTools />
-      </div>
-      {/* Claims 8rem beside the tools, so a long model name truncates first;
-          the row wraps only when the tools leave less than that. */}
+      <ComposerAddAttachment />
+      {/* Claims 8rem beside the attachment button, so a long model name
+          truncates first; the row wraps only when less than that is left. */}
       <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
@@ -779,7 +775,7 @@ const UserMessage: FC = () => {
           className="aui-user-message-content peer text-ink py-1 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
         >
           <MessagePrimitive.Parts
-            components={{ File: UserFilePart, Image: UserImagePart }}
+            components={{ Text: DirectiveText, File: UserFilePart, Image: UserImagePart }}
           />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
@@ -818,7 +814,9 @@ const EditComposer: FC = () => {
     >
       <div className="relative ms-auto w-full max-w-[70%]">
         <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
+        <ComposerPrimitive.TriggerPopoverRoot>
         <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-sheet relative flex w-full cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
+          <ComposerToolTrigger />
           <ComposerPrimitive.Input
             className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
             autoFocus
@@ -830,6 +828,7 @@ const EditComposer: FC = () => {
                                 </ComposerPrimitive.Send>
           </div>
         </ComposerPrimitive.Root>
+        </ComposerPrimitive.TriggerPopoverRoot>
       </div>
     </MessagePrimitive.Root>
   );
