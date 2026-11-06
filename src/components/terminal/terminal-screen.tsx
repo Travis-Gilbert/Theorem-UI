@@ -48,6 +48,11 @@ function patchSession(key: string, change: Partial<Session>) {
   }))
 }
 
+/** A story's fixed state, drawn by a terminal no runtime drives. */
+export function showStory(key: string, snapshot: string) {
+  patchSession(key, { snapshot })
+}
+
 function updateOutgoing(key: string, id: string, change: Partial<Outgoing>) {
   const session = useTerminalSessions.getState()[key]
   if (!session) return

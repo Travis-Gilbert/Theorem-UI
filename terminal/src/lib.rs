@@ -53,6 +53,18 @@ const SAGE: Color = Color::Rgb(0x8a, 0xa8, 0xa0);
 const GOLD: Color = Color::Rgb(0xd6, 0xbc, 0x8a);
 const ERROR: Color = Color::Rgb(0xe0, 0x8a, 0x8f);
 
+// Code: pi's dark theme gives each syntax role an okhsl colour at 67%
+// lightness; these are those colours in sRGB, set on the slate.
+const KEYWORD: Color = Color::Rgb(0x69, 0xad, 0xd0);
+const FUNCTION: Color = Color::Rgb(0xcd, 0x9a, 0x22);
+const VARIABLE: Color = Color::Rgb(0x5d, 0xb3, 0xba);
+const STRING: Color = Color::Rgb(0xde, 0x8d, 0x5a);
+const NUMBER: Color = Color::Rgb(0x68, 0xb7, 0x8d);
+const TYPE: Color = Color::Rgb(0xa7, 0x98, 0xd7);
+const REMOVED: Color = Color::Rgb(0xea, 0x7f, 0x81);
+/// pi's muted, for comments, operators and a diff's context markers.
+const QUIET: Color = Color::Rgb(0x9d, 0xa5, 0xa9);
+
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PROMPT: &str = "❯ ";
 /// Transcript text sits under the prompt's text, not under its glyph.
@@ -157,8 +169,22 @@ enum Part {
     },
     /// Sent while the run worked, drawn where the run took it in.
     Input(Sent),
+    /// A fenced block from an answer, highlighted by the page.
+    Code {
+        #[serde(default)]
+        lang: String,
+        lines: Vec<Vec<Token>>,
+    },
     #[serde(other)]
     Other,
+}
+
+/// A run of code text and its highlight class (TanStack Highlight's names).
+#[derive(Deserialize)]
+struct Token {
+    t: String,
+    #[serde(default)]
+    c: Option<String>,
 }
 
 /// What the person asked for, handed back to React as JSON. Each names the
@@ -232,6 +258,53 @@ fn own(text: Text<'_>) -> Vec<Line<'static>> {
 fn indented(mut line: Line<'static>) -> Line<'static> {
     line.spans.insert(0, Span::raw(INDENT));
     line
+}
+
+/// Ends the transcript so far with one blank line, unless it already does.
+fn separate(lines: &mut Vec<Line<'static>>) {
+    // Transcript lines carry their indent, so blank means nothing but spaces.
+    let blank = |line: &Line| line.spans.iter().all(|span| span.content.trim().is_empty());
+    if lines.last().is_some_and(|line| !blank(line)) {
+        lines.push(Line::default());
+    }
+}
+
+/// A highlight class in the slate: pi's syntax roles, and a diff's lines.
+fn token_style(class: Option<&str>) -> Style {
+    let style = Style::new();
+    match class {
+        Some("keyword" | "command") => style.fg(KEYWORD),
+        Some("function") => style.fg(FUNCTION),
+        Some("variable" | "property" | "attr") => style.fg(VARIABLE),
+        Some("string" | "code-inline" | "link") => style.fg(STRING),
+        Some("number" | "literal") => style.fg(NUMBER),
+        Some("type" | "tag" | "selector") => style.fg(TYPE),
+        Some("comment" | "operator") => style.fg(QUIET),
+        Some("heading") => style.fg(GOLD).bold(),
+        Some("inserted") => style.fg(NUMBER),
+        Some("deleted") => style.fg(REMOVED),
+        Some("meta") => style.fg(MUTED),
+        _ => style.fg(INK),
+    }
+}
+
+/// A code block between its fences, the opening one naming the language.
+fn code_lines(lang: &str, code: &[Vec<Token>]) -> Vec<Line<'static>> {
+    let fence = Style::new().fg(MUTED);
+    let mut lines = vec![Line::styled(format!("```{lang}"), fence)];
+    lines.extend(code.iter().map(|tokens| {
+        Line::from(
+            tokens
+                .iter()
+                .map(|token| {
+                    // A tab would leave the cell grid; it takes four columns.
+                    Span::styled(token.t.replace('\t', "    "), token_style(token.c.as_deref()))
+                })
+                .collect::<Vec<_>>(),
+        )
+    }));
+    lines.push(Line::styled("```", fence));
+    lines
 }
 
 fn now() -> f64 {
@@ -318,7 +391,14 @@ impl Session {
                 lines.push(Line::default());
                 continue;
             }
+            // A code block keeps a blank line from what comes before and after it.
+            let mut after_code = false;
             for part in &message.parts {
+                let is_code = matches!(part, Part::Code { .. });
+                if is_code || after_code {
+                    separate(&mut lines);
+                }
+                after_code = is_code;
                 match part {
                     Part::Text { text } => {
                         let rendered = tui_markdown::from_str_with_options(text, &options);
@@ -339,6 +419,9 @@ impl Session {
                     Part::Input(sent) => {
                         lines.extend(sent_lines(sent));
                         lines.push(Line::default());
+                    }
+                    Part::Code { lang, lines: code } => {
+                        lines.extend(code_lines(lang, code).into_iter().map(indented));
                     }
                     Part::Other => {}
                 }

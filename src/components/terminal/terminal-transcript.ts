@@ -1,9 +1,11 @@
-// SOURCING: assistant-ui's ThreadMessage parts as the runtime holds them, data parts named per @theoremharness/sdk/assistant-ui (`theorem-user_input`), and the chat's readApproval; the snapshot shape is the terminal crate's Snapshot (terminal/src/lib.rs)
+// SOURCING: assistant-ui's ThreadMessage parts as the runtime holds them, data parts named per @theoremharness/sdk/assistant-ui (`theorem-user_input`), and the chat's readApproval; code is terminal-code's (@tanstack/highlight); the snapshot shape is the terminal crate's Snapshot (terminal/src/lib.rs)
 //
 // The terminal's transcript as plain data: what the WASM terminal draws from
 // a session's thread and what the session sent while a run worked. Pure, so
 // the delivery states are tested without a runtime or a terminal.
 import type { ThreadMessage } from '@assistant-ui/react'
+import { proseAndCode } from './terminal-code'
+import type { CodePart, ProsePart } from './terminal-code'
 import { readApproval } from '@/components/chat/theorem-parts'
 import { describeError } from '@/lib/theorem/client'
 
@@ -32,6 +34,7 @@ export type Outgoing = {
 
 type TerminalPart =
   | { type: 'text' | 'reasoning'; text: string }
+  | CodePart
   | { type: 'tool'; name: string; summary: string; status: string }
   | { type: 'input'; text: string; status: string; reason?: string }
 
@@ -52,6 +55,20 @@ export function readInput(data: unknown) {
         status: str(part.status) ?? 'queued',
         reason: str(part.reason),
       }
+}
+
+/**
+ * An answer's prose and highlighted code, kept per part: a streaming part is
+ * a new object at each update, a settled one is lifted once.
+ */
+const lifted = new WeakMap<object, (ProsePart | CodePart)[]>()
+function answerParts(part: { text: string }) {
+  let parts = lifted.get(part)
+  if (!parts) {
+    parts = proseAndCode(part.text)
+    lifted.set(part, parts)
+  }
+  return parts
 }
 
 /** A tool call's one-line summary: its first string argument, else the raw args. */
@@ -86,6 +103,8 @@ export function snapshotOf(
     )?.theoremRunId
     const content: readonly ThreadMessage['content'][number][] = message.content
     const parts = content.flatMap((part): TerminalPart[] => {
+      if (part.type === 'text' && message.role === 'assistant')
+        return answerParts(part)
       if (part.type === 'text' || part.type === 'reasoning')
         return [{ type: part.type, text: part.text }]
       if (part.type === 'data' && part.name === 'theorem-user_input') {

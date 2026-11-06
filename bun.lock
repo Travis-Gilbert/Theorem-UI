@@ -45,6 +45,7 @@
         "@rustyreddb/node": "0.1.0-beta.2",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.1.18",
+        "@tanstack/highlight": "1.2.11",
         "@tanstack/match-sorter-utils": "9.2.6",
         "@tanstack/react-hotkeys": "0.16.0",
         "@tanstack/react-pacer": "0.24.1",
@@ -989,6 +990,8 @@
     "@tanstack/devtools-event-client": ["@tanstack/devtools-event-client@0.5.1", "", {}, "sha512-MiBx6Ybr65MFatCnk8IJzhGxd4hvsvEap4aT0gXOC274rV4hm0UPNHxznB5KGYtu84aXrIAsJEBElqzdPe+eeg=="],
 
     "@tanstack/eslint-config": ["@tanstack/eslint-config@0.4.0", "", { "dependencies": { "@eslint/js": "^10.0.1", "@stylistic/eslint-plugin": "^5.8.0", "eslint-plugin-import-x": "^4.16.1", "eslint-plugin-n": "^17.24.0", "globals": "^17.3.0", "typescript-eslint": "^8.55.0", "vue-eslint-parser": "^10.4.0" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0" } }, "sha512-V+Cd81W/f65dqKJKpytbwTGx9R+IwxKAHsG/uJ3nSLYEh36hlAr54lRpstUhggQB8nf/cP733cIw8DuD2dzQUg=="],
+
+    "@tanstack/highlight": ["@tanstack/highlight@1.2.11", "", {}, "sha512-U8Aac/Y/Y4ym6JRi/waDK/D7uce+1feMdOU163KmhNFBdbcilnE9O4RDIdJ31cWcf+Z4esXv/lJyG1P4BOTY7A=="],
 
     "@tanstack/history": ["@tanstack/history@1.162.5", "", {}, "sha512-w1+YvwmTkwt5n8yUqEH3IWZ9DsmorCZW/EQ3KYHnqEgIkOZpH54NvW6/Epq3Dzb8H0ifIeYX8PExvrNLIH5FIA=="],
 

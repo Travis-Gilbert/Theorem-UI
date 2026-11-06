@@ -178,3 +178,20 @@ test('after the run, only what it never took goes as the next turn, oldest first
     leftoversOf(messages, outbox, new Set(['e'])).map((o) => o.id),
   ).toEqual(['b', 'c', 'd'])
 })
+
+test("an answer's fenced code reaches the terminal highlighted; the person's words stay as typed", () => {
+  const fenced = 'Run:\n\n```sh\nmake test\n```'
+  const drawn = draw([
+    message('user', [{ type: 'text', text: fenced }]),
+    message('assistant', [{ type: 'text', text: fenced }]),
+  ])
+  expect(drawn.messages[0]?.parts).toEqual([{ type: 'text', text: fenced }])
+  expect(drawn.messages[1]?.parts.map((part) => part.type)).toEqual([
+    'text',
+    'code',
+  ])
+  expect(drawn.messages[1]?.parts[1]).toMatchObject({
+    type: 'code',
+    lang: 'sh',
+  })
+})
