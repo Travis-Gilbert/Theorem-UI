@@ -58,12 +58,8 @@ const TOOLS = [
  * The line a request toggle adds to the message it is on for. It is part of
  * the message, so the transcript shows what was asked.
  *
- * Web stays a request rather than a capability scope. Theorem admits its
- * `web_search` tool only on public-visitor runs; on an owner run
- * `capabilityScope` can only narrow the coding-turn catalog, which has no web
- * search, so sending `["web_search"]` would strip the run to its workspace
- * tool. When the authority admits web search on owner runs, the toggle can
- * pass it through the chat adapter's turn options instead.
+ * Web expresses intent, not a capability restriction. Narrowing
+ * capabilityScope here could remove other tools needed by the turn.
  */
 const REQUESTS: Readonly<Record<ComposerTool, string>> = {
   web: 'Search the web for this.',
@@ -72,17 +68,18 @@ const REQUESTS: Readonly<Record<ComposerTool, string>> = {
 
 /**
  * Submit handler for the thread composer: appends the request line of every
- * toggle that is on before the composer sends. A message that already ends
- * with a line, as an edited one can, does not get it twice.
+ * toggle that is on before the composer sends. A message that already contains
+ * a request line, as an edited one can, does not get it twice.
  */
 export function useComposerRequests() {
   const aui = useAui()
   return () => {
     const tools = useComposerTools.getState()
     const text = aui.composer.getState().text.trimEnd()
+    const existing = new Set(text.split('\n').map((line) => line.trim()))
     const lines = TOOLS.filter(({ tool }) => tools[tool])
       .map(({ tool }) => REQUESTS[tool])
-      .filter((line) => !text.endsWith(line))
+      .filter((line) => !existing.has(line))
     if (!text || !lines.length) return
     aui.composer.setText([text, ...lines].join('\n\n'))
   }

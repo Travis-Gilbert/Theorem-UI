@@ -5,6 +5,7 @@
     "": {
       "name": "theorem-ui",
       "dependencies": {
+        "@assistant-ui/core": "0.3.30",
         "@assistant-ui/react": "0.15.30",
         "@assistant-ui/react-markdown": "^0.14.23",
         "@base-ui/react": "^1.9.0",

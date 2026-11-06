@@ -1,5 +1,7 @@
 "use client";
 
+import { useComposerSend } from "@assistant-ui/core/react";
+
 import {
   ComposerAddAttachment,
   ComposerAttachments,
@@ -471,6 +473,8 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
+  // Root submits both button and Enter sends after applying request toggles.
+  const { disabled: sendDisabled } = useComposerSend();
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -502,7 +506,7 @@ const ComposerAction: FC = () => {
             !shouldShowComposerResume(s)
           }
         >
-          <Magnet><ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="submit" variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Send message" />}><Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2" /></ComposerPrimitive.Send></Magnet>
+          <Magnet><TooltipIconButton tooltip="Send message" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="submit" disabled={sendDisabled} variant="default" size="icon" className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Send message"><Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2" /></TooltipIconButton></Magnet>
         </AuiIf>
         <AuiIf condition={shouldShowComposerResume}>
           <Magnet><ComposerPrimitive.Resume render={<TooltipIconButton tooltip="Resume generating" delay={COMPOSER_TOOLTIP_DELAY} side="bottom" type="button" variant="default" size="icon" className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-10 rounded-lg disabled:opacity-40 p-2.5" aria-label="Resume generating" />}><Icon.Refresh className="aui-composer-resume-icon size-5 animate-in fade-in zoom-in-50 -spin-in-180 ease-lift duration-(--duration-lift)" /></ComposerPrimitive.Resume></Magnet>
