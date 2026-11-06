@@ -11,13 +11,13 @@
       "id": "B1",
       "item": "Theorem run inbox: run command input, delivery at step boundaries, user_input parts, SDK regenerated",
       "status": "done",
-      "note": "Theorem PR https://github.com/Travis-Gilbert/Theorem/pull/944, at the merge with main (6b057bbb). Agent conformance: 43 passed, 0 failed, including both inbox tests; the 3 ignored tests are main's live-provider matrix. Focused server tests: 87 passed, 0 failed, including all 10 run_inbox tests (one checks that a run no job here executes refuses input). CI cargo check for apps/theorem-cli is green at a65d13b4. The live scenario is node V."
+      "note": "Theorem PR https://github.com/Travis-Gilbert/Theorem/pull/944, current with Theorem main at 2d93b5f2. Agent conformance there: 48 passed, 0 failed, including both inbox tests; the 3 ignored tests are main's live-provider matrix. Focused server tests at 2d1f3f41: 97 passed, 0 failed, including all 10 run_inbox tests (one checks that a run no job here executes refuses input). The live scenario is node V."
     },
     {
       "id": "B2",
       "item": "steer_work delivers instruction-only direction into the running worker's inbox instead of restarting it",
       "status": "done",
-      "note": "Same PR and run. instruction_only_steering_reaches_the_running_worker_without_replacing_it, steering_after_the_worker_reports_replaces_the_work and complete_work_waits_for_direction_already_sent all pass. The live scenario is node V."
+      "note": "Same PR. A steer that selects only the running task (main's steering_uses_original_inputs rule) is delivered to that worker. A stale selection is refused through main's replace path, and a probe with the guard check removed fails that test. instruction_only_steering_reaches_the_running_worker_without_replacing_it, steering_after_the_worker_reports_replaces_the_work and complete_work_waits_for_direction_already_sent pass. The live scenario is node V."
     },
     {
       "id": "U1",
