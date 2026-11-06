@@ -10,14 +10,14 @@
     {
       "id": "B1",
       "item": "Theorem run inbox: run command input, delivery at step boundaries, user_input parts, SDK regenerated",
-      "status": "partial",
-      "note": "Built on Theorem claude/brave-brahmagupta-g0qbh7. Focused server tests and the CLI check are being re-run after the disk filled; recorded in the Theorem PR."
+      "status": "done",
+      "note": "Theorem PR https://github.com/Travis-Gilbert/Theorem/pull/944, at the merge with main (6b057bbb). Agent conformance: 43 passed, 0 failed, including both inbox tests; the 3 ignored tests are main's live-provider matrix. Focused server tests: 87 passed, 0 failed, including all 10 run_inbox tests (one checks that a run no job here executes refuses input). CI cargo check for apps/theorem-cli is green at a65d13b4. The live scenario is node V."
     },
     {
       "id": "B2",
       "item": "steer_work delivers instruction-only direction into the running worker's inbox instead of restarting it",
-      "status": "partial",
-      "note": "Built with B1; same pending test run."
+      "status": "done",
+      "note": "Same PR and run. instruction_only_steering_reaches_the_running_worker_without_replacing_it, steering_after_the_worker_reports_replaces_the_work and complete_work_waits_for_direction_already_sent all pass. The live scenario is node V."
     },
     {
       "id": "U1",
