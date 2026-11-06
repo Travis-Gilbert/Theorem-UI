@@ -1,0 +1,56 @@
+{
+  "plan": "docs/plans/coding-module.md",
+  "references": [
+    {
+      "id": "delta-activity",
+      "file": "refs/delta-activity@a9ddc22b.png",
+      "sha256": "cebee449ff74fa792bd1d2c587f80912d7da63f26e90414ace43029b269ee6b3",
+      "lane": "translation",
+      "source": "Delta (https://delta.dev), screen recording supplied by the owner: Delta_db.mov, sha256 a9ddc22b17979b9f89962a87c94060cff5740dc7978fa693cbb8abb511a4b266, frame at 16.5 s, transcript column cropped",
+      "author": "Zed Industries",
+      "license": "Proprietary product. Reference for the interaction model only; no code, assets or styles taken.",
+      "translated_into": "Finished work folding into one-line rows that unfold on demand (terminal compact activity, ctrl+o)."
+    },
+    {
+      "id": "delta-caret",
+      "file": "refs/delta-caret@a9ddc22b.png",
+      "sha256": "648075f9b78be60d4c13b98974ba10ed4a9cb5d65fe4d11d8d6623085fcaa317",
+      "lane": "translation",
+      "source": "Delta (https://delta.dev), screen recording supplied by the owner: Delta_db.mov, sha256 a9ddc22b17979b9f89962a87c94060cff5740dc7978fa693cbb8abb511a4b266, frame at 0.2 s, transcript column cropped",
+      "author": "Zed Industries",
+      "license": "Proprietary product. Reference for the interaction model only; no code, assets or styles taken.",
+      "translated_into": "Watching the agent write: a caret at the end of what has arrived, while the prompt stays live for messages the run takes at its next step."
+    },
+    {
+      "id": "pi-transcript",
+      "file": "refs/pi-transcript@2a32a60.png",
+      "sha256": "dfcc802822f6b2fbe504bdd5136ca68df9b7ce3d6929f77ee90d162b60eaef2f",
+      "lane": "translation",
+      "source": "pi's session viewer, https://pi.dev/session/#0ea51497613daf7e1de28ee99950b074 (linked from pi.dev), captured 2026-11-06 at 900x640 in this repository's story container. Template: https://github.com/earendil-works/pi/tree/2a32a605a9f18a5f0191f65358a2e764b2f69fc7/packages/coding-agent/src/core/export-html",
+      "author": "Mario Zechner and pi contributors (earendil-works/pi)",
+      "license": "MIT",
+      "translated_into": "A monospace transcript on a dark slate: tool rows with the tool's name and target, output highlighted under the row and toggled (pi's O, the terminal's ctrl+o)."
+    },
+    {
+      "id": "pi-diff",
+      "file": "refs/pi-diff@2a32a60.png",
+      "sha256": "08566c7ceabb213f6feb6d7ac7103d96edabe09d762471232567af39f5923c23",
+      "lane": "translation",
+      "source": "pi's session viewer, https://pi.dev/session/#0ea51497613daf7e1de28ee99950b074, first edit diff, captured 2026-11-06 at 900x640. Syntax colours: https://github.com/earendil-works/pi/blob/2a32a605a9f18a5f0191f65358a2e764b2f69fc7/packages/coding-agent/src/modes/interactive/theme/dark.json (okhsl roles converted to sRGB in terminal/src/lib.rs)",
+      "author": "Mario Zechner and pi contributors (earendil-works/pi)",
+      "license": "MIT",
+      "translated_into": "Highlighted code and diffs in pi's syntax roles; added and removed lines marked."
+    }
+  ],
+  "stories": [
+    {
+      "id": "terminal-input-states",
+      "refs": ["delta-caret", "pi-transcript"]
+    },
+    { "id": "terminal-code", "refs": ["pi-diff"] },
+    { "id": "terminal-activity", "refs": ["delta-activity", "delta-caret"] },
+    { "id": "terminal-activity-expanded", "refs": ["pi-transcript"] },
+    { "id": "terminal-program-streaming", "refs": ["delta-caret"] },
+    { "id": "terminal-references", "refs": [] }
+  ]
+}

@@ -7,8 +7,8 @@ import {
   TerminalAgent,
   TerminalScreen,
   restartSession,
-  runSessionAction,
   useCloseOnOutsideDoubleClick,
+  useSessionAction,
 } from './terminal-screen'
 import type { TerminalAction } from './terminal-screen'
 
@@ -33,6 +33,7 @@ export function TerminalDrawer() {
   const height = useShell((s) => s.terminalHeight)
   const setHeight = useShell((s) => s.setTerminalHeight)
   const { project } = useActiveProject()
+  const runAction = useSessionAction()
   useCloseOnOutsideDoubleClick(open, () => setOpen(false))
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export function TerminalDrawer() {
   }, [])
 
   const onAction = (action: TerminalAction) => {
-    if (runSessionAction(action)) return
+    if (runAction(action)) return
     if (action.type === 'close') setOpen(false)
     if (action.type === 'new' && project)
       restartSession(SESSION, project.projectId, undefined)

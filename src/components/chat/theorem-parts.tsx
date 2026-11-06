@@ -551,6 +551,43 @@ const AttachmentPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/** Where a run did not take what the person sent while it worked. */
+const INPUT_REFUSALS: Record<string, string> = {
+  run_ended: 'the run ended first',
+  run_cancelled: 'the run was stopped',
+  run_input_unsupported: 'this run takes no input',
+  answer_final: 'its answer was already final',
+  report_captured: 'its answer was already final',
+}
+
+/**
+ * What the person sent while the run worked, drawn where the run took it in;
+ * dim with its state until it did.
+ */
+const UserInputPart: DataMessagePartComponent = ({ data }) => {
+  const part = object(data)
+  const text = str(part.text)
+  if (!text) return null
+  const status = str(part.status)
+  const reason = str(part.reason)
+  const note =
+    status === 'delivered'
+      ? undefined
+      : status === 'not_delivered'
+        ? `not delivered${reason && INPUT_REFUSALS[reason] ? `: ${INPUT_REFUSALS[reason]}` : ''}`
+        : 'queued for its next step'
+  return (
+    <p
+      data-slot="theorem-user-input"
+      data-status={status}
+      className={`my-2 border-s-2 border-separator ps-3 text-sm whitespace-pre-wrap ${status === 'delivered' ? 'text-ink' : 'text-ink-muted'}`}
+    >
+      {text}
+      {note && <span className="ms-2 text-xs text-ink-faint">· {note}</span>}
+    </p>
+  )
+}
+
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
@@ -592,6 +629,7 @@ const RENDERERS = (
     ['theorem-error', ErrorPart],
     ['theorem-attachment', AttachmentPart],
     ['theorem-host_call', HostCallPart],
+    ['theorem-user_input', UserInputPart],
     ...DELEGATION_RENDERERS,
   ] satisfies Array<[string, DataMessagePartComponent]>
 )

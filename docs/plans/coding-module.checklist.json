@@ -1,0 +1,65 @@
+{
+  "plan": "docs/plans/coding-module.md",
+  "items": [
+    {
+      "id": "R0",
+      "item": "Delta and pi references committed under evidence/coding-module/refs with complete ledger rows",
+      "status": "done",
+      "note": "Four refs; ledger.json rows carry lane (translation), source and pin, author and license, sha256."
+    },
+    {
+      "id": "B1",
+      "item": "Theorem run inbox: run command input, delivery at step boundaries, user_input parts, SDK regenerated",
+      "status": "done",
+      "note": "Theorem PR https://github.com/Travis-Gilbert/Theorem/pull/944, current with Theorem main at 2d93b5f2. Agent conformance there: 48 passed, 0 failed, including both inbox tests; the 3 ignored tests are main's live-provider matrix. Focused server tests at 2d1f3f41: 97 passed, 0 failed, including all 10 run_inbox tests (one checks that a run no job here executes refuses input). The live scenario is node V."
+    },
+    {
+      "id": "B2",
+      "item": "steer_work delivers instruction-only direction into the running worker's inbox instead of restarting it",
+      "status": "done",
+      "note": "Same PR. A steer that selects only the running task (main's steering_uses_original_inputs rule) is delivered to that worker. A stale selection is refused through main's replace path, and a probe with the guard check removed fails that test. instruction_only_steering_reaches_the_running_worker_without_replacing_it, steering_after_the_worker_reports_replaces_the_work and complete_work_waits_for_direction_already_sent pass. The live scenario is node V."
+    },
+    {
+      "id": "U1",
+      "item": "Terminal prompt stays live during a run; queued and delivered lines",
+      "status": "done",
+      "note": "Story terminal-input-states; terminal-transcript tests."
+    },
+    {
+      "id": "U2",
+      "item": "TanStack Highlight tokens give highlighted code and diffs",
+      "status": "done",
+      "note": "Charted with Theia's Stone palette; built with pi's dark-theme syntax roles. Open for the owner: keep pi's roles, or use Stone dark so terminal code matches Monaco beside it."
+    },
+    {
+      "id": "U3",
+      "item": "Compact activity rows and ctrl+o tool output",
+      "status": "done",
+      "note": "Stories terminal-activity and terminal-activity-expanded."
+    },
+    {
+      "id": "U4",
+      "item": "Caret where the agent is writing; live spinner",
+      "status": "done",
+      "note": "Motion oracle: the spinner cell changes within 400 ms in every running story. Fixed the wasm32 spinner saturation that froze it. The answer's own caret advances per Final event until the backend streams answer deltas."
+    },
+    {
+      "id": "U5",
+      "item": "IDE mode: Theia with the terminal docked beside it; Theia's chat closed there; one thread per tab; Follow tracks the active tab",
+      "status": "partial",
+      "note": "UI side done, typechecked and tested. Theia closeChatView not built or typechecked here, and the docked split not screenshotted with a real Theia frame."
+    },
+    {
+      "id": "U6",
+      "item": "Tool rows open their file in Monaco at the touched lines; Add to chat sends a typed reference to the terminal",
+      "status": "done",
+      "note": "Interaction oracle on terminal-references: clicking edit_file emits open src/parser.rs lines 2-3. openOf and references covered by tests."
+    },
+    {
+      "id": "V",
+      "item": "Live scenario and HITL seal on the collages",
+      "status": "pending",
+      "note": "Needs a running Theorem with a model, and the owner opening evidence/coding-module/collages/*.png. The seal names each collage and who viewed it."
+    }
+  ]
+}

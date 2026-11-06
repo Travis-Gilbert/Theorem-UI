@@ -95,6 +95,8 @@ export type IdeFrameMethods = {
     openChanges(target: DelegationChanges): Promise<boolean>;
     /** The conversation the Theorem UI shows, for the frame's chat. */
     setThread(update: ChatThreadUpdate): void;
+    /** Close the frame's chat view: the UI's agent terminal beside the frame is the conversation. */
+    closeChatView(): Promise<void>;
 };
 
 /** What the Theorem UI offers the IDE frame inside it. */

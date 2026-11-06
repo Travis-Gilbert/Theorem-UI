@@ -1,32 +1,33 @@
-// SOURCING: Ratzilla (ratatui in the browser, built from terminal/ into src/terminal-wasm) draws the terminal, its tab bar (ratatui Tabs) and prompt; assistant-ui useLocalRuntime runs each session's turns through the same Theorem SDK adapter, history and resume as the chat (lib/theorem/runtime); zustand carries each session's snapshot between its runtime and the WASM; the close button is the shared TooltipIconButton with Streamline's X; closing on a double-click outside is a document listener, since Base UI's drawer only dismisses on an outside press
+// SOURCING: Ratzilla (ratatui in the browser, built from terminal/ into src/terminal-wasm) draws the terminal, its tab bar (ratatui Tabs) and prompt; assistant-ui useLocalRuntime runs each session's turns through the same Theorem SDK adapter, history and resume as the chat (lib/theorem/runtime); zustand carries each session's snapshot and outbox between its runtime and the WASM; what the person sends while a run works goes to the run's inbox through the SDK's runs.command (command input); a selection added from the IDE rides the next turn as a typed context reference (the chat's composer-references keys), and a file a tool worked on opens in the IDE through Follow's reveal; the close button is the shared TooltipIconButton with Streamline's X; closing on a double-click outside is a document listener, since Base UI's drawer only dismisses on an outside press
 import { useLocalRuntime } from '@assistant-ui/react'
 import type {
   AssistantRuntime,
   ChatModelAdapter,
   ThreadMessage,
 } from '@assistant-ui/react'
+import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { readApproval } from '@/components/chat/theorem-parts'
+import { referenceKey } from '@/components/chat/composer-references'
 import { Icon } from '@/components/icons'
+import { useRevealFile, workingRuns } from '@/components/ide/follow'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
-import { createHistoryAdapter, runTurn } from '@/lib/theorem/runtime'
+import type { Theorem } from '@/lib/theorem/client'
+import {
+  createHistoryAdapter,
+  runTurn,
+  useLiveRuns,
+} from '@/lib/theorem/runtime'
 import type { TurnOptions } from '@/lib/theorem/runtime'
 import type { TerminalHandle } from '@/terminal-wasm/theorem_terminal'
+import { leftoversOf, snapshotOf } from './terminal-transcript'
+import type { Approval, Outgoing } from './terminal-transcript'
 import type * as TerminalWasm from '@/terminal-wasm/theorem_terminal'
 
 /** The terminal runs agent work: coding execution, not the front conversation. */
 const TURN_OPTIONS: TurnOptions = { executionMode: 'coding' }
-
-type Approval = {
-  runId: string
-  approvalId: string
-  toolCallId: string
-  allow?: string
-  deny?: string
-}
 
 type Session = {
   snapshot: string
@@ -34,6 +35,13 @@ type Session = {
   generation: number
   runtime?: AssistantRuntime
   approval?: Approval
+  /** The session's durable thread, once it has one. */
+  thread?: () => string | undefined
+  outbox: Outgoing[]
+  /** What the next turn carries, added from the IDE. */
+  references: readonly TheoremContextReference[]
+  /** The working turn's runs, as Follow's workingRuns joins them. */
+  runs: string
 }
 
 /**
@@ -44,30 +52,160 @@ const useTerminalSessions = create<Partial<Record<string, Session>>>(() => ({}))
 
 function patchSession(key: string, change: Partial<Session>) {
   useTerminalSessions.setState((s) => ({
-    [key]: { snapshot: '{}', generation: 0, ...s[key], ...change },
+    [key]: {
+      snapshot: '{}',
+      generation: 0,
+      outbox: [],
+      references: [],
+      runs: '',
+      ...s[key],
+      ...change,
+    },
   }))
 }
 
+/** A story's fixed state, drawn by a terminal no runtime drives. */
+export function showStory(key: string, snapshot: string) {
+  patchSession(key, { snapshot })
+}
+
+function updateOutgoing(key: string, id: string, change: Partial<Outgoing>) {
+  const session = useTerminalSessions.getState()[key]
+  if (!session) return
+  patchSession(key, {
+    outbox: session.outbox.map((o) => (o.id === id ? { ...o, ...change } : o)),
+  })
+}
+
+/** Outgoing input with a request in flight, so a flush sends each once. */
+const inFlight = new Set<string>()
+
+/** The refusal code a Theorem problem answer carries, if any. */
+function refusalCode(failure: unknown) {
+  const body =
+    failure && typeof failure === 'object' && 'body' in failure
+      ? failure.body
+      : undefined
+  return body && typeof body === 'object' && 'code' in body
+    ? body.code
+    : undefined
+}
+
+/**
+ * Sends a session's waiting input to its live run's inbox. Input that waits
+ * for the run's id stays `sending` until the run's first event names it.
+ */
+function flushOutbox(key: string) {
+  const session = useTerminalSessions.getState()[key]
+  const threadId = session?.thread?.()
+  const runId = threadId ? useLiveRuns.getState()[threadId] : undefined
+  if (!session || !runId) return
+  for (const outgoing of session.outbox) {
+    if (outgoing.state !== 'sending' || inFlight.has(outgoing.id)) continue
+    inFlight.add(outgoing.id)
+    void mutate((headers) =>
+      theorem().chat.runs.command(
+        { runId, command: 'input', ...headers },
+        { additionalBodyParameters: { text: outgoing.text } },
+      ),
+    )
+      .then((event) => {
+        const part = event.payload.part as { inputId?: unknown } | undefined
+        updateOutgoing(key, outgoing.id, {
+          state: 'sent',
+          inputId: typeof part?.inputId === 'string' ? part.inputId : undefined,
+        })
+      })
+      .catch((failure: unknown) => {
+        updateOutgoing(
+          key,
+          outgoing.id,
+          refusalCode(failure) === 'run_input_closed'
+            ? { state: 'next' }
+            : { state: 'failed', error: describeError(failure) },
+        )
+      })
+      .finally(() => inFlight.delete(outgoing.id))
+  }
+}
+
+/** Sending while a run works: the words join the run; they never stop it. */
+function sendInput(key: string, text: string) {
+  const outbox = useTerminalSessions.getState()[key]?.outbox ?? []
+  patchSession(key, {
+    outbox: [...outbox, { id: crypto.randomUUID(), text, state: 'sending' }],
+  })
+  flushOutbox(key)
+}
+
+/** A selection from the IDE for the session's next turn; the same place twice is kept once. */
+export function addReference(key: string, reference: TheoremContextReference) {
+  const references = useTerminalSessions.getState()[key]?.references ?? []
+  const added = referenceKey(reference)
+  patchSession(key, {
+    references: [
+      ...references.filter((r) => referenceKey(r) !== added),
+      reference,
+    ],
+  })
+}
+
+const referenceLabel = ({ label, location }: TheoremContextReference) =>
+  label ??
+  (location.resource.kind === 'file' ? location.resource.path : 'reference')
+
+/** A session's working runs, for Follow the Agent. */
+export const useTerminalRuns = (key: string | undefined) =>
+  useTerminalSessions((s) => (key ? (s[key]?.runs ?? '') : ''))
+
 export type TerminalAction =
-  | { type: 'submit'; tab: string; text: string }
+  | { type: 'submit' | 'input'; tab: string; text: string }
   | { type: 'approve'; tab: string; allow: boolean }
+  | { type: 'open'; tab: string; path: string; start?: number; end?: number }
   | {
-      type: 'cancel' | 'close' | 'new' | 'newTab' | 'closeTab' | 'selectTab'
+      type:
+        | 'cancel'
+        | 'close'
+        | 'new'
+        | 'newTab'
+        | 'closeTab'
+        | 'selectTab'
+        | 'unreference'
       tab: string
     }
 
 /**
- * Runs what a session's own prompt asked for: a turn, a stop or an approval.
- * Returns false for the actions the drawer answers itself.
+ * Runs what a session's own prompt asked for: a turn, a stop, an approval,
+ * dropping a reference or opening a file in the IDE. The handler returns
+ * false for the actions the terminal's host answers itself.
  */
-export function runSessionAction(action: TerminalAction): boolean {
+export function useSessionAction() {
+  const reveal = useRevealFile()
+  return (action: TerminalAction) => {
+    if (action.type === 'open') {
+      reveal(action.path, action.start, action.end)
+      return true
+    }
+    return runSessionAction(action)
+  }
+}
+
+function runSessionAction(action: TerminalAction): boolean {
   const session = useTerminalSessions.getState()[action.tab]
   switch (action.type) {
     case 'submit':
       session?.runtime?.thread.append(action.text)
       return true
+    case 'input':
+      sendInput(action.tab, action.text)
+      return true
     case 'cancel':
       session?.runtime?.thread.cancelRun()
+      return true
+    case 'unreference':
+      patchSession(action.tab, {
+        references: session?.references.slice(0, -1) ?? [],
+      })
       return true
     case 'approve': {
       const approval = session?.approval
@@ -133,6 +271,7 @@ export function restartSession(
   recordThread(projectId, tabId, undefined)
   patchSession(key, {
     generation: (useTerminalSessions.getState()[key]?.generation ?? 0) + 1,
+    outbox: [],
   })
 }
 
@@ -148,89 +287,6 @@ function titleOf(messages: readonly ThreadMessage[]) {
       .trim()
       .split('\n')[0] ?? ''
   return text.length > 24 ? `${text.slice(0, 23)}…` : text || 'agent'
-}
-
-type TerminalPart =
-  | { type: 'text' | 'reasoning'; text: string }
-  | { type: 'tool'; name: string; summary: string; status: string }
-
-/** A tool call's one-line summary: its first string argument, else the raw args. */
-function toolSummary(args: Record<string, unknown>, argsText: string) {
-  const first = Object.values(args).find((v) => typeof v === 'string')
-  return (typeof first === 'string' ? first : argsText).replace(/\s+/g, ' ')
-}
-
-/** The thread as the terminal draws it, plus the run's pending approval. */
-function snapshotOf(
-  messages: readonly ThreadMessage[],
-  running: boolean,
-  project: string,
-) {
-  let approval: Approval | undefined
-  let pending: { tool: string; summary: string } | undefined
-  const last = messages.at(-1)
-  const status = last?.role === 'assistant' ? last.status : undefined
-  const error =
-    status?.type === 'incomplete' && status.reason === 'error'
-      ? describeError(status.error)
-      : undefined
-
-  const rows = messages.map((message) => {
-    const runId = (
-      message.metadata.custom as { theoremRunId?: string } | undefined
-    )?.theoremRunId
-    const content: readonly ThreadMessage['content'][number][] = message.content
-    const parts = content.flatMap((part): TerminalPart[] => {
-      if (part.type === 'text' || part.type === 'reasoning')
-        return [{ type: part.type, text: part.text }]
-      if (part.type !== 'tool-call') return []
-      const asked = readApproval(part.interrupt)
-      const waiting =
-        asked !== undefined &&
-        asked.approved === undefined &&
-        part.result === undefined
-      if (waiting && runId && !approval) {
-        const kind = (k: string) =>
-          asked.options.find((o) => o.kind === k)?.optionId
-        approval = {
-          runId,
-          approvalId: asked.approvalId,
-          toolCallId: asked.toolCallId,
-          allow: kind('allow_once'),
-          deny: kind('reject_once') ?? kind('reject_always'),
-        }
-        pending = { tool: asked.toolName, summary: asked.summary }
-      }
-      return [
-        {
-          type: 'tool',
-          name: part.toolName,
-          summary: toolSummary(part.args, part.argsText),
-          status: waiting
-            ? 'approval'
-            : part.result !== undefined
-              ? part.isError
-                ? 'error'
-                : 'complete'
-              : message === last && running
-                ? 'running'
-                : 'complete',
-        },
-      ]
-    })
-    return { role: message.role, parts }
-  })
-
-  return {
-    approval,
-    json: JSON.stringify({
-      running,
-      project,
-      error,
-      approval: pending,
-      messages: rows,
-    }),
-  }
 }
 
 type AgentProps = {
@@ -254,10 +310,24 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
           threadId = created.record.threadId
           recordThread(projectId, tabId, threadId, title)
         }
-        yield* runTurn(threadId, options, TURN_OPTIONS)
+        const references =
+          useTerminalSessions.getState()[sessionKey]?.references ?? []
+        const turnOptions = references.length
+          ? {
+              ...TURN_OPTIONS,
+              contextReferences: references as Theorem.ChatContextReference[],
+            }
+          : TURN_OPTIONS
+        yield* runTurn(threadId, options, turnOptions, () => {
+          // Only an accepted send consumes them; recovery replays its own request.
+          const now = useTerminalSessions.getState()[sessionKey]?.references
+          patchSession(sessionKey, {
+            references: now?.filter((r) => !references.includes(r)) ?? [],
+          })
+        })
       },
     }),
-    [projectId, tabId],
+    [projectId, tabId, sessionKey],
   )
   const history = useMemo(
     () => createHistoryAdapter(() => threadOf(projectId, tabId)),
@@ -266,19 +336,70 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
   const runtime = useLocalRuntime(adapter, { adapters: { history } })
 
   useEffect(() => {
+    /**
+     * Once the run is over, what it never took goes as the next turn: input
+     * it refused, input it left undelivered, and input sent before its id
+     * was known.
+     */
+    const resendLeftovers = (
+      messages: readonly ThreadMessage[],
+      outbox: readonly Outgoing[],
+    ) => {
+      const leftovers = leftoversOf(messages, outbox, inFlight)
+      if (leftovers.length === 0) return
+      const resent = new Set(leftovers.map((o) => o.id))
+      patchSession(sessionKey, {
+        outbox: outbox.map((o) =>
+          resent.has(o.id) ? { ...o, state: 'resent' } : o,
+        ),
+      })
+      const text = leftovers.map((o) => o.text).join('\n\n')
+      queueMicrotask(() => runtime.thread.append(text))
+    }
     const publish = () => {
       const { messages, isRunning } = runtime.thread.getState()
-      const { json, approval } = snapshotOf(messages, isRunning, project)
-      patchSession(sessionKey, { snapshot: json, approval })
+      const session = useTerminalSessions.getState()[sessionKey]
+      const outbox = session?.outbox ?? []
+      const { json, approval } = snapshotOf(
+        messages,
+        isRunning,
+        project,
+        outbox,
+        (session?.references ?? []).map(referenceLabel),
+      )
+      patchSession(sessionKey, {
+        snapshot: json,
+        approval,
+        runs: workingRuns(messages),
+      })
+      if (!isRunning) resendLeftovers(messages, outbox)
     }
-    patchSession(sessionKey, { runtime })
+    patchSession(sessionKey, {
+      runtime,
+      thread: () => threadOf(projectId, tabId),
+    })
     publish()
     const unsubscribe = runtime.thread.subscribe(publish)
+    const unsubscribeOutbox = useTerminalSessions.subscribe((s, prev) => {
+      if (
+        s[sessionKey]?.outbox !== prev[sessionKey]?.outbox ||
+        s[sessionKey]?.references !== prev[sessionKey]?.references
+      )
+        publish()
+    })
+    // Input waiting for the run's id goes once the run's stream names it.
+    const unsubscribeRuns = useLiveRuns.subscribe(() => flushOutbox(sessionKey))
     return () => {
       unsubscribe()
-      patchSession(sessionKey, { runtime: undefined, approval: undefined })
+      unsubscribeOutbox()
+      unsubscribeRuns()
+      patchSession(sessionKey, {
+        runtime: undefined,
+        approval: undefined,
+        thread: undefined,
+      })
     }
-  }, [runtime, sessionKey, project])
+  }, [runtime, sessionKey, project, projectId, tabId])
 
   return null
 }
@@ -338,7 +459,7 @@ function pushSnapshots(handle: TerminalHandle, ids: readonly string[]) {
 /**
  * The Ratzilla terminal, with React forwarding input to it. `tabs` are the
  * sessions it shows; with `tabbed` it draws them as a tab bar, otherwise it
- * shows the one session's header.
+ * shows the one session's header. A docked terminal has no close button.
  */
 export function TerminalScreen({
   hostId,
@@ -346,12 +467,14 @@ export function TerminalScreen({
   tabs,
   active,
   onAction,
+  closable = true,
 }: {
   hostId: string
   tabbed: boolean
   tabs: readonly { id: string; title: string }[]
   active: string
   onAction: (action: TerminalAction) => void
+  closable?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const handle = useRef<TerminalHandle>(undefined)
@@ -457,14 +580,16 @@ export function TerminalScreen({
       />
       {/* Over the header bar's last columns, which the terminal leaves
           clear. Outside the host, whose contents Ratzilla replaces. */}
-      <TooltipIconButton
-        tooltip="Close"
-        side="left"
-        onClick={() => latest.current({ type: 'close', tab: active })}
-        className="absolute top-[calc(0.5lh-12px)] right-1 size-6 p-1.5 text-term-muted hover:bg-term-line/60 hover:text-term-ink"
-      >
-        <Icon.Exit className="size-3" />
-      </TooltipIconButton>
+      {closable && (
+        <TooltipIconButton
+          tooltip="Close"
+          side="left"
+          onClick={() => latest.current({ type: 'close', tab: active })}
+          className="absolute top-[calc(0.5lh-12px)] right-1 size-6 p-1.5 text-term-muted hover:bg-term-line/60 hover:text-term-ink"
+        >
+          <Icon.Exit className="size-3" />
+        </TooltipIconButton>
+      )}
     </div>
   )
 }
