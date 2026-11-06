@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { GHOST_FRAMES } from './life'
-import { cellLook, glyphBetween } from './look'
+import { cellLook, crossFade } from './look'
 
 describe('cellLook', () => {
   test('an empty cell draws nothing', () => {
@@ -22,25 +22,33 @@ describe('cellLook', () => {
   })
 })
 
-describe('glyphBetween', () => {
+describe('crossFade', () => {
   const old = cellLook(40, 0)
   const ghost = cellLook(0, GHOST_FRAMES)
+  const newborn = cellLook(1, 0)
 
-  test('a newborn shows its own glyph from the first frame of the fade', () => {
-    expect(glyphBetween(undefined, cellLook(1, 0), true, 0)).toBe('@')
-    expect(glyphBetween(ghost, cellLook(1, 0), true, 0.1)).toBe('@')
+  test('a newborn fades in with nothing to hand over', () => {
+    expect(crossFade(undefined, newborn)).toEqual({ glyph: '@' })
   })
 
-  test('a cell that just died keeps its glyph until halfway, then shows its ghost', () => {
-    expect(glyphBetween(old, ghost, false, 0.2)).toBe(old?.glyph)
-    expect(glyphBetween(old, ghost, false, 0.6)).toBe('.')
+  test('an ageing cell hands its old glyph over instead of swapping it', () => {
+    expect(crossFade(newborn, cellLook(2, 0))).toEqual({ glyph: '#', leaving: '@' })
   })
 
-  test('a fading ghost that disappears keeps its dot to the end', () => {
-    expect(glyphBetween(cellLook(0, 1), undefined, false, 0.9)).toBe('.')
+  test('a cell that just died crosses into its ghost', () => {
+    expect(crossFade(old, ghost)).toEqual({ glyph: '.', leaving: old?.glyph })
+  })
+
+  test('a birth on a ghost crosses the dot into the newborn', () => {
+    expect(crossFade(ghost, newborn)).toEqual({ glyph: '@', leaving: '.' })
+  })
+
+  test('a settled cell and a fading ghost keep one glyph', () => {
+    expect(crossFade(old, cellLook(41, 0))).toEqual({ glyph: old?.glyph })
+    expect(crossFade(cellLook(0, 1), undefined)).toEqual({ glyph: '.' })
   })
 
   test('an empty cell stays empty', () => {
-    expect(glyphBetween(undefined, undefined, false, 0.5)).toBeUndefined()
+    expect(crossFade(undefined, undefined)).toEqual({ glyph: undefined })
   })
 })

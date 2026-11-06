@@ -1,4 +1,4 @@
-// SOURCING: textmode.js (WebGL2 glyph grid, a second layer for the agent's presence, the frame loop and deltaTime, projectClientToGrid for pointer input); the Life field, the presence and how the model's activity lifts them come from src/lib/life
+// SOURCING: textmode.js (WebGL2 glyph grid, a layer whose opacity fades out the glyphs a generation replaces, another for the agent's presence, the frame loop and deltaTime, projectClientToGrid for pointer input); the Life field, the presence and how the model's activity lifts them come from src/lib/life
 import { eases } from 'animejs'
 import { textmode } from 'textmode.js'
 import type { Textmodifier } from 'textmode.js'
@@ -18,7 +18,7 @@ import type { Field } from '@/lib/life/life'
 import { emit, fill } from '@/lib/life/emitter'
 import { RESTING, decay, glow, pace, pulse, restSeconds, sustain } from '@/lib/life/energy'
 import type { Energy, PulseKind } from '@/lib/life/energy'
-import { cellLook, glyphBetween } from '@/lib/life/look'
+import { cellLook, crossFade } from '@/lib/life/look'
 import type { Look, Tone } from '@/lib/life/look'
 import { PATTERNS } from '@/lib/life/patterns'
 import { advance, companion, createPresence, figure } from '@/lib/life/presence'
@@ -52,6 +52,11 @@ const mix = (from: Rgb, to: Rgb, weight: number): Rgb => [
   from[1] + (to[1] - from[1]) * weight,
   from[2] + (to[2] - from[2]) * weight,
 ]
+
+const luminance = ([r, g, b]: Rgb) => 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+/** Whether glyphs are drawn lighter than the sheet behind them (a dark theme). */
+const lightOnDark = (palette: Palette) => luminance(palette.ink) > luminance(palette.background)
 
 /**
  * Glyphs fade toward what is behind the canvas: the sheet, a vertical
@@ -121,7 +126,12 @@ export function mountLife(
     fontSize: CELL_SIZE * density,
     frameRate: 60,
   })
-  const overlay = t.layers.add()
+  // Layers default to a 16px font; each takes the field's cell so its glyphs
+  // land on the field's grid. Above the field: the glyphs a generation
+  // replaced, fading toward the sheet while their successors fade in beneath.
+  // Above that: the agent's presence and the brush preview.
+  const fading = t.layers.add({ fontSize: CELL_SIZE * density })
+  const overlay = t.layers.add({ fontSize: CELL_SIZE * density })
 
   let palette = readPalette(canvas)
   let field: Field = createField(0, 0)
@@ -133,6 +143,8 @@ export function mountLife(
   let previous: Field = field
   let sinceStep = 0
   let fadeSeconds = 1
+  /** The base layer draws first, so it collects these for `fading` each frame. */
+  const leaving: { x: number; y: number; glyph: string; color: Rgb }[] = []
   let presence: Presence = createPresence({ x: 0, y: 0 })
   let stroke: { on: boolean; last: Point } | undefined
   let hovered: Point | undefined
@@ -215,7 +227,7 @@ export function mountLife(
     t.translate(x - left(), y - top())
     t.char(glyph)
     t.charColor(color[0], color[1], color[2])
-    t.cellColor(0, 0, 0, 0)
+    t.cellColor(...palette.background, 0)
     t.point()
     t.pop()
   }
@@ -270,24 +282,40 @@ export function mountLife(
     }
     publish()
 
-    t.clear()
+    // Clear to the sheet's colour at no opacity. It stays invisible, but the
+    // layers above blend against it: textmode's compositor mixes a layer into
+    // the colour beneath even where that is transparent, and transparent black
+    // would darken every fading glyph.
+    t.background(...palette.background, 0)
     const { at } = presence
     const faint = FIELD_WEIGHT * glow(energy.level)
     const fade = reducedMotion ? 1 : eases.inOutSine(Math.min(1, sinceStep / fadeSeconds))
+    // Each pixel keeps whichever glyph stands further from the sheet, so the
+    // two cross without one covering the other. The fade is in the colour:
+    // layer opacity would thin a glyph twice over transparent pixels.
+    fading.blendMode(lightOnDark(palette) ? t.BLEND_LIGHTEN : t.BLEND_DARKEN)
+    leaving.length = 0
     for (let y = 0; y < field.rows; y++)
       for (let x = 0; x < field.cols; x++) {
         const i = y * field.cols + x
-        const age = ageAt(field, i)
-        const after = cellLook(age, ghostAt(field, i))
+        const after = cellLook(ageAt(field, i), ghostAt(field, i))
         const before = fade < 1 ? cellLook(ageAt(previous, i), ghostAt(previous, i)) : after
-        const glyph = glyphBetween(before, after, age > 0, fade)
+        const { glyph, leaving: old } = crossFade(before, after)
         if (!glyph) continue
         const near = playsAlong
           ? Math.max(0, 1 - Math.hypot((x - at.x) / 2, y - at.y) / ATTENTION_RADIUS)
           : 0
         const scale = faint * (0.75 + 0.5 * near)
-        drawGlyph(x, y, glyph, mix(shade(before, scale), shade(after, scale), fade))
+        if (old)
+          leaving.push({ x, y, glyph: old, color: mix(shade(before, scale), palette.background, fade) })
+        const from = old ? palette.background : shade(before, scale)
+        drawGlyph(x, y, glyph, mix(from, shade(after, scale), fade))
       }
+  })
+
+  fading.draw(() => {
+    t.clear()
+    for (const cell of leaving) drawGlyph(cell.x, cell.y, cell.glyph, cell.color)
   })
 
   overlay.draw(() => {
