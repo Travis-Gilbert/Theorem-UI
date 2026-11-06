@@ -218,6 +218,8 @@ export type ModuleManifest = z.infer<typeof moduleManifest>
 export type ModuleImplementation = ModuleManifest['implementation']
 
 export const PAGE_SCHEMA = 'theorem.page/1'
+/** A page file's name ends so: `Pages/Desk.page.json`. */
+export const PAGE_SUFFIX = '.page.json'
 
 /** `Pages/<name>.page.json` in the vault. */
 export const pageDocument = z.object({

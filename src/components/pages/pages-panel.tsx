@@ -1,8 +1,9 @@
 // SOURCING: @tanstack/react-router (a page is /pages/$pageId, by its vault
-// entry id, which a rename keeps), the Index panel's row and heading
-// grammar, ui/dialog over Base UI Dialog (new page, new module), the
-// module store (pages and modules are vault files) and the grants store, and
-// openWorkspaceFile for a module's own files.
+// entry id, which a rename keeps; a mode's page is /pages/mode:<mode>), the
+// Index panel's row and heading grammar, ui/dialog over Base UI Dialog (new
+// page from a template, new module), the module store (pages, templates and
+// modules are vault files) and the grants store, and openWorkspaceFile for a
+// module's own files.
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
@@ -28,10 +29,19 @@ import {
   useInstalledModules,
   usePages,
   useVaultClient,
+  useVaultTemplates,
 } from '@/lib/modules/store'
 import type { PageListing } from '@/lib/modules/store'
+import {
+  BUILTIN_TEMPLATES,
+  MODE_PAGES,
+  modePagePath,
+} from '@/lib/modules/templates'
+import type { PageMode, PageTemplate } from '@/lib/modules/templates'
+import { cn } from '@/lib/utils'
 import { openWorkspaceFile } from '@/lib/workspace/open'
 import type { WorkspaceClient } from '@/lib/workspace/types'
+import { useWorkspaceTree } from '@/lib/workspace/workspaces'
 // For its effect: the built-in modules join the catalog.
 import './builtins'
 
@@ -155,6 +165,7 @@ function VaultLists({ client }: { client: WorkspaceClient }) {
           )
         })
       )}
+      <ModeList client={client} pageId={pageId} />
       <ModuleLibrary client={client} onNew={() => setCreating('module')} />
       <NewPageDialog
         client={client}
@@ -169,6 +180,54 @@ function VaultLists({ client }: { client: WorkspaceClient }) {
         open={creating === 'module'}
         onOpenChange={(open) => setCreating(open ? 'module' : null)}
       />
+    </>
+  )
+}
+
+/** The id a mode's page has in the Pages route. */
+export const modePageId = (mode: PageMode) => `mode:${mode}`
+
+/**
+ * The modes that are pages. Each opens here to be arranged; the mode itself
+ * shows it in use, from the vault's Modes folder or else its template.
+ */
+function ModeList({
+  client,
+  pageId,
+}: {
+  client: WorkspaceClient
+  pageId: string | undefined
+}) {
+  const navigate = useNavigate()
+  const tree = useWorkspaceTree(client)
+  const kept = new Set((tree.data ?? []).map((e) => e.path))
+  return (
+    <>
+      <Heading>Modes</Heading>
+      {(Object.keys(MODE_PAGES) as PageMode[]).map((mode) => {
+        const id = modePageId(mode)
+        const active = id === pageId
+        return (
+          <button
+            key={mode}
+            type="button"
+            className={row}
+            data-active={active || undefined}
+            aria-current={active ? 'page' : undefined}
+            title={modePagePath(mode)}
+            onClick={() =>
+              void navigate({ to: '/pages/$pageId', params: { pageId: id } })
+            }
+          >
+            <span className="min-w-0 flex-1 truncate">
+              {MODE_PAGES[mode].title}
+            </span>
+            <span className="shrink-0 text-[11px] text-ink-faint-sheet">
+              {kept.has(modePagePath(mode)) ? 'Arranged' : 'Built in'}
+            </span>
+          </button>
+        )
+      })}
     </>
   )
 }
@@ -293,6 +352,8 @@ function ModuleRow({
   )
 }
 
+const BLANK = 'blank'
+
 function NewPageDialog({
   client,
   open,
@@ -305,39 +366,73 @@ function NewPageDialog({
   onCreated: (entryId: string) => void
 }) {
   const create = useCreatePage(client)
+  const saved = useVaultTemplates(client)
   const [title, setTitle] = useState('')
+  const [chosen, setChosen] = useState(BLANK)
+  const templates: PageTemplate[] = [...BUILTIN_TEMPLATES, ...saved.templates]
+  const template = templates.find((t) => t.id === chosen)
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const next = title.trim()
     if (!next) return
-    create.mutate(next, {
-      onSuccess: (entry) => {
-        setTitle('')
-        onOpenChange(false)
-        onCreated(entry.id)
+    create.mutate(
+      { title: next, template },
+      {
+        onSuccess: (entry) => {
+          setTitle('')
+          setChosen(BLANK)
+          onOpenChange(false)
+          onCreated(entry.id)
+        },
       },
-    })
+    )
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle className="font-heading text-lg font-semibold">
               New page
             </DialogTitle>
             <DialogDescription>
-              A page is a file in the vault's Pages folder. Arrange it to place
-              modules and connect them.
+              A page is a file in the vault's Pages folder. Start it blank or
+              from a template, then arrange it to place modules and connect
+              them.
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
             aria-label="Page title"
             placeholder="Page title"
+            maxLength={120}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
+          <fieldset className="flex flex-col gap-1">
+            <legend className="pb-1 text-xs text-ink-muted">Start from</legend>
+            <TemplateChoice
+              value={BLANK}
+              chosen={chosen}
+              onChoose={setChosen}
+              title="Blank"
+              description="Nothing placed yet."
+            />
+            {templates.map((t) => (
+              <TemplateChoice
+                key={t.id}
+                value={t.id}
+                chosen={chosen}
+                onChoose={setChosen}
+                title={t.title}
+                description={
+                  t.origin === 'vault'
+                    ? `Yours, from ${t.id}`
+                    : (t.description ?? '')
+                }
+              />
+            ))}
+          </fieldset>
           {create.error && (
             <p role="alert" className="text-sm text-error-ink">
               {create.error.message}
@@ -355,6 +450,45 @@ function NewPageDialog({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function TemplateChoice({
+  value,
+  chosen,
+  onChoose,
+  title,
+  description,
+}: {
+  value: string
+  chosen: string
+  onChoose: (value: string) => void
+  title: string
+  description: string
+}) {
+  const selected = value === chosen
+  return (
+    <label
+      className={cn(
+        'flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-hover has-focus-visible:outline-2 has-focus-visible:outline-focus',
+        selected && 'bg-raised',
+      )}
+    >
+      <input
+        type="radio"
+        name="template"
+        value={value}
+        checked={selected}
+        onChange={() => onChoose(value)}
+        className="mt-1 accent-redwood"
+      />
+      <span className="flex min-w-0 flex-col">
+        <span className="font-medium">{title}</span>
+        {description && (
+          <span className="text-xs text-ink-muted">{description}</span>
+        )}
+      </span>
+    </label>
   )
 }
 

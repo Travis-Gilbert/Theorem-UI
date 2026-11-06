@@ -46,7 +46,7 @@
       "status": "done",
       "evidence": [
         "index-panel.tsx",
-        "index-surface.tsx (SplitviewReact on desktop, overlay on phones)",
+        "index-surface.tsx ViewColumn and InspectorColumn; on the desktop Index mode is its page (src/lib/modules/templates.ts INDEX_TEMPLATE: an Index view following the panel, an inspector beside it that folds while nothing is open), PhoneIndex overlays the inspector on phones",
         "inspector.tsx (file, move, undo, used-with preferences, Ask Theorem)",
         "view-renderer.tsx RereadAfterFiling: a file, move or undo runs every Query in the open view again (OpenUI run steps), verified live"
       ]

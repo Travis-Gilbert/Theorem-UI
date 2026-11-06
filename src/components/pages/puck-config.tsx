@@ -2,6 +2,8 @@
 // defaultProps and slot fields, categories for the component list). One Puck
 // component per module in the catalog, two layout components whose slots
 // hold instances, and the placeholder for a module this app does not have.
+// The root's settings say whether the page fills the window and whether its
+// instances sit in cards or flush (./layout-parts).
 import type {
   ComponentConfig,
   Config,
@@ -17,8 +19,20 @@ import { allModules, useModuleCatalog } from '@/lib/modules/registry'
 import type { ModuleDefinition } from '@/lib/modules/registry'
 import { cn } from '@/lib/utils'
 import { BindingsField, RoutesField } from './connection-fields'
-import { FillContext, MissingModule, ModuleInstance } from './module-instance'
+import {
+  FillContext,
+  PagePresentationContext,
+  Split,
+  isArranging,
+  rootClass,
+  usePagePresentation,
+} from './layout-parts'
+import type { PageMetadata, SplitProps } from './layout-parts'
+import { MissingModule, ModuleInstance } from './module-instance'
 import { ResourceField } from './resource-field'
+
+export { isArranging }
+export type { PageMetadata }
 
 export const SPLIT_TYPE = 'theorem.split'
 export const TABS_TYPE = 'theorem.tabs'
@@ -26,16 +40,6 @@ export const LAYOUT_TYPES: ReadonlySet<string> = new Set([
   SPLIT_TYPE,
   TABS_TYPE,
 ])
-
-/** What the page's components are told about where they render. */
-export interface PageMetadata {
-  /** The page is being arranged: nothing an instance sends leaves it. */
-  arranging?: boolean
-}
-
-export const isArranging = (puck: PuckContext | undefined) =>
-  !!puck &&
-  (puck.isEditing || (puck.metadata as PageMetadata).arranging === true)
 
 function settingField(setting: SettingSpec): Field {
   const label = setting.label
@@ -133,39 +137,6 @@ type SlotRender = (props?: { className?: string }) => ReactNode
 const FILL_SLOT =
   'flex size-full min-h-0 min-w-0 flex-col gap-3 [&>*]:min-h-0 [&>*]:flex-1'
 
-function Split({
-  direction,
-  ratio,
-  height,
-  first: First,
-  second: Second,
-}: {
-  direction: 'row' | 'column'
-  ratio: number
-  height: number
-  first: SlotRender
-  second: SlotRender
-}) {
-  const share = Math.min(90, Math.max(10, Number(ratio) || 50))
-  const tracks = `minmax(0, ${share}fr) minmax(0, ${100 - share}fr)`
-  return (
-    <FillContext.Provider value>
-      <div
-        className="grid gap-3"
-        style={{
-          height: Math.max(160, Number(height) || 560),
-          ...(direction === 'column'
-            ? { gridTemplateRows: tracks }
-            : { gridTemplateColumns: tracks }),
-        }}
-      >
-        <First className={FILL_SLOT} />
-        <Second className={FILL_SLOT} />
-      </div>
-    </FillContext.Provider>
-  )
-}
-
 const TAB_KEYS = ['A', 'B', 'C'] as const
 
 function Tabs(
@@ -176,7 +147,8 @@ function Tabs(
     label: String(props[`label${key}`] || `Tab ${index + 1}`),
     Slot: props[`tab${key}`] as SlotRender,
   }))
-  const height = Math.max(160, Number(props.height) || 560)
+  const { fill } = usePagePresentation()
+  const height = fill ? '100%' : Math.max(160, Number(props.height) || 560)
   // While arranging every tab shows, so each can take instances.
   if (isArranging(props.puck))
     return (
@@ -186,7 +158,7 @@ function Tabs(
             <section
               key={label}
               className="flex flex-col gap-1.5"
-              style={{ height }}
+              style={{ height: fill ? 400 : height }}
             >
               <h3 className="text-xs font-medium text-ink-muted">{label}</h3>
               <Slot className={FILL_SLOT} />
@@ -243,6 +215,24 @@ const layoutComponents: Record<string, ComponentConfig> = {
         ],
       },
       ratio: { type: 'number', label: 'First share (%)', min: 10, max: 90 },
+      fixed: {
+        type: 'select',
+        label: 'Keeps its size',
+        options: [
+          { label: 'Neither side', value: 'none' },
+          { label: 'The first side', value: 'first' },
+          { label: 'The second side', value: 'second' },
+        ],
+      },
+      size: { type: 'number', label: 'Its size (px)', min: 120 },
+      fold: {
+        type: 'radio',
+        label: 'Hide the second side while it has nothing to show',
+        options: [
+          { label: 'Yes', value: true },
+          { label: 'No', value: false },
+        ],
+      },
       height: { type: 'number', label: 'Height (px)', min: 160 },
       first: { type: 'slot' },
       second: { type: 'slot' },
@@ -250,13 +240,14 @@ const layoutComponents: Record<string, ComponentConfig> = {
     defaultProps: {
       direction: 'row',
       ratio: 50,
+      fixed: 'none',
+      size: 400,
+      fold: false,
       height: 560,
       first: [],
       second: [],
     },
-    render: (props) => (
-      <Split {...(props as unknown as Parameters<typeof Split>[0])} />
-    ),
+    render: (props) => <Split {...(props as unknown as SplitProps)} />,
   },
   [TABS_TYPE]: {
     label: 'Tabs',
@@ -284,6 +275,23 @@ const layoutComponents: Record<string, ComponentConfig> = {
   },
 }
 
+function PageRoot({
+  fill,
+  flush,
+  children,
+}: {
+  fill: boolean
+  flush: boolean
+  children?: ReactNode
+}) {
+  const presentation = useMemo(() => ({ fill, flush }), [fill, flush])
+  return (
+    <PagePresentationContext.Provider value={presentation}>
+      <div className={rootClass(presentation)}>{children}</div>
+    </PagePresentationContext.Provider>
+  )
+}
+
 const missingComponent: ComponentConfig = {
   label: 'Missing module',
   fields: {},
@@ -303,9 +311,36 @@ export function pageConfig(modules: ReadonlyArray<ModuleDefinition>): Config {
   const composite = of('Composite')
   return {
     root: {
-      fields: {},
-      render: ({ children }: { children?: ReactNode }) => (
-        <div className="flex min-h-full flex-col gap-3 p-3">{children}</div>
+      fields: {
+        fill: {
+          type: 'radio',
+          label: 'Fills the window',
+          options: [
+            { label: 'Yes', value: true },
+            { label: 'No', value: false },
+          ],
+        },
+        frames: {
+          type: 'radio',
+          label: 'Modules sit',
+          options: [
+            { label: 'In cards', value: 'cards' },
+            { label: 'Flush, as one surface', value: 'flush' },
+          ],
+        },
+      },
+      render: ({
+        children,
+        fill,
+        frames,
+      }: {
+        children?: ReactNode
+        fill?: unknown
+        frames?: unknown
+      }) => (
+        <PageRoot fill={fill === true} flush={frames === 'flush'}>
+          {children}
+        </PageRoot>
       ),
     },
     categories: {

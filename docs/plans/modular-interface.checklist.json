@@ -183,16 +183,26 @@
       "requirement": "The Pages mode opens, a page can be created, arranged, saved and reopened in a browser",
       "status": "done",
       "evidence": [
-        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs). Scripts drove: create a page, Arrange, drag Text and Value, bind, Save, Done, reopen from the Pages list; held revisions; a sandboxed module; Save as module; the conversation module",
-        "Found and fixed: bindings not delivering after React's effect replay; Save as module losing the arrangement; New module opening in the running viewer; empty component groups shown",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs). Scripts drove: create a page, Arrange, drag Text and Value, bind, Save, Done, reopen from the Pages list; held revisions; a sandboxed module; Save as module; the conversation module; templates and modes as pages",
+        "Found and fixed: bindings not delivering after React's effect replay; Save as module losing the arrangement; New module opening in the running viewer; empty component groups shown; the first save of a mode's page ending Arrange (the mode went back to loading while it read the new file); a mode's file removed and written again showing what was read of the old one",
         "Not exercised: Index view, Index inspector and Records table against real data"
       ]
     },
     {
       "id": "templates",
-      "requirement": "Shipped Index and coding layouts become templates",
-      "status": "not-started",
-      "evidence": ["Deferred by the design: 'later'"]
+      "requirement": "Shipped Index and coding layouts become templates; Index and IDE modes render from their page (owner: 'Start the template', 'Modes become pages too')",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/templates.ts: INDEX_TEMPLATE and CODING_TEMPLATE, rebuilt from modules; vault templates are Templates/<name>.page.json; MODE_PAGES maps index and ide to Modes/<mode>.page.json",
+        "builtins.tsx: Index view as the whole Index column ('Moves with' its own place or the Index panel), Index inspector events, IDE (Theia, Add to chat as the 'added' event), Agent terminal ('attach'); Theia and the conversation show in one place",
+        "layout-parts.tsx: page root fills the window with flush modules; Split with a fixed side and fold-when-empty",
+        "store.ts: useVaultTemplates, useCreatePage from a template, useSaveTemplate (a free name, expectedHash null), useModePage, useResetModePage; pages-panel.tsx Modes list and New page 'Start from'; save-as-template.tsx",
+        "mode-page.tsx: Index mode (desktop) and IDE mode render the mode's page with a held arrangement; the template while the vault is not open or the file does not parse, saying why",
+        "Tests: templates.test.ts; page.test.tsx (templates' connections valid, Split folds while only an empty inspector is in it); store.test.tsx (template then file then problem, create-only save, vault templates, a mode's page through its first save and a file coming and going); navigation.test.tsx",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Modes list, arrange and save Index mode, /index rendering the saved page with the inspector folded, Reset to the default, /ide rendering the Coding page, New page from Index and from Coding, Save as template offered by New page",
+        "Not exercised: Index modules against real data (the stub's Index has no items); Theia and the terminal (absent from the stub), so Add to chat reaching the terminal rests on source only",
+        "Limits: IDE mode's terminal width is the Split's saved size, not the right drawer's; Reset removes the file without a revision check"
+      ]
     },
     {
       "id": "platinum",

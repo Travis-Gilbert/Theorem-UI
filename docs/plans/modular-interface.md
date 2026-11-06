@@ -8,11 +8,12 @@ in the vault, or a combination of others saved as one. The checklist is
 This is a first release. The owner's design (pasted with the request on
 2026-11-05) is the requirement, together with these decisions:
 
-| Decision                                                                      | Owner's words                                 |
-| ----------------------------------------------------------------------------- | --------------------------------------------- |
-| Pages and modules are files in the Theorem vault, through the SDK's Files API | "It should like use the files api in the SDK" |
-| Puck builds pages; the chat dock and the Vault stay on Dockview               | "Puck for pages, keep Dockview (Recommended)" |
-| PRs #32 and #33 merged into this branch first                                 | "Merge #32 and #33 now"                       |
+| Decision                                                                      | Owner's words                                  |
+| ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| Pages and modules are files in the Theorem vault, through the SDK's Files API | "It should like use the files api in the SDK"  |
+| Puck builds pages; the chat dock and the Vault stay on Dockview               | "Puck for pages, keep Dockview (Recommended)"  |
+| PRs #32 and #33 merged into this branch first                                 | "Merge #32 and #33 now"                        |
+| Templates next, and Index and IDE modes become pages built from them          | "Start the template"; "Modes become pages too" |
 
 ## The concepts, kept apart
 
@@ -29,6 +30,10 @@ This is a first release. The owner's design (pasted with the request on
   `/pages/$pageId`, keyed by the vault entry id so a rename keeps the link. There
   is one **Pages** mode on the rail. Pages are not ShellMode branches, and they
   are not routes of their own.
+- **Template**: a page layout to start from. Two are built in; others are
+  page files in the vault's `Templates` folder (`src/lib/modules/templates.ts`).
+- **Mode's page**: Index mode and IDE mode render from a page,
+  `Modes/<mode>.page.json`, or from their template while there is none.
 - **Resource binding**: a setting of kind `resource` names what an instance
   shows: an Index view, an object type, a vault file, a conversation or an App.
 - **Connections**: declared in the page, per instance. There is no global bus.
@@ -151,19 +156,85 @@ These wrap surfaces that already exist, rather than rebuilding them
 (`src/components/pages/builtins.tsx`):
 
 - Index view, Index inspector, Records table, Conversation;
+- IDE (Theia) and Agent terminal;
 - Vault file, App, Text, Value.
 
-The layout components are Split and Tabs.
+What the templates need from them:
+
+- **Index view** is the whole Index column: the view, its search and its
+  collections. Its "Moves with" setting keeps a place of its own, or follows
+  the Index panel beside the rail while in Index mode (the `/index` URL). Its
+  `selected` output is the item open in it. Its actions `select`, `deselect`
+  and `openFields` open an item, close it, and open a type's fields.
+- **Index inspector** sends `opened` (a linked item), `closed` and
+  `editFields` (a type's id).
+- **IDE** sends `added` with the reference when Theia's Add to chat is used.
+  Its "Its chat" setting keeps Theia's own chat, or leaves the reference to
+  whatever the page routes `added` to.
+- **Agent terminal** takes `attach`: the reference goes to the active tab's
+  next turn.
+- **One place at a time.** Theia and the conversation each show in one place.
+  Any other instance says "… shows in another place." with **Show it here**.
+
+The layout components are Split and Tabs. Two layout settings make a page
+able to stand in for a mode:
+
+- The page root can **fill the window** and set modules **flush, as one
+  surface**, rather than as cards.
+- A **Split** can keep one side at a fixed width. It can also **fold** its
+  second side while nothing in it has anything to show (an inspector with
+  nothing open). Folded, the side and its sash are hidden but stay mounted.
+
+## Templates
+
+- **Built in.** Index: an Index view that follows the panel, with an
+  inspector beside it that folds while nothing is open. Its routes send
+  closing, opening a linked item and Edit fields back to the view. Coding:
+  Theia with the agent terminal beside it, and Theia's Add to chat routed to
+  the terminal's next turn.
+- **In the vault.** Any `Templates/<name>.page.json` that parses as a page is
+  offered. **Save as template** writes the page as it is on screen there,
+  under a free name, never over another file.
+- **New page** offers Blank, the built-in templates and the vault's. A page
+  made from one is a copy: changing it leaves the template as it was.
+
+## Modes as pages
+
+- Index mode and IDE mode render from `Modes/<mode>.page.json`, else from
+  their template (Index and Coding). Chat and Vault mode are not pages.
+- The Pages panel lists them under **Modes**, tagged **Arranged** when the
+  file exists and **Built in** when it does not. Opening one arranges it
+  like any page.
+- **The first save creates the file only if there is none**
+  (`expectedHash: null`). A file written since is a conflict, as for any page.
+- **Reset to the default** removes the file, and the mode shows its template
+  again.
+- **A file that does not parse.** The mode shows its template and says why.
+  A save replaces that revision of the file, and only that one.
+- **Held arrangement.** The mode holds the arrangement it showed. One saved
+  from this window shows at once. One saved elsewhere waits behind **Show it**.
+- **The vault is not open.** The mode shows its template and says so.
+- **Phones.** Below the desktop width, Index mode keeps the Index's own
+  overlay inspector rather than its page.
 
 ## Not in this release
 
-- **Templates.** Making the shipped Index and coding layouts into page
-  templates is the next step the design names. It is not done here.
+- **Other modes as pages.** Chat and Vault mode stay as they are.
 - **Platinum.** It is out of scope. Platinum would share these contracts,
   which carry nothing web-specific in the files.
 - **Sharing a page.** A shared page needs grants that follow a person, not a
   browser. Grants are per browser today.
 - **A module gallery or marketplace.** "Install" means files in the vault.
+
+Known limits of what is here:
+
+- **Terminal width.** In IDE mode, the terminal's width is the Coding Split's
+  saved size. It no longer follows the right drawer's width, and its minimum
+  is the Split's 120 px rather than the old workbench's 380 px.
+- **Reset is not revision-checked.** It removes the mode's file whatever
+  revision is there.
+- **Theia in two places.** With an IDE in a page and IDE mode both open, one
+  of them shows Theia and the other offers Show it here.
 
 ## Verification
 
@@ -172,10 +243,13 @@ See the checklist for what each item rests on. In short:
 - **Unit and component tests.** `bun test` runs:
   - `src/lib/modules/modules.test.ts`;
   - `src/lib/modules/sandbox.test.ts`;
-  - `src/lib/modules/store.test.tsx`, over the module catalog against a fake
-    vault;
+  - `src/lib/modules/store.test.tsx`, over the module catalog, templates and
+    modes' pages against a fake vault;
+  - `src/lib/modules/templates.test.ts`;
+  - `src/components/index/navigation.test.tsx`, the Index view's own place;
   - `src/components/pages/page.test.tsx`, which renders through Puck's
-    `Render` with the page runtime;
+    `Render` with the page runtime, including a Split folding and the
+    built-in templates' connections;
   - the hosted-app network policy test.
 - **Browser.** Checked on 2026-11-06 with Playwright (Chromium) against the dev
   server and a stub Theorem (see
@@ -201,6 +275,14 @@ See the checklist for what each item rests on. In short:
     Chat mode and back, arranging and finishing. A full reload clears it,
     since the draft lives in the session. The stub cannot answer a message, so
     nothing was sent.
+  - **Templates and modes.** The Pages panel listed Index mode and IDE mode
+    as Built in. Index mode opened in Pages with its template. Arrange, a
+    change and Save wrote `Modes/index.page.json`, the row became Arranged,
+    and `/index` rendered the saved page with the inspector folded. Reset to
+    the default removed the file and the row went back to Built in. IDE mode
+    rendered the Coding page at `/ide`. New page from Index and from Coding
+    made pages with their Splits. Save as template wrote
+    `Templates/<name>.page.json`, and New page offered it.
 - **What the browser check found and fixed.**
   - Bindings made during a session never delivered. React's effect replay had
     disposed the page's runtime, which stayed in use. Fixed with the
@@ -211,7 +293,20 @@ See the checklist for what each item rests on. In short:
   - New module opened its page in the viewer that runs it, which is blank
     outside the desktop app. It now opens in the code editor.
   - Empty component groups ("Installed", "Made from modules") are hidden.
-- **Not exercised.** The Index view, Index inspector and Records table
-  modules against real data; sending from the conversation module; that a
-  selection never attaches itself to the composer (source and unit tests
-  only).
+  - The first save of a mode's page ended Arrange. The mode read the new
+    file again and showed its loading state meanwhile, which replaced the
+    editor. Two changes fixed it:
+    - a save now gives the mode what it wrote;
+    - a mode keeps what it showed while a file that has just appeared is read.
+  - Found by the test for that fix: a mode's file removed and written again
+    showed what was read of the old one. A new file at a watched path is
+    now read again, and Reset drops what was read. `store.test.tsx` covers
+    both.
+- **Not exercised.** These rest on source and unit tests only:
+  - the Index view, Index inspector and Records table modules against real
+    data (the stub's Index has no items, so the inspector never unfolded);
+  - Theia and the agent terminal, and the Coding template's Add to chat
+    reaching the terminal (the stub has neither: Theia answers 503 and the
+    terminal is not built);
+  - sending from the conversation module;
+  - that a selection never attaches itself to the composer.

@@ -2,7 +2,13 @@
 // its own frame and the rest of the page keeps working), the page runtime
 // (./page-runtime) for values and events. A composite renders its saved
 // content through the same Puck Render the page uses, in a scope of its own.
-import { Component, createContext, useContext, useEffect } from 'react'
+import {
+  Component,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+} from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import type { ComponentData, InstanceProps } from '@/lib/modules/contract'
 import { instanceTypes } from '@/lib/modules/connections'
@@ -10,6 +16,13 @@ import { COMPOSITE_INPUT } from '@/lib/modules/layout'
 import type { ModuleDefinition, ModuleViewProps } from '@/lib/modules/registry'
 import { scoped } from '@/lib/modules/runtime'
 import { cn } from '@/lib/utils'
+import {
+  EmptyReportContext,
+  FillContext,
+  SideContext,
+  usePagePresentation,
+  usePresentInSide,
+} from './layout-parts'
 import {
   InstanceProvider,
   ScopeProvider,
@@ -20,9 +33,6 @@ import {
   useScope,
 } from './page-runtime'
 import { SandboxedModule } from './sandboxed-module'
-
-/** Whether the instance sits in a split or a tab, where it fills its share. */
-export const FillContext = createContext(false)
 
 /** Renders saved content (a composite's) with the page's own components. */
 export const ContentRendererContext = createContext<
@@ -55,36 +65,46 @@ class ModuleBoundary extends Component<
   }
 }
 
-/** The chrome every instance shares: its title, a notice line, its body. */
+/**
+ * The chrome every instance shares: its title, a notice line, its body. On a
+ * flush page an instance in use has no card and no title bar, unless it has
+ * actions to offer; while arranging every instance shows its title.
+ */
 export function ModuleFrame({
   title,
   notice,
   height,
   children,
   actions,
+  arranging = false,
 }: {
   title: string
   notice?: string
   height?: number
   children: ReactNode
   actions?: ReactNode
+  arranging?: boolean
 }) {
   const fill = useContext(FillContext)
+  const flush = usePagePresentation().flush && !arranging
   return (
     <section
       aria-label={title}
       className={cn(
-        'flex min-h-0 flex-col overflow-hidden rounded-xl border border-separator bg-artifact',
+        'flex min-h-0 flex-col overflow-hidden',
+        !flush && 'rounded-xl border border-separator bg-artifact',
         fill && 'h-full',
       )}
       style={!fill && height ? { height } : undefined}
     >
-      <header className="flex h-8 shrink-0 items-center gap-2 border-b border-separator px-3 text-xs text-ink-muted">
-        <span className="min-w-0 flex-1 truncate font-medium text-ink">
-          {title}
-        </span>
-        {actions}
-      </header>
+      {(!flush || actions) && (
+        <header className="flex h-8 shrink-0 items-center gap-2 border-b border-separator px-3 text-xs text-ink-muted">
+          <span className="min-w-0 flex-1 truncate font-medium text-ink">
+            {title}
+          </span>
+          {actions}
+        </header>
+      )}
       {notice && (
         <p
           role="status"
@@ -133,23 +153,36 @@ function PlacedModule({
   const notice = useInstanceNotices((s) => s.notices[view.path])
   const title = props.title || definition.label
   const { implementation } = definition
+  // In a side of a split, it counts towards whether the side shows; what its
+  // module says about having nothing to show is its own report.
+  const side = usePresentInSide(view.path)
+  const report = useCallback(
+    (empty: boolean) => side?.empty(view.path, empty),
+    [side, view.path],
+  )
   return (
     <InstanceProvider path={view.path}>
       <ModuleFrame
         title={title}
         notice={notice}
+        arranging={arranging}
         height={definition.category === 'Composite' ? undefined : 420}
       >
         <ModuleBoundary label={title}>
-          {implementation.kind === 'builtin' && (
-            <implementation.Component {...view} />
-          )}
-          {implementation.kind === 'sandboxed-html' && (
-            <SandboxedModule definition={definition} view={view} />
-          )}
-          {implementation.kind === 'composite' && (
-            <CompositeModule definition={definition} view={view} />
-          )}
+          {/* A composite's parts belong to it, not to the side around it. */}
+          <SideContext.Provider value={null}>
+            <EmptyReportContext.Provider value={report}>
+              {implementation.kind === 'builtin' && (
+                <implementation.Component {...view} />
+              )}
+              {implementation.kind === 'sandboxed-html' && (
+                <SandboxedModule definition={definition} view={view} />
+              )}
+              {implementation.kind === 'composite' && (
+                <CompositeModule definition={definition} view={view} />
+              )}
+            </EmptyReportContext.Provider>
+          </SideContext.Provider>
         </ModuleBoundary>
       </ModuleFrame>
     </InstanceProvider>

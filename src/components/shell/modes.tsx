@@ -1,10 +1,15 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface, Pages (Puck over the vault's page files)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), Index mode (its page, pages/mode-page.tsx), Pages (Puck over the vault's page files; a mode's page opens there to be arranged)
 import { Canvas } from '@/components/canvas/canvas'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
-import { IndexSurface } from '@/components/index/index-surface'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
-import { PageStatus, PageView } from '@/components/pages/page-view'
+import { IndexMode } from '@/components/pages/mode-page'
+import {
+  ModePageView,
+  PageStatus,
+  PageView,
+} from '@/components/pages/page-view'
+import { isPageMode } from '@/lib/modules/templates'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { VaultPhone } from '@/components/vault/vault-phone'
 import { useCallback } from 'react'
@@ -93,16 +98,28 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'vault' && !docked && <VaultPhone />}
-      {mode === 'index' && <IndexSurface />}
+      {mode === 'index' && <IndexMode />}
       {mode === 'pages' && <PagesView />}
       {mode === 'spaces' && <Canvas />}
     </>
   )
 }
 
+/** A mode's page in the Pages route: `mode:index`. */
+const MODE_PREFIX = 'mode:'
+
 /** The open page, or a word on how to open one. */
 function PagesView() {
   const { pageId } = useParams({ strict: false })
+  const mode = pageId?.startsWith(MODE_PREFIX)
+    ? pageId.slice(MODE_PREFIX.length)
+    : undefined
+  if (mode !== undefined)
+    return isPageMode(mode) ? (
+      <ModePageView key={mode} mode={mode} />
+    ) : (
+      <PageStatus title="There is no such mode" />
+    )
   return pageId ? (
     <PageView key={pageId} entryId={pageId} />
   ) : (

@@ -1,9 +1,10 @@
 // SOURCING: @puckeditor/core 0.24: Render shows a page in use, and Puck with
 // its parts (Components, Outline, Preview, Fields) arranges it, the canvas
 // in this document rather than an iframe so instances share the page's
-// runtime. Pages are files in the vault (store.ts), saved with If-Match.
-// DESIGN.md's state grammar: unsaved, saved, conflict, failed and newer
-// elsewhere each say so, with the way out beside them.
+// runtime. Pages are files in the vault (store.ts), saved with If-Match, or
+// create-only for a mode's page that is still its template. DESIGN.md's state
+// grammar: unsaved, saved, conflict, failed and newer elsewhere each say so,
+// with the way out beside them.
 import { Puck, Render } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
@@ -22,11 +23,18 @@ import { prepareLayout, restoreLayout } from '@/lib/modules/layout'
 import { moduleById, useModuleCatalog } from '@/lib/modules/registry'
 import {
   useInstalledModules,
+  useModePage,
   usePage,
+  useResetModePage,
   useSavePage,
   useVaultClient,
 } from '@/lib/modules/store'
-import type { LoadedPage } from '@/lib/modules/store'
+import {
+  MODE_PAGES,
+  modePagePath,
+  modeTemplatePage,
+} from '@/lib/modules/templates'
+import type { PageMode } from '@/lib/modules/templates'
 import { WorkspaceConflictError } from '@/lib/workspace/types'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import { cn } from '@/lib/utils'
@@ -37,6 +45,7 @@ import { PageRuntimeProvider, PageScopeProvider } from './page-runtime'
 import { LAYOUT_TYPES, usePageConfig } from './puck-config'
 import type { PageMetadata } from './puck-config'
 import { SaveAsModule } from './save-as-module'
+import { SaveAsTemplate } from './save-as-template'
 
 export function PageStatus({
   title,
@@ -68,7 +77,7 @@ export function PageView({ entryId }: { entryId: string }) {
   return <VaultPage client={client} entryId={entryId} />
 }
 
-function PageSkeleton() {
+export function PageSkeleton() {
   return (
     <div className="flex flex-col gap-3 p-6">
       <Skeleton className="h-7 w-48" />
@@ -104,8 +113,91 @@ function VaultPage({
   return (
     // One runtime per page: another page, or this one again, starts fresh.
     <PageRuntimeProvider key={entryId}>
-      <PageEditor client={client} loaded={loaded.data} reload={loaded.reload} />
+      <PageEditor
+        client={client}
+        loaded={loaded.data}
+        reload={loaded.reload}
+        kind={{ kind: 'page' }}
+      />
     </PageRuntimeProvider>
+  )
+}
+
+/**
+ * A mode's page, here to be arranged: the vault's Modes file, or the
+ * template until one is saved. Reset to the default removes the file.
+ */
+export function ModePageView({ mode }: { mode: PageMode }) {
+  const { client, isPending } = useVaultClient()
+  if (!client)
+    return isPending ? (
+      <PageSkeleton />
+    ) : (
+      <PageStatus
+        title="The vault is not open"
+        detail="A mode's arrangement is a file in the Theorem vault. Until the vault opens, the mode shows its built-in arrangement."
+      />
+    )
+  return <VaultModePage client={client} mode={mode} />
+}
+
+function VaultModePage({
+  client,
+  mode,
+}: {
+  client: WorkspaceClient
+  mode: PageMode
+}) {
+  const modules = useInstalledModules(client)
+  const loaded = useModePage(client, mode)
+  if (loaded.error)
+    return (
+      <PageStatus
+        title={`${MODE_PAGES[mode].title} did not open`}
+        detail={loaded.error.message}
+      />
+    )
+  if (!loaded.data || modules.isPending) return <PageSkeleton />
+  const { template, problem } = loaded.data
+  return (
+    <PageRuntimeProvider key={mode}>
+      <PageEditor
+        client={client}
+        loaded={loaded.data}
+        reload={loaded.reload}
+        kind={{ kind: 'mode', mode, template, problem }}
+      />
+    </PageRuntimeProvider>
+  )
+}
+
+/** What the editor shows and saves over: a page file, or none yet. */
+interface EditorSource {
+  path: string
+  page: PageDocument
+  /** The file's hash; null when there is no file yet. */
+  hash: string | null
+}
+
+type EditorKind =
+  | { kind: 'page' }
+  | { kind: 'mode'; mode: PageMode; template: boolean; problem?: string }
+
+/** Renders saved content (a composite's) with the page's components. */
+export function useContentRenderer(
+  config: ReturnType<typeof usePageConfig>,
+  metadata: PageMetadata,
+) {
+  const { arranging, page } = metadata
+  return useMemo(
+    () => (content: ComponentData[]) => (
+      <Render
+        config={config}
+        data={{ root: { props: {} }, content } as Partial<Data>}
+        metadata={{ arranging, page } satisfies PageMetadata}
+      />
+    ),
+    [config, arranging, page],
   )
 }
 
@@ -130,19 +222,26 @@ function PageEditor({
   client,
   loaded,
   reload,
+  kind,
 }: {
   client: WorkspaceClient
-  loaded: LoadedPage
-  reload: () => Promise<{ data?: LoadedPage }>
+  loaded: EditorSource
+  reload: () => Promise<{ data?: EditorSource }>
+  kind: EditorKind
 }) {
   // The revision on screen: the one opened, or the one this view saved.
-  const [held, setHeld] = useState({ hash: loaded.hash, page: loaded.page })
+  const [held, setHeld] = useState<{
+    hash: string | null
+    page: PageDocument
+  }>({ hash: loaded.hash, page: loaded.page })
   const [draft, setDraft] = useState<PageDocument | null>(null)
   const [arranging, setArranging] = useState(false)
   // A new arrangement session each time Arrange opens, or the page is replaced.
   const [session, setSession] = useState(0)
   const [conflict, setConflict] = useState<Conflict | null>(null)
   const save = useSavePage(client)
+  const reset = useResetModePage(client)
+  const [resetting, setResetting] = useState(false)
   const catalog = useModuleCatalog()
   const config = usePageConfig()
 
@@ -186,7 +285,7 @@ function PageEditor({
       },
     )
 
-  const replaceWith = (next: { hash: string; page: PageDocument }) => {
+  const replaceWith = (next: { hash: string | null; page: PageDocument }) => {
     setHeld(next)
     setDraft(null)
     setConflict(null)
@@ -200,21 +299,31 @@ function PageEditor({
     if (data) replaceWith(data)
   }
 
-  const renderContent = useMemo(
-    () => (content: ComponentData[]) => (
-      <Render
-        config={config}
-        data={{ root: { props: {} }, content } as Partial<Data>}
-        metadata={{ arranging } satisfies PageMetadata}
-      />
-    ),
-    [config, arranging],
-  )
+  const renderContent = useContentRenderer(config, {
+    arranging,
+    page: loaded.path,
+  })
 
+  const mode = kind.kind === 'mode' ? kind : undefined
   const header = (extra?: ReactNode) => (
     <PageHeader
       page={shown}
+      mode={mode}
       arranging={arranging}
+      resetting={resetting}
+      onReset={() => setResetting(true)}
+      onKeepArrangement={() => setResetting(false)}
+      onConfirmReset={() =>
+        mode &&
+        reset.mutate(mode.mode, {
+          onSuccess: () => {
+            setResetting(false)
+            setArranging(false)
+            replaceWith({ hash: null, page: modeTemplatePage(mode.mode) })
+          },
+        })
+      }
+      resetError={reset.error?.message}
       onTitle={(title) => setDraft({ ...shown, title })}
       onArrange={() => {
         setStart(prepared)
@@ -227,7 +336,12 @@ function PageEditor({
         if (draft) setDraft({ ...draft, pinned })
         commit({ ...held.page, pinned }, held.hash, { keepDraft: true })
       }}
-      extra={extra}
+      extra={
+        <>
+          {extra}
+          <SaveAsTemplate client={client} page={shown} />
+        </>
+      }
       status={
         <SaveStatus
           dirty={dirty}
@@ -270,7 +384,9 @@ function PageEditor({
             config={config}
             data={start}
             iframe={{ enabled: false }}
-            metadata={{ arranging: true } satisfies PageMetadata}
+            metadata={
+              { arranging: true, page: loaded.path } satisfies PageMetadata
+            }
             onChange={(data) => {
               const layout = restoreLayout(data)
               setDraft((current) => ({ ...(current ?? held.page), layout }))
@@ -316,7 +432,9 @@ function PageEditor({
               <Render
                 config={config}
                 data={prepared}
-                metadata={{ arranging: false } satisfies PageMetadata}
+                metadata={
+                  { arranging: false, page: loaded.path } satisfies PageMetadata
+                }
               />
             </PageScopeProvider>
           ) : (
@@ -333,7 +451,13 @@ function PageEditor({
 
 function PageHeader({
   page,
+  mode,
   arranging,
+  resetting,
+  resetError,
+  onReset,
+  onKeepArrangement,
+  onConfirmReset,
   onTitle,
   onArrange,
   onDone,
@@ -342,7 +466,14 @@ function PageHeader({
   extra,
 }: {
   page: PageDocument
+  /** Set for a mode's page: its title is the mode's, and it has no pin. */
+  mode?: Extract<EditorKind, { kind: 'mode' }>
   arranging: boolean
+  resetting: boolean
+  resetError?: string
+  onReset: () => void
+  onKeepArrangement: () => void
+  onConfirmReset: () => void
   onTitle: (title: string) => void
   onArrange: () => void
   onDone: () => void
@@ -353,9 +484,14 @@ function PageHeader({
   return (
     <header className="flex shrink-0 flex-col gap-1 border-b border-separator px-4 py-2">
       <div className="flex items-center gap-2">
-        {arranging ? (
+        {mode ? (
+          <h1 className="min-w-0 flex-1 truncate font-heading text-[18px] font-medium">
+            {MODE_PAGES[mode.mode].title}
+          </h1>
+        ) : arranging ? (
           <input
             aria-label="Page title"
+            maxLength={120}
             className="min-w-0 flex-1 rounded-md bg-transparent px-1 font-heading text-[18px] font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             value={page.title}
             onChange={(event) => onTitle(event.target.value)}
@@ -366,16 +502,23 @@ function PageHeader({
           </h1>
         )}
         {extra}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-pressed={page.pinned}
-          aria-label={page.pinned ? 'Unpin' : 'Pin'}
-          title={page.pinned ? 'Unpin' : 'Pin to the top of Pages'}
-          onClick={onPin}
-        >
-          {page.pinned ? <PinOff /> : <Pin />}
-        </Button>
+        {mode && !mode.template && !resetting && (
+          <Button variant="ghost" size="xs" onClick={onReset}>
+            Reset to the default
+          </Button>
+        )}
+        {!mode && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-pressed={page.pinned}
+            aria-label={page.pinned ? 'Unpin' : 'Pin'}
+            title={page.pinned ? 'Unpin' : 'Pin to the top of Pages'}
+            onClick={onPin}
+          >
+            {page.pinned ? <PinOff /> : <Pin />}
+          </Button>
+        )}
         {arranging ? (
           <Button variant="outline" size="sm" onClick={onDone}>
             Done
@@ -386,6 +529,32 @@ function PageHeader({
           </Button>
         )}
       </div>
+      {mode && (
+        <p className="text-xs text-ink-muted">
+          {mode.problem
+            ? `${mode.problem}. The mode shows its built-in arrangement; saving replaces the file.`
+            : mode.template
+              ? `Built in. Arrange and save, and the mode shows your arrangement from ${modePagePath(mode.mode)}.`
+              : 'Your arrangement, from the vault. The mode shows it.'}
+        </p>
+      )}
+      {resetting && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 text-xs text-ink"
+        >
+          <span>
+            Remove your arrangement from the vault and show the built-in one?
+          </span>
+          <Button variant="ghost" size="xs" onClick={onConfirmReset}>
+            Reset
+          </Button>
+          <Button variant="ghost" size="xs" onClick={onKeepArrangement}>
+            Keep mine
+          </Button>
+          {resetError && <span className="text-error-ink">{resetError}</span>}
+        </div>
+      )}
       {status}
     </header>
   )

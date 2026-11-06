@@ -7,6 +7,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, expect, test } from 'bun:test'
 import { Activity, act } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
+import { validateConnections } from '@/lib/modules/connections'
 import type { ComponentData, LayoutData } from '@/lib/modules/contract'
 import {
   MISSING_TYPE,
@@ -14,6 +15,7 @@ import {
   restoreLayout,
 } from '@/lib/modules/layout'
 import { allModules, moduleById } from '@/lib/modules/registry'
+import { BUILTIN_TEMPLATES } from '@/lib/modules/templates'
 import './builtins'
 import { PageRuntimeProvider, PageScopeProvider } from './page-runtime'
 import { LAYOUT_TYPES, SPLIT_TYPE, pageConfig } from './puck-config'
@@ -130,4 +132,60 @@ test('a module this app does not have is held in place and comes back unchanged'
   )
   expect(container.textContent).toContain('Reading list')
   expect(container.textContent).toContain('vault.gone')
+})
+
+test("the built-in templates' connections are all valid for the built-in modules", () => {
+  for (const template of BUILTIN_TEMPLATES)
+    expect(
+      validateConnections(template.layout, (type) => moduleById(type)),
+    ).toEqual([])
+})
+
+const foldingSplit = (second: ComponentData[]): LayoutData => ({
+  root: { props: {} },
+  content: [
+    instance(SPLIT_TYPE, 'split', {
+      direction: 'row',
+      ratio: 50,
+      fixed: 'second',
+      size: 300,
+      fold: true,
+      height: 300,
+      first: [instance('theorem.text', 'note', { text: 'kept' })],
+      second,
+    }),
+  ],
+})
+
+const sides = (container: HTMLElement) => {
+  const split = container.querySelector<HTMLElement>('[data-split="split"]')!
+  const [, sash, second] = [...split.children] as HTMLElement[]
+  return { sash: sash!, second: second! }
+}
+
+test('a split set to fold hides its second side while nothing in it has anything to show', async () => {
+  const { container } = await renderPage(
+    foldingSplit([instance('theorem.index.inspector', 'inspector')]),
+  )
+  await waitFor(() => container.textContent.includes('Nothing to show yet'))
+  const { sash, second } = sides(container)
+  expect(second.hidden).toBe(true)
+  expect(sash.hidden).toBe(true)
+  // Folded, not gone: the inspector stays placed, ready for an item.
+  expect(second.textContent).toContain('Nothing to show yet')
+})
+
+test('a folding split shows its second side while anything in it has something to show', async () => {
+  const { container } = await renderPage(
+    foldingSplit([
+      instance('theorem.index.inspector', 'inspector'),
+      instance('theorem.value', 'shown', {
+        bind: { value: { from: 'note', port: 'text' } },
+      }),
+    ]),
+  )
+  await waitFor(() => shownValues(container).includes('"kept"'))
+  const { sash, second } = sides(container)
+  expect(second.hidden).toBe(false)
+  expect(sash.hidden).toBe(false)
 })
