@@ -1,4 +1,4 @@
-// SOURCING: zustand (the references the next turn carries, shared by the parts that add them and the composer that shows them, as composer-tools shares its toggles), @theoremharness/sdk resourceKey for the keys of its own resource kinds
+// SOURCING: zustand (the references the next turn carries, shared by the parts that add them and the composer that shows them), @theoremharness/sdk resourceKey for the keys of its own resource kinds
 //
 // "Ask about this" on a delegation or a change puts a context reference in
 // the composer instead of pasting text: the front role reads the referenced

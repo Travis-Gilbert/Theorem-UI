@@ -27,8 +27,8 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // settings marks (a star for a picked model, a key, a plugin, a model chip),
 // or the data-table controls (sort arrows and the sort list, a filter, column
 // options, hide and pin, a drag grip, one- and two-step chevrons for pages
-// and selects, a calendar), the Life controls (play, pause, one step,
-// shuffle), or a mark for the composer's tools; Lucide's stand in the same way.
+// and selects, a calendar), or the Life controls (play, pause, one step,
+// shuffle); Lucide's stand in the same way.
 import {
   ArrowDown,
   ArrowDownUp as SortList,
@@ -56,7 +56,6 @@ import {
   Settings2 as Columns,
   Shuffle,
   SkipForward as StepForward,
-  SlidersHorizontal as Tools,
   SquareTerminal as Terminal,
   Star,
   Trash2 as Delete,
@@ -310,7 +309,6 @@ export const Icon = {
   Stop,
   Sun,
   Terminal,
-  Tools,
   Unpin,
   UpDown,
   Web,
