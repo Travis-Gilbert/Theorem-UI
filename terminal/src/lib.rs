@@ -54,17 +54,42 @@ const SAGE: Color = Color::Rgb(0x8a, 0xa8, 0xa0);
 const GOLD: Color = Color::Rgb(0xd6, 0xbc, 0x8a);
 const ERROR: Color = Color::Rgb(0xe0, 0x8a, 0x8f);
 
-// Code: pi's dark theme gives each syntax role an okhsl colour at 67%
-// lightness; these are those colours in sRGB, set on the slate.
-const KEYWORD: Color = Color::Rgb(0x69, 0xad, 0xd0);
-const FUNCTION: Color = Color::Rgb(0xcd, 0x9a, 0x22);
-const VARIABLE: Color = Color::Rgb(0x5d, 0xb3, 0xba);
-const STRING: Color = Color::Rgb(0xde, 0x8d, 0x5a);
-const NUMBER: Color = Color::Rgb(0x68, 0xb7, 0x8d);
-const TYPE: Color = Color::Rgb(0xa7, 0x98, 0xd7);
-const REMOVED: Color = Color::Rgb(0xea, 0x7f, 0x81);
-/// pi's muted, for comments, operators and a diff's context markers.
-const QUIET: Color = Color::Rgb(0x9d, 0xa5, 0xa9);
+// Code: Stone dark's code theme, GitHub Dark, which Monaco and the chat's
+// Shiki also use. These are TanStack Highlight's github-dark token colours
+// (@tanstack/highlight/themes/github-dark, 1.2.11), one per class it emits.
+const RED: Color = Color::Rgb(0xff, 0x7b, 0x72);
+const PURPLE: Color = Color::Rgb(0xd2, 0xa8, 0xff);
+const BLUE: Color = Color::Rgb(0x79, 0xc0, 0xff);
+const LIGHT_BLUE: Color = Color::Rgb(0xa5, 0xd6, 0xff);
+const ORANGE: Color = Color::Rgb(0xff, 0xa6, 0x57);
+const GREEN: Color = Color::Rgb(0x7e, 0xe7, 0x87);
+const GREY: Color = Color::Rgb(0x8b, 0x94, 0x9e);
+const LINK_BLUE: Color = Color::Rgb(0x58, 0xa6, 0xff);
+
+// A diff's rows: Stone dark's Monaco diff colours (GitHub Dark Default's
+// diffEditor.removed/inserted Line and Text backgrounds), translucent there,
+// laid over the slate here. A changed word's colour lies over its line's.
+const REMOVED_LINE: Color = over(BG, 0xda3633, 0x26);
+const ADDED_LINE: Color = over(BG, 0x238636, 0x26);
+const REMOVED_WORDS: Color = over(REMOVED_LINE, 0xff7b72, 0x4d);
+const ADDED_WORDS: Color = over(ADDED_LINE, 0x3fb950, 0x4d);
+/// Edit diffs show this many lines under their row until ctrl+o.
+const DIFF_FOLD: usize = 12;
+
+/// `top` at `alpha` (of 255) over `under`, as a translucent colour paints.
+const fn over(under: Color, top: u32, alpha: u16) -> Color {
+    const fn mix(below: u8, above: u32, alpha: u16) -> u8 {
+        ((below as u16 * (255 - alpha) + (above & 0xff) as u16 * alpha + 127) / 255) as u8
+    }
+    match under {
+        Color::Rgb(r, g, b) => Color::Rgb(
+            mix(r, top >> 16, alpha),
+            mix(g, top >> 8, alpha),
+            mix(b, top, alpha),
+        ),
+        other => other,
+    }
+}
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PROMPT: &str = "❯ ";
@@ -194,18 +219,34 @@ enum Part {
     Code {
         #[serde(default)]
         lang: String,
+        #[serde(default)]
         lines: Vec<Vec<Token>>,
+        /// A fenced diff, drawn in place of `lines`.
+        #[serde(default)]
+        diff: Vec<DiffLine>,
     },
     #[serde(other)]
     Other,
 }
 
 /// A tool's result, highlighted, its first lines and a count of the rest.
+/// An edit's result is a diff, drawn in place of `lines`.
 #[derive(Deserialize)]
 struct Output {
+    #[serde(default)]
     lines: Vec<Vec<Token>>,
     #[serde(default)]
+    diff: Vec<DiffLine>,
+    #[serde(default)]
     more: usize,
+}
+
+/// A diff's line: `file`, `hunk`, or a code line kept (`ctx`), removed
+/// (`del`) or added (`add`), its code without the marker.
+#[derive(Deserialize)]
+struct DiffLine {
+    k: String,
+    t: Vec<Token>,
 }
 
 /// A file and the lines a tool touched in it, one-based, both ends included.
@@ -219,11 +260,14 @@ struct Open {
 }
 
 /// A run of code text and its highlight class (TanStack Highlight's names).
+/// In a diff, `e` marks words the line changed.
 #[derive(Deserialize)]
 struct Token {
     t: String,
     #[serde(default)]
     c: Option<String>,
+    #[serde(default)]
+    e: bool,
 }
 
 /// What the person asked for, handed back to React as JSON. Each names the
@@ -319,21 +363,19 @@ fn separate(lines: &mut Vec<Line<'static>>) {
     }
 }
 
-/// A highlight class in the slate: pi's syntax roles, and a diff's lines.
+/// A highlight class in GitHub Dark, as TanStack's github-dark theme colours it.
 fn token_style(class: Option<&str>) -> Style {
     let style = Style::new();
     match class {
-        Some("keyword" | "command") => style.fg(KEYWORD),
-        Some("function") => style.fg(FUNCTION),
-        Some("variable" | "property" | "attr") => style.fg(VARIABLE),
-        Some("string" | "code-inline" | "link") => style.fg(STRING),
-        Some("number" | "literal") => style.fg(NUMBER),
-        Some("type" | "tag" | "selector") => style.fg(TYPE),
-        Some("comment" | "operator") => style.fg(QUIET),
-        Some("heading") => style.fg(GOLD).bold(),
-        Some("inserted") => style.fg(NUMBER),
-        Some("deleted") => style.fg(REMOVED),
-        Some("meta") => style.fg(MUTED),
+        Some("keyword" | "deleted") => style.fg(RED),
+        Some("function" | "command" | "operator") => style.fg(PURPLE),
+        Some("number" | "literal" | "attr" | "property") => style.fg(BLUE),
+        Some("heading") => style.fg(BLUE).bold(),
+        Some("string") => style.fg(LIGHT_BLUE),
+        Some("type" | "variable" | "code-inline") => style.fg(ORANGE),
+        Some("tag" | "selector" | "inserted") => style.fg(GREEN),
+        Some("comment" | "meta") => style.fg(GREY),
+        Some("link") => style.fg(LINK_BLUE),
         _ => style.fg(INK),
     }
 }
@@ -349,26 +391,106 @@ fn token_line(tokens: &[Token]) -> Vec<Span<'static>> {
         .collect()
 }
 
-/// A tool's output under its row, aligned with the tool's name.
-fn output_lines(output: &Output) -> Vec<Line<'static>> {
+/// A tool's output under its row, aligned with the tool's name: its first
+/// `shown` lines, then a count of the rest. A line carries the background
+/// its row is painted across.
+fn output_lines(output: &Output, shown: usize) -> Vec<(Line<'static>, Option<Color>)> {
     let lead = format!("{INDENT}  ");
-    let mut lines: Vec<Line<'static>> = output
-        .lines
-        .iter()
-        .map(|tokens| {
+    let (mut lines, cut) = if output.diff.is_empty() {
+        let lines = output.lines.iter().take(shown).map(|tokens| {
             let mut spans = vec![Span::raw(lead.clone())];
             spans.extend(token_line(tokens));
-            Line::from(spans)
-        })
-        .collect();
-    if output.more > 0 {
-        let more = output.more;
-        lines.push(Line::styled(
-            format!("{lead}… {more} more line{}", if more == 1 { "" } else { "s" }),
-            Style::new().fg(MUTED),
+            (Line::from(spans), None)
+        });
+        (lines.collect::<Vec<_>>(), output.lines.len().saturating_sub(shown))
+    } else {
+        let cut = output.diff.len().saturating_sub(shown);
+        (diff_lines(&output.diff[..output.diff.len() - cut], &lead), cut)
+    };
+    let more = output.more + cut;
+    if more > 0 {
+        lines.push((
+            Line::styled(
+                format!("{lead}… {more} more line{}", if more == 1 { "" } else { "s" }),
+                Style::new().fg(MUTED),
+            ),
+            None,
         ));
     }
     lines
+}
+
+/// Columns a line's indent spans, a tab counting four.
+fn indent_of(text: &str) -> usize {
+    text.chars().take_while(|c| *c == ' ').count()
+}
+
+/// A diff the way Delta draws one: each code line in its language's
+/// colours behind a `-`, `+` or blank marker, with an indent guide at each
+/// level, its row tinted removed or added and the words it changed
+/// brighter. Hunk headers and file names stay quiet.
+fn diff_lines(diff: &[DiffLine], lead: &str) -> Vec<(Line<'static>, Option<Color>)> {
+    let code = |line: &DiffLine| {
+        line.t.iter().map(|token| token.t.replace('\t', "    ")).collect::<String>()
+    };
+    // Indent guides step by the diff's own smallest indent.
+    let unit = diff
+        .iter()
+        .filter(|line| matches!(line.k.as_str(), "ctx" | "del" | "add"))
+        .map(&code)
+        .filter(|text| !text.trim().is_empty())
+        .map(|text| indent_of(&text))
+        .filter(|indent| *indent > 0)
+        .min()
+        .unwrap_or(4)
+        .clamp(2, 8);
+    diff.iter()
+        .map(|line| {
+            let (marker, mark, fill, words) = match line.k.as_str() {
+                "del" => ("-", RED, Some(REMOVED_LINE), REMOVED_WORDS),
+                "add" => ("+", GREEN, Some(ADDED_LINE), ADDED_WORDS),
+                "ctx" => (" ", MUTED, None, BG),
+                // A file it changes, then each hunk's header.
+                quiet => {
+                    let style = if quiet == "file" {
+                        Style::new().fg(INK).bold()
+                    } else {
+                        Style::new().fg(GREY)
+                    };
+                    return (Line::styled(format!("{lead}{}", code(line)), style), None);
+                }
+            };
+            let text = code(line);
+            let indent = if text.trim().is_empty() { 0 } else { indent_of(&text) };
+            let mut spans = vec![
+                Span::raw(lead.to_owned()),
+                Span::styled(format!("{marker} "), Style::new().fg(mark)),
+            ];
+            let mut guides = String::new();
+            for column in 0..indent {
+                guides.push(if column % unit == 0 { '│' } else { ' ' });
+            }
+            spans.push(Span::styled(guides, Style::new().fg(LINE)));
+            // The indent is drawn as guides; the code follows from there.
+            let mut skip = indent;
+            for token in &line.t {
+                let piece = token.t.replace('\t', "    ");
+                let dropped = piece.chars().take(skip).count();
+                skip -= dropped;
+                let rest: String = piece.chars().skip(dropped).collect();
+                if rest.is_empty() {
+                    continue;
+                }
+                let style = token_style(token.c.as_deref());
+                spans.push(Span::styled(rest, if token.e { style.bg(words) } else { style }));
+            }
+            let row = Line::from(spans);
+            (match fill {
+                Some(fill) => row.style(Style::new().bg(fill)),
+                None => row,
+            }, fill)
+        })
+        .collect()
 }
 
 /// Finished tools in a row as one line: how many, and which, in order.
@@ -440,6 +562,8 @@ struct Session {
     rows: Vec<usize>,
     /// The tool rows a click opens, by line.
     links: Vec<(usize, Open)>,
+    /// Lines whose background spans the whole row, as a diff's rows do.
+    fills: Vec<(usize, Color)>,
     /// The body's area and its first shown row at the last draw.
     body: Rect,
     top: usize,
@@ -465,6 +589,7 @@ impl Session {
             lines: Vec::new(),
             rows: Vec::new(),
             links: Vec::new(),
+            fills: Vec::new(),
             body: Rect::default(),
             top: 0,
             built_for: None,
@@ -488,6 +613,18 @@ impl Session {
         let last_message = self.snapshot.messages.len().saturating_sub(1);
         let mut caret = None;
         let mut links = Vec::new();
+        let mut fills = Vec::new();
+        // Pushes lines whose rows carry a background, noting which.
+        let filled = |lines: &mut Vec<Line<'static>>,
+                      fills: &mut Vec<(usize, Color)>,
+                      rows: Vec<(Line<'static>, Option<Color>)>| {
+            for (line, fill) in rows {
+                if let Some(fill) = fill {
+                    fills.push((lines.len(), fill));
+                }
+                lines.push(line);
+            }
+        };
         self.has_output = self.snapshot.messages.iter().flat_map(|m| &m.parts).any(|part| {
             matches!(part, Part::Tool { output: Some(_), .. } | Part::Program { streaming: false, .. })
         });
@@ -522,10 +659,14 @@ impl Session {
             let mut after_code = false;
             let mut at = 0;
             while at < parts.len() {
-                // Finished tools in a row fold into one line while output is hidden.
+                // Finished tools in a row fold into one line while output is
+                // hidden; an edit keeps its row, to show what it changed.
                 let finished = parts[at..]
                     .iter()
-                    .take_while(|part| matches!(part, Part::Tool { status, .. } if status == "complete"))
+                    .take_while(|part| {
+                        matches!(part, Part::Tool { status, output, .. } if status == "complete"
+                            && output.as_ref().is_none_or(|output| output.diff.is_empty()))
+                    })
                     .count();
                 if !self.expanded && finished >= GROUP_AT {
                     if after_code {
@@ -570,8 +711,14 @@ impl Session {
                             links.push((lines.len(), open.clone()));
                         }
                         lines.push(tool_row(name, summary, status, open.is_some(), width));
-                        if let Some(output) = output.as_ref().filter(|_| self.expanded) {
-                            lines.extend(output_lines(output));
+                        // What an edit changed shows, folded; other output waits for ctrl+o.
+                        let shown = match output {
+                            _ if self.expanded => usize::MAX,
+                            Some(output) if !output.diff.is_empty() => DIFF_FOLD,
+                            _ => 0,
+                        };
+                        if let Some(output) = output.as_ref().filter(|_| shown > 0) {
+                            filled(&mut lines, &mut fills, output_lines(output, shown));
                         }
                     }
                     Part::Program {
@@ -590,7 +737,13 @@ impl Session {
                         lines.extend(sent_lines(sent));
                         lines.push(Line::default());
                     }
-                    Part::Code { lang, lines: code } => {
+                    Part::Code { lang, lines: code, diff } if !diff.is_empty() => {
+                        let fence = Style::new().fg(MUTED);
+                        lines.push(indented(Line::styled(format!("```{lang}"), fence)));
+                        filled(&mut lines, &mut fills, diff_lines(diff, INDENT));
+                        lines.push(indented(Line::styled("```", fence)));
+                    }
+                    Part::Code { lang, lines: code, .. } => {
                         lines.extend(code_lines(lang, code, true).into_iter().map(indented));
                     }
                     Part::Other => {}
@@ -669,6 +822,7 @@ impl Session {
         rows.push(row);
         self.rows = rows;
         self.links = links;
+        self.fills = fills;
         self.lines = lines;
         self.built_for = Some(width);
     }
@@ -711,6 +865,19 @@ impl Session {
         let top = (max_back - self.scroll_back).min(u16::MAX as usize) as u16;
         self.body = inner;
         self.top = usize::from(top);
+        // A filled line's background runs the width of each row it wraps
+        // to; painted first, so the words it changed keep their own.
+        let shown = self.top..self.top + height;
+        for &(line, fill) in &self.fills {
+            let (Some(&first), Some(&end)) = (self.rows.get(line), self.rows.get(line + 1)) else {
+                continue;
+            };
+            for row in first.max(shown.start)..end.min(shown.end) {
+                let y = inner.y + (row - shown.start) as u16;
+                let row = Rect::new(inner.x, y, inner.width, 1);
+                frame.buffer_mut().set_style(row, Style::new().bg(fill));
+            }
+        }
         frame.render_widget(paragraph.scroll((top, 0)), inner);
     }
 

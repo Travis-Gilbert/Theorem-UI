@@ -5,7 +5,7 @@
       "id": "R0",
       "item": "Delta and pi references committed under evidence/coding-module/refs with complete ledger rows",
       "status": "done",
-      "note": "Four refs; ledger.json rows carry lane (translation), source and pin, author and license, sha256."
+      "note": "Five refs; ledger.json rows carry lane (translation), source and pin, author and license, sha256. delta-diff (frame at 1.0 s) supersedes pi-diff for how a diff draws."
     },
     {
       "id": "B1",
@@ -29,7 +29,7 @@
       "id": "U2",
       "item": "TanStack Highlight tokens give highlighted code and diffs",
       "status": "done",
-      "note": "Charted with Theia's Stone palette; built with pi's dark-theme syntax roles. Open for the owner: keep pi's roles, or use Stone dark so terminal code matches Monaco beside it."
+      "note": "Stone dark, per the owner on 2026-11-06: the crate maps TanStack's githubDarkTheme classes (Stone dark includes github-dark-default), and diff tints are github-dark-default's diff-editor colours. Diffs follow Delta: parsePatch with a diff-grammar fallback, each hunk side highlighted in the file's language, changed words from diffWordsWithSpace, markers, indent guides and tinted rows; an edit shows 12 diff lines with a count of the rest. terminal-code tests and stories terminal-code, terminal-activity and terminal-activity-expanded."
     },
     {
       "id": "U3",
@@ -53,7 +53,7 @@
       "id": "U6",
       "item": "Tool rows open their file in Monaco at the touched lines; Add to chat sends a typed reference to the terminal",
       "status": "done",
-      "note": "Interaction oracle on terminal-references: clicking edit_file emits open src/parser.rs lines 2-3. openOf and references covered by tests."
+      "note": "Interaction oracle on terminal-references: clicking edit_file emits open src/parser.rs lines 1-7 (the first hunk's new range). openOf and references covered by tests."
     },
     {
       "id": "V",

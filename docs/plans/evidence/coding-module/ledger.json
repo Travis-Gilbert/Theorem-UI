@@ -22,6 +22,16 @@
       "translated_into": "Watching the agent write: a caret at the end of what has arrived, while the prompt stays live for messages the run takes at its next step."
     },
     {
+      "id": "delta-diff",
+      "file": "refs/delta-diff@a9ddc22b.png",
+      "sha256": "eb497163ca2911726726f89211797bb16231263e14f0cc006a24bb92f6870528",
+      "lane": "translation",
+      "source": "Delta (https://delta.dev), screen recording supplied by the owner: Delta_db.mov, sha256 a9ddc22b17979b9f89962a87c94060cff5740dc7978fa693cbb8abb511a4b266, frame at 1.0 s, the edit diff at the top of the transcript column cropped",
+      "author": "Zed Industries",
+      "license": "Proprietary product. Reference for the interaction model only; no code, assets or styles taken.",
+      "translated_into": "An edit's diff in the transcript: each line keeps its syntax colours over a tinted row, a - or + marker, indent guides, folded with a count of the lines left. Colours are Stone dark's (GitHub Dark), not Delta's."
+    },
+    {
       "id": "pi-transcript",
       "file": "refs/pi-transcript@2a32a60.png",
       "sha256": "dfcc802822f6b2fbe504bdd5136ca68df9b7ce3d6929f77ee90d162b60eaef2f",
@@ -39,7 +49,7 @@
       "source": "pi's session viewer, https://pi.dev/session/#0ea51497613daf7e1de28ee99950b074, first edit diff, captured 2026-11-06 at 900x640. Syntax colours: https://github.com/earendil-works/pi/blob/2a32a605a9f18a5f0191f65358a2e764b2f69fc7/packages/coding-agent/src/modes/interactive/theme/dark.json (okhsl roles converted to sRGB in terminal/src/lib.rs)",
       "author": "Mario Zechner and pi contributors (earendil-works/pi)",
       "license": "MIT",
-      "translated_into": "Highlighted code and diffs in pi's syntax roles; added and removed lines marked."
+      "translated_into": "Superseded for diffs by delta-diff on 2026-11-06: pi colours a diff line whole, and the terminal now keeps each line's syntax. Kept as the record of what U2 first followed."
     }
   ],
   "stories": [
@@ -47,10 +57,25 @@
       "id": "terminal-input-states",
       "refs": ["delta-caret", "pi-transcript"]
     },
-    { "id": "terminal-code", "refs": ["pi-diff"] },
-    { "id": "terminal-activity", "refs": ["delta-activity", "delta-caret"] },
-    { "id": "terminal-activity-expanded", "refs": ["pi-transcript"] },
-    { "id": "terminal-program-streaming", "refs": ["delta-caret"] },
-    { "id": "terminal-references", "refs": [] }
+    {
+      "id": "terminal-code",
+      "refs": ["delta-diff"]
+    },
+    {
+      "id": "terminal-activity",
+      "refs": ["delta-activity", "delta-diff"]
+    },
+    {
+      "id": "terminal-activity-expanded",
+      "refs": ["pi-transcript"]
+    },
+    {
+      "id": "terminal-program-streaming",
+      "refs": ["delta-caret"]
+    },
+    {
+      "id": "terminal-references",
+      "refs": []
+    }
   ]
 }

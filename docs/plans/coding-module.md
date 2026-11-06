@@ -6,10 +6,11 @@ The coding interface for Theorem UI. Two references set it:
   watch the agent write. You can message it mid-run without interrupting:
   the message lands at the agent's next step and the agent answers it, while
   its long jobs keep running. Finished work folds into one-line rows ("Thought
-  twice, ran 3 commands") that open on demand.
+  twice, ran 3 commands") that open on demand. An edit shows what it changed
+  in place, as a diff that keeps each line's syntax over a tinted row.
 - **pi's web transcript** (earendil-works/pi, MIT) for the look: a monospace
   transcript on a dark slate, tool rows with their output underneath that a
-  key toggles, and highlighted code and diffs.
+  key toggles, and highlighted code.
 
 It is built on what Theorem UI already has:
 
@@ -38,14 +39,35 @@ is the agent.
     the running worker's inbox. It used to restart the worker under a revised
     intent.
 
-- **Syntax colours (a deviation from the approved chart).** U2 was charted
-  with Theia's Stone palette but was built with pi's dark-theme syntax roles,
-  converted from okhsl to sRGB on pi's slate.
-  - What this costs: in IDE mode the terminal sits beside Monaco, so the same
-    code shows in two palettes side by side.
-  - The alternative: Stone dark for the terminal's code, which would make the
-    two match.
-  - Status: still open for the owner (see the checklist).
+- **Syntax colours: Stone dark.** U2 was first built with pi's dark-theme
+  syntax roles. On 2026-11-06 the owner chose Stone dark, so the terminal's
+  code matches Monaco beside it in IDE mode.
+  - Stone dark (`theorem-stone-dark.json` in the Theia workspace) includes
+    `github-dark-default`, and chat's Shiki uses the same theme. TanStack
+    Highlight's `githubDarkTheme` has the same token colours, and the crate
+    maps each token class to them.
+  - The diff tints are `github-dark-default`'s diff-editor colours, mixed
+    over the terminal's background.
+  - The terminal's chrome (background, rules, muted text) stays pi's slate,
+    as `src/styles.css` already keeps it in every palette and mode.
+- **Diffs: Delta's, not a whole-line colour.** A diff used to colour each
+  whole line by its kind, which is all TanStack Highlight's `diff` grammar
+  does. A diff is now drawn the way Delta draws one:
+  - jsdiff's `parsePatch` splits it into files and hunks. A diff it cannot
+    parse (counts that disagree with the lines, or a diff still arriving)
+    falls back to the `diff` grammar's line classes, so it still reads line
+    by line.
+  - Each hunk's old side (kept and removed lines) and new side (kept and
+    added lines) are highlighted in the file's language, so the syntax inside
+    each line survives.
+  - A run of removed lines followed by added lines is paired line by line.
+    jsdiff's `diffWordsWithSpace` marks the words each pair swapped; a pair
+    that changed more than 60 percent of its text is not marked, as in
+    git-delta's `max-line-distance`.
+  - The crate draws each line with a `-`, `+` or blank marker, indent guides,
+    a tinted row, and brighter tints on the changed words.
+  - An edit keeps its row in the compact view and shows its first 12 diff
+    lines, with a count of the rest. ctrl+o shows the whole diff.
 
 ## Chart
 
@@ -55,7 +77,7 @@ is the agent.
 | B1   | Theorem    | Run command `input`; delivery at step boundaries (`TurnHooks::take_input`); `user_input` parts with queued, delivered and not-delivered states; SDK regenerated | behavior tests       | done (Theorem#944)              |
 | B2   | Theorem    | `steer_work` with instruction-only direction queues into the running worker's inbox; capture refuses while direction is pending                                 | behavior tests       | done (Theorem#944)              |
 | U1   | theorem-ui | Prompt stays live during a run; sending, queued, delivered, not-delivered and next-turn lines                                                                   | interaction          | done                            |
-| U2   | theorem-ui | TanStack Highlight tokens in the snapshot; highlighted code and diffs                                                                                           | static               | done (palette deviation above)  |
+| U2   | theorem-ui | TanStack Highlight tokens in the snapshot; highlighted code and diffs                                                                                           | static               | done (Stone dark; Delta diffs)  |
 | U3   | theorem-ui | Compact activity (three or more tools in one row, a finished program in one row); ctrl+o shows each tool's output                                               | interaction          | done                            |
 | U4   | theorem-ui | Caret where the agent is writing; a live spinner and status                                                                                                     | motion               | done                            |
 | U5   | theorem-ui | IDE mode is Theia with the terminal docked on its right; Theia's chat closed there; one thread per tab; Follow tracks the active tab's run                      | static + interaction | done; Theia side not built here |
@@ -73,8 +95,12 @@ the reference's source and pin, author, license and the artifact's sha256.
 | ---------------------------------- | --------------------------------------------------- | --------------------------- | --------------------------- |
 | `refs/delta-activity@a9ddc22b.png` | Owner's Delta recording, frame at 16.5 s            | upload sha256 `a9ddc22b…`   | proprietary; reference only |
 | `refs/delta-caret@a9ddc22b.png`    | Owner's Delta recording, frame at 0.2 s             | upload sha256 `a9ddc22b…`   | proprietary; reference only |
+| `refs/delta-diff@a9ddc22b.png`     | Owner's Delta recording, frame at 1.0 s             | upload sha256 `a9ddc22b…`   | proprietary; reference only |
 | `refs/pi-transcript@2a32a60.png`   | pi's session viewer (export-html template)          | earendil-works/pi `2a32a60` | MIT                         |
 | `refs/pi-diff@2a32a60.png`         | pi's session viewer; colours from `theme/dark.json` | earendil-works/pi `2a32a60` | MIT                         |
+
+`pi-diff` is superseded by `delta-diff`: diffs follow Delta, in Stone dark's
+colours. Its row stays in the ledger as the record of the first build.
 
 The recording itself is not committed; its hash pins it. `badlogic/pi-mono`
 redirects to `earendil-works/pi`, with the same head commit.
@@ -110,14 +136,14 @@ node scripts/stories/shoot.cjs http://localhost:3000 docs/plans/evidence/coding-
 node scripts/stories/collage.cjs http://localhost:3000 docs/plans/evidence/coding-module
 ```
 
-| Story                      | Claim                                                                                                             | Oracle result (2026-11-06)                                             |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                       | static; spinner moves (85 px in 400 ms)                                |
-| terminal-code              | Fenced code in pi's syntax roles; a diff marks added and removed lines                                            | static                                                                 |
-| terminal-activity          | Finished work folds into compact rows; the caret marks where the agent writes; the status names what the run does | static; spinner moves (69 px)                                          |
-| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted                                                         | interaction (ctrl+o); spinner and focused cursor move                  |
-| terminal-program-streaming | The native agent's program streams in highlighted, caret at its end                                               | static; spinner moves                                                  |
-| terminal-references        | A tool row is a link to its file; references wait over the prompt                                                 | interaction: clicking `edit_file` emits `open src/parser.rs` lines 2-3 |
+| Story                      | Claim                                                                                                                      | Oracle result (2026-11-06)                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                                | static; spinner moves (89 px in 400 ms)                                |
+| terminal-code              | Fenced code in Stone dark's code colours; a diff keeps each line's syntax over a tinted row and marks the changed words    | static                                                                 |
+| terminal-activity          | Finished work folds into compact rows; an edit shows its diff, folded with a count; the caret marks where the agent writes | static; spinner moves (80 px)                                          |
+| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted, an edit's whole diff included                                   | interaction (ctrl+o); spinner moves (20 px)                            |
+| terminal-program-streaming | The native agent's program streams in highlighted, caret at its end                                                        | static; spinner moves (44 px)                                          |
+| terminal-references        | A tool row is a link to its file; references wait over the prompt                                                          | interaction: clicking `edit_file` emits `open src/parser.rs` lines 1-7 |
 
 The oracles found two bugs, both fixed:
 
