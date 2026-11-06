@@ -1,6 +1,7 @@
 // SOURCING: penpal (connect + WindowMessenger) links this frame to the Theorem UI around it;
 // @theia/editor EditorManager, @theia/core ThemeService, CommandService, ApplicationShell,
-// StatusBar, OpenerService and MessageService do every action,
+// StatusBar, OpenerService and MessageService do every action, @theia/ai-chat-ui's
+// AIChatContribution closes the chat view,
 // and @theoremharness/sdk converts character units and its WorkspaceLive stream names
 // the run behind each edit. Only the mapping between Theia's editors and Theorem
 // locations is written here.
@@ -23,6 +24,7 @@ import {
 import { Range, TextEditor, TextEditorDocument } from '@theia/editor/lib/browser/editor';
 import { EditorManager } from '@theia/editor/lib/browser/editor-manager';
 import { EditorContextMenu } from '@theia/editor/lib/browser/editor-menu';
+import { AIChatContribution } from '@theia/ai-chat-ui/lib/browser/ai-chat-ui-contribution';
 import { scalarToUtf16, utf8ToUtf16, type TheoremLocation, type TheoremRange, type WorkspaceLiveEvents } from '@theoremharness/sdk';
 import { connect, WindowMessenger, type RemoteProxy } from 'penpal';
 import type { ChatMessage, ChatThreadUpdate, DelegationChanges, IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
@@ -60,6 +62,7 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     @inject(OpenerService) protected readonly openers: OpenerService;
     @inject(MessageService) protected readonly messages: MessageService;
     @inject(TheoremDelegations) protected readonly delegations: TheoremDelegations;
+    @inject(AIChatContribution) protected readonly chatView: AIChatContribution;
 
     /** The Theorem UI, once linked. */
     host: RemoteProxy<IdeHostMethods> | undefined;
@@ -96,6 +99,9 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             },
             openChanges: target => this.openChanges(target),
             setThread: update => this.setThread(update),
+            closeChatView: async () => {
+                await this.chatView.closeView();
+            },
         };
         connect<IdeHostMethods>({ messenger: new WindowMessenger({ remoteWindow: window.parent }), methods: { ...methods } })
             .promise.then(host => {

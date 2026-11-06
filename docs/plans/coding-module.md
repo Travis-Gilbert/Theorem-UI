@@ -1,0 +1,365 @@
+# The coding module: watch the agent work, talk to it without stopping it
+
+The coding interface for Theorem UI. Two references set it:
+
+- **Delta** (Zed Industries, https://delta.dev) for the interaction. You
+  watch the agent write. You can message it mid-run without interrupting:
+  the message lands at the agent's next step and the agent answers it, while
+  its long jobs keep running. Finished work folds into one-line rows ("Thought
+  twice, ran 3 commands") that open on demand. An edit shows what it changed
+  in place, as a diff that keeps each line's syntax over a tinted row.
+- **pi's web transcript** (earendil-works/pi, MIT) for the look: a monospace
+  transcript on a dark slate, tool rows with their output underneath that a
+  key toggles, and highlighted code.
+
+It is built on what Theorem UI already has:
+
+- the Ratzilla/Ratatui terminal (`terminal/`);
+- Theia with Monaco as the editor;
+- TanStack Highlight for syntax.
+
+The UI does not use CodeMirror. Theia is the IDE that stays, and the terminal
+is the agent.
+
+## Decisions
+
+- **Editor and agent.** Theia's Monaco is the editor and the terminal is the
+  agent. "Editable code blocks" means a code row in the terminal opens that
+  range in Monaco beside it. There is no second editor inside the transcript.
+- **Answers while the agent works.** The owner chose both answer paths, on
+  2026-11-06:
+  - A front agent answers quickly.
+  - The agent doing the work takes the same message at its next step boundary
+    and answers after a short delay.
+
+  Two backend changes in Theorem make that work:
+  - **B1, the run inbox.** It queues what the person sends during a run and
+    delivers it at the next step.
+  - **B2, steering.** `steer_work` now hands the front agent's instructions to
+    the running worker's inbox. It used to restart the worker under a revised
+    intent.
+
+- **Syntax colours: Stone dark.** U2 was first built with pi's dark-theme
+  syntax roles. On 2026-11-06 the owner chose Stone dark, so the terminal's
+  code matches Monaco beside it in IDE mode.
+  - Stone dark (`theorem-stone-dark.json` in the Theia workspace) includes
+    `github-dark-default`, and chat's Shiki uses the same theme. TanStack
+    Highlight's `githubDarkTheme` has the same token colours, and the crate
+    maps each token class to them.
+  - The diff tints keep `github-dark-default`'s diff hues but are set in
+    OKLCH on the terminal's background (see the colour assessment below).
+  - The terminal's chrome (background, rules, muted text) is pi's slate in
+    GitHub Sharp. In any other palette, mode or set of a person's own
+    colours, it is worked out from the workspace around it (see "The
+    terminal follows the workspace" below).
+- **Diffs: Delta's, not a whole-line colour.** A diff used to colour each
+  whole line by its kind, which is all TanStack Highlight's `diff` grammar
+  does. A diff is now drawn the way Delta draws one:
+  - jsdiff's `parsePatch` splits it into files and hunks. A diff it cannot
+    parse (counts that disagree with the lines, or a diff still arriving)
+    falls back to the `diff` grammar's line classes, so it still reads line
+    by line.
+  - Each hunk's old side (kept and removed lines) and new side (kept and
+    added lines) are highlighted in the file's language, so the syntax inside
+    each line survives.
+  - A run of removed lines followed by added lines is paired line by line.
+    jsdiff's `diffWordsWithSpace` marks the words each pair swapped; a pair
+    that changed more than 60 percent of its text is not marked, as in
+    git-delta's `max-line-distance`.
+  - The crate draws each line with a `-`, `+` or blank marker, indent guides,
+    a tinted row, and brighter tints on the changed words.
+  - An edit keeps its row in the compact view and shows its first 12 diff
+    lines, with a count of the rest. ctrl+o shows the whole diff.
+
+## Colour assessment
+
+The owner saw the diff colours as off in chroma and saturation. Measured in
+OKLCH, with WCAG contrast against each colour's composited background, the
+first build had these problems:
+
+- **The diff hues drifted.** GitHub Dark's diff colours are translucent. Mixed
+  in sRGB over pi's blue slate (oklch 0.271 0.025 261), a removed row came
+  out at hue 346 (plum) instead of red's 27, and an added row at 188 (teal)
+  instead of green's 146.
+- **Changed words and their row had different hues,** 30 degrees apart on
+  both sides.
+- **Some text fell below 4.5:1.** DESIGN.md asks for 4.5:1 against the
+  composited background:
+  - comment grey on an added row: 4.22;
+  - comment grey on changed words: 2.5;
+  - pi's muted grey on the slate: 3.16;
+  - pi's muted grey on a tool row: 2.82.
+- **A tool row looked like an added line.** Every tool row was tinted green,
+  whatever its state. Its tint was ΔE00 1.6 from the corrected added-row
+  tint, so the two could not be told apart.
+
+The fix sets every tint in OKLCH:
+
+| Colour                   | Before                            | After                               |
+| ------------------------ | --------------------------------- | ----------------------------------- |
+| Removed row              | `#3c2933`, oklch(0.307 0.033 346) | `#3a2624`, oklch(0.292 0.031 25.5)  |
+| Added row                | `#203533`, oklch(0.311 0.027 188) | `#223023`, oklch(0.292 0.030 146.6) |
+| Removed words            | `#774246`, oklch(0.445 0.073 16)  | `#5a2520`, oklch(0.339 0.079 27.5)  |
+| Added words              | `#295d3c`, oklch(0.433 0.079 154) | `#16421d`, oklch(0.338 0.079 146.6) |
+| Muted text               | `#6c747c`, L 0.555                | `#8f98a0`, L 0.675 (lightness only) |
+| Comment in changed words | `#8b949e`                         | `#9aa4ae`, L 0.714 (lightness only) |
+| Tool row                 | `#273227` (green)                 | the raised slate, `#273042`         |
+
+How each tint is set:
+
+- Each pair keeps GitHub Dark's diff hue and shares one lightness and
+  chroma, so neither side reads stronger.
+- A row has chroma 0.02, at the highest lightness where every code colour,
+  comments included, keeps 4.5:1.
+- Changed words have chroma 0.09, at the highest lightness where every code
+  colour except comments keeps 4.5:1. A comment's changed words use the
+  lifted grey above.
+
+The first fix gave rows and words GitHub's chroma (0.03 and 0.08). The owner
+then asked to keep the slate and change the highlights instead of the
+background, and picked quieter rows with richer words from a side-by-side
+comparison:
+
+| Colour        | First fix                           | Now                                 |
+| ------------- | ----------------------------------- | ----------------------------------- |
+| Removed row   | `#3a2624`, oklch(0.292 0.031 25.5)  | `#362927`, oklch(0.295 0.020 28.4)  |
+| Added row     | `#223023`, oklch(0.292 0.030 146.6) | `#262f26`, oklch(0.293 0.020 145.0) |
+| Removed words | `#5a2520`, oklch(0.339 0.079 27.5)  | `#5e211d`, oklch(0.339 0.090 26.7)  |
+| Added words   | `#16421d`, oklch(0.338 0.079 146.6) | `#0e4318`, oklch(0.338 0.090 146.3) |
+
+Why the change is in chroma rather than lightness:
+
+- Changed words cannot get lighter. Their tint already sits at the highest
+  lightness where red and link blue read at 4.5:1. The text colours set that
+  cap, so a darker background would not raise it.
+- GitHub gets more separation partly by spending contrast: its code on
+  changed words falls to 4.0-4.15:1.
+- The rows were too loud. Red and green sit across the hue circle from the
+  slate's blue, so at GitHub's row chroma a row stood further from the slate
+  (ΔE00 15.4 / 16.8, removed / added) than GitHub's rows stand from GitHub
+  Dark's background (11.0 / 14.1).
+
+Measured in ΔE00, removed / added:
+
+|             | Row against its background | Changed words against their row |
+| ----------- | -------------------------- | ------------------------------- |
+| First fix   | 15.4 / 16.8                | 11.1 / 11.5                     |
+| Now         | 12.6 / 14.1                | 15.5 / 15.6                     |
+| GitHub Dark | 11.0 / 14.1                | 19.0 / 14.6                     |
+
+The code colours themselves stay GitHub Dark's, so they match Monaco. They
+are uneven in OKLCH by design: L from 0.715 to 0.856, chroma from 0.077 to
+0.164.
+
+`src/components/terminal/terminal-palette.test.ts` reads the crate's
+constants and checks these rules:
+
+- every text colour reaches 4.5:1 on each surface it is drawn on;
+- the diff hues are within 2 degrees of GitHub's;
+- removed and added tints match in lightness and chroma;
+- a row stays within ΔE00 14.5 of the slate, and changed words stand more
+  than ΔE00 15 from their row;
+- the code colours equal TanStack's `githubDarkTheme`.
+
+With pi's muted grey put back, the test fails. With the old plum and teal
+rows, it fails too.
+
+## The terminal follows the workspace
+
+Workspaces have many palettes, and people can set their own colours. So
+the terminal has no colour scheme per palette. It keeps the relationship
+pi's slate has to GitHub Sharp, and works its colours out again from
+whatever workspace surrounds it. DESIGN.md asks for this: keep role
+relationships across themes, not the same hex values, through one adapter.
+
+`src/components/terminal/terminal-theme.ts` is that adapter. It reads 15
+workspace tokens (surfaces, sheet, inks and lines) and measures two things:
+
+- **The workspace's tint:** the mean OKLab a/b of its neutrals. GitHub Sharp
+  is nearly grey, at chroma 0.0058 and hue 251.
+- **Its anchor:** the ink's lightness in a light mode, the sheet's in a dark
+  one.
+
+Then each terminal colour keeps the slate's relation to those:
+
+- **Background:** the slate is 4.3 times GitHub Sharp's tint, turned 10
+  degrees, so every workspace's terminal is its own tint times 4.3, turned
+  the same way. A grey workspace gets a grey terminal; Stone gets a warm
+  brown one. Its lightness sits as far below the anchor as the slate does,
+  and never lighter than the slate.
+- **Raised surface, rules and idle text:** the slate's steps in lightness,
+  chroma and hue from its background.
+- **Text and statuses:** the slate's contrast, lifted where needed to read
+  at 4.5:1 on the background and raised surface.
+- **Diff rows and changed words:** GitHub Dark's diff hues, at least as far
+  (ΔE00) from what they sit on as on the slate. A row starts at the slate's
+  chroma, 0.020. Changed words get lighter first, as far as code still
+  reads at 4.5:1 on them, then more chromatic, and stop at the edge of
+  sRGB. A red at the edge of sRGB reads as an alarm, so they go no further.
+
+In GitHub Sharp the adapter gives back pi's slate exactly. Measured in the
+other built-in modes and a person's own plum:
+
+| Workspace          | Background | Raised    | Ink       | Rows, removed / added | Changed words         | Row ΔE00 to background | Words ΔE00 to row |
+| ------------------ | ---------- | --------- | --------- | --------------------- | --------------------- | ---------------------- | ----------------- |
+| GitHub Sharp       | `#202733`  | `#273042` | `#c8d0d8` | `#362927` / `#262f26` | `#5e211d` / `#0e4318` | 12.6 / 14.1            | 15.5 / 15.6       |
+| GitHub Sharp dark  | `#22272e`  | `#2a303b` | `#cad0d4` | `#382825` / `#223023` | `#67231f` / `#014412` | 12.7 / 14.3            | 15.4 / 14.4       |
+| Stone              | `#2e2519`  | `#3a2e1b` | `#d7cdc6` | `#412320` / `#223023` | `#78090e` / `#014412` | 13.0 / 14.2            | 15.5 / 14.4       |
+| Stone dark         | `#25221a`  | `#2f2b1f` | `#cdc9c3` | `#37211f` / `#172e1a` | `#6e1c19` / `#014412` | 12.8 / 14.3            | 15.6 / 11.1       |
+| Plum (own colours) | `#2e222d`  | `#3b2938` | `#d2ccd5` | `#45201d` / `#262f26` | `#7b0009` / `#0e4318` | 12.8 / 21.1            | 14.6 / 15.6       |
+
+Where changed words stand nearer their row than on the slate (added words
+off GitHub Sharp, Stone dark's added words), they are at the edge of sRGB.
+On warm workspaces the removed words are more saturated than on the slate
+(Stone `#78090e`, plum `#7b0009`), because the warm background takes red's
+distance away.
+
+How it reaches the page:
+
+- `scripts/palettes.ts` writes each built-in mode's `--term-*` into
+  `src/palettes.css`, so the first paint is right.
+- `src/components/terminal/live-terminal-theme.ts` loads after that. It reads
+  the live tokens through a probe element, so any CSS colour arrives
+  resolved, and works the colours out again whenever the root's class,
+  `data-palette` or style changes. It sets `--term-*` on the root, which the
+  Tailwind `term` colours read, and hands the full palette to the WASM
+  terminal through `set_palette`. Every session redraws when it changes.
+- The crate's default palette is the slate, and
+  `terminal-palette.test.ts` checks it equals what `terminal-theme.ts`
+  derives.
+
+`src/components/terminal/terminal-theme.test.ts` checks the four built-in
+modes and four workspaces of a person's own (plum, red, green light, and a
+darker pure grey):
+
+- every text colour reads at 4.5:1 on each surface it is drawn on;
+- diff tints keep GitHub Dark's hues;
+- rows stand at least as far from the background as on the slate, and
+  changed words as far from their row or at the sRGB edge, lighter and
+  more chromatic than the row;
+- the background is never lighter than the slate;
+- a grey workspace gives a grey terminal, and a tinted one's terminal takes
+  its hue turned as the slate's is.
+
+A workspace's rules hold exactly; their hex colours can show them only to
+within rounding, 0.0025 in OKLab at these lightnesses (measured over
+200,000 colours). The hue and lightness checks allow that much and no more.
+
+In Chromium, on the `terminal-code` story: each built-in mode painted its
+own colours (the counts of pixels in each derived colour matched across
+modes); switching `data-palette` on an open page moved the terminal to
+Stone's; and setting plum tokens on the root moved it to plum's, with no
+pixel of the old palette left. The shots, each framed in its workspace's
+sidebar and sheet colours, are in
+`evidence/coding-module/terminal-follows-workspace.png`.
+
+## Chart
+
+| Node | Repo       | What                                                                                                                                                            | Oracle               | Status                          |
+| ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------- |
+| R0   | theorem-ui | References committed with ledger rows (lane, source and pin, author and license, hash)                                                                          | none                 | done                            |
+| B1   | Theorem    | Run command `input`; delivery at step boundaries (`TurnHooks::take_input`); `user_input` parts with queued, delivered and not-delivered states; SDK regenerated | behavior tests       | done (Theorem#944)              |
+| B2   | Theorem    | `steer_work` with instruction-only direction queues into the running worker's inbox; capture refuses while direction is pending                                 | behavior tests       | done (Theorem#944)              |
+| U1   | theorem-ui | Prompt stays live during a run; sending, queued, delivered, not-delivered and next-turn lines                                                                   | interaction          | done                            |
+| U2   | theorem-ui | TanStack Highlight tokens in the snapshot; highlighted code and diffs                                                                                           | static               | done (Stone dark; Delta diffs)  |
+| U3   | theorem-ui | Compact activity (three or more tools in one row, a finished program in one row); ctrl+o shows each tool's output                                               | interaction          | done                            |
+| U4   | theorem-ui | Caret where the agent is writing; a live spinner and status                                                                                                     | motion               | done                            |
+| U5   | theorem-ui | IDE mode is Theia with the terminal docked on its right; Theia's chat closed there; one thread per tab; Follow tracks the active tab's run                      | static + interaction | done; Theia side not built here |
+| U6   | theorem-ui | A tool row that names a file opens it in Monaco with its lines selected; Theia's Add to chat sends a typed reference to the terminal's next turn                | interaction          | done                            |
+| V    | both       | The owner's scenario live: send a constraint mid-build, see it delivered at the next step, nothing cancelled; owner opens the collages and seals                | HITL                 | waiting on the owner            |
+
+## Lanes and references
+
+Every reference is in the **translation** lane. The source's mechanics are
+re-expressed in the terminal crate's vocabulary; no classes, assets or code
+are copied. The ledger is `evidence/coding-module/ledger.json`. Each row has
+the reference's source and pin, author, license and the artifact's sha256.
+
+| Reference                          | Source                                              | Pin                         | License                     |
+| ---------------------------------- | --------------------------------------------------- | --------------------------- | --------------------------- |
+| `refs/delta-activity@a9ddc22b.png` | Owner's Delta recording, frame at 16.5 s            | upload sha256 `a9ddc22b…`   | proprietary; reference only |
+| `refs/delta-caret@a9ddc22b.png`    | Owner's Delta recording, frame at 0.2 s             | upload sha256 `a9ddc22b…`   | proprietary; reference only |
+| `refs/delta-diff@a9ddc22b.png`     | Owner's Delta recording, frame at 1.0 s             | upload sha256 `a9ddc22b…`   | proprietary; reference only |
+| `refs/pi-transcript@2a32a60.png`   | pi's session viewer (export-html template)          | earendil-works/pi `2a32a60` | MIT                         |
+| `refs/pi-diff@2a32a60.png`         | pi's session viewer; colours from `theme/dark.json` | earendil-works/pi `2a32a60` | MIT                         |
+
+`pi-diff` is superseded by `delta-diff`: diffs follow Delta, in Stone dark's
+colours. Its row stays in the ledger as the record of the first build.
+
+The recording itself is not committed; its hash pins it. `badlogic/pi-mono`
+redirects to `earendil-works/pi`, with the same head commit.
+
+## Stories and oracles
+
+Each terminal state is a story, at `/story/<id>` and listed at
+`/stories.json`. A story is the real WASM terminal on a committed fixture
+built through `snapshotOf`, so it draws exactly what a live thread would.
+
+`scripts/stories/shoot.cjs` is the one driver. For each story it:
+
+- takes the shot;
+- presses the story's keys first, if it lists any;
+- for a running story, takes two frames 400 ms apart and records how many
+  pixels changed and where;
+- for an interaction story, clicks the named text and records the action
+  the terminal emitted.
+
+The route keeps that action on `data-action`, and the driver writes what it
+saw to `renders/oracle.json`.
+
+`scripts/stories/collage.cjs` composes each story's collage. It puts the
+story's references (from the ledger) beside its render, with what the driver
+observed. A translation-lane collage has no perceptual diff against its
+reference, because the content differs by design. The committed renders are
+the baselines later changes are diffed against.
+
+Run against a dev server, with Playwright and Chromium available:
+
+```sh
+node scripts/stories/shoot.cjs http://localhost:3000 docs/plans/evidence/coding-module/renders 2
+node scripts/stories/collage.cjs http://localhost:3000 docs/plans/evidence/coding-module
+```
+
+| Story                      | Claim                                                                                                                      | Oracle result (2026-11-06)                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                                | static; spinner moves (20 px in 400 ms)                                |
+| terminal-code              | Fenced code in Stone dark's code colours; a diff keeps each line's syntax over a tinted row and marks the changed words    | static                                                                 |
+| terminal-activity          | Finished work folds into compact rows; an edit shows its diff, folded with a count; the caret marks where the agent writes | static; spinner moves (44 px)                                          |
+| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted, an edit's whole diff included                                   | interaction (ctrl+o); spinner and focused caret move (229 px)          |
+| terminal-program-streaming | The native agent's program streams in highlighted, caret at its end                                                        | static; spinner moves (69 px)                                          |
+| terminal-references        | A tool row is a link to its file; references wait over the prompt                                                          | interaction: clicking `edit_file` emits `open src/parser.rs` lines 1-7 |
+
+The oracles found two bugs, both fixed:
+
+- **The spinner never moved.** The frame index was `Date.now() / 80` cast
+  to `usize`. On wasm32 that saturates at `u32::MAX`, which always selects
+  frame 5. This predates this work (`a39a57a`).
+- **Gold drew as grey.** A right-aligned hint drawn as a styled `Line`
+  repainted the whole row in muted grey, so the gold status glyphs and
+  reference labels lost their colour.
+
+Before the fix, a malformed diff from a tool (hunk counts that disagree with
+its lines) threw in jsdiff's `parsePatch` and took the transcript route down.
+`openOf` now falls back to the range the tool was asked for.
+
+## What is not verified
+
+- **The Theia side of U5.** The `closeChatView` bridge method is written
+  against Theia 1.76.0's `AIChatContribution.closeView()`. The Theia
+  workspace was not installed, built or typechecked in this environment, and
+  the docked split was not screenshotted with a real Theia frame.
+- **V.** The live scenario needs a running Theorem with a model, and the
+  collages need the owner's seal.
+- **Programs in other languages.** Programs will also run in TypeScript
+  (Boa with OXC) and Rust (Blaze). The terminal highlights a program in the
+  language its part names in `language` (`typescript`, `rust`, or any name
+  TanStack Highlight knows), and treats a part with none, or `monty`, as
+  Monty. The backend's `program` part names its `language` (Theorem#944):
+  the agent stamps `monty` on every program event today, and a new runtime
+  names its own language there.
+- **"Watch the agent type" depends on how the backend streams.** The native
+  agent streams its program as deltas, but its answer arrives whole, as one
+  `TranscriptEvent::Final { text }` (`crates/agent/src/turn_loop.rs`). The
+  answer therefore appears in one jump. Streaming the answer's text deltas
+  from the backend would give Delta's feel without a client-side typewriter
+  that pretends.

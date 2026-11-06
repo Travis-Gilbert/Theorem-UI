@@ -10,9 +10,9 @@ import {
   TerminalAgent,
   TerminalScreen,
   restartSession,
-  runSessionAction,
   stopSession,
   useCloseOnOutsideDoubleClick,
+  useSessionAction,
 } from './terminal-screen'
 import type { TerminalAction } from './terminal-screen'
 
@@ -66,35 +66,29 @@ function WidthHandle({ popup }: { popup: RefObject<HTMLDivElement | null> }) {
 }
 
 /**
- * The right-hand drawer, a terminal with tabs: each tab its own agent thread,
- * all running while the drawer is closed. A project's first open starts it
- * with one tab.
+ * The active project's terminal tabs, each its own agent thread, and what
+ * their actions do. The right drawer and the IDE's docked terminal show the
+ * same tabs. A project shown with none starts with one.
  */
-export function SideTerminal() {
-  const open = useShell((s) => s.sideDrawer === 'terminal')
-  const setSideDrawer = useShell((s) => s.setSideDrawer)
-  const width = useShell((s) => s.sideWidth)
-  const desktop = useMediaQuery('(min-width: 768px)', { noSsr: true })
-  const popup = useRef<HTMLDivElement>(null)
+export function useTerminalTabs(shown: boolean, close: () => void) {
   const { project } = useActiveProject()
   const projectId = project?.projectId
   const entry = useShell((s) =>
     projectId ? s.terminalTabs[projectId] : undefined,
   )
-  const tabs = entry?.tabs ?? []
-  useCloseOnOutsideDoubleClick(open, () => setSideDrawer(undefined))
+  const runAction = useSessionAction()
 
   useEffect(() => {
-    if (open && projectId && !entry?.tabs.length)
+    if (shown && projectId && !entry?.tabs.length)
       useShell.getState().openTerminalTab(projectId)
-  }, [open, projectId, entry])
+  }, [shown, projectId, entry])
 
   const onAction = (action: TerminalAction) => {
-    if (runSessionAction(action) || !projectId) return
+    if (runAction(action) || !projectId) return
     const shell = useShell.getState()
     switch (action.type) {
       case 'close':
-        shell.setSideDrawer(undefined)
+        close()
         return
       case 'new':
         restartSession(action.tab, projectId, action.tab)
@@ -111,6 +105,28 @@ export function SideTerminal() {
         return
     }
   }
+  return {
+    project,
+    tabs: entry?.tabs ?? [],
+    active: entry?.active ?? '',
+    onAction,
+  }
+}
+
+/**
+ * The right-hand drawer, a terminal with tabs: each tab its own agent thread,
+ * all running while the drawer is closed.
+ */
+export function SideTerminal() {
+  const open = useShell((s) => s.sideDrawer === 'terminal')
+  const setSideDrawer = useShell((s) => s.setSideDrawer)
+  const width = useShell((s) => s.sideWidth)
+  const desktop = useMediaQuery('(min-width: 768px)', { noSsr: true })
+  const popup = useRef<HTMLDivElement>(null)
+  const { project, tabs, active, onAction } = useTerminalTabs(open, () =>
+    setSideDrawer(undefined),
+  )
+  useCloseOnOutsideDoubleClick(open, () => setSideDrawer(undefined))
 
   return (
     <>
@@ -156,7 +172,7 @@ export function SideTerminal() {
                   hostId={HOST_ID}
                   tabbed
                   tabs={tabs}
-                  active={entry?.active ?? ''}
+                  active={active}
                   onAction={onAction}
                 />
               </div>
