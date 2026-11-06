@@ -1,11 +1,13 @@
 import { expect, test } from 'bun:test'
 import {
+  diffLines,
   highlightLines,
   openOf,
   OUTPUT_LINES,
   proseAndCode,
   toolOutput,
 } from './terminal-code'
+import type { DiffLine } from './terminal-code'
 
 test('an answer splits into its prose and its highlighted code, in order', () => {
   const parts = proseAndCode(
@@ -37,7 +39,7 @@ test('a fence still streaming runs to the end of what has arrived', () => {
   })
 })
 
-test('a diff marks what it adds and removes; an unknown language is plain', () => {
+test("TanStack's diff grammar classes whole lines; an unknown language is plain", () => {
   const lines = highlightLines('@@ -1 +1 @@\n-old\n+new\n same', 'diff')
   expect(lines.map((line) => line.map((token) => token.c))).toEqual([
     ['meta'],
@@ -48,6 +50,115 @@ test('a diff marks what it adds and removes; an unknown language is plain', () =
   expect(highlightLines('one\ntwo', 'nonesuch')).toEqual([
     [{ t: 'one' }],
     [{ t: 'two' }],
+  ])
+})
+
+const EDIT = [
+  'diff --git a/src/parser.rs b/src/parser.rs',
+  '--- a/src/parser.rs',
+  '+++ b/src/parser.rs',
+  '@@ -2,2 +2,2 @@ pub fn fields(line: &str) -> Vec<&str> {',
+  "-    let trimmed = line.trim_end_matches(',');",
+  "+    let trimmed = line.strip_suffix(',').unwrap_or(line);",
+  "     trimmed.split(',').map(str::trim).collect()",
+].join('\n')
+
+const textOf = (line: DiffLine) => line.t.map((token) => token.t).join('')
+const changedIn = (line: DiffLine) =>
+  line.t.filter((token) => token.e).map((token) => token.t)
+
+test('a diff keeps the syntax inside each line and marks it kept, removed or added', () => {
+  const lines = diffLines(EDIT)
+  expect(lines.map((line) => line.k)).toEqual([
+    'file',
+    'hunk',
+    'del',
+    'add',
+    'ctx',
+  ])
+  expect(textOf(lines[0]!)).toBe('src/parser.rs')
+  expect(textOf(lines[1]!)).toBe(
+    '@@ -2,2 +2,2 @@ pub fn fields(line: &str) -> Vec<&str> {',
+  )
+  // The marker leaves the code; its column is the crate's to draw.
+  expect(textOf(lines[2]!)).toBe(
+    "    let trimmed = line.trim_end_matches(',');",
+  )
+  for (const line of lines.slice(2)) {
+    expect(line.t.some((token) => token.c === 'function')).toBe(true)
+  }
+  expect(lines[2]!.t).toContainEqual({ t: 'let', c: 'keyword' })
+  expect(lines[3]!.t).toContainEqual({ t: "','", c: 'string' })
+})
+
+test('a changed line marks the words that changed, not the ones it kept', () => {
+  const [, , removed, added, kept] = diffLines(EDIT)
+  expect(changedIn(removed!)).toEqual(['trim_end_matches'])
+  expect(changedIn(added!).join('')).toBe('strip_suffix.unwrap_or(line)')
+  expect(added!.t).toContainEqual({ t: 'strip_suffix', c: 'function', e: true })
+  expect(changedIn(kept!)).toEqual([])
+  // A line rewritten throughout reads as removed and added, word for word.
+  const rewritten = diffLines('@@ -1 +1 @@\n-alpha beta\n+gamma delta', 'x.txt')
+  expect(rewritten.flatMap(changedIn)).toEqual([])
+})
+
+test('a diff whose counts are off, or still arriving, still reads line by line', () => {
+  for (const text of [
+    '--- a/x.rs\n+++ b/x.rs\n@@ -1,1 +1,1 @@\n-let a = 1;\n+let a = 2;\n fn b() {}\n',
+    '--- a/x.rs\n+++ b/x.rs\n@@ -1,4 +1,4 @@\n-let a = 1;\n+let a = 2;',
+  ]) {
+    const lines = diffLines(text)
+    expect(lines.slice(0, 4).map((line) => line.k)).toEqual([
+      'file',
+      'hunk',
+      'del',
+      'add',
+    ])
+    expect(lines[2]!.t[0]).toEqual({ t: 'let', c: 'keyword' })
+    expect(changedIn(lines[3]!)).toEqual(['2'])
+  }
+})
+
+test("a diff's language comes from the file it names, else from the tool's path", () => {
+  const hunkOnly = '@@ -1 +1 @@\n-let a = 1;\n+let a = 2;'
+  expect(diffLines(hunkOnly, 'src/x.rs')[1]!.t[0]).toEqual({
+    t: 'let',
+    c: 'keyword',
+  })
+  expect(diffLines(hunkOnly)[1]!.t[0]).toEqual({ t: 'let a = ' })
+  // The tool's row names its one file already.
+  expect(diffLines(EDIT, 'src/parser.rs')[0]!.k).toBe('hunk')
+})
+
+test('an edit returns a diff the terminal draws line by line, its first lines kept', () => {
+  const edit = toolOutput(EDIT, 'src/parser.rs')
+  expect(edit).toMatchObject({ lang: 'diff', lines: [], more: 0 })
+  expect(edit?.diff?.map((line) => line.k)).toEqual([
+    'hunk',
+    'del',
+    'add',
+    'ctx',
+  ])
+  const long = toolOutput(
+    `@@ -1,${OUTPUT_LINES + 5} +1,0 @@\n` +
+      Array.from({ length: OUTPUT_LINES + 5 }, (_, i) => `-line ${i}`).join(
+        '\n',
+      ),
+    'x.txt',
+  )
+  expect(long?.diff).toHaveLength(OUTPUT_LINES)
+  expect(long?.more).toBe(6)
+})
+
+test('a fenced diff in an answer is drawn as a diff', () => {
+  const [, code] = proseAndCode(`The change:\n\n\`\`\`diff\n${EDIT}\n\`\`\`\n`)
+  expect(code).toMatchObject({ type: 'code', lang: 'diff', lines: [] })
+  expect(code?.type === 'code' && code.diff?.map((line) => line.k)).toEqual([
+    'file',
+    'hunk',
+    'del',
+    'add',
+    'ctx',
   ])
 })
 

@@ -92,17 +92,34 @@ const PROGRAM = [
 const PARSER = [
   'pub fn fields(line: &str) -> Vec<&str> {',
   "    let trimmed = line.trim_end_matches(',');",
-  "    trimmed.split(',').map(str::trim).collect()",
+  '    trimmed',
+  "        .split(',')",
+  '        .map(|field| field.trim())',
+  '        .collect()',
   '}',
 ].join('\n')
 
 const EDIT = [
   '--- a/src/parser.rs',
   '+++ b/src/parser.rs',
-  '@@ -2,2 +2,2 @@',
+  '@@ -1,7 +1,7 @@',
+  ' pub fn fields(line: &str) -> Vec<&str> {',
   "-    let trimmed = line.trim_end_matches(',');",
   "+    let trimmed = line.strip_suffix(',').unwrap_or(line);",
-  "     trimmed.split(',').map(str::trim).collect()",
+  '     trimmed',
+  "         .split(',')",
+  '-        .map(|field| field.trim())',
+  '+        .map(str::trim)',
+  '         .collect()',
+  ' }',
+  '@@ -13,5 +13,6 @@ mod tests {',
+  '     #[test]',
+  '     fn keeps_the_empty_last_field() {',
+  '-        assert_eq!(fields("a,b,,"), vec!["a", "b"]);',
+  '+        assert_eq!(fields("a,b,,"), vec!["a", "b", ""]);',
+  '+        assert_eq!(fields("a,b"), vec!["a", "b"]);',
+  '     }',
+  ' }',
 ].join('\n')
 
 /** A run that has done some work and is writing up what it found. */
@@ -192,7 +209,7 @@ export const TERMINAL_STORIES: TerminalStory[] = [
     id: 'terminal-code',
     title: 'Highlighted code and diffs',
     claim:
-      "Fenced code in an answer draws in pi's syntax roles on the slate; a diff marks added and removed lines.",
+      "Fenced code in an answer draws in Stone dark's code colours (GitHub Dark). A diff keeps each line's syntax, tints its removed and added rows, and brightens the words a changed line swapped.",
     running: false,
     messages: [
       message('u1', 'user', [text('Show me the fix')]),
@@ -212,6 +229,8 @@ export const TERMINAL_STORIES: TerminalStory[] = [
             'The change:',
             '',
             '```diff',
+            '--- a/src/parser.rs',
+            '+++ b/src/parser.rs',
             '@@ -12,3 +12,3 @@ pub fn fields(line: &str) -> Vec<&str> {',
             "-    let trimmed = line.trim_end_matches(',');",
             "+    let trimmed = line.strip_suffix(',').unwrap_or(line);",
@@ -233,7 +252,7 @@ export const TERMINAL_STORIES: TerminalStory[] = [
     id: 'terminal-activity',
     title: 'Compact activity while the agent writes',
     claim:
-      'Finished work folds into compact rows (three or more tools as one line, a finished program as one row); the caret marks where the agent is writing; the status names what the run is doing.',
+      'Finished work folds into compact rows (three or more tools as one line, a finished program as one row) while an edit keeps its row and shows what it changed, as Delta does, folded to its first lines with a count of the rest; the caret marks where the agent is writing; the status names what the run is doing.',
     running: true,
     messages: activity(),
     outbox: [],
