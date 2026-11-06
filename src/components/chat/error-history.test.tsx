@@ -1,4 +1,6 @@
 import { afterEach, expect, test } from 'bun:test'
+import { TheoremError } from '@theoremharness/sdk'
+import { describeError } from '@/lib/theorem/client'
 import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -51,4 +53,21 @@ test('a failed turn renders one contextual error, and a plain runtime failure re
   }]} />)
   await waitFor(() => container.querySelector('.aui-message-error-root'))
   expect(container.textContent).toContain('The connection was interrupted.')
+})
+
+test('source-bound journal capacity error renders its explanation, code and reference without a persistence claim', async () => {
+  const error = describeError(new TheoremError({ statusCode: 500, body: {
+    code: 'chat_store_error', title: 'The chat graph could not satisfy the request',
+    detail: 'chunk_store_journal_io: append journal record: No space left on device (os error 28)',
+    correlationId: 'chatreq_01M6QFM64PDHBTYJ7T036GDB3K',
+  } }))
+  const { container } = await render(<Harness messages={[{
+    id: 'storage-full', role: 'assistant', content: [],
+    status: { type: 'incomplete', reason: 'error', error },
+  }]} />)
+  const alert = await waitFor(() => container.querySelector('[role="alert"]'))
+  expect(alert.textContent).toContain('The server ran out of storage')
+  expect(alert.textContent).toContain('chat_store_error / chunk_store_journal_io')
+  expect(alert.textContent).toContain('chatreq_01M6QFM64PDHBTYJ7T036GDB3K')
+  expect(alert.textContent).not.toMatch(/message was (?:not )?saved|message was not sent/)
 })

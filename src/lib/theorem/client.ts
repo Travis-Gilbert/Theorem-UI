@@ -155,6 +155,18 @@ export function hasStatus(error: unknown, ...codes: number[]): boolean {
     codes.includes(error.statusCode)
   )
 }
+/** This public store error identifies capacity exhaustion, not commit status. */
+function explainStorageCapacity(code: unknown, detail: string | undefined): string | undefined {
+  if (
+    code === 'chat_store_error' &&
+    detail?.startsWith('chunk_store_journal_io:') &&
+    detail.includes('No space left on device (os error 28)')
+  ) {
+    return 'The server ran out of storage while processing this request. Retry after server storage capacity is restored. Code: chat_store_error / chunk_store_journal_io.'
+  }
+  return detail
+}
+
 export function describeError(error: unknown, service: 'chat' | 'document' = 'chat'): string {
   if (error instanceof TheoremError) {
     const body =
@@ -163,7 +175,7 @@ export function describeError(error: unknown, service: 'chat' | 'document' = 'ch
         : undefined
     const text = (value: unknown) =>
       typeof value === 'string' && value.trim() ? value.trim() : undefined
-    const detail = text(body?.detail)
+    const detail = explainStorageCapacity(body?.code, text(body?.detail))
     let message = detail ?? text(body?.title)
     if (error instanceof RefusedSend) {
       // The title, as the detail talks in revision numbers.

@@ -75,3 +75,32 @@ test('run failures use the public event description and request reference', () =
     describeRunFailure({ message: {}, diagnostic: 'private diagnostic' }),
   ).not.toContain('private diagnostic')
 })
+
+// Envelope comes from theorem_chat.rs chat_error(Store), not a captured body;
+// detail/reference are the exact failure displayed during mounted acceptance.
+const journalFullDetail = 'chunk_store_journal_io: append journal record: No space left on device (os error 28)'
+const storageReference = 'chatreq_01M6QFM64PDHBTYJ7T036GDB3K'
+
+test('a source-bound store-full problem explains capacity without guessing persistence', () => {
+  const message = describeError(new TheoremError({ statusCode: 500, body: {
+    type: 'https://theorem.rs/problems/chat_store_error',
+    code: 'chat_store_error', title: 'The chat graph could not satisfy the request',
+    detail: journalFullDetail, correlationId: storageReference,
+  } }))
+  expect(message).toBe(`The server ran out of storage while processing this request. Retry after server storage capacity is restored. Code: chat_store_error / chunk_store_journal_io. Reference: ${storageReference}`)
+  expect(message).not.toMatch(/message was (?:not )?saved|message was not sent/)
+})
+
+test.each([
+  ['chat_store_error', 'chunk_store_journal_io: append journal record: Permission denied (os error 13)'],
+  ['chat_store_error', 'chunk_store_poisoned: No space left on device (os error 28)'],
+  ['other_failure', journalFullDetail],
+])('unrelated storage conditions retain their actual detail: %s %s', (code, detail) => {
+  expect(describeError(new TheoremError({ statusCode: 500, body: { code, detail, correlationId: storageReference } }))).toBe(`${detail} Reference: ${storageReference}`)
+})
+
+test('a store problem without a detail does not invent capacity exhaustion', () => {
+  expect(describeError(new TheoremError({ statusCode: 500, body: {
+    code: 'chat_store_error', title: 'Unspecified store failure', correlationId: storageReference,
+  } }))).toBe(`Unspecified store failure Reference: ${storageReference}`)
+})
