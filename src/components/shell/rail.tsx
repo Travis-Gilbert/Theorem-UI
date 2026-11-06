@@ -1,9 +1,10 @@
-// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), Kit (the agent's figure), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
+import { Kit } from '@/components/kit/kit'
 import { PALETTES, usePalette } from '@/lib/palette'
 import type { Palette } from '@/lib/palette'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
@@ -236,7 +237,8 @@ function FilesControl({ collapsible }: { collapsible: boolean }) {
 }
 
 /**
- * The global rail: one destination per mode, and the account at the foot.
+ * The global rail: one destination per mode, and Kit, the terminal and the
+ * account at the foot.
  * It is the base the sheet sits on, and stacks above the sheet's shadow and
  * glow so the junction's tab stays level with the panel it joins. The first
  * destination is flush with the sheet's top, so its tab continues the sheet's
@@ -319,6 +321,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
         <FilesControl collapsible={collapsible} />
       </TooltipProvider>
       <div className="flex-1" />
+      <Kit className="mb-1" />
       <TerminalToggle />
       <AccountMenu />
     </div>

@@ -1,4 +1,4 @@
-// SOURCING: zustand, as lib/life/store; the deadline timer is the addendum's semantic clock (ADDENDUM-2 §5: the done hold expires on a timer scheduled for the next deadline, independent of any animation frame)
+// SOURCING: zustand, as lib/life/store; the deadline timer is the addendum's semantic clock (ADDENDUM-2 §4: the done hold and the idle shifts come due on a timer scheduled for the next deadline, independent of any animation frame)
 import { useEffect, useId } from 'react'
 import { create } from 'zustand'
 import {
@@ -8,6 +8,8 @@ import {
   resolvePose,
 } from './liveness'
 import type { KitExpression, Liveness, Pose } from './liveness'
+import { nextAct, poseAct } from './director'
+import type { Act, Stage } from './director'
 import { kitFactsOf } from './facts'
 import type { SourceFacts } from './facts'
 import type { ThreadMessage } from '@assistant-ui/react'
@@ -30,6 +32,12 @@ interface KitState {
   readonly pose: Pose
   /** The live expression part last applied, so a replayed one applies once. */
   readonly appliedPartId: string | undefined
+  /** What the sprite plays: the pose, or a flourish the figure chose itself. */
+  readonly act: Act
+  /** When the figure's last unprompted shift began, as epoch milliseconds. */
+  readonly lastShift: number
+  /** When the figure last became idle, as epoch milliseconds. */
+  readonly idleSince: number
 }
 
 const initial: KitState = {
@@ -40,14 +48,33 @@ const initial: KitState = {
   expression: undefined,
   pose: 'rest',
   appliedPartId: undefined,
+  // Not yet started: resting until the clock wakes it (`wakeKit`) or a fact
+  // arrives, so nothing shifts before the figure is on screen.
+  act: {
+    tag: 'rest',
+    liveness: 'idle',
+    pose: 'rest',
+    since: 0,
+    until: Infinity,
+    once: false,
+    unprompted: false,
+  },
+  lastShift: 0,
+  idleSince: 0,
 }
+
+/** Where the figure's own choices draw their chance; tests make it repeatable. */
+let random: () => number = Math.random
 
 export const useKit = create<KitState>(() => initial)
 
 const any = (sources: KitState['sources'], fact: 'running' | 'asking') =>
   Object.values(sources).some((source) => source[fact])
 
-/** Recomputes what follows from the facts; a turn ending starts the done hold. */
+/**
+ * Recomputes what follows from the facts: a turn ending starts the done hold,
+ * and the act follows the liveness and pose, or a due deadline.
+ */
 function settle(
   previous: KitState,
   next: Partial<KitState>,
@@ -67,11 +94,26 @@ function settle(
     },
     now,
   )
+  const pose = resolvePose(state.expression, liveness)
+  const idleSince =
+    liveness === 'idle' && previous.liveness !== 'idle' ? now : state.idleSince
+  const stage: Stage = {
+    liveness,
+    pose,
+    chosen: state.expression?.pose === pose,
+    lastShift: state.lastShift,
+    idleSince,
+  }
+  const act = nextAct(state.act, stage, now, random)
   return {
     ...state,
     doneUntil,
     liveness,
-    pose: resolvePose(state.expression, liveness),
+    pose,
+    act,
+    lastShift:
+      act !== state.act && act.unprompted ? act.since : state.lastShift,
+    idleSince,
   }
 }
 
@@ -133,27 +175,62 @@ export function settleKitExpression(value: unknown, now = Date.now()) {
   useKit.setState(settle(useKit.getState(), { expression }, now), true)
 }
 
-/** Advances the clock: the done hold expires into whatever the facts say now. */
+/**
+ * Advances the clock: the done hold expires into whatever the facts say now,
+ * and an act whose time is up gives way to the figure's next choice.
+ */
 export function tickKit(now = Date.now()) {
   const previous = useKit.getState()
   const next = settle(previous, {}, now)
-  if (next.liveness !== previous.liveness) useKit.setState(next, true)
+  if (next.liveness !== previous.liveness || next.act !== previous.act)
+    useKit.setState(next, true)
 }
 
-/** For tests: back to a figure that has seen nothing. */
-export function resetKit() {
+/** Starts the figure's own clock, once, when it is first on screen. */
+export function wakeKit(now = Date.now()) {
+  const state = useKit.getState()
+  if (state.act.since !== 0) return
+  const stage: Stage = {
+    liveness: state.liveness,
+    pose: state.pose,
+    chosen: state.expression?.pose === state.pose,
+    lastShift: state.lastShift,
+    idleSince: now,
+  }
+  useKit.setState(
+    { ...state, act: poseAct(stage, now, random), idleSince: now },
+    true,
+  )
+}
+
+/** For tests: back to a figure that has seen nothing, with its chance fixed if given. */
+export function resetKit(options: { random?: () => number } = {}) {
+  random = options.random ?? Math.random
   useKit.setState(initial, true)
 }
 
-/** Schedules the next deadline (the done hold's end); mounted once, beside the conversations. */
+/**
+ * Schedules the next deadline (the done hold's end, or the act's), and wakes
+ * the figure; mounted once, beside the conversations.
+ */
 export function useKitClock() {
   const doneUntil = useKit((state) => state.doneUntil)
+  const actUntil = useKit((state) => state.act.until)
+  useEffect(() => wakeKit(), [])
   useEffect(() => {
-    const wait = doneUntil - Date.now()
-    if (wait <= 0) return
-    const timer = setTimeout(() => tickKit(), wait)
+    const now = Date.now()
+    const due = Math.min(
+      ...[doneUntil, actUntil].filter((deadline) => deadline > now),
+    )
+    if (!Number.isFinite(due)) return
+    // A timer may fire a moment before the wall clock reads the deadline;
+    // it was due, so the tick is at least the deadline.
+    const timer = setTimeout(
+      () => tickKit(Math.max(Date.now(), due)),
+      due - now,
+    )
     return () => clearTimeout(timer)
-  }, [doneUntil])
+  }, [doneUntil, actUntil])
 }
 
 /** The part of an assistant-ui thread runtime Kit reads. */
