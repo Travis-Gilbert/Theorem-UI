@@ -1,11 +1,17 @@
 // SOURCING: the modules beside it; the script the block listener adds to an
 // HTML app's pages (served at /__runtime/app-bridge). It gives the app
 // `window.theorem`: the same declared files, state and run calls a cell has.
+// On a page, an app placed as a module also gets `theorem.module`: the values
+// it is handed, and the outputs and events it declared.
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
 import { observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
-import type { PageMethods, SandboxMethods } from './protocol'
+import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
+
+type ModuleListener = (values: ModuleValues) => void
+let moduleValues: ModuleValues | undefined
+const moduleListeners = new Set<ModuleListener>()
 
 const context = connectToPage().then((port) => {
   const rpc = rpcOver(port)
@@ -18,6 +24,12 @@ const context = connectToPage().then((port) => {
       return null
     },
   )
+  // Served before the first message is read, so the first values are seen.
+  serve<SandboxMethods, 'module.inputs'>(rpc, 'module.inputs', (values) => {
+    moduleValues = values
+    for (const listener of moduleListeners) listener(values)
+    return null
+  })
   observeHeight((height) => {
     void call<PageMethods, 'frame.resize'>(rpc, 'frame.resize', { height })
   })
@@ -68,6 +80,24 @@ const theorem = {
     call<PageMethods, 'run.request'>((await context).rpc, 'run.request', {
       target,
     }),
+  module: {
+    /** Calls `listener` with the current values, and again when they change. */
+    onInputs(listener: ModuleListener): () => void {
+      moduleListeners.add(listener)
+      if (moduleValues) listener(moduleValues)
+      return () => moduleListeners.delete(listener)
+    },
+    output: async (name: string, value: unknown) =>
+      call<PageMethods, 'module.output'>((await context).rpc, 'module.output', {
+        name,
+        value,
+      }),
+    emit: async (name: string, payload: unknown) =>
+      call<PageMethods, 'module.emit'>((await context).rpc, 'module.emit', {
+        name,
+        payload,
+      }),
+  },
 }
 
 Object.defineProperty(window, 'theorem', { value: theorem })

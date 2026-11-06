@@ -72,6 +72,16 @@ export interface PageMethods {
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
   'frame.snapshot': { params: { html: string }; result: null }
+  /** A page module publishing one of its declared outputs. */
+  'module.output': { params: { name: string; value: unknown }; result: null }
+  /** A page module sending one of its declared events. */
+  'module.emit': { params: { name: string; payload: unknown }; result: null }
+}
+
+/** What a page module is handed: its settings and its inputs' values. */
+export interface ModuleValues {
+  settings: Record<string, unknown>
+  inputs: Record<string, unknown>
 }
 
 /** The largest snapshot a frame may send, in characters. */
@@ -87,6 +97,8 @@ export interface SandboxMethods {
     params: { name: string; value: Record<string, unknown> }
     result: null
   }
+  /** A page module's settings or inputs changed. */
+  'module.inputs': { params: ModuleValues; result: null }
 }
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */
