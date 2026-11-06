@@ -36,6 +36,7 @@ import {
 } from '@/components/artifacts/artifact-model'
 import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
+import { PlanToolCall } from '@/components/chat/plan-graph'
 import { Icon } from '@/components/icons'
 import {
   describeError,
@@ -43,6 +44,7 @@ import {
   mutate,
   theorem,
 } from '@/lib/theorem/client'
+import { DRAFT_PLAN } from '@/lib/theorem/plans'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { cn, humanize } from '@/lib/utils'
 
@@ -245,14 +247,14 @@ export function sendApprovalDecision(
   )
 }
 
-/** Pending Theorem approvals render standalone so they are never folded into a tool group. */
+/** Pending Theorem approvals, artifacts and plans render standalone so they are never folded into a tool group. */
 export function isStandaloneToolCall(part: {
   type: string
   toolName?: string
   interrupt?: unknown
 }) {
   if (part.type !== 'tool-call') return false
-  if (part.toolName && ARTIFACT_TOOLS.has(part.toolName)) return true
+  if (part.toolName && (ARTIFACT_TOOLS.has(part.toolName) || part.toolName === DRAFT_PLAN)) return true
   const approval = readApproval(
     part.interrupt as ToolCallMessagePartProps['interrupt'],
   )
@@ -327,9 +329,10 @@ const TheoremApprovalCard: FC<{
   )
 }
 
-/** ToolFallback slot: artifact tools, Theorem approvals, then the generic tool card. */
+/** ToolFallback slot: artifact tools, plans, Theorem approvals, then the generic tool card. */
 export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
+  if (props.toolName === DRAFT_PLAN) return <PlanToolCall {...props} />
   const approval = readApproval(props.interrupt)
   if (approval && props.result === undefined)
     return <TheoremApprovalCard approval={approval} argsText={props.argsText} />

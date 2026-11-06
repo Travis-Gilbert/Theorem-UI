@@ -30,6 +30,14 @@ export type ModelOption = {
   tools: boolean
   /** It can think before answering. */
   reasoning: boolean
+  /**
+   * The reasoning effort levels a turn can ask this model for, as Theorem
+   * lists them: only the levels its provider route sends. Empty when it takes
+   * none.
+   */
+  effortLevels: readonly string[]
+  /** The level Theorem's catalog names as the model's own default. */
+  effortDefault?: string
   /** The most tokens one reply can hold. */
   maxOutput?: number
   /** When OpenRouter added it. */
@@ -82,7 +90,9 @@ export function parseModelEntry(raw: unknown): ModelOption | undefined {
     inputs: strings(architecture?.input_modalities),
     tools: parameters.includes('tools'),
     reasoning: parameters.includes('reasoning'),
+    effortLevels: strings(entry.effort_levels),
   }
+  if (typeof entry.effort_default === 'string') option.effortDefault = entry.effort_default
   const maxOutput = topProvider?.max_completion_tokens
   if (typeof maxOutput === 'number') option.maxOutput = maxOutput
   if (typeof entry.created === 'number') option.addedAtMs = entry.created * 1000
@@ -107,6 +117,7 @@ export function modelStub(ref: string, name?: string): ModelOption {
     inputs: [],
     tools: false,
     reasoning: false,
+    effortLevels: [],
   }
 }
 
@@ -231,15 +242,47 @@ export const usePickedModels = create<PickedModelsState>()(
   ),
 )
 
+type ModelEffortState = {
+  /**
+   * The effort level the person chose, per model ref; the empty ref is
+   * Theorem's default model. A model without an entry runs at its own default.
+   */
+  byModel: Readonly<Record<string, string>>
+  choose: (ref: string, level: string | undefined) => void
+}
+
+export const useModelEffort = create<ModelEffortState>()(
+  persist(
+    (set) => ({
+      byModel: {},
+      choose: (ref, level) =>
+        set(({ byModel }) => {
+          const { [ref]: _previous, ...rest } = byModel
+          return { byModel: level ? { ...rest, [ref]: level } : rest }
+        }),
+    }),
+    {
+      name: 'theorem-ui:effort',
+      partialize: ({ byModel }) => ({ byModel }),
+    },
+  ),
+)
+
 /**
- * Turn options that carry the picked model. The SDK's chat adapter spreads
- * its turn options into every send, retry and edit, so the getter reads the
- * pick at send time and a thread's adapter never needs rebuilding.
+ * Turn options that carry the picked model and the effort level chosen for
+ * it. The SDK's chat adapter spreads its turn options into every send, retry
+ * and edit, so the getters read the pick at send time and a thread's adapter
+ * never needs rebuilding. Theorem refuses a level the model's route does not
+ * send, so only a level the composer offered goes out.
  */
 export const pickedModelTurnOptions = {
   get model(): Theorem.ResolvedModel | undefined {
     const ref = usePickedModels.getState().selected
     return ref ? resolvedModel(ref) : undefined
+  },
+  get effort(): string | undefined {
+    const ref = usePickedModels.getState().selected ?? ''
+    return useModelEffort.getState().byModel[ref]
   },
 }
 

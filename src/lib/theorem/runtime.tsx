@@ -34,7 +34,8 @@ import { useEffect, useMemo } from 'react'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
 import { useComposerReferences } from '@/components/chat/composer-references'
-import { webTurnOptions } from '@/components/chat/composer-tools'
+import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
+import { DRAFT_PLAN } from './plans'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
@@ -449,6 +450,12 @@ export async function* runTurn(
     yield* resumeLiveRun(known, options.abortSignal)
   }
 }
+/** Whether a streamed step carries a finished `draft_plan` call. */
+export function draftedPlan(step: ChatModelRunResult): boolean {
+  return (step.content ?? []).some(
+    (part) => part.type === 'tool-call' && part.toolName === DRAFT_PLAN && part.result !== undefined && !part.isError,
+  )
+}
 function useTheoremThreadRuntime() {
   const aui = useAui()
   const adapter = useMemo<ChatModelAdapter>(
@@ -460,16 +467,21 @@ function useTheoremThreadRuntime() {
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
-          // The composer's context and Web toggle, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions()}
+          // The composer's context, Web and Plan toggles, read at each send like the model pick.
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
           } : options
-          yield* runTurn(remoteId,composed,pickedModelTurnOptions,()=>{
+          const turn = runTurn(remoteId,composed,pickedModelTurnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
+          for await (const step of turn) {
+            // Plan stays on until a plan is written; the turn that writes one turns it off.
+            if (draftedPlan(step)) usePlanning.getState().set(false)
+            yield step
+          }
         } catch (error) {
           if (options.abortSignal.aborted) throw error
           // Keep SDK exceptions intact for recovery above; only format at

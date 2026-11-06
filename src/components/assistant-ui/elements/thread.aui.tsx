@@ -28,7 +28,8 @@ import {
   RunningIndicator,
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
-import { COMPOSER_TOOLTIP_DELAY, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
+import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
+import { EffortPicker } from "@/components/chat/effort-picker";
 import { DirectiveText } from "./directive-text.aui";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
@@ -487,11 +488,13 @@ const ComposerAction: FC = () => {
       <div className="flex items-center gap-1.5">
         <ComposerAddAttachment />
         <ComposerWebToggle />
+        <ComposerPlanToggle />
       </div>
-      {/* Claims 8rem beside the attachment button and Web, so a long model
-          name truncates first; the row wraps only when less than that is left. */}
+      {/* Claims 8rem beside the attachment button, Web and Plan, so a long
+          model name truncates first; the row wraps only when less than that is left. */}
       <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
+        <EffortPicker />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-9 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>

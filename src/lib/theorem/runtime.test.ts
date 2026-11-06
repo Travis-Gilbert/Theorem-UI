@@ -26,6 +26,7 @@ import {
   createHistoryAdapter,
   createThreadListAdapter,
   runTurn,
+  draftedPlan,
 } from './runtime'
 
 type Send = { key: string; text: string; capabilityScope?: string[] }
@@ -499,4 +500,15 @@ test('old title recovery bounds concurrent history reads', async () => {
   expect((await pending).threads).toHaveLength(9)
   expect(peak).toBe(4)
   expect(titleEvents).toEqual([])
+})
+
+test('only a finished draft_plan call turns Plan off', () => {
+  const call = (toolName: string, extra: Record<string, unknown>) => ({
+    content: [{ type: 'tool-call', toolCallId: 'c', toolName, args: {}, argsText: '{}', ...extra }],
+  }) as unknown as Parameters<typeof draftedPlan>[0]
+  expect(draftedPlan(call('draft_plan', { result: { planId: 'plan:1' } }))).toBe(true)
+  expect(draftedPlan(call('draft_plan', {}))).toBe(false)
+  expect(draftedPlan(call('draft_plan', { result: 'a cycle', isError: true }))).toBe(false)
+  expect(draftedPlan(call('web_search', { result: {} }))).toBe(false)
+  expect(draftedPlan({})).toBe(false)
 })

@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web toggle state the composer and the runtime share), Base UI Toggle (the Web chip), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's capabilityScope turn option carries Web to the server, which restricts the turn's tools to the named native operations
+// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web and Plan toggle state the composer and the runtime share), Base UI Toggle (the Web and Plan chips), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's capabilityScope turn option carries Web to the server, which restricts the turn's tools to the named native operations, and its planning turn option makes the turn a planning turn that writes a Theorem plan through draft_plan
 import type {
   TriggerAdapter,
   TriggerItem,
@@ -50,6 +50,29 @@ export const useWebSearch = create<WebSearchState>()((set) => ({
 export const webTurnOptions = (): { capabilityScope?: string[] } =>
   useWebSearch.getState().on ? { capabilityScope: [...WEB_SCOPE] } : {}
 
+type PlanningState = { on: boolean; set: (on: boolean) => void }
+
+/**
+ * Whether the next turn plans. It stays on until a plan is drafted, so a
+ * turn where the model first asks a question is followed by another planning
+ * turn, and then turns itself off: the conversation after a plan is about it.
+ */
+export const usePlanning = create<PlanningState>()((set) => ({
+  on: false,
+  set: (on) => set({ on }),
+}))
+
+/**
+ * The turn option Plan adds, read at send time. Theorem gives a planning turn
+ * its `draft_plan` operation and tells the model to write the request as one
+ * durable plan.
+ */
+export const planningTurnOptions = (): { planning?: true } =>
+  usePlanning.getState().on ? { planning: true } : {}
+
+const CHIP =
+  'text-ink-muted hover:bg-hover hover:text-ink data-pressed:bg-redwood/15 data-pressed:text-redwood data-pressed:hover:bg-redwood/25 flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:outline-focus'
+
 /** The web mark turns while the pointer rests on its toggle, faster on a press. */
 function WebMark(props: ComponentProps<'svg'>) {
   const ref = useRef<SVGSVGElement>(null)
@@ -71,7 +94,7 @@ export function ComposerWebToggle() {
               pressed={on}
               onPressedChange={toggle}
               aria-label="Web search"
-              className="text-ink-muted hover:bg-hover hover:text-ink data-pressed:bg-redwood/15 data-pressed:text-redwood data-pressed:hover:bg-redwood/25 flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:outline-focus"
+              className={CHIP}
             />
           }
         >
@@ -82,6 +105,37 @@ export function ComposerWebToggle() {
           {on
             ? 'Answering from the web with RustyRed, without other tools. Click to turn off.'
             : 'Answer from the web with RustyRed'}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+/** The Plan chip beside Web: pressed, the next turn writes a Theorem plan the person sees as a graph. */
+export function ComposerPlanToggle() {
+  const on = usePlanning((state) => state.on)
+  const set = usePlanning((state) => state.set)
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          delay={COMPOSER_TOOLTIP_DELAY}
+          render={
+            <Toggle
+              pressed={on}
+              onPressedChange={set}
+              aria-label="Plan"
+              className={CHIP}
+            />
+          }
+        >
+          <Icon.Plan className="size-4" />
+          <span className="pe-0.5">Plan</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          {on
+            ? 'The next reply writes a plan you can work through as a graph. Click to turn off.'
+            : 'Turn this into a plan: a move, a trip, a launch, or code'}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

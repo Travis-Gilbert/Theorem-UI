@@ -6,7 +6,10 @@ import {
   formatPrice,
   parseModelEntry,
   parseModelList,
+  pickedModelTurnOptions,
   resolvedModel,
+  useModelEffort,
+  usePickedModels,
 } from './models'
 
 describe('resolvedModel', () => {
@@ -40,7 +43,20 @@ describe('parseModelEntry', () => {
       inputs: [],
       tools: false,
       reasoning: false,
+      effortLevels: [],
     })
+  })
+
+  test('reads the effort levels Theorem says the route sends, and their default', () => {
+    expect(
+      parseModelEntry({
+        ref: 'openrouter/deepseek/deepseek-v4-flash-0731',
+        name: 'DeepSeek V4 Flash',
+        source: 'catalog',
+        effort_levels: ['low', 'high', 'max'],
+        effort_default: 'low',
+      }),
+    ).toMatchObject({ effortLevels: ['low', 'high', 'max'], effortDefault: 'low' })
   })
 
   test('reads the fields the settings table shows', () => {
@@ -145,4 +161,31 @@ test('default identity selects the matching row rather than the first catalog mo
   expect(list.openrouter).toBe('live')
   expect(parseModelList(null)).toEqual({ models: [], openrouter: 'unavailable' })
   expect(parseModelList({ defaultRef: 42 })).not.toHaveProperty('defaultRef')
+})
+
+describe('effort', () => {
+  test('a send carries the level chosen for the model it runs on, and none for another', () => {
+    useModelEffort.setState({ byModel: { 'openrouter/deepseek/deepseek-v4-pro-0813': 'max', '': 'high' } })
+    try {
+      usePickedModels.setState({ selected: 'openrouter/deepseek/deepseek-v4-pro-0813' })
+      expect(pickedModelTurnOptions.effort).toBe('max')
+      usePickedModels.setState({ selected: undefined })
+      expect(pickedModelTurnOptions.effort).toBe('high')
+      usePickedModels.setState({ selected: 'openrouter/anthropic/claude-sonnet-4.5' })
+      expect(pickedModelTurnOptions.effort).toBeUndefined()
+      expect({ ...pickedModelTurnOptions }.effort).toBeUndefined()
+    } finally {
+      useModelEffort.setState({ byModel: {} })
+      usePickedModels.setState({ selected: undefined })
+    }
+  })
+
+  test('choosing no level forgets the one stored for that model only', () => {
+    const { choose } = useModelEffort.getState()
+    choose('a', 'high')
+    choose('b', 'low')
+    choose('a', undefined)
+    expect(useModelEffort.getState().byModel).toEqual({ b: 'low' })
+    useModelEffort.setState({ byModel: {} })
+  })
 })
