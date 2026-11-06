@@ -6,9 +6,10 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'bun:test'
 import { githubDarkTheme } from '@tanstack/highlight/themes/github-dark'
-import { converter, wcagContrast } from 'culori'
+import { converter, differenceCiede2000, wcagContrast } from 'culori'
 
 const oklch = converter('oklch')
+const deltaE = differenceCiede2000()
 
 const source = readFileSync(
   new URL('../../../terminal/src/lib.rs', import.meta.url),
@@ -92,5 +93,15 @@ test("a diff's tints keep GitHub Dark's diff hues, with removed and added alike 
     const added = at(`ADDED_${kind}`)
     expect(Math.abs(removed.l - added.l)).toBeLessThan(0.003)
     expect(Math.abs(removed.c - added.c)).toBeLessThan(0.003)
+  }
+})
+
+test('changed words stand apart from a row that stays quiet on the slate', () => {
+  // ΔE00 on GitHub Dark, removed / added: a row against its background
+  // 11.0 / 14.1, changed words against their row 19.0 / 14.6.
+  for (const side of ['REMOVED', 'ADDED']) {
+    const row = colour[`${side}_LINE`]!
+    expect(deltaE(row, colour.BG!)).toBeLessThan(14.5)
+    expect(deltaE(colour[`${side}_WORDS`]!, row)).toBeGreaterThan(15)
   }
 })

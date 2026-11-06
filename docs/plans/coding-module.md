@@ -107,15 +107,43 @@ How each tint is set:
 
 - Each pair keeps GitHub Dark's diff hue and shares one lightness and
   chroma, so neither side reads stronger.
-- A row has GitHub's row chroma (0.03), at the highest lightness where every
-  code colour, comments included, keeps 4.5:1.
-- Changed words have GitHub's word chroma (0.08), at the highest lightness
-  where every code colour except comments keeps 4.5:1. A comment's changed
-  words use the lifted grey above.
+- A row has chroma 0.02, at the highest lightness where every code colour,
+  comments included, keeps 4.5:1.
+- Changed words have chroma 0.09, at the highest lightness where every code
+  colour except comments keeps 4.5:1. A comment's changed words use the
+  lifted grey above.
 
-GitHub separates changed words from their row mainly by lightness (ΔE00
-17). On the slate, the contrast budget allows less lightness, so the
-separation here is ΔE00 11.
+The first fix gave rows and words GitHub's chroma (0.03 and 0.08). The owner
+then asked to keep the slate and change the highlights instead of the
+background, and picked quieter rows with richer words from a side-by-side
+comparison:
+
+| Colour        | First fix                           | Now                                 |
+| ------------- | ----------------------------------- | ----------------------------------- |
+| Removed row   | `#3a2624`, oklch(0.292 0.031 25.5)  | `#362927`, oklch(0.295 0.020 28.4)  |
+| Added row     | `#223023`, oklch(0.292 0.030 146.6) | `#262f26`, oklch(0.293 0.020 145.0) |
+| Removed words | `#5a2520`, oklch(0.339 0.079 27.5)  | `#5e211d`, oklch(0.339 0.090 26.7)  |
+| Added words   | `#16421d`, oklch(0.338 0.079 146.6) | `#0e4318`, oklch(0.338 0.090 146.3) |
+
+Why the change is in chroma rather than lightness:
+
+- Changed words cannot get lighter. Their tint already sits at the highest
+  lightness where red and link blue read at 4.5:1. The text colours set that
+  cap, so a darker background would not raise it.
+- GitHub gets more separation partly by spending contrast: its code on
+  changed words falls to 4.0-4.15:1.
+- The rows were too loud. Red and green sit across the hue circle from the
+  slate's blue, so at GitHub's row chroma a row stood further from the slate
+  (ΔE00 15.4 / 16.8, removed / added) than GitHub's rows stand from GitHub
+  Dark's background (11.0 / 14.1).
+
+Measured in ΔE00, removed / added:
+
+|             | Row against its background | Changed words against their row |
+| ----------- | -------------------------- | ------------------------------- |
+| First fix   | 15.4 / 16.8                | 11.1 / 11.5                     |
+| Now         | 12.6 / 14.1                | 15.5 / 15.6                     |
+| GitHub Dark | 11.0 / 14.1                | 19.0 / 14.6                     |
 
 The code colours themselves stay GitHub Dark's, so they match Monaco. They
 are uneven in OKLCH by design: L from 0.715 to 0.856, chroma from 0.077 to
@@ -127,6 +155,8 @@ constants and checks these rules:
 - every text colour reaches 4.5:1 on each surface it is drawn on;
 - the diff hues are within 2 degrees of GitHub's;
 - removed and added tints match in lightness and chroma;
+- a row stays within ΔE00 14.5 of the slate, and changed words stand more
+  than ΔE00 15 from their row;
 - the code colours equal TanStack's `githubDarkTheme`.
 
 With pi's muted grey put back, the test fails. With the old plum and teal
@@ -201,10 +231,10 @@ node scripts/stories/collage.cjs http://localhost:3000 docs/plans/evidence/codin
 
 | Story                      | Claim                                                                                                                      | Oracle result (2026-11-06)                                             |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                                | static; spinner moves (64 px in 400 ms)                                |
+| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                                | static; spinner moves (20 px in 400 ms)                                |
 | terminal-code              | Fenced code in Stone dark's code colours; a diff keeps each line's syntax over a tinted row and marks the changed words    | static                                                                 |
-| terminal-activity          | Finished work folds into compact rows; an edit shows its diff, folded with a count; the caret marks where the agent writes | static; spinner moves (89 px)                                          |
-| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted, an edit's whole diff included                                   | interaction (ctrl+o); spinner and focused caret move (248 px)          |
+| terminal-activity          | Finished work folds into compact rows; an edit shows its diff, folded with a count; the caret marks where the agent writes | static; spinner moves (44 px)                                          |
+| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted, an edit's whole diff included                                   | interaction (ctrl+o); spinner and focused caret move (229 px)          |
 | terminal-program-streaming | The native agent's program streams in highlighted, caret at its end                                                        | static; spinner moves (69 px)                                          |
 | terminal-references        | A tool row is a link to its file; references wait over the prompt                                                          | interaction: clicking `edit_file` emits `open src/parser.rs` lines 1-7 |
 

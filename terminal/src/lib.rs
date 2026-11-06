@@ -72,15 +72,19 @@ const LINK_BLUE: Color = Color::Rgb(0x58, 0xa6, 0xff);
 // Dark's translucent diff colours, mixed over a blue slate, drift to plum
 // and teal. Each pair keeps the hue of GitHub Dark's diff red (#da3633,
 // 26.8) or green (#238636, 146.3) and shares one lightness and chroma, so
-// neither side reads stronger. A row has GitHub's row chroma (0.03) at the
-// highest lightness where every code colour, comments included, keeps 4.5:1;
-// changed words have GitHub's word chroma (0.08) at the highest lightness
-// where every code colour but a comment's keeps it. terminal-palette.test.ts
-// checks these against the slate.
-const REMOVED_LINE: Color = Color::Rgb(0x3a, 0x26, 0x24); // oklch(0.292 0.031 25.5)
-const ADDED_LINE: Color = Color::Rgb(0x22, 0x30, 0x23); // oklch(0.292 0.030 146.6)
-const REMOVED_WORDS: Color = Color::Rgb(0x5a, 0x25, 0x20); // oklch(0.339 0.079 27.5)
-const ADDED_WORDS: Color = Color::Rgb(0x16, 0x42, 0x1d); // oklch(0.338 0.079 146.6)
+// neither side reads stronger. Text contrast caps how light changed words can
+// be, so they stand apart from their row by chroma, with a quiet row:
+// - a row has chroma 0.02, below GitHub's 0.03, because red and green sit
+//   across the hue circle from the slate's blue: at 0.03 a row stood out
+//   more against the slate than GitHub's rows do against theirs;
+// - changed words have chroma 0.09, a little above GitHub's 0.08;
+// - each is at the highest lightness where its text keeps 4.5:1: every code
+//   colour on a row, every one but a comment's on changed words.
+// terminal-palette.test.ts checks these against the slate.
+const REMOVED_LINE: Color = Color::Rgb(0x36, 0x29, 0x27); // oklch(0.295 0.020 28.4)
+const ADDED_LINE: Color = Color::Rgb(0x26, 0x2f, 0x26); // oklch(0.293 0.020 145.0)
+const REMOVED_WORDS: Color = Color::Rgb(0x5e, 0x21, 0x1d); // oklch(0.339 0.090 26.7)
+const ADDED_WORDS: Color = Color::Rgb(0x0e, 0x43, 0x18); // oklch(0.338 0.090 146.3)
 /// A comment's changed words: its grey lifted in lightness, 0.662 to 0.714,
 /// to read at 4.5:1 on either word tint.
 const COMMENT_ON_WORDS: Color = Color::Rgb(0x9a, 0xa4, 0xae);

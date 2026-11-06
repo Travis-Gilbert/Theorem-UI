@@ -29,7 +29,7 @@
       "id": "U2",
       "item": "TanStack Highlight tokens give highlighted code and diffs",
       "status": "done",
-      "note": "Stone dark, per the owner on 2026-11-06: the crate maps TanStack's githubDarkTheme classes (Stone dark includes github-dark-default). Diffs follow Delta: parsePatch with a diff-grammar fallback, each hunk side highlighted in the file's language, changed words from diffWordsWithSpace, markers, indent guides and tinted rows; an edit shows 12 diff lines with a count of the rest. After the owner's colour review, the diff tints are set in OKLCH at GitHub Dark's diff hues, every text colour is at 4.5:1 on its surface, and tool rows sit on the raised slate. Checked by terminal-palette.test.ts and terminal-code tests; stories terminal-code, terminal-activity and terminal-activity-expanded."
+      "note": "Stone dark, per the owner on 2026-11-06: the crate maps TanStack's githubDarkTheme classes (Stone dark includes github-dark-default). Diffs follow Delta: parsePatch with a diff-grammar fallback, each hunk side highlighted in the file's language, changed words from diffWordsWithSpace, markers, indent guides and tinted rows; an edit shows 12 diff lines with a count of the rest. After the owner's colour review, the diff tints are set in OKLCH at GitHub Dark's diff hues (quiet rows at chroma 0.02, changed words at 0.09, picked by the owner over a darker background), every text colour is at 4.5:1 on its surface, and tool rows sit on the raised slate. Checked by terminal-palette.test.ts and terminal-code tests; stories terminal-code, terminal-activity and terminal-activity-expanded."
     },
     {
       "id": "U3",

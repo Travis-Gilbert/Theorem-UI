@@ -2,21 +2,21 @@
   "terminal-input-states": {
     "motion": {
       "after_ms": 400,
-      "pixels": 64,
-      "box": [9, 564, 15, 569]
+      "pixels": 20,
+      "box": [13, 571, 15, 573]
     }
   },
   "terminal-activity": {
     "motion": {
       "after_ms": 400,
-      "pixels": 89,
-      "box": [9, 564, 15, 569]
+      "pixels": 44,
+      "box": [9, 564, 15, 573]
     }
   },
   "terminal-activity-expanded": {
     "motion": {
       "after_ms": 400,
-      "pixels": 248,
+      "pixels": 229,
       "box": [9, 564, 38, 612]
     }
   },
