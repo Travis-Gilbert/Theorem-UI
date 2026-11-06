@@ -61,7 +61,7 @@ describe('program flow', () => {
   it('classifies ports into at most five classes', () => {
     const classes = new Set(
       [
-        'variables_declared_at_init',
+        'tabular_any',
         'graph_nodes',
         'theorem.graph-lisp.value.v1',
         'theorem.monitor.snapshot.v1',
