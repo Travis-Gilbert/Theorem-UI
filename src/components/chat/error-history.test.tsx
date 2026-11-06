@@ -24,6 +24,22 @@ function Harness({ messages }: { messages: ThreadMessageLike[] }) {
 }
 afterEach(cleanup)
 
+test('a research failure with the same request reference renders once', async () => {
+  const message = 'The source check returned an unusable assessment. The assessment omitted or repeated part of the answer.'
+  const correlationId = 'chatreq-research-review'
+  const { container } = await render(<Harness messages={[{
+    id: 'research-failed', role: 'assistant',
+    status: { type: 'incomplete', reason: 'error', error: `${message} Reference: ${correlationId}` },
+    content: [{ type: 'data', name: 'theorem-error', data: {
+      code: 'research_review_invalid_response', message, correlationId, recoverable: true,
+    } }],
+  }]} />)
+  await waitFor(() => container.querySelector('[role="alert"]'))
+  expect(container.textContent.match(/The source check returned an unusable assessment\./g)?.length).toBe(1)
+  expect(container.textContent).toContain(correlationId)
+  expect(container.querySelector('.aui-message-error-root')).toBeNull()
+})
+
 test('a failed turn renders one contextual error, and a plain runtime failure remains visible', async () => {
   const explanation = 'The agent reached its step limit.'
   const { container, rerender } = await render(<Harness messages={[{
