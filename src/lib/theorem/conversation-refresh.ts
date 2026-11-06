@@ -12,29 +12,89 @@ function sameHead(local: ThreadMessage, durable: Theorem.Message): boolean {
   )
 }
 
-/** Keep the current IDs and side branches; only graft the durable tail onto its known head. */
-function appendTail(
+/** Background deliveries extend an assistant's durable parent chain. */
+function backgroundAnswersAfter(
+  message: ThreadMessage,
+  visible: readonly ThreadMessage[],
+  durable: readonly Theorem.Message[],
+): Theorem.Message[] {
+  if (message.role !== 'assistant') return []
+  const index = durable.findIndex((candidate) => sameHead(message, candidate))
+  if (index < 0) return []
+  const answers: Theorem.Message[] = []
+  let parentId = durable[index]!.messageId
+  for (const candidate of durable.slice(index + 1)) {
+    if (
+      candidate.role !== 'assistant' ||
+      candidate.parentMessageId !== parentId ||
+      visible.some((local) => sameHead(local, candidate))
+    )
+      break
+    answers.push(candidate)
+    parentId = candidate.messageId
+  }
+  return answers
+}
+
+/** Use assistant-ui's existing repository conversion and preserve local entries. */
+function graftMessages(
+  entries: Map<string, ExportedMessageRepository['messages'][number]>,
+  parentId: string,
+  messages: readonly Theorem.Message[],
+  snapshot: Theorem.ThreadSnapshot,
+): string {
+  const additions = ExportedMessageRepository.fromArray(
+    toHistoryMessages([...messages], snapshot.thread),
+  )
+  for (const entry of additions.messages) {
+    entries.set(entry.message.id, {
+      ...(entries.get(entry.message.id) ?? entry),
+      parentId,
+    })
+    parentId = entry.message.id
+  }
+  return parentId
+}
+
+function insertBackgroundAnswers(
+  entries: Map<string, ExportedMessageRepository['messages'][number]>,
+  visible: readonly ThreadMessage[],
+  snapshot: Theorem.ThreadSnapshot,
+): boolean {
+  let changed = false
+  for (let index = 0; index < visible.length - 1; index += 1) {
+    const anchor = visible[index]!
+    const successor = entries.get(visible[index + 1]!.id)
+    if (!entries.has(anchor.id) || !successor) continue
+    const missing = backgroundAnswersAfter(anchor, visible, snapshot.messages)
+    if (!missing.length) continue
+    const parentId = graftMessages(entries, anchor.id, missing, snapshot)
+    entries.set(successor.message.id, { ...successor, parentId })
+    changed = true
+  }
+  return changed
+}
+
+/** Keep local IDs, configuration and side branches while filling durable gaps. */
+function reconcileHistory(
   repository: ExportedMessageRepository,
-  head: ThreadMessage,
+  visible: readonly ThreadMessage[],
   snapshot: Theorem.ThreadSnapshot,
 ): ExportedMessageRepository | undefined {
+  const head = visible.at(-1)!
   const index = snapshot.messages.findIndex((message) =>
     sameHead(head, message),
   )
-  if (index < 0 || index === snapshot.messages.length - 1) return undefined
+  if (index < 0) return undefined
   const entries = new Map(
     repository.messages.map((entry) => [entry.message.id, entry]),
   )
   if (!entries.has(head.id)) return undefined
-  const tail = ExportedMessageRepository.fromArray(
-    toHistoryMessages(snapshot.messages.slice(index + 1), snapshot.thread),
-  )
-  let parentId = head.id
-  for (const entry of tail.messages) {
-    entries.set(entry.message.id, { ...entry, parentId })
-    parentId = entry.message.id
-  }
-  return { headId: parentId, messages: [...entries.values()] }
+  const inserted = insertBackgroundAnswers(entries, visible, snapshot)
+  const tail = snapshot.messages.slice(index + 1)
+  if (!inserted && !tail.length) return undefined
+  const headId = graftMessages(entries, head.id, tail, snapshot)
+  return { headId, messages: [...entries.values()] }
 }
 
 /** Import a completed background answer only while the visible conversation is unchanged. */
@@ -55,7 +115,7 @@ export async function refreshConversation(
     return false
   const head = now.messages.at(-1)
   if (!head) return false
-  const extended = appendTail(thread.export(), head, snapshot)
+  const extended = reconcileHistory(thread.export(), now.messages, snapshot)
   if (!extended) return false
   thread.import(extended)
   return true
