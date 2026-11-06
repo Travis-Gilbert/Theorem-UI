@@ -42,14 +42,16 @@ use tui_input::{Input, InputRequest};
 use tui_markdown::{Options, StyleSheet};
 use wasm_bindgen::prelude::*;
 
-// pi's terminal slate; the drawer keeps it in every palette and mode.
+// pi's terminal slate; the drawer keeps it in every palette and mode. Tool
+// rows sit on the raised slate: green belongs to a diff's added lines.
 const BG: Color = Color::Rgb(0x20, 0x27, 0x33);
-const TOOL: Color = Color::Rgb(0x27, 0x32, 0x27);
 const RAISED: Color = Color::Rgb(0x27, 0x30, 0x42);
 const LINE: Color = Color::Rgb(0x3a, 0x44, 0x58);
 const INK: Color = Color::Rgb(0xc8, 0xd0, 0xd8);
 const BRIGHT: Color = Color::Rgb(0xe4, 0xea, 0xee);
-const MUTED: Color = Color::Rgb(0x6c, 0x74, 0x7c);
+// pi's muted grey (#6c747c) lifted in OKLCH lightness only, 0.555 to 0.675,
+// to read at 4.5:1 on the slate and the raised slate.
+const MUTED: Color = Color::Rgb(0x8f, 0x98, 0xa0);
 const SAGE: Color = Color::Rgb(0x8a, 0xa8, 0xa0);
 const GOLD: Color = Color::Rgb(0xd6, 0xbc, 0x8a);
 const ERROR: Color = Color::Rgb(0xe0, 0x8a, 0x8f);
@@ -66,30 +68,24 @@ const GREEN: Color = Color::Rgb(0x7e, 0xe7, 0x87);
 const GREY: Color = Color::Rgb(0x8b, 0x94, 0x9e);
 const LINK_BLUE: Color = Color::Rgb(0x58, 0xa6, 0xff);
 
-// A diff's rows: Stone dark's Monaco diff colours (GitHub Dark Default's
-// diffEditor.removed/inserted Line and Text backgrounds), translucent there,
-// laid over the slate here. A changed word's colour lies over its line's.
-const REMOVED_LINE: Color = over(BG, 0xda3633, 0x26);
-const ADDED_LINE: Color = over(BG, 0x238636, 0x26);
-const REMOVED_WORDS: Color = over(REMOVED_LINE, 0xff7b72, 0x4d);
-const ADDED_WORDS: Color = over(ADDED_LINE, 0x3fb950, 0x4d);
+// A diff's rows, set in OKLCH on the slate rather than laid over it: GitHub
+// Dark's translucent diff colours, mixed over a blue slate, drift to plum
+// and teal. Each pair keeps the hue of GitHub Dark's diff red (#da3633,
+// 26.8) or green (#238636, 146.3) and shares one lightness and chroma, so
+// neither side reads stronger. A row has GitHub's row chroma (0.03) at the
+// highest lightness where every code colour, comments included, keeps 4.5:1;
+// changed words have GitHub's word chroma (0.08) at the highest lightness
+// where every code colour but a comment's keeps it. terminal-palette.test.ts
+// checks these against the slate.
+const REMOVED_LINE: Color = Color::Rgb(0x3a, 0x26, 0x24); // oklch(0.292 0.031 25.5)
+const ADDED_LINE: Color = Color::Rgb(0x22, 0x30, 0x23); // oklch(0.292 0.030 146.6)
+const REMOVED_WORDS: Color = Color::Rgb(0x5a, 0x25, 0x20); // oklch(0.339 0.079 27.5)
+const ADDED_WORDS: Color = Color::Rgb(0x16, 0x42, 0x1d); // oklch(0.338 0.079 146.6)
+/// A comment's changed words: its grey lifted in lightness, 0.662 to 0.714,
+/// to read at 4.5:1 on either word tint.
+const COMMENT_ON_WORDS: Color = Color::Rgb(0x9a, 0xa4, 0xae);
 /// Edit diffs show this many lines under their row until ctrl+o.
 const DIFF_FOLD: usize = 12;
-
-/// `top` at `alpha` (of 255) over `under`, as a translucent colour paints.
-const fn over(under: Color, top: u32, alpha: u16) -> Color {
-    const fn mix(below: u8, above: u32, alpha: u16) -> u8 {
-        ((below as u16 * (255 - alpha) + (above & 0xff) as u16 * alpha + 127) / 255) as u8
-    }
-    match under {
-        Color::Rgb(r, g, b) => Color::Rgb(
-            mix(r, top >> 16, alpha),
-            mix(g, top >> 8, alpha),
-            mix(b, top, alpha),
-        ),
-        other => other,
-    }
-}
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PROMPT: &str = "❯ ";
@@ -482,7 +478,11 @@ fn diff_lines(diff: &[DiffLine], lead: &str) -> Vec<(Line<'static>, Option<Color
                     continue;
                 }
                 let style = token_style(token.c.as_deref());
-                spans.push(Span::styled(rest, if token.e { style.bg(words) } else { style }));
+                spans.push(Span::styled(rest, match (token.e, style.fg) {
+                    (true, Some(GREY)) => style.fg(COMMENT_ON_WORDS).bg(words),
+                    (true, _) => style.bg(words),
+                    (false, _) => style,
+                }));
             }
             let row = Line::from(spans);
             (match fill {
@@ -1236,7 +1236,7 @@ fn tool_row(name: &str, summary: &str, status: &str, link: bool, width: u16) -> 
         ),
         Span::raw(" ".repeat(fill)),
     ])
-    .style(Style::new().bg(TOOL))
+    .style(Style::new().bg(RAISED))
 }
 
 /// The terminal's tabs, one session each, and what spans them: focus, the

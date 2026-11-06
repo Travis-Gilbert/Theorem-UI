@@ -46,8 +46,8 @@ is the agent.
     `github-dark-default`, and chat's Shiki uses the same theme. TanStack
     Highlight's `githubDarkTheme` has the same token colours, and the crate
     maps each token class to them.
-  - The diff tints are `github-dark-default`'s diff-editor colours, mixed
-    over the terminal's background.
+  - The diff tints keep `github-dark-default`'s diff hues but are set in
+    OKLCH on the terminal's background (see the colour assessment below).
   - The terminal's chrome (background, rules, muted text) stays pi's slate,
     as `src/styles.css` already keeps it in every palette and mode.
 - **Diffs: Delta's, not a whole-line colour.** A diff used to colour each
@@ -68,6 +68,69 @@ is the agent.
     a tinted row, and brighter tints on the changed words.
   - An edit keeps its row in the compact view and shows its first 12 diff
     lines, with a count of the rest. ctrl+o shows the whole diff.
+
+## Colour assessment
+
+The owner saw the diff colours as off in chroma and saturation. Measured in
+OKLCH, with WCAG contrast against each colour's composited background, the
+first build had these problems:
+
+- **The diff hues drifted.** GitHub Dark's diff colours are translucent. Mixed
+  in sRGB over pi's blue slate (oklch 0.271 0.025 261), a removed row came
+  out at hue 346 (plum) instead of red's 27, and an added row at 188 (teal)
+  instead of green's 146.
+- **Changed words and their row had different hues,** 30 degrees apart on
+  both sides.
+- **Some text fell below 4.5:1.** DESIGN.md asks for 4.5:1 against the
+  composited background:
+  - comment grey on an added row: 4.22;
+  - comment grey on changed words: 2.5;
+  - pi's muted grey on the slate: 3.16;
+  - pi's muted grey on a tool row: 2.82.
+- **A tool row looked like an added line.** Every tool row was tinted green,
+  whatever its state. Its tint was ΔE00 1.6 from the corrected added-row
+  tint, so the two could not be told apart.
+
+The fix sets every tint in OKLCH:
+
+| Colour                   | Before                            | After                               |
+| ------------------------ | --------------------------------- | ----------------------------------- |
+| Removed row              | `#3c2933`, oklch(0.307 0.033 346) | `#3a2624`, oklch(0.292 0.031 25.5)  |
+| Added row                | `#203533`, oklch(0.311 0.027 188) | `#223023`, oklch(0.292 0.030 146.6) |
+| Removed words            | `#774246`, oklch(0.445 0.073 16)  | `#5a2520`, oklch(0.339 0.079 27.5)  |
+| Added words              | `#295d3c`, oklch(0.433 0.079 154) | `#16421d`, oklch(0.338 0.079 146.6) |
+| Muted text               | `#6c747c`, L 0.555                | `#8f98a0`, L 0.675 (lightness only) |
+| Comment in changed words | `#8b949e`                         | `#9aa4ae`, L 0.714 (lightness only) |
+| Tool row                 | `#273227` (green)                 | the raised slate, `#273042`         |
+
+How each tint is set:
+
+- Each pair keeps GitHub Dark's diff hue and shares one lightness and
+  chroma, so neither side reads stronger.
+- A row has GitHub's row chroma (0.03), at the highest lightness where every
+  code colour, comments included, keeps 4.5:1.
+- Changed words have GitHub's word chroma (0.08), at the highest lightness
+  where every code colour except comments keeps 4.5:1. A comment's changed
+  words use the lifted grey above.
+
+GitHub separates changed words from their row mainly by lightness (ΔE00
+17). On the slate, the contrast budget allows less lightness, so the
+separation here is ΔE00 11.
+
+The code colours themselves stay GitHub Dark's, so they match Monaco. They
+are uneven in OKLCH by design: L from 0.715 to 0.856, chroma from 0.077 to
+0.164.
+
+`src/components/terminal/terminal-palette.test.ts` reads the crate's
+constants and checks these rules:
+
+- every text colour reaches 4.5:1 on each surface it is drawn on;
+- the diff hues are within 2 degrees of GitHub's;
+- removed and added tints match in lightness and chroma;
+- the code colours equal TanStack's `githubDarkTheme`.
+
+With pi's muted grey put back, the test fails. With the old plum and teal
+rows, it fails too.
 
 ## Chart
 
@@ -138,11 +201,11 @@ node scripts/stories/collage.cjs http://localhost:3000 docs/plans/evidence/codin
 
 | Story                      | Claim                                                                                                                      | Oracle result (2026-11-06)                                             |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                                | static; spinner moves (89 px in 400 ms)                                |
+| terminal-input-states      | Words sent mid-run show where the run took them; each one not yet taken says how far it got                                | static; spinner moves (64 px in 400 ms)                                |
 | terminal-code              | Fenced code in Stone dark's code colours; a diff keeps each line's syntax over a tinted row and marks the changed words    | static                                                                 |
-| terminal-activity          | Finished work folds into compact rows; an edit shows its diff, folded with a count; the caret marks where the agent writes | static; spinner moves (80 px)                                          |
-| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted, an edit's whole diff included                                   | interaction (ctrl+o); spinner moves (20 px)                            |
-| terminal-program-streaming | The native agent's program streams in highlighted, caret at its end                                                        | static; spinner moves (44 px)                                          |
+| terminal-activity          | Finished work folds into compact rows; an edit shows its diff, folded with a count; the caret marks where the agent writes | static; spinner moves (89 px)                                          |
+| terminal-activity-expanded | ctrl+o unfolds every tool row with its output highlighted, an edit's whole diff included                                   | interaction (ctrl+o); spinner and focused caret move (248 px)          |
+| terminal-program-streaming | The native agent's program streams in highlighted, caret at its end                                                        | static; spinner moves (69 px)                                          |
 | terminal-references        | A tool row is a link to its file; references wait over the prompt                                                          | interaction: clicking `edit_file` emits `open src/parser.rs` lines 1-7 |
 
 The oracles found two bugs, both fixed:

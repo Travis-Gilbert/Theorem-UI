@@ -276,11 +276,10 @@
      slate in every palette and mode, the way a terminal keeps its own scheme. */
   --color-term: #202733;
   --color-term-raised: #273042;
-  --color-term-tool: #273227;
   --color-term-line: #3a4458;
   --color-term-ink: #c8d0d8;
   --color-term-bright: #e4eaee;
-  --color-term-muted: #6c747c;
+  --color-term-muted: #8f98a0;
   --color-term-sage: #8aa8a0;
   --color-term-gold: #d6bc8a;
   --color-term-error: #e08a8f;

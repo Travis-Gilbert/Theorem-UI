@@ -2,28 +2,28 @@
   "terminal-input-states": {
     "motion": {
       "after_ms": 400,
-      "pixels": 89,
+      "pixels": 64,
       "box": [9, 564, 15, 569]
     }
   },
   "terminal-activity": {
     "motion": {
       "after_ms": 400,
-      "pixels": 80,
-      "box": [9, 568, 15, 573]
+      "pixels": 89,
+      "box": [9, 564, 15, 569]
     }
   },
   "terminal-activity-expanded": {
     "motion": {
       "after_ms": 400,
-      "pixels": 20,
-      "box": [9, 571, 11, 573]
+      "pixels": 248,
+      "box": [9, 564, 38, 612]
     }
   },
   "terminal-program-streaming": {
     "motion": {
       "after_ms": 400,
-      "pixels": 44,
+      "pixels": 69,
       "box": [9, 564, 15, 573]
     }
   },
