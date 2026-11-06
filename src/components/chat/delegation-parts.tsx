@@ -476,7 +476,7 @@ export const DelegationBody: FC<{
     <>
       <header className="flex items-start gap-3 p-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
-          <Icon.Code
+          <Icon.Delegate
             className={cn(
               'size-5',
               live && 'animate-float motion-reduce:animate-none',
