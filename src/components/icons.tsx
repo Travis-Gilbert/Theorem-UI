@@ -110,6 +110,7 @@ import AstronomyConstellation from '@/assets/icons/streamline/streamline-astrono
 import Hierarchy2 from '@/assets/icons/streamline/streamline-hierarchy-2.png'
 import AiFileRobot from '@/assets/icons/streamline/streamline-ai-file-robot.png'
 import AiRoutingAgent from '@/assets/icons/streamline/streamline-ai-routing-agent-direction-1.png'
+import AiRobotVariation from '@/assets/icons/streamline/streamline-ai-robot-generate-variation.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -228,6 +229,8 @@ const Graph = masked(AstronomyConstellation)
 const Outline = masked(Hierarchy2)
 const Agent = masked(AiFileRobot)
 const Delegate = masked(AiRoutingAgent)
+/** Theorem's own model choice, where the person has not picked one. */
+const Theorem = masked(AiRobotVariation)
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)
@@ -325,6 +328,7 @@ export const Icon = {
   Outline,
   Plan,
   Skill,
+  Theorem,
   TheoremVault,
   TreeFile,
   Trusted,

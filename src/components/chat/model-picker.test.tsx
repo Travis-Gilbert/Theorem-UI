@@ -53,3 +53,19 @@ test('command palette exposes invalid default while keeping available model sele
   expect(pickedModelTurnOptions.model).toEqual({ provider: 'provider', model: 'vendor/available' })
   expect(useCommandPalette.getState().open).toBe(false)
 })
+
+// The mark itself is not asserted: other suites mock the icon set to render
+// nothing, and bun shares module mocks across files in one run.
+test('with no model picked, the switch says Theorem', async () => {
+  const { container } = await models(false)
+
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Theorem')
+})
+
+test('a picked model shows its own name', async () => {
+  usePickedModels.getState().setStarred(['provider/vendor/available'])
+  usePickedModels.getState().select('provider/vendor/available')
+  const { container } = await models(false)
+
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Available')
+})

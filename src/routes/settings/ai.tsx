@@ -69,8 +69,8 @@ function DefaultModel({
     <SettingsSection title="Default" description="The model a new turn runs on until you pick another in the composer.">
       <SettingsBox>
         <SettingsRow
-          Mark={Icon.Chat}
-          title={selected ? (model?.name ?? selected) : 'Default'}
+          Mark={selected ? Icon.Chat : Icon.Theorem}
+          title={selected ? (model?.name ?? selected) : 'Theorem'}
           description={selected ? selected : fallback}
         >
           {selected && (
