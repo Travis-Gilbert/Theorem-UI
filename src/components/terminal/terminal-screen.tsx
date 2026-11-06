@@ -1,4 +1,4 @@
-// SOURCING: Ratzilla (ratatui in the browser, built from terminal/ into src/terminal-wasm) draws the terminal, its tab bar (ratatui Tabs) and prompt; assistant-ui useLocalRuntime runs each session's turns through the same Theorem SDK adapter, history and resume as the chat (lib/theorem/runtime); zustand carries each session's snapshot between its runtime and the WASM; the close button is the shared TooltipIconButton with Streamline's X; closing on a double-click outside is a document listener, since Base UI's drawer only dismisses on an outside press
+// SOURCING: Ratzilla (ratatui in the browser, built from terminal/ into src/terminal-wasm) draws the terminal, its tab bar (ratatui Tabs) and prompt; assistant-ui useLocalRuntime runs each session's turns through the same Theorem SDK adapter, history and resume as the chat (lib/theorem/runtime); zustand carries each session's snapshot and outbox between its runtime and the WASM; what the person sends while a run works goes to the run's inbox through the SDK's runs.command (command input); the close button is the shared TooltipIconButton with Streamline's X; closing on a double-click outside is a document listener, since Base UI's drawer only dismisses on an outside press
 import { useLocalRuntime } from '@assistant-ui/react'
 import type {
   AssistantRuntime,
@@ -8,25 +8,22 @@ import type {
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { readApproval } from '@/components/chat/theorem-parts'
 import { Icon } from '@/components/icons'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError, mutate, theorem } from '@/lib/theorem/client'
-import { createHistoryAdapter, runTurn } from '@/lib/theorem/runtime'
+import {
+  createHistoryAdapter,
+  runTurn,
+  useLiveRuns,
+} from '@/lib/theorem/runtime'
 import type { TurnOptions } from '@/lib/theorem/runtime'
 import type { TerminalHandle } from '@/terminal-wasm/theorem_terminal'
+import { leftoversOf, snapshotOf } from './terminal-transcript'
+import type { Approval, Outgoing } from './terminal-transcript'
 import type * as TerminalWasm from '@/terminal-wasm/theorem_terminal'
 
 /** The terminal runs agent work: coding execution, not the front conversation. */
 const TURN_OPTIONS: TurnOptions = { executionMode: 'coding' }
-
-type Approval = {
-  runId: string
-  approvalId: string
-  toolCallId: string
-  allow?: string
-  deny?: string
-}
 
 type Session = {
   snapshot: string
@@ -34,6 +31,9 @@ type Session = {
   generation: number
   runtime?: AssistantRuntime
   approval?: Approval
+  /** The session's durable thread, once it has one. */
+  thread?: () => string | undefined
+  outbox: Outgoing[]
 }
 
 /**
@@ -44,12 +44,81 @@ const useTerminalSessions = create<Partial<Record<string, Session>>>(() => ({}))
 
 function patchSession(key: string, change: Partial<Session>) {
   useTerminalSessions.setState((s) => ({
-    [key]: { snapshot: '{}', generation: 0, ...s[key], ...change },
+    [key]: { snapshot: '{}', generation: 0, outbox: [], ...s[key], ...change },
   }))
 }
 
+function updateOutgoing(key: string, id: string, change: Partial<Outgoing>) {
+  const session = useTerminalSessions.getState()[key]
+  if (!session) return
+  patchSession(key, {
+    outbox: session.outbox.map((o) => (o.id === id ? { ...o, ...change } : o)),
+  })
+}
+
+/** Outgoing input with a request in flight, so a flush sends each once. */
+const inFlight = new Set<string>()
+
+/** The refusal code a Theorem problem answer carries, if any. */
+function refusalCode(failure: unknown) {
+  const body =
+    failure && typeof failure === 'object' && 'body' in failure
+      ? failure.body
+      : undefined
+  return body && typeof body === 'object' && 'code' in body
+    ? body.code
+    : undefined
+}
+
+/**
+ * Sends a session's waiting input to its live run's inbox. Input that waits
+ * for the run's id stays `sending` until the run's first event names it.
+ */
+function flushOutbox(key: string) {
+  const session = useTerminalSessions.getState()[key]
+  const threadId = session?.thread?.()
+  const runId = threadId ? useLiveRuns.getState()[threadId] : undefined
+  if (!session || !runId) return
+  for (const outgoing of session.outbox) {
+    if (outgoing.state !== 'sending' || inFlight.has(outgoing.id)) continue
+    inFlight.add(outgoing.id)
+    void mutate((headers) =>
+      theorem().chat.runs.command(
+        { runId, command: 'input', ...headers },
+        { additionalBodyParameters: { text: outgoing.text } },
+      ),
+    )
+      .then((event) => {
+        const part = event.payload.part as { inputId?: unknown } | undefined
+        updateOutgoing(key, outgoing.id, {
+          state: 'sent',
+          inputId: typeof part?.inputId === 'string' ? part.inputId : undefined,
+        })
+      })
+      .catch((failure: unknown) => {
+        updateOutgoing(
+          key,
+          outgoing.id,
+          refusalCode(failure) === 'run_input_closed'
+            ? { state: 'next' }
+            : { state: 'failed', error: describeError(failure) },
+        )
+      })
+      .finally(() => inFlight.delete(outgoing.id))
+  }
+}
+
+/** Sending while a run works: the words join the run; they never stop it. */
+function sendInput(key: string, text: string) {
+  const outbox = useTerminalSessions.getState()[key]?.outbox ?? []
+  patchSession(key, {
+    outbox: [...outbox, { id: crypto.randomUUID(), text, state: 'sending' }],
+  })
+  flushOutbox(key)
+}
+
 export type TerminalAction =
-  | { type: 'submit'; tab: string; text: string }
+  | { type: 'submit' | 'input'; tab: string; text: string }
   | { type: 'approve'; tab: string; allow: boolean }
   | {
       type: 'cancel' | 'close' | 'new' | 'newTab' | 'closeTab' | 'selectTab'
@@ -65,6 +134,9 @@ export function runSessionAction(action: TerminalAction): boolean {
   switch (action.type) {
     case 'submit':
       session?.runtime?.thread.append(action.text)
+      return true
+    case 'input':
+      sendInput(action.tab, action.text)
       return true
     case 'cancel':
       session?.runtime?.thread.cancelRun()
@@ -133,6 +205,7 @@ export function restartSession(
   recordThread(projectId, tabId, undefined)
   patchSession(key, {
     generation: (useTerminalSessions.getState()[key]?.generation ?? 0) + 1,
+    outbox: [],
   })
 }
 
@@ -148,89 +221,6 @@ function titleOf(messages: readonly ThreadMessage[]) {
       .trim()
       .split('\n')[0] ?? ''
   return text.length > 24 ? `${text.slice(0, 23)}…` : text || 'agent'
-}
-
-type TerminalPart =
-  | { type: 'text' | 'reasoning'; text: string }
-  | { type: 'tool'; name: string; summary: string; status: string }
-
-/** A tool call's one-line summary: its first string argument, else the raw args. */
-function toolSummary(args: Record<string, unknown>, argsText: string) {
-  const first = Object.values(args).find((v) => typeof v === 'string')
-  return (typeof first === 'string' ? first : argsText).replace(/\s+/g, ' ')
-}
-
-/** The thread as the terminal draws it, plus the run's pending approval. */
-function snapshotOf(
-  messages: readonly ThreadMessage[],
-  running: boolean,
-  project: string,
-) {
-  let approval: Approval | undefined
-  let pending: { tool: string; summary: string } | undefined
-  const last = messages.at(-1)
-  const status = last?.role === 'assistant' ? last.status : undefined
-  const error =
-    status?.type === 'incomplete' && status.reason === 'error'
-      ? describeError(status.error)
-      : undefined
-
-  const rows = messages.map((message) => {
-    const runId = (
-      message.metadata.custom as { theoremRunId?: string } | undefined
-    )?.theoremRunId
-    const content: readonly ThreadMessage['content'][number][] = message.content
-    const parts = content.flatMap((part): TerminalPart[] => {
-      if (part.type === 'text' || part.type === 'reasoning')
-        return [{ type: part.type, text: part.text }]
-      if (part.type !== 'tool-call') return []
-      const asked = readApproval(part.interrupt)
-      const waiting =
-        asked !== undefined &&
-        asked.approved === undefined &&
-        part.result === undefined
-      if (waiting && runId && !approval) {
-        const kind = (k: string) =>
-          asked.options.find((o) => o.kind === k)?.optionId
-        approval = {
-          runId,
-          approvalId: asked.approvalId,
-          toolCallId: asked.toolCallId,
-          allow: kind('allow_once'),
-          deny: kind('reject_once') ?? kind('reject_always'),
-        }
-        pending = { tool: asked.toolName, summary: asked.summary }
-      }
-      return [
-        {
-          type: 'tool',
-          name: part.toolName,
-          summary: toolSummary(part.args, part.argsText),
-          status: waiting
-            ? 'approval'
-            : part.result !== undefined
-              ? part.isError
-                ? 'error'
-                : 'complete'
-              : message === last && running
-                ? 'running'
-                : 'complete',
-        },
-      ]
-    })
-    return { role: message.role, parts }
-  })
-
-  return {
-    approval,
-    json: JSON.stringify({
-      running,
-      project,
-      error,
-      approval: pending,
-      messages: rows,
-    }),
-  }
 }
 
 type AgentProps = {
@@ -266,19 +256,60 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
   const runtime = useLocalRuntime(adapter, { adapters: { history } })
 
   useEffect(() => {
+    /**
+     * Once the run is over, what it never took goes as the next turn: input
+     * it refused, input it left undelivered, and input sent before its id
+     * was known.
+     */
+    const resendLeftovers = (
+      messages: readonly ThreadMessage[],
+      outbox: readonly Outgoing[],
+    ) => {
+      const leftovers = leftoversOf(messages, outbox, inFlight)
+      if (leftovers.length === 0) return
+      const resent = new Set(leftovers.map((o) => o.id))
+      patchSession(sessionKey, {
+        outbox: outbox.map((o) =>
+          resent.has(o.id) ? { ...o, state: 'resent' } : o,
+        ),
+      })
+      const text = leftovers.map((o) => o.text).join('\n\n')
+      queueMicrotask(() => runtime.thread.append(text))
+    }
     const publish = () => {
       const { messages, isRunning } = runtime.thread.getState()
-      const { json, approval } = snapshotOf(messages, isRunning, project)
+      const outbox = useTerminalSessions.getState()[sessionKey]?.outbox ?? []
+      const { json, approval } = snapshotOf(
+        messages,
+        isRunning,
+        project,
+        outbox,
+      )
       patchSession(sessionKey, { snapshot: json, approval })
+      if (!isRunning) resendLeftovers(messages, outbox)
     }
-    patchSession(sessionKey, { runtime })
+    patchSession(sessionKey, {
+      runtime,
+      thread: () => threadOf(projectId, tabId),
+    })
     publish()
     const unsubscribe = runtime.thread.subscribe(publish)
+    const unsubscribeOutbox = useTerminalSessions.subscribe((s, prev) => {
+      if (s[sessionKey]?.outbox !== prev[sessionKey]?.outbox) publish()
+    })
+    // Input waiting for the run's id goes once the run's stream names it.
+    const unsubscribeRuns = useLiveRuns.subscribe(() => flushOutbox(sessionKey))
     return () => {
       unsubscribe()
-      patchSession(sessionKey, { runtime: undefined, approval: undefined })
+      unsubscribeOutbox()
+      unsubscribeRuns()
+      patchSession(sessionKey, {
+        runtime: undefined,
+        approval: undefined,
+        thread: undefined,
+      })
     }
-  }, [runtime, sessionKey, project])
+  }, [runtime, sessionKey, project, projectId, tabId])
 
   return null
 }

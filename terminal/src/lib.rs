@@ -110,6 +110,20 @@ struct Snapshot {
     /// The run's pending approval, answered with y or n.
     approval: Option<Approval>,
     messages: Vec<Message>,
+    /// What the person sent while a run worked that the transcript does not
+    /// show yet: still sending, queued, refused, or going as the next turn.
+    outgoing: Vec<Sent>,
+}
+
+/// Words the person sent to a working run, and how far they got.
+#[derive(Deserialize)]
+struct Sent {
+    text: String,
+    /// sending, queued, delivered, not_delivered, next, resent or failed.
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -141,6 +155,8 @@ enum Part {
         #[serde(default)]
         status: String,
     },
+    /// Sent while the run worked, drawn where the run took it in.
+    Input(Sent),
     #[serde(other)]
     Other,
 }
@@ -149,6 +165,8 @@ enum Part {
 /// tab it came from; a single-session terminal has one tab.
 enum Action {
     Submit(String),
+    /// Words for the run that is working; they never stop it.
+    Input(String),
     Cancel,
     Close,
     New,
@@ -162,6 +180,7 @@ impl Action {
     fn to_json(&self, tab: &str) -> String {
         match self {
             Action::Submit(text) => json!({ "type": "submit", "tab": tab, "text": text }),
+            Action::Input(text) => json!({ "type": "input", "tab": tab, "text": text }),
             Action::Cancel => json!({ "type": "cancel", "tab": tab }),
             Action::Close => json!({ "type": "close", "tab": tab }),
             Action::New => json!({ "type": "new", "tab": tab }),
@@ -317,9 +336,18 @@ impl Session {
                         summary,
                         status,
                     } => lines.push(tool_row(name, summary, status, width)),
+                    Part::Input(sent) => {
+                        lines.extend(sent_lines(sent));
+                        lines.push(Line::default());
+                    }
                     Part::Other => {}
                 }
             }
+            lines.push(Line::default());
+        }
+
+        for sent in &self.snapshot.outgoing {
+            lines.extend(sent_lines(sent));
             lines.push(Line::default());
         }
 
@@ -333,7 +361,7 @@ impl Session {
 
         if self.help {
             let mut commands = vec![
-                ("enter", "run it"),
+                ("enter", "run it; while it works, send it along"),
                 ("/new", "start a fresh thread here"),
                 ("/help", "show or hide this list"),
                 ("ctrl+c", "stop the run, or clear the prompt"),
@@ -418,7 +446,7 @@ impl Session {
         } else if self.scroll_back > 0 {
             format!("↓ {} more · pgdn ", self.scroll_back)
         } else if self.snapshot.running {
-            "ctrl+c stop ".to_owned()
+            "enter sends · ctrl+c stop ".to_owned()
         } else {
             String::new()
         };
@@ -478,11 +506,8 @@ impl Session {
                 self.notify(format!("{command} is not a command; /help lists them"));
                 None
             }
-            _ if self.snapshot.running => {
-                self.input = Input::new(text);
-                self.notify("wait for the run to finish, or ctrl+c to stop it");
-                None
-            }
+            // Sending is not stopping: the run takes it at its next step.
+            _ if self.snapshot.running => Some(Action::Input(text)),
             _ => Some(Action::Submit(text)),
         }
     }
@@ -617,6 +642,70 @@ impl Session {
         }
         self.history_at = None;
     }
+}
+
+/// Why a run did not take input, in the person's words.
+fn refusal(reason: Option<&str>) -> Option<&'static str> {
+    match reason? {
+        "run_ended" => Some("the run ended first"),
+        "run_cancelled" => Some("the run was stopped"),
+        "run_input_unsupported" => Some("this run takes no input"),
+        "answer_final" | "report_captured" => Some("its answer was already final"),
+        _ => None,
+    }
+}
+
+/// Words sent to a working run: a prompt line like the person's own, dim
+/// until the run takes them, with what happened to them after.
+fn sent_lines(sent: &Sent) -> Vec<Line<'static>> {
+    let taken = sent.status == "delivered";
+    let (glyph, ink) = if taken {
+        (Style::new().fg(GOLD).bold(), Style::new().fg(BRIGHT))
+    } else {
+        (Style::new().fg(MUTED), Style::new().fg(INK))
+    };
+    let (tag, tag_style) = match sent.status.as_str() {
+        "delivered" => (None, Style::new().fg(MUTED)),
+        "sending" => (Some("sending".to_owned()), Style::new().fg(MUTED)),
+        "next" => (Some("goes as the next turn".to_owned()), Style::new().fg(GOLD)),
+        "resent" => (Some("sent as the next turn".to_owned()), Style::new().fg(MUTED)),
+        "not_delivered" => (
+            Some(match refusal(sent.reason.as_deref()) {
+                Some(why) => format!("not delivered: {why}"),
+                None => "not delivered".to_owned(),
+            }),
+            Style::new().fg(ERROR),
+        ),
+        "failed" => (
+            Some(match &sent.reason {
+                Some(why) => format!("not sent: {why}"),
+                None => "not sent".to_owned(),
+            }),
+            Style::new().fg(ERROR),
+        ),
+        _ => (Some("queued for its next step".to_owned()), Style::new().fg(MUTED)),
+    };
+    let rows: Vec<&str> = sent.text.lines().collect();
+    let last = rows.len().saturating_sub(1);
+    rows.iter()
+        .enumerate()
+        .map(|(index, row)| {
+            let mut spans = vec![
+                if index == 0 {
+                    Span::styled(PROMPT, glyph)
+                } else {
+                    Span::raw(INDENT)
+                },
+                Span::styled((*row).to_owned(), ink),
+            ];
+            if index == last {
+                if let Some(tag) = &tag {
+                    spans.push(Span::styled(format!("  · {tag}"), tag_style));
+                }
+            }
+            Line::from(spans)
+        })
+        .collect()
 }
 
 fn tool_row(name: &str, summary: &str, status: &str, width: u16) -> Line<'static> {
