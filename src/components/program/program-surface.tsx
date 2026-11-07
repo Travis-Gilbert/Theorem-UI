@@ -4,7 +4,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { useDebouncedValue } from '@tanstack/react-pacer'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { lintProgram } from '@/lib/program/compute'
 import type { LintDiagnostic, LintSeverity } from '@/lib/program/compute'
 import type { ProgramNodeData } from '@/lib/program/flow'
@@ -18,7 +18,7 @@ import {
 import { NativeToolError } from '@/lib/theorem/native'
 import { layoutProgram } from '@/lib/program/flow'
 import { reattachProgramRun, stopFollowing } from '@/lib/program/run'
-import { useProgramDoc } from '@/lib/program/store'
+import { sameDocument, useProgramDoc } from '@/lib/program/store'
 import { describeError } from '@/lib/theorem/client'
 import { Alert, AlertDescription } from '@/components/coss/alert'
 import {
@@ -36,34 +36,53 @@ import { ProgramCanvas } from './program-canvas'
 import { RunRail } from './run-rail'
 import { ToolError } from './section'
 
-/** Edits save as they settle; a save that lost the race saves again on the next tick. */
+/**
+ * Edits save as they settle; a save that lost the race saves again on the next tick.
+ * `flush` saves at once whatever is still waiting, for the moment the graph closes.
+ */
 function useAutosave() {
   const client = useQueryClient()
   const revision = useProgramDoc((doc) => doc.revision)
   const [error, setError] = useState<string>()
+  const waiting = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const save = useCallback(() => {
+    const doc = useProgramDoc.getState()
+    if (!doc.program) return
+    const still = sameDocument()
+    const definition = doc.definitionRevision
+    saveProgram(
+      doc.program,
+      { ...doc.layout, nodes: doc.positions },
+      doc.nodeId,
+    )
+      .then((saved) => {
+        void client.invalidateQueries({ queryKey: programKeys.list() })
+        // A graph closed or replaced since keeps its own identity.
+        if (!still()) return
+        useProgramDoc
+          .getState()
+          .saved(saved.node_id, saved.content_id, definition)
+        setError(undefined)
+      })
+      .catch((failure: unknown) => {
+        if (still()) setError(describeError(failure))
+      })
+  }, [client])
   useEffect(() => {
     if (revision === 0) return
-    const timer = setTimeout(() => {
-      const doc = useProgramDoc.getState()
-      if (!doc.program) return
-      const definition = doc.definitionRevision
-      saveProgram(
-        doc.program,
-        { ...doc.layout, nodes: doc.positions },
-        doc.nodeId,
-      )
-        .then((saved) => {
-          useProgramDoc
-            .getState()
-            .saved(saved.node_id, saved.content_id, definition)
-          setError(undefined)
-          void client.invalidateQueries({ queryKey: programKeys.list() })
-        })
-        .catch((failure: unknown) => setError(describeError(failure)))
+    waiting.current = setTimeout(() => {
+      waiting.current = undefined
+      save()
     }, 700)
-    return () => clearTimeout(timer)
-  }, [revision, client])
-  return error
+    return () => clearTimeout(waiting.current)
+  }, [revision, save])
+  const flush = useCallback(() => {
+    if (waiting.current === undefined) return
+    clearTimeout(waiting.current)
+    waiting.current = undefined
+    save()
+  }, [save])
+  return { error, flush }
 }
 
 const SEVERITY_ORDER: Array<LintSeverity> = ['error', 'warning', 'info']
@@ -140,7 +159,7 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
   const pins = useProgramDoc((doc) => doc.layout.pins)
   const diagnostics = useProgramDoc((doc) => doc.diagnostics)
   const proposal = useProgramDoc((doc) => doc.proposal)
-  const saveError = useAutosave()
+  const { error: saveError, flush } = useAutosave()
   const verdict = useProgramDoc((doc) => doc.verdict)
   useProgramLint(nodeId)
   useProgramValidation()
@@ -183,10 +202,11 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
   }, [loaded.data])
   useEffect(
     () => () => {
+      flush()
       stopFollowing()
       useProgramDoc.getState().close()
     },
-    [],
+    [flush],
   )
 
   const extras = useMemo(() => {

@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel, the Pages panel
+// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel, the Pages panel, the Programs panel (Canvas)
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -13,6 +13,7 @@ import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
 import { IndexPanel } from '@/components/index/index-panel'
 import { PagesPanel } from '@/components/pages/pages-panel'
+import { ProgramsPanel } from '@/components/program/programs-panel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -238,7 +239,7 @@ function SpacesPanel() {
 /**
  * The navigator beside the rail: the active mode's list above the files.
  * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
- * stays mounted behind the Index, Pages, Spaces and the revealed files, so its
+ * stays mounted behind the Index, Pages, Spaces, Canvas and the revealed files, so its
  * search, scroll and open branches survive a switch. The rail's Files
  * control reveals the files over the mode's list.
  */
@@ -252,7 +253,8 @@ export function ContextPanel() {
           filesShown ||
           mode === 'spaces' ||
           mode === 'index' ||
-          mode === 'pages'
+          mode === 'pages' ||
+          mode === 'canvas'
         }
         className="min-h-0 flex-1"
       >
@@ -271,6 +273,11 @@ export function ContextPanel() {
       {mode === 'pages' && (
         <div hidden={filesShown} className="min-h-0 flex-1">
           <PagesPanel />
+        </div>
+      )}
+      {mode === 'canvas' && (
+        <div hidden={filesShown} className="min-h-0 flex-1">
+          <ProgramsPanel />
         </div>
       )}
       <FoldersSection fill={filesShown} />

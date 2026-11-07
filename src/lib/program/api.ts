@@ -118,6 +118,8 @@ export const programKeys = {
     ['programs', 'approvals', programId] as const,
   streams: () => ['programs', 'streams'] as const,
   grants: () => ['programs', 'grants'] as const,
+  /** The one run this browser is starting or following. */
+  run: () => ['programs', 'run'] as const,
   names: () => ['programs', 'names'] as const,
 }
 
