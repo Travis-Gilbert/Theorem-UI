@@ -57,11 +57,14 @@ export const useCanvasView = create<CanvasView>()((set, get) => ({
     ),
   enter: (crumb) =>
     set((s) => {
+      // From outside a canvas (a block in a note) the way down starts at the
+      // project's own canvas, whatever trail an earlier visit left.
+      if (!s.canvas)
+        return { trail: [crumb], editing: undefined, projectId: undefined }
       const at = s.trail.findIndex((c) => c.spaceId === crumb.spaceId)
       return {
         trail: at >= 0 ? s.trail.slice(0, at + 1) : [...s.trail, crumb],
         editing: undefined,
-        projectId: s.canvas ? s.projectId : undefined,
       }
     }),
   backTo: (index) =>
