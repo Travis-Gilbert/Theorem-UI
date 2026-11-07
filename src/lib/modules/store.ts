@@ -235,12 +235,24 @@ export function usePage(client: WorkspaceClient, entryId: string) {
     retry: false,
   })
   const { refetch } = query
-  const data = useMemo(
+  const read = useMemo(
     (): LoadedPage | undefined =>
       entry && query.data
         ? { path: entry.path, entry, ...query.data }
         : undefined,
     [entry, query.data],
+  )
+  // A rename reads the file again under its new path. Meanwhile the page
+  // keeps what it had, at the new path, so an editor over it stays.
+  const [last, setLast] = useState(read)
+  if (read && read !== last) setLast(read)
+  const data = useMemo(
+    (): LoadedPage | undefined =>
+      read ??
+      (entry && last?.entry.id === entry.id
+        ? { ...last, path: entry.path, entry }
+        : undefined),
+    [read, last, entry],
   )
   const reload = useCallback(async () => {
     const result = await refetch()

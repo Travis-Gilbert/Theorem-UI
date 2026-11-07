@@ -188,11 +188,19 @@ export function useInstance(
 
   const inputs = useInputs(runtime, scope, definition.inputs, bind)
   const onKey = JSON.stringify(on)
+  // The instance stays wired while its routes change, so its published
+  // values stay with it; only its removal takes them.
   useEffect(
     () => runtime.wire(path, { type: definition.id, on }),
+    // Routes are kept current by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [runtime, path, definition.id],
+  )
+  useEffect(
+    () => runtime.route(path, on),
     // `onKey` stands for `on`, which is a new object each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [runtime, path, definition.id, onKey],
+    [runtime, path, onKey],
   )
 
   const settings = useMemo(() => {

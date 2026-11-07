@@ -190,9 +190,11 @@ export interface ExtractedComposite {
   inputs: PortSpec[]
   outputs: PortSpec[]
   events: PortSpec[]
+  actions: PortSpec[]
   exposes: {
     outputs: Record<string, { instance: string; port: string }>
     events: Record<string, { instance: string; event: string }>
+    actions: Record<string, { instance: string; action: string }>
   }
   /** The page with the subtree replaced by one instance of the composite. */
   layout: LayoutData
@@ -208,7 +210,7 @@ const unique = (taken: Set<string>, name: string) => {
 const portOf = (
   lookup: Lookup,
   type: string,
-  list: 'inputs' | 'outputs' | 'events',
+  list: 'inputs' | 'outputs' | 'events' | 'actions',
   name: string,
 ) => lookup(type)?.[list].find((port) => port.name === name)
 
@@ -217,7 +219,9 @@ const portOf = (
  *
  * - an input bound from outside the subtree becomes a composite input;
  * - an output something outside reads becomes a composite output;
- * - an event routed to an instance outside becomes a composite event.
+ * - an event routed to an instance outside becomes a composite event;
+ * - an event from outside routed to an action inside becomes a composite
+ *   action, handed on to the inner instance's.
  *
  * The page keeps working: the subtree is replaced by one instance of
  * `moduleId`, bound and routed as the subtree was.
@@ -242,10 +246,13 @@ export function extractComposite(
   const exposedOutputs: ExtractedComposite['exposes']['outputs'] = {}
   const events: PortSpec[] = []
   const exposedEvents: ExtractedComposite['exposes']['events'] = {}
+  const actions: PortSpec[] = []
+  const exposedActions: ExtractedComposite['exposes']['actions'] = {}
   const names = {
     inputs: new Set<string>(),
     outputs: new Set<string>(),
     events: new Set<string>(),
+    actions: new Set<string>(),
   }
   const instanceId = newInstanceId(moduleId)
 
@@ -321,6 +328,23 @@ export function extractComposite(
     return name
   }
 
+  // Outside: routes to an action inside reach it through the composite's own.
+  const actionFor = (instance: string, action: string) => {
+    const existing = Object.entries(exposedActions).find(
+      ([, at]) => at.instance === instance && at.action === action,
+    )
+    if (existing) return existing[0]
+    const port = portOf(lookup, typeOf.get(instance) ?? '', 'actions', action)
+    const name = unique(names.actions, action)
+    actions.push({
+      name,
+      label: port?.label ?? action,
+      type: port?.type ?? 'json',
+    })
+    exposedActions[name] = { instance, action }
+    return name
+  }
+
   const replacement: ComponentData = {
     type: moduleId,
     props: {
@@ -351,10 +375,10 @@ export function extractComposite(
       const rebinds = Object.values(bind).some((source) =>
         inside.has(source.from),
       )
-      const cuts = Object.values(on).some((routes) =>
+      const retargets = Object.values(on).some((routes) =>
         routes.some(reachesInside),
       )
-      if (!rebinds && !cuts) return component
+      if (!rebinds && !retargets) return component
       const nextBind = Object.fromEntries(
         Object.entries(bind).map(([input, source]) =>
           inside.has(source.from)
@@ -362,11 +386,20 @@ export function extractComposite(
             : [input, source],
         ),
       )
-      // An outside event routed to an action inside cannot reach it any more.
       const nextOn = Object.fromEntries(
         Object.entries(on).map(([event, routes]) => [
           event,
-          routes.filter((route) => !reachesInside(route)),
+          routes.map((route) =>
+            reachesInside(route) && !('host' in route.to)
+              ? {
+                  ...route,
+                  to: {
+                    instance: instanceId,
+                    action: actionFor(route.to.instance, route.to.action),
+                  },
+                }
+              : route,
+          ),
         ]),
       )
       return {
@@ -381,7 +414,12 @@ export function extractComposite(
     inputs,
     outputs,
     events,
-    exposes: { outputs: exposedOutputs, events: exposedEvents },
+    actions,
+    exposes: {
+      outputs: exposedOutputs,
+      events: exposedEvents,
+      actions: exposedActions,
+    },
     layout: replaced,
   }
 }

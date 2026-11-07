@@ -51,11 +51,12 @@ import { WorkspaceFilePanel } from '@/components/workspace/workspace-file-panel'
 import type { Item } from '@/lib/modules/contract'
 import { builtin, registerBuiltin } from '@/lib/modules/registry'
 import type { ModuleDefinition, ModuleViewProps } from '@/lib/modules/registry'
+import type { PageRuntime } from '@/lib/modules/runtime'
 import { useVaultClient } from '@/lib/modules/store'
 import { isItem, isReference } from '@/lib/modules/values'
 import { describeError } from '@/lib/theorem/client'
 import { useNothingToShow } from './layout-parts'
-import { useModuleAction } from './page-runtime'
+import { useModuleAction, usePageRuntime } from './page-runtime'
 
 function Empty({ children }: { children: string }) {
   return <p className="p-3 text-sm text-ink-muted">{children}</p>
@@ -269,15 +270,30 @@ function RecordsModule({
 }
 
 type Owner = { owner?: string }
-type OwnerStore = UseBoundStore<StoreApi<Owner>>
+export type OwnerStore = UseBoundStore<StoreApi<Owner>>
+
+/** Each open page view's runtime, numbered, so two views never share a name. */
+const views = new WeakMap<PageRuntime, number>()
+let lastView = 0
+const viewOf = (runtime: PageRuntime) => {
+  let n = views.get(runtime)
+  if (n === undefined) views.set(runtime, (n = ++lastView))
+  return n
+}
 
 /**
  * For a surface there is one of (the conversation, Theia, the agent
  * terminal): which instance shows it. The first placed takes it, another
  * takes it when its owner goes, and "Show it here" moves it. While arranging
  * an instance does not ask for it.
+ *
+ * An instance is named by its page view and its path in the page. Pages
+ * made from one template share instance ids, and a mode's page can be open
+ * in use and in Pages at once; the path stays the same while the view
+ * switches between arranging and in use. Exported for its test.
  */
-function useOwner(store: OwnerStore, me: string, wanted: boolean) {
+export function useOwner(store: OwnerStore, path: string, wanted: boolean) {
+  const me = `${viewOf(usePageRuntime())}:${path}`
   const owner = store((s) => s.owner)
   // Before paint, so the first placed never shows "in another place".
   useLayoutEffect(() => {
@@ -308,9 +324,9 @@ function Elsewhere({ what, onTake }: { what: string; onTake: () => void }) {
 
 const useConversationOwner = create<Owner>(() => ({}))
 
-function ConversationModule({ settings, path: me }: ModuleViewProps) {
+function ConversationModule({ settings, path }: ModuleViewProps) {
   const pinned = text(settings.conversation)
-  const { mine, take } = useOwner(useConversationOwner, me, true)
+  const { mine, take } = useOwner(useConversationOwner, path, true)
   // The page's binding picks the conversation; the runtime stays the one.
   useEffect(() => {
     if (mine && pinned && useShell.getState().chatThreadId !== pinned)
@@ -335,8 +351,8 @@ const useIdeOwner = create<Owner>(() => ({}))
  * terminal's active tab, so a connection from Added to a terminal's Attach
  * makes the terminal the conversation.
  */
-function IdeModule({ settings, emit, arranging, path: me }: ModuleViewProps) {
-  const { mine, take } = useOwner(useIdeOwner, me, !arranging)
+function IdeModule({ settings, emit, arranging, path }: ModuleViewProps) {
+  const { mine, take } = useOwner(useIdeOwner, path, !arranging)
   if (arranging)
     return <Empty>Theia opens here while the page is in use.</Empty>
   if (!mine) return <Elsewhere what="The IDE" onTake={take} />
@@ -357,10 +373,10 @@ const useTerminalOwner = create<Owner>(() => ({}))
  * same tabs the right drawer shows. Attach adds a reference to the active
  * tab's next turn.
  */
-function TerminalModule({ arranging, path: me }: ModuleViewProps) {
+function TerminalModule({ arranging, path }: ModuleViewProps) {
   const hostId = useId()
   const { project } = useActiveProject()
-  const { mine, take } = useOwner(useTerminalOwner, me, !arranging)
+  const { mine, take } = useOwner(useTerminalOwner, path, !arranging)
   useModuleAction('attach', (payload) => {
     const tab =
       project && useShell.getState().terminalTabs[project.projectId]?.active

@@ -52,14 +52,24 @@ export const sourcePath = (scope: string | undefined, from: string) =>
 export interface PageRuntime {
   outputs: StoreApi<Outputs>
   setOutput: (instance: string, port: string, value: unknown) => void
-  /** Registers an instance's routes; returns its removal. */
+  /**
+   * Registers an instance and its routes; returns its removal, which takes
+   * its published values with it.
+   */
   wire: (instance: string, wiring: Wiring) => () => void
+  /**
+   * Replaces a wired instance's routes. Its published values stay: a value
+   * bound elsewhere does not go blank because a route changed.
+   */
+  route: (instance: string, on: Wiring['on']) => void
   /** Registers a handler for one of an instance's actions. */
   handle: (
     instance: string,
     action: string,
     handler: ActionHandler,
   ) => () => void
+  /** Calls one of an instance's actions, as a route to it would. */
+  act: (instance: string, action: string, payload: unknown) => void
   /** Hands an inner instance's event on as its composite's own event. */
   forward: (
     inner: string,
@@ -191,6 +201,13 @@ export function createPageRuntime(
             return next
           }, true)
       }
+    },
+    act: (instance, action, payload) => {
+      if (!disposed) handlers.get(key(instance, action))?.(payload)
+    },
+    route: (instance, on) => {
+      const wired = wiring.get(instance)
+      if (wired && !disposed) wired.on = on
     },
     handle: (instance, action, handler) =>
       disposed

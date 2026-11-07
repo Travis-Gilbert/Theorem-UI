@@ -43,6 +43,7 @@ export type ModuleImplementationRuntime =
       exposes: {
         outputs: Record<string, { instance: string; port: string }>
         events: Record<string, { instance: string; event: string }>
+        actions: Record<string, { instance: string; action: string }>
       }
     }
 

@@ -98,7 +98,7 @@ function SaveDialog({
       inputs: preview.inputs,
       outputs: preview.outputs,
       events: preview.events,
-      actions: [],
+      actions: preview.actions,
       capabilities: { read: [], write: [], state: [], net: [] },
       migrations: [],
       implementation: {
@@ -164,9 +164,14 @@ function SaveDialog({
                 'Sends',
                 preview.events.map((p) => p.label),
               )}
+              {line(
+                'Answers',
+                preview.actions.map((p) => p.label),
+              )}
               {!preview.inputs.length &&
                 !preview.outputs.length &&
-                !preview.events.length && (
+                !preview.events.length &&
+                !preview.actions.length && (
                   <p>
                     Nothing outside it is connected to it, so it takes and gives
                     nothing.

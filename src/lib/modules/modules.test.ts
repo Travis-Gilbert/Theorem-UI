@@ -252,7 +252,7 @@ describe('layout', () => {
     })
   })
 
-  test('an outside route into the composite is cut; its other routes stay', () => {
+  test('an outside route into the composite becomes its action; its other routes stay', () => {
     const sender = component('theorem.test.list', 'list', {
       on: {
         ask: [
@@ -272,12 +272,22 @@ describe('layout', () => {
       'acme.one',
       lookup,
     )!
-    const [kept, , otherAfter, countAfter] = extracted.layout.content
+    const [kept, placed, otherAfter, countAfter] = extracted.layout.content
+    // Review found the route was dropped, so the saved module stopped
+    // answering the list; it now reaches the inner action through the
+    // composite's own.
     expect(kept!.props.on).toEqual({
       ask: [
+        { to: { instance: placed!.props.id, action: 'show' } },
         { to: { instance: 'other', action: 'show' } },
         { to: { host: 'composer.ask' } },
       ],
+    })
+    expect(extracted.actions).toEqual([
+      { name: 'show', label: 'Show', type: 'item' },
+    ])
+    expect(extracted.exposes.actions).toEqual({
+      show: { instance: 'insp', action: 'show' },
     })
     // Instances the extraction does not reach are left as they were.
     expect(otherAfter).toEqual(other)
@@ -467,6 +477,40 @@ describe('runtime', () => {
     runtime.setOutput('outer', 'selected', 1)
     expect(h.attached).toHaveLength(1)
     expect(runtime.outputs.getState()).toEqual({})
+  })
+
+  // Review found that changing a route unwired the instance, which took its
+  // published values with it and blanked whatever was bound to them.
+  test('new routes keep the values; removal takes them', () => {
+    const h = host()
+    const runtime = createPageRuntime(lookup, h)
+    const shown: unknown[] = []
+    const unwire = runtime.wire('a', { type: 'theorem.test.list', on: {} })
+    runtime.wire('b', { type: 'theorem.test.inspector', on: {} })
+    runtime.handle('b', 'show', (item) => shown.push(item))
+    runtime.setOutput('a', 'selected', { id: 'd1' })
+    runtime.route('a', { ask: [{ to: { instance: 'b', action: 'show' } }] })
+    expect(runtime.outputs.getState()).toEqual({
+      a: { selected: { id: 'd1' } },
+    })
+    runtime.emit('a', 'ask', { id: 'd2' })
+    expect(shown).toEqual([{ id: 'd2' }])
+    unwire()
+    expect(runtime.outputs.getState()).toEqual({})
+  })
+
+  test('act calls an action as a route would; a composite action reaches inside', () => {
+    const runtime = createPageRuntime(lookup, host())
+    const shown: unknown[] = []
+    runtime.handle('box/insp', 'show', (item) => shown.push(item))
+    runtime.handle('box', 'show', (item) =>
+      runtime.act('box/insp', 'show', item),
+    )
+    runtime.act('box', 'show', { id: 'd1' })
+    expect(shown).toEqual([{ id: 'd1' }])
+    runtime.dispose()
+    runtime.act('box', 'show', { id: 'd2' })
+    expect(shown).toEqual([{ id: 'd1' }])
   })
 
   test('a resumed runtime takes calls again; its instances wire afresh', () => {

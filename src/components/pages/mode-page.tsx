@@ -107,7 +107,7 @@ function ModeSurface({
     [held.page.layout, lookup],
   )
   const metadata = { arranging: false, page: held.path } satisfies PageMetadata
-  const renderContent = useContentRenderer(config, metadata)
+  const renderContent = useContentRenderer(config, metadata, lookup)
   const said =
     notice ??
     (held.problem &&

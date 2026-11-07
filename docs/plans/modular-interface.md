@@ -50,7 +50,11 @@ This is a first release. The owner's design (pasted with the request on
    reuse the result, select it while arranging and choose **Save as module**.
    The selection becomes a composite in `Modules/<name>/module.json`:
    - what crossed its edge becomes its named inputs, outputs and events;
+   - a route from outside to an instance inside becomes one of its actions,
+     which hands what it is given to that instance's action;
    - one instance of it takes the selection's place, wired as before.
+     Its content is prepared as a page's is: a part this app does not have is
+     held in place, and older settings are migrated.
 3. **Create or install** a new implementation, without compiling it into the
    app. **New module** writes a starter `module.json` and `index.html` into
    `Modules/<name>/`, then opens that page in the code editor, as source,
@@ -83,7 +87,8 @@ This is a first release. The owner's design (pasted with the request on
 - **One runtime per page view.** A view that React hides and shows again
   (StrictMode does this in development) keeps its runtime. The runtime stops
   when the view is hidden and resumes when it is shown, and each instance
-  registers its routes and handlers again.
+  registers its routes and handlers again. Changing an instance's routes
+  keeps the values it published; only its removal takes them.
 
 ## Chat as a module, without a second agent
 
@@ -149,6 +154,15 @@ page.
     saved since, the page says so, and the person can **Keep mine** or **Use
     the vault's**.
   - The Index view module holds its view's revision the same way.
+- **Unsaved arrangements** are kept outside the view
+  (`src/lib/modules/drafts.ts`), by page. They survive:
+  - opening another page or mode and coming back;
+  - the file being renamed: the page stays open at its new path;
+  - a newer revision that does not parse: the editor stays and says so.
+    A save clears only what it wrote; an edit made while it runs stays unsaved.
+    Leaving the app with one asks first, and the desktop app's quit check
+    (`src/lib/desktop/unsaved.ts`) counts it. A page is saved only by the
+    person, so the quit asks rather than saving it.
 
 ## Built-in modules
 
@@ -173,8 +187,11 @@ What the templates need from them:
   whatever the page routes `added` to.
 - **Agent terminal** takes `attach`: the reference goes to the active tab's
   next turn.
-- **One place at a time.** Theia and the conversation each show in one place.
-  Any other instance says "… shows in another place." with **Show it here**.
+- **One place at a time.** Theia, the conversation and the agent terminal
+  each show in one place. Any other instance says "… shows in another
+  place." with **Show it here**. An instance is told apart by its page view
+  as well as its id, since pages made from one template share ids and a
+  mode's page can be open in use and in Pages at once.
 
 The layout components are Split and Tabs. Two layout settings make a page
 able to stand in for a mode:
@@ -233,8 +250,9 @@ Known limits of what is here:
   is the Split's 120 px rather than the old workbench's 380 px.
 - **Reset is not revision-checked.** It removes the mode's file whatever
   revision is there.
-- **Theia in two places.** With an IDE in a page and IDE mode both open, one
-  of them shows Theia and the other offers Show it here.
+- **Theia in two places.** With Theia placed in two open views (an IDE in a
+  page and IDE mode, or two pages from the Coding template), one of them
+  shows it and the other offers Show it here.
 
 ## Verification
 
@@ -248,8 +266,14 @@ See the checklist for what each item rests on. In short:
   - `src/lib/modules/templates.test.ts`;
   - `src/components/index/navigation.test.tsx`, the Index view's own place;
   - `src/components/pages/page.test.tsx`, which renders through Puck's
-    `Render` with the page runtime, including a Split folding and the
-    built-in templates' connections;
+    `Render` with the page runtime, including a Split folding, the
+    built-in templates' connections, a saved module's actions and parts,
+    and one surface across two views;
+  - `src/components/pages/page-view.test.tsx`, the page editor against the
+    fake vault: an unsaved arrangement through leaving, a rename, a revision
+    that does not parse and a conflicting save, and an edit made while a
+    save runs;
+  - `src/lib/desktop/unsaved.test.ts`, the quit check, pages included;
   - the hosted-app network policy test.
 - **Browser.** Checked on 2026-11-06 with Playwright (Chromium) against the dev
   server and a stub Theorem (see
@@ -302,6 +326,22 @@ See the checklist for what each item rests on. In short:
     showed what was read of the old one. A new file at a watched path is
     now read again, and Reset drops what was read. `store.test.tsx` covers
     both.
+- **What review found and fixed** (Greptile on PR #34). Each fix has a test
+  that fails without it:
+  - A rename emptied the page's read, and a revision that does not parse
+    replaced the editor with an error, losing unsaved work. `usePage` keeps
+    its last read through a rename, and the editor stays over a bad
+    revision (`store.test.tsx`, `page-view.test.tsx`).
+  - Leaving a page dropped its unsaved arrangement. Drafts are now kept
+    outside the view (`page-view.test.tsx`, `unsaved.test.ts`).
+  - A save cleared edits made while it ran (`page-view.test.tsx`).
+  - Two views from one template both took Theia (`page.test.tsx`).
+  - Changing a route unwired the instance and blanked what read its values.
+    Routes now change in place (`page.test.tsx`, `modules.test.ts`).
+  - A composite's content skipped `prepareLayout`, so a missing part and
+    migrations were not handled (`page.test.tsx`).
+  - Save as module dropped routes from outside into the selection. They now
+    reach a composite action (`modules.test.ts`, `page.test.tsx`).
 - **Not exercised.** These rest on source and unit tests only:
   - the Index view, Index inspector and Records table modules against real
     data (the stub's Index has no items, so the inspector never unfolded);

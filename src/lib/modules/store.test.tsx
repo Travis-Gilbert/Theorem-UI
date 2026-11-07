@@ -20,6 +20,7 @@ import {
   useCreatePage,
   useInstalledModules,
   useModePage,
+  usePage,
   useResetModePage,
   useSavePage,
   useVaultTemplates,
@@ -136,6 +137,46 @@ test("a mode's page stays on hand while its file comes and goes, and shows each 
   ).not.toContain('Again')
 
   expect(seen.slice(ready - 1)).not.toContain(undefined)
+})
+
+// Review found an open page swapped for its loading state by a rename, and
+// for an error by a revision that does not parse; either replaced the editor
+// and lost what was being arranged.
+test('an open page stays on hand through a rename and a revision that does not parse', async () => {
+  const fake = fakeWorkspace({
+    'Pages/Desk.page.json': pageText(newPage('Desk')),
+  })
+  const [entry] = (await fake.client.tree()).filter(
+    (e) => e.path === 'Pages/Desk.page.json',
+  )
+  const seen: ReturnType<typeof usePage>[] = []
+  function Probe({ client }: { client: WorkspaceClient }) {
+    seen.push(usePage(client, entry!.id))
+    return null
+  }
+  await render(<Probe client={fake.client} />)
+  await waitFor(() => seen.at(-1)?.data)
+  const ready = seen.length
+  const opened = seen.at(-1)!.data!.hash
+
+  await act(() =>
+    fake.client.rename('Pages/Desk.page.json', 'Pages/Study.page.json'),
+  )
+  await waitFor(() => seen.at(-1)?.data?.path === 'Pages/Study.page.json')
+  // A save from here goes to where the file is now, over the same revision.
+  expect(seen.at(-1)!.data).toMatchObject({
+    path: 'Pages/Study.page.json',
+    hash: opened,
+  })
+
+  await fake.external('Pages/Study.page.json', 'not json')
+  await waitFor(() => seen.at(-1)?.error)
+  expect(seen.at(-1)!.data).toMatchObject({
+    path: 'Pages/Study.page.json',
+    hash: opened,
+  })
+  expect(seen.at(-1)!.data!.page.title).toBe('Desk')
+  expect(seen.slice(ready).map((s) => s.data)).not.toContain(undefined)
 })
 
 test('a save from no file only creates one; a save without a hash overwrites', async () => {

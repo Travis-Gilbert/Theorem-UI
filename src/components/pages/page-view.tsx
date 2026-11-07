@@ -9,7 +9,7 @@ import { Puck, Render } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
 import { Pin, PinOff } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,6 +19,7 @@ import type {
   PageDocument,
 } from '@/lib/modules/contract'
 import { validateConnections } from '@/lib/modules/connections'
+import { usePageDrafts } from '@/lib/modules/drafts'
 import { prepareLayout, restoreLayout } from '@/lib/modules/layout'
 import { moduleById, useModuleCatalog } from '@/lib/modules/registry'
 import {
@@ -86,7 +87,8 @@ export function PageSkeleton() {
   )
 }
 
-function VaultPage({
+/** A page of an open vault. Exported for its tests, which give the vault. */
+export function VaultPage({
   client,
   entryId,
 }: {
@@ -102,7 +104,9 @@ function VaultPage({
         detail="It may have been deleted, or moved out of the Pages folder."
       />
     )
-  if (loaded.error)
+  // Once open, a revision that does not read leaves the editor as it is
+  // and says so there, with what is being arranged kept.
+  if (loaded.error && !loaded.data)
     return (
       <PageStatus
         title="This page did not open"
@@ -118,6 +122,8 @@ function VaultPage({
         loaded={loaded.data}
         reload={loaded.reload}
         kind={{ kind: 'page' }}
+        draftKey={`page:${client.workspace.id}:${entryId}`}
+        newerProblem={loaded.error?.message}
       />
     </PageRuntimeProvider>
   )
@@ -150,7 +156,7 @@ function VaultModePage({
 }) {
   const modules = useInstalledModules(client)
   const loaded = useModePage(client, mode)
-  if (loaded.error)
+  if (loaded.error && !loaded.data)
     return (
       <PageStatus
         title={`${MODE_PAGES[mode].title} did not open`}
@@ -166,6 +172,8 @@ function VaultModePage({
         loaded={loaded.data}
         reload={loaded.reload}
         kind={{ kind: 'mode', mode, template, problem }}
+        draftKey={`mode:${client.workspace.id}:${mode}`}
+        newerProblem={loaded.error?.message}
       />
     </PageRuntimeProvider>
   )
@@ -183,21 +191,30 @@ type EditorKind =
   | { kind: 'page' }
   | { kind: 'mode'; mode: PageMode; template: boolean; problem?: string }
 
-/** Renders saved content (a composite's) with the page's components. */
+/**
+ * Renders saved content (a composite's) with the page's components, prepared
+ * as the page's own is: a module this app lacks becomes a placeholder, and
+ * settings saved by an older version are migrated.
+ */
 export function useContentRenderer(
   config: ReturnType<typeof usePageConfig>,
   metadata: PageMetadata,
+  lookup: (type: string) => ReturnType<typeof moduleById>,
 ) {
   const { arranging, page } = metadata
   return useMemo(
     () => (content: ComponentData[]) => (
       <Render
         config={config}
-        data={{ root: { props: {} }, content } as Partial<Data>}
+        data={
+          prepareLayout({ root: { props: {} }, content }, lookup, (type) =>
+            LAYOUT_TYPES.has(type),
+          ) as Partial<Data>
+        }
         metadata={{ arranging, page } satisfies PageMetadata}
       />
     ),
-    [config, arranging, page],
+    [config, arranging, page, lookup],
   )
 }
 
@@ -223,18 +240,26 @@ function PageEditor({
   loaded,
   reload,
   kind,
+  draftKey,
+  newerProblem,
 }: {
   client: WorkspaceClient
   loaded: EditorSource
   reload: () => Promise<{ data?: EditorSource }>
   kind: EditorKind
+  /** Where this page's unsaved arrangement is kept while its view is gone. */
+  draftKey: string
+  /** Why the vault's newer revision of the page did not open, if it did not. */
+  newerProblem?: string
 }) {
+  // An arrangement left unsaved when this page's view last went.
+  const [kept] = useState(() => usePageDrafts.getState().drafts[draftKey])
   // The revision on screen: the one opened, or the one this view saved.
   const [held, setHeld] = useState<{
     hash: string | null
     page: PageDocument
-  }>({ hash: loaded.hash, page: loaded.page })
-  const [draft, setDraft] = useState<PageDocument | null>(null)
+  }>(kept?.held ?? { hash: loaded.hash, page: loaded.page })
+  const [draft, setDraft] = useState<PageDocument | null>(kept?.draft ?? null)
   const [arranging, setArranging] = useState(false)
   // A new arrangement session each time Arrange opens, or the page is replaced.
   const [session, setSession] = useState(0)
@@ -248,6 +273,13 @@ function PageEditor({
   const shown = draft ?? held.page
   const dirty = !!draft && !samePage(draft, held.page)
   const newer = loaded.hash !== held.hash && !save.isPending
+
+  // Kept outside the view, so leaving the page does not lose it.
+  useEffect(() => {
+    usePageDrafts
+      .getState()
+      .keep(draftKey, draft && dirty ? { held, draft } : undefined)
+  }, [draftKey, held, draft, dirty])
 
   const lookup = useMemo(
     () => (type: string) => moduleById(type, catalog),
@@ -265,17 +297,15 @@ function PageEditor({
   // keeps the working copy from there.
   const [start, setStart] = useState(prepared)
 
-  const commit = (
-    page: PageDocument,
-    hash: string | null,
-    { keepDraft = false }: { keepDraft?: boolean } = {},
-  ) =>
+  const commit = (page: PageDocument, hash: string | null) =>
     save.mutate(
       { path: loaded.path, page, hash },
       {
         onSuccess: (stored) => {
           setHeld(stored)
-          if (!keepDraft) setDraft(null)
+          // Only the draft that was saved is done with; one edited since,
+          // or another than the one saved (a pin), stays unsaved over it.
+          setDraft((current) => (current === page ? null : current))
           setConflict(null)
         },
         onError: (error) => {
@@ -299,10 +329,11 @@ function PageEditor({
     if (data) replaceWith(data)
   }
 
-  const renderContent = useContentRenderer(config, {
-    arranging,
-    page: loaded.path,
-  })
+  const renderContent = useContentRenderer(
+    config,
+    { arranging, page: loaded.path },
+    lookup,
+  )
 
   const mode = kind.kind === 'mode' ? kind : undefined
   const header = (extra?: ReactNode) => (
@@ -334,7 +365,7 @@ function PageEditor({
       onPin={() => {
         const pinned = !shown.pinned
         if (draft) setDraft({ ...draft, pinned })
-        commit({ ...held.page, pinned }, held.hash, { keepDraft: true })
+        commit({ ...held.page, pinned }, held.hash)
       }}
       extra={
         <>
@@ -349,6 +380,7 @@ function PageEditor({
           failed={save.error && !conflict ? save.error.message : undefined}
           conflict={!!conflict}
           newer={newer && !conflict}
+          newerProblem={conflict ? undefined : newerProblem}
           problems={problems.length}
           onSave={() => draft && commit(draft, held.hash)}
           onDiscard={() => {
@@ -361,10 +393,7 @@ function PageEditor({
             setSession((n) => n + 1)
           }}
           onKeepMine={() =>
-            conflict &&
-            commit(conflict.page, conflict.currentHash, {
-              keepDraft: conflict.page !== draft,
-            })
+            conflict && commit(conflict.page, conflict.currentHash)
           }
           onTakeTheirs={() => void takeTheirs()}
           onShowNewer={() =>
@@ -566,6 +595,7 @@ function SaveStatus({
   failed,
   conflict,
   newer,
+  newerProblem,
   problems,
   onSave,
   onDiscard,
@@ -578,6 +608,7 @@ function SaveStatus({
   failed?: string
   conflict: boolean
   newer: boolean
+  newerProblem?: string
   problems: number
   onSave: () => void
   onDiscard: () => void
@@ -611,9 +642,11 @@ function SaveStatus({
       </Button>
     )
   } else if (dirty) {
-    message = newer
-      ? 'Unsaved changes. The page also changed in the vault.'
-      : 'Unsaved changes'
+    message = newerProblem
+      ? `Unsaved changes. The vault's copy changed and does not open: ${newerProblem}`
+      : newer
+        ? 'Unsaved changes. The page also changed in the vault.'
+        : 'Unsaved changes'
     actions = (
       <>
         <Button variant="ghost" size="xs" onClick={onSave}>
@@ -624,6 +657,9 @@ function SaveStatus({
         </Button>
       </>
     )
+  } else if (newerProblem) {
+    message = `The vault's copy of this page changed and does not open: ${newerProblem}`
+    tone = 'error'
   } else if (newer) {
     message = 'A newer version of this page is in the vault.'
     actions = (

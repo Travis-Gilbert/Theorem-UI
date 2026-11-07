@@ -210,7 +210,7 @@ function CompositeModule({
   const exposes =
     implementation.kind === 'composite'
       ? implementation.exposes
-      : { outputs: {}, events: {} }
+      : { outputs: {}, events: {}, actions: {} }
   const ancestors = outer.ancestors ?? []
   const loops = ancestors.includes(definition.id)
 
@@ -246,10 +246,17 @@ function CompositeModule({
         name,
       ),
     )
+    // The composite's actions hand what they are given to the inner one.
+    const handles = Object.entries(exposes.actions).map(([name, at]) =>
+      runtime.handle(view.path, name, (payload) =>
+        runtime.act(scoped(view.path, at.instance), at.action, payload),
+      ),
+    )
     const unsubscribe = runtime.outputs.subscribe(publish)
     return () => {
       unsubscribe()
       stops.forEach((stop) => stop())
+      handles.forEach((stop) => stop())
     }
     // `exposesKey` stands for `exposes`.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -65,7 +65,8 @@
         "bun test src/components/pages/page.test.tsx: a bound value shows another instance's output, inside a split too",
         "That test found that no page-level scope was provided, so top-level bindings did not deliver; fixed with PageScopeProvider",
         "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): a Value bound to a Text showed it and followed edits while arranging, in use and after reopening",
-        "The browser check found bindings made during a session never delivered: React's effect replay disposed the page runtime while it stayed in use. Fixed with runtime.resume in a layout effect (page-runtime.tsx); bun test page.test.tsx 'a value published after the page is hidden and shown still arrives' and modules.test.ts 'a resumed runtime takes calls again; its instances wire afresh' fail without it"
+        "The browser check found bindings made during a session never delivered: React's effect replay disposed the page runtime while it stayed in use. Fixed with runtime.resume in a layout effect (page-runtime.tsx); bun test page.test.tsx 'a value published after the page is hidden and shown still arrives' and modules.test.ts 'a resumed runtime takes calls again; its instances wire afresh' fail without it",
+        "Review (Greptile, PR #34) found that changing an instance's routes unwired it and blanked values bound to it. Fixed with runtime.route; bun test 'a value stays while the routes of the instance it comes from change' and 'new routes keep the values; removal takes them' fail without it"
       ]
     },
     {
@@ -121,9 +122,10 @@
       "evidence": [
         "Split and Tabs layout components (puck-config.tsx)",
         "Save as module: src/components/pages/save-as-module.tsx over layout.ts extractComposite",
-        "bun test: 'extracting a composite exposes what crossed its edge', 'an outside route into the composite is cut; its other routes stay', 'a composite forwards its inner event; disposal stops everything'",
+        "bun test: 'extracting a composite exposes what crossed its edge', 'an outside route into the composite becomes its action; its other routes stay', 'a composite forwards its inner event; disposal stops everything'",
         "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Save as module on a Split holding a Value bound to an outside Text gave the composite the input 'value'; one instance replaced the Split and the value arrived while arranging, in use and after a reload",
-        "The browser check found Save as module lost the unsaved arrangement: the new manifest made the catalog pending and the page fell back to its loading state. Fixed in store.ts useInstalledModules (pending only until the first read); bun test store.test.tsx fails without it"
+        "The browser check found Save as module lost the unsaved arrangement: the new manifest made the catalog pending and the page fell back to its loading state. Fixed in store.ts useInstalledModules (pending only until the first read); bun test store.test.tsx fails without it",
+        "Review (Greptile, PR #34) found Save as module dropped routes from outside into the selection, and a composite's content skipped prepareLayout. Fixed with composite actions (contract exposes.actions, layout.ts extractComposite, module-instance.tsx CompositeModule) and by preparing composite content in page-view.tsx useContentRenderer; bun test 'a saved module answers an outside route with its part's action, and holds a missing part' fails without either fix"
       ]
     },
     {
@@ -164,7 +166,7 @@
       "evidence": [
         "page-view.tsx: the held revision, Show it for a newer one, Keep mine or Use the vault's on a save conflict",
         "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): an outside write was offered ('A newer version…') and replaced the page only on Show it; a conflicting save said 'This page changed in the vault since you opened it.'; Keep mine wrote the page's version; Use the vault's showed the other and left nothing unsaved",
-        "No automated test drives a conflicting save"
+        "Review (Greptile, PR #34) found three ways unsaved work was lost: leaving the page, a rename, a revision that does not parse; and a save cleared edits made while it ran. Fixed with drafts.ts (kept by page, with a leave prompt and the desktop quit check), store.ts usePage keeping its last read through a rename, and page-view.tsx keeping the editor over a bad revision and clearing only what a save wrote. bun test page-view.test.tsx (including a conflicting save and Keep mine), store.test.tsx and unsaved.test.ts each fail without the fix they cover"
       ]
     },
     {
@@ -201,7 +203,8 @@
         "Tests: templates.test.ts; page.test.tsx (templates' connections valid, Split folds while only an empty inspector is in it); store.test.tsx (template then file then problem, create-only save, vault templates, a mode's page through its first save and a file coming and going); navigation.test.tsx",
         "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Modes list, arrange and save Index mode, /index rendering the saved page with the inspector folded, Reset to the default, /ide rendering the Coding page, New page from Index and from Coding, Save as template offered by New page",
         "Not exercised: Index modules against real data (the stub's Index has no items); Theia and the terminal (absent from the stub), so Add to chat reaching the terminal rests on source only",
-        "Limits: IDE mode's terminal width is the Split's saved size, not the right drawer's; Reset removes the file without a revision check"
+        "Limits: IDE mode's terminal width is the Split's saved size, not the right drawer's; Reset removes the file without a revision check",
+        "Review (Greptile, PR #34) found two views from one template both took Theia, since they share instance ids. builtins.tsx useOwner names an instance by its page view and path; bun test 'one surface shows in one view, whichever views share its instance id' fails without it"
       ]
     },
     {

@@ -169,6 +169,10 @@ const exposes = z.object({
   events: z
     .record(identifier, z.object({ instance: z.string(), event: identifier }))
     .default({}),
+  /** An action of the composite's, handed to the inner instance's own. */
+  actions: z
+    .record(identifier, z.object({ instance: z.string(), action: identifier }))
+    .default({}),
 })
 
 const implementation = z.discriminatedUnion('kind', [
@@ -184,7 +188,7 @@ const implementation = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('composite'),
     content: z.array(componentData),
-    exposes: exposes.default({ outputs: {}, events: {} }),
+    exposes: exposes.default({ outputs: {}, events: {}, actions: {} }),
   }),
 ])
 
