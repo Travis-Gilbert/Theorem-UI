@@ -41,3 +41,17 @@ test('only declared network hosts are allowed and a source policy cannot relax t
   )
   expect(policy?.getAttribute('content')).toContain("default-src 'none'")
 })
+
+test('a page module reaches only the hosts it was allowed, whatever its page declares', async () => {
+  const html = await hostedAppDocument(
+    `<html><head>
+    <meta name="theorem:uses" content='net("example.com")'>
+    </head><body>Module</body></html>`,
+    esbuild,
+    { net: [] },
+  )
+  const page = new DOMParser().parseFromString(html, 'text/html')
+  expect(page.head.firstElementChild?.getAttribute('content')).toContain(
+    "connect-src 'none'",
+  )
+})

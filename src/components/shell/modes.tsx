@@ -1,21 +1,28 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the Index surface
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), Index mode (its page, pages/mode-page.tsx), Pages (Puck over the vault's page files; a mode's page opens there to be arranged)
 import { Canvas } from '@/components/canvas/canvas'
 import { Icon } from '@/components/icons'
 import { IdeFrame } from '@/components/ide/ide-frame'
-import { IndexSurface } from '@/components/index/index-surface'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
+import { IndexMode } from '@/components/pages/mode-page'
+import {
+  ModePageView,
+  PageStatus,
+  PageView,
+} from '@/components/pages/page-view'
+import { isPageMode } from '@/lib/modules/templates'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { VaultPhone } from '@/components/vault/vault-phone'
 import { useCallback } from 'react'
-import { useMatches, useNavigate } from '@tanstack/react-router'
+import { useMatches, useNavigate, useParams } from '@tanstack/react-router'
 import { useShell } from './shell-state'
 
-export type ShellMode = 'chat' | 'index' | 'vault' | 'spaces' | 'ide'
+export type ShellMode = 'chat' | 'index' | 'pages' | 'vault' | 'spaces' | 'ide'
 
 /** The rail's destinations, in order. */
 export const MODES = [
   { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
   { mode: 'index', label: 'Index', Mark: Icon.Index },
+  { mode: 'pages', label: 'Pages', Mark: Icon.Layout },
   // The Vault works on Home and the opened folders; the rail offers it while
   // there are any.
   { mode: 'vault', label: 'Vault', Mark: Icon.Vault, folders: true },
@@ -34,7 +41,7 @@ export const navigatorMode = (mode: ShellMode): ShellMode =>
   mode === 'ide' || mode === 'vault' ? 'chat' : mode
 
 /**
- * The mode is the route: /index, /vault, /spaces and /ide, and chat everywhere else. It reads
+ * The mode is the route: /index, /pages, /vault, /spaces and /ide, and chat everywhere else. It reads
  * the router's matches, as useParams does, so the mode and the thread id
  * always describe the same navigation.
  */
@@ -43,6 +50,8 @@ export function useShellMode(): ShellMode {
     select: (matches) => {
       for (const { routeId } of matches) {
         if (routeId === '/_chat/index') return 'index'
+        if (routeId === '/_chat/pages' || routeId === '/_chat/pages/$pageId')
+          return 'pages'
         if (routeId === '/_chat/vault') return 'vault'
         if (routeId === '/_chat/spaces') return 'spaces'
         if (routeId === '/_chat/ide') return 'ide'
@@ -58,6 +67,7 @@ export function useOpenMode() {
   return useCallback(
     (next: ShellMode) => {
       if (next === 'index') return navigate({ to: '/index' })
+      if (next === 'pages') return navigate({ to: '/pages' })
       if (next === 'vault') return navigate({ to: '/vault' })
       if (next === 'spaces') return navigate({ to: '/spaces' })
       if (next === 'ide') return navigate({ to: '/ide' })
@@ -88,8 +98,34 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'vault' && !docked && <VaultPhone />}
-      {mode === 'index' && <IndexSurface />}
+      {mode === 'index' && <IndexMode />}
+      {mode === 'pages' && <PagesView />}
       {mode === 'spaces' && <Canvas />}
     </>
+  )
+}
+
+/** A mode's page in the Pages route: `mode:index`. */
+const MODE_PREFIX = 'mode:'
+
+/** The open page, or a word on how to open one. */
+function PagesView() {
+  const { pageId } = useParams({ strict: false })
+  const mode = pageId?.startsWith(MODE_PREFIX)
+    ? pageId.slice(MODE_PREFIX.length)
+    : undefined
+  if (mode !== undefined)
+    return isPageMode(mode) ? (
+      <ModePageView key={mode} mode={mode} />
+    ) : (
+      <PageStatus title="There is no such mode" />
+    )
+  return pageId ? (
+    <PageView key={pageId} entryId={pageId} />
+  ) : (
+    <PageStatus
+      title="Pages"
+      detail="A page is modules you arrange and connect. Open one from the list, or make a new one."
+    />
   )
 }

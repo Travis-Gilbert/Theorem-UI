@@ -1,18 +1,18 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's sessions (the docked terminal's references and runs), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
 // inside the sheet, Follow the Agent's switch included; this frame only links
 // it to the conversation, the rail and Follow the Agent. Alone, Theia's chat
 // shows the conversation this window holds and sends through it, so both
-// always show the same turns. With the agent terminal docked beside it, the
-// terminal is the conversation: Theia's chat closes, Add to chat attaches the
-// selection to the terminal's next turn, and Follow follows its active tab.
+// always show the same turns. Docked, on a page whose agent terminal is the
+// conversation, Theia's chat closes, Follow follows the terminal's active tab
+// and Add to chat goes only where the page connects it (a terminal's Attach).
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
-import { useEffect, useRef } from 'react'
+import { useEffect, useEffectEvent, useRef } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import {
   approvalChoice,
@@ -21,10 +21,7 @@ import {
 import { useOpenMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
-import {
-  addReference,
-  useTerminalRuns,
-} from '@/components/terminal/terminal-screen'
+import { useTerminalRuns } from '@/components/terminal/terminal-screen'
 import type {
   IdeFrameMethods,
   IdeHostMethods,
@@ -46,16 +43,16 @@ function referenceText({ label, excerpt, location }: TheoremContextReference) {
 }
 
 /**
- * The IDE. `terminal` is the host element of the agent terminal docked
- * beside it, when one is.
+ * The IDE. Add to chat reaches `onAddToChat` always and, unless `docked`,
+ * Theia's chat composer too.
  */
-/** The tab the project's terminal shows, read at the moment it is needed. */
-const activeTabOf = (projectId: string | undefined) =>
-  projectId
-    ? useShell.getState().terminalTabs[projectId]?.active
-    : undefined
-
-export function IdeFrame({ terminal }: { terminal?: string }) {
+export function IdeFrame({
+  docked = false,
+  onAddToChat,
+}: {
+  docked?: boolean
+  onAddToChat?: (reference: TheoremContextReference) => void
+}) {
   const { project } = useActiveProject()
   const aui = useAui()
   const openMode = useOpenMode()
@@ -67,7 +64,9 @@ export function IdeFrame({ terminal }: { terminal?: string }) {
   const activeTab = useShell((s) =>
     project ? s.terminalTabs[project.projectId]?.active : undefined,
   )
-  const docked = terminal !== undefined
+  const added = useEffectEvent((reference: TheoremContextReference) =>
+    onAddToChat?.(reference),
+  )
   const workspaceId = project && workspaceIdOf(project.projectId)
   const src = workspaceId
     ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
@@ -78,12 +77,8 @@ export function IdeFrame({ terminal }: { terminal?: string }) {
     if (!src || !remoteWindow) return
     const methods: IdeHostMethods = {
       addToChat: (reference) => {
-        const tab = terminal && activeTabOf(project?.projectId)
-        if (terminal && tab) {
-          addReference(tab, reference)
-          document.getElementById(terminal)?.focus()
-          return
-        }
+        added(reference)
+        if (docked) return
         const draft = aui.composer.getState().text.trimEnd()
         const text = referenceText(reference)
         aui.composer.setText(draft ? `${draft}\n\n${text}\n` : `${text}\n`)
@@ -134,7 +129,7 @@ export function IdeFrame({ terminal }: { terminal?: string }) {
       connection.destroy()
       useFollow.setState({ ide: undefined })
     }
-  }, [src, aui, openMode, terminal, project?.projectId])
+  }, [src, aui, openMode, docked])
 
   useEffect(() => {
     void ide?.setTheme(resolvedTheme === 'dark')

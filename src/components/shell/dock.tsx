@@ -97,14 +97,14 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation, or the mode's view in the Index and Spaces. Theia covers the dock in IDE mode. */
+/** The main panel: the conversation, or the mode's view in the Index, Pages and Spaces. Theia covers the dock in IDE mode. */
 function ThreadPanel({ api }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
     () =>
       api.setTitle(
-        mode === 'spaces' || mode === 'index'
+        mode === 'spaces' || mode === 'index' || mode === 'pages'
           ? modeLabel(mode)
           : title || 'New chat',
       ),
