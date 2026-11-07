@@ -93,7 +93,10 @@ function ModelsTab() {
 
   return (
     <>
-      {issue && <p role="alert" className="text-sm text-ink-muted">{issue}</p>}
+      {issue && <div className="flex items-center gap-3">
+        <p role="alert" className="text-sm text-ink-muted">{issue}</p>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>Retry model list</Button>
+      </div>}
       <DefaultModel catalog={catalog} defaultRef={list?.defaultRef} />
       <SettingsSection
         title="In the model picker"

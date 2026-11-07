@@ -146,3 +146,12 @@ test('default identity selects the matching row rather than the first catalog mo
   expect(parseModelList(null)).toEqual({ models: [], openrouter: 'unavailable' })
   expect(parseModelList({ defaultRef: 42 })).not.toHaveProperty('defaultRef')
 })
+
+test('an unavailable OpenRouter directory explains why only configured models remain', () => {
+  const list = parseModelList({
+    models: [{ ref: 'openrouter/fixture/configured', name: 'Configured' }],
+    openrouter: { status: 'unavailable', error: 'network_error' },
+  })
+  expect(modelCatalogIssue(list, undefined)).toContain('OpenRouter')
+  expect(modelCatalogIssue(list, undefined)).toContain('configured models')
+})

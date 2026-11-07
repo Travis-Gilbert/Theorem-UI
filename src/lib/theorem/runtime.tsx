@@ -129,14 +129,12 @@ function noteLiveRun(threadId: string, runId: string | undefined) {
 }
 function chatAdapterFor(
   threadId: string,
-  turnOptions?: TurnOptions,
 ): ChatModelAdapter {
   let adapter = chatAdapters.get(threadId)
   if (!adapter) {
     adapter = createTheoremChatAdapter({
       client: theorem(),
       threadId,
-      turnOptions,
       onEvent(event) {
         if (event.sourceEventType === 'RUN.FAILED') {
           runFailures.set(threadId, describeRunFailure(event.payload))
@@ -422,9 +420,23 @@ export async function* runTurn(
   runFailures.delete(threadId)
   await titleUntitledThread(threadId, options.messages)
   const messages = await alignWithDurableBranch(threadId, options.messages)
-  const result = chatAdapterFor(threadId, turnOptions).run({
+  // The adapter retains SDK message identity across runs; model and surface
+  // options belong to this invocation, even when another surface opened it.
+  const custom = options.runConfig.custom ?? {}
+  const configured = custom.theoremTurnOptions
+  const result = chatAdapterFor(threadId).run({
     ...options,
     messages,
+    runConfig: {
+      ...options.runConfig,
+      custom: {
+        ...custom,
+        theoremTurnOptions: {
+          ...turnOptions,
+          ...(configured && typeof configured === 'object' ? configured : {}),
+        },
+      },
+    },
   })
   if (!(Symbol.asyncIterator in result)) {
     const step = await result

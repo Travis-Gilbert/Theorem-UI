@@ -117,6 +117,8 @@ export type ModelList = {
   models: ModelOption[]
   /** Whether OpenRouter's list is fresh, served from Theorem's cache, or missing. */
   openrouter: 'live' | 'cached' | 'unavailable'
+  /** Explicit discovery failure; absence is not evidence of an outage. */
+  openrouterError?: string
 }
 
 function parseDefaultError(raw: unknown): ModelList['defaultError'] {
@@ -130,6 +132,9 @@ export function modelCatalogIssue(list: ModelList | undefined, error: unknown): 
   if (error) return `Could not load models. ${describeError(error)} Check AI settings and retry the model list.`
   const failure = list?.defaultError
   if (failure) return `${failure.message} Choose an available model or correct the default in Theorem's configuration.`
+  if (list?.openrouterError && list.openrouter === 'unavailable') {
+    return "OpenRouter's model list is unavailable. Showing configured models only. Retry the model list to load more choices."
+  }
   return undefined
 }
 
@@ -153,6 +158,9 @@ export function parseModelList(raw: unknown): ModelList {
   const list: ModelList = {
     models: parseModelOptions(body.models),
     openrouter: status === 'live' || status === 'cached' ? status : 'unavailable',
+  }
+  if (status === 'unavailable') {
+    list.openrouterError = 'unavailable'
   }
   if (typeof body.defaultRef === 'string') list.defaultRef = body.defaultRef
   const defaultError = parseDefaultError(body.defaultError)

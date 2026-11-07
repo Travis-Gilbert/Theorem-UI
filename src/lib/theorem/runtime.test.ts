@@ -27,7 +27,7 @@ import {
   runTurn,
 } from './runtime'
 
-type Send = { key: string; text: string }
+type Send = { key: string; text: string; model?: { provider: string; model: string }; executionMode?: string }
 
 let sends: Send[] = []
 /** Sends whose reply is lost after Theorem received them. */
@@ -84,8 +84,8 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text } = (await request.json()) as { text: string }
-    sends.push({ key: request.headers.get('Idempotency-Key') ?? '', text })
+    const { text, model, executionMode } = (await request.json()) as Omit<Send, 'key'>
+    sends.push({ key: request.headers.get('Idempotency-Key') ?? '', text, ...(model ? { model } : {}), ...(executionMode ? { executionMode } : {}) })
     if (lostReplies > 0) {
       lostReplies -= 1
       throw new TypeError('Network disconnected')
@@ -463,4 +463,15 @@ test('old title recovery bounds concurrent history reads', async () => {
   expect((await pending).threads).toHaveLength(9)
   expect(peak).toBe(4)
   expect(titleEvents).toEqual([])
+})
+
+// A cached SDK adapter may first be created by the terminal, then used by chat.
+test('each surface sends its current model and mode on a shared durable thread', async () => {
+  const threadId = 'switch-model-after-terminal'
+  await drain(runTurn(threadId, options('Terminal first'), { executionMode: 'coding' }))
+  await drain(runTurn(threadId, options('Chat second'), { model: { provider: 'openrouter', model: 'deepseek/new-model' } }))
+  expect(sends[1]?.model).toEqual({ provider: 'openrouter', model: 'deepseek/new-model' })
+  expect(sends[1]?.executionMode).toBeUndefined()
+  await drain(runTurn(threadId, options('Default third')))
+  expect(sends[2]?.model).toBeUndefined()
 })
