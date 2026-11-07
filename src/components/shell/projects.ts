@@ -53,12 +53,23 @@ export function useCreateProject() {
   })
 }
 
-/** The signed-in tenant, from the session bootstrap the client already holds. */
-export function useTenant() {
-  const { data } = useQuery({
+const useBootstrap = () =>
+  useQuery({
     queryKey: ['theorem', 'bootstrap'],
     queryFn: () => bootstrap(),
     staleTime: Infinity,
   })
-  return data?.tenantId
+
+/** The signed-in tenant, from the session bootstrap the client already holds. */
+export function useTenant() {
+  return useBootstrap().data?.tenantId
+}
+
+/**
+ * Whether the session is still being read, and whether Theorem answered that
+ * no one is signed in. Any other failure says neither.
+ */
+export function useSessionState() {
+  const { isPending, error } = useBootstrap()
+  return { isPending, signedOut: isSignedOut(error) }
 }

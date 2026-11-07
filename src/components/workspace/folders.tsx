@@ -9,6 +9,7 @@ import { Menu } from '@base-ui/react/menu'
 import { useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import { useSessionState } from '@/components/shell/projects'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { FilesystemMarks } from '@/components/ui/filesystem-item'
@@ -161,27 +162,38 @@ function WorkspaceSection({
 const groupLabel =
   'flex h-8 items-center ps-2 pe-1 text-sm text-ink-faint-sheet'
 
+/**
+ * Why Home has no vault to show: the folders or the session are still loading,
+ * or Theorem answered that no one is signed in. A signed-in person without a
+ * vault, or a session that could not be read, shows no Home at all rather
+ * than an offer to sign in again.
+ */
+export function homeAbsence({
+  isPending,
+  signIn,
+  signedOut,
+}: {
+  isPending: boolean
+  signIn: boolean
+  signedOut: boolean
+}): 'loading' | 'signed-out' | null {
+  if (isPending) return 'loading'
+  return signIn && signedOut ? 'signed-out' : null
+}
+
 /** Home while there is no Theorem vault to show. */
-function HomeAbsent() {
-  const { isPending } = useWorkspaces()
-  const signIn = useSignInConfigured()
-  if (isPending)
+function HomeAbsent({ absence }: { absence: 'loading' | 'signed-out' }) {
+  if (absence === 'loading')
     return <p className="px-2 text-sm text-ink-faint-sheet">Loading…</p>
-  if (signIn)
-    return (
-      <div className="flex flex-col items-start gap-2 px-2 pb-2">
-        <p className="text-sm text-ink-faint-sheet">
-          Sign in to keep your files in Home.
-        </p>
-        <a href={signInHref()} className={buttonVariants({ size: 'sm' })}>
-          Sign in
-        </a>
-      </div>
-    )
   return (
-    <p className="px-2 text-sm text-ink-faint-sheet">
-      This Theorem does not keep files yet.
-    </p>
+    <div className="flex flex-col items-start gap-2 px-2 pb-2">
+      <p className="text-sm text-ink-faint-sheet">
+        Sign in to keep your files in Home.
+      </p>
+      <a href={signInHref()} className={buttonVariants({ size: 'sm' })}>
+        Sign in
+      </a>
+    </div>
   )
 }
 
@@ -197,6 +209,12 @@ export function FoldersSection({ fill = false }: { fill?: boolean }) {
   const openFolder = useOpenFolder()
   const home = workspaces.find(isTheoremWorkspace)
   const device = workspaces.filter((workspace) => workspace !== home)
+  const session = useSessionState()
+  const absence = homeAbsence({
+    isPending: useWorkspaces().isPending || session.isPending,
+    signIn: useSignInConfigured(),
+    signedOut: session.signedOut,
+  })
   if (!fill && (!available || (!workspaces.length && !openFolder))) return null
 
   return (
@@ -220,17 +238,18 @@ export function FoldersSection({ fill = false }: { fill?: boolean }) {
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {(home || fill) && (
+        {home ? (
           <section aria-label="Home">
-            {home ? (
-              <WorkspaceSection workspace={home} name="Home" />
-            ) : (
-              <>
-                <h3 className={groupLabel}>Home</h3>
-                <HomeAbsent />
-              </>
-            )}
+            <WorkspaceSection workspace={home} name="Home" />
           </section>
+        ) : (
+          fill &&
+          absence && (
+            <section aria-label="Home">
+              <h3 className={groupLabel}>Home</h3>
+              <HomeAbsent absence={absence} />
+            </section>
+          )
         )}
         {(device.length > 0 || openFolder) && (
           <section aria-label="On this device" className="pt-2">
