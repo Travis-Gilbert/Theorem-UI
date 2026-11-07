@@ -9,7 +9,7 @@ import { Menu } from '@base-ui/react/menu'
 import { useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
-import { useTenant } from '@/components/shell/projects'
+import { useSessionState } from '@/components/shell/projects'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { FilesystemMarks } from '@/components/ui/filesystem-item'
@@ -163,21 +163,22 @@ const groupLabel =
   'flex h-8 items-center ps-2 pe-1 text-sm text-ink-faint-sheet'
 
 /**
- * Why Home has no vault to show: still loading, or no one is signed in. A
- * signed-in person without a vault sees no Home at all, rather than an offer
- * to sign in again.
+ * Why Home has no vault to show: the folders or the session are still loading,
+ * or Theorem answered that no one is signed in. A signed-in person without a
+ * vault, or a session that could not be read, shows no Home at all rather
+ * than an offer to sign in again.
  */
 export function homeAbsence({
   isPending,
   signIn,
-  tenant,
+  signedOut,
 }: {
   isPending: boolean
   signIn: boolean
-  tenant: string | undefined
+  signedOut: boolean
 }): 'loading' | 'signed-out' | null {
   if (isPending) return 'loading'
-  return signIn && !tenant ? 'signed-out' : null
+  return signIn && signedOut ? 'signed-out' : null
 }
 
 /** Home while there is no Theorem vault to show. */
@@ -208,10 +209,11 @@ export function FoldersSection({ fill = false }: { fill?: boolean }) {
   const openFolder = useOpenFolder()
   const home = workspaces.find(isTheoremWorkspace)
   const device = workspaces.filter((workspace) => workspace !== home)
+  const session = useSessionState()
   const absence = homeAbsence({
-    isPending: useWorkspaces().isPending,
+    isPending: useWorkspaces().isPending || session.isPending,
     signIn: useSignInConfigured(),
-    tenant: useTenant(),
+    signedOut: session.signedOut,
   })
   if (!fill && (!available || (!workspaces.length && !openFolder))) return null
 
