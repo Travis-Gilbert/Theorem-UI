@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 import type { ThreadMessage } from '@assistant-ui/react'
+import type { Theorem } from '@theoremharness/sdk'
+import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { approvalOutcome } from '@/components/chat/theorem-parts'
 import { SHIFT_MS, SLEEP_AFTER_MS, nextAct, poseAct } from './director'
 import type { Act, Stage } from './director'
@@ -29,24 +31,33 @@ const chances = (...values: number[]) => {
   return () => values[at++ % values.length] ?? 0
 }
 
-const approvalPart = (fields: Record<string, unknown>) => ({
-  type: 'tool-call',
-  toolCallId: 'toolcall_1',
-  toolName: 'terminal',
-  args: {},
-  argsText: '',
-  interrupt: {
-    type: 'human',
-    payload: {
-      type: 'tool_approval',
-      partId: 'chatpart_approval',
-      approvalId: 'approval_1',
-      toolCallId: 'toolcall_1',
-      toolName: 'terminal',
-      ...fields,
-    },
-  },
-})
+/** An approval on its tool call, as the installed SDK maps it onto assistant-ui. */
+const approvalPart = (fields: Record<string, unknown>) => {
+  const [mapped] = toAssistantMessages([
+    {
+      messageId: 'live',
+      role: 'assistant',
+      createdAtMs: 0,
+      parts: [
+        {
+          partId: 'chatpart_approval',
+          type: 'tool_approval',
+          payload: {
+            type: 'tool_approval',
+            partId: 'chatpart_approval',
+            approvalId: 'approval_1',
+            toolCallId: 'toolcall_1',
+            toolName: 'terminal',
+            ...fields,
+          },
+        },
+      ],
+    } as unknown as Theorem.Message,
+  ])
+  const content = mapped?.content
+  if (!Array.isArray(content)) throw new Error('expected mapped parts')
+  return content[0]
+}
 
 const expressionPart = (partId: string, pose: string) => ({
   type: 'data',

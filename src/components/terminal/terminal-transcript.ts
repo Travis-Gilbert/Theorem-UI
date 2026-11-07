@@ -217,7 +217,7 @@ export function snapshotOf(
         return []
       }
       if (part.type !== 'tool-call') return []
-      const asked = readApproval(part.interrupt)
+      const asked = readApproval(part)
       const waiting =
         asked !== undefined &&
         approvalOutcome(asked) === 'awaiting' &&

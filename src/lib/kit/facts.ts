@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadMessage content as @theoremharness/sdk/assistant-ui maps theorem-chat/1 parts onto it (approvals as a tool call's human interrupt, other parts as `theorem-<type>` data parts), read with the chat's own approval reading in components/chat/theorem-parts
+// SOURCING: assistant-ui ThreadMessage content as @theoremharness/sdk/assistant-ui maps theorem-chat/1 parts onto it (an approval on its tool call's `artifact.theoremApproval`, with a human interrupt only while it awaits; other parts as `theorem-<type>` data parts), read with the chat's own approval reading in components/chat/theorem-parts
 import type { ThreadMessage } from '@assistant-ui/react'
 import { approvalOutcome, readApproval } from '@/components/chat/theorem-parts'
 import { readExpression } from './liveness'
@@ -34,7 +34,7 @@ export function kitFactsOf(
   let expression: SourceFacts['expression']
   for (const part of last.content) {
     if (part.type === 'tool-call' && part.result === undefined) {
-      const approval = readApproval(part.interrupt)
+      const approval = readApproval(part)
       if (approval && approvalOutcome(approval) === 'awaiting') asking = true
     } else if (
       running &&

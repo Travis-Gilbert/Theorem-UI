@@ -1,27 +1,40 @@
 import { expect, test } from 'bun:test'
 import type { ThreadMessage } from '@assistant-ui/react'
+import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
+import type { Theorem } from '@theoremharness/sdk'
 import { toPart } from './chat-mirror'
 
 type Part = ThreadMessage['content'][number]
 
+/** A tool call and its approval, as the installed SDK maps them onto assistant-ui. */
 function toolCall(approval: Record<string, unknown>): Part {
-  return {
-    type: 'tool-call',
-    toolCallId: 'call_1',
-    toolName: 'bash',
-    args: {},
-    argsText: '{}',
-    interrupt: {
-      type: 'human',
-      payload: {
-        approvalId: 'chatapproval_1',
-        toolCallId: 'call_1',
-        toolName: 'bash',
-        summary: 'Allow bash to continue?',
-        ...approval,
+  const message = {
+    messageId: 'msg_1',
+    role: 'assistant',
+    createdAtMs: 0,
+    parts: [
+      {
+        partId: 'part_call',
+        type: 'tool_call',
+        payload: { toolCallId: 'call_1', toolName: 'bash', safeArguments: {} },
       },
-    },
-  } as Part
+      {
+        partId: 'part_approval',
+        type: 'tool_approval',
+        payload: {
+          approvalId: 'chatapproval_1',
+          toolCallId: 'call_1',
+          toolName: 'bash',
+          summary: 'Allow bash to continue?',
+          ...approval,
+        },
+      },
+    ],
+  } as unknown as Theorem.Message
+  const [mapped] = toAssistantMessages([message])
+  const content = mapped?.content
+  if (!Array.isArray(content)) throw new Error('expected mapped parts')
+  return content[0] as Part
 }
 
 function approvalOf(part: Part) {
@@ -49,4 +62,14 @@ test('a decided approval carries the decision and is not marked settled', () => 
   const approval = approvalOf(toolCall({ status: 'complete', approved: false }))
   expect(approval?.approved).toBe(false)
   expect(approval?.settled).toBeUndefined()
+})
+
+test('a settled approval is not a pending action the frame or assistant-ui waits on', () => {
+  const awaiting = toolCall({ status: 'requires_action' })
+  const expired = toolCall({ status: 'incomplete', approved: null })
+  const declined = toolCall({ status: 'complete', approved: false })
+  expect(awaiting.type === 'tool-call' && awaiting.interrupt?.type).toBe('human')
+  for (const settled of [expired, declined])
+    expect(settled.type === 'tool-call' && settled.interrupt).toBeUndefined()
+  expect(approvalOf(declined)?.approved).toBe(false)
 })

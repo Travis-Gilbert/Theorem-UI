@@ -11,7 +11,6 @@ import { CatchBoundary } from '@tanstack/react-router'
 import type {
   DataMessagePartComponent,
   ToolCallMessagePartComponent,
-  ToolCallMessagePartProps,
 } from '@assistant-ui/react'
 import { useEffect, useMemo, useState } from 'react'
 import type { FC } from 'react'
@@ -194,11 +193,17 @@ export function approvalOutcome(
   return approval.status === 'failed' ? 'failed' : 'unanswered'
 }
 
-export function readApproval(
-  interrupt: ToolCallMessagePartProps['interrupt'],
-): TheoremApproval | undefined {
-  if (interrupt?.type !== 'human') return undefined
-  const part = object(interrupt.payload)
+/**
+ * The approval a tool call carries, settled or not. The SDK keeps the latest
+ * `tool_approval` snapshot on the part's `artifact.theoremApproval` and sets
+ * its human `interrupt` only while the approval awaits a decision, so an
+ * answered, expired or replaced approval is read here without holding the
+ * message in requires-action.
+ */
+export function readApproval(toolCall: {
+  readonly artifact?: unknown
+}): TheoremApproval | undefined {
+  const part = object(object(toolCall.artifact).theoremApproval)
   const approvalId = str(part.approvalId)
   const toolCallId = str(part.toolCallId)
   if (!approvalId || !toolCallId) return undefined
@@ -272,13 +277,11 @@ export function sendApprovalDecision(
 export function isStandaloneToolCall(part: {
   type: string
   toolName?: string
-  interrupt?: unknown
+  artifact?: unknown
 }) {
   if (part.type !== 'tool-call') return false
   if (part.toolName && ARTIFACT_TOOLS.has(part.toolName)) return true
-  const approval = readApproval(
-    part.interrupt as ToolCallMessagePartProps['interrupt'],
-  )
+  const approval = readApproval(part)
   return approval !== undefined && approvalOutcome(approval) === 'awaiting'
 }
 
@@ -363,7 +366,7 @@ const TheoremApprovalCard: FC<{
 /** ToolFallback slot: artifact tools, Theorem approvals, then the generic tool card. */
 export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
-  const approval = readApproval(props.interrupt)
+  const approval = readApproval(props)
   if (approval && props.result === undefined)
     return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
   return <ToolFallback {...props} />
@@ -404,13 +407,11 @@ function progressLabels(
 export const RunningIndicator: FC = () => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   const awaiting = useAuiState((s) =>
-    s.message.content.some(
-      (part) =>
-        part.type === 'tool-call' &&
-        part.result === undefined &&
-        readApproval(part.interrupt)?.approved === undefined &&
-        readApproval(part.interrupt) !== undefined,
-    ),
+    s.message.content.some((part) => {
+      if (part.type !== 'tool-call' || part.result !== undefined) return false
+      const approval = readApproval(part)
+      return approval !== undefined && approvalOutcome(approval) === 'awaiting'
+    }),
   )
   const label = useAuiState((s) => {
     const last = s.message.content.findLast(

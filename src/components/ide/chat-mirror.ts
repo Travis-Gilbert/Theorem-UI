@@ -26,7 +26,7 @@ export function toPart(
     case 'reasoning':
       return { type: part.type, text: part.text }
     case 'tool-call': {
-      const approval = readApproval(part.interrupt)
+      const approval = readApproval(part)
       // One that settled unanswered (expired, replaced or failed) goes marked
       // settled, so the frame closes a prompt it already opened for it.
       const outcome = approval && approvalOutcome(approval)
