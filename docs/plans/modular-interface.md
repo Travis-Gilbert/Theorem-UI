@@ -72,7 +72,11 @@ This is a first release. The owner's design (pasted with the request on
 - **Guards** (`src/lib/modules/runtime.ts`):
   - A binding that would close a cycle is refused while arranging, and one
     found in a saved page is reported (`connections.ts`).
-  - Events handed round in a loop stop at depth 8.
+  - Events handed round in a loop stop at depth 8. An event an instance
+    sends within 5 seconds of an action reaching it continues that action's
+    chain, so a loop through a module that answers later (a sandboxed frame,
+    an effect) stops too. The page infers this; a frame is never asked. A loop
+    slower than that is the person's to stop.
   - An instance sending more than 30 events a second is stopped, with a
     notice.
   - Setting an output equal to its current value does nothing.

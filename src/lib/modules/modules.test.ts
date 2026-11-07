@@ -21,6 +21,7 @@ import {
 import { builtin, fromManifest } from './registry'
 import type { ModuleDefinition, ModuleViewProps } from './registry'
 import {
+  CHAIN_WINDOW_MS,
   MAX_EVENT_DEPTH,
   MAX_EVENTS_PER_SECOND,
   createPageRuntime,
@@ -460,6 +461,66 @@ describe('runtime', () => {
     runtime.emit('b1', 'again', { id: 'x' })
     expect(calls).toBe(MAX_EVENT_DEPTH)
     expect(h.notices.some((n) => n.includes('too many times'))).toBe(true)
+  })
+
+  // Review found that a loop through modules that answer later (a sandboxed
+  // frame across its port) started each hop at depth zero, so never stopped.
+  test('a loop whose hops answer later still stops at the depth limit', async () => {
+    const h = host()
+    let clock = 0
+    const runtime = createPageRuntime(lookup, h, () => clock)
+    let calls = 0
+    for (const [self, other] of [
+      ['b1', 'b2'],
+      ['b2', 'b1'],
+    ] as const) {
+      runtime.wire(self, {
+        type: 'theorem.test.inspector',
+        on: { again: [{ to: { instance: other, action: 'show' } }] },
+      })
+      runtime.handle(self, 'show', (item) => {
+        // A loop that the limit misses ends here, so the test fails, not hangs.
+        if (++calls >= 3 * MAX_EVENT_DEPTH) return
+        // Slow enough for the rate limit, outside the chain that called it.
+        queueMicrotask(() => {
+          clock += 200
+          runtime.emit(self, 'again', item)
+        })
+      })
+    }
+    runtime.emit('b1', 'again', { id: 'x' })
+    for (let turn = 0; turn < 40; turn++) await Promise.resolve()
+    expect(calls).toBe(MAX_EVENT_DEPTH)
+    expect(h.notices.some((n) => n.includes('too many times'))).toBe(true)
+  })
+
+  // A hop slower than the window starts afresh: such a loop is slow enough
+  // for the person to stop the module.
+  test('an event long after an action reached it starts its own chain', async () => {
+    const h = host()
+    let clock = 0
+    const runtime = createPageRuntime(lookup, h, () => clock)
+    let calls = 0
+    for (const [self, other] of [
+      ['b1', 'b2'],
+      ['b2', 'b1'],
+    ] as const) {
+      runtime.wire(self, {
+        type: 'theorem.test.inspector',
+        on: { again: [{ to: { instance: other, action: 'show' } }] },
+      })
+      runtime.handle(self, 'show', (item) => {
+        if (++calls >= MAX_EVENT_DEPTH + 4) return
+        queueMicrotask(() => {
+          clock += CHAIN_WINDOW_MS
+          runtime.emit(self, 'again', item)
+        })
+      })
+    }
+    runtime.emit('b1', 'again', { id: 'x' })
+    for (let turn = 0; turn < 40; turn++) await Promise.resolve()
+    expect(calls).toBe(MAX_EVENT_DEPTH + 4)
+    expect(h.notices).toEqual([])
   })
 
   test('an instance flooding events is stopped', () => {

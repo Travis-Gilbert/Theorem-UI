@@ -15,6 +15,13 @@ import { sameValue } from './values'
 export const MAX_EVENT_DEPTH = 8
 /** An instance sending more events than this in a second is stopped. */
 export const MAX_EVENTS_PER_SECOND = 30
+/**
+ * An event an instance sends this soon after an action reached it continues
+ * that action's chain, so a loop through a module that answers later (a
+ * sandboxed frame, an effect) still meets the depth limit. The page decides
+ * this, not the module: a frame could not be trusted to say.
+ */
+export const CHAIN_WINDOW_MS = 5000
 
 /** What the page lends its modules outside themselves. None calls a model. */
 export interface RuntimeHost {
@@ -103,6 +110,19 @@ export function createPageRuntime(
   const stopped = new Set<string>()
   let depth = 0
   let disposed = false
+  // The depth of the last action each instance was handed, and when.
+  const reached = new Map<string, { depth: number; at: number }>()
+  const handOn = (target: string, handler: ActionHandler, value: unknown) => {
+    reached.set(target, { depth, at: now() })
+    handler(value)
+  }
+  const carried = (instance: string) => {
+    const last = reached.get(instance)
+    if (!last) return 0
+    if (now() - last.at < CHAIN_WINDOW_MS) return last.depth
+    reached.delete(instance)
+    return 0
+  }
 
   const key = (instance: string, name: string) => `${instance}\u0000${name}`
 
@@ -133,7 +153,9 @@ export function createPageRuntime(
 
   const emit = (instance: string, event: string, payload: unknown) => {
     if (disposed || !allowed(instance)) return
-    if (depth >= MAX_EVENT_DEPTH) {
+    // Outside a running chain, one an action started a moment ago goes on.
+    const inherited = depth === 0 ? carried(instance) : 0
+    if (depth + inherited >= MAX_EVENT_DEPTH) {
       host.notice?.(
         instance,
         `"${event}" was handed on too many times and was dropped.`,
@@ -148,7 +170,7 @@ export function createPageRuntime(
       (wired &&
         lookup(wired.type)?.events.find((e) => e.name === event)?.type) ??
       'json'
-    depth++
+    depth += inherited + 1
     try {
       for (const route of wired?.on[event] ?? []) {
         if ('host' in route.to) {
@@ -169,12 +191,12 @@ export function createPageRuntime(
         // The target left the page, or has not started yet: nothing to do.
         if (!takes || !handler) continue
         const value = deliver(payload, from, takes.type, route)
-        if (value !== undefined) handler(value)
+        if (value !== undefined) handOn(target, handler, value)
       }
       for (const next of forwards.get(key(instance, event)) ?? [])
         emit(next.outer, next.event, payload)
     } finally {
-      depth--
+      depth -= inherited + 1
     }
   }
 
@@ -203,7 +225,8 @@ export function createPageRuntime(
       }
     },
     act: (instance, action, payload) => {
-      if (!disposed) handlers.get(key(instance, action))?.(payload)
+      const handler = disposed ? undefined : handlers.get(key(instance, action))
+      if (handler) handOn(instance, handler, payload)
     },
     route: (instance, on) => {
       const wired = wiring.get(instance)
@@ -228,6 +251,7 @@ export function createPageRuntime(
       disposed = true
       wiring.clear()
       handlers.clear()
+      reached.clear()
       forwards.clear()
     },
     resume: () => {
