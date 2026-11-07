@@ -69,16 +69,28 @@ const toggled = (set: ReadonlySet<string>, path: string, on: boolean) => {
   return next
 }
 
-/** A side for a split to provide, and whether it has nothing to show. */
+/**
+ * A side for a split to provide, and whether it has nothing to show. A split
+ * nested in another split's side is part of that side too: what is placed in
+ * its second side is also told to the side around it, as what is placed in
+ * its first side already is (the first side provides no side of its own).
+ */
 function useSide(): [Side, boolean] {
+  const around = useContext(SideContext)
   const [present, setPresent] = useState<ReadonlySet<string>>(new Set())
   const [empty, setEmpty] = useState<ReadonlySet<string>>(new Set())
   const side = useMemo<Side>(
     () => ({
-      present: (path, here) => setPresent((set) => toggled(set, path, here)),
-      empty: (path, isEmpty) => setEmpty((set) => toggled(set, path, isEmpty)),
+      present: (path, here) => {
+        setPresent((set) => toggled(set, path, here))
+        around?.present(path, here)
+      },
+      empty: (path, isEmpty) => {
+        setEmpty((set) => toggled(set, path, isEmpty))
+        around?.empty(path, isEmpty)
+      },
     }),
-    [],
+    [around],
   )
   return [side, [...present].every((path) => empty.has(path))]
 }
@@ -132,6 +144,11 @@ const useSplitSizes = create<{
   ),
 )
 
+/**
+ * A slot's content, as Puck hands it to a component. Call it rather than
+ * mount it: Puck makes a new one each time a nested component renders, and as
+ * an element type each new one would remount everything placed in the slot.
+ */
 type SlotRender = (props?: { className?: string }) => ReactNode
 
 /** Each child takes an equal share of the slot's height. */
@@ -205,9 +222,9 @@ export function Split(props: SplitProps) {
               : { gridTemplateRows: tracks }),
           }}
         >
-          <props.first className={cn(FILL_SLOT, 'gap-3')} />
+          {props.first({ className: cn(FILL_SLOT, 'gap-3') })}
           <SideContext.Provider value={side}>
-            <props.second className={cn(FILL_SLOT, 'gap-3')} />
+            {props.second({ className: cn(FILL_SLOT, 'gap-3') })}
           </SideContext.Provider>
         </div>
       </FillContext.Provider>
@@ -281,7 +298,7 @@ export function Split(props: SplitProps) {
           className="flex min-h-0 min-w-0"
           style={{ flex: folded ? '1 1 0' : flex('first') }}
         >
-          <props.first className={cn(FILL_SLOT, !flush && 'gap-3')} />
+          {props.first({ className: cn(FILL_SLOT, !flush && 'gap-3') })}
         </div>
         <div
           role="separator"
@@ -313,7 +330,7 @@ export function Split(props: SplitProps) {
           style={{ flex: flex('second') }}
         >
           <SideContext.Provider value={side}>
-            <props.second className={cn(FILL_SLOT, !flush && 'gap-3')} />
+            {props.second({ className: cn(FILL_SLOT, !flush && 'gap-3') })}
           </SideContext.Provider>
         </div>
       </div>

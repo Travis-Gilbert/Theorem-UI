@@ -131,6 +131,7 @@ function moduleComponent(definition: ModuleDefinition): ComponentConfig {
   }
 }
 
+/** A slot's content; called, not mounted, as layout-parts explains. */
 type SlotRender = (props?: { className?: string }) => ReactNode
 
 /** Each child takes an equal share of the slot's height. */
@@ -161,7 +162,7 @@ function Tabs(
               style={{ height: fill ? 400 : height }}
             >
               <h3 className="text-xs font-medium text-ink-muted">{label}</h3>
-              <Slot className={FILL_SLOT} />
+              {Slot({ className: FILL_SLOT })}
             </section>
           ))}
         </div>
@@ -194,7 +195,7 @@ function Tabs(
             hidden={index !== active}
             className="min-h-0 flex-1"
           >
-            <Slot className={FILL_SLOT} />
+            {Slot({ className: FILL_SLOT })}
           </div>
         ))}
       </div>

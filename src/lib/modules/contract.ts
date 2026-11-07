@@ -29,6 +29,12 @@ export interface Item {
   kind?: string
   /** A TheoremResource, when the item has one. */
   resource?: Record<string, unknown>
+  /**
+   * Where the item was opened, as the Index names its scopes (`home`, or a
+   * `collection` with its `collectionId`), so what is done with it next
+   * counts there.
+   */
+  scope?: Record<string, unknown>
 }
 
 /** A module, setting, port or instance name: a short identifier. */

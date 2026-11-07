@@ -207,6 +207,9 @@ able to stand in for a mode:
 - A **Split** can keep one side at a fixed width. It can also **fold** its
   second side while nothing in it has anything to show (an inspector with
   nothing open). Folded, the side and its sash are hidden but stay mounted.
+  What a Split or Tabs nested in that side holds counts towards it.
+- A saved module draws its parts as the page around it is presented
+  (filling, flush).
 
 ## Templates
 
@@ -348,6 +351,23 @@ See the checklist for what each item rests on. In short:
     migrations were not handled (`page.test.tsx`).
   - Save as module dropped routes from outside into the selection. They now
     reach a composite action (`modules.test.ts`, `page.test.tsx`).
+- **What the second review pass found and fixed** (Greptile on PR #34, fixed
+  after it merged). Each fix has a test that fails without it:
+  - A Split nested in a folding Split's second side never counted towards
+    it. Worse, the nested Split remounted its contents on every render of
+    the outer one and looped: Puck makes new slot functions for a nested
+    component each render, and the layouts mounted them as element types.
+    Slots are now called, and a nested Split's second side reports to the
+    side around it (`page.test.tsx`).
+  - A rename left what was read at each path in place, so two pages that
+    swapped paths each showed the other's page. A rename now reads the path
+    it went to again (`store.test.tsx`).
+  - The inspector took the scope of the place the page provides, or Home,
+    never that of the Index view its item came from. Index items now carry
+    the scope they were opened in, and the inspector acts there
+    (`page.test.tsx`).
+  - A saved module drew its parts with the page root's defaults, so on a
+    flush page they came back in cards (`page.test.tsx`).
 - **Not exercised.** These rest on source and unit tests only:
   - the Index view, Index inspector and Records table modules against real
     data (the stub's Index has no items, so the inspector never unfolded);

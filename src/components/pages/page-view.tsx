@@ -45,6 +45,7 @@ import { ContentRendererContext } from './module-instance'
 import { PageRuntimeProvider, PageScopeProvider } from './page-runtime'
 import { LAYOUT_TYPES, usePageConfig } from './puck-config'
 import type { PageMetadata } from './puck-config'
+import type { PagePresentation } from './layout-parts'
 import { SaveAsModule } from './save-as-module'
 import { SaveAsTemplate } from './save-as-template'
 
@@ -203,17 +204,25 @@ export function useContentRenderer(
 ) {
   const { arranging, page } = metadata
   return useMemo(
-    () => (content: ComponentData[]) => (
-      <Render
-        config={config}
-        data={
-          prepareLayout({ root: { props: {} }, content }, lookup, (type) =>
-            LAYOUT_TYPES.has(type),
-          ) as Partial<Data>
-        }
-        metadata={{ arranging, page } satisfies PageMetadata}
-      />
-    ),
+    () =>
+      (content: ComponentData[], { fill, flush }: PagePresentation) => (
+        <Render
+          config={config}
+          data={
+            prepareLayout(
+              // The root settings the page root reads, so its presentation
+              // carries into the composite rather than starting over.
+              {
+                root: { props: { fill, frames: flush ? 'flush' : 'cards' } },
+                content,
+              },
+              lookup,
+              (type) => LAYOUT_TYPES.has(type),
+            ) as Partial<Data>
+          }
+          metadata={{ arranging, page } satisfies PageMetadata}
+        />
+      ),
     [config, arranging, page, lookup],
   )
 }
