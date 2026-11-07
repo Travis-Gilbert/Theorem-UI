@@ -215,7 +215,7 @@ const components = {
   links: inspector(LinksPanel),
   graph: inspector(GraphPanel),
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
-  ide: IdeFrame,
+  ide: () => <IdeFrame />,
   artifact: ArtifactDockPanel,
   note: NoteDockPanel,
   [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,

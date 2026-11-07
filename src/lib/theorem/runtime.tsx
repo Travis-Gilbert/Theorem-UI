@@ -32,6 +32,7 @@ import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
 import { useContext, useEffect, useMemo } from 'react'
+import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
 import { useComposerReferences } from '@/components/chat/composer-references'
@@ -117,6 +118,18 @@ export type TurnOptions = TheoremChatAdapterOptions['turnOptions']
  */
 const chatAdapters = new Map<string, ChatModelAdapter>()
 const runFailures = new Map<string, string>()
+
+/**
+ * The run each thread has going, by thread id, from its stream's first event
+ * until its terminal one: what mid-run input is sent to. A message's run id
+ * arrives only with its first part, which may be a model step away.
+ */
+export const useLiveRuns = create<Partial<Record<string, string>>>(() => ({}))
+
+function noteLiveRun(threadId: string, runId: string | undefined) {
+  if (useLiveRuns.getState()[threadId] === runId) return
+  useLiveRuns.setState({ [threadId]: runId })
+}
 function chatAdapterFor(
   threadId: string,
   turnOptions?: TurnOptions,
@@ -131,6 +144,12 @@ function chatAdapterFor(
         if (event.sourceEventType === 'RUN.FAILED') {
           runFailures.set(threadId, describeRunFailure(event.payload))
         }
+        noteLiveRun(
+          threadId,
+          TERMINAL_RUN_EVENTS.has(event.sourceEventType)
+            ? undefined
+            : event.runId,
+        )
       },
     })
     chatAdapters.set(threadId, adapter)
@@ -264,14 +283,17 @@ export async function* tailRun(
 async function* resumeLiveRun(
   runId: string,
   abortSignal: AbortSignal,
+  threadId: string,
 ): AsyncGenerator<ChatModelRunResult, void> {
   let settled = false
+  noteLiveRun(threadId, runId)
   try {
     for await (const result of tailRun(runId, abortSignal)) {
       if (result.status) settled = true
       yield result
     }
   } finally {
+    noteLiveRun(threadId, undefined)
     if (!settled && abortSignal.aborted) {
       await mutate((headers) =>
         theorem().chat.runs.cancel({
@@ -338,7 +360,7 @@ export function createHistoryAdapter(
       const { runId, recoveryError } =
         (remoteId && loadedForResume.get(remoteId)) || {}
       if (remoteId) loadedForResume.delete(remoteId)
-      if (runId) yield* resumeLiveRun(runId, abortSignal)
+      if (runId && remoteId) yield* resumeLiveRun(runId, abortSignal, remoteId)
       else if (recoveryError) throw new Error(describeError(recoveryError), { cause: recoveryError })
     },
     // Theorem persists every turn itself; nothing to write from the client.
@@ -397,7 +419,7 @@ export async function* runTurn(
     return undefined
   })
   if (recovered) {
-    yield* resumeLiveRun(recovered, options.abortSignal)
+    yield* resumeLiveRun(recovered, options.abortSignal, threadId)
     return
   }
   runFailures.delete(threadId)
@@ -444,11 +466,14 @@ export async function* runTurn(
       const resumed = await recoverPendingSend(threadId, text, options.abortSignal)
       if (!resumed) throw error
       if (!didAccept) accepted?.()
-      yield* resumeLiveRun(resumed, options.abortSignal)
+      yield* resumeLiveRun(resumed, options.abortSignal, threadId)
       return
     }
     if (!didAccept) accepted?.()
-    yield* resumeLiveRun(known, options.abortSignal)
+    yield* resumeLiveRun(known, options.abortSignal, threadId)
+  } finally {
+    // A stop ends the stream without a terminal event.
+    noteLiveRun(threadId, undefined)
   }
 }
 /** Whether a streamed step carries a finished `draft_plan` call. */

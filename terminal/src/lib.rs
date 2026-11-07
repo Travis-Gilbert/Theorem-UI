@@ -13,8 +13,9 @@
 //! terminal smaller than the window draws past the grid. Here the viewport is
 //! fixed to the grid the backend actually built.
 //!
-//! One crate serves both drawers: the bottom one mounts a single session, the
-//! right one mounts with tabs, each tab its own agent thread.
+//! One crate serves both drawers and the IDE: the bottom drawer mounts a
+//! single session, the right drawer and the terminal docked beside the IDE
+//! mount with tabs, each tab its own agent thread.
 
 use std::{
     cell::{Cell, RefCell},
@@ -41,17 +42,125 @@ use tui_input::{Input, InputRequest};
 use tui_markdown::{Options, StyleSheet};
 use wasm_bindgen::prelude::*;
 
-// pi's terminal slate; the drawer keeps it in every palette and mode.
-const BG: Color = Color::Rgb(0x20, 0x27, 0x33);
-const TOOL: Color = Color::Rgb(0x27, 0x32, 0x27);
-const RAISED: Color = Color::Rgb(0x27, 0x30, 0x42);
-const LINE: Color = Color::Rgb(0x3a, 0x44, 0x58);
-const INK: Color = Color::Rgb(0xc8, 0xd0, 0xd8);
-const BRIGHT: Color = Color::Rgb(0xe4, 0xea, 0xee);
-const MUTED: Color = Color::Rgb(0x6c, 0x74, 0x7c);
-const SAGE: Color = Color::Rgb(0x8a, 0xa8, 0xa0);
-const GOLD: Color = Color::Rgb(0xd6, 0xbc, 0x8a);
-const ERROR: Color = Color::Rgb(0xe0, 0x8a, 0x8f);
+/// The terminal's colours. The page works them out from the workspace around
+/// the terminal (src/components/terminal/terminal-theme.ts) and sets them with
+/// `set_palette`; until then the terminal draws pi's slate.
+#[derive(Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Palette {
+    #[serde(deserialize_with = "colour")]
+    bg: Color,
+    /// Tool rows: green belongs to a diff's added lines.
+    #[serde(deserialize_with = "colour")]
+    raised: Color,
+    #[serde(deserialize_with = "colour")]
+    line: Color,
+    #[serde(deserialize_with = "colour")]
+    ink: Color,
+    #[serde(deserialize_with = "colour")]
+    bright: Color,
+    #[serde(deserialize_with = "colour")]
+    muted: Color,
+    /// The prompt's cursor while the terminal is not focused.
+    #[serde(deserialize_with = "colour")]
+    idle: Color,
+    #[serde(deserialize_with = "colour")]
+    sage: Color,
+    #[serde(deserialize_with = "colour")]
+    gold: Color,
+    #[serde(deserialize_with = "colour")]
+    error: Color,
+    #[serde(deserialize_with = "colour")]
+    removed_line: Color,
+    #[serde(deserialize_with = "colour")]
+    added_line: Color,
+    #[serde(deserialize_with = "colour")]
+    removed_words: Color,
+    #[serde(deserialize_with = "colour")]
+    added_words: Color,
+    /// A comment's changed words: the code grey, lifted to read on either tint.
+    #[serde(deserialize_with = "colour")]
+    comment_on_words: Color,
+}
+
+// pi's slate as it is drawn in GitHub Sharp, where every other palette's
+// terminal is derived from (terminal-theme.ts keeps the same values, and
+// terminal-palette.test.ts holds the two equal). On the slate:
+// - pi's muted grey (#6c747c, the idle cursor) is lifted in OKLCH lightness
+//   only, 0.555 to 0.675, to read at 4.5:1 on the slate and the raised slate;
+// - a diff's rows are set in OKLCH rather than laid over it: GitHub Dark's
+//   translucent diff colours, mixed over a blue slate, drift to plum and
+//   teal. Each pair keeps the hue of GitHub Dark's diff red (#da3633, 26.8)
+//   or green (#238636, 146.3) and shares one lightness and chroma, so neither
+//   side reads stronger. Text contrast caps how light changed words can be,
+//   so they stand apart from their row by chroma, with a quiet row: a row
+//   has chroma 0.02, below GitHub's 0.03, because red and green sit across
+//   the hue circle from the slate's blue; changed words have chroma 0.09, a
+//   little above GitHub's 0.08; each is at the highest lightness where its
+//   text keeps 4.5:1: every code colour on a row, every one but a comment's
+//   on changed words;
+// - a comment's changed words take its grey lifted in lightness, 0.662 to
+//   0.714, to read at 4.5:1 on either word tint.
+const SLATE: Palette = Palette {
+    bg: Color::Rgb(0x20, 0x27, 0x33),
+    raised: Color::Rgb(0x27, 0x30, 0x42),
+    line: Color::Rgb(0x3a, 0x44, 0x58),
+    ink: Color::Rgb(0xc8, 0xd0, 0xd8),
+    bright: Color::Rgb(0xe4, 0xea, 0xee),
+    muted: Color::Rgb(0x8f, 0x98, 0xa0),
+    idle: Color::Rgb(0x6c, 0x74, 0x7c),
+    sage: Color::Rgb(0x8a, 0xa8, 0xa0),
+    gold: Color::Rgb(0xd6, 0xbc, 0x8a),
+    error: Color::Rgb(0xe0, 0x8a, 0x8f),
+    removed_line: Color::Rgb(0x36, 0x29, 0x27), // oklch(0.295 0.020 28.4)
+    added_line: Color::Rgb(0x26, 0x2f, 0x26),   // oklch(0.293 0.020 145.0)
+    removed_words: Color::Rgb(0x5e, 0x21, 0x1d), // oklch(0.339 0.090 26.7)
+    added_words: Color::Rgb(0x0e, 0x43, 0x18),  // oklch(0.338 0.090 146.3)
+    comment_on_words: Color::Rgb(0x9a, 0xa4, 0xae),
+};
+
+thread_local! {
+    /// One palette for the page: every terminal on it sits in the same workspace.
+    static PALETTE: Cell<Palette> = const { Cell::new(SLATE) };
+}
+
+/// A palette colour from its `#rrggbb` string, by Ratatui's own parser.
+fn colour<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Color, D::Error> {
+    String::deserialize(deserializer)?
+        .parse()
+        .map_err(serde::de::Error::custom)
+}
+
+/// The colours to draw in.
+fn palette() -> Palette {
+    PALETTE.get()
+}
+
+/// Sets every terminal's colours: JSON with terminal-theme.ts's
+/// `TerminalTheme` keys, each a `#rrggbb` colour. Each terminal redraws in
+/// them at its next frame.
+#[wasm_bindgen]
+pub fn set_palette(json: &str) -> Result<(), JsValue> {
+    let palette =
+        serde_json::from_str(json).map_err(|error| JsValue::from_str(&error.to_string()))?;
+    PALETTE.set(palette);
+    Ok(())
+}
+
+// Code: Stone dark's code theme, GitHub Dark, which Monaco and the chat's
+// Shiki also use. These are TanStack Highlight's github-dark token colours
+// (@tanstack/highlight/themes/github-dark, 1.2.11), one per class it emits.
+const RED: Color = Color::Rgb(0xff, 0x7b, 0x72);
+const PURPLE: Color = Color::Rgb(0xd2, 0xa8, 0xff);
+const BLUE: Color = Color::Rgb(0x79, 0xc0, 0xff);
+const LIGHT_BLUE: Color = Color::Rgb(0xa5, 0xd6, 0xff);
+const ORANGE: Color = Color::Rgb(0xff, 0xa6, 0x57);
+const GREEN: Color = Color::Rgb(0x7e, 0xe7, 0x87);
+const GREY: Color = Color::Rgb(0x8b, 0x94, 0x9e);
+const LINK_BLUE: Color = Color::Rgb(0x58, 0xa6, 0xff);
+
+/// Edit diffs show this many lines under their row until ctrl+o.
+const DIFF_FOLD: usize = 12;
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PROMPT: &str = "❯ ";
@@ -60,43 +169,47 @@ const INDENT: &str = "  ";
 const NOTICE_MS: f64 = 4000.0;
 /// Columns at the right of the header bar left clear for the page's close button.
 const CLOSE_COLUMNS: u16 = 4;
+/// Finished tools in a row that fold into one line while output is hidden.
+const GROUP_AT: usize = 3;
+/// Marks where the agent is writing while its run works.
+const CARET: &str = "▍";
 /// The hollow cursor's blink half-period; it holds solid this long after a key.
 const BLINK_MS: f64 = 530.0;
 
-/// Markdown in the terminal's colours instead of tui-markdown's ANSI defaults.
+/// Markdown in the terminal's palette instead of tui-markdown's ANSI defaults.
 #[derive(Clone, Copy)]
-struct Slate;
+struct Markdown;
 
-impl StyleSheet for Slate {
+impl StyleSheet for Markdown {
     fn heading(&self, level: u8) -> Style {
         match level {
-            1 | 2 => Style::new().fg(GOLD).bold(),
-            _ => Style::new().fg(GOLD),
+            1 | 2 => Style::new().fg(palette().gold).bold(),
+            _ => Style::new().fg(palette().gold),
         }
     }
     fn code(&self) -> Style {
-        Style::new().fg(SAGE).bg(RAISED)
+        Style::new().fg(palette().sage).bg(palette().raised)
     }
     fn link(&self) -> Style {
-        Style::new().fg(SAGE).underlined()
+        Style::new().fg(palette().sage).underlined()
     }
     fn blockquote(&self) -> Style {
-        Style::new().fg(MUTED).italic()
+        Style::new().fg(palette().muted).italic()
     }
     fn heading_meta(&self) -> Style {
-        Style::new().fg(MUTED)
+        Style::new().fg(palette().muted)
     }
     fn html(&self) -> Style {
-        Style::new().fg(MUTED)
+        Style::new().fg(palette().muted)
     }
     fn table_header(&self) -> Style {
-        Style::new().fg(BRIGHT).bold()
+        Style::new().fg(palette().bright).bold()
     }
     fn table_border(&self) -> Style {
-        Style::new().fg(LINE)
+        Style::new().fg(palette().line)
     }
     fn list_marker(&self) -> Style {
-        Style::new().fg(MUTED)
+        Style::new().fg(palette().muted)
     }
 }
 
@@ -109,7 +222,25 @@ struct Snapshot {
     error: Option<String>,
     /// The run's pending approval, answered with y or n.
     approval: Option<Approval>,
+    /// What the run says it is doing, from its latest progress part.
+    activity: Option<String>,
     messages: Vec<Message>,
+    /// What the person sent while a run worked that the transcript does not
+    /// show yet: still sending, queued, refused, or going as the next turn.
+    outgoing: Vec<Sent>,
+    /// What the next turn carries, added from the IDE, shown over the prompt.
+    references: Vec<String>,
+}
+
+/// Words the person sent to a working run, and how far they got.
+#[derive(Deserialize)]
+struct Sent {
+    text: String,
+    /// sending, queued, delivered, not_delivered, next, resent or failed.
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -140,15 +271,82 @@ enum Part {
         /// running, complete, error or approval.
         #[serde(default)]
         status: String,
+        /// What it returned, shown under the row with ctrl+o.
+        #[serde(default)]
+        output: Option<Output>,
+        /// The file it worked on, which a click on the row opens.
+        #[serde(default)]
+        open: Option<Open>,
+    },
+    /// The program the native agent writes and runs, streaming as it types.
+    Program {
+        lines: Vec<Vec<Token>>,
+        #[serde(default)]
+        streaming: bool,
+    },
+    /// Sent while the run worked, drawn where the run took it in.
+    Input(Sent),
+    /// A fenced block from an answer, highlighted by the page.
+    Code {
+        #[serde(default)]
+        lang: String,
+        #[serde(default)]
+        lines: Vec<Vec<Token>>,
+        /// A fenced diff, drawn in place of `lines`.
+        #[serde(default)]
+        diff: Vec<DiffLine>,
     },
     #[serde(other)]
     Other,
+}
+
+/// A tool's result, highlighted, its first lines and a count of the rest.
+/// An edit's result is a diff, drawn in place of `lines`.
+#[derive(Deserialize)]
+struct Output {
+    #[serde(default)]
+    lines: Vec<Vec<Token>>,
+    #[serde(default)]
+    diff: Vec<DiffLine>,
+    #[serde(default)]
+    more: usize,
+}
+
+/// A diff's line: `file`, `hunk`, or a code line kept (`ctx`), removed
+/// (`del`) or added (`add`), its code without the marker.
+#[derive(Deserialize)]
+struct DiffLine {
+    k: String,
+    t: Vec<Token>,
+}
+
+/// A file and the lines a tool touched in it, one-based, both ends included.
+#[derive(Deserialize, Clone)]
+struct Open {
+    path: String,
+    #[serde(default)]
+    start: Option<u32>,
+    #[serde(default)]
+    end: Option<u32>,
+}
+
+/// A run of code text and its highlight class (TanStack Highlight's names).
+/// In a diff, `e` marks words the line changed.
+#[derive(Deserialize)]
+struct Token {
+    t: String,
+    #[serde(default)]
+    c: Option<String>,
+    #[serde(default)]
+    e: bool,
 }
 
 /// What the person asked for, handed back to React as JSON. Each names the
 /// tab it came from; a single-session terminal has one tab.
 enum Action {
     Submit(String),
+    /// Words for the run that is working; they never stop it.
+    Input(String),
     Cancel,
     Close,
     New,
@@ -156,12 +354,17 @@ enum Action {
     NewTab,
     CloseTab,
     SelectTab,
+    /// Open a file a tool worked on, in the IDE.
+    Open(Open),
+    /// Drop the last reference the next turn carries.
+    Unreference,
 }
 
 impl Action {
     fn to_json(&self, tab: &str) -> String {
         match self {
             Action::Submit(text) => json!({ "type": "submit", "tab": tab, "text": text }),
+            Action::Input(text) => json!({ "type": "input", "tab": tab, "text": text }),
             Action::Cancel => json!({ "type": "cancel", "tab": tab }),
             Action::Close => json!({ "type": "close", "tab": tab }),
             Action::New => json!({ "type": "new", "tab": tab }),
@@ -169,6 +372,10 @@ impl Action {
             Action::NewTab => json!({ "type": "newTab", "tab": tab }),
             Action::CloseTab => json!({ "type": "closeTab", "tab": tab }),
             Action::SelectTab => json!({ "type": "selectTab", "tab": tab }),
+            Action::Open(Open { path, start, end }) => {
+                json!({ "type": "open", "tab": tab, "path": path, "start": start, "end": end })
+            }
+            Action::Unreference => json!({ "type": "unreference", "tab": tab }),
         }
         .to_string()
     }
@@ -215,8 +422,192 @@ fn indented(mut line: Line<'static>) -> Line<'static> {
     line
 }
 
+/// Transcript lines carry their indent, so blank means nothing but spaces.
+fn blank(line: &Line) -> bool {
+    line.spans.iter().all(|span| span.content.trim().is_empty())
+}
+
+/// Ends the transcript so far with one blank line, unless it already does.
+fn separate(lines: &mut Vec<Line<'static>>) {
+    if lines.last().is_some_and(|line| !blank(line)) {
+        lines.push(Line::default());
+    }
+}
+
+/// A highlight class in GitHub Dark, as TanStack's github-dark theme colours it.
+fn token_style(class: Option<&str>) -> Style {
+    let style = Style::new();
+    match class {
+        Some("keyword" | "deleted") => style.fg(RED),
+        Some("function" | "command" | "operator") => style.fg(PURPLE),
+        Some("number" | "literal" | "attr" | "property") => style.fg(BLUE),
+        Some("heading") => style.fg(BLUE).bold(),
+        Some("string") => style.fg(LIGHT_BLUE),
+        Some("type" | "variable" | "code-inline") => style.fg(ORANGE),
+        Some("tag" | "selector" | "inserted") => style.fg(GREEN),
+        Some("comment" | "meta") => style.fg(GREY),
+        Some("link") => style.fg(LINK_BLUE),
+        _ => style.fg(palette().ink),
+    }
+}
+
+/// Code tokens as one line in the terminal's colours.
+fn token_line(tokens: &[Token]) -> Vec<Span<'static>> {
+    tokens
+        .iter()
+        .map(|token| {
+            // A tab would leave the cell grid; it takes four columns.
+            Span::styled(token.t.replace('\t', "    "), token_style(token.c.as_deref()))
+        })
+        .collect()
+}
+
+/// A tool's output under its row, aligned with the tool's name: its first
+/// `shown` lines, then a count of the rest. A line carries the background
+/// its row is painted across.
+fn output_lines(output: &Output, shown: usize) -> Vec<(Line<'static>, Option<Color>)> {
+    let lead = format!("{INDENT}  ");
+    let (mut lines, cut) = if output.diff.is_empty() {
+        let lines = output.lines.iter().take(shown).map(|tokens| {
+            let mut spans = vec![Span::raw(lead.clone())];
+            spans.extend(token_line(tokens));
+            (Line::from(spans), None)
+        });
+        (lines.collect::<Vec<_>>(), output.lines.len().saturating_sub(shown))
+    } else {
+        let cut = output.diff.len().saturating_sub(shown);
+        (diff_lines(&output.diff[..output.diff.len() - cut], &lead), cut)
+    };
+    let more = output.more + cut;
+    if more > 0 {
+        lines.push((
+            Line::styled(
+                format!("{lead}… {more} more line{}", if more == 1 { "" } else { "s" }),
+                Style::new().fg(palette().muted),
+            ),
+            None,
+        ));
+    }
+    lines
+}
+
+/// Columns a line's indent spans, a tab counting four.
+fn indent_of(text: &str) -> usize {
+    text.chars().take_while(|c| *c == ' ').count()
+}
+
+/// A diff the way Delta draws one: each code line in its language's
+/// colours behind a `-`, `+` or blank marker, with an indent guide at each
+/// level, its row tinted removed or added and the words it changed
+/// brighter. Hunk headers and file names stay quiet.
+fn diff_lines(diff: &[DiffLine], lead: &str) -> Vec<(Line<'static>, Option<Color>)> {
+    let code = |line: &DiffLine| {
+        line.t.iter().map(|token| token.t.replace('\t', "    ")).collect::<String>()
+    };
+    // Indent guides step by the diff's own smallest indent.
+    let unit = diff
+        .iter()
+        .filter(|line| matches!(line.k.as_str(), "ctx" | "del" | "add"))
+        .map(&code)
+        .filter(|text| !text.trim().is_empty())
+        .map(|text| indent_of(&text))
+        .filter(|indent| *indent > 0)
+        .min()
+        .unwrap_or(4)
+        .clamp(2, 8);
+    diff.iter()
+        .map(|line| {
+            let (marker, mark, fill, words) = match line.k.as_str() {
+                "del" => ("-", RED, Some(palette().removed_line), palette().removed_words),
+                "add" => ("+", GREEN, Some(palette().added_line), palette().added_words),
+                "ctx" => (" ", palette().muted, None, palette().bg),
+                // A file it changes, then each hunk's header.
+                quiet => {
+                    let style = if quiet == "file" {
+                        Style::new().fg(palette().ink).bold()
+                    } else {
+                        Style::new().fg(GREY)
+                    };
+                    return (Line::styled(format!("{lead}{}", code(line)), style), None);
+                }
+            };
+            let text = code(line);
+            let indent = if text.trim().is_empty() { 0 } else { indent_of(&text) };
+            let mut spans = vec![
+                Span::raw(lead.to_owned()),
+                Span::styled(format!("{marker} "), Style::new().fg(mark)),
+            ];
+            let mut guides = String::new();
+            for column in 0..indent {
+                guides.push(if column % unit == 0 { '│' } else { ' ' });
+            }
+            spans.push(Span::styled(guides, Style::new().fg(palette().line)));
+            // The indent is drawn as guides; the code follows from there.
+            let mut skip = indent;
+            for token in &line.t {
+                let piece = token.t.replace('\t', "    ");
+                let dropped = piece.chars().take(skip).count();
+                skip -= dropped;
+                let rest: String = piece.chars().skip(dropped).collect();
+                if rest.is_empty() {
+                    continue;
+                }
+                let style = token_style(token.c.as_deref());
+                spans.push(Span::styled(rest, match (token.e, style.fg) {
+                    (true, Some(GREY)) => style.fg(palette().comment_on_words).bg(words),
+                    (true, _) => style.bg(words),
+                    (false, _) => style,
+                }));
+            }
+            let row = Line::from(spans);
+            (match fill {
+                Some(fill) => row.style(Style::new().bg(fill)),
+                None => row,
+            }, fill)
+        })
+        .collect()
+}
+
+/// Finished tools in a row as one line: how many, and which, in order.
+fn group_row(parts: &[Part], width: u16) -> Line<'static> {
+    let mut counts: Vec<(&str, usize)> = Vec::new();
+    for part in parts {
+        if let Part::Tool { name, .. } = part {
+            match counts.iter_mut().find(|(seen, _)| seen == name) {
+                Some((_, count)) => *count += 1,
+                None => counts.push((name, 1)),
+            }
+        }
+    }
+    let summary = counts
+        .iter()
+        .map(|(name, count)| if *count > 1 { format!("{name} ×{count}") } else { (*name).to_owned() })
+        .collect::<Vec<_>>()
+        .join(" · ");
+    tool_row(&format!("{} tools", parts.len()), &summary, "complete", false, width)
+}
+
+/// A code block between its fences, the opening one naming the language.
+/// A block still being written has no closing fence yet.
+fn code_lines(lang: &str, code: &[Vec<Token>], closed: bool) -> Vec<Line<'static>> {
+    let fence = Style::new().fg(palette().muted);
+    let mut lines = vec![Line::styled(format!("```{lang}"), fence)];
+    lines.extend(code.iter().map(|tokens| Line::from(token_line(tokens))));
+    if closed {
+        lines.push(Line::styled("```", fence));
+    }
+    lines
+}
+
 fn now() -> f64 {
     js_sys::Date::now()
+}
+
+/// The spinner's frame for now. The index is taken in f64: the clock over
+/// 80 ms is past `u32::MAX`, so a `usize` cast on wasm32 saturates and the
+/// spinner would stop on one frame.
+fn spinner() -> &'static str {
+    SPINNER[(now() / 80.0 % SPINNER.len() as f64) as usize]
 }
 
 /// One tab: an agent thread's transcript and its own prompt line.
@@ -235,10 +626,23 @@ struct Session {
     /// Body height at the last draw, for paging.
     page: usize,
     help: bool,
+    /// Whether tool output and finished programs show (ctrl+o).
+    expanded: bool,
+    /// Whether the transcript has output for ctrl+o to show.
+    has_output: bool,
     notice: Option<(String, f64)>,
-    /// Transcript lines, rebuilt when the snapshot or the width changes.
+    /// Transcript lines, rebuilt when the snapshot, the width or the palette changes.
     lines: Vec<Line<'static>>,
-    built_for: Option<u16>,
+    /// Each line's first row once wrapped, then the total, for clicks.
+    rows: Vec<usize>,
+    /// The tool rows a click opens, by line.
+    links: Vec<(usize, Open)>,
+    /// Lines whose background spans the whole row, as a diff's rows do.
+    fills: Vec<(usize, Color)>,
+    /// The body's area and its first shown row at the last draw.
+    body: Rect,
+    top: usize,
+    built_for: Option<(u16, Palette)>,
 }
 
 impl Session {
@@ -254,8 +658,15 @@ impl Session {
             scroll_back: 0,
             page: 10,
             help: false,
+            expanded: false,
+            has_output: false,
             notice: None,
             lines: Vec::new(),
+            rows: Vec::new(),
+            links: Vec::new(),
+            fills: Vec::new(),
+            body: Rect::default(),
+            top: 0,
             built_for: None,
         }
     }
@@ -272,9 +683,27 @@ impl Session {
 
     fn build(&mut self, width: u16) {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        let options = Options::new(Slate).table_width(width.saturating_sub(INDENT.len() as u16));
+        let options = Options::new(Markdown).table_width(width.saturating_sub(INDENT.len() as u16));
 
-        for message in &self.snapshot.messages {
+        let last_message = self.snapshot.messages.len().saturating_sub(1);
+        let mut caret = None;
+        let mut links = Vec::new();
+        let mut fills = Vec::new();
+        // Pushes lines whose rows carry a background, noting which.
+        let filled = |lines: &mut Vec<Line<'static>>,
+                      fills: &mut Vec<(usize, Color)>,
+                      rows: Vec<(Line<'static>, Option<Color>)>| {
+            for (line, fill) in rows {
+                if let Some(fill) = fill {
+                    fills.push((lines.len(), fill));
+                }
+                lines.push(line);
+            }
+        };
+        self.has_output = self.snapshot.messages.iter().flat_map(|m| &m.parts).any(|part| {
+            matches!(part, Part::Tool { output: Some(_), .. } | Part::Program { streaming: false, .. })
+        });
+        for (index, message) in self.snapshot.messages.iter().enumerate() {
             if message.role == "user" {
                 let text: String = message
                     .parts
@@ -287,26 +716,60 @@ impl Session {
                     .join("\n");
                 for (index, row) in text.lines().enumerate() {
                     let lead = if index == 0 {
-                        Span::styled(PROMPT, Style::new().fg(GOLD).bold())
+                        Span::styled(PROMPT, Style::new().fg(palette().gold).bold())
                     } else {
                         Span::raw(INDENT)
                     };
                     lines.push(Line::from(vec![
                         lead,
-                        Span::styled(row.to_owned(), Style::new().fg(BRIGHT)),
+                        Span::styled(row.to_owned(), Style::new().fg(palette().bright)),
                     ]));
                 }
                 lines.push(Line::default());
                 continue;
             }
-            for part in &message.parts {
+            let parts = &message.parts;
+            let writing = self.snapshot.running && index == last_message;
+            // A code block keeps a blank line from what comes before and after it.
+            let mut after_code = false;
+            let mut at = 0;
+            while at < parts.len() {
+                // Finished tools in a row fold into one line while output is
+                // hidden; an edit keeps its row, to show what it changed.
+                let finished = parts[at..]
+                    .iter()
+                    .take_while(|part| {
+                        matches!(part, Part::Tool { status, output, .. } if status == "complete"
+                            && output.as_ref().is_none_or(|output| output.diff.is_empty()))
+                    })
+                    .count();
+                if !self.expanded && finished >= GROUP_AT {
+                    if after_code {
+                        separate(&mut lines);
+                        after_code = false;
+                    }
+                    lines.push(group_row(&parts[at..at + finished], width));
+                    at += finished;
+                    continue;
+                }
+                let part = &parts[at];
+                let last_part = at + 1 == parts.len();
+                // A finished program folds to a row unless shown; the one being written shows.
+                let open_program = matches!(part, Part::Program { streaming, .. }
+                    if *streaming || self.expanded || (writing && last_part));
+                let is_code = matches!(part, Part::Code { .. }) || open_program;
+                if is_code || after_code {
+                    separate(&mut lines);
+                }
+                after_code = is_code;
+                let start = lines.len();
                 match part {
                     Part::Text { text } => {
                         let rendered = tui_markdown::from_str_with_options(text, &options);
                         lines.extend(own(rendered).into_iter().map(indented));
                     }
                     Part::Reasoning { text } => {
-                        let style = Style::new().fg(MUTED).add_modifier(Modifier::ITALIC);
+                        let style = Style::new().fg(palette().muted).add_modifier(Modifier::ITALIC);
                         lines.extend(
                             text.lines()
                                 .map(|row| indented(Line::styled(row.to_owned(), style))),
@@ -316,24 +779,85 @@ impl Session {
                         name,
                         summary,
                         status,
-                    } => lines.push(tool_row(name, summary, status, width)),
+                        output,
+                        open,
+                    } => {
+                        if let Some(open) = open {
+                            links.push((lines.len(), open.clone()));
+                        }
+                        lines.push(tool_row(name, summary, status, open.is_some(), width));
+                        // What an edit changed shows, folded; other output waits for ctrl+o.
+                        let shown = match output {
+                            _ if self.expanded => usize::MAX,
+                            Some(output) if !output.diff.is_empty() => DIFF_FOLD,
+                            _ => 0,
+                        };
+                        if let Some(output) = output.as_ref().filter(|_| shown > 0) {
+                            filled(&mut lines, &mut fills, output_lines(output, shown));
+                        }
+                    }
+                    Part::Program {
+                        lines: code,
+                        streaming,
+                    } => {
+                        if open_program {
+                            lines.extend(code_lines("program", code, !streaming).into_iter().map(indented));
+                        } else {
+                            let count = code.len();
+                            let summary = format!("{count} line{}", if count == 1 { "" } else { "s" });
+                            lines.push(tool_row("program", &summary, "complete", false, width));
+                        }
+                    }
+                    Part::Input(sent) => {
+                        lines.extend(sent_lines(sent));
+                        lines.push(Line::default());
+                    }
+                    Part::Code { lang, lines: code, diff } if !diff.is_empty() => {
+                        let fence = Style::new().fg(palette().muted);
+                        lines.push(indented(Line::styled(format!("```{lang}"), fence)));
+                        filled(&mut lines, &mut fills, diff_lines(diff, INDENT));
+                        lines.push(indented(Line::styled("```", fence)));
+                    }
+                    Part::Code { lang, lines: code, .. } => {
+                        lines.extend(code_lines(lang, code, true).into_iter().map(indented));
+                    }
                     Part::Other => {}
                 }
+                if writing && last_part {
+                    caret = match part {
+                        Part::Text { .. } => (start..lines.len()).rev().find(|&row| !blank(&lines[row])),
+                        // In a block, the line before its closing fence.
+                        Part::Code { .. } => lines.len().checked_sub(2),
+                        Part::Program { streaming: true, .. } => lines.len().checked_sub(1),
+                        Part::Program { .. } if open_program => lines.len().checked_sub(2),
+                        _ => None,
+                    };
+                }
+                at += 1;
             }
+            lines.push(Line::default());
+        }
+
+        if let Some(row) = caret {
+            lines[row].spans.push(Span::styled(CARET, Style::new().fg(palette().gold)));
+        }
+
+        for sent in &self.snapshot.outgoing {
+            lines.extend(sent_lines(sent));
             lines.push(Line::default());
         }
 
         if let Some(error) = &self.snapshot.error {
             lines.push(indented(Line::styled(
                 format!("✗ {error}"),
-                Style::new().fg(ERROR),
+                Style::new().fg(palette().error),
             )));
             lines.push(Line::default());
         }
 
         if self.help {
             let mut commands = vec![
-                ("enter", "run it"),
+                ("enter", "run it; while it works, send it along"),
                 ("/new", "start a fresh thread here"),
                 ("/help", "show or hide this list"),
                 ("ctrl+c", "stop the run, or clear the prompt"),
@@ -342,6 +866,9 @@ impl Session {
                 ("pgup pgdn", "scroll the transcript"),
                 ("alt+⌫", "delete a word"),
                 ("y / n", "allow or deny a pending approval"),
+                ("ctrl+o", "show or hide tool output and programs"),
+                ("click", "open the file a tool row names in the IDE"),
+                ("⌫", "on an empty prompt, drop the last reference"),
             ];
             if self.tabbed {
                 commands.extend([
@@ -353,24 +880,47 @@ impl Session {
             }
             for (command, what) in commands {
                 lines.push(indented(Line::from(vec![
-                    Span::styled(format!("{command:<11}"), Style::new().fg(GOLD)),
-                    Span::styled(what, Style::new().fg(MUTED)),
+                    Span::styled(format!("{command:<11}"), Style::new().fg(palette().gold)),
+                    Span::styled(what, Style::new().fg(palette().muted)),
                 ])));
             }
             lines.push(Line::default());
         }
 
+        // Each line wraps on its own, so the rows add up line by line.
+        let mut rows = Vec::with_capacity(lines.len() + 1);
+        let mut row = 0;
+        for line in &lines {
+            rows.push(row);
+            row += Paragraph::new(line.clone()).wrap(Wrap { trim: false }).line_count(width);
+        }
+        rows.push(row);
+        self.rows = rows;
+        self.links = links;
+        self.fills = fills;
         self.lines = lines;
-        self.built_for = Some(width);
+        self.built_for = Some((width, palette()));
+    }
+
+    /// The tool row a cell lands on, if a click opens it.
+    fn link_at(&self, cell: Position) -> Option<&Open> {
+        if !self.body.contains(cell) {
+            return None;
+        }
+        let row = self.top + usize::from(cell.y - self.body.y);
+        self.links
+            .iter()
+            .find(|(line, _)| self.rows.get(*line) == Some(&row))
+            .map(|(_, open)| open)
     }
 
     /// The single-session bar: what this is and where.
     fn header(&self) -> Line<'static> {
-        let mut spans = vec![Span::styled(" ◆ agent", Style::new().fg(SAGE).bold())];
+        let mut spans = vec![Span::styled(" ◆ agent", Style::new().fg(palette().sage).bold())];
         if !self.snapshot.project.is_empty() {
             spans.push(Span::styled(
                 format!(" · {}", self.snapshot.project),
-                Style::new().fg(MUTED),
+                Style::new().fg(palette().muted),
             ));
         }
         Line::from(spans)
@@ -378,7 +928,7 @@ impl Session {
 
     fn draw_body(&mut self, frame: &mut Frame, area: Rect) {
         let inner = area.inner(ratatui::layout::Margin::new(1, 0));
-        if self.built_for != Some(inner.width) {
+        if self.built_for != Some((inner.width, palette())) {
             self.build(inner.width);
         }
         let paragraph = Paragraph::new(self.lines.clone()).wrap(Wrap { trim: false });
@@ -388,6 +938,21 @@ impl Session {
         let max_back = total.saturating_sub(height);
         self.scroll_back = self.scroll_back.min(max_back);
         let top = (max_back - self.scroll_back).min(u16::MAX as usize) as u16;
+        self.body = inner;
+        self.top = usize::from(top);
+        // A filled line's background runs the width of each row it wraps
+        // to; painted first, so the words it changed keep their own.
+        let shown = self.top..self.top + height;
+        for &(line, fill) in &self.fills {
+            let (Some(&first), Some(&end)) = (self.rows.get(line), self.rows.get(line + 1)) else {
+                continue;
+            };
+            for row in first.max(shown.start)..end.min(shown.end) {
+                let y = inner.y + (row - shown.start) as u16;
+                let row = Rect::new(inner.x, y, inner.width, 1);
+                frame.buffer_mut().set_style(row, Style::new().bg(fill));
+            }
+        }
         frame.render_widget(paragraph.scroll((top, 0)), inner);
     }
 
@@ -397,18 +962,20 @@ impl Session {
         }
         let left = if let Some(approval) = &self.snapshot.approval {
             Line::from(vec![
-                Span::styled(" ? ", Style::new().fg(GOLD).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("{} ", approval.tool), Style::new().fg(BRIGHT)),
-                Span::styled(approval.summary.clone(), Style::new().fg(MUTED)),
+                Span::styled(" ? ", Style::new().fg(palette().gold).add_modifier(Modifier::BOLD)),
+                Span::styled(format!("{} ", approval.tool), Style::new().fg(palette().bright)),
+                Span::styled(approval.summary.clone(), Style::new().fg(palette().muted)),
             ])
         } else if self.snapshot.running {
-            let frame_index = (now() / 80.0) as usize % SPINNER.len();
             Line::from(vec![
-                Span::styled(format!(" {} ", SPINNER[frame_index]), Style::new().fg(GOLD)),
-                Span::styled("working", Style::new().fg(MUTED)),
+                Span::styled(format!(" {} ", spinner()), Style::new().fg(palette().gold)),
+                Span::styled(
+                    self.snapshot.activity.clone().unwrap_or_else(|| "working".to_owned()),
+                    Style::new().fg(palette().muted),
+                ),
             ])
         } else if let Some((text, _)) = &self.notice {
-            Line::styled(format!(" {text}"), Style::new().fg(GOLD))
+            Line::styled(format!(" {text}"), Style::new().fg(palette().gold))
         } else {
             Line::default()
         };
@@ -418,14 +985,37 @@ impl Session {
         } else if self.scroll_back > 0 {
             format!("↓ {} more · pgdn ", self.scroll_back)
         } else if self.snapshot.running {
-            "ctrl+c stop ".to_owned()
+            "enter sends · ctrl+c stop ".to_owned()
+        } else if self.has_output {
+            let what = if self.expanded { "hide" } else { "show" };
+            format!("ctrl+o {what} output ")
         } else {
             String::new()
         };
+        // Span-styled: a styled Line would repaint the status drawn under it.
         frame.render_widget(
-            Line::styled(right, Style::new().fg(MUTED)).right_aligned(),
+            Line::from(Span::styled(right, Style::new().fg(palette().muted))).right_aligned(),
             area,
         );
+    }
+
+    /// What the next turn carries, over the prompt.
+    fn draw_references(&self, frame: &mut Frame, area: Rect) {
+        let mut spans = vec![Span::styled(" with ", Style::new().fg(palette().muted))];
+        for (index, label) in self.snapshot.references.iter().enumerate() {
+            if index > 0 {
+                spans.push(Span::styled(" · ", Style::new().fg(palette().muted)));
+            }
+            spans.push(Span::styled(format!("@{label}"), Style::new().fg(palette().gold)));
+        }
+        frame.render_widget(Line::from(spans), area);
+        if self.input.value().is_empty() {
+            // Span-styled: a styled Line would repaint the labels drawn under it.
+            frame.render_widget(
+                Line::from(Span::styled("⌫ drops the last ", Style::new().fg(palette().muted))).right_aligned(),
+                area,
+            );
+        }
     }
 
     /// Draws the prompt line and returns the cell its cursor sits on.
@@ -433,7 +1023,7 @@ impl Session {
         let block = Block::new()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::new().fg(if focused { SAGE } else { LINE }));
+            .border_style(Style::new().fg(if focused { palette().sage } else { palette().line }));
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
@@ -442,12 +1032,12 @@ impl Session {
         let scroll = self.input.visual_scroll(width);
         let text = Span::styled(
             self.input.value().chars().skip(scroll).collect::<String>(),
-            Style::new().fg(BRIGHT),
+            Style::new().fg(palette().bright),
         );
         frame.render_widget(
             Line::from(vec![
                 Span::raw(" "),
-                Span::styled(PROMPT, Style::new().fg(GOLD).bold()),
+                Span::styled(PROMPT, Style::new().fg(palette().gold).bold()),
                 text,
             ]),
             inner,
@@ -478,11 +1068,8 @@ impl Session {
                 self.notify(format!("{command} is not a command; /help lists them"));
                 None
             }
-            _ if self.snapshot.running => {
-                self.input = Input::new(text);
-                self.notify("wait for the run to finish, or ctrl+c to stop it");
-                None
-            }
+            // Sending is not stopping: the run takes it at its next step.
+            _ if self.snapshot.running => Some(Action::Input(text)),
             _ => Some(Action::Submit(text)),
         }
     }
@@ -540,6 +1127,11 @@ impl Session {
                 self.scroll_back = 0;
                 None
             }
+            KeyCode::Char('o') if ctrl => {
+                self.expanded = !self.expanded;
+                self.built_for = None;
+                None
+            }
             KeyCode::Char(_) if ctrl => return (false, None),
             KeyCode::Char(c @ ('y' | 'n'))
                 if self.snapshot.approval.is_some() && self.input.value().is_empty() =>
@@ -550,6 +1142,11 @@ impl Session {
                 edit(&mut self.input, InputRequest::InsertChar(c));
                 self.history_at = None;
                 None
+            }
+            KeyCode::Backspace
+                if self.input.value().is_empty() && !self.snapshot.references.is_empty() =>
+            {
+                Some(Action::Unreference)
             }
             KeyCode::Backspace if alt || ctrl => {
                 edit(&mut self.input, InputRequest::DeletePrevWord);
@@ -619,12 +1216,78 @@ impl Session {
     }
 }
 
-fn tool_row(name: &str, summary: &str, status: &str, width: u16) -> Line<'static> {
+/// Why a run did not take input, in the person's words.
+fn refusal(reason: Option<&str>) -> Option<&'static str> {
+    match reason? {
+        "run_ended" => Some("the run ended first"),
+        "run_cancelled" => Some("the run was stopped"),
+        "run_input_unsupported" => Some("this run takes no input"),
+        "answer_final" | "report_captured" => Some("its answer was already final"),
+        _ => None,
+    }
+}
+
+/// Words sent to a working run: a prompt line like the person's own, dim
+/// until the run takes them, with what happened to them after.
+fn sent_lines(sent: &Sent) -> Vec<Line<'static>> {
+    let taken = sent.status == "delivered";
+    let (glyph, ink) = if taken {
+        (Style::new().fg(palette().gold).bold(), Style::new().fg(palette().bright))
+    } else {
+        (Style::new().fg(palette().muted), Style::new().fg(palette().ink))
+    };
+    let (tag, tag_style) = match sent.status.as_str() {
+        "delivered" => (None, Style::new().fg(palette().muted)),
+        "sending" => (Some("sending".to_owned()), Style::new().fg(palette().muted)),
+        "next" => (Some("goes as the next turn".to_owned()), Style::new().fg(palette().gold)),
+        "resent" => (Some("sent as the next turn".to_owned()), Style::new().fg(palette().muted)),
+        "not_delivered" => (
+            Some(match refusal(sent.reason.as_deref()) {
+                Some(why) => format!("not delivered: {why}"),
+                None => "not delivered".to_owned(),
+            }),
+            Style::new().fg(palette().error),
+        ),
+        "failed" => (
+            Some(match &sent.reason {
+                Some(why) => format!("not sent: {why}"),
+                None => "not sent".to_owned(),
+            }),
+            Style::new().fg(palette().error),
+        ),
+        _ => (Some("queued for its next step".to_owned()), Style::new().fg(palette().muted)),
+    };
+    let rows: Vec<&str> = sent.text.lines().collect();
+    let last = rows.len().saturating_sub(1);
+    rows.iter()
+        .enumerate()
+        .map(|(index, row)| {
+            let mut spans = vec![
+                if index == 0 {
+                    Span::styled(PROMPT, glyph)
+                } else {
+                    Span::raw(INDENT)
+                },
+                Span::styled((*row).to_owned(), ink),
+            ];
+            if index == last {
+                if let Some(tag) = &tag {
+                    spans.push(Span::styled(format!("  · {tag}"), tag_style));
+                }
+            }
+            Line::from(spans)
+        })
+        .collect()
+}
+
+/// One tool's row. A row that opens a file underlines its summary, as a
+/// terminal draws a hyperlink.
+fn tool_row(name: &str, summary: &str, status: &str, link: bool, width: u16) -> Line<'static> {
     let (glyph, color) = match status {
-        "complete" => ("✓", SAGE),
-        "error" => ("✗", ERROR),
-        "approval" => ("?", GOLD),
-        _ => ("◌", GOLD),
+        "complete" => ("✓", palette().sage),
+        "error" => ("✗", palette().error),
+        "approval" => ("?", palette().gold),
+        _ => ("◌", palette().gold),
     };
     let lead = format!("{INDENT}{glyph} ");
     let used = lead.chars().count() + name.chars().count() + 2;
@@ -636,12 +1299,19 @@ fn tool_row(name: &str, summary: &str, status: &str, width: u16) -> Line<'static
     let fill = (width as usize).saturating_sub(used + summary.chars().count());
     Line::from(vec![
         Span::styled(lead, Style::new().fg(color)),
-        Span::styled(name.to_owned(), Style::new().fg(BRIGHT).bold()),
+        Span::styled(name.to_owned(), Style::new().fg(palette().bright).bold()),
         Span::raw("  "),
-        Span::styled(summary, Style::new().fg(MUTED)),
+        Span::styled(
+            summary,
+            if link {
+                Style::new().fg(palette().muted).add_modifier(Modifier::UNDERLINED)
+            } else {
+                Style::new().fg(palette().muted)
+            },
+        ),
         Span::raw(" ".repeat(fill)),
     ])
-    .style(Style::new().bg(TOOL))
+    .style(Style::new().bg(palette().raised))
 }
 
 /// The terminal's tabs, one session each, and what spans them: focus, the
@@ -719,18 +1389,23 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
-        frame.render_widget(Block::new().style(Style::new().bg(BG).fg(INK)), area);
-        let [header, body, status, prompt] = Layout::vertical([
+        frame.render_widget(Block::new().style(Style::new().bg(palette().bg).fg(palette().ink)), area);
+        let referenced = self
+            .sessions
+            .get(self.active)
+            .is_some_and(|session| !session.snapshot.references.is_empty());
+        let [header, body, status, references, prompt] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
             Constraint::Length(1),
+            Constraint::Length(u16::from(referenced)),
             Constraint::Length(3),
         ])
         .areas(area);
 
         let block = Block::new()
             .borders(Borders::BOTTOM)
-            .border_style(Style::new().fg(LINE));
+            .border_style(Style::new().fg(palette().line));
         let bar = block.inner(header);
         frame.render_widget(block, header);
         // The bar's last columns stay clear for the page's close button.
@@ -747,13 +1422,16 @@ impl App {
         };
         session.draw_body(frame, body);
         session.draw_status(frame, status);
+        if referenced {
+            session.draw_references(frame, references);
+        }
         self.cursor = Some(session.draw_prompt(frame, prompt, self.focused));
     }
 
     /// The tab bar: Ratatui's Tabs, with a spinner on running tabs, a close
     /// mark on the active one and a trailing tab that opens another.
     fn draw_tabs(&mut self, frame: &mut Frame, area: Rect) {
-        let spin = SPINNER[(now() / 80.0) as usize % SPINNER.len()];
+        let spin = spinner();
         let mut titles: Vec<Line<'static>> = self
             .sessions
             .iter()
@@ -761,9 +1439,9 @@ impl App {
             .map(|(index, session)| {
                 let mut spans = Vec::new();
                 if session.snapshot.approval.is_some() {
-                    spans.push(Span::styled("? ", Style::new().fg(GOLD)));
+                    spans.push(Span::styled("? ", Style::new().fg(palette().gold)));
                 } else if session.snapshot.running {
-                    spans.push(Span::styled(format!("{spin} "), Style::new().fg(GOLD)));
+                    spans.push(Span::styled(format!("{spin} "), Style::new().fg(palette().gold)));
                 }
                 let mut title: String = session.title.chars().take(18).collect();
                 if session.title.chars().count() > 18 {
@@ -772,7 +1450,7 @@ impl App {
                 }
                 spans.push(Span::raw(title));
                 if index == self.active {
-                    spans.push(Span::styled(" ×", Style::new().fg(MUTED)));
+                    spans.push(Span::styled(" ×", Style::new().fg(palette().muted)));
                 }
                 Line::from(spans)
             })
@@ -802,9 +1480,9 @@ impl App {
         frame.render_widget(
             Tabs::new(titles)
                 .select(self.active)
-                .style(Style::new().fg(MUTED))
-                .highlight_style(Style::new().fg(BRIGHT).add_modifier(Modifier::BOLD))
-                .divider(Span::styled("│", Style::new().fg(LINE)))
+                .style(Style::new().fg(palette().muted))
+                .highlight_style(Style::new().fg(palette().bright).add_modifier(Modifier::BOLD))
+                .divider(Span::styled("│", Style::new().fg(palette().line)))
                 .padding(" ", " "),
             area,
         );
@@ -860,10 +1538,17 @@ impl App {
             .map(|(_, _, hit)| *hit)
     }
 
-    /// The CSS cursor for a point: a pointer over the tab bar's targets, a
-    /// text cursor over the prompt, and the arrow everywhere else.
+    /// The active session's tool row under a point that a click opens.
+    fn link_at(&self, x: f64, y: f64) -> Option<&Open> {
+        let cell = self.cell_at(x, y)?;
+        self.sessions.get(self.active)?.link_at(cell)
+    }
+
+    /// The CSS cursor for a point: a pointer over the tab bar's targets and
+    /// the rows that open a file, a text cursor over the prompt, and the
+    /// arrow everywhere else.
     fn cursor_at(&self, x: f64, y: f64) -> &'static str {
-        if self.hit_at(x, y).is_some() {
+        if self.hit_at(x, y).is_some() || self.link_at(x, y).is_some() {
             "pointer"
         } else if self.cell_at(x, y).is_some_and(|cell| self.prompt.contains(cell)) {
             "text"
@@ -873,6 +1558,9 @@ impl App {
     }
 
     fn click(&self, x: f64, y: f64) -> Option<(Action, String)> {
+        if let Some(open) = self.link_at(x, y) {
+            return self.tab(self.active, Action::Open(open.clone()));
+        }
         match self.hit_at(x, y)? {
             Hit::Select(index) => self.tab(index, Action::SelectTab),
             Hit::Close(index) => self.tab(index, Action::CloseTab),
@@ -1073,9 +1761,9 @@ impl Screen {
             Some(at) => {
                 let lit = !app.focused || ((now() - app.typed_at) / BLINK_MS) as u64 % 2 == 0;
                 let color = match (lit, app.focused) {
-                    (false, _) => "transparent",
-                    (true, true) => "#8aa8a0",
-                    (true, false) => "#6c747c",
+                    (false, _) => "transparent".to_owned(),
+                    (true, true) => palette().sage.to_string(),
+                    (true, false) => palette().idle.to_string(),
                 };
                 let (width, height) = app.cell;
                 format!(
