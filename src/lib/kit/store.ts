@@ -58,6 +58,7 @@ const initial: KitState = {
     tag: 'rest',
     liveness: 'idle',
     pose: 'rest',
+    chosen: false,
     since: 0,
     until: Infinity,
     once: false,

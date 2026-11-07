@@ -424,6 +424,35 @@ describe("the figure's own choices", () => {
     expect(nextAct(lean, work, SHIFT_MS, chances(0.99)).tag).toBe('think')
   })
 
+  test('the agent choosing the default work pose, or letting it go, ends the act playing', () => {
+    const work = stage({
+      liveness: 'work',
+      pose: 'lean_in',
+      lastShift: -SHIFT_MS,
+    })
+    const think = nextAct(
+      poseAct(work, 0, chances(0)),
+      work,
+      SHIFT_MS,
+      chances(0),
+    )
+    expect(think).toMatchObject({ tag: 'think', unprompted: true })
+    // Mid-think the agent picks lean_in: Kit leans in now, and holds it.
+    const picked = { ...work, chosen: true, lastShift: SHIFT_MS }
+    const held = nextAct(think, picked, SHIFT_MS + 1, chances(0))
+    expect(held).toMatchObject({
+      tag: 'lean_in',
+      chosen: true,
+      until: Infinity,
+      unprompted: false,
+    })
+    // A later expression drops the pose: the default lean_in shifts again.
+    const dropped = { ...picked, chosen: false }
+    const free = nextAct(held, dropped, SHIFT_MS + 2, chances(0))
+    expect(free).toMatchObject({ tag: 'lean_in', chosen: false })
+    expect(free.until).toBeLessThan(Infinity)
+  })
+
   test("the agent's work pose, attend and ask hold; nothing shifts on its own", () => {
     const held = [
       stage({ liveness: 'work', pose: 'think', chosen: true }),

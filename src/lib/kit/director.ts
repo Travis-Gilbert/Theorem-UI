@@ -11,6 +11,8 @@ export interface Act {
   /** The liveness and pose this act was chosen for. */
   readonly liveness: Liveness
   readonly pose: Pose
+  /** Whether the agent's expression chose that pose, rather than the default. */
+  readonly chosen: boolean
   /** When it began, as epoch milliseconds. */
   readonly since: number
   /** When the figure chooses again; Infinity when only a new fact changes it. */
@@ -83,6 +85,7 @@ export function poseAct(stage: Stage, now: number, random: () => number): Act {
     tag: stage.pose,
     liveness: stage.liveness,
     pose: stage.pose,
+    chosen: stage.chosen,
     since: now,
     until: shifts(stage)
       ? now + SHIFT_MS + random() * SHIFT_JITTER_MS
@@ -109,6 +112,7 @@ function flourish(
     tag,
     liveness: stage.liveness,
     pose: stage.pose,
+    chosen: stage.chosen,
     since: now,
     until,
     once,
@@ -118,8 +122,8 @@ function flourish(
 
 /**
  * The act that follows `act` once the stage is what it is at `now`. The
- * liveness and the agent's pose always win: a new one ends whatever was
- * playing, except that a flourish begun while done lands as done gives way to
+ * liveness and the agent's pose always win: a new one, or the agent choosing
+ * or letting go of the same pose, ends whatever was playing, except that a flourish begun while done lands as done gives way to
  * idle. Within a pose the figure may shift on its own, at most once per
  * `SHIFT_MS`: when a turn is done and the agent chose nothing, most often into
  * one of done's flourishes; while idle, into another idle pose or a peek, or
@@ -132,7 +136,10 @@ export function nextAct(
   now: number,
   random: () => number,
 ): Act {
-  const same = act.liveness === stage.liveness && act.pose === stage.pose
+  const same =
+    act.liveness === stage.liveness &&
+    act.pose === stage.pose &&
+    act.chosen === stage.chosen
   const landing =
     act.unprompted &&
     act.liveness === 'done' &&

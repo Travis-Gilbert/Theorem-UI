@@ -15,6 +15,7 @@ test("Kit's words follow what the sprite plays, not the pose under it", async ()
       tag: 'sleep',
       liveness: 'idle',
       pose: 'rest',
+      chosen: false,
       since: 1,
       until: Infinity,
       once: false,
