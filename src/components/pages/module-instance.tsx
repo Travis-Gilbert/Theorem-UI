@@ -291,7 +291,14 @@ function CompositeModule({
         ancestors: [...ancestors, definition.id],
       }}
     >
-      <div className="flex flex-col gap-3 p-3">
+      {/* On a page that fills the window, the content's root fills this. */}
+      <div
+        data-composite={definition.id}
+        className={cn(
+          'flex flex-col gap-3 p-3',
+          presentation.fill && 'h-full min-h-0',
+        )}
+      >
         {render(content, presentation)}
       </div>
     </ScopeProvider>

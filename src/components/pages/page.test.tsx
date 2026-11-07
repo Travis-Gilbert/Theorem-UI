@@ -314,6 +314,24 @@ test("a saved module's parts are presented as the page around it is", async () =
     expect((await frame('flush')).className).not.toContain('rounded-xl')
     cleanup()
     expect((await frame('cards')).className).toContain('rounded-xl')
+    cleanup()
+
+    // Review found that on a page that fills the window the content's root
+    // took its height from a wrapper that had none, so a saved split
+    // collapsed to its contents.
+    const { container } = await render(
+      withComposites({
+        root: { props: { fill: true } },
+        content: [instance('acme.box', 'box')],
+      }),
+    )
+    const wrapper = await waitFor(() =>
+      container.querySelector<HTMLElement>('[data-composite="acme.box"]'),
+    )
+    expect(wrapper.className).toContain('h-full')
+    expect((wrapper.firstElementChild as HTMLElement).className).toContain(
+      'h-full',
+    )
   } finally {
     setInstalled([])
   }
