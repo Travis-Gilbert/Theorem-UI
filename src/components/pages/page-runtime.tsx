@@ -261,3 +261,28 @@ export function useModuleAction(name: string, handler: ActionHandler) {
     return runtime.handle(path, name, (payload) => onAction(payload))
   }, [runtime, path, name])
 }
+
+/**
+ * Handles every action in `names` with one handler, for a module whose
+ * actions are declared at run time (a sandboxed module's manifest).
+ */
+export function useModuleActions(
+  names: ReadonlyArray<string>,
+  handler: (name: string, payload: unknown) => void,
+) {
+  const runtime = usePageRuntime()
+  const path = useContext(InstanceContext)
+  const onAction = useEffectEvent(handler)
+  const key = names.join('\n')
+  useEffect(() => {
+    if (!path || !key) return
+    const stops = key
+      .split('\n')
+      .map((name) =>
+        runtime.handle(path, name, (payload) => onAction(name, payload)),
+      )
+    return () => {
+      for (const stop of stops) stop()
+    }
+  }, [runtime, path, key])
+}

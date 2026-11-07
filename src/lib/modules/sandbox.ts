@@ -65,6 +65,13 @@ export function serveModule(rpc: Rpc, ports: ModulePorts): void {
 export const sendValues = (rpc: Rpc, values: ModuleValues) =>
   call<SandboxMethods, 'module.inputs'>(rpc, 'module.inputs', values)
 
+/** Hands a module's frame one of its declared actions, as a route reached it. */
+export const sendAction = (rpc: Rpc, name: string, payload: unknown) =>
+  call<SandboxMethods, 'module.action'>(rpc, 'module.action', {
+    name,
+    payload,
+  })
+
 /**
  * The bridge's capabilities for a module: what was granted, plus reading its
  * own folder. A module never starts agents.

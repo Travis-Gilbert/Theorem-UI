@@ -130,7 +130,7 @@ What the module gets once it runs:
   - `module.output` and `module.emit`, for declared ports only, with every value
     parsed and type-checked.
 - A module never starts agents (`run` is empty).
-- The frame calls `window.theorem.module.onInputs`, `.output` and `.emit`.
+- The frame calls `window.theorem.module.onInputs`, `.onAction`, `.output` and `.emit`; a route to a declared action reaches it as `module.action`, and one that comes while the frame starts waits for it.
 
 The person can **Stop** a running module, **Run** it again, or **Revoke** its
 grant: from its toolbar on the page, or from the module list in the Pages

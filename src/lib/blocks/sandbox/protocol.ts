@@ -45,7 +45,11 @@ export interface RunOutcome {
   durationMs: number
 }
 
-export interface AppSelection { text: string; rowId?: string; field?: string }
+export interface AppSelection {
+  text: string
+  rowId?: string
+  field?: string
+}
 
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
 export interface PageMethods {
@@ -99,6 +103,8 @@ export interface SandboxMethods {
   }
   /** A page module's settings or inputs changed. */
   'module.inputs': { params: ModuleValues; result: null }
+  /** A route reached one of a page module's declared actions. */
+  'module.action': { params: { name: string; payload: unknown }; result: null }
 }
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */

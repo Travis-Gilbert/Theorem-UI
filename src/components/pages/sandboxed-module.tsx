@@ -26,11 +26,13 @@ import {
   bridgeCapabilities,
   describeRequest,
   requestsOf,
+  sendAction,
   sendValues,
   serveModule,
 } from '@/lib/modules/sandbox'
 import type { Request } from '@/lib/modules/sandbox'
 import { useModuleFiles, useVaultClient } from '@/lib/modules/store'
+import { useModuleActions } from './page-runtime'
 import type { ModuleFiles } from '@/lib/modules/store'
 import type { WorkspaceClient, WorkspaceId } from '@/lib/workspace/types'
 
@@ -328,6 +330,18 @@ function ModuleFrameBody({
       void sendValues(rpc.current, { settings, inputs }).catch(() => {})
   }, [valuesKey])
 
+  // A route's action goes to the frame; one that comes while the frame
+  // starts waits for it.
+  const waiting = useRef<Array<[string, unknown]>>([])
+  const actionNames = useMemo(
+    () => definition.actions.map((a) => a.name),
+    [definition.actions],
+  )
+  useModuleActions(actionNames, (name, payload) => {
+    if (rpc.current) void sendAction(rpc.current, name, payload).catch(() => {})
+    else waiting.current.push([name, payload])
+  })
+
   if (frameDocument.error)
     return <BlockMessage tone="error">{frameDocument.error}</BlockMessage>
   if (!frameDocument.src)
@@ -353,6 +367,8 @@ function ModuleFrameBody({
               rpc.current = connected
               const { settings, inputs } = latest.current
               void sendValues(connected, { settings, inputs }).catch(() => {})
+              for (const [name, payload] of waiting.current.splice(0))
+                void sendAction(connected, name, payload).catch(() => {})
             },
             () => {},
           )

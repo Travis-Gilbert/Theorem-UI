@@ -138,3 +138,41 @@ test('an edit made while a save runs stays unsaved', async () => {
   expect(container.textContent).toContain('Unsaved changes')
   expect(pagesUnsaved()).toBe(true)
 })
+
+// Review found that a page saved and left before the save came back stayed
+// unsaved: mutate's own callbacks do not run once the view is gone.
+test('a page saved and left before the save returns is saved', async () => {
+  const fake = fakeWorkspace({
+    'Pages/Desk.page.json': pageText(newPage('Desk')),
+  })
+  const [entry] = (await fake.client.tree()).filter(
+    (e) => e.path === 'Pages/Desk.page.json',
+  )
+  const write = fake.client.write
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  fake.client.write = async (...args) => {
+    await held
+    return write(...args)
+  }
+  const ui = <VaultPage client={fake.client} entryId={entry!.id} />
+  const { container, queryClient, root } = await render(ui)
+  act(() => button(container, 'Arrange')!.click())
+  const input = await waitFor(() =>
+    container.querySelector<HTMLInputElement>('input[aria-label="Page title"]'),
+  )
+  type(input, 'Reading desk')
+  await waitFor(() => button(container, 'Save'))
+  act(() => button(container, 'Save')!.click())
+  const { QueryClientProvider } = await import('@tanstack/react-query')
+  act(() =>
+    root.render(
+      <QueryClientProvider client={queryClient}>{null}</QueryClientProvider>,
+    ),
+  )
+  await act(async () => release())
+  await waitFor(() =>
+    fake.text('Pages/Desk.page.json')?.includes('Reading desk'),
+  )
+  await waitFor(() => !pagesUnsaved())
+})

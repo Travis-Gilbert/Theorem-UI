@@ -25,7 +25,13 @@ import {
   MAX_EVENTS_PER_SECOND,
   createPageRuntime,
 } from './runtime'
-import { compatibility, convert, pick, referenceForItem } from './values'
+import {
+  compatibility,
+  convert,
+  isValueOf,
+  pick,
+  referenceForItem,
+} from './values'
 
 const View = (() => null) as ComponentType<ModuleViewProps>
 
@@ -156,6 +162,14 @@ describe('values', () => {
         },
       },
     })
+  })
+
+  test('a reference has a resource that names its kind', () => {
+    const at = (resource: unknown) => ({ location: { resource } })
+    expect(isValueOf('reference', at({ kind: 'graph-object' }))).toBe(true)
+    expect(isValueOf('reference', at(null))).toBe(false)
+    expect(isValueOf('reference', at({}))).toBe(false)
+    expect(convert(at(null), 'reference', 'text')).toBeUndefined()
   })
 
   test('a binding delivers only what its target takes', () => {

@@ -14,6 +14,7 @@ import {
   bridgeCapabilities,
   describeRequest,
   requestsOf,
+  sendAction,
   sendValues,
   serveModule,
 } from './sandbox'
@@ -114,6 +115,21 @@ describe('a sandboxed module', () => {
         inputs: { item: undefined },
       })
       expect(received).toEqual([{ settings: { label: 'x' }, inputs: {} }])
+    } finally {
+      close()
+    }
+  })
+
+  test('is handed the actions routes reach', async () => {
+    const { host, frame, close } = connected()
+    const received: Array<{ name: string; payload: unknown }> = []
+    serve<SandboxMethods, 'module.action'>(frame, 'module.action', (action) => {
+      received.push(action)
+      return null
+    })
+    try {
+      await sendAction(host, 'show', { id: 'd1' })
+      expect(received).toEqual([{ name: 'show', payload: { id: 'd1' } }])
     } finally {
       close()
     }

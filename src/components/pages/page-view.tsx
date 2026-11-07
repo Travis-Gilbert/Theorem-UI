@@ -297,21 +297,23 @@ function PageEditor({
   // keeps the working copy from there.
   const [start, setStart] = useState(prepared)
 
+  // Settled through the save's promise, not mutate's callbacks: those do not
+  // run once the view is gone, and a page saved and left must not stay unsaved.
   const commit = (page: PageDocument, hash: string | null) =>
-    save.mutate(
-      { path: loaded.path, page, hash },
-      {
-        onSuccess: (stored) => {
-          setHeld(stored)
-          // Only the draft that was saved is done with; one edited since,
-          // or another than the one saved (a pin), stays unsaved over it.
-          setDraft((current) => (current === page ? null : current))
-          setConflict(null)
-        },
-        onError: (error) => {
-          if (error instanceof WorkspaceConflictError)
-            setConflict({ page, currentHash: error.currentHash })
-        },
+    save.mutateAsync({ path: loaded.path, page, hash }).then(
+      (stored) => {
+        const drafts = usePageDrafts.getState()
+        if (drafts.drafts[draftKey]?.draft === page)
+          drafts.keep(draftKey, undefined)
+        setHeld(stored)
+        // Only the draft that was saved is done with; one edited since,
+        // or another than the one saved (a pin), stays unsaved over it.
+        setDraft((current) => (current === page ? null : current))
+        setConflict(null)
+      },
+      (error: unknown) => {
+        if (error instanceof WorkspaceConflictError)
+          setConflict({ page, currentHash: error.currentHash })
       },
     )
 

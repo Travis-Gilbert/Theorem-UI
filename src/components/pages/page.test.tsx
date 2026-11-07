@@ -31,6 +31,7 @@ import {
   PageRuntimeProvider,
   PageScopeProvider,
   useModuleAction,
+  useModuleActions,
 } from './page-runtime'
 import { useContentRenderer } from './page-view'
 import { LAYOUT_TYPES, SPLIT_TYPE, pageConfig } from './puck-config'
@@ -171,6 +172,14 @@ function Shows() {
   return <output>{shown}</output>
 }
 
+function ShowsAny() {
+  const [shown, setShown] = useState('nothing yet')
+  useModuleActions(['show', 'hide'], (name, payload) =>
+    setShown(`${name}: ${String(payload)}`),
+  )
+  return <output>{shown}</output>
+}
+
 /** A page whose composites draw their content, as the page view's do. */
 function withComposites(layout: LayoutData) {
   const lookup = (type: string) => moduleById(type)
@@ -263,6 +272,54 @@ test("a saved module answers an outside route with its part's action, and holds 
     await waitFor(() => container.textContent.includes('shown: chosen'))
   } finally {
     setInstalled([])
+    for (const remove of removals) remove()
+  }
+})
+
+// Review found that a sandboxed module's declared actions never reached it:
+// its frame registers them by name, from its manifest, through this hook.
+test('a module whose actions come from its manifest answers a route to each', async () => {
+  const removals = [
+    registerBuiltin(
+      builtin({
+        id: 'test.sender',
+        label: 'Sender',
+        events: [{ name: 'pick', label: 'Pick', type: 'text' }],
+        Component: Sender,
+      }),
+    ),
+    registerBuiltin(
+      builtin({
+        id: 'test.any',
+        label: 'Any',
+        actions: [
+          { name: 'show', label: 'Show', type: 'text' },
+          { name: 'hide', label: 'Hide', type: 'text' },
+        ],
+        Component: ShowsAny,
+      }),
+    ),
+  ]
+  try {
+    // A config of its own: the shared one predates these modules.
+    const { container } = await render(
+      withComposites({
+        root: { props: {} },
+        content: [
+          instance('test.sender', 'list', {
+            on: { pick: [{ to: { instance: 'any', action: 'hide' } }] },
+          }),
+          instance('test.any', 'any'),
+        ],
+      }),
+    )
+    await waitFor(() => container.textContent.includes('nothing yet'))
+    const pick = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Pick',
+    )!
+    act(() => pick.click())
+    await waitFor(() => container.textContent.includes('hide: chosen'))
+  } finally {
     for (const remove of removals) remove()
   }
 })

@@ -12,10 +12,12 @@ export const isItem = (value: unknown): value is Item =>
 export function isReference(value: unknown): value is TheoremContextReference {
   if (typeof value !== 'object' || value === null) return false
   const { location } = value as { location?: unknown }
+  if (typeof location !== 'object' || location === null) return false
+  const { resource } = location as { resource?: unknown }
   return (
-    typeof location === 'object' &&
-    location !== null &&
-    typeof (location as { resource?: unknown }).resource === 'object'
+    typeof resource === 'object' &&
+    resource !== null &&
+    typeof (resource as { kind?: unknown }).kind === 'string'
   )
 }
 
