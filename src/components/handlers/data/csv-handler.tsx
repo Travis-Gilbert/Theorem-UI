@@ -11,14 +11,14 @@ import {
 } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import Papa from 'papaparse'
 import { useMemo, useRef } from 'react'
 import { useTextFile } from '@/lib/handlers/file-sync'
 import type { FileCardProps, FileViewProps } from '@/lib/handlers/types'
 import { cn } from '@/lib/utils'
 import { FileMessage, textFileMessage } from '../file-status'
+import { parseDelimited } from './delimited'
+import type { Row } from './delimited'
 
-type Row = Array<string>
 
 const features = tableFeatures({
   rowSortingFeature,
@@ -26,24 +26,6 @@ const features = tableFeatures({
   sortFns: { alphanumeric: sortFn_alphanumeric },
 })
 
-/** The file's rows, the first naming the columns. */
-export function parseDelimited(text: string) {
-  const parsed = Papa.parse<Row>(text, { skipEmptyLines: 'greedy' })
-  const [header = [], ...rows] = parsed.data
-  const width = Math.max(header.length, ...rows.map((r) => r.length))
-  const names = Array.from(
-    { length: width },
-    (_, i) => header[i]?.trim() || `Column ${i + 1}`,
-  )
-  // Papa Parse can report more than one error for a row, and reports a file
-  // whose delimiter it guessed (one column, say) with no row at all.
-  const unreadable = new Set(
-    parsed.errors.flatMap((error) =>
-      error.row === undefined ? [] : error.row,
-    ),
-  ).size
-  return { names, rows, unreadable }
-}
 
 const ROW_HEIGHT = 30
 
