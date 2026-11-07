@@ -23,6 +23,7 @@ import {
   usePagePresentation,
   usePresentInSide,
 } from './layout-parts'
+import type { PagePresentation } from './layout-parts'
 import {
   InstanceProvider,
   ScopeProvider,
@@ -35,8 +36,12 @@ import {
 import { SandboxedModule } from './sandboxed-module'
 
 /** Renders saved content (a composite's) with the page's own components. */
+/**
+ * Draws a composite's content as a page of its own, presented as the page it
+ * sits in is (filling, flush), so its parts read as that page's do.
+ */
 export const ContentRendererContext = createContext<
-  (content: ComponentData[]) => ReactNode
+  (content: ComponentData[], presentation: PagePresentation) => ReactNode
 >(() => null)
 
 class ModuleBoundary extends Component<
@@ -212,6 +217,7 @@ function CompositeModule({
   const runtime = usePageRuntime()
   const outer = useScope()
   const render = useContext(ContentRendererContext)
+  const presentation = usePagePresentation()
   const { implementation } = definition
   const content =
     implementation.kind === 'composite' ? implementation.content : []
@@ -285,7 +291,16 @@ function CompositeModule({
         ancestors: [...ancestors, definition.id],
       }}
     >
-      <div className="flex flex-col gap-3 p-3">{render(content)}</div>
+      {/* On a page that fills the window, the content's root fills this. */}
+      <div
+        data-composite={definition.id}
+        className={cn(
+          'flex flex-col gap-3 p-3',
+          presentation.fill && 'h-full min-h-0',
+        )}
+      >
+        {render(content, presentation)}
+      </div>
     </ScopeProvider>
   )
 }

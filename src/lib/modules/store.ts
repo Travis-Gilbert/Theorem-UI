@@ -107,7 +107,10 @@ type ModeRead = { page?: PageDocument; hash: string; problem?: string }
 
 /**
  * Reads a file's query again when the file changes in the vault, by its own
- * events: a rename follows the entry, a change or a new file refetches.
+ * events: a change or a new file refetches. A rename reads what is now at
+ * the path it went to, and leaves what was read at the path it left stale,
+ * since a file renamed onto a path is not the file read there before (a swap
+ * of two pages trades their paths).
  */
 function useRefetchOnChange(
   client: WorkspaceClient,
@@ -129,6 +132,15 @@ function useRefetchOnChange(
           void queryClient.invalidateQueries({
             queryKey: key(event.entry.path),
           })
+        else if (event.type === 'renamed') {
+          if (matches(event.from))
+            void queryClient.invalidateQueries({
+              queryKey: key(event.from),
+              refetchType: 'none',
+            })
+          if (matches(event.to))
+            void queryClient.invalidateQueries({ queryKey: key(event.to) })
+        }
       }),
     [client, queryClient, key, matches],
   )

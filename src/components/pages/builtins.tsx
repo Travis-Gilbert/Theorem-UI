@@ -64,14 +64,27 @@ function Empty({ children }: { children: string }) {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '')
 
-/** An item for a document or record the Index opened. */
-const indexItem = (id: string, label?: string): Item => ({
+/** An item for a document or record, opened in `scope` when it was. */
+const indexItem = (id: string, scope?: IndexScope): Item => ({
   id,
   kind: parseRecordItemId(id) ? 'record' : 'document',
-  ...(label && { label }),
+  ...(scope && { scope }),
 })
 
 const HOME: IndexScope = { kind: 'home' }
+
+/** The Index scope an item says it was opened in, when it names one. */
+function itemScope(item: Item): IndexScope | undefined {
+  const scope = item.scope
+  if (scope?.kind === 'home') return HOME
+  if (scope?.kind === 'collection' && typeof scope.collectionId === 'string')
+    return { kind: 'collection', collectionId: scope.collectionId }
+  return undefined
+}
+
+/** One string per scope, for effects that hang on where the place is. */
+const scopeKey = (scope: IndexScope) =>
+  scope.kind === 'home' ? 'home' : `collection:${scope.collectionId}`
 
 /**
  * An Index view: the Index's own column (its header, what Theorem prepared
@@ -125,9 +138,13 @@ function IndexViewAt({
 }: ModuleViewProps & { place: IndexPlace }) {
   const { search, navigate } = place
   const open = search.item
+  const scope = search.scope
+  const where = scopeKey(scope)
   useEffect(
-    () => output('selected', open ? indexItem(open) : undefined),
-    [output, open],
+    () => output('selected', open ? indexItem(open, scope) : undefined),
+    // `where` stands for the scope, which may be a new object each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [output, open, where],
   )
   useModuleAction('select', (payload) => {
     if (isItem(payload)) navigate.openItem(payload.id)
@@ -145,7 +162,7 @@ function IndexViewAt({
       ...navigate,
       openItem: (id) => {
         navigate.openItem(id)
-        emit('opened', indexItem(id))
+        emit('opened', indexItem(id, scope))
       },
     },
   }
@@ -180,17 +197,20 @@ function useShown(input: Item | undefined) {
  * to fold hides it; closing it, a linked item and Edit fields are its events.
  */
 function InspectorModule({ inputs, emit }: ModuleViewProps) {
-  const scope = useContext(IndexPlaceContext)?.search.scope ?? HOME
+  const around = useContext(IndexPlaceContext)?.search.scope ?? HOME
   const [current, show] = useShown(
     isItem(inputs.item) ? inputs.item : undefined,
   )
+  // The scope the item was opened in: an Index view of its own beside this
+  // one is not the place the page provides.
+  const scope = (current && itemScope(current)) ?? around
   useNothingToShow(!current)
   useModuleAction('show', (payload) => {
     if (isItem(payload)) show(payload)
   })
   const open = (id: string) => {
     observer().record({ kind: 'item_opened', scope, subjects: [id] })
-    const item = indexItem(id)
+    const item = indexItem(id, scope)
     show(item)
     emit('opened', item)
   }
