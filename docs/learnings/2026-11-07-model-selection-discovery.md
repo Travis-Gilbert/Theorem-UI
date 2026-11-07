@@ -26,3 +26,36 @@ recovered catalog, and starred the discovered model. The test used API fixtures;
 it is not evidence of authenticated production behavior. Production Worker
 version `7bd69e80-c974-4358-8d9a-04ebb502804a` deployed source `94ef709`.
 Live authenticated model-switch and response checks remain separate gates.
+
+## Follow-up: the Life field captured model-menu clicks
+
+The person could star several models but could not select them in the composer.
+The picker and composer worked without the Life background. With the actual
+LifeBackdrop mounted, React propagated the portaled option's pointer event into
+the drawing handler. Its DOM-ancestor selector classified the option as empty
+field space, captured the pointer, and prevented the model click from selecting.
+
+The field now requires DOM containment before treating a target as drawing space.
+Portaled context-menu events also keep their normal propagation. This reuses the
+existing event owner and the DOM `contains` primitive; no menu implementation or
+dependency was added. Inline controls remain excluded and empty-space drawing
+still captures the pointer.
+
+Evidence on UI main base `d07332fc2c772b131db70518b86aa720bca62582`:
+
+- The mounted regression failed before correction because the portaled option's
+  pointer event was prevented; empty-space drawing already passed.
+- After correction, 32 focused tests passed across Life mounting/input, model
+  parsing, picker and Settings. Portaled pointer/context-menu events and normal
+  drawing are covered separately.
+- Real Chromium and WebKit browser runs starred DeepSeek and a second model in
+  the actual Settings UI, selected DeepSeek in the composer with Life mounted,
+  reloaded and retained that selection, then selected the second model. The
+  Chromium run failed before the fix and both browser engines passed afterward.
+  API fixtures supplied the catalog and an unavailable preferences endpoint;
+  these checks do not prove authenticated production model execution.
+- Browser logs, screenshots and the temporary reproduction route are preserved
+  under `/Volumes/SSD Samsung/theorem-chat-search-evidence/model-selection-discovery`.
+  The temporary route was removed from the app before production building.
+
+Typecheck, release build, independent review and deployment are pending.
