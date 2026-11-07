@@ -31,6 +31,7 @@ import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { attendKit } from "@/lib/kit/store";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -467,6 +468,8 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
                       autoFocus={autoFocus}
                       enterKeyHint="send"
                       aria-label="Message input"
+                      onFocus={() => attendKit(true)}
+                      onBlur={() => attendKit(false)}
                     /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
     </ComposerPrimitive.TriggerPopoverRoot>

@@ -21,6 +21,7 @@ import {
   useLiveRuns,
 } from '@/lib/theorem/runtime'
 import type { TurnOptions } from '@/lib/theorem/runtime'
+import { useKitSource } from '@/lib/kit/store'
 import type { TerminalHandle } from '@/terminal-wasm/theorem_terminal'
 import { leftoversOf, snapshotOf } from './terminal-transcript'
 import type { Approval, Outgoing } from './terminal-transcript'
@@ -334,6 +335,7 @@ function Agent({ sessionKey, tabId, projectId, project }: AgentProps) {
     [projectId, tabId],
   )
   const runtime = useLocalRuntime(adapter, { adapters: { history } })
+  useKitSource(runtime)
 
   useEffect(() => {
     /**

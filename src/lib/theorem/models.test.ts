@@ -219,3 +219,12 @@ describe('effort', () => {
     useModelEffort.setState({ byModel: {} })
   })
 })
+
+test('an unavailable OpenRouter directory explains why only configured models remain', () => {
+  const list = parseModelList({
+    models: [{ ref: 'openrouter/fixture/configured', name: 'Configured' }],
+    openrouter: { status: 'unavailable', error: 'network_error' },
+  })
+  expect(modelCatalogIssue(list, undefined)).toContain('OpenRouter')
+  expect(modelCatalogIssue(list, undefined)).toContain('configured models')
+})

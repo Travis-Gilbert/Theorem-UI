@@ -29,7 +29,14 @@ import {
   draftedPlan,
 } from './runtime'
 
-type Send = { key: string; text: string; capabilityScope?: string[]; planning?: boolean }
+type Send = {
+  key: string
+  text: string
+  capabilityScope?: string[]
+  planning?: boolean
+  model?: { provider: string; model: string }
+  executionMode?: string
+}
 
 let sends: Send[] = []
 /** Sends whose reply is lost after Theorem received them. */
@@ -86,12 +93,15 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, capabilityScope, planning } = (await request.json()) as Omit<Send, 'key'>
+    const { text, capabilityScope, planning, model, executionMode } =
+      (await request.json()) as Omit<Send, 'key'>
     sends.push({
       key: request.headers.get('Idempotency-Key') ?? '',
       text,
       ...(capabilityScope ? { capabilityScope } : {}),
       ...(planning !== undefined ? { planning } : {}),
+      ...(model ? { model } : {}),
+      ...(executionMode ? { executionMode } : {}),
     })
     if (lostReplies > 0) {
       lostReplies -= 1
@@ -517,4 +527,15 @@ test('only a finished draft_plan call turns Plan off', () => {
   expect(draftedPlan(call('draft_plan', { result: 'a cycle', isError: true }))).toBe(false)
   expect(draftedPlan(call('web_search', { result: {} }))).toBe(false)
   expect(draftedPlan({})).toBe(false)
+})
+
+// A cached SDK adapter may first be created by the terminal, then used by chat.
+test('each surface sends its current model and mode on a shared durable thread', async () => {
+  const threadId = 'switch-model-after-terminal'
+  await drain(runTurn(threadId, options('Terminal first'), { executionMode: 'coding' }))
+  await drain(runTurn(threadId, options('Chat second'), { model: { provider: 'openrouter', model: 'deepseek/new-model' } }))
+  expect(sends[1]?.model).toEqual({ provider: 'openrouter', model: 'deepseek/new-model' })
+  expect(sends[1]?.executionMode).toBeUndefined()
+  await drain(runTurn(threadId, options('Default third')))
+  expect(sends[2]?.model).toBeUndefined()
 })

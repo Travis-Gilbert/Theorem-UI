@@ -74,3 +74,31 @@ test('an explicit selection remains selected when the configured default is inva
   expect(usePickedModels.getState().selected).toBeUndefined()
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Default is unavailable.')
 })
+
+
+test('OpenRouter discovery failure keeps configured choices and Retry loads the directory', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  clients.push(client)
+  const originalUrl = window.location.href
+  window.location.href = 'https://theorem.test/'
+  let recovered = false
+  const fetch = spyOn(window, 'fetch').mockImplementation(Object.assign(async () => Response.json({
+    models: recovered
+      ? [{ ref: 'openrouter/deepseek/discovered', name: 'DeepSeek discovered' }]
+      : [{ ref: 'openrouter/configured', name: 'Configured' }],
+    openrouter: recovered ? { status: 'live' } : { status: 'unavailable', error: 'network_error' },
+  }), { preconnect: window.fetch.preconnect }))
+  try {
+    const Component = Route.options.component!
+    const { container } = await render(<QueryClientProvider client={client}><Component /></QueryClientProvider>)
+    await waitFor(() => container.textContent.includes('configured models only'))
+    expect(container.textContent).toContain('Configured')
+    recovered = true
+    await click(buttonNamed(container, 'Retry model list')!)
+    await waitFor(() => container.textContent.includes('DeepSeek discovered'))
+    expect(Boolean(container.querySelector('[role="alert"]'))).toBe(false)
+  } finally {
+    fetch.mockRestore()
+    window.location.href = originalUrl
+  }
+})
