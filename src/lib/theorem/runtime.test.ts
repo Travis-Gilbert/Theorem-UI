@@ -14,7 +14,7 @@ import { useAui, useAuiState } from '@assistant-ui/react'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
 import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
-import { useWebSearch } from '@/components/chat/composer-tools'
+import { usePlanning, useWebSearch } from '@/components/chat/composer-tools'
 import {
   mutateThread,
   pendingSendKey,
@@ -29,7 +29,7 @@ import {
   draftedPlan,
 } from './runtime'
 
-type Send = { key: string; text: string; capabilityScope?: string[] }
+type Send = { key: string; text: string; capabilityScope?: string[]; planning?: boolean }
 
 let sends: Send[] = []
 /** Sends whose reply is lost after Theorem received them. */
@@ -86,11 +86,12 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, capabilityScope } = (await request.json()) as Omit<Send, 'key'>
+    const { text, capabilityScope, planning } = (await request.json()) as Omit<Send, 'key'>
     sends.push({
       key: request.headers.get('Idempotency-Key') ?? '',
       text,
       ...(capabilityScope ? { capabilityScope } : {}),
+      ...(planning !== undefined ? { planning } : {}),
     })
     if (lostReplies > 0) {
       lostReplies -= 1
@@ -164,6 +165,7 @@ beforeEach(() => {
   titleReadGate = undefined
   titleReads = []
   useWebSearch.setState({ on: false })
+  usePlanning.setState({ on: false })
 })
 afterEach(cleanup)
 
@@ -374,11 +376,14 @@ test('a send refused after its chat was left waits for that chat', async () => {
 })
 
 
-test.each<[boolean, string[] | undefined]>([
-  [true, ['web_search', 'web_read']],
-  [false, undefined],
-])('a send with Web %p asks Theorem for scope %p', async (on, scope) => {
+test.each<[boolean, boolean, string[] | undefined]>([
+  [true, true, ['web_search', 'web_read', 'draft_plan']],
+  [true, false, ['web_search', 'web_read']],
+  [false, true, undefined],
+  [false, false, undefined],
+])('a send with Web %p and Plan %p asks Theorem for scope %p', async (on, planning, scope) => {
   useWebSearch.setState({ on })
+  usePlanning.setState({ on: planning })
   const threadId = `thread-${crypto.randomUUID()}`
   function Sender() {
     const aui = useAui()
@@ -401,6 +406,7 @@ test.each<[boolean, string[] | undefined]>([
     key: expect.any(String),
     text: 'Latest Rust release',
     ...(scope ? { capabilityScope: scope } : {}),
+    ...(planning ? { planning: true } : {}),
   })
 })
 

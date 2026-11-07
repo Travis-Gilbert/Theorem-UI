@@ -498,6 +498,7 @@ function useTheoremThreadRuntime() {
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
           const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
+          if (added.capabilityScope && added.planning) added.capabilityScope.push(DRAFT_PLAN)
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
