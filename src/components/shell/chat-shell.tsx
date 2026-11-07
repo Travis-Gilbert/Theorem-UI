@@ -6,7 +6,6 @@ import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
 import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
-import { IdeFrame } from '@/components/ide/ide-frame'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
@@ -33,6 +32,8 @@ import { useReviewDock } from '@/lib/theorem/reviews'
 import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
+
+import { ModePage } from '@/components/pages/mode-page'
 
 const VaultWorkspace = lazy(() =>
   import('@/components/vault/vault-workspace').then((module) => ({
@@ -233,7 +234,8 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode Theia fills the sheet, and in Vault mode the Vault does. Each
+ * In IDE mode its page fills the sheet (by default Theia with the agent
+ * terminal beside it), and in Vault mode the Vault does. Each
  * loads on its first visit and then stays, hidden, so its editors and layout
  * survive a switch; the panel and dock stay mounted under them for the same
  * reason.
@@ -261,7 +263,7 @@ function DesktopShell(route: DockRoute) {
               inert={!ide}
               className={cn('absolute inset-0', !ide && 'invisible')}
             >
-              <IdeFrame />
+              <ModePage mode="ide" />
             </div>
           )}
           {vaultLoaded && (
@@ -316,9 +318,7 @@ export function ShellStatus({
 }) {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-2 bg-background px-6 text-center">
-      <p className="text-[20px] font-medium">
-        {title}
-      </p>
+      <p className="font-heading text-[20px] font-medium">{title}</p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}
     </div>
   )

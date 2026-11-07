@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { describeError } from '@/lib/theorem/client'
 import { useCatalogEntries } from '@/lib/theorem/catalog'
 import { ModelsTable } from '@/components/settings/models-table'
-import { useModelCatalog, usePickedModels } from '@/lib/theorem/models'
+import { defaultModelDescription, modelCatalogIssue, useModelCatalog, usePickedModels } from '@/lib/theorem/models'
 import { isNotServed } from '@/lib/theorem/passthrough'
 import type { ModelOption } from '@/lib/theorem/models'
 
@@ -70,29 +70,18 @@ function DefaultModel({
   const selected = usePickedModels((s) => s.selected)
   const select = usePickedModels((s) => s.select)
   const model = catalog.find((m) => m.ref === selected)
-  const fallback = catalog.find((m) => m.ref === defaultRef)?.name
+  const fallback = defaultModelDescription(catalog, defaultRef)
   return (
-    <SettingsSection
-      title="Default"
-      description="The model a new turn runs on until you pick another in the composer."
-    >
+    <SettingsSection title="Default" description="The model a new turn runs on until you pick another in the composer.">
       <SettingsBox>
         <SettingsRow
-          Mark={Icon.Chat}
-          title={selected ? (model?.name ?? selected) : 'Theorem default'}
-          description={
-            selected
-              ? selected
-              : `${fallback ?? 'The model this Theorem is set up with'}, which converses and hands work to the mixture of models.`
-          }
+          Mark={selected ? Icon.Chat : Icon.Theorem}
+          title={selected ? (model?.name ?? selected) : 'Theorem'}
+          description={selected ? selected : fallback}
         >
           {selected && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => select(undefined)}
-            >
-              Use Theorem default
+            <Button variant="outline" size="sm" onClick={() => select(undefined)}>
+              Use the default
             </Button>
           )}
         </SettingsRow>
@@ -102,44 +91,39 @@ function DefaultModel({
 }
 
 function ModelsTab() {
-  const { data: catalog = [], list, error, isPending } = useModelCatalog()
+  const { data: catalog = [], list, error, isPending, refetch } = useModelCatalog()
+  const issue = modelCatalogIssue(list, error)
   const starred = usePickedModels((s) => s.starred)
   const toggleStar = usePickedModels((s) => s.toggleStar)
   const selected = usePickedModels((s) => s.selected)
 
   return (
     <>
+      {issue && <div className="flex items-center gap-3">
+        <p role="alert" className="text-sm text-ink-muted">{issue}</p>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>Retry model list</Button>
+      </div>}
       <DefaultModel catalog={catalog} defaultRef={list?.defaultRef} />
       <SettingsSection
         title="In the model picker"
         description={`Star the models you want in the composer's model picker. ${starred.length} starred${
-          list?.openrouter === 'cached'
-            ? '. OpenRouter did not answer, so this is the last list Theorem saw'
-            : ''
+          list?.openrouter === 'cached' ? '. OpenRouter did not answer, so this is the last list Theorem saw' : ''
         }.`}
       >
         {error ? (
           <Empty className="rounded-lg border border-separator">
             <EmptyTitle>
-              {isNotServed(error)
-                ? 'This Theorem does not list models yet'
-                : 'Theorem did not list its models'}
+              {isNotServed(error) ? 'This Theorem does not list models yet' : 'Theorem did not list its models'}
             </EmptyTitle>
             <EmptyDescription>
-              {isNotServed(error)
-                ? "Turns run on Theorem's default model until it does."
-                : describeError(error)}
+              The model list is unavailable; the configured default could not be verified.
             </EmptyDescription>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>Retry model list</Button>
           </Empty>
         ) : isPending ? (
           <p className="px-1 text-sm text-ink-muted">Loading models...</p>
         ) : (
-          <ModelsTable
-            models={catalog}
-            starred={starred}
-            onToggleStar={toggleStar}
-            selected={selected}
-          />
+          <ModelsTable models={catalog} starred={starred} onToggleStar={toggleStar} selected={selected} />
         )}
       </SettingsSection>
     </>

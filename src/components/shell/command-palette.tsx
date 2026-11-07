@@ -22,7 +22,7 @@ import { Kbd } from '@/components/coss/kbd'
 import { Icon } from '@/components/icons'
 import { SETTINGS_GROUPS } from '@/components/settings/sections'
 import { useCatalogEntries } from '@/lib/theorem/catalog'
-import { useModelCatalog, usePickedModels } from '@/lib/theorem/models'
+import { modelCatalogIssue, useModelCatalog, usePickedModels } from '@/lib/theorem/models'
 import {
   attentionLabel,
   primaryProjectId,
@@ -145,9 +145,10 @@ function useGroups(close: () => void): Group[] {
         items: [
           {
             id: 'model:default',
-            label: 'Theorem default',
+            label: 'Theorem',
             hint: defaultName,
-            Mark: Icon.Spaces,
+            keywords: 'default model',
+            Mark: Icon.Theorem,
             active: !selected,
             run: pick(undefined),
           },
@@ -191,6 +192,8 @@ function useGroups(close: () => void): Group[] {
 /** The ⌘K palette: places, models, plugins and skills, filtered as the person types. */
 export function CommandPalette() {
   useHotkey()
+  const { list, error } = useModelCatalog()
+  const issue = modelCatalogIssue(list, error)
   const open = useCommandPalette((s) => s.open)
   const setOpen = useCommandPalette((s) => s.setOpen)
   const groups = useGroups(() => setOpen(false))
@@ -206,6 +209,7 @@ export function CommandPalette() {
           }}
         >
           <CommandInput placeholder="Search threads, models, plugins, skills and settings" />
+          {issue && <p role="alert" className="px-3 py-2 text-sm text-ink-muted">{issue}</p>}
           <CommandPanel>
             <CommandEmpty>Nothing matches.</CommandEmpty>
             <CommandList>

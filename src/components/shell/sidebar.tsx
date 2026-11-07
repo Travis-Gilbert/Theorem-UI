@@ -24,11 +24,14 @@ import { useShell } from './shell-state'
 
 import { Explorer } from './explorer'
 
+import { PagesPanel } from '@/components/pages/pages-panel'
+
 export const menuItem =
   'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
 
 export const menuPopup =
   'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-(--duration-snap) ease-snap data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+
 
 function ProjectSwitcher() {
   const { projects, project } = useActiveProject()
@@ -145,14 +148,15 @@ function SpacesPanel() {
 /**
  * The navigator beside the rail: the active mode's list above the files.
  * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
- * stays mounted behind the Index, Spaces and the revealed files, so its
+ * stays mounted behind the Index, Pages, Spaces and the revealed files, so its
  * search, scroll and open branches survive a switch. The rail's Files
  * control reveals the files over the mode's list.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   const filesShown = useShell((s) => s.filesShown)
-  const threads = mode !== 'spaces' && mode !== 'canvas' && mode !== 'index'
+  const threads =
+    mode !== 'spaces' && mode !== 'canvas' && mode !== 'index' && mode !== 'pages'
   return (
     <SidebarProvider className="on-sheet h-full min-h-0">
       <Sidebar collapsible="none" className="w-full bg-transparent">
@@ -167,6 +171,11 @@ export function ContextPanel() {
         {mode === 'spaces' && (
           <div hidden={filesShown} className="min-h-0 flex-1">
             <SpacesPanel />
+          </div>
+        )}
+        {mode === 'pages' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <PagesPanel />
           </div>
         )}
         {mode === 'canvas' && (

@@ -46,6 +46,15 @@
   --link: var(--redwood-ink);
   --graph-label: var(--ink);
   --popover: var(--surface-raised);
+  --term-bg: #202733;
+  --term-raised: #273042;
+  --term-line: #3a4458;
+  --term-ink: #c8d0d8;
+  --term-bright: #e4eaee;
+  --term-muted: #8f98a0;
+  --term-sage: #8aa8a0;
+  --term-gold: #d6bc8a;
+  --term-error: #e08a8f;
 }
 
 .dark {
@@ -94,6 +103,15 @@
   --graph-attachment: #cba843;
   --link: var(--redwood-ink);
   --popover: var(--surface-raised);
+  --term-bg: #22272e;
+  --term-raised: #2a303b;
+  --term-line: #3d4450;
+  --term-ink: #cad0d4;
+  --term-bright: #e6eaec;
+  --term-muted: #92989c;
+  --term-sage: #8aa8a0;
+  --term-gold: #d6bc8a;
+  --term-error: #e08a8f;
 }
 
 [data-palette='stone'] {
@@ -142,6 +160,15 @@
   --link: var(--teal-ink);
   --graph-label: var(--ink);
   --popover: var(--surface-raised);
+  --term-bg: #2e2519;
+  --term-raised: #3a2e1b;
+  --term-line: #4f422d;
+  --term-ink: #d7cdc6;
+  --term-bright: #eee8e4;
+  --term-muted: #9f958d;
+  --term-sage: #8aa8a0;
+  --term-gold: #d5bc8a;
+  --term-error: #e08a8f;
 }
 
 .dark[data-palette='stone'] {
@@ -190,4 +217,13 @@
   --graph-tag: #89be6b;
   --graph-attachment: #cba843;
   --link: var(--teal-ink);
+  --term-bg: #25221b;
+  --term-raised: #2f2b21;
+  --term-line: #433f33;
+  --term-ink: #cdc9c4;
+  --term-bright: #e5e3e0;
+  --term-muted: #96928d;
+  --term-sage: #86a49c;
+  --term-gold: #d1b785;
+  --term-error: #db868b;
 }

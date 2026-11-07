@@ -265,22 +265,24 @@
   --color-error-ink: var(--error-ink);
   --color-link: var(--link);
 
-  /* The terminal surfaces (file explorer, agent terminal) keep pi's dark
-     slate in every palette and mode, the way a terminal keeps its own scheme. */
-  --color-term: #202733;
-  --color-term-raised: #273042;
-  --color-term-tool: #273227;
-  --color-term-line: #3a4458;
-  --color-term-ink: #c8d0d8;
-  --color-term-bright: #e4eaee;
-  --color-term-muted: #6c747c;
-  --color-term-sage: #8aa8a0;
-  --color-term-gold: #d6bc8a;
-  --color-term-error: #e08a8f;
+  /* The terminal surfaces (file explorer, agent terminal) relate to the
+     palette around them as pi's slate relates to GitHub Sharp
+     (components/terminal/terminal-theme.ts): palettes.css carries each
+     mode's, and the page sets them again when a person's own colours change. */
+  --color-term: var(--term-bg);
+  --color-term-raised: var(--term-raised);
+  --color-term-line: var(--term-line);
+  --color-term-ink: var(--term-ink);
+  --color-term-bright: var(--term-bright);
+  --color-term-muted: var(--term-muted);
+  --color-term-sage: var(--term-sage);
+  --color-term-gold: var(--term-gold);
+  --color-term-error: var(--term-error);
 
   --font-sans:
     'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui,
     sans-serif;
+  /* Titles share the sans; weight and size carry the hierarchy. */
   --font-heading: var(--font-sans);
   --font-mono:
     'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular,
@@ -339,7 +341,11 @@
    familiar steps here keeps one rhythm across every component instead of
    restating sizes in markup. */
 @theme {
+  /* Carbon's tracking for Plex Sans: +0.32px at 12px (label-01), +0.16px at
+     14px (body-01), none from 16px; 13px sits between the two. */
+  --text-xs--letter-spacing: 0.32px;
   --text-sm: 13px;
+  --text-sm--letter-spacing: 0.24px;
   --text-base: 15px;
   --text-md: 16px;
   /* A note's reading column (max-w-note): about 75 characters of body text,
@@ -450,20 +456,22 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    /* Codex's crispness is a treatment, not a family: the font's own kerning
-       and standard ligatures stay on at every size, and IBM Plex Sans's looser
-       default spacing is pulled in to the platform's rhythm. */
+    /* The font's own kerning and standard ligatures stay on at every size.
+       Plex Sans is spaced for reading at its native tracking: IBM's Carbon
+       type sets never tighten it, and open it slightly below 16px (the
+       --text-*--letter-spacing tokens below), so nothing here pulls it in. */
     font-kerning: normal;
     font-variant-ligatures: common-ligatures contextual;
-    letter-spacing: -0.01em;
   }
 
-  /* Titles are Plex too: the hierarchy comes from size and weight. */
+  /* Titles are the sans at a heavier weight; size and weight carry the
+     hierarchy, and the tracking stays at the font's own. */
   h1,
   h2,
   h3,
   h4 {
-    font-weight: 500;
+    font-family: var(--font-heading);
+    font-weight: 600;
   }
 
   /* Noun icons are bare filled contours; Lucide-derived ones declare fill="none" and stroke. */
@@ -815,6 +823,7 @@
   font-family: var(--font-sans);
 
   & :where(h1, h2, h3, h4):not(:where(.not-prose *)) {
+    font-family: var(--font-heading);
     font-weight: 600;
   }
 

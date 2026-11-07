@@ -104,14 +104,17 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation, or the mode's view in the Index and Spaces. Theia covers the dock in IDE mode. */
+/** The main panel: the conversation, or the mode's view in the Index, Pages, Spaces and the canvas. Theia covers the dock in IDE mode. */
 function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
     () =>
       api.setTitle(
-        mode === 'spaces' || mode === 'canvas' || mode === 'index'
+        mode === 'spaces' ||
+        mode === 'canvas' ||
+        mode === 'index' ||
+        mode === 'pages'
           ? modeLabel(mode)
           : title || 'New chat',
       ),
@@ -288,7 +291,7 @@ const components = {
   links: inspector(LinksPanel),
   graph: inspector(GraphPanel),
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
-  ide: IdeFrame,
+  ide: () => <IdeFrame />,
   artifact: ArtifactDockPanel,
   note: NoteDockPanel,
   [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
@@ -511,12 +514,12 @@ function openArtifact(api: DockviewApi, artifactId: string) {
   })
 }
 
-function openDelegation(api: DockviewApi, delegationId: string) {
+function openDelegation(api: DockviewApi, delegationId: string, title: string) {
   openSide(api, {
     id: delegationPanelId(delegationId),
     component: 'delegation',
     params: { delegationId },
-    title: 'Delegation',
+    title,
   })
 }
 /**
@@ -688,7 +691,7 @@ export function DockShell({
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
     useDelegationDock.setState({
-      open: (delegationId) => openDelegation(dock, delegationId),
+      open: (delegationId, title) => openDelegation(dock, delegationId, title),
     })
     useReviewDock.setState({
       open: (reviewId, options) =>

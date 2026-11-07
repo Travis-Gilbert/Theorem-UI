@@ -95,7 +95,6 @@ import Check from '@/assets/icons/records/noun-checkmark-8086058.svg?react'
 import Coding from '@/assets/icons/records/noun-coding-8259870.svg?react'
 import Expand from '@/assets/icons/records/noun-expand-8086092.svg?react'
 import Eye from '@/assets/icons/records/noun-eye-8086063.svg?react'
-import Layout from '@/assets/icons/records/noun-layout-8176268.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
@@ -114,7 +113,6 @@ import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
 import CommonFileTextEdit from '@/assets/icons/streamline/streamline-common-file-text-edit.png'
 import HierarchyOrganize from '@/assets/icons/streamline/streamline-hierarchy-5-organize.png'
 import HierarchySix from '@/assets/icons/streamline/streamline-hierarchy-6.png'
-import HierarchyNine from '@/assets/icons/streamline/streamline-hierarchy-9.png'
 import OfficeFileText from '@/assets/icons/streamline/streamline-office-file-text.png'
 import PencilNote from '@/assets/icons/streamline/streamline-pencil-write-1.png'
 import PaperPlane from '@/assets/icons/streamline/streamline-travel-paper-plane.png'
@@ -144,6 +142,9 @@ import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
 import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bullets.png'
 import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
 import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
+
+import AstronomyConstellation from '@/assets/icons/streamline/streamline-astronomy-constellation.png'
+import AiRobotVariation from '@/assets/icons/streamline/streamline-ai-robot-generate-variation.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -254,6 +255,10 @@ const Plan = masked(WebpageBullets)
 const TheoremVault = masked(SquareWireframe)
 const AddNode = masked(HierarchyFive)
 const Agent = masked(AiFileRobot)
+const Delegate = masked(AiRouting)
+
+/** Theorem's own model choice, where the person has not picked one. */
+const Theorem = masked(AiRobotVariation)
 const File = masked(CommonFileDouble)
 const Follow = masked(AgentCursor)
 const Mail = masked(PaginateMail)
@@ -263,10 +268,11 @@ const Outline = masked(HierarchyTwo)
 const Reject = masked(WorkflowClosed)
 const Route = masked(AiRouting)
 const Article = masked(OfficeFileText)
+const Layout = masked(BrowserPageLayout)
 const Canvas = masked(CodeWrite)
 const Draft = masked(CommonFileTextEdit)
 const Fork = masked(WorkflowBranch)
-const Graph = masked(HierarchyNine)
+const Graph = masked(AstronomyConstellation)
 const Note = masked(PencilNote)
 const Organize = masked(HierarchyOrganize)
 const Proposal = masked(WorkflowPullRequest)
@@ -405,6 +411,7 @@ export const Icon = {
   Web,
   Agent,
   Attachments,
+  Delegate,
   Files,
   Graph,
   History,
@@ -421,6 +428,7 @@ export const Icon = {
   Route,
   Sink,
   Skill,
+  Theorem,
   TheoremVault,
   TreeFile,
   Trusted,

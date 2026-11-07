@@ -77,7 +77,7 @@ function Chips({ sources }: { sources: readonly CanvasSource[] }) {
     <div className="flex flex-wrap gap-1">
       {sources.map((source, index) => (
         <span
-          key={`${source.documentId}:${source.selection?.start ?? 'all'}`}
+          key={`${source.documentId}:${source.selection?.quote ?? 'all'}`}
           className="inline-flex max-w-full items-center gap-1 rounded-md bg-frame py-0.5 ps-1.5 pe-0.5 text-xs text-ink-muted"
         >
           <Icon.Article className="size-3 shrink-0" />

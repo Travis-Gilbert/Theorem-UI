@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   RESTING,
+  beat,
   decay,
   glow,
   pace,
@@ -115,5 +116,41 @@ describe('reading the last message over time', () => {
 
   test('the same message counts only what it added, even as it finishes', () => {
     expect(pulsesSince({ id: 'b', signal: busy }, { id: 'b', signal: { ...done, tools: 4 } })).toEqual(['tool'])
+  })
+})
+
+describe('beat', () => {
+  test('at rest a generation takes two thirds of a second', () => {
+    const half = beat(0, 1 / 3, RESTING.level, true)
+    expect(half.steps).toBe(0)
+    expect(half.phase).toBeCloseTo(0.5)
+    expect(beat(half.phase, 1 / 3 + 0.01, RESTING.level, true).steps).toBe(1)
+  })
+
+  test('a step carries the time past it into the next generation', () => {
+    const next = beat(0.9, 0.1, RESTING.level, true)
+    expect(next.steps).toBe(1)
+    expect(next.phase).toBeCloseTo(0.05)
+  })
+
+  test('a pulse mid-generation hurries it on from where it stood instead of cutting it short', () => {
+    // Frame by frame at 60 fps, with two tool calls landing half way through a generation.
+    const frame = 1 / 60
+    let energy = RESTING
+    let phase = 0
+    for (let i = 0; i < 120; i++) {
+      if (i === 20) energy = pulse(pulse(energy, 'tool'), 'tool')
+      energy = decay(energy, frame)
+      const next = beat(phase, frame, energy.level, true)
+      if (next.steps === 0) expect(next.phase).toBeGreaterThan(phase)
+      // A step lands only once the generation it ends has run its full course.
+      else expect(phase + frame * pace(energy.level)).toBeGreaterThanOrEqual(1)
+      if (i === 20) expect(next).toMatchObject({ steps: 0 })
+      phase = next.phase
+    }
+  })
+
+  test('paused, the generation in hand runs out and no step is taken', () => {
+    expect(beat(0.5, 10, RESTING.level, false)).toEqual({ phase: 1, steps: 0 })
   })
 })

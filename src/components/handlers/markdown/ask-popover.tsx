@@ -40,7 +40,12 @@ function ask(host: MarkupHost, file: NoteRef, range: Range, question: string) {
   const excerpt = proseExcerpt(doc, range.from, range.to)
   if (!excerpt) return undefined
   return askAbout(
-    { ...file, projectId: file.projectId, text: plainText(doc) },
+    {
+      ...file,
+      projectId: file.projectId,
+      text: plainText(doc),
+      documentSource: file.captureDocument?.(),
+    },
     question,
     excerpt,
     quoteAt(doc, range.from, range.to),

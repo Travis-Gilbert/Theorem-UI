@@ -1,10 +1,17 @@
 import { describe, expect, test } from 'bun:test'
+import { QueryClient } from '@tanstack/react-query'
 import {
+  defaultModelDescription,
+  modelCatalogIssue,
   formatContext,
   formatPrice,
+  modelListQuery,
+  modelTurnOptions,
   parseModelEntry,
   parseModelList,
   resolvedModel,
+  useModelEffort,
+  usePickedModels,
 } from './models'
 
 describe('resolvedModel', () => {
@@ -38,7 +45,20 @@ describe('parseModelEntry', () => {
       inputs: [],
       tools: false,
       reasoning: false,
+      effortLevels: [],
     })
+  })
+
+  test('reads the effort levels Theorem says the route sends, and their default', () => {
+    expect(
+      parseModelEntry({
+        ref: 'openrouter/deepseek/deepseek-v4-flash-0731',
+        name: 'DeepSeek V4 Flash',
+        source: 'catalog',
+        effort_levels: ['low', 'high', 'max'],
+        effort_default: 'low',
+      }),
+    ).toMatchObject({ effortLevels: ['low', 'high', 'max'], effortDefault: 'low' })
   })
 
   test('reads the fields the settings table shows', () => {
@@ -96,6 +116,14 @@ describe('parseModelEntry', () => {
 })
 
 describe('parseModelList', () => {
+  test('preserves a safe typed default failure without exposing extra fields', () => {
+    const failure = { code: 'chat_model_not_found', message: 'Choose a model or correct the configured default.', credential: 'private' }
+    expect(parseModelList({ models: [], defaultError: failure })).toMatchObject({
+      defaultError: { code: failure.code, message: failure.message },
+    })
+    expect(parseModelList({ defaultError: { code: 3, message: 'invalid' } })).not.toHaveProperty('defaultError')
+  })
+
   test('reads the route body, keeping the default and the OpenRouter status', () => {
     expect(
       parseModelList({
@@ -128,4 +156,86 @@ describe('formatting', () => {
     expect(formatPrice({ promptPrice: 0.075, completionPrice: 0.3 })).toBe('$0.075 / $0.30 per M')
     expect(formatPrice({})).toBeUndefined()
   })
+})
+
+
+test('model default descriptions retain an unknown catalog ref and no issue is invented', () => {
+  expect(defaultModelDescription([], 'provider/actual')).toBe('provider/actual')
+  expect(modelCatalogIssue(undefined, undefined)).toBeUndefined()
+  expect(modelCatalogIssue(parseModelList({}), null)).toBeUndefined()
+  expect(parseModelList({ defaultError: { code: 'bad', message: 42 } })).not.toHaveProperty('defaultError')
+  expect(parseModelList({ defaultError: null })).not.toHaveProperty('defaultError')
+})
+
+
+test('default identity selects the matching row rather than the first catalog model', () => {
+  const list = parseModelList({ models: [{ ref: 'provider/other', name: 'Other' }, { ref: 'provider/actual', name: 'Actual' }], openrouter: { status: 'live' } })
+  expect(defaultModelDescription(list.models, 'provider/actual')).toBe('Actual (provider/actual)')
+  expect(list.openrouter).toBe('live')
+  expect(parseModelList(null)).toEqual({ models: [], openrouter: 'unavailable' })
+  expect(parseModelList({ defaultRef: 42 })).not.toHaveProperty('defaultRef')
+})
+
+describe('effort', () => {
+  const PRO = { ref: 'openrouter/deepseek/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro', effort_levels: ['high', 'max'] }
+  const FLASH = { ref: 'openrouter/deepseek/deepseek-v4-flash', name: 'DeepSeek V4 Flash', effort_levels: ['low', 'high'] }
+  const SONNET = { ref: 'openrouter/anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' }
+  /** A query client holding the model list Theorem served, with `defaultRef` as its default. */
+  const listed = (defaultRef: string) => {
+    const client = new QueryClient()
+    client.setQueryData(modelListQuery.queryKey, parseModelList({ defaultRef, models: [PRO, FLASH, SONNET] }))
+    return client
+  }
+
+  test('a send carries the level chosen for the model it runs on, and none for another', () => {
+    useModelEffort.setState({ byModel: { [PRO.ref]: 'max', '': 'high' } })
+    const options = modelTurnOptions(listed(FLASH.ref))
+    try {
+      usePickedModels.setState({ selected: PRO.ref })
+      expect(options.effort).toBe('max')
+      usePickedModels.setState({ selected: undefined })
+      expect(options.effort).toBe('high')
+      usePickedModels.setState({ selected: SONNET.ref })
+      expect(options.effort).toBeUndefined()
+      expect({ ...options }.effort).toBeUndefined()
+    } finally {
+      useModelEffort.setState({ byModel: {} })
+      usePickedModels.setState({ selected: undefined })
+    }
+  })
+
+  test('a stored level goes out only once the model list says the model takes it', () => {
+    useModelEffort.setState({ byModel: { '': 'high', [SONNET.ref]: 'high' } })
+    try {
+      // Before the list loads, nothing says the default model takes it.
+      expect(modelTurnOptions(new QueryClient()).effort).toBeUndefined()
+      expect(modelTurnOptions(undefined).effort).toBeUndefined()
+      expect(modelTurnOptions(listed(FLASH.ref)).effort).toBe('high')
+      // The default moved to a model that takes none, so the stored level stays home.
+      expect(modelTurnOptions(listed(SONNET.ref)).effort).toBeUndefined()
+      usePickedModels.setState({ selected: SONNET.ref })
+      expect(modelTurnOptions(listed(FLASH.ref)).effort).toBeUndefined()
+    } finally {
+      useModelEffort.setState({ byModel: {} })
+      usePickedModels.setState({ selected: undefined })
+    }
+  })
+
+  test('choosing no level forgets the one stored for that model only', () => {
+    const { choose } = useModelEffort.getState()
+    choose('a', 'high')
+    choose('b', 'low')
+    choose('a', undefined)
+    expect(useModelEffort.getState().byModel).toEqual({ b: 'low' })
+    useModelEffort.setState({ byModel: {} })
+  })
+})
+
+test('an unavailable OpenRouter directory explains why only configured models remain', () => {
+  const list = parseModelList({
+    models: [{ ref: 'openrouter/fixture/configured', name: 'Configured' }],
+    openrouter: { status: 'unavailable', error: 'network_error' },
+  })
+  expect(modelCatalogIssue(list, undefined)).toContain('OpenRouter')
+  expect(modelCatalogIssue(list, undefined)).toContain('configured models')
 })

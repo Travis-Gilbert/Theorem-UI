@@ -1,9 +1,5 @@
-// SOURCING: dockview-react SplitviewReact (resizable working pane beside the view, as the shell's sheet split does), Base UI useMediaQuery (phone overlay), TooltipIconButton, ./view-renderer (OpenUI) for the open view, ./proposals, ./view-editor and ./inspector, @tanstack/react-query hooks in ./queries
-import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
-import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
-import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+// SOURCING: TooltipIconButton, ./view-renderer (OpenUI) for the open view, ./proposals, ./view-editor and ./inspector, @tanstack/react-query hooks in ./queries. On the desktop Index mode is a page (src/components/pages/mode-page.tsx) built from these columns as modules; the phone keeps them here, the inspector over the view.
+import { useEffect, useRef, useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -18,7 +14,7 @@ import { objectTypeByName, parseRecordItemId } from '@/components/records/model'
 import { useDataModel } from '@/components/records/queries'
 import { Inspector } from './inspector'
 import type { IndexHost } from './library'
-import { useAskTheorem, useIndexNavigate, useIndexSearch } from './navigation'
+import { useAskTheorem, useIndexPlace } from './navigation'
 import { observer } from './observe'
 import {
   dataModelViewId,
@@ -32,7 +28,6 @@ import { ProposalNotices } from './proposals'
 import {
   useArchiveView,
   useCollections,
-  useLibraryPublication,
   usePinView,
   useSetPreference,
   useStoredView,
@@ -55,7 +50,7 @@ const ORIGIN_TEXT: Record<ViewOrigin, string> = {
  * other view is read from Theorem.
  */
 function useOpenView() {
-  const { view: viewParam, scope } = useIndexSearch()
+  const { view: viewParam, scope } = useIndexPlace().search
   const collections = useCollections()
   const views = useViews(scope)
   const dataModel = useDataModel()
@@ -113,7 +108,7 @@ const missingIndex = (error: unknown) =>
 function Status({ title, detail }: { title: string; detail?: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-      <p className="font-medium text-[20px]">{title}</p>
+      <p className="font-heading text-[20px] font-medium">{title}</p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}
     </div>
   )
@@ -183,14 +178,14 @@ function ViewHeader({
   const [dialog, setDialog] = useState<Dialog>()
   const pin = usePinView()
   const archive = useArchiveView()
-  const navigate = useIndexNavigate()
+  const { navigate } = useIndexPlace()
   const builtIn = view.origin === 'default'
   const error = pin.error ?? archive.error
 
   return (
     <header className="flex flex-col gap-1 pb-5">
       <div className="flex items-center gap-2">
-        <h1 className="font-medium min-w-0 flex-1 truncate text-[22px]">
+        <h1 className="min-w-0 flex-1 truncate font-heading text-[22px] font-medium">
           {revision.title}
         </h1>
         <span className="flex shrink-0 items-center">
@@ -286,11 +281,16 @@ function ViewHeader({
   )
 }
 
-/** The central column: the open view, what Theorem prepared for it, and the view itself. */
-function ViewColumn() {
+/**
+ * The central column: the open view, what Theorem prepared for it, and the
+ * view itself, at the place provided (IndexPlaceContext).
+ */
+export function ViewColumn() {
   const open = useOpenView()
-  const { item } = useIndexSearch()
-  const navigate = useIndexNavigate()
+  const {
+    search: { item },
+    navigate,
+  } = useIndexPlace()
   const ask = useAskTheorem()
   const prefer = useSetPreference()
   const pin = usePinView()
@@ -406,9 +406,12 @@ function ViewColumn() {
   )
 }
 
-function InspectorColumn({ className }: { className?: string }) {
-  const { item, scope } = useIndexSearch()
-  const navigate = useIndexNavigate()
+/** The working pane for the place's open item, document or record. */
+export function InspectorColumn({ className }: { className?: string }) {
+  const {
+    search: { item, scope },
+    navigate,
+  } = useIndexPlace()
   if (!item) return null
   const record = parseRecordItemId(item)
   if (record)
@@ -446,78 +449,13 @@ function InspectorColumn({ className }: { className?: string }) {
     />
   )
 }
-
-// Splitview panels render through portals; their content arrives by context.
-const PaneContext = createContext<{
-  view: ReactNode
-  inspector: ReactNode
-} | null>(null)
-const usePane = () => {
-  const panes = useContext(PaneContext)
-  if (!panes) throw new Error('Index panes render inside IndexSurface')
-  return panes
-}
-
-function ViewPane() {
-  return <div className="h-full">{usePane().view}</div>
-}
-
-function InspectorPane() {
-  return (
-    <div className="h-full border-s border-separator">
-      {usePane().inspector}
-    </div>
-  )
-}
-
-const INSPECTOR = 'inspector'
-const paneComponents = { view: ViewPane, [INSPECTOR]: InspectorPane }
-
-/** Desktop: the view and the working pane side by side, the pane resizable and shown when something is selected. */
-function DesktopSplit() {
-  const { item } = useIndexSearch()
-  const [split, setSplit] = useState<SplitviewApi>()
-
-  const onReady = ({ api }: SplitviewReadyEvent) => {
-    api.addPanel({
-      id: 'view',
-      component: 'view',
-      minimumSize: 420,
-      priority: LayoutPriority.High,
-    })
-    api.addPanel({
-      id: INSPECTOR,
-      component: INSPECTOR,
-      size: 400,
-      minimumSize: 320,
-      maximumSize: 720,
-      priority: LayoutPriority.Low,
-    })
-    setSplit(api)
-  }
-
-  useEffect(() => {
-    split?.getPanel(INSPECTOR)?.api.setVisible(!!item)
-  }, [split, item])
-
-  return (
-    <SplitviewReact
-      className="sheet-split dockview-theme-stone h-full w-full"
-      orientation={Orientation.HORIZONTAL}
-      proportionalLayout={false}
-      components={paneComponents}
-      onReady={onReady}
-    />
-  )
-}
-
 /**
  * Below the desktop width the inspector covers the view. The view stays
  * mounted, so it has to leave the tab order and the keyboard, the way Theia
  * and the Vault do when they cover the sheet.
  */
-function PhoneIndex() {
-  const { item } = useIndexSearch()
+export function PhoneIndex() {
+  const { item } = useIndexPlace().search
   const opener = useRef<HTMLElement | null>(null)
   useEffect(() => {
     if (!item) {
@@ -539,26 +477,5 @@ function PhoneIndex() {
       </div>
       {item && <InspectorColumn className="absolute inset-0 z-10" />}
     </div>
-  )
-}
-
-/**
- * Index mode: a view of the person's material, composed in OpenUI Lang and
- * run against Theorem with no model in the loop, and a working pane for the
- * selected document. The navigation lives in the context panel.
- */
-export function IndexSurface() {
-  // The improver composes against the library this build renders.
-  useLibraryPublication()
-  const desktop = useMediaQuery('(min-width: 1024px)', { noSsr: true })
-
-  if (!desktop) return <PhoneIndex />
-
-  return (
-    <PaneContext.Provider
-      value={{ view: <ViewColumn />, inspector: <InspectorColumn /> }}
-    >
-      <DesktopSplit />
-    </PaneContext.Provider>
   )
 }

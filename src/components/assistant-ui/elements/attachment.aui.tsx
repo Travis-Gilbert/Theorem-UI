@@ -298,7 +298,7 @@ export const ComposerAddAttachment: FC = () => {
           delay={COMPOSER_TOOLTIP_DELAY}
           variant="ghost"
           size="icon"
-          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-7 rounded-md p-1.5 motion-reduce:transition-none"
+          className="aui-composer-add-attachment bg-selected text-ink-muted hover:bg-hover hover:text-ink size-8 rounded-md p-2 motion-reduce:transition-none"
           aria-label="Add Attachment"
         />
       }

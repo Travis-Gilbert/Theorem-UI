@@ -193,7 +193,8 @@ export function ThreadHeader({ actions }: { actions?: ReactNode }) {
 
 /** The project this thread's context comes from, shown once a brief applies. */
 export function ProjectContextChip() {
-  const { threadId } = useParams({ strict: false })
+  // The thread it sits in, which may not be the route's (a docked or side thread).
+  const threadId = useAuiState((s) => s.threadListItem.remoteId)
   const views = useOrganizedViews()
   const { data: organization } = useOrganization()
   const thread = threadId ? views.byId.get(threadId) : undefined

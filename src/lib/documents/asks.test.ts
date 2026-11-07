@@ -13,8 +13,11 @@ import { waitFor } from '../../../test/workspace'
 import { useDocumentAsks } from './ask-store'
 import { askAbout, resumeAsks, stopAsk } from './asks'
 import type { AskedNote } from './asks'
+import { Schema } from '@milkdown/kit/prose/model'
+import { encodeNote } from '@/lib/theorem/note-canonical'
+import { toBase64 } from '@/lib/blocks/state'
 
-type Send = { key: string; text: string }
+type Send = { key: string; text: string; contextReferences: unknown }
 
 const runIds = new Map<string, string>()
 let sends: Send[] = []
@@ -23,6 +26,40 @@ let cancelled: string[] = []
 let lostReplies = 0
 /** What a send waits for before it is answered. */
 let held: Promise<void> | undefined
+let documentReads: string[] = []
+let documentPosition = 17
+let documentFailure = false
+let savedMarkdown = 'The whole note.'
+const schema = new Schema({
+  nodes: {
+    doc: { content: 'paragraph+' },
+    paragraph: { content: 'text*' },
+    text: {},
+  },
+})
+const parse = (text: string) =>
+  schema.node('doc', null, [
+    schema.node('paragraph', null, text ? schema.text(text) : undefined),
+  ])
+const documentSource = (text = 'The whole note.') => ({
+  documentId: 'document-42',
+  doc: parse(text),
+  parse,
+})
+/** How the next sends are answered, in place of a run. */
+let refusals: Response[] = []
+/** What the third send waits for before it is answered. */
+let thirdHeld: Promise<void> | undefined
+
+const revisionConflict = () =>
+  Response.json(
+    {
+      code: 'chat_revision_conflict',
+      title: 'The chat changed before this mutation was committed',
+      detail: 'chat revision conflict: expected 1, current 2',
+    },
+    { status: 409 },
+  )
 
 /** A finished run, whose reply says which run wrote it. */
 const events = (runId: string) =>
@@ -42,6 +79,29 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   const path = new URL(request.url).pathname
   if (path.endsWith('/bootstrap'))
     return Response.json({ csrfToken: 'csrf', tenantId: 't' })
+  if (path.startsWith('/api/documents/v2/documents/')) {
+    documentReads.push(path)
+    if (documentFailure)
+      return Response.json(
+        {
+          detail: 'The selected note is unavailable',
+          code: 'document_not_found',
+        },
+        { status: 404 },
+      )
+    return Response.json({
+      summary: {
+        documentId: 'document-42',
+        documentKind: 'authored',
+        revision: { position: documentPosition, contentDigest: 'hash' },
+      },
+      canonical: {
+        placement: 'inline',
+        bytesBase64: toBase64(encodeNote(savedMarkdown)),
+      },
+      markdownProjection: 'STALE PROJECTION MUST NOT BE USED',
+    })
+  }
   if (path.endsWith('/events')) {
     return new Response(events(path.split('/').at(-2)!), {
       headers: { 'content-type': 'text/event-stream' },
@@ -53,13 +113,19 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     const key = request.headers.get('Idempotency-Key') ?? ''
-    const { text } = (await request.json()) as { text: string }
-    sends.push({ key, text })
+    const { text, contextReferences } = (await request.json()) as {
+      text: string
+      contextReferences: unknown
+    }
+    sends.push({ key, text, contextReferences })
     await held
+    if (sends.length === 3) await thirdHeld
     if (lostReplies > 0) {
       lostReplies -= 1
       throw new TypeError('Network disconnected')
     }
+    const refusal = refusals.shift()
+    if (refusal) return refusal
     const runId = runIds.get(key) ?? `run-${runIds.size + 1}`
     runIds.set(key, runId)
     return Response.json({ run: { runId } }, { status: 201 })
@@ -104,7 +170,7 @@ const ask = (note: AskedNote, question: string, sendKey?: string) =>
   askAbout(
     note,
     question,
-    { part: 'selected text', text: 'The whole' },
+    { part: 'selected text', text: 'The whole', at: 0 },
     { exact: 'The whole' },
     sendKey,
   )
@@ -121,6 +187,106 @@ beforeEach(() => {
   cancelled = []
   lostReplies = 0
   held = undefined
+  documentReads = []
+  documentPosition = 17
+  documentFailure = false
+  savedMarkdown = 'The whole note.'
+  refusals = []
+  thirdHeld = undefined
+})
+
+test('a document-backed ask reads and sends the canonical note identity and saved revision', async () => {
+  const note = { ...aNote(), documentSource: documentSource() }
+  const id = ask(note, 'Explain')
+  await settled(note, id, 'done')
+  expect(documentReads).toEqual([
+    '/api/documents/v2/documents/document-42/snapshot',
+  ])
+  expect(sends[0]?.contextReferences).toEqual([
+    {
+      location: {
+        resource: {
+          kind: 'graph-object',
+          objectId: 'document-42',
+          objectType: 'authored',
+        },
+        revision: '17',
+      },
+      excerpt: 'The whole',
+      label: 'Note · selected text',
+      markable: true,
+    },
+  ])
+})
+
+test('a failed canonical note read does not send an unpinned file fallback', async () => {
+  documentFailure = true
+  const note = { ...aNote(), documentSource: documentSource() }
+  const id = ask(note, 'Explain')
+  await settled(note, id, 'failed')
+  expect(stored(note, id)?.error).toContain('The selected note is unavailable')
+  expect(sends).toHaveLength(0)
+})
+
+test('recovery replays the already pinned document revision without reading its newer contents', async () => {
+  const note = { ...aNote(), documentSource: documentSource() }
+  lostReplies = 1
+  const first = ask(note, 'Explain')
+  await settled(note, first, 'failed')
+  documentPosition = 18
+  const retry = ask(note, 'Explain', stored(note, first)?.sendKey)
+  useDocumentAsks.getState().dismiss(note.key, first)
+  await settled(note, retry, 'done')
+  expect(documentReads).toHaveLength(1)
+  expect(sends).toHaveLength(2)
+  expect(sends[1]?.contextReferences).toEqual(sends[0]?.contextReferences)
+  expect(sends[1]?.contextReferences).toMatchObject([
+    { location: { revision: '17' } },
+  ])
+})
+
+test('a definitive refusal lets a document retry admit its current saved revision', async () => {
+  const note = { ...aNote(), documentSource: documentSource() }
+  lostReplies = 1
+  const first = ask(note, 'Explain')
+  await settled(note, first, 'failed')
+  documentPosition = 18
+  refusals = [revisionConflict()]
+  const retry = ask(note, 'Explain', stored(note, first)?.sendKey)
+  useDocumentAsks.getState().dismiss(note.key, first)
+  await settled(note, retry, 'done')
+  expect(documentReads).toHaveLength(2)
+  expect(sends).toHaveLength(3)
+  expect(sends[1]?.contextReferences).toEqual(sends[0]?.contextReferences)
+  expect(sends[1]?.contextReferences).toMatchObject([
+    { location: { revision: '17' } },
+  ])
+  expect(sends[2]?.contextReferences).toMatchObject([
+    { location: { revision: '18' } },
+  ])
+  expect(stored(note, retry)?.error).toBeUndefined()
+})
+
+test('unsaved or stale editor content cannot be tagged with a newer canonical revision', async () => {
+  const note = {
+    ...aNote(),
+    documentSource: documentSource('Unsaved edited paragraph'),
+  }
+  const id = ask(note, 'Explain')
+  await settled(note, id, 'failed')
+  expect(stored(note, id)?.error).toContain('Save or refresh')
+  expect(stored(note, id)?.question).toBe('Explain')
+  expect(sends).toHaveLength(0)
+})
+
+test('frontmatter does not change the saved prose selection', async () => {
+  savedMarkdown = '---\ntitle: Metadata\n---\nThe whole note.'
+  const note = { ...aNote(), documentSource: documentSource() }
+  const id = ask(note, 'Explain')
+  await settled(note, id, 'done')
+  expect(sends[0]?.contextReferences).toMatchObject([
+    { location: { revision: '17' } },
+  ])
 })
 
 describe('a send whose reply was lost', () => {
@@ -256,6 +422,121 @@ describe('a send whose reply was lost', () => {
     expect(cancelled).toEqual(['run-1'])
     expect(stored(note, second)?.runId).toBe('run-2')
   })
+})
+
+describe('a send Theorem refuses for good', () => {
+  async function lostSend(note: AskedNote) {
+    lostReplies = 1
+    const first = ask(note, 'First')
+    await settled(note, first, 'failed')
+    refusals = [revisionConflict()]
+    return first
+  }
+
+  test('fails its ask, says why, and lets the next ask through', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+
+    const second = ask(note, 'Second')
+    await settled(note, second, 'done')
+
+    expect(stored(note, first)?.status).toBe('failed')
+    expect(stored(note, first)?.error).toBe(
+      'Your message was not sent. The chat changed before this mutation was committed',
+    )
+    expect(stored(note, second)?.runId).toBe('run-1')
+    expect(sends.map((send) => send.text)).toEqual(['First', 'First', 'Second'])
+    expect(sends[2]?.key).not.toBe(sends[0]?.key ?? '')
+  })
+
+  test('is sent afresh by a retry', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+
+    const retry = ask(note, 'First', stored(note, first)?.sendKey)
+    useDocumentAsks.getState().dismiss(note.key, first)
+    await settled(note, retry, 'done')
+
+    expect(stored(note, retry)).toMatchObject({
+      runId: 'run-1',
+      reply: 'From run-1',
+    })
+    expect(stored(note, retry)?.error).toBeUndefined()
+    expect(sends.map((send) => send.text)).toEqual(['First', 'First', 'First'])
+    expect(sends[1]?.key).toBe(sends[0]?.key ?? '')
+    expect(sends[2]?.key).not.toBe(sends[0]?.key ?? '')
+  })
+
+  test('can still be stopped during the retry that sends it afresh', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+    const { promise, resolve } = Promise.withResolvers<void>()
+    thirdHeld = promise
+
+    const retry = ask(note, 'First', stored(note, first)?.sendKey)
+    useDocumentAsks.getState().dismiss(note.key, first)
+    await waitFor(() => sends.length === 3)
+    stopAsk(note.key, retry)
+    resolve()
+    await waitFor(() => cancelled.length === 1)
+
+    expect(stored(note, retry)?.status).toBe('stopped')
+    expect(cancelled).toEqual(['run-1'])
+  })
+
+  test.each(['stopped', 'dismissed'] as const)(
+    'does not fail the next ask when its ask was %s',
+    async (how) => {
+      const note = aNote()
+      const first = await lostSend(note)
+      if (how === 'stopped') stopAsk(note.key, first)
+      else useDocumentAsks.getState().dismiss(note.key, first)
+
+      const second = ask(note, 'Second')
+      await settled(note, second, 'done')
+
+      expect(stored(note, second)?.error).toBeUndefined()
+      expect(stored(note, second)?.runId).toBe('run-1')
+      expect(cancelled).toEqual([])
+    },
+  )
+
+  test('fails its ask when the note opens again, and frees the note', async () => {
+    const note = aNote()
+    const first = await lostSend(note)
+    useDocumentAsks.getState().patch(note.key, first, { status: 'running' })
+
+    resumeAsks(note.key)
+    await settled(note, first, 'failed')
+
+    expect(stored(note, first)?.error).toContain('Your message was not sent.')
+    const second = ask(note, 'Second')
+    await settled(note, second, 'done')
+    expect(stored(note, second)?.runId).toBe('run-1')
+  })
+})
+
+test('a model that cannot start fails the ask without holding up the next', async () => {
+  const note = aNote()
+  refusals = [
+    Response.json(
+      {
+        code: 'chat_run_start_pending',
+        detail: 'chat_model_unknown: no such model',
+      },
+      { status: 422 },
+    ),
+  ]
+  const first = ask(note, 'First')
+  await settled(note, first, 'failed')
+
+  expect(stored(note, first)?.error).toContain('chat_model_unknown')
+  expect(stored(note, first)?.error).not.toContain('Reload')
+
+  const second = ask(note, 'Second')
+  await settled(note, second, 'done')
+  expect(stored(note, second)?.runId).toBe('run-1')
+  expect(sends[1]?.key).not.toBe(sends[0]?.key ?? '')
 })
 
 test('opening a note stops an ask that never reached Theorem', async () => {

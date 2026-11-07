@@ -46,11 +46,15 @@ import {
   setMarkup,
 } from './markup'
 import type { MarkupHost } from './markup-host'
-import { plainText } from './selection'
+import { plainText, quotedExcerpt } from './selection'
 
 /** The note being read, less its text, which is taken when an ask is made. */
-export type NoteRef = Omit<AskedNote, 'text' | 'projectId'> & {
+export type NoteRef = Omit<
+  AskedNote,
+  'text' | 'projectId' | 'documentSource'
+> & {
   projectId: string | undefined
+  captureDocument?: () => NonNullable<AskedNote['documentSource']>
 }
 
 const EMPTY: readonly Ask[] = []
@@ -185,9 +189,14 @@ function NoteBody({
     if (!file.projectId) return
     const passage = ask.quotes?.[ask.id] ?? ask.passage
     askAbout(
-      { ...file, projectId: file.projectId, text: plainText(view.state.doc) },
+      {
+        ...file,
+        projectId: file.projectId,
+        text: plainText(view.state.doc),
+        documentSource: file.captureDocument?.(),
+      },
       ask.question,
-      { part: ask.part, text: passage.exact },
+      quotedExcerpt(view.state, passage, ask.part),
       passage,
       ask.sendKey,
     )

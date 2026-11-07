@@ -143,7 +143,8 @@ async function motion(story) {
 }
 
 const [command = 'list', target] = process.argv.slice(2)
-const stories = await list()
+// Stories judged against a committed reference; the terminal's are scripts/stories/shoot.cjs's.
+const stories = (await list()).filter((story) => story.reference)
 if (command === 'list') {
   for (const story of stories) console.log(`${story.id}\t${story.lane}\t${story.reference}`)
   process.exit(0)
