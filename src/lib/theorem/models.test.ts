@@ -64,6 +64,17 @@ describe('parseModelEntry', () => {
     })
   })
 
+  test('a catalog row named by its model id reads as the model', () => {
+    expect(
+      parseModelEntry({
+        ref: 'openrouter/deepseek/deepseek-v4.1-flash',
+        id: 'deepseek/deepseek-v4.1-flash',
+        name: 'deepseek/deepseek-v4.1-flash',
+        source: 'catalog',
+      }),
+    ).toMatchObject({ name: 'deepseek-v4.1-flash', vendor: 'deepseek', source: 'catalog' })
+  })
+
   test('a catalog row is marked as Theorem catalog', () => {
     expect(
       parseModelEntry({ ref: 'anthropic/claude-opus-4-1', name: 'Claude Opus 4.1', source: 'catalog' })
@@ -73,9 +84,9 @@ describe('parseModelEntry', () => {
 
   test('keeps a ref that already names its provider', () => {
     expect(
-      parseModelEntry({ ref: 'openrouter/thinkingmachines/inkling', name: 'Inkling' })
+      parseModelEntry({ ref: 'openrouter/deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek Flash' })
         ?.ref,
-    ).toBe('openrouter/thinkingmachines/inkling')
+    ).toBe('openrouter/deepseek/deepseek-v4.1-flash-1017')
   })
 
   test('drops an entry without an id', () => {
@@ -88,12 +99,12 @@ describe('parseModelList', () => {
   test('reads the route body, keeping the default and the OpenRouter status', () => {
     expect(
       parseModelList({
-        defaultRef: 'openrouter/thinkingmachines/inkling',
+        defaultRef: 'openrouter/deepseek/deepseek-v4.1-flash-1017',
         models: [{ id: 'a/b', name: 'B' }, { name: 'no id' }],
         openrouter: { status: 'cached', fetchedAtMs: 5 },
       }),
     ).toEqual({
-      defaultRef: 'openrouter/thinkingmachines/inkling',
+      defaultRef: 'openrouter/deepseek/deepseek-v4.1-flash-1017',
       models: [expect.objectContaining({ ref: 'openrouter/a/b' })],
       openrouter: 'cached',
     })

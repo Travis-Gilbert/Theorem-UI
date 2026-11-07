@@ -1,5 +1,5 @@
 // SOURCING: zustand + zustand/middleware persist (the person's starred and picked models, as lib/palette keeps the palette), @tanstack/react-query (the model list Theorem serves at /api/chat/v1/models, OpenRouter's fields passed through)
-import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -72,7 +72,11 @@ export function parseModelEntry(raw: unknown): ModelOption | undefined {
   const architecture = record(entry.architecture)
   const topProvider = record(entry.top_provider)
   const parameters = strings(entry.supported_parameters)
-  const name = typeof entry.name === 'string' ? entry.name : model
+  // A catalog row's name is its model id, whose maker the vendor mark already says.
+  const name =
+    typeof entry.name === 'string' && entry.name !== model
+      ? entry.name
+      : (model.split('/').at(-1) ?? model)
   const option: ModelOption = {
     ref,
     // OpenRouter prefixes names with the maker ("Anthropic: Claude"); the vendor mark says that already.
@@ -111,7 +115,7 @@ export function modelStub(ref: string, name?: string): ModelOption {
 }
 
 export type ModelList = {
-  /** What an unpinned turn runs on (the front role, Inkling); absent when Theorem does not say. */
+  /** What a turn with no picked model runs on; absent when Theorem does not say. */
   defaultRef?: string
   models: ModelOption[]
   /** Whether OpenRouter's list is fresh, served from Theorem's cache, or missing. */
@@ -227,56 +231,70 @@ const preferencesKey = ['theorem', 'preferences'] as const
 /**
  * Keeps the starred and picked models in step with the person's Theorem
  * preferences, so they follow the person across browsers. Theorem's copy wins
- * when it loads; after that each local change is written back with If-Match.
- * Where Theorem does not serve preferences, the local store stands alone.
+ * when it loads and when this browser comes back to the front; after that each
+ * local change is written back with If-Match, one write at a time. Where Theorem
+ * does not serve preferences, the local store stands alone.
  */
 export function usePreferencesSync() {
   const { data } = useQuery({
     queryKey: preferencesKey,
     queryFn: () => theoremJson<Preferences>('/api/chat/v1/preferences'),
     staleTime: Infinity,
+    refetchOnWindowFocus: 'always',
     retry: false,
   })
   const queryClient = useQueryClient()
   const revision = useRef<number | undefined>(undefined)
+  const applying = useRef(false)
+
+  const { mutate: save } = useMutation({
+    scope: { id: 'theorem-preferences' },
+    mutationFn: () => {
+      const { starred, selected } = usePickedModels.getState()
+      return mutate((headers) =>
+        theoremJson<Preferences>('/api/chat/v1/preferences', {
+          method: 'PUT',
+          headers: { ...headers, 'If-Match': String(revision.current) },
+          body: { starredModels: starred, defaultModel: selected ?? null },
+        }),
+      )
+    },
+    onSuccess: (saved) => {
+      revision.current = saved.revision
+      queryClient.setQueryData(preferencesKey, saved)
+    },
+    // A stale revision means another browser wrote first: take its copy.
+    onError: () => void queryClient.invalidateQueries({ queryKey: preferencesKey }),
+  })
 
   useEffect(() => {
-    if (!data) return
+    if (!data || data.revision === revision.current) return
     revision.current = data.revision
+    // Nothing saved yet: this browser's stars go up with its next change.
+    if (data.revision === 0) return
+    // Theorem's own copy isn't a change to write back: that would move the
+    // revision and leave every other open browser's next write stale.
+    applying.current = true
     usePickedModels.setState({
       starred: data.starredModels,
       selected: data.defaultModel ?? undefined,
     })
+    applying.current = false
   }, [data])
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const unsubscribe = usePickedModels.subscribe((state, previous) => {
-      if (revision.current === undefined) return
+      if (applying.current || revision.current === undefined) return
       if (state.starred === previous.starred && state.selected === previous.selected) return
       clearTimeout(timer)
-      timer = setTimeout(() => {
-        const { starred, selected } = usePickedModels.getState()
-        void mutate((headers) =>
-          theoremJson<Preferences>('/api/chat/v1/preferences', {
-            method: 'PUT',
-            headers: { ...headers, 'If-Match': String(revision.current) },
-            body: { starredModels: starred, defaultModel: selected ?? null },
-          }),
-        ).then(
-          (saved) => {
-            revision.current = saved.revision
-          },
-          // A stale revision means another browser wrote first: take its copy.
-          () => void queryClient.invalidateQueries({ queryKey: preferencesKey }),
-        )
-      }, 400)
+      timer = setTimeout(() => save(), 400)
     })
     return () => {
       clearTimeout(timer)
       unsubscribe()
     }
-  }, [queryClient])
+  }, [save])
 }
 
 /** Mount once per layout to run the preferences sync. */

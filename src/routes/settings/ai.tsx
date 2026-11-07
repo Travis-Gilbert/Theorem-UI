@@ -70,7 +70,7 @@ function DefaultModel({
   const selected = usePickedModels((s) => s.selected)
   const select = usePickedModels((s) => s.select)
   const model = catalog.find((m) => m.ref === selected)
-  const fallback = catalog.find((m) => m.ref === defaultRef)?.name ?? 'Inkling'
+  const fallback = catalog.find((m) => m.ref === defaultRef)?.name
   return (
     <SettingsSection
       title="Default"
@@ -83,7 +83,7 @@ function DefaultModel({
           description={
             selected
               ? selected
-              : `${fallback}, which converses and hands work to the mixture of models.`
+              : `${fallback ?? 'The model this Theorem is set up with'}, which converses and hands work to the mixture of models.`
           }
         >
           {selected && (

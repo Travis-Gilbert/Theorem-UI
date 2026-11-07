@@ -1,6 +1,6 @@
 // SOURCING: coss ui Combobox over Base UI Combobox (input inside the popup, as coss's "With Input Inside Popup" example), @tanstack/react-router Link (to settings), lib/theorem/models (catalog, stars, pick)
 import { Link } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   Combobox,
   ComboboxEmpty,
@@ -22,7 +22,7 @@ import {
 } from '@/lib/theorem/models'
 import type { ModelOption } from '@/lib/theorem/models'
 
-/** Theorem's own choice, which is the front model (Inkling) unless the person picks another. */
+/** Theorem's own choice: the deployment's default, unless the person picks another. */
 const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem default'), vendor: 'theorem' }
 
 type Group = { label: string; items: ModelOption[] }
@@ -41,11 +41,11 @@ function VendorMark({ vendor }: { vendor: string }) {
 
 /**
  * The composer's model switch. It lists the models the person starred in
- * Settings, plus Theorem's default; picking one sets the model the next turn
- * runs on.
+ * Settings, or every model Theorem can run until they star some, plus Theorem's
+ * default; picking one sets the model the next turn runs on.
  */
 export function ModelPicker() {
-  const { data: catalog = [] } = useModelCatalog()
+  const { data: catalog = [], list } = useModelCatalog()
   const starred = usePickedModels((s) => s.starred)
   const selectedRef = usePickedModels((s) => s.selected)
   const select = usePickedModels((s) => s.select)
@@ -55,21 +55,29 @@ export function ModelPicker() {
     [catalog],
   )
   const groups = useMemo<Group[]>(() => {
-    const picks = starred.map((ref) => byRef.get(ref) ?? modelStub(ref))
+    // A star can outlive its catalog row, and a row that's gone can't run.
+    const picks = starred.flatMap((ref) => byRef.get(ref) ?? [])
+    const listed = picks.length
+      ? { label: 'Starred', items: picks }
+      : { label: 'Models', items: catalog }
     return [
       { label: 'Default', items: [DEFAULT_ITEM] },
-      ...(picks.length ? [{ label: 'Starred', items: picks }] : []),
+      ...(listed.items.length ? [listed] : []),
     ]
-  }, [starred, byRef])
+  }, [starred, byRef, catalog])
 
-  const selected = selectedRef
-    ? (byRef.get(selectedRef) ?? groups.flatMap((g) => g.items).find((m) => m.ref === selectedRef))
-    : DEFAULT_ITEM
+  // A pick this Theorem can no longer run would refuse every turn.
+  const pickIsGone = Boolean(list && selectedRef && !byRef.has(selectedRef))
+  useEffect(() => {
+    if (pickIsGone) select(undefined)
+  }, [pickIsGone, select])
+
+  const selected = selectedRef ? (byRef.get(selectedRef) ?? modelStub(selectedRef)) : DEFAULT_ITEM
 
   return (
     <Combobox<ModelOption>
       items={groups}
-      value={selected ?? DEFAULT_ITEM}
+      value={selected}
       onValueChange={(model) => select(model?.ref || undefined)}
       itemToStringLabel={(model) => model.name}
       itemToStringValue={(model) => `${model.name} ${model.ref}`}
@@ -79,7 +87,7 @@ export function ModelPicker() {
         aria-label="Model"
         className="flex h-7 max-w-44 items-center gap-1 rounded-md px-1.5 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
       >
-        <span className="truncate">{selected?.name ?? 'Model'}</span>
+        <span className="truncate">{selected.name}</span>
         <Icon.UpDown className="size-3.5 shrink-0" />
       </ComboboxTrigger>
       <ComboboxPopup side="top" align="start" className="w-80">
@@ -92,7 +100,7 @@ export function ModelPicker() {
           />
         </div>
         <ComboboxEmpty className="px-3 py-4 text-sm text-ink-muted not-empty:block hidden">
-          No starred model matches.
+          No model matches.
         </ComboboxEmpty>
         <ComboboxList className="overflow-y-auto p-1">
           {(group: Group) => (

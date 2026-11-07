@@ -1,15 +1,17 @@
 // SOURCING: @tanstack/react-query (the person's provider keys at /api/chat/v1/credentials, through lib/theorem/passthrough; Theorem stores and verifies them, the UI never sees one back)
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { mutate } from './client'
-import { isNotServed, theoremJson } from './passthrough'
+import { modelListQuery } from './models'
+import { theoremJson } from './passthrough'
 
 export type Credential = {
   provider: string
+  name: string
   configured: boolean
   /** `personal` is the person's own key; `deployment` is the operator's. */
   source: 'personal' | 'deployment' | null
-  last4?: string
-  updatedAtMs?: number
+  last4?: string | null
+  updatedAtMs?: number | null
   verified?: boolean
 }
 
@@ -20,18 +22,23 @@ export const credentialsQuery = queryOptions({
   queryFn: async () =>
     (await theoremJson<{ credentials: Credential[] }>('/api/chat/v1/credentials'))
       .credentials,
-  retry: (count, error) => !isNotServed(error) && count < 2,
 })
 
-export function useCredential(provider: string) {
-  const query = useQuery(credentialsQuery)
-  return { ...query, data: query.data?.find((c) => c.provider === provider) }
-}
+/** One row per provider Theorem can reach with a key, OpenRouter first. */
+export const useCredentials = () => useQuery(credentialsQuery)
 
-/** Saves a key (Theorem checks it with the provider first) or removes the person's own. */
+/**
+ * Saves a key (Theorem checks it with the provider first) or removes the
+ * person's own. Either can change which models the person can run, so the
+ * picker's list is read again too.
+ */
 export function useCredentialMutations(provider: string) {
   const queryClient = useQueryClient()
-  const settle = () => queryClient.invalidateQueries({ queryKey: credentialsKey })
+  const settle = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: credentialsKey }),
+      queryClient.invalidateQueries({ queryKey: modelListQuery.queryKey }),
+    ])
   const path = `/api/chat/v1/credentials/${encodeURIComponent(provider)}`
   const save = useMutation({
     mutationFn: (apiKey: string) =>
