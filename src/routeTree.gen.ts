@@ -19,6 +19,7 @@ import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatCanvasRouteImport } from './routes/_chat/canvas'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
+import { Route as ChatNotesRouteImport } from './routes/_chat/notes'
 import { Route as ChatPagesRouteImport } from './routes/_chat/pages'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
@@ -33,6 +34,7 @@ import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
 import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
+import { Route as ChatNotesDocumentIdRouteImport } from './routes/_chat/notes.$documentId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
@@ -115,6 +117,11 @@ const ChatIdeRoute = ChatIdeRouteImport.update({
   path: '/ide',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatNotesRoute = ChatNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatPagesRoute = ChatPagesRouteImport.update({
   id: '/pages',
   path: '/pages',
@@ -184,6 +191,11 @@ const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
   getParentRoute: () => ChatRoute,
+} as any)
+const ChatNotesDocumentIdRoute = ChatNotesDocumentIdRouteImport.update({
+  id: '/$documentId',
+  path: '/$documentId',
+  getParentRoute: () => ChatNotesRoute,
 } as any)
 const ChatPagesPageIdRoute = ChatPagesPageIdRouteImport.update({
   id: '/$pageId',
@@ -376,6 +388,7 @@ export interface FileRoutesByFullPath {
   '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
+  '/notes': typeof ChatNotesRouteWithChildren
   '/pages': typeof ChatPagesRouteWithChildren
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
@@ -390,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/theia/$': typeof TheiaSplatRoute
   '/settings/': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
@@ -431,6 +445,7 @@ export interface FileRoutesByTo {
   '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
+  '/notes': typeof ChatNotesRouteWithChildren
   '/pages': typeof ChatPagesRouteWithChildren
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
@@ -446,6 +461,7 @@ export interface FileRoutesByTo {
   '/': typeof ChatIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
@@ -490,6 +506,7 @@ export interface FileRoutesById {
   '/_chat/canvas': typeof ChatCanvasRoute
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/index': typeof ChatChar91indexChar93Route
+  '/_chat/notes': typeof ChatNotesRouteWithChildren
   '/_chat/pages': typeof ChatPagesRouteWithChildren
   '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/vault': typeof ChatVaultRoute
@@ -505,6 +522,7 @@ export interface FileRoutesById {
   '/_chat/': typeof ChatIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
+  '/_chat/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
@@ -550,6 +568,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/ide'
     | '/index'
+    | '/notes'
     | '/pages'
     | '/spaces'
     | '/vault'
@@ -564,6 +583,7 @@ export interface FileRouteTypes {
     | '/theia/$'
     | '/settings/'
     | '/c/$threadId'
+    | '/notes/$documentId'
     | '/pages/$pageId'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
@@ -605,6 +625,7 @@ export interface FileRouteTypes {
     | '/canvas'
     | '/ide'
     | '/index'
+    | '/notes'
     | '/pages'
     | '/spaces'
     | '/vault'
@@ -620,6 +641,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/c/$threadId'
+    | '/notes/$documentId'
     | '/pages/$pageId'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
@@ -663,6 +685,7 @@ export interface FileRouteTypes {
     | '/_chat/canvas'
     | '/_chat/ide'
     | '/_chat/index'
+    | '/_chat/notes'
     | '/_chat/pages'
     | '/_chat/spaces'
     | '/_chat/vault'
@@ -678,6 +701,7 @@ export interface FileRouteTypes {
     | '/_chat/'
     | '/settings/'
     | '/_chat/c/$threadId'
+    | '/_chat/notes/$documentId'
     | '/_chat/pages/$pageId'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
@@ -829,6 +853,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIdeRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/notes': {
+      id: '/_chat/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof ChatNotesRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/pages': {
       id: '/_chat/pages'
       path: '/pages'
@@ -926,6 +957,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$threadId'
       preLoaderRoute: typeof ChatCThreadIdRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/_chat/notes/$documentId': {
+      id: '/_chat/notes/$documentId'
+      path: '/$documentId'
+      fullPath: '/notes/$documentId'
+      preLoaderRoute: typeof ChatNotesDocumentIdRouteImport
+      parentRoute: typeof ChatNotesRoute
     }
     '/_chat/pages/$pageId': {
       id: '/_chat/pages/$pageId'
@@ -1154,6 +1192,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ChatNotesRouteChildren {
+  ChatNotesDocumentIdRoute: typeof ChatNotesDocumentIdRoute
+}
+
+const ChatNotesRouteChildren: ChatNotesRouteChildren = {
+  ChatNotesDocumentIdRoute: ChatNotesDocumentIdRoute,
+}
+
+const ChatNotesRouteWithChildren = ChatNotesRoute._addFileChildren(
+  ChatNotesRouteChildren,
+)
+
 interface ChatPagesRouteChildren {
   ChatPagesPageIdRoute: typeof ChatPagesPageIdRoute
 }
@@ -1170,6 +1220,7 @@ interface ChatRouteChildren {
   ChatCanvasRoute: typeof ChatCanvasRoute
   ChatIdeRoute: typeof ChatIdeRoute
   ChatChar91indexChar93Route: typeof ChatChar91indexChar93Route
+  ChatNotesRoute: typeof ChatNotesRouteWithChildren
   ChatPagesRoute: typeof ChatPagesRouteWithChildren
   ChatSpacesRoute: typeof ChatSpacesRoute
   ChatVaultRoute: typeof ChatVaultRoute
@@ -1181,6 +1232,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatCanvasRoute: ChatCanvasRoute,
   ChatIdeRoute: ChatIdeRoute,
   ChatChar91indexChar93Route: ChatChar91indexChar93Route,
+  ChatNotesRoute: ChatNotesRouteWithChildren,
   ChatPagesRoute: ChatPagesRouteWithChildren,
   ChatSpacesRoute: ChatSpacesRoute,
   ChatVaultRoute: ChatVaultRoute,

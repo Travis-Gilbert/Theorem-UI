@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the program canvas (React Flow), Index mode (its page, pages/mode-page.tsx), Pages (Puck over the vault's page files; a mode's page opens there to be arranged)
+// SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the program canvas (React Flow), Index mode (its page, pages/mode-page.tsx), Pages (Puck over the vault's page files; a mode's page opens there to be arranged), Notes (Theorem documents in the Milkdown note editor)
 import { Canvas } from '@/components/canvas/canvas'
 import { ProgramSurface } from '@/components/program/program-surface'
 import { Icon } from '@/components/icons'
@@ -9,6 +9,7 @@ import { VaultPhone } from '@/components/vault/vault-phone'
 import { useCallback } from 'react'
 import { useMatches, useNavigate, useParams } from '@tanstack/react-router'
 import { IndexMode } from '@/components/pages/mode-page'
+import { NotesView } from '@/components/notes/notes-view'
 import {
   ModePageView,
   PageStatus,
@@ -20,6 +21,7 @@ import { useShell } from './shell-state'
 export type ShellMode =
   | 'chat'
   | 'index'
+  | 'notes'
   | 'pages'
   | 'vault'
   | 'spaces'
@@ -30,6 +32,7 @@ export type ShellMode =
 export const MODES = [
   { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
   { mode: 'index', label: 'Index', Mark: Icon.Index },
+  { mode: 'notes', label: 'Notes', Mark: Icon.Notes },
   { mode: 'pages', label: 'Pages', Mark: Icon.Layout },
   // The Vault works on Home and the opened folders; the rail offers it while
   // there are any.
@@ -38,6 +41,14 @@ export const MODES = [
   { mode: 'canvas', label: 'Canvas', Mark: Icon.Canvas },
   { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
 ] as const
+
+/** The modes that show their own view and list in place of the conversation and its threads. */
+export const hasOwnView = (mode: ShellMode) =>
+  mode === 'index' ||
+  mode === 'notes' ||
+  mode === 'pages' ||
+  mode === 'spaces' ||
+  mode === 'canvas'
 
 export const modeLabel = (mode: ShellMode) =>
   MODES.find((entry) => entry.mode === mode)!.label
@@ -50,7 +61,7 @@ export const navigatorMode = (mode: ShellMode): ShellMode =>
   mode === 'ide' || mode === 'vault' ? 'chat' : mode
 
 /**
- * The mode is the route: /index, /pages, /vault, /spaces, /canvas and /ide, and chat everywhere else. It reads
+ * The mode is the route: /index, /notes, /pages, /vault, /spaces, /canvas and /ide, and chat everywhere else. It reads
  * the router's matches, as useParams does, so the mode and the thread id
  * always describe the same navigation.
  */
@@ -59,6 +70,8 @@ export function useShellMode(): ShellMode {
     select: (matches) => {
       for (const { routeId } of matches) {
         if (routeId === '/_chat/index') return 'index'
+        if (routeId === '/_chat/notes' || routeId === '/_chat/notes/$documentId')
+          return 'notes'
         if (routeId === '/_chat/pages' || routeId === '/_chat/pages/$pageId')
           return 'pages'
         if (routeId === '/_chat/vault') return 'vault'
@@ -77,6 +90,7 @@ export function useOpenMode() {
   return useCallback(
     (next: ShellMode) => {
       if (next === 'index') return navigate({ to: '/index' })
+      if (next === 'notes') return navigate({ to: '/notes' })
       if (next === 'pages') return navigate({ to: '/pages' })
       if (next === 'vault') return navigate({ to: '/vault' })
       if (next === 'spaces') return navigate({ to: '/spaces' })
@@ -110,6 +124,7 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
       {mode === 'ide' && !docked && <IdeFrame />}
       {mode === 'vault' && !docked && <VaultPhone />}
       {mode === 'index' && <IndexMode />}
+      {mode === 'notes' && <NotesView />}
       {mode === 'pages' && <PagesView />}
       {mode === 'spaces' && <Canvas />}
       {mode === 'canvas' && <ProgramSurface />}

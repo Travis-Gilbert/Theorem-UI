@@ -1,4 +1,4 @@
-// SOURCING: the organized thread tree (components/organize), the shell's Explorer (headless-tree), Base UI Menu (project switcher), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel
+// SOURCING: the organized thread tree (components/organize), the shell's Explorer (headless-tree), Base UI Menu (project switcher), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel, the Notes panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -18,13 +18,14 @@ import {
   SidebarGroupLabel,
   SidebarProvider,
 } from '@/components/coss/sidebar'
-import { useShellMode } from './modes'
+import { hasOwnView, useShellMode } from './modes'
 import { useActiveProject, useTenant } from './projects'
 import { useShell } from './shell-state'
 
 import { Explorer } from './explorer'
 
 import { PagesPanel } from '@/components/pages/pages-panel'
+import { NotesPanel } from '@/components/notes/notes-panel'
 
 export const menuItem =
   'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
@@ -148,15 +149,14 @@ function SpacesPanel() {
 /**
  * The navigator beside the rail: the active mode's list above the files.
  * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
- * stays mounted behind the Index, Pages, Spaces, Canvas and the revealed files, so its
+ * stays mounted behind the Index, Notes, Pages, Spaces, Canvas and the revealed files, so its
  * search, scroll and open branches survive a switch. The rail's Files
  * control reveals the files over the mode's list.
  */
 export function ContextPanel() {
   const mode = useShellMode()
   const filesShown = useShell((s) => s.filesShown)
-  const threads =
-    mode !== 'spaces' && mode !== 'canvas' && mode !== 'index' && mode !== 'pages'
+  const threads = !hasOwnView(mode)
   return (
     <SidebarProvider className="on-sheet h-full min-h-0">
       <Sidebar collapsible="none" className="w-full bg-transparent">
@@ -171,6 +171,11 @@ export function ContextPanel() {
         {mode === 'spaces' && (
           <div hidden={filesShown} className="min-h-0 flex-1">
             <SpacesPanel />
+          </div>
+        )}
+        {mode === 'notes' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <NotesPanel />
           </div>
         )}
         {mode === 'pages' && (
