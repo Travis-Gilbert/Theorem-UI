@@ -24,7 +24,7 @@ import {
 import type { ModelOption } from '@/lib/theorem/models'
 
 /** Theorem's configured choice unless the person picks another. */
-const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem'), vendor: 'theorem' }
+const DEFAULT_ITEM: ModelOption = modelStub('', 'Default model')
 
 type Group = { label: string; items: ModelOption[] }
 
@@ -35,7 +35,7 @@ function VendorMark({ vendor }: { vendor: string }) {
       aria-hidden="true"
       className="flex size-5 shrink-0 items-center justify-center rounded-[5px] bg-raised text-[11px] font-medium text-ink-muted uppercase"
     >
-      {vendor === 'theorem' ? <Icon.Theorem className="size-3.5" /> : vendor[0]}
+      {vendor ? vendor[0] : <Icon.Model className="size-3.5" />}
     </span>
   )
 }
@@ -60,6 +60,29 @@ function pickerSelection(selectedRef: string | undefined, byRef: ReadonlyMap<str
   return selectedRef ? (byRef.get(selectedRef) ?? modelStub(selectedRef)) : DEFAULT_ITEM
 }
 
+function pickerLabel(selected: ModelOption | undefined, defaultName: string | undefined) {
+  if (selected?.ref) return selected.name
+  return defaultName ? `${defaultName} (default)` : selected?.name ?? 'Model'
+}
+
+function PickerOption({ model, defaultName }: { model: ModelOption; defaultName?: string }) {
+  return (
+    <ComboboxItem value={model} className="py-1.5">
+      <div className="flex items-center gap-2">
+        <VendorMark vendor={model.vendor} />
+        <span className="min-w-0 flex-1 truncate">{model.name}</span>
+        {!model.ref && defaultName && (
+          <span className="min-w-0 truncate text-xs text-ink-faint">{defaultName}</span>
+        )}
+        {model.contextLength && (
+          <span className="shrink-0 text-xs text-ink-faint tabular-nums">
+            {formatContext(model.contextLength)}
+          </span>
+        )}
+      </div>
+    </ComboboxItem>
+  )
+}
 /**
  * The composer's model switch. It lists the models the person starred in
  * Settings, or every model Theorem can run until they star some, plus Theorem's
@@ -102,8 +125,7 @@ export function ModelPicker() {
         aria-label="Model"
         className="flex h-8 max-w-48 min-w-0 items-center gap-1 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
       >
-        {selected.vendor === 'theorem' && <Icon.Theorem className="size-4 shrink-0" />}
-        <span className="truncate">{selected.name}</span>
+        <span className="truncate">{pickerLabel(selected, defaultName)}</span>
         <Icon.UpDown className="size-3.5 shrink-0" />
       </ComboboxTrigger>
       <ComboboxPopup side="top" align="start" className="w-80">
@@ -127,20 +149,7 @@ export function ModelPicker() {
               </ComboboxGroupLabel>
               <ComboboxCollection>
                 {(model: ModelOption) => (
-                  <ComboboxItem key={model.ref} value={model} className="py-1.5">
-                    <div className="flex items-center gap-2">
-                      <VendorMark vendor={model.vendor} />
-                      <span className="min-w-0 flex-1 truncate">{model.name}</span>
-                      {!model.ref && defaultName && (
-                        <span className="min-w-0 truncate text-xs text-ink-faint">{defaultName}</span>
-                      )}
-                      {model.contextLength && (
-                        <span className="shrink-0 text-xs text-ink-faint tabular-nums">
-                          {formatContext(model.contextLength)}
-                        </span>
-                      )}
-                    </div>
-                  </ComboboxItem>
+                  <PickerOption key={model.ref} model={model} defaultName={defaultName} />
                 )}
               </ComboboxCollection>
             </ComboboxGroup>

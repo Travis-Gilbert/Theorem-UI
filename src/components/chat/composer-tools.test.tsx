@@ -319,7 +319,7 @@ test('blank composer stays disabled and Shift+Enter does not send or alter the d
   expect(input.value).toBe('Draft')
 })
 
-test('the Web chip scopes later turns to RustyRed web until it is turned off', async () => {
+test('the Web chip requests research without restricting the other tools', async () => {
   const sent: AppendMessage[] = []
   const { container } = await mount(
     <Harness text="Latest Rust release" sent={sent} />,
@@ -333,7 +333,7 @@ test('the Web chip scopes later turns to RustyRed web until it is turned off', a
   await act(() => web.click())
   expect(web.getAttribute('aria-pressed')).toBe('true')
   expect(webTurnOptions()).toEqual({
-    capabilityScope: ['web_search', 'web_read'],
+    webResearch: true,
   })
 
   // A send leaves it on and the message as typed: the scope, not a line of text, asks for the web.

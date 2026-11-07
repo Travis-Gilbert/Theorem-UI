@@ -28,6 +28,9 @@ test('configured default names the actual catalog model without assuming worker 
   const { container } = await settings({ models: [{ ref: 'provider/vendor/custom', name: 'Vendor: Custom' }], defaultRef: 'provider/vendor/custom' })
   expect(container.textContent).toContain('Custom (provider/vendor/custom)')
   expect(container.textContent).not.toContain('mixture of models')
+  expect(container.textContent).toContain('Every model powers Theorem')
+  expect(container.textContent).toContain('Provider labels identify who supplies the model')
+  expect(container.textContent).toContain('Default model')
 })
 
 test('invalid configured default shows its safe cause while retaining explicit choices', async () => {

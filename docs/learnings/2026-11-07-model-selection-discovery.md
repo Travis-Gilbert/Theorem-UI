@@ -85,3 +85,58 @@ SHA-256 exactly matches the locally built bundle containing the corrected Life
 event handlers. The backend was not changed by this follow-up. Authenticated
 production selection/model execution remains outside the automated check;
 the reproduced interaction and its fix were exercised with API fixtures.
+
+## Selected models remain Theorem; Web research is additive
+
+The configured fallback is now labelled `Default model`, with the actual model
+name shown as `Name (default)` in the composer once the authority reports it.
+It no longer carries a special Theorem vendor identity or logo. Explicit model
+choices keep their own names. Settings explains that every choice powers Theorem
+and that provider labels identify the supplier; the static source is labelled
+`Configured catalog`. The command palette uses the same default-model wording.
+No mixture-of-models entry or composed routing was enabled by these labels.
+
+The Web toggle now sends `webResearch: true`, independently of `planning: true`.
+It does not write `capabilityScope`, so it no longer removes App, worker, or
+other admitted operations. An explicit caller scope remains unchanged. The
+native server owns admission and research instructions; this UI introduces no
+parallel tool catalogue or transport. The tooltip describes this combined use.
+
+The native SDK's send/edit/retry OpenAPI schemas, pinned Fern request types and
+assistant-ui option type include the additive flag. Generated clients already
+serialize all body fields, so no custom HTTP path or new runtime package was
+needed. The UI retains its existing alpha3 tarball and runtime fixes, extending
+the checked-in Bun patch with declaration changes. Applying the complete patch
+to a clean tarball passed and preserved its background-send retry runtime.
+
+Evidence retained in the existing external evidence directory:
+
+- Five UI regressions failed before correction: the Web flag, Web plus Plan,
+  default picker label, and Settings identity wording. The current focused suite
+  passes 47 tests / 145 assertions, including actual SDK JSON serialization and
+  preservation of an explicit capability scope. Typecheck passed; affected-file
+  ESLint passed with two pre-existing shadow warnings in runtime files.
+- The SDK's typed regression initially rejected `webResearch`. SDK typecheck and
+  15 adapter tests pass after the contract update. HTTP fixtures verify research,
+  planning, selected model and an explicit scope across send, retry and edit;
+  the existing headless-session test also sends both additive flags.
+- Pinned Fern generation succeeded. Full `sync:contracts` could not run because
+  its ignored native `sdk-projection-components.json` prerequisite is absent.
+  The exact three-property schema addition was applied to the pinned OpenAPI
+  and is retained in `update-environment-contract.mjs` for future full sync.
+  Unrelated generated Graph/IDE drift was removed rather than included.
+- Coverage-backed Crapper scores the modified picker/Web/Settings functions
+  below 10 (maximum 8). The picker label and option presentation were separated
+  locally to keep the component readable. Dryer at 0.8 reports only the existing
+  untouched PluginsTab/SkillsTab pair. The installed mutator's targeted Web flag
+  mutant was killed (one executed, zero survivors).
+
+Commands: `bun test --coverage --coverage-reporter=lcov` over model-picker,
+composer-tools, runtime and Settings AI tests; `bun run typecheck`; affected-file
+`bunx eslint`; `crapper --use-existing-coverage`; `dryer --threshold 0.8`; and
+`mutator --lines 43 --use-existing-coverage` over composer-tools with its focused
+tests. SDK checks used `npm run typecheck`, pinned `node scripts/generate.mjs`,
+and `node --import tsx --test tests/assistant-ui.test.ts`.
+
+Backend integration, live browser acceptance, full production build and
+deployment are parent-owned and have not been established by these fixtures.

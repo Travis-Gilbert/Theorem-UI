@@ -15,12 +15,13 @@ afterEach(async () => {
   useCommandPalette.setState({ open: false })
 })
 
-async function models(palette: boolean) {
+async function models(palette: boolean, defaultRef?: string) {
   const client = new QueryClient()
   clients.push(client)
   client.setQueryData(modelListQuery.queryKey, parseModelList({
     models: [{ ref: 'provider/vendor/available', name: 'Available', context_length: 100000 }],
     defaultError: { code: 'invalid_default', message: 'The configured default is missing.' },
+    ...(defaultRef ? { defaultRef } : {}),
   }))
   client.setQueryData(catalogQuery.queryKey, { plugins: [], skills: [] })
   const route = createRootRoute({ component: () => <QueryClientProvider client={client}>{palette ? <CommandPalette /> : <ModelPicker />}</QueryClientProvider> })
@@ -56,10 +57,10 @@ test('command palette exposes invalid default while keeping available model sele
 
 // The mark itself is not asserted: other suites mock the icon set to render
 // nothing, and bun shares module mocks across files in one run.
-test('with no model picked, the switch says Theorem', async () => {
+test('the fallback is a default model choice, not a special Theorem agent', async () => {
   const { container } = await models(false)
 
-  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Theorem')
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Default model')
 })
 
 test('a picked model shows its own name', async () => {
@@ -68,4 +69,10 @@ test('a picked model shows its own name', async () => {
   const { container } = await models(false)
 
   expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Available')
+})
+
+test('the default trigger names the model without changing an unpinned send', async () => {
+  const { container } = await models(false, 'provider/vendor/available')
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Available (default)')
+  expect(pickedModel()).toBeUndefined()
 })
