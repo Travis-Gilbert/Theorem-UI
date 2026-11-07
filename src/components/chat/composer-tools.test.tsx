@@ -17,6 +17,13 @@ import type { AppendMessage, ThreadMessageLike } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Thread } from '../assistant-ui/elements/thread.aui'
 import { cleanup, render, waitFor } from '../../../test/blocks/render'
+import {
+  planningTurnOptions,
+  usePlanning,
+  useWebSearch,
+  webTurnOptions,
+} from './composer-tools'
+import { modelTurnOptions, useModelEffort, usePickedModels } from '@/lib/theorem/models'
 
 /** What GET /api/environment/v1/tools answers: MCP-shaped native descriptors. */
 const CATALOG = {
@@ -56,10 +63,13 @@ beforeAll(() => page.setURL('http://localhost:3000/'))
 afterAll(() => page.setURL('about:blank'))
 
 let toolsStatus = 200
+/** What GET /api/chat/v1/models answers; unset, the route is not served. */
+let modelsBody: unknown
 let client: QueryClient
 const realFetch = window.fetch
 beforeEach(() => {
   toolsStatus = 200
+  modelsBody = undefined
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   window.fetch = (async (input: RequestInfo | URL) => {
     const url = input instanceof Request ? input.url : String(input)
@@ -67,12 +77,18 @@ beforeEach(() => {
       return toolsStatus === 200
         ? Response.json(CATALOG)
         : Response.json({ title: 'Not found' }, { status: toolsStatus })
+    if (new URL(url).pathname === '/api/chat/v1/models' && modelsBody)
+      return Response.json(modelsBody)
     return Response.json({}, { status: 404 })
   }) as typeof fetch
 })
 afterEach(async () => {
   await cleanup()
   window.fetch = realFetch
+  useWebSearch.setState({ on: false })
+  usePlanning.setState({ on: false })
+  useModelEffort.setState({ byModel: {} })
+  usePickedModels.setState({ selected: undefined, starred: [] })
 })
 
 function Draft({ text }: { text: string }) {
@@ -168,6 +184,17 @@ test('a slash lists the native tools, with their first sentence and what they ch
     'rememberwritesStore a memory for this person.',
     'rustyweb_searchSearch the web.',
   ])
+})
+
+test('the tools heading shows only while the slash list is open', async () => {
+  const { container } = await mount(<Harness text="" sent={[]} />)
+  expect(container.textContent).not.toContain('Theorem tools')
+  await type(inputOf(container), '/')
+  await waitFor(() => options().length === 4)
+  expect(container.textContent).toContain('Theorem tools')
+  await type(inputOf(container), 'Hello')
+  await waitFor(() => !options().length)
+  expect(container.textContent).not.toContain('Theorem tools')
 })
 
 test('typing after the slash narrows the list, best name match first', async () => {
@@ -290,4 +317,99 @@ test('blank composer stays disabled and Shift+Enter does not send or alter the d
   )
   expect(sent).toHaveLength(0)
   expect(input.value).toBe('Draft')
+})
+
+test('the Web chip scopes later turns to RustyRed web until it is turned off', async () => {
+  const sent: AppendMessage[] = []
+  const { container } = await mount(
+    <Harness text="Latest Rust release" sent={sent} />,
+  )
+  const web = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Web search"]',
+  )!
+  expect(web.getAttribute('aria-pressed')).toBe('false')
+  expect(webTurnOptions()).toEqual({})
+
+  await act(() => web.click())
+  expect(web.getAttribute('aria-pressed')).toBe('true')
+  expect(webTurnOptions()).toEqual({
+    capabilityScope: ['web_search', 'web_read'],
+  })
+
+  // A send leaves it on and the message as typed: the scope, not a line of text, asks for the web.
+  const send = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Send message"]',
+  )!
+  await waitFor(() => !send.disabled)
+  await act(() => send.click())
+  await waitFor(() => sent.length)
+  expect(sentText(sent[0]!)).toBe('Latest Rust release')
+  expect(web.getAttribute('aria-pressed')).toBe('true')
+
+  await act(() => web.click())
+  expect(web.getAttribute('aria-pressed')).toBe('false')
+  expect(webTurnOptions()).toEqual({})
+})
+
+test('the Plan chip makes the next turns planning turns, and stays on across a send', async () => {
+  const sent: AppendMessage[] = []
+  const { container } = await mount(<Harness text="Plan my move to Denver" sent={sent} />)
+  const plan = container.querySelector<HTMLButtonElement>('[aria-label="Plan"]')!
+  expect(plan.getAttribute('aria-pressed')).toBe('false')
+  expect(planningTurnOptions()).toEqual({})
+
+  await act(() => plan.click())
+  expect(plan.getAttribute('aria-pressed')).toBe('true')
+  expect(planningTurnOptions()).toEqual({ planning: true })
+
+  // The message goes as typed; the turn option, not a line of text, asks for the plan.
+  const send = container.querySelector<HTMLButtonElement>('[aria-label="Send message"]')!
+  await waitFor(() => !send.disabled)
+  await act(() => send.click())
+  await waitFor(() => sent.length)
+  expect(sentText(sent[0]!)).toBe('Plan my move to Denver')
+  expect(plan.getAttribute('aria-pressed')).toBe('true')
+
+  // The runtime turns it off once a plan is written.
+  await act(async () => usePlanning.getState().set(false))
+  expect(plan.getAttribute('aria-pressed')).toBe('false')
+})
+
+const FLASH = {
+  ref: 'openrouter/deepseek/deepseek-v4-flash-0731',
+  name: 'DeepSeek V4 Flash',
+  source: 'catalog',
+  effort_levels: ['low', 'high', 'max'],
+  effort_default: 'low',
+}
+const OPUS = { ref: 'anthropic/claude-opus-5', name: 'Claude Opus 5', source: 'catalog' }
+
+test("the effort menu offers the default model's levels, and a pick goes out with the next send", async () => {
+  modelsBody = { defaultRef: FLASH.ref, models: [FLASH, OPUS], openrouter: { status: 'live' } }
+  const sent: AppendMessage[] = []
+  const { container } = await mount(<Harness text="Think hard" sent={sent} />)
+  const trigger = await waitFor(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Reasoning effort"]'),
+  )
+  expect(trigger.textContent).toBe('Effort')
+  await act(() => trigger.click())
+  const items = await waitFor(() => {
+    const found = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
+    return found.length ? found : undefined
+  })
+  expect(items.map((item) => item.textContent)).toEqual(['DefaultLow', 'Low', 'High', 'Max'])
+  expect(modelTurnOptions(client).effort).toBeUndefined()
+
+  await act(() => items[2]!.click())
+  expect(modelTurnOptions(client).effort).toBe('high')
+  await waitFor(() => trigger.textContent === 'High')
+})
+
+test('a model whose route sends no effort has no effort menu, and a stale level is dropped', async () => {
+  modelsBody = { defaultRef: OPUS.ref, models: [FLASH, OPUS], openrouter: { status: 'live' } }
+  useModelEffort.setState({ byModel: { '': 'high' } })
+  const { container } = await mount(<Harness text="Hello" sent={[]} />)
+  await waitFor(() => useModelEffort.getState().byModel[''] === undefined)
+  expect(container.querySelector('[aria-label="Reasoning effort"]')).toBeNull()
+  expect(modelTurnOptions(client).effort).toBeUndefined()
 })

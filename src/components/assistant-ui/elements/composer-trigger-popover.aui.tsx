@@ -138,6 +138,21 @@ function useHighlightInView(list: RefObject<HTMLDivElement | null>) {
   }, [list, highlightedIndex])
 }
 
+/**
+ * The line above the list. The primitive renders its children even while
+ * closed, so its behavior child can register; like the list parts, the
+ * heading renders only while the popover is open.
+ */
+function Heading({ children }: { children: ReactNode }) {
+  const { open } = unstable_useTriggerPopoverScopeContext()
+  if (!open) return null
+  return (
+    <div className="text-ink-faint border-separator border-b px-3 py-1.5 text-xs">
+      {children}
+    </div>
+  )
+}
+
 /** The least height worth keeping the popover above for: its heading and two rows. */
 const MIN_HEIGHT = 160
 
@@ -314,11 +329,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
           removeOnExecute={action.removeOnExecute}
         />
       ) : null}
-      {heading && (
-        <div className="text-ink-faint border-separator border-b px-3 py-1.5 text-xs">
-          {heading}
-        </div>
-      )}
+      {heading && <Heading>{heading}</Heading>}
       <Categories
         iconMap={iconMap}
         fallbackIcon={fallbackIcon}

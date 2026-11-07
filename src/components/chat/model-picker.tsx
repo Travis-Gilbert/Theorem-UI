@@ -24,7 +24,7 @@ import {
 import type { ModelOption } from '@/lib/theorem/models'
 
 /** Theorem's configured choice unless the person picks another. */
-const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Default'), vendor: 'theorem' }
+const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem'), vendor: 'theorem' }
 
 type Group = { label: string; items: ModelOption[] }
 
@@ -35,7 +35,7 @@ function VendorMark({ vendor }: { vendor: string }) {
       aria-hidden="true"
       className="flex size-5 shrink-0 items-center justify-center rounded-[5px] bg-raised text-[11px] font-medium text-ink-muted uppercase"
     >
-      {vendor === 'theorem' ? <Icon.Spaces className="size-3" /> : vendor[0]}
+      {vendor === 'theorem' ? <Icon.Theorem className="size-3.5" /> : vendor[0]}
     </span>
   )
 }
@@ -72,7 +72,7 @@ export function ModelPicker() {
   )
   const groups = useMemo(() => pickerGroups(starred, byRef), [starred, byRef])
   const selected = pickerSelection(selectedRef, byRef, groups)
-  // What "Default" resolves to, so the person knows what an unpinned turn runs on.
+  // What Theorem's choice resolves to, so the person knows what an unpinned turn runs on.
   const defaultName = list?.defaultRef ? byRef.get(list.defaultRef)?.name : undefined
 
   return (
@@ -88,6 +88,7 @@ export function ModelPicker() {
         aria-label="Model"
         className="flex h-8 max-w-48 min-w-0 items-center gap-1 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
       >
+        {selected?.vendor === 'theorem' && <Icon.Theorem className="size-4 shrink-0" />}
         <span className="truncate">{selected?.name ?? 'Model'}</span>
         <Icon.UpDown className="size-3.5 shrink-0" />
       </ComboboxTrigger>

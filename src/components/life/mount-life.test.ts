@@ -23,6 +23,7 @@ const fake = {
     if (disposed)
       throw new TypeError("Cannot read properties of undefined (reading 'Xh')")
   },
+  noiseDetail() {},
   get isDisposed() {
     return disposed
   },

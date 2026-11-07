@@ -10,10 +10,11 @@ import {
   spyOn,
   test,
 } from 'bun:test'
-import { useAuiState } from '@assistant-ui/react'
+import { useAui, useAuiState } from '@assistant-ui/react'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
-import { act, createElement, useState } from 'react'
+import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
+import { usePlanning, useWebSearch } from '@/components/chat/composer-tools'
 import {
   mutateThread,
   pendingSendKey,
@@ -25,9 +26,17 @@ import {
   createHistoryAdapter,
   createThreadListAdapter,
   runTurn,
+  draftedPlan,
 } from './runtime'
 
-type Send = { key: string; text: string; model?: { provider: string; model: string }; executionMode?: string }
+type Send = {
+  key: string
+  text: string
+  capabilityScope?: string[]
+  planning?: boolean
+  model?: { provider: string; model: string }
+  executionMode?: string
+}
 
 let sends: Send[] = []
 /** Sends whose reply is lost after Theorem received them. */
@@ -84,8 +93,16 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, model, executionMode } = (await request.json()) as Omit<Send, 'key'>
-    sends.push({ key: request.headers.get('Idempotency-Key') ?? '', text, ...(model ? { model } : {}), ...(executionMode ? { executionMode } : {}) })
+    const { text, capabilityScope, planning, model, executionMode } =
+      (await request.json()) as Omit<Send, 'key'>
+    sends.push({
+      key: request.headers.get('Idempotency-Key') ?? '',
+      text,
+      ...(capabilityScope ? { capabilityScope } : {}),
+      ...(planning !== undefined ? { planning } : {}),
+      ...(model ? { model } : {}),
+      ...(executionMode ? { executionMode } : {}),
+    })
     if (lostReplies > 0) {
       lostReplies -= 1
       throw new TypeError('Network disconnected')
@@ -157,6 +174,8 @@ beforeEach(() => {
   concurrentTitle = undefined
   titleReadGate = undefined
   titleReads = []
+  useWebSearch.setState({ on: false })
+  usePlanning.setState({ on: false })
 })
 afterEach(cleanup)
 
@@ -367,6 +386,40 @@ test('a send refused after its chat was left waits for that chat', async () => {
 })
 
 
+test.each<[boolean, boolean, string[] | undefined]>([
+  [true, true, ['web_search', 'web_read', 'draft_plan']],
+  [true, false, ['web_search', 'web_read']],
+  [false, true, undefined],
+  [false, false, undefined],
+])('a send with Web %p and Plan %p asks Theorem for scope %p', async (on, planning, scope) => {
+  useWebSearch.setState({ on })
+  usePlanning.setState({ on: planning })
+  const threadId = `thread-${crypto.randomUUID()}`
+  function Sender() {
+    const aui = useAui()
+    useEffect(() => {
+      aui.composer.setText('Latest Rust release')
+      aui.composer.send()
+    }, [aui])
+    return null
+  }
+  await render(
+    createElement(TheoremRuntimeProvider, {
+      projectId: 'project',
+      threadId,
+      onThreadIdChange: () => {},
+      children: createElement(Sender),
+    }),
+  )
+  await waitFor(() => sends.length === 1)
+  expect(sends[0]).toEqual({
+    key: expect.any(String),
+    text: 'Latest Rust release',
+    ...(scope ? { capabilityScope: scope } : {}),
+    ...(planning ? { planning: true } : {}),
+  })
+})
+
 test('existing New Chat rows get meaningful projected titles without revision writes', async () => {
   titleThreads.set('title-old', {
     title: 'New Chat',
@@ -463,6 +516,17 @@ test('old title recovery bounds concurrent history reads', async () => {
   expect((await pending).threads).toHaveLength(9)
   expect(peak).toBe(4)
   expect(titleEvents).toEqual([])
+})
+
+test('only a finished draft_plan call turns Plan off', () => {
+  const call = (toolName: string, extra: Record<string, unknown>) => ({
+    content: [{ type: 'tool-call', toolCallId: 'c', toolName, args: {}, argsText: '{}', ...extra }],
+  }) as unknown as Parameters<typeof draftedPlan>[0]
+  expect(draftedPlan(call('draft_plan', { result: { planId: 'plan:1' } }))).toBe(true)
+  expect(draftedPlan(call('draft_plan', {}))).toBe(false)
+  expect(draftedPlan(call('draft_plan', { result: 'a cycle', isError: true }))).toBe(false)
+  expect(draftedPlan(call('web_search', { result: {} }))).toBe(false)
+  expect(draftedPlan({})).toBe(false)
 })
 
 // A cached SDK adapter may first be created by the terminal, then used by chat.

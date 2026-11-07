@@ -17,7 +17,7 @@ import {
   theorem,
 } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
-import { pickedModelTurnOptions } from '@/lib/theorem/models'
+import { pickedModel } from '@/lib/theorem/models'
 import { tailRun } from '@/lib/theorem/runtime'
 import type { ChatModelRunResult } from '@assistant-ui/react'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
@@ -220,7 +220,7 @@ async function run(
           excerpt,
           document,
         ) as Theorem.ChatContextReference[],
-        model: pickedModelTurnOptions.model,
+        model: pickedModel(),
       })
     })
     store().patch(note.key, id, { runId: turn.run.runId })

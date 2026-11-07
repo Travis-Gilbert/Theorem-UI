@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { ModelPicker } from './model-picker'
 import { CommandPalette, useCommandPalette } from '../shell/command-palette'
-import { modelListQuery, parseModelList, pickedModelTurnOptions, usePickedModels } from '@/lib/theorem/models'
+import { modelListQuery, parseModelList, pickedModel, usePickedModels } from '@/lib/theorem/models'
 import { catalogQuery } from '@/lib/theorem/catalog'
 import { cleanup, click, render, waitFor } from '../../../test/blocks/render'
 
@@ -37,7 +37,7 @@ test('picker exposes invalid default and selecting a starred model sends the exa
   expect(document.querySelector('[role="alert"]')?.textContent).toContain('The configured default is missing.')
   const option = await waitFor(() => [...document.querySelectorAll('[role="option"]')].find((item) => item.textContent.includes('Available')))
   await click(option)
-  expect(pickedModelTurnOptions.model).toEqual({ provider: 'provider', model: 'vendor/available' })
+  expect(pickedModel()).toEqual({ provider: 'provider', model: 'vendor/available' })
   expect(container.textContent).toContain('Available')
 })
 
@@ -50,6 +50,22 @@ test('command palette exposes invalid default while keeping available model sele
   expect(document.querySelector('[role="alert"]')?.textContent).not.toContain('invalid_default')
   const option = await waitFor(() => [...document.querySelectorAll('[role="option"]')].find((item) => item.textContent.includes('Available')))
   await click(option)
-  expect(pickedModelTurnOptions.model).toEqual({ provider: 'provider', model: 'vendor/available' })
+  expect(pickedModel()).toEqual({ provider: 'provider', model: 'vendor/available' })
   expect(useCommandPalette.getState().open).toBe(false)
+})
+
+// The mark itself is not asserted: other suites mock the icon set to render
+// nothing, and bun shares module mocks across files in one run.
+test('with no model picked, the switch says Theorem', async () => {
+  const { container } = await models(false)
+
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Theorem')
+})
+
+test('a picked model shows its own name', async () => {
+  usePickedModels.getState().setStarred(['provider/vendor/available'])
+  usePickedModels.getState().select('provider/vendor/available')
+  const { container } = await models(false)
+
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Available')
 })

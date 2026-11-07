@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit)
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -28,13 +28,16 @@ import {
   toAssistantMessages,
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
+import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useEffect, useMemo } from 'react'
+import { useContext, useEffect, useMemo } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
 import { useComposerReferences } from '@/components/chat/composer-references'
+import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
+import { DRAFT_PLAN } from './plans'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
@@ -54,7 +57,7 @@ import {
 } from './client'
 import type { Theorem } from './client'
 import { RefusedSend } from './send-recovery'
-import { pickedModelTurnOptions } from './models'
+import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
@@ -489,8 +492,17 @@ export async function* runTurn(
     noteLiveRun(threadId, undefined)
   }
 }
+/** Whether a streamed step carries a finished `draft_plan` call. */
+export function draftedPlan(step: ChatModelRunResult): boolean {
+  return (step.content ?? []).some(
+    (part) => part.type === 'tool-call' && part.toolName === DRAFT_PLAN && part.result !== undefined && !part.isError,
+  )
+}
 function useTheoremThreadRuntime() {
   const aui = useAui()
+  // Absent outside the app's query provider; a send there carries no effort level.
+  const queryClient = useContext(QueryClientContext)
+  const turnOptions = useMemo(() => modelTurnOptions(queryClient), [queryClient])
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
@@ -500,14 +512,22 @@ function useTheoremThreadRuntime() {
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
-          const referenced = references.length ? {
+          // The composer's context, Web and Plan toggles, read at each send like the model pick.
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
+          if (added.capabilityScope && added.planning) added.capabilityScope.push(DRAFT_PLAN)
+          const composed = Object.keys(added).length ? {
             ...options,
-            runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,contextReferences:references}}},
+            runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
           } : options
-          yield* runTurn(remoteId,referenced,pickedModelTurnOptions,()=>{
+          const turn = runTurn(remoteId,composed,turnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
+          for await (const step of turn) {
+            // Plan stays on until a plan is written; the turn that writes one turns it off.
+            if (draftedPlan(step)) usePlanning.getState().set(false)
+            yield step
+          }
         } catch (error) {
           if (options.abortSignal.aborted) throw error
           // Keep SDK exceptions intact for recovery above; only format at
@@ -516,7 +536,7 @@ function useTheoremThreadRuntime() {
         }
       },
     }),
-    [aui],
+    [aui, turnOptions],
   )
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)

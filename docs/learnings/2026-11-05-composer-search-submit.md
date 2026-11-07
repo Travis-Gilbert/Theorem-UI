@@ -1,5 +1,7 @@
 # Composer requests share the form submission boundary
 
+Superseded on 2026-11-06 for Web: the toggle now scopes the turn to RustyRed web rather than adding a text line; see `2026-11-06-composer-web-scope.md`. The submission-boundary finding below still holds.
+
 The web toggle was pressed, but the actual chat POST contained only the user's original text. Web and diagram requests are durable text instructions, not separate SDK flags. The composer appended them in `ComposerPrimitive.Root.onSubmit`, while the visible `ComposerPrimitive.Send` invoked the runtime directly in its click handler before the form submitted. Enter used the form and worked.
 
 The visible control is now a native submit button. The existing assistant-ui form remains the only owner of ordinary click/Enter submission, and the public `useComposerSend` hook supplies the same disabled semantics. The already-installed `@assistant-ui/core` version is declared directly rather than copying its predicate. Request-line deduplication handles both toggles together. Model/configuration, context references, attachment preparation, edit/retry, and send recovery remain with their existing runtime owners.

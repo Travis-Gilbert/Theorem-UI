@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -6,7 +6,12 @@
 // approvals (decided through runs.command, since Theorem owns approvals), and
 // gives the artifact tools a pending card while they run. Delegated work has
 // its own cards in delegation-parts.
-import { useAui, useAuiState, useAssistantDataUI } from '@assistant-ui/react'
+import {
+  MessagePrimitive,
+  useAui,
+  useAuiState,
+  useAssistantDataUI,
+} from '@assistant-ui/react'
 import { CatchBoundary } from '@tanstack/react-router'
 import type {
   DataMessagePartComponent,
@@ -16,11 +21,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FC } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
-import {
-  CollapsibleContent,
-  CollapsibleRoot,
-  CollapsibleTrigger,
-} from '@/components/assistant-ui/elements/collapsible-root'
+import { CollapsibleTrigger } from '@/components/assistant-ui/elements/collapsible-root'
 import {
   ReasoningContent,
   ReasoningRoot,
@@ -28,6 +29,10 @@ import {
   ReasoningTrigger,
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+} from '@/components/assistant-ui/elements/tool-group.aui'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import {
   ARTIFACT_PART,
@@ -35,6 +40,7 @@ import {
 } from '@/components/artifacts/artifact-model'
 import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
+import { PlanToolCall } from '@/components/chat/plan-graph'
 import { Icon } from '@/components/icons'
 import {
   describeError,
@@ -42,6 +48,7 @@ import {
   mutate,
   theorem,
 } from '@/lib/theorem/client'
+import { DRAFT_PLAN } from '@/lib/theorem/plans'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { cn, humanize } from '@/lib/utils'
 
@@ -273,14 +280,18 @@ export function sendApprovalDecision(
   )
 }
 
-/** Pending Theorem approvals render standalone so they are never folded into a tool group. */
+/** Pending Theorem approvals, artifacts and plans render standalone so they are never folded into a tool group. */
 export function isStandaloneToolCall(part: {
   type: string
   toolName?: string
   artifact?: unknown
 }) {
   if (part.type !== 'tool-call') return false
-  if (part.toolName && ARTIFACT_TOOLS.has(part.toolName)) return true
+  if (
+    part.toolName &&
+    (ARTIFACT_TOOLS.has(part.toolName) || part.toolName === DRAFT_PLAN)
+  )
+    return true
   const approval = readApproval(part)
   return approval !== undefined && approvalOutcome(approval) === 'awaiting'
 }
@@ -363,16 +374,17 @@ const TheoremApprovalCard: FC<{
   )
 }
 
-/** ToolFallback slot: artifact tools, Theorem approvals, then the generic tool card. */
+/** ToolFallback slot: artifact tools, plans, Theorem approvals, then the generic tool card. */
 export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
+  if (props.toolName === DRAFT_PLAN) return <PlanToolCall {...props} />
   const approval = readApproval(props)
   if (approval && props.result === undefined)
     return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
   return <ToolFallback {...props} />
 }
 
-/* ------------------------------------------------------------ progress strip */
+/* ------------------------------------------------------------- run summary */
 
 const LIVE_STATUSES = new Set([
   'running',
@@ -432,21 +444,29 @@ export const RunningIndicator: FC = () => {
   )
 }
 
-/** One strip per message summarizing the run's progress steps, shown once the turn settles. */
-const ProgressPart: DataMessagePartComponent = ({ data }) => {
+/**
+ * A settled run's one line: its outcome, opening to its steps and to the tool
+ * calls it made. Tool calls draw no row of their own; the thread folds them
+ * here (`tools` holds their part indices), so a finished turn reads as its
+ * answer under one quiet line, each call's arguments and result a click away.
+ */
+export const RunSummary: FC<{
+  tools: readonly number[]
+  Tool: ToolCallMessagePartComponent
+}> = ({ tools, Tool }) => {
   const settled = useAuiState((s) => s.message.status?.type !== 'running')
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
   const labels = useMemo(() => progressLabels(content), [content])
-  const isLast = useAuiState((s) => {
+  const lastStatus = useAuiState((s) => {
     const last = s.message.content.findLast(
       (part) => part.type === 'data' && part.name === 'theorem-progress',
     )
-    return last?.type === 'data' && last.data === data
+    return last?.type === 'data' ? str(object(last.data).status) : undefined
   })
   // Labels are what the run was doing while live ("Working"), even on the
-  // step that completes, so the strip names the outcome from the statuses: the
+  // step that completes, so the line names the outcome from the statuses: the
   // message's, then the last step's.
   const outcome = useAuiState((s) =>
     s.message.status?.type === 'complete'
@@ -457,28 +477,56 @@ const ProgressPart: DataMessagePartComponent = ({ data }) => {
           : 'Did not finish'
         : undefined,
   )
-  const finished = DONE_STATUSES.has(str(object(data).status) ?? 'complete')
-  if (!settled || !isLast || labels.length === 0) return null
+  const components = useMemo(() => ({ tools: { Fallback: Tool } }), [Tool])
+  if (!settled || (labels.length === 0 && tools.length === 0)) return null
+  const finished = DONE_STATUSES.has(lastStatus ?? 'complete')
   const result = outcome ?? (finished ? 'Done' : 'Did not finish')
   const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
+  const steps = labels.length > 1
+  const line = (
+    <>
+      <StatusIcon className="size-3.5" />
+      {steps
+        ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
+        : result}
+    </>
+  )
+  if (!steps && tools.length === 0)
+    return (
+      <p
+        data-slot="run-summary"
+        className="my-1 flex items-center gap-1.5 py-1 text-sm text-ink-faint"
+      >
+        {line}
+      </p>
+    )
   return (
-    <CollapsibleRoot className="my-1 text-sm text-ink-faint">
-      <CollapsibleTrigger className="flex items-center gap-1.5 py-1 hover:text-ink">
-        <StatusIcon className="size-3.5" />
-        {labels.length > 1
-          ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
-          : result}
+    <ToolGroupRoot
+      variant="ghost"
+      data-slot="run-summary"
+      className="my-1 text-sm text-ink-faint"
+    >
+      <CollapsibleTrigger className="group/trigger flex items-center gap-1.5 py-1 hover:text-ink">
+        {line}
+        <Icon.Next className="size-3 shrink-0 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
       </CollapsibleTrigger>
-      {labels.length > 1 && (
-        <CollapsibleContent>
-          <ol className="ms-5 list-decimal py-1 text-sm leading-6">
+      <ToolGroupContent>
+        {steps && (
+          <ol className="ms-5 list-decimal text-sm leading-6">
             {labels.map((label, index) => (
               <li key={index}>{label}</li>
             ))}
           </ol>
-        </CollapsibleContent>
-      )}
-    </CollapsibleRoot>
+        )}
+        {tools.map((index) => (
+          <MessagePrimitive.PartByIndex
+            key={index}
+            index={index}
+            components={components}
+          />
+        ))}
+      </ToolGroupContent>
+    </ToolGroupRoot>
   )
 }
 
@@ -511,37 +559,26 @@ function citationUrl(value: unknown): string | undefined {
   }
 }
 
-const retrievedSourceKinds = new Map<unknown, { label: string; description: string }>([
-  ['web_search', { label: 'Search source', description: 'Retrieved search result' }],
-  ['web_read', { label: 'Page source', description: 'Retrieved page' }],
-])
-
-function citationExcerpt(sourceKind: unknown, excerpt: string | undefined) {
-  if (sourceKind !== 'web_search' || !excerpt) return excerpt
-  // Chat renders on the client. Template contents stay inert and detached;
-  // only text leaves this native parser, never nodes or executable markup.
-  const template = document.createElement('template')
-  template.innerHTML = excerpt
-  template.content.querySelectorAll('script, style').forEach((node) => node.remove())
-  return str(template.content.textContent)
-}
+/**
+ * Sources a web search or page read retrieved. Each result arrived as its own
+ * citation and drew a tag, eight to a search, crowding the answer; the answer
+ * links what it uses and the tool call keeps every result, so these draw none.
+ */
+const RETRIEVED_SOURCES = new Set<unknown>(['web_search', 'web_read'])
 
 const CitationPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
+  if (RETRIEVED_SOURCES.has(part.sourceKind)) return null
   const provenance = object(part.provenance)
   const url = citationUrl(provenance.url)
   const label = str(part.label) ?? (url && new URL(url).hostname) ?? 'Source'
-  const excerpt = citationExcerpt(part.sourceKind, str(provenance.excerpt))
-  const source = retrievedSourceKinds.get(part.sourceKind)
-  const title = source
-    ? `${source.description}, not independent verification. ${excerpt ?? url ?? label}`
-    : excerpt ?? url
+  const title = str(provenance.excerpt) ?? url
   const chip =
     'me-1.5 mt-2 inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs text-ink-muted'
   const content = (
     <>
       <Icon.Link className="size-3 shrink-0" />
-      <span className="truncate">{source ? `${source.label}: ${label}` : label}</span>
+      <span className="truncate">{label}</span>
     </>
   )
   return url ? (
@@ -668,7 +705,6 @@ function guarded(
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
-    ['theorem-progress', ProgressPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
     ['theorem-error', ErrorPart],
@@ -683,6 +719,8 @@ const RENDERERS = (
     guarded(name, render),
   ])
   .concat([
+    // The run's steps are drawn once per message by RunSummary.
+    ['theorem-progress', Inert],
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],

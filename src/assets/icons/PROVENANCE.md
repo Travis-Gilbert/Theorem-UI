@@ -528,6 +528,18 @@ new and marks a delegated run's card, which borrowed Code before.
 | Agent | `streamline/streamline-ai-file-robot.png` | Ai File Robot | `4526790a1bff823de8c9e32d1ce60c1190b370a6f6360751ec1a275fb98329aa` |
 | Delegate | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
 
+One more came on 2026-11-06 as a PNG the owner attached in conversation (48 x
+48, black ink on a transparent ground, the same Light style), copied byte for
+byte. Its Streamline name was matched by shape against Streamline's catalogue,
+where the Fill style of the same mark is "Ai Robot Generate Variation"; the
+attachment itself carried no name. It marks Theorem's own model choice in the
+composer's model switch, the command palette and AI settings, where Spaces's
+Penrose triangle stood in before.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Theorem | `streamline/streamline-ai-robot-generate-variation.png` | Ai Robot Generate Variation (by shape) | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
+
 A skill has no owned mark yet: Lucide's GraduationCap stands in, as Lucide's
 trash does for Delete, and Lucide's BellOff for muting a link suggestion.
 
