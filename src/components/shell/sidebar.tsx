@@ -148,7 +148,7 @@ function SpacesPanel() {
 /**
  * The navigator beside the rail: the active mode's list above the files.
  * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
- * stays mounted behind the Index, Pages, Spaces and the revealed files, so its
+ * stays mounted behind the Index, Pages, Spaces, Canvas and the revealed files, so its
  * search, scroll and open branches survive a switch. The rail's Files
  * control reveals the files over the mode's list.
  */

@@ -1,10 +1,12 @@
-// SOURCING: @tanstack/react-query (load, save), coss ui Sidebar and Tabs (the side panel), the
+// SOURCING: @tanstack/react-query (load; saves as one scoped mutation queue), coss ui Sidebar and Tabs (the side panel), the
 // program canvas (React Flow). A standing program lives in Theorem; this surface
 // opens one, saves edits back as drafts, and shows what its runs report.
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { useDebouncedValue } from '@tanstack/react-pacer'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ProgramDefinition } from '@/lib/program/contracts'
+import type { ProgramLayout } from '@/lib/program/api'
 import { lintProgram } from '@/lib/program/compute'
 import type { LintDiagnostic, LintSeverity } from '@/lib/program/compute'
 import type { ProgramNodeData } from '@/lib/program/flow'
@@ -18,7 +20,7 @@ import {
 import { NativeToolError } from '@/lib/theorem/native'
 import { layoutProgram } from '@/lib/program/flow'
 import { reattachProgramRun, stopFollowing } from '@/lib/program/run'
-import { useProgramDoc } from '@/lib/program/store'
+import { sameDocument, useProgramDoc } from '@/lib/program/store'
 import { describeError } from '@/lib/theorem/client'
 import { Alert, AlertDescription } from '@/components/coss/alert'
 import {
@@ -36,34 +38,70 @@ import { ProgramCanvas } from './program-canvas'
 import { RunRail } from './run-rail'
 import { ToolError } from './section'
 
-/** Edits save as they settle; a save that lost the race saves again on the next tick. */
+/** What one save writes, taken when it is asked for. */
+type SaveSnapshot = {
+  program: ProgramDefinition
+  layout: ProgramLayout
+  nodeId: string | undefined
+  definition: number
+  still: () => boolean
+}
+
+/**
+ * Edits save as they settle. Saves share one mutation scope, so they reach Theorem one
+ * after another in the order they were asked for: the last edit is the last written,
+ * and an older answer never lands after a newer one. `flush` saves at once whatever is
+ * still waiting, for the moment the graph closes.
+ */
 function useAutosave() {
   const client = useQueryClient()
   const revision = useProgramDoc((doc) => doc.revision)
-  const [error, setError] = useState<string>()
+  const waiting = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const { mutate, error, reset } = useMutation({
+    scope: { id: 'program-save' },
+    mutationFn: (snapshot: SaveSnapshot) =>
+      saveProgram(
+        snapshot.program,
+        snapshot.layout,
+        // An earlier save in the queue may have given the open graph its id.
+        snapshot.still() ? useProgramDoc.getState().nodeId : snapshot.nodeId,
+      ),
+    onSuccess: (saved, snapshot) => {
+      void client.invalidateQueries({ queryKey: programKeys.list() })
+      // A graph closed or replaced since keeps its own identity.
+      if (!snapshot.still()) return
+      useProgramDoc
+        .getState()
+        .saved(saved.node_id, saved.content_id, snapshot.definition)
+    },
+  })
+  const save = useCallback(() => {
+    const doc = useProgramDoc.getState()
+    if (!doc.program) return
+    reset()
+    mutate({
+      program: doc.program,
+      layout: { ...doc.layout, nodes: doc.positions },
+      nodeId: doc.nodeId,
+      definition: doc.definitionRevision,
+      still: sameDocument(),
+    })
+  }, [mutate, reset])
   useEffect(() => {
     if (revision === 0) return
-    const timer = setTimeout(() => {
-      const doc = useProgramDoc.getState()
-      if (!doc.program) return
-      const definition = doc.definitionRevision
-      saveProgram(
-        doc.program,
-        { ...doc.layout, nodes: doc.positions },
-        doc.nodeId,
-      )
-        .then((saved) => {
-          useProgramDoc
-            .getState()
-            .saved(saved.node_id, saved.content_id, definition)
-          setError(undefined)
-          void client.invalidateQueries({ queryKey: programKeys.list() })
-        })
-        .catch((failure: unknown) => setError(describeError(failure)))
+    waiting.current = setTimeout(() => {
+      waiting.current = undefined
+      save()
     }, 700)
-    return () => clearTimeout(timer)
-  }, [revision, client])
-  return error
+    return () => clearTimeout(waiting.current)
+  }, [revision, save])
+  const flush = useCallback(() => {
+    if (waiting.current === undefined) return
+    clearTimeout(waiting.current)
+    waiting.current = undefined
+    save()
+  }, [save])
+  return { error: error ? describeError(error) : undefined, flush }
 }
 
 const SEVERITY_ORDER: Array<LintSeverity> = ['error', 'warning', 'info']
@@ -140,7 +178,7 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
   const pins = useProgramDoc((doc) => doc.layout.pins)
   const diagnostics = useProgramDoc((doc) => doc.diagnostics)
   const proposal = useProgramDoc((doc) => doc.proposal)
-  const saveError = useAutosave()
+  const { error: saveError, flush } = useAutosave()
   const verdict = useProgramDoc((doc) => doc.verdict)
   useProgramLint(nodeId)
   useProgramValidation()
@@ -183,10 +221,11 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
   }, [loaded.data])
   useEffect(
     () => () => {
+      flush()
       stopFollowing()
       useProgramDoc.getState().close()
     },
-    [],
+    [flush],
   )
 
   const extras = useMemo(() => {

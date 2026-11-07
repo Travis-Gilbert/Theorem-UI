@@ -133,9 +133,12 @@ export function ScheduleStatus() {
   const refresh = () =>
     client.invalidateQueries({ queryKey: programKeys.triggers() })
   const activate = useMutation({
+    // The earlier version keeps firing until this one is admitted; a refused or
+    // failed activation leaves it running.
     mutationFn: async () => {
+      const activated = await activateProgram(program)
       await pauseEarlierVersions(program.name, contentId, triggers.data ?? [])
-      return activateProgram(program)
+      return activated
     },
     onSettled: () => {
       void refresh()

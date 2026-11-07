@@ -2,7 +2,11 @@
 // starts and streams through ../../lib/program/run. coss ui Textarea, Input and Badge, ui
 // Button. Everything shown here is what Theorem said; there is no engine or liveness on
 // this side (SPEC-PROGRAM-CANVAS law).
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { ProgramRunPark } from '@/lib/program/contracts'
@@ -17,7 +21,7 @@ import {
   requestApproval,
 } from '@/lib/program/api'
 import { answerParkedRun, startProgramRun } from '@/lib/program/run'
-import { useProgramDoc } from '@/lib/program/store'
+import { sameDocument, useProgramDoc } from '@/lib/program/store'
 import { describeError } from '@/lib/theorem/client'
 import { Choice, Json, Labeled, Section, ToolError } from './section'
 import {
@@ -42,6 +46,8 @@ function runOptions() {
 async function authorizeAndRun(client: QueryClient) {
   const { program, contentId, setRunFailure } = useProgramDoc.getState()
   if (!program) return
+  // Authorization waits on Theorem; a graph closed meanwhile does not run.
+  const still = sameDocument()
   try {
     let authorization = await programAuthorization(program)
     if (!authorization) {
@@ -49,10 +55,11 @@ async function authorizeAndRun(client: QueryClient) {
       // Within a grant, filing the request is what authorizes the run.
       authorization = await programAuthorization(program)
     }
+    if (!still()) return
     if (authorization) await startProgramRun(runOptions(), authorization)
     else setRunFailure('This program needs your approval before it runs.')
   } catch (failure) {
-    setRunFailure(describeError(failure))
+    if (still()) setRunFailure(describeError(failure))
   }
   // A run spends its approval or a grant's allowance, so both read fresh after it.
   void client.invalidateQueries({ queryKey: programKeys.approvals(contentId) })
@@ -101,6 +108,14 @@ export function RunRail() {
   const select = useProgramDoc((doc) => doc.select)
   const run = useProgramDoc((doc) => doc.run)
   const client = useQueryClient()
+  // Keyed in the client's cache, so the lock holds from the first click through
+  // authorization and startup, and outlives this tab being switched away.
+  const start = useMutation({
+    mutationKey: programKeys.run(),
+    mutationFn: () => authorizeAndRun(client),
+  })
+  const starting = useIsMutating({ mutationKey: programKeys.run() }) > 0
+  const busy = run?.active || starting
   const park = receipt?.parked
   // Token chunks stream into the node; the list keeps what happened to it.
   const events = (receipt?.events ?? run?.events ?? []).filter(
@@ -112,11 +127,15 @@ export function RunRail() {
       <Section title="Run">
         <Button
           size="sm"
-          disabled={run?.active}
-          onClick={() => void authorizeAndRun(client)}
+          disabled={busy}
+          onClick={() => {
+            if (client.isMutating({ mutationKey: programKeys.run() }) > 0)
+              return
+            start.mutate()
+          }}
         >
           <Icon.Play />
-          {run?.active ? 'Running' : 'Run program'}
+          {busy ? 'Running' : 'Run program'}
         </Button>
         <ToolError error={run?.failure} />
       </Section>

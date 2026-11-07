@@ -53,8 +53,15 @@ function stoppingEvent() {
     )
 }
 
-/** The events said how it went; the receipt holds what each node produced. */
-async function settle(runId: string, settlement: Settlement | undefined) {
+/**
+ * The events said how it went; the receipt holds what each node produced. A follow that
+ * was stopped (its graph closed, or another run took over) leaves the document alone.
+ */
+async function settle(
+  runId: string,
+  settlement: Settlement | undefined,
+  signal: AbortSignal,
+) {
   const unsettled =
     settlement?.status && UNSETTLED_STATUSES.has(settlement.status)
   const stopped = unsettled ? stoppingEvent() : undefined
@@ -64,9 +71,11 @@ async function settle(runId: string, settlement: Settlement | undefined) {
   const failure = unsettled ? told : undefined
   try {
     const receipt = await loadRunReceipt(runId)
+    if (signal.aborted) return
     useProgramDoc.getState().report(receipt)
     useProgramDoc.getState().runSettled(failure, stopped?.node_id)
   } catch (error) {
+    if (signal.aborted) return
     // A run refused before it started leaves a settlement and no receipt.
     useProgramDoc
       .getState()
@@ -111,10 +120,12 @@ export async function startProgramRun(
         { abortSignal: controller.signal },
       ),
     )
+    if (controller.signal.aborted) return
     useProgramDoc.getState().runStarted(started.run_id)
     await settle(
       started.run_id,
       await followToEnd(started.run_id, controller.signal),
+      controller.signal,
     )
   } catch (error) {
     if (!controller.signal.aborted) {
@@ -150,19 +161,21 @@ export async function answerParkedRun(
       { abortSignal: controller.signal },
     ),
   )
+  if (controller.signal.aborted) return
   useProgramDoc.getState().beginRun(started.run_id)
   try {
     await settle(
       started.run_id,
       await followToEnd(started.run_id, controller.signal),
+      controller.signal,
     )
   } catch (error) {
-    if (!controller.signal.aborted) {
-      await settle(started.run_id, {
-        status: 'failed',
-        message: describeError(error),
-      })
-    }
+    // settle leaves the document alone once this follow was stopped.
+    await settle(
+      started.run_id,
+      { status: 'failed', message: describeError(error) },
+      controller.signal,
+    )
   }
 }
 
@@ -173,7 +186,11 @@ export async function reattachProgramRun(runId: string) {
   following = controller
   useProgramDoc.getState().beginRun(runId)
   try {
-    await settle(runId, await followToEnd(runId, controller.signal))
+    await settle(
+      runId,
+      await followToEnd(runId, controller.signal),
+      controller.signal,
+    )
   } catch {
     // The run this pointer names is gone (a reset graph); there is nothing to show.
     if (!controller.signal.aborted) useProgramDoc.getState().forgetRun()

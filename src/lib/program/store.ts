@@ -73,6 +73,8 @@ type ProgramDoc = {
   diagnostics: Record<string, Array<LintDiagnostic>>
   /** Counts edits, so a save can tell whether the document moved under it. */
   revision: number
+  /** Counts opens and closes, so work that waited can tell its document is gone. */
+  generation: number
   open: (loaded: LoadedProgram, positions: Positions) => void
   close: () => void
   saved: (nodeId: string, contentId: string, definition: number) => void
@@ -225,6 +227,7 @@ export const useProgramDoc = create<ProgramDoc>((set, get) => ({
   tweaks: {},
   diagnostics: {},
   revision: 0,
+  generation: 0,
   open: (loaded, positions) => {
     // The same program coming back from the server keeps what was selected on it.
     const { nodeId, selected } = get()
@@ -255,10 +258,12 @@ export const useProgramDoc = create<ProgramDoc>((set, get) => ({
       tweaks: {},
       diagnostics: {},
       revision: 0,
+      generation: get().generation + 1,
     })
   },
   close: () =>
-    set({
+    set((doc) => ({
+      generation: doc.generation + 1,
       nodeId: undefined,
       contentId: undefined,
       program: undefined,
@@ -267,7 +272,7 @@ export const useProgramDoc = create<ProgramDoc>((set, get) => ({
       proposal: undefined,
       receipt: undefined,
       run: undefined,
-    }),
+    })),
   saved: (nodeId, contentId, definition) =>
     set({ nodeId, contentId, savedDefinition: definition }),
   select: (selected) =>
@@ -539,10 +544,16 @@ export const useProgramDoc = create<ProgramDoc>((set, get) => ({
       if (!doc.program) return doc
       const { [edgeId]: _replaced, ...verdicts } = doc.verdicts
       return {
+        // The moved wire takes the input it lands on, as a new one would.
         ...edited(doc, {
           ...doc.program,
           edges: [
-            ...doc.program.edges.filter((candidate) => candidate.id !== edgeId),
+            ...doc.program.edges.filter(
+              (candidate) =>
+                candidate.id !== edgeId &&
+                (candidate.to_node !== edge.to_node ||
+                  candidate.to_port !== edge.to_port),
+            ),
             edge,
           ],
         }),
@@ -820,6 +831,15 @@ async function judgeEdges(
   return { edges, verdicts }
 }
 
+/**
+ * Taken before work that waits, it answers afterwards whether the document that work
+ * started on is still the one open.
+ */
+export function sameDocument(): () => boolean {
+  const { generation } = useProgramDoc.getState()
+  return () => useProgramDoc.getState().generation === generation
+}
+
 /** A new block goes in, spliced into a wire when the palette opened on one. */
 export async function insertNode(
   entry: CatalogEntry,
@@ -828,31 +848,43 @@ export async function insertNode(
 ): Promise<{ refused?: EdgeVerdict }> {
   const before = useProgramDoc.getState().program
   if (!before) return {}
+  const still = sameDocument()
   const node = nodeFromEntry(before, entry)
   const judged = await judgeEdges(node, connect)
+  if (!still()) return {}
   if ('refused' in judged) return { refused: judged.refused.message }
   const doc = useProgramDoc.getState()
   if (!doc.program) return {}
+  // Another insertion may have taken this id while the wires were judged; the block
+  // then takes the next free one, and its wires follow it.
+  const placed = doc.program.nodes.some((other) => other.id === node.id)
+    ? nodeFromEntry(doc.program, entry)
+    : node
+  const wires = judged.edges.map((edge) => ({
+    ...edge,
+    from_node: edge.from_node === node.id ? placed.id : edge.from_node,
+    to_node: edge.to_node === node.id ? placed.id : edge.to_node,
+  }))
   useProgramDoc.setState({
     program: {
       ...doc.program,
-      nodes: [...doc.program.nodes, node],
+      nodes: [...doc.program.nodes, placed],
       edges: [
         ...doc.program.edges.filter(
           (edge) =>
             edge.id !== connect.replacing &&
-            !judged.edges.some(
+            !wires.some(
               (next) =>
                 next.to_node === edge.to_node && next.to_port === edge.to_port,
             ),
         ),
-        ...judged.edges,
+        ...wires,
       ],
     },
     verdicts: { ...doc.verdicts, ...judged.verdicts },
-    positions: { ...doc.positions, [node.id]: at },
-    selected: node.id,
-    selection: [node.id],
+    positions: { ...doc.positions, [placed.id]: at },
+    selected: placed.id,
+    selection: [placed.id],
     revision: doc.revision + 1,
     definitionRevision: doc.definitionRevision + 1,
   })
@@ -895,7 +927,9 @@ export async function spliceExisting(
       edge.from_node === nodeId && edge.from_port === node.outputs[0]!.id,
   )
   if (!inputFree || !outputFree) return {}
+  const still = sameDocument()
   const judged = await judgeEdges(node, wireEnds(before, wire))
+  if (!still()) return {}
   if ('refused' in judged) return { refused: judged.refused.message }
   const doc = useProgramDoc.getState()
   if (!doc.program) return {}

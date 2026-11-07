@@ -19,13 +19,13 @@ import { describeMismatch, refuseAt } from './connection-toast'
 
 type Anchor = { x: number; y: number }
 
-/** Theorem's answer for a place on the canvas; the wire's button and this list share it. */
+/**
+ * Theorem's answer for a place on the canvas; the wire's button and this list share it.
+ * The key holds the whole ports Theorem is asked about, columns and contracts included,
+ * so two wires of one shape with different columns get answers of their own.
+ */
 export const placementsKey = (at: Placement) =>
-  [
-    ...programKeys.catalog(),
-    at.from?.port.shape_id,
-    at.to?.port.shape_id,
-  ] as const
+  [...programKeys.catalog(), at.from?.port, at.to?.port] as const
 
 export const placementsOn = (at: Placement): Promise<Array<CatalogEntry>> =>
   validNext({
