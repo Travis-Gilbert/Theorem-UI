@@ -11,6 +11,7 @@
     "e2e:review": "node scripts/e2e/review.mjs",
     "e2e:models": "node scripts/e2e/models.mjs",
     "e2e:keys": "node scripts/e2e/keys.mjs",
+    "e2e:notes": "node scripts/e2e/notes.mjs",
     "dev": "sh terminal/build.sh && bun --bun vite dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "sh scripts/build.sh",
