@@ -188,7 +188,6 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
     const answer = loaded.data
     // A cached copy waits for the fresh one, so nothing is edited on a stale graph.
     if (!answer || loaded.isFetching || answer === applied.current) return
-    applied.current = answer
     // Definition edits not saved yet are newer than any copy fetched before they land;
     // autosave writes them. A compound change or a fresh start has nothing pending.
     const pending = () => {
@@ -198,10 +197,17 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
         doc.definitionRevision > doc.savedDefinition
       )
     }
-    if (pending()) return
+    // An answer counts as applied once it is open or deliberately passed over; a
+    // layout cut short by a refetch leaves it unapplied, so the next run tries again.
+    if (pending()) {
+      applied.current = answer
+      return
+    }
     let live = true
     void layoutProgram(answer.program, answer.layout).then((positions) => {
-      if (!live || pending()) return
+      if (!live) return
+      applied.current = answer
+      if (pending()) return
       useProgramDoc.getState().open(answer, positions)
       if (answer.layout?.last_run_id) {
         void reattachProgramRun(answer.layout.last_run_id)
