@@ -161,18 +161,22 @@ test("a task selected on the drafted plan stays selected when Theorem's copy arr
 
 test('a plan card polls Theorem only while it is in view', async () => {
   window.fetch = (async () => Response.json({ data: { plan: LIVE } })) as typeof fetch
-  // happy-dom never reports an intersection; this one reports what the test says.
+  // happy-dom never reports an intersection; this observer reports what the test
+  // says. Under happy-dom an element is not an instance of the global EventTarget,
+  // so framer-motion never calls observe(); it keys entries by target only, so a
+  // stand-in element serves.
   let report: (isIntersecting: boolean) => void = () => {}
-  const Real = window.IntersectionObserver
-  window.IntersectionObserver = class {
-    constructor(private readonly callback: IntersectionObserverCallback) {}
-    observe(target: Element) {
+  const Real = globalThis.IntersectionObserver
+  globalThis.IntersectionObserver = class {
+    constructor(callback: IntersectionObserverCallback) {
+      const target = document.createElement('div')
       report = (isIntersecting) =>
-        this.callback(
+        callback(
           [{ target, isIntersecting } as unknown as IntersectionObserverEntry],
           this as unknown as IntersectionObserver,
         )
     }
+    observe() {}
     unobserve() {}
     disconnect() {}
   } as unknown as typeof IntersectionObserver
@@ -195,7 +199,7 @@ test('a plan card polls Theorem only while it is in view', async () => {
     await waitFor(() => interval() === false)
     client.clear()
   } finally {
-    window.IntersectionObserver = Real
+    globalThis.IntersectionObserver = Real
   }
 })
 
