@@ -1,11 +1,20 @@
 // SOURCING: the modules beside it; the script the block listener adds to an
 // HTML app's pages (served at /__runtime/app-bridge). It gives the app
 // `window.theorem`: the same declared files, state and run calls a cell has.
+// On a page, an app placed as a module also gets `theorem.module`: the values
+// it is handed, the actions routes reach, and the outputs and events it
+// declared.
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
 import { observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
-import type { PageMethods, SandboxMethods } from './protocol'
+import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
+
+type ModuleListener = (values: ModuleValues) => void
+let moduleValues: ModuleValues | undefined
+const moduleListeners = new Set<ModuleListener>()
+type ActionListener = (payload: unknown) => void
+const actionListeners = new Map<string, Set<ActionListener>>()
 
 const context = connectToPage().then((port) => {
   const rpc = rpcOver(port)
@@ -18,6 +27,16 @@ const context = connectToPage().then((port) => {
       return null
     },
   )
+  // Served before the first message is read, so the first values are seen.
+  serve<SandboxMethods, 'module.inputs'>(rpc, 'module.inputs', (values) => {
+    moduleValues = values
+    for (const listener of moduleListeners) listener(values)
+    return null
+  })
+  serve<SandboxMethods, 'module.action'>(rpc, 'module.action', ({ name, payload }) => {
+    for (const listener of actionListeners.get(name) ?? []) listener(payload)
+    return null
+  })
   observeHeight((height) => {
     void call<PageMethods, 'frame.resize'>(rpc, 'frame.resize', { height })
   })
@@ -40,6 +59,13 @@ const context = connectToPage().then((port) => {
       text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),
     }).catch(() => {})
   }
+  // A person's input inside the frame never reaches the page; say so, so a
+  // module's next event starts its own chain.
+  const used = () => {
+    void call<PageMethods, 'module.used'>(rpc, 'module.used', {}).catch(() => {})
+  }
+  document.addEventListener('pointerdown', used, true)
+  document.addEventListener('keydown', used, true)
   document.addEventListener('selectionchange',selection)
   document.addEventListener('pointerup',selection)
   document.addEventListener('keyup',selection)
@@ -68,6 +94,31 @@ const theorem = {
     call<PageMethods, 'run.request'>((await context).rpc, 'run.request', {
       target,
     }),
+  module: {
+    /** Calls `listener` with the current values, and again when they change. */
+    onInputs(listener: ModuleListener): () => void {
+      moduleListeners.add(listener)
+      if (moduleValues) listener(moduleValues)
+      return () => moduleListeners.delete(listener)
+    },
+    /** Calls `listener` each time a route reaches the declared action `name`. */
+    onAction(name: string, listener: ActionListener): () => void {
+      const listeners = actionListeners.get(name) ?? new Set<ActionListener>()
+      actionListeners.set(name, listeners)
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    output: async (name: string, value: unknown) =>
+      call<PageMethods, 'module.output'>((await context).rpc, 'module.output', {
+        name,
+        value,
+      }),
+    emit: async (name: string, payload: unknown) =>
+      call<PageMethods, 'module.emit'>((await context).rpc, 'module.emit', {
+        name,
+        payload,
+      }),
+  },
 }
 
 Object.defineProperty(window, 'theorem', { value: theorem })

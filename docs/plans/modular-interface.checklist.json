@@ -1,0 +1,217 @@
+{
+  "plan": "docs/plans/modular-interface.md",
+  "items": [
+    {
+      "id": "storage-files-api",
+      "requirement": "Pages and modules are files in the Theorem vault through the SDK Files API (theorem-files/1): Pages/<name>.page.json and Modules/<name>/module.json; saves are revision-checked",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/store.ts (usePages, usePage, useSavePage with expectedHash, useInstalledModules, useCreateModule)",
+        "src/lib/modules/contract.ts (theorem.page/1, theorem.module/1)"
+      ]
+    },
+    {
+      "id": "module-definition",
+      "requirement": "A module definition carries id, version, entry, settings, inputs, outputs, events, actions, requested capabilities and migrations",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/contract.ts moduleManifest",
+        "src/lib/modules/registry.ts ModuleDefinition, builtin, fromManifest",
+        "bun test src/lib/modules/modules.test.ts: 'module files'"
+      ]
+    },
+    {
+      "id": "module-instance",
+      "requirement": "An instance is one placement with its own id, title, settings version, settings and wiring; host-owned props are reserved",
+      "status": "done",
+      "evidence": [
+        "contract.ts InstanceProps and RESERVED_PROPS",
+        "bun test: 'a vault module may not take a theorem id or a host prop name'"
+      ]
+    },
+    {
+      "id": "page-definition",
+      "requirement": "A page is a durable object with its own navigation entry, not a route or ShellMode branch per page",
+      "status": "done",
+      "evidence": [
+        "One route, src/routes/_chat/pages.$pageId.tsx, keyed by vault entry id",
+        "One 'pages' ShellMode (src/components/shell/modes.tsx); the Pages panel lists every page, pinned first (src/components/pages/pages-panel.tsx)"
+      ]
+    },
+    {
+      "id": "puck-pages",
+      "requirement": "Pages are built with Puck; the chat dock and the Vault stay on Dockview",
+      "status": "done",
+      "evidence": [
+        "@puckeditor/core 0.24.0; src/components/pages/puck-config.tsx and page-view.tsx (Render in use, Puck with Components, Outline, Preview and Fields while arranging)",
+        "src/components/shell/dock.tsx unchanged apart from the panel title in Pages mode"
+      ]
+    },
+    {
+      "id": "resource-binding",
+      "requirement": "A setting can bind an instance to a resource: Index view, object type, vault file, conversation, App",
+      "status": "done",
+      "evidence": [
+        "src/components/pages/resource-field.tsx",
+        "contract.ts RESOURCE_KINDS"
+      ]
+    },
+    {
+      "id": "value-bindings",
+      "requirement": "Value bindings: one instance's output drives another's input (selection drives an inspector)",
+      "status": "done",
+      "evidence": [
+        "src/components/pages/page-runtime.tsx useInputs, PageScopeProvider",
+        "bun test src/components/pages/page.test.tsx: a bound value shows another instance's output, inside a split too",
+        "That test found that no page-level scope was provided, so top-level bindings did not deliver; fixed with PageScopeProvider",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): a Value bound to a Text showed it and followed edits while arranging, in use and after reopening",
+        "The browser check found bindings made during a session never delivered: React's effect replay disposed the page runtime while it stayed in use. Fixed with runtime.resume in a layout effect (page-runtime.tsx); bun test page.test.tsx 'a value published after the page is hidden and shown still arrives' and modules.test.ts 'a resumed runtime takes calls again; its instances wire afresh' fail without it",
+        "Review (Greptile, PR #34) found that changing an instance's routes unwired it and blanked values bound to it. Fixed with runtime.route; bun test 'a value stays while the routes of the instance it comes from change' and 'new routes keep the values; removal takes them' fail without it"
+      ]
+    },
+    {
+      "id": "events-actions",
+      "requirement": "Events route to actions and to host actions (attach to the composer, ask in the composer), declared per composition, never a global bus",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/runtime.ts (one runtime per page view)",
+        "src/components/pages/connection-fields.tsx RoutesField",
+        "bun test: 'an event reaches the actions and host routes it is wired to'"
+      ]
+    },
+    {
+      "id": "explicit-transforms",
+      "requirement": "Explicit transforms where types differ; nothing is converted silently",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/values.ts compatibility, convert, pick",
+        "bun test: 'conversions are explicit and checked', 'a route that does not say to convert delivers nothing', 'a binding across types must ask to convert'"
+      ]
+    },
+    {
+      "id": "loop-guards",
+      "requirement": "Loop and stale-effect guards",
+      "status": "done",
+      "evidence": [
+        "Cycles refused and reported: bun test 'cycles are refused before they are made, and found when present'",
+        "Depth limit 8 and 30 events/s: bun test 'events handed round in a loop stop at the depth limit', 'an instance flooding events is stopped'",
+        "Equal outputs change nothing: bun test 'an equal output changes nothing'",
+        "Action handlers are the latest render's (useEffectEvent in useModuleAction): source only"
+      ]
+    },
+    {
+      "id": "no-model-per-click",
+      "requirement": "No model call per click",
+      "status": "done",
+      "evidence": [
+        "Source: the runtime's only host effects are composer.attach (adds a reference) and composer.ask (adds it and focuses the composer); neither sends"
+      ]
+    },
+    {
+      "id": "configure-module",
+      "requirement": "Get a module by configuring an existing one",
+      "status": "done",
+      "evidence": [
+        "puck-config.tsx moduleComponent: settings, inputs and routes as Puck fields"
+      ]
+    },
+    {
+      "id": "combine-modules",
+      "requirement": "Get a module by combining existing ones, and reuse the combination as a module with named inputs",
+      "status": "done",
+      "evidence": [
+        "Split and Tabs layout components (puck-config.tsx)",
+        "Save as module: src/components/pages/save-as-module.tsx over layout.ts extractComposite",
+        "bun test: 'extracting a composite exposes what crossed its edge', 'an outside route into the composite becomes its action; its other routes stay', 'a composite forwards its inner event; disposal stops everything'",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Save as module on a Split holding a Value bound to an outside Text gave the composite the input 'value'; one instance replaced the Split and the value arrived while arranging, in use and after a reload",
+        "The browser check found Save as module lost the unsaved arrangement: the new manifest made the catalog pending and the page fell back to its loading state. Fixed in store.ts useInstalledModules (pending only until the first read); bun test store.test.tsx fails without it",
+        "Review (Greptile, PR #34) found Save as module dropped routes from outside into the selection, and a composite's content skipped prepareLayout. Fixed with composite actions (contract exposes.actions, layout.ts extractComposite, module-instance.tsx CompositeModule) and by preparing composite content in page-view.tsx useContentRenderer; bun test 'a saved module answers an outside route with its part's action, and holds a missing part' fails without either fix"
+      ]
+    },
+    {
+      "id": "create-module",
+      "requirement": "Create or install a new implementation without compiling it into the host catalog, in the first release",
+      "status": "done",
+      "evidence": [
+        "New module writes Modules/<name>/module.json and index.html (store.ts newModuleFiles, pages-panel.tsx NewModuleDialog)",
+        "Vault manifests join the catalog when the vault reports them (store.ts useInstalledModules)",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): New module wrote Modules/<slug>/module.json and index.html and listed it as Sandboxed",
+        "It now opens index.html in the code editor (handler 'code'); the browser check found the HTML viewer it opened before is blank outside the desktop app"
+      ]
+    },
+    {
+      "id": "sandbox",
+      "requirement": "Untrusted modules run in an isolated sandbox with a scoped bridge; requested permissions are not grants; the person can stop or revoke",
+      "status": "done",
+      "evidence": [
+        "src/components/pages/sandboxed-module.tsx (grant gate, Stop, Run, Revoke), src/lib/modules/sandbox.ts, src/lib/modules/grants.ts",
+        "bun test src/lib/modules/sandbox.test.ts: undeclared or mistyped outputs and events refused; capabilities are the grant plus the module's own folder, never run; a grant holds only for the digest it was given for",
+        "bun test src/lib/blocks/hosted-app.test.ts: 'a page module reaches only the hosts it was allowed, whatever its page declares'",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): while arranging only its summary (takes, gives, sends) shows; the gate offers Run it; the frame has sandbox=\"allow-scripts\", a blob: src and origin null; its output reached a bound Value; Stop removed the frame, Run restored it, Revoke showed the gate again; an outside edit of index.html made it ask again"
+      ]
+    },
+    {
+      "id": "missing-placeholder",
+      "requirement": "An unavailable module becomes a placeholder that keeps its state",
+      "status": "done",
+      "evidence": [
+        "bun test: 'a missing module becomes a placeholder and comes back unchanged', 'a placeholder resumes once its module arrives'",
+        "bun test page.test.tsx: 'a module this app does not have is held in place and comes back unchanged' (rendered)"
+      ]
+    },
+    {
+      "id": "held-revision",
+      "requirement": "Pages hold their displayed revision",
+      "status": "done",
+      "evidence": [
+        "page-view.tsx: the held revision, Show it for a newer one, Keep mine or Use the vault's on a save conflict",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): an outside write was offered ('A newer version…') and replaced the page only on Show it; a conflicting save said 'This page changed in the vault since you opened it.'; Keep mine wrote the page's version; Use the vault's showed the other and left nothing unsaved",
+        "Review (Greptile, PR #34) found three ways unsaved work was lost: leaving the page, a rename, a revision that does not parse; and a save cleared edits made while it ran. Fixed with drafts.ts (kept by page, with a leave prompt and the desktop quit check), store.ts usePage keeping its last read through a rename, and page-view.tsx keeping the editor over a bad revision and clearing only what a save wrote. bun test page-view.test.tsx (including a conflicting save and Keep mine), store.test.tsx and unsaved.test.ts each fail without the fix they cover"
+      ]
+    },
+    {
+      "id": "chat-modular",
+      "requirement": "Chat is modular without a second agent: the conversation binding picks which conversation, moving the composer keeps its draft, selection never auto-attaches",
+      "status": "done",
+      "evidence": [
+        "builtins.tsx theorem.conversation on the one runtime; one owner per page; keep or follow the open conversation",
+        "Selection reaches the composer only through a route to composer.attach or composer.ask",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): a second conversation instance said 'The conversation shows in another place on this page.'; a typed draft survived switching to Chat mode and back, arranging and Done; a full reload clears it (the draft is per session)",
+        "Not observed: sending (the stub answers 501), or a selection reaching the composer in a browser; the no-auto-attach rule rests on source and unit tests"
+      ]
+    },
+    {
+      "id": "browser-check",
+      "requirement": "The Pages mode opens, a page can be created, arranged, saved and reopened in a browser",
+      "status": "done",
+      "evidence": [
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs). Scripts drove: create a page, Arrange, drag Text and Value, bind, Save, Done, reopen from the Pages list; held revisions; a sandboxed module; Save as module; the conversation module; templates and modes as pages",
+        "Found and fixed: bindings not delivering after React's effect replay; Save as module losing the arrangement; New module opening in the running viewer; empty component groups shown; the first save of a mode's page ending Arrange (the mode went back to loading while it read the new file); a mode's file removed and written again showing what was read of the old one",
+        "Not exercised: Index view, Index inspector and Records table against real data"
+      ]
+    },
+    {
+      "id": "templates",
+      "requirement": "Shipped Index and coding layouts become templates; Index and IDE modes render from their page (owner: 'Start the template', 'Modes become pages too')",
+      "status": "done",
+      "evidence": [
+        "src/lib/modules/templates.ts: INDEX_TEMPLATE and CODING_TEMPLATE, rebuilt from modules; vault templates are Templates/<name>.page.json; MODE_PAGES maps index and ide to Modes/<mode>.page.json",
+        "builtins.tsx: Index view as the whole Index column ('Moves with' its own place or the Index panel), Index inspector events, IDE (Theia, Add to chat as the 'added' event), Agent terminal ('attach'); Theia and the conversation show in one place",
+        "layout-parts.tsx: page root fills the window with flush modules; Split with a fixed side and fold-when-empty",
+        "store.ts: useVaultTemplates, useCreatePage from a template, useSaveTemplate (a free name, expectedHash null), useModePage, useResetModePage; pages-panel.tsx Modes list and New page 'Start from'; save-as-template.tsx",
+        "mode-page.tsx: Index mode (desktop) and IDE mode render the mode's page with a held arrangement; the template while the vault is not open or the file does not parse, saying why",
+        "Tests: templates.test.ts; page.test.tsx (templates' connections valid, Split folds while only an empty inspector is in it); store.test.tsx (template then file then problem, create-only save, vault templates, a mode's page through its first save and a file coming and going); navigation.test.tsx",
+        "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Modes list, arrange and save Index mode, /index rendering the saved page with the inspector folded, Reset to the default, /ide rendering the Coding page, New page from Index and from Coding, Save as template offered by New page",
+        "Not exercised: Index modules against real data (the stub's Index has no items); Theia and the terminal (absent from the stub), so Add to chat reaching the terminal rests on source only",
+        "Limits: IDE mode's terminal width is the Split's saved size, not the right drawer's; Reset removes the file without a revision check",
+        "Review (Greptile, PR #34) found two views from one template both took Theia, since they share instance ids. builtins.tsx useOwner names an instance by its page view and path; bun test 'one surface shows in one view, whichever views share its instance id' fails without it"
+      ]
+    },
+    {
+      "id": "platinum",
+      "requirement": "Platinum shares the contracts",
+      "status": "not-started",
+      "evidence": ["Out of scope by the design"]
+    }
+  ]
+}

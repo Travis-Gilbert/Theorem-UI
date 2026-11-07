@@ -2,6 +2,8 @@
 // the edited mark and delivers host events.
 import { afterEach, describe, expect, test } from 'bun:test'
 import { useUnsavedFiles } from '@/lib/handlers/file-sync'
+import { newPage } from '@/lib/modules/layout'
+import { usePageDrafts } from '@/lib/modules/drafts'
 import { onLeavePage, useNoteStatus } from '@/lib/theorem/notes'
 import type { HostEvent } from './bindings/HostEvent'
 import type { DesktopHost } from './host'
@@ -26,6 +28,7 @@ describe('reportUnsaved', () => {
     stop()
     useNoteStatus.setState({ status: {} })
     useUnsavedFiles.setState({ unsaved: false })
+    usePageDrafts.setState({ drafts: {} })
   })
 
   test('marks the window while a note is not saved', () => {
@@ -47,6 +50,19 @@ describe('reportUnsaved', () => {
     expect(marks).toEqual([false, true, false])
   })
 
+  test('marks the window while a page has an unsaved arrangement, through a quit', () => {
+    const { host, marks, deliver } = standInHost()
+    stop = reportUnsaved(host)
+    const page = newPage('Desk')
+    const { keep } = usePageDrafts.getState()
+    keep('page:ws:vf_1', { held: { hash: null, page }, draft: page })
+    // A page is saved only by the person, so the mark stays and the host asks.
+    deliver({ type: 'leaving' })
+    expect(marks).toEqual([false, true])
+    keep('page:ws:vf_1', undefined)
+    expect(marks).toEqual([false, true, false])
+  })
+
   test('answers a quit with nothing to save at once', () => {
     const { host, marks, deliver } = standInHost()
     stop = reportUnsaved(host)
@@ -57,7 +73,9 @@ describe('reportUnsaved', () => {
   test('a quit collects text an open editor has not reported', () => {
     const { host, marks, deliver } = standInHost()
     stop = reportUnsaved(host)
-    const remove = onLeavePage(() => useNoteStatus.getState().set('a', 'pending'))
+    const remove = onLeavePage(() =>
+      useNoteStatus.getState().set('a', 'pending'),
+    )
     deliver({ type: 'leaving' })
     remove()
     expect(marks).toEqual([false, true])

@@ -6,18 +6,17 @@ import { bundleAppBridge } from './export'
 
 let bridgeScript: Promise<string> | undefined
 
+/**
+ * `net` replaces the document's own `theorem:uses` declarations: a page
+ * module reaches the hosts the person allowed it, whatever its page says.
+ */
 export async function hostedAppDocument(
   html: string,
   esbuild?: Pick<typeof Esbuild, 'build'>,
+  options: { net?: Array<string> } = {},
 ): Promise<string> {
   const page = new DOMParser().parseFromString(html, 'text/html')
-  const declarations = parseHtmlDeclarations(
-    [...page.querySelectorAll('meta[name="theorem:uses"]')].map(
-      (meta) => meta.getAttribute('content') ?? '',
-    ),
-  )
-  if (declarations.errors.length)
-    throw new Error(declarations.errors.join('; '))
+  const net = options.net ?? declaredNet(page)
   const policy = page.createElement('meta')
   policy.httpEquiv = 'Content-Security-Policy'
   policy.content = contentSecurityPolicy({
@@ -27,7 +26,7 @@ export async function hostedAppDocument(
     'img-src': 'data: blob:',
     'font-src': 'data:',
     'media-src': 'data: blob:',
-    'connect-src': connectSources(declarations.capabilities.net),
+    'connect-src': connectSources(net),
     'form-action': "'none'",
     'base-uri': "'none'",
   })
@@ -43,4 +42,15 @@ export async function hostedAppDocument(
   // exposes theorem.ready before the App's own scripts can execute.
   page.head.prepend(policy, bridge)
   return `<!doctype html>\n${page.documentElement.outerHTML}`
+}
+
+function declaredNet(page: Document): Array<string> {
+  const declarations = parseHtmlDeclarations(
+    [...page.querySelectorAll('meta[name="theorem:uses"]')].map(
+      (meta) => meta.getAttribute('content') ?? '',
+    ),
+  )
+  if (declarations.errors.length)
+    throw new Error(declarations.errors.join('; '))
+  return declarations.capabilities.net
 }
