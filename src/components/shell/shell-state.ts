@@ -31,7 +31,8 @@ type ShellState = {
   panelCollapsed: Readonly<Partial<Record<ShellMode, boolean>>>
   /**
    * Whether the navigator shows the files in full, over the mode's own list.
-   * The rail's Files control reveals them; nothing navigates away.
+   * The rail's Files control reveals them; nothing navigates away. Kept for
+   * the visit only, so a reload opens each mode on its own list.
    */
   filesShown: boolean
   /**
@@ -203,13 +204,13 @@ export const useShell = create<ShellState>()(
       // sits beside the dock, so older layouts are dropped rather than restored
       // with a panel the dock no longer has. Version 3 narrowed the panel's
       // range, so widths saved against the wider one start over at the default.
-      version: 3,
+      // Version 3 kept filesShown, which now lasts only for the visit.
+      version: 4,
       partialize: ({
         projectId,
         layouts,
         panelWidth,
         panelCollapsed,
-        filesShown,
         explorerOpen,
         terminalHeight,
         sideWidth,
@@ -221,7 +222,6 @@ export const useShell = create<ShellState>()(
         layouts,
         panelWidth,
         panelCollapsed,
-        filesShown,
         explorerOpen,
         terminalHeight,
         sideWidth,
@@ -231,7 +231,12 @@ export const useShell = create<ShellState>()(
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined
-        if (version === 2) return { ...state, panelWidth: PANEL_WIDTH.default }
+        if (version === 2 || version === 3) {
+          const { filesShown: _, ...kept } = state as ShellState
+          return version === 2
+            ? { ...kept, panelWidth: PANEL_WIDTH.default }
+            : kept
+        }
         return { projectId: state?.projectId, layouts: {} }
       },
     },
