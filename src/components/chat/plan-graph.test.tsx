@@ -142,7 +142,7 @@ test("a task selected on the drafted plan stays selected when Theorem's copy arr
   window.fetch = (async () => {
     await held
     return Response.json({ data: { plan: LIVE } })
-  }) as typeof fetch
+  }) as unknown as typeof fetch
   const client = queryClient()
   const Call = PlanToolCall
   await render(
@@ -160,7 +160,7 @@ test("a task selected on the drafted plan stays selected when Theorem's copy arr
 })
 
 test('a plan card polls Theorem only while it is in view', async () => {
-  window.fetch = (async () => Response.json({ data: { plan: LIVE } })) as typeof fetch
+  window.fetch = (async () => Response.json({ data: { plan: LIVE } })) as unknown as typeof fetch
   // happy-dom never reports an intersection; this observer reports what the test
   // says. Under happy-dom an element is not an instance of the global EventTarget,
   // so framer-motion never calls observe(); it keys entries by target only, so a
