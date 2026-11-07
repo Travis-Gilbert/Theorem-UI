@@ -5,6 +5,8 @@ import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { KitRefusal, setKitDriver } from './driver'
 import type { KitDriver } from './driver'
 import {
+  GAITS,
+  GESTURES,
   KIT_OPERATIONS,
   MAX_SAYING,
   applyKitRequest,
@@ -14,7 +16,7 @@ import {
   serveKitRequests,
 } from './operations'
 import type { KitRequest, Receipt } from './operations'
-import { changeStage, resetKitStage, useKitStage } from './stage'
+import { PERCHES, changeStage, resetKitStage, useKitStage } from './stage'
 import { resetKit } from './store'
 
 /** A client operation part on a live run's message, as the installed SDK maps it onto assistant-ui. */
@@ -92,6 +94,21 @@ describe('what a send declares', () => {
       expect(operation.description).toContain('pixel fox')
       expect(['read', 'presentation']).toContain(operation.effect)
     }
+  })
+
+  test("what the page accepts is what Theorem's contract declares", () => {
+    const schema = (name: string) =>
+      KIT_OPERATIONS.find((operation) => operation.name === name)!
+        .inputSchema as {
+        properties: Record<string, { enum?: string[]; maxLength?: number }>
+      }
+    const move = schema('kit.move').properties
+    expect(move.to!.enum).toEqual([...PERCHES])
+    expect(move.gait!.enum).toEqual([...GAITS])
+    expect(schema('kit.gesture').properties.gesture!.enum).toEqual([
+      ...GESTURES,
+    ])
+    expect(schema('kit.say').properties.text!.maxLength).toBe(MAX_SAYING)
   })
 })
 

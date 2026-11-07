@@ -1,7 +1,10 @@
-// SOURCING: Theorem's client operations (theorem-surface-contracts client_operation: a page declares operations in `clientOperations` beside `clientSurface` on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, and the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); assistant-ui ThreadMessage content as the SDK adapter maps that part (`theorem-client_operation` data)
+// SOURCING: Theorem's Kit contract (theorem-surface-contracts kit: the declarations in contract/operations.json and the ts-rs types beside it, copied from rustyredcore_THG/bindings/theorem-surface-contracts/kit); Theorem's client operations (theorem-surface-contracts client_operation: a page declares operations in `clientOperations` beside `clientSurface` on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, and the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); assistant-ui ThreadMessage content as the SDK adapter maps that part (`theorem-client_operation` data)
 import type { ThreadMessage } from '@assistant-ui/react'
+import type { Theorem } from '@theoremharness/sdk'
 import { useEffect } from 'react'
 import { mutate, theorem } from '@/lib/theorem/client'
+import type { KitGesture } from './contract/KitGesture'
+import operations from './contract/operations.json'
 import { KitRefusal, kitDriver } from './driver'
 import { KIT_SHEET, tagLength } from './sheet'
 import type { KitTag } from './sheet'
@@ -30,70 +33,21 @@ export const GESTURES = [
   'point',
   'peek',
   'sit',
-] as const satisfies readonly KitTag[]
-export type Gesture = (typeof GESTURES)[number]
+] as const satisfies readonly (KitGesture & KitTag)[]
+export type Gesture = KitGesture
 
-const GAITS = ['walk', 'run', 'jump'] as const satisfies readonly Gait[]
+export const GAITS = ['walk', 'run', 'jump'] as const satisfies readonly Gait[]
 
 /** Longest line Kit says, and how long a loop gesture holds. */
 export const MAX_SAYING = 120
 const LOOP_GESTURE_MS = 2400
 
-const WHO =
-  "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you."
-
-/** The operations a turn declares, as Theorem's `ClientOperationDeclaration`. */
-export const KIT_OPERATIONS = [
-  {
-    name: 'kit.move',
-    description: `${WHO} Moves Kit. It can stand on the composer (the box the person types messages in; Kit stands on its top edge), in the rail (its home, a slot at the foot of the left rail), or on the floor (the bottom edge of the window). \`at\` is where along it, from 0 at the left end to 1 at the right. Along the place it already stands Kit walks or runs; to another place it jumps. The person can pick Kit up and drop it anywhere too, so read where it is from the receipt.`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        to: { type: 'string', enum: [...PERCHES] },
-        at: { type: 'number', minimum: 0, maximum: 1 },
-        gait: { type: 'string', enum: [...GAITS] },
-      },
-      required: ['to'],
-      additionalProperties: false,
-    },
-    effect: 'presentation',
-  },
-  {
-    name: 'kit.gesture',
-    description: `${WHO} Kit makes one gesture and then goes back to showing what your run is doing (working, waiting on the person, done), which you do not set. Use it when a moment means something: a wave hello, a celebration when something worked, a shrug when you don't know.`,
-    inputSchema: {
-      type: 'object',
-      properties: { gesture: { type: 'string', enum: [...GESTURES] } },
-      required: ['gesture'],
-      additionalProperties: false,
-    },
-    effect: 'presentation',
-  },
-  {
-    name: 'kit.say',
-    description: `${WHO} Kit says a short line in a speech bubble for a few seconds. It is an aside, not your answer: anything the person needs to read still goes in your reply.`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        text: { type: 'string', minLength: 1, maxLength: MAX_SAYING },
-      },
-      required: ['text'],
-      additionalProperties: false,
-    },
-    effect: 'presentation',
-  },
-  {
-    name: 'kit.look',
-    description: `${WHO} Says where Kit is now, what it is doing, and which places it can go.`,
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      additionalProperties: false,
-    },
-    effect: 'read',
-  },
-] as const
+/**
+ * The operations a turn declares, as Theorem's `kit_operations()` writes them:
+ * what Kit is, what each does, and the schema of its arguments.
+ */
+export const KIT_OPERATIONS =
+  operations as readonly Theorem.ClientOperationDeclaration[]
 
 /**
  * What a send carries so the turn can reach Kit: the operations and the

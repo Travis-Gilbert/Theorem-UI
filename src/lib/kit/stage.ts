@@ -1,5 +1,8 @@
 // SOURCING: zustand, as lib/kit/store; perches are DOM elements the shell marks with data-kit-perch, measured with getBoundingClientRect; the sheet's `feet` slice (row 27 of 32) is where Kit stands. Hand-rolled: where a figure stands on an element's edge and which edge catches it when it falls is this app's own geometry, which no library models.
 import { create } from 'zustand'
+import type { KitGait } from './contract/KitGait'
+import type { KitPerch } from './contract/KitPerch'
+import type { KitScene } from './contract/KitScene'
 import type { Act } from './director'
 import type { KitTag } from './sheet'
 
@@ -8,11 +11,15 @@ import type { KitTag } from './sheet'
  * `data-kit-perch`: the composer's box (Kit stands on its top edge), the
  * rail's slot at its foot, and the floor of the window, which is always there.
  */
-export const PERCHES = ['composer', 'rail', 'floor'] as const
-export type PerchName = (typeof PERCHES)[number]
+export const PERCHES = [
+  'composer',
+  'rail',
+  'floor',
+] as const satisfies readonly KitPerch[]
+export type PerchName = KitPerch
 
 /** How Kit moves when it goes somewhere. */
-export type Gait = 'walk' | 'run' | 'jump'
+export type Gait = KitGait
 
 /** What Kit's body is doing apart from its pose: moving, held, or landing. */
 export type Motion =
@@ -211,16 +218,8 @@ export function landingLine(
 
 export const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 
-/** What the agent and the person read about where Kit is and what it does. */
-export interface Scene {
-  readonly perch: PerchName
-  readonly at: number
-  readonly facing: 'left' | 'right'
-  readonly doing: string
-  readonly saying?: string
-  readonly perches: readonly PerchName[]
-  readonly revision: number
-}
+/** What the agent and the person read about where Kit is and what it does: Theorem's `KitScene`. */
+export type Scene = KitScene
 
 export function sceneOf(
   state: StageState,

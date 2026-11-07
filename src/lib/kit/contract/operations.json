@@ -1,0 +1,96 @@
+[
+  {
+    "name": "kit.move",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Moves Kit. It can stand on the composer (the box the person types messages in; Kit stands on its top edge), in the rail (its home, a slot at the foot of the left rail), or on the floor (the bottom edge of the window). `at` is where along it, from 0 at the left end to 1 at the right. Along the place it already stands Kit walks or runs; to another place it jumps. The person can pick Kit up and drop it anywhere too, so read where it is from the receipt.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "gait": {
+          "enum": [
+            "walk",
+            "run",
+            "jump"
+          ],
+          "type": "string"
+        },
+        "to": {
+          "enum": [
+            "composer",
+            "rail",
+            "floor"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.gesture",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Kit makes one gesture and then goes back to showing what your run is doing (working, waiting on the person, done), which you do not set. Use it when a moment means something: a wave hello, a celebration when something worked, a shrug when you don't know.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "gesture": {
+          "enum": [
+            "wave",
+            "nod",
+            "celebrate",
+            "pounce",
+            "stretch",
+            "shrug",
+            "tilt",
+            "think",
+            "point",
+            "peek",
+            "sit"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "gesture"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.say",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Kit says a short line in a speech bubble for a few seconds. It is an aside, not your answer: anything the person needs to read still goes in your reply.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.look",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Says where Kit is now, what it is doing, and which places it can go.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "effect": "read"
+  }
+]
