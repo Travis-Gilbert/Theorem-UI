@@ -855,26 +855,36 @@ export async function insertNode(
   if ('refused' in judged) return { refused: judged.refused.message }
   const doc = useProgramDoc.getState()
   if (!doc.program) return {}
+  // Another insertion may have taken this id while the wires were judged; the block
+  // then takes the next free one, and its wires follow it.
+  const placed = doc.program.nodes.some((other) => other.id === node.id)
+    ? nodeFromEntry(doc.program, entry)
+    : node
+  const wires = judged.edges.map((edge) => ({
+    ...edge,
+    from_node: edge.from_node === node.id ? placed.id : edge.from_node,
+    to_node: edge.to_node === node.id ? placed.id : edge.to_node,
+  }))
   useProgramDoc.setState({
     program: {
       ...doc.program,
-      nodes: [...doc.program.nodes, node],
+      nodes: [...doc.program.nodes, placed],
       edges: [
         ...doc.program.edges.filter(
           (edge) =>
             edge.id !== connect.replacing &&
-            !judged.edges.some(
+            !wires.some(
               (next) =>
                 next.to_node === edge.to_node && next.to_port === edge.to_port,
             ),
         ),
-        ...judged.edges,
+        ...wires,
       ],
     },
     verdicts: { ...doc.verdicts, ...judged.verdicts },
-    positions: { ...doc.positions, [node.id]: at },
-    selected: node.id,
-    selection: [node.id],
+    positions: { ...doc.positions, [placed.id]: at },
+    selected: placed.id,
+    selection: [placed.id],
     revision: doc.revision + 1,
     definitionRevision: doc.definitionRevision + 1,
   })

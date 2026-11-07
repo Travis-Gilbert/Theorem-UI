@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import type { ProgramDefinition } from './contracts'
-import { sameDocument, useProgramDoc } from './store'
+import type { CatalogEntry, ProgramDefinition } from './contracts'
+import { insertNode, sameDocument, useProgramDoc } from './store'
 
 const port = (id: string) => ({ id, shape_id: 'theorem.monitor.snapshot.v1' })
 const program = {
@@ -22,17 +22,15 @@ const program = {
 } as unknown as ProgramDefinition
 
 const open = (nodeId: string) =>
-  useProgramDoc
-    .getState()
-    .open(
-      {
-        node_id: nodeId,
-        content_id: `${nodeId}-content`,
-        program,
-        layout: null,
-      },
-      {},
-    )
+  useProgramDoc.getState().open(
+    {
+      node_id: nodeId,
+      content_id: `${nodeId}-content`,
+      program,
+      layout: null,
+    },
+    {},
+  )
 
 const compatible = { status: 'compatible' } as never
 
@@ -41,31 +39,27 @@ describe('program document', () => {
 
   it('moves a wire onto an input by replacing the wire already there', () => {
     open('graph-a')
-    useProgramDoc
-      .getState()
-      .addEdge(
-        {
-          id: 'b-free',
-          from_node: 'b',
-          from_port: 'out',
-          to_node: 'b',
-          to_port: 'x',
-        },
-        compatible,
-      )
-    useProgramDoc
-      .getState()
-      .reconnectEdge(
-        'b-free',
-        {
-          id: 'b-sink',
-          from_node: 'b',
-          from_port: 'out',
-          to_node: 'sink',
-          to_port: 'in',
-        },
-        compatible,
-      )
+    useProgramDoc.getState().addEdge(
+      {
+        id: 'b-free',
+        from_node: 'b',
+        from_port: 'out',
+        to_node: 'b',
+        to_port: 'x',
+      },
+      compatible,
+    )
+    useProgramDoc.getState().reconnectEdge(
+      'b-free',
+      {
+        id: 'b-sink',
+        from_node: 'b',
+        from_port: 'out',
+        to_node: 'sink',
+        to_port: 'in',
+      },
+      compatible,
+    )
     const into = useProgramDoc
       .getState()
       .program!.edges.filter(
@@ -82,5 +76,25 @@ describe('program document', () => {
     open('graph-b')
     expect(stillA()).toBe(false)
     expect(sameDocument()()).toBe(true)
+  })
+
+  it('gives two blocks inserted at once ids of their own', async () => {
+    open('graph-a')
+    const entry = {
+      id: 'theorem.rule.filter',
+      class_name: 'Filter',
+      group: 'rules',
+      node_kind: 'rule',
+      input_ports: [],
+      output_ports: [],
+    } as unknown as CatalogEntry
+    await Promise.all([
+      insertNode(entry, { x: 0, y: 0 }),
+      insertNode(entry, { x: 40, y: 0 }),
+    ])
+    const ids = useProgramDoc.getState().program!.nodes.map((node) => node.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids).toContain('filter')
+    expect(ids).toContain('filter-2')
   })
 })

@@ -1,10 +1,12 @@
-// SOURCING: @tanstack/react-query (load, save), coss ui Sidebar and Tabs (the side panel), the
+// SOURCING: @tanstack/react-query (load; saves as one scoped mutation queue), coss ui Sidebar and Tabs (the side panel), the
 // program canvas (React Flow). A standing program lives in Theorem; this surface
 // opens one, saves edits back as drafts, and shows what its runs report.
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { useDebouncedValue } from '@tanstack/react-pacer'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ProgramDefinition } from '@/lib/program/contracts'
+import type { ProgramLayout } from '@/lib/program/api'
 import { lintProgram } from '@/lib/program/compute'
 import type { LintDiagnostic, LintSeverity } from '@/lib/program/compute'
 import type { ProgramNodeData } from '@/lib/program/flow'
@@ -36,38 +38,55 @@ import { ProgramCanvas } from './program-canvas'
 import { RunRail } from './run-rail'
 import { ToolError } from './section'
 
+/** What one save writes, taken when it is asked for. */
+type SaveSnapshot = {
+  program: ProgramDefinition
+  layout: ProgramLayout
+  nodeId: string | undefined
+  definition: number
+  still: () => boolean
+}
+
 /**
- * Edits save as they settle; a save that lost the race saves again on the next tick.
- * `flush` saves at once whatever is still waiting, for the moment the graph closes.
+ * Edits save as they settle. Saves share one mutation scope, so they reach Theorem one
+ * after another in the order they were asked for: the last edit is the last written,
+ * and an older answer never lands after a newer one. `flush` saves at once whatever is
+ * still waiting, for the moment the graph closes.
  */
 function useAutosave() {
   const client = useQueryClient()
   const revision = useProgramDoc((doc) => doc.revision)
-  const [error, setError] = useState<string>()
   const waiting = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const { mutate, error, reset } = useMutation({
+    scope: { id: 'program-save' },
+    mutationFn: (snapshot: SaveSnapshot) =>
+      saveProgram(
+        snapshot.program,
+        snapshot.layout,
+        // An earlier save in the queue may have given the open graph its id.
+        snapshot.still() ? useProgramDoc.getState().nodeId : snapshot.nodeId,
+      ),
+    onSuccess: (saved, snapshot) => {
+      void client.invalidateQueries({ queryKey: programKeys.list() })
+      // A graph closed or replaced since keeps its own identity.
+      if (!snapshot.still()) return
+      useProgramDoc
+        .getState()
+        .saved(saved.node_id, saved.content_id, snapshot.definition)
+    },
+  })
   const save = useCallback(() => {
     const doc = useProgramDoc.getState()
     if (!doc.program) return
-    const still = sameDocument()
-    const definition = doc.definitionRevision
-    saveProgram(
-      doc.program,
-      { ...doc.layout, nodes: doc.positions },
-      doc.nodeId,
-    )
-      .then((saved) => {
-        void client.invalidateQueries({ queryKey: programKeys.list() })
-        // A graph closed or replaced since keeps its own identity.
-        if (!still()) return
-        useProgramDoc
-          .getState()
-          .saved(saved.node_id, saved.content_id, definition)
-        setError(undefined)
-      })
-      .catch((failure: unknown) => {
-        if (still()) setError(describeError(failure))
-      })
-  }, [client])
+    reset()
+    mutate({
+      program: doc.program,
+      layout: { ...doc.layout, nodes: doc.positions },
+      nodeId: doc.nodeId,
+      definition: doc.definitionRevision,
+      still: sameDocument(),
+    })
+  }, [mutate, reset])
   useEffect(() => {
     if (revision === 0) return
     waiting.current = setTimeout(() => {
@@ -82,7 +101,7 @@ function useAutosave() {
     waiting.current = undefined
     save()
   }, [save])
-  return { error, flush }
+  return { error: error ? describeError(error) : undefined, flush }
 }
 
 const SEVERITY_ORDER: Array<LintSeverity> = ['error', 'warning', 'info']
