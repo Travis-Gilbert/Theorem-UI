@@ -21,6 +21,7 @@ import {
   useInstalledModules,
   useModePage,
   usePage,
+  usePages,
   useResetModePage,
   useSavePage,
   useVaultTemplates,
@@ -177,6 +178,41 @@ test('an open page stays on hand through a rename and a revision that does not p
   })
   expect(seen.at(-1)!.data!.page.title).toBe('Desk')
   expect(seen.slice(ready).map((s) => s.data)).not.toContain(undefined)
+})
+
+// Review found that a rename left what was read at each path in place, so a
+// file renamed onto a path read before showed the old file's page there.
+test('pages that swap paths each read as the file now at their path', async () => {
+  const fake = fakeWorkspace({
+    'Pages/Desk.page.json': pageText(newPage('Desk')),
+    'Pages/Study.page.json': pageText(newPage('Study')),
+  })
+  let titles: Record<string, string | undefined> = {}
+  function Probe({ client }: { client: WorkspaceClient }) {
+    const { pages } = usePages(client)
+    titles = Object.fromEntries(
+      pages.map(({ entry, page }) => [entry.path, page?.title]),
+    )
+    return null
+  }
+  await render(<Probe client={fake.client} />)
+  await waitFor(() => titles['Pages/Study.page.json'] === 'Study')
+  expect(titles['Pages/Desk.page.json']).toBe('Desk')
+
+  await act(async () => {
+    await fake.client.rename('Pages/Desk.page.json', 'Pages/Swap.page.json')
+    await fake.client.rename('Pages/Study.page.json', 'Pages/Desk.page.json')
+    await fake.client.rename('Pages/Swap.page.json', 'Pages/Study.page.json')
+  })
+  await waitFor(
+    () =>
+      titles['Pages/Desk.page.json'] === 'Study' &&
+      titles['Pages/Study.page.json'] === 'Desk',
+  )
+  expect(Object.keys(titles).sort()).toEqual([
+    'Pages/Desk.page.json',
+    'Pages/Study.page.json',
+  ])
 })
 
 test('a save from no file only creates one; a save without a hash overwrites', async () => {

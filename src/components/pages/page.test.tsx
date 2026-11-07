@@ -4,8 +4,8 @@
 // Theorem; fetch is not stubbed because nothing here calls it.
 import { Render } from '@puckeditor/core'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { afterEach, expect, test } from 'bun:test'
-import { Activity, act, useState } from 'react'
+import { afterEach, expect, spyOn, test } from 'bun:test'
+import { Activity, act, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
 import { validateConnections } from '@/lib/modules/connections'
 import type { ComponentData, LayoutData } from '@/lib/modules/contract'
@@ -25,6 +25,7 @@ import type { ModuleDefinition, ModuleViewProps } from '@/lib/modules/registry'
 import { MAX_EVENT_DEPTH } from '@/lib/modules/runtime'
 import { BUILTIN_TEMPLATES } from '@/lib/modules/templates'
 import { create } from 'zustand'
+import { observer } from '@/components/index/observe'
 import { useOwner } from './builtins'
 import type { OwnerStore } from './builtins'
 import { ContentRendererContext } from './module-instance'
@@ -284,6 +285,58 @@ test("a saved module answers an outside route with its part's action, and holds 
   }
 })
 
+// Review found that a saved module drew its parts as a page of its own with
+// no settings, so on a flush page its parts came back in cards.
+test("a saved module's parts are presented as the page around it is", async () => {
+  const box: ModuleDefinition = {
+    ...builtin({ id: 'acme.box', label: 'Box', Component: () => null }),
+    origin: 'vault',
+    category: 'Composite',
+    implementation: {
+      kind: 'composite',
+      content: [instance('theorem.text', 'part', { title: 'Part' })],
+      exposes: { outputs: {}, events: {}, actions: {} },
+    },
+  }
+  setInstalled([box])
+  try {
+    const frame = async (frames: string) => {
+      const { container } = await render(
+        withComposites({
+          root: { props: { frames } },
+          content: [instance('acme.box', 'box')],
+        }),
+      )
+      return waitFor(() =>
+        container.querySelector<HTMLElement>('section[aria-label="Part"]'),
+      )
+    }
+    expect((await frame('flush')).className).not.toContain('rounded-xl')
+    cleanup()
+    expect((await frame('cards')).className).toContain('rounded-xl')
+    cleanup()
+
+    // Review found that on a page that fills the window the content's root
+    // took its height from a wrapper that had none, so a saved split
+    // collapsed to its contents.
+    const { container } = await render(
+      withComposites({
+        root: { props: { fill: true } },
+        content: [instance('acme.box', 'box')],
+      }),
+    )
+    const wrapper = await waitFor(() =>
+      container.querySelector<HTMLElement>('[data-composite="acme.box"]'),
+    )
+    expect(wrapper.className).toContain('h-full')
+    expect((wrapper.firstElementChild as HTMLElement).className).toContain(
+      'h-full',
+    )
+  } finally {
+    setInstalled([])
+  }
+})
+
 // Review found that a sandboxed module's declared actions never reached it:
 // its frame registers them by name, from its manifest, through this hook.
 test('a module whose actions come from its manifest answers a route to each', async () => {
@@ -454,6 +507,139 @@ test('a folding split shows its second side while anything in it has something t
   const { sash, second } = sides(container)
   expect(second.hidden).toBe(false)
   expect(sash.hidden).toBe(false)
+})
+
+// Review found that only what a nested split held in its first side counted
+// towards the side around it, so the outer split folded away a value shown
+// in the nested split's second side.
+test('a folding split counts what a split nested in its second side shows', async () => {
+  const nested = (second: ComponentData[]) =>
+    foldingSplit([
+      instance(SPLIT_TYPE, 'nested', {
+        direction: 'column',
+        ratio: 50,
+        fixed: 'none',
+        size: 300,
+        fold: false,
+        height: 300,
+        first: [instance('theorem.index.inspector', 'inspector')],
+        second,
+      }),
+    ])
+  const shown = await renderPage(
+    nested([
+      instance('theorem.value', 'shown', {
+        bind: { value: { from: 'note', port: 'text' } },
+      }),
+    ]),
+  )
+  await waitFor(() => shownValues(shown.container).includes('"kept"'))
+  expect(sides(shown.container).second.hidden).toBe(false)
+  cleanup()
+
+  const empty = await renderPage(nested([]))
+  await waitFor(() =>
+    empty.container.textContent.includes('Nothing to show yet'),
+  )
+  expect(sides(empty.container).second.hidden).toBe(true)
+})
+
+function Offers({ output }: ModuleViewProps) {
+  useEffect(
+    () =>
+      output('item', {
+        id: 'd1',
+        kind: 'document',
+        scope: { kind: 'collection', collectionId: 'c1' },
+      }),
+    [output],
+  )
+  return null
+}
+
+// Review found that an inspector took the scope of the place the page
+// provides, or Home, never that of the Index view beside it the item came
+// from, so what was done with the item counted in the wrong scope.
+test('an inspector acts in the scope its item was opened in', async () => {
+  const remove = registerBuiltin(
+    builtin({
+      id: 'test.offers',
+      label: 'Offers',
+      outputs: [{ name: 'item', label: 'Item', type: 'item' }],
+      Component: Offers,
+    }),
+  )
+  const recorded: Parameters<ReturnType<typeof observer>['record']>[0][] = []
+  const record = spyOn(observer(), 'record').mockImplementation((event) => {
+    recorded.push(event)
+  })
+  const fetched = spyOn(globalThis, 'fetch').mockImplementation((async (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ) => {
+    const request = input instanceof Request ? input : undefined
+    const url = request ? request.url : String(input)
+    const method = request ? request.method : init?.method
+    const path = new URL(url, 'http://localhost').pathname
+    const json = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        headers: { 'content-type': 'application/json' },
+      })
+    if (path.endsWith('/filings'))
+      return json(
+        method === 'POST'
+          ? { receiptId: 'r1', documentId: 'd1', destinationCollectionId: 'c1' }
+          : { receipts: [] },
+      )
+    if (path.endsWith('/collections')) return json({ collections: [] })
+    if (path.endsWith('/bootstrap'))
+      return json({ csrfToken: 'csrf', tenantId: 't' })
+    if (path.endsWith('/documents/d1'))
+      return json({
+        summary: {
+          title: 'Lease',
+          documentKind: 'authored',
+          readOnly: false,
+          revision: { position: 1, contentDigest: 'sha256:1' },
+        },
+      })
+    return json({})
+  }) as typeof fetch)
+  // The Index routes resolve against the page's origin, which a bare
+  // happy-dom page does not have.
+  const dom = (
+    window as unknown as { happyDOM: { setURL: (url: string) => void } }
+  ).happyDOM
+  dom.setURL('http://localhost:3000/pages')
+  try {
+    const { container } = await render(
+      withComposites({
+        root: { props: {} },
+        content: [
+          instance('test.offers', 'offers'),
+          instance('theorem.index.inspector', 'inspector', {
+            bind: { item: { from: 'offers', port: 'item' } },
+          }),
+        ],
+      }),
+    )
+    const file = await waitFor(() =>
+      [...container.querySelectorAll('button')].find(
+        (b) => b.textContent.trim() === 'File it',
+      ),
+    )
+    act(() => file.click())
+    await waitFor(() => recorded.some((e) => e.kind === 'item_filed'))
+    expect(recorded.find((e) => e.kind === 'item_filed')!.scope).toEqual({
+      kind: 'collection',
+      collectionId: 'c1',
+    })
+  } finally {
+    dom.setURL('about:blank')
+    record.mockRestore()
+    fetched.mockRestore()
+    remove()
+  }
 })
 
 function Claims({ store }: { store: OwnerStore }) {
