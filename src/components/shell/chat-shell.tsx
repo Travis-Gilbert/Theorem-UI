@@ -27,7 +27,9 @@ import {
   useEffect,
   useState,
 } from 'react'
+import { ComparePane } from '@/components/review/compare-pane'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { useReviewDock } from '@/lib/theorem/reviews'
 import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
@@ -73,6 +75,7 @@ function PhoneShell() {
   const close = useArtifactView((s) => s.close)
   const noteId = useNoteView((s) => s.openId)
   const closeNote = useNoteView((s) => s.close)
+  const reviewId = useReviewDock((s) => s.phoneReviewId)
 
   // A different conversation starts with the artifact closed.
   const threadId = useAuiState((s) => s.threadListItem.id)
@@ -131,6 +134,14 @@ function PhoneShell() {
         <NotePanel
           documentId={noteId}
           onClose={closeNote}
+          className="fixed inset-0 z-40"
+        />
+      )}
+
+      {reviewId && (
+        <ComparePane
+          reviewId={reviewId}
+          onClose={() => useReviewDock.setState({ phoneReviewId: undefined })}
           className="fixed inset-0 z-40"
         />
       )}
@@ -305,7 +316,7 @@ export function ShellStatus({
 }) {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-2 bg-background px-6 text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
+      <p className="text-[20px] font-medium">
         {title}
       </p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}

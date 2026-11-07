@@ -30,6 +30,8 @@ import {
 import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
+import { HighlightsView } from '@/components/organize/highlights-view'
+import { ThreadHeader, useThreadView } from '@/components/organize/thread-header'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
 import {
@@ -62,7 +64,9 @@ import { flyGhost, popIn } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 import { DelegationPanel } from '@/components/chat/delegation-panel'
+import { ComparePane } from '@/components/review/compare-pane'
 import { useDelegationDock, useThreadDelegation } from '@/lib/theorem/delegations'
+import { useReview, useReviewDock } from '@/lib/theorem/reviews'
 
 const ARTIFACT = 'artifact:'
 const NOTE = 'note-panel:'
@@ -77,6 +81,9 @@ const DELEGATION = 'delegation:'
 const delegationPanelId = (delegationId: string) =>
   `${DELEGATION}${delegationId}`
 const isDelegationPanel = (panelId: string) => panelId.startsWith(DELEGATION)
+const REVIEW = 'review:'
+const reviewPanelId = (reviewId: string) => `${REVIEW}${reviewId}`
+const isReviewPanel = (panelId: string) => panelId.startsWith(REVIEW)
 
 /** Panels that open beside the conversation and share its side group. */
 const isSidePanel = (panelId: string) =>
@@ -98,21 +105,45 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
 }
 
 /** The main panel: the conversation, or the mode's view in the Index and Spaces. Theia covers the dock in IDE mode. */
-function ThreadPanel({ api }: IDockviewPanelProps) {
+function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
     () =>
       api.setTitle(
-        mode === 'spaces' || mode === 'index'
+        mode === 'spaces' || mode === 'canvas' || mode === 'index'
           ? modeLabel(mode)
           : title || 'New chat',
       ),
     [api, mode, title],
   )
+  // Chat's breadcrumb and views stand in for the tab while the conversation is
+  // alone in its group; a tab dropped beside it brings the tab bar back.
+  const inChat = mode === 'chat'
+  const alone = useSyncExternalStore(
+    subscribe(api.group.api.onDidActivePanelChange),
+    () => api.group.panels.length === 1,
+  )
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- dockview's header takes this as a setter, and has no method for it.
+    api.group.header.hidden = inChat && alone
+  }, [api, inChat, alone])
+  const view = useThreadView((s) => s.view)
   return (
-    <div className="h-full">
-      <ModeView docked />
+    <div className="flex h-full flex-col">
+      {inChat && (
+        <ThreadHeader
+          actions={
+            alone ? <GroupActions group={api.group} containerApi={containerApi} /> : undefined
+          }
+        />
+      )}
+      <div className="relative min-h-0 flex-1">
+        <div hidden={inChat && view === 'highlights'} className="h-full">
+          <ModeView docked />
+        </div>
+        {inChat && view === 'highlights' && <HighlightsView />}
+      </div>
     </div>
   )
 }
@@ -191,6 +222,48 @@ function DelegationDockPanel({
   return <DelegationPanel delegationId={params.delegationId} />
 }
 
+/** Compare draws its own header, with a way out of the window and back. */
+function ReviewDockPanel({
+  api,
+  containerApi,
+  params,
+}: IDockviewPanelProps<{ reviewId: string }>) {
+  const { reviewId } = params
+  const count = useReview(reviewId).data?.options.length
+  useEffect(() => {
+    if (count) api.setTitle(`Compare ${count}`)
+  }, [api, count])
+  const location = useSyncExternalStore(
+    subscribe(api.onDidLocationChange),
+    () => api.location.type,
+  )
+  const close = () => {
+    const panel = containerApi.getPanel(api.id)
+    if (panel) containerApi.removePanel(panel)
+  }
+  const detach = async () => {
+    const panel = containerApi.getPanel(api.id)
+    if (!panel) return
+    if (location !== 'grid') {
+      const thread = containerApi.getPanel(THREAD)
+      if (thread) panel.api.moveTo({ group: thread.group, position: 'right' })
+      return
+    }
+    // A blocked popup still lets the pane float clear of the conversation.
+    const opened = await containerApi.addPopoutGroup(panel.group)
+    if (!opened)
+      containerApi.addFloatingGroup(panel, { width: 520, height: 720 })
+  }
+  return (
+    <ComparePane
+      reviewId={reviewId}
+      onClose={close}
+      onDetach={() => void detach()}
+      detached={location !== 'grid'}
+    />
+  )
+}
+
 const GraphPanel = lazy(() =>
   import('@/components/inspector/graph-panel').then((module) => ({
     default: module.GraphPanel,
@@ -221,6 +294,7 @@ const components = {
   [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
   file: FileDockPanel,
   delegation: DelegationDockPanel,
+  review: ReviewDockPanel,
 }
 
 const tabComponents = {
@@ -241,7 +315,7 @@ function FollowToggle() {
       onClick={following ? pause : resume}
       className={cn('size-7 p-1.5', !following && 'text-ink-faint')}
     >
-      <Icon.Eye className="size-4" />
+      <Icon.Follow className="size-4" />
     </TooltipIconButton>
   )
 }
@@ -272,7 +346,10 @@ function useShownInspector(api: DockviewApi) {
  * The conversation's panels menu: the arrangements, the inspector beside the
  * files, and the terminal drawers. New chat lives in the sidebar.
  */
-function GroupActions({ group, containerApi }: IDockviewHeaderActionsProps) {
+function GroupActions({
+  group,
+  containerApi,
+}: Pick<IDockviewHeaderActionsProps, 'group' | 'containerApi'>) {
   const holds = useSyncExternalStore(
     subscribe(containerApi.onDidMaximizedGroupChange),
     () => holdsPanelsMenu(group),
@@ -442,6 +519,41 @@ function openDelegation(api: DockviewApi, delegationId: string) {
     title: 'Delegation',
   })
 }
+/**
+ * Compare opens in a column of its own, with its own header in place of the
+ * tab, and a quiet open leaves the keyboard in the conversation.
+ */
+function openReviewPanel(
+  api: DockviewApi,
+  reviewId: string,
+  quiet: boolean | undefined,
+) {
+  const id = reviewPanelId(reviewId)
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  openBeside(
+    api,
+    {
+      id,
+      component: 'review',
+      params: { reviewId },
+      title: 'Compare',
+      minimumWidth: 340,
+    },
+    THREAD,
+    0.4,
+  )
+  const panel = api.getPanel(id)
+  if (panel && panel.group.panels.length === 1) panel.group.header.hidden = true
+  if (quiet) api.getPanel(THREAD)?.api.setActive()
+  // Dockview can keep an always-rendered panel at its old width when a column
+  // opens mid-frame, until the next layout. Lay out once the frame has settled.
+  requestAnimationFrame(() => api.layout(api.width, api.height, true))
+}
+
 /** Files belong to the project, so they stay open across conversations. */
 function openFile(api: DockviewApi, projectId: string, path: string) {
   openSide(api, {
@@ -578,6 +690,10 @@ export function DockShell({
     useDelegationDock.setState({
       open: (delegationId) => openDelegation(dock, delegationId),
     })
+    useReviewDock.setState({
+      open: (reviewId, options) =>
+        openReviewPanel(dock, reviewId, options?.quiet),
+    })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -598,6 +714,7 @@ export function DockShell({
       useWorkspaceFileView.setState({ dock: undefined })
       useFileDock.setState({ open: undefined })
       useDelegationDock.setState({ open: undefined })
+      useReviewDock.setState({ open: undefined })
     }
   }, [dock, projectId])
 
@@ -609,7 +726,11 @@ export function DockShell({
     layoutThread.current = threadId
     if (previous !== undefined) {
       for (const panel of dock.panels)
-        if (artifactIdOf(panel.id) || isDelegationPanel(panel.id))
+        if (
+          artifactIdOf(panel.id) ||
+          isDelegationPanel(panel.id) ||
+          isReviewPanel(panel.id)
+        )
           dock.removePanel(panel)
       useArtifactView.getState().reset()
     }

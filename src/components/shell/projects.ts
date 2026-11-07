@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { bootstrap, isSignedOut, mutate, theorem } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
+import { inboxOf } from '@/lib/theorem/organization'
 import { useShell } from './shell-state'
 
 const PROJECTS = ['theorem', 'projects'] as const
@@ -26,12 +27,16 @@ export function useProjects() {
   })
 }
 
-/** The remembered project, or the first one when the remembered id is gone. */
+/**
+ * The remembered project, or the inbox: a chat nobody placed starts unsorted, so
+ * the Librarian can file it. A project it starts in counts as chosen.
+ */
 export function useActiveProject() {
   const query = useProjects()
   const projectId = useShell((s) => s.projectId)
   const projects = query.data ?? []
-  const project = projects.find((p) => p.projectId === projectId) ?? projects[0]
+  const project =
+    projects.find((p) => p.projectId === projectId) ?? inboxOf(projects)
   return { ...query, projects, project }
 }
 

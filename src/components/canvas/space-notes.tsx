@@ -3,7 +3,11 @@ import { useMemo } from 'react'
 import { Icon } from '@/components/icons'
 import { useNoteView } from '@/components/notes/note-view'
 import { useNote } from '@/lib/theorem/notes'
-import { isNotePlacement, useSpace } from '@/lib/theorem/spaces'
+import {
+  isNotePlacement,
+  projectSeed,
+  useSpaceRecord,
+} from '@/lib/theorem/spaces'
 import type { NotePlacement } from '@/lib/theorem/spaces'
 import { useCanvasView } from './canvas-view'
 
@@ -49,7 +53,11 @@ export function SpaceNotes({
   projectId: string
   title: string
 }) {
-  const space = useSpace(projectId, title)
+  // The canvas on screen: a card here can only be focused if it is there.
+  const crumb = useCanvasView((s) => s.trail.at(-1))
+  const space = useSpaceRecord(
+    crumb ? { kind: 'custom', ...crumb } : projectSeed(projectId, title),
+  )
   const placements = useMemo(
     () =>
       (space.data?.space.placements ?? [])

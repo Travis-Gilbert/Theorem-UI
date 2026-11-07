@@ -9,6 +9,7 @@ import { useAui } from '@assistant-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { create } from 'zustand'
 import { describeError, mutate, mutateThread, theorem } from './client'
+import { organizationKey } from './organization'
 import type { Theorem } from './client'
 
 export type ThreadTree = {
@@ -183,6 +184,7 @@ export const useThreadFromFailure = create<{
  */
 export function useStartThreadFrom() {
   const aui = useAui()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (from: ThreadFrom) => {
       const client = theorem()
@@ -208,6 +210,7 @@ export function useStartThreadFrom() {
     },
     onSuccess: async (threadId) => {
       useThreadFromFailure.setState({ failure: undefined })
+      void queryClient.invalidateQueries({ queryKey: organizationKey })
       await aui.threads.reload()
       await aui.threads.switchToThread(threadId)
     },

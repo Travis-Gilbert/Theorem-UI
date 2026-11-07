@@ -1,4 +1,4 @@
-// SOURCING: coss ui Command over Base UI Autocomplete in a Base UI Dialog (grouped items, as coss's command dialog example), coss ui Kbd, @tanstack/react-router (navigation), lib/theorem/models (catalog and pick), lib/theorem/catalog (plugins and skills)
+// SOURCING: coss ui Command over Base UI Autocomplete in a Base UI Dialog (grouped items, as coss's command dialog example), coss ui Kbd, @tanstack/react-router (navigation), lib/theorem/models (catalog and pick), lib/theorem/catalog (plugins and skills), lib/theorem/organization (threads across every project)
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 import type { ComponentType, SVGProps } from 'react'
@@ -23,6 +23,12 @@ import { Icon } from '@/components/icons'
 import { SETTINGS_GROUPS } from '@/components/settings/sections'
 import { useCatalogEntries } from '@/lib/theorem/catalog'
 import { useModelCatalog, usePickedModels } from '@/lib/theorem/models'
+import {
+  attentionLabel,
+  primaryProjectId,
+  useOrganization,
+} from '@/lib/theorem/organization'
+import { useShell } from './shell-state'
 
 type Entry = {
   id: string
@@ -65,6 +71,7 @@ function useGroups(close: () => void): Group[] {
   const defaultName = catalog.find((m) => m.ref === list?.defaultRef)?.name
   const { starred, selected, select } = usePickedModels()
   const { plugins, skills } = useCatalogEntries()
+  const { data: organization } = useOrganization()
 
   return useMemo(() => {
     const go = (to: string) => () => {
@@ -81,7 +88,44 @@ function useGroups(close: () => void): Group[] {
       ...starred.flatMap((ref) => catalog.filter((m) => m.ref === ref)),
       ...catalog.filter((m) => !starredSet.has(m.ref)),
     ]
+    const projectTitle = new Map(
+      organization?.projects.map((p) => [p.projectId, p.title]),
+    )
+    const threads = [...(organization?.threads ?? [])].sort(
+      (a, b) =>
+        (b.lastMessageAtMs ?? b.createdAtMs) -
+        (a.lastMessageAtMs ?? a.createdAtMs),
+    )
     const groups: Group[] = [
+      {
+        label: 'Threads',
+        items: threads.map((thread) => {
+          const home = primaryProjectId(thread)
+          const [reason] = thread.attention.reasons
+          return {
+            id: `thread:${thread.threadId}`,
+            label: thread.title || 'New chat',
+            hint: projectTitle.get(home),
+            keywords: [
+              thread.summary?.text,
+              thread.attention.running && 'running',
+              reason && `attention ${attentionLabel(reason)}`,
+              thread.later && 'later',
+            ]
+              .filter(Boolean)
+              .join(' '),
+            Mark: Icon.Conversation,
+            run: () => {
+              close()
+              useShell.getState().setProjectId(home)
+              void navigate({
+                to: '/c/$threadId',
+                params: { threadId: thread.threadId },
+              })
+            },
+          }
+        }),
+      },
       {
         label: 'Go to',
         items: [
@@ -141,7 +185,7 @@ function useGroups(close: () => void): Group[] {
       },
     ]
     return groups.filter((group) => group.items.length)
-  }, [catalog, defaultName, starred, selected, select, plugins, skills, navigate, close])
+  }, [catalog, defaultName, starred, selected, select, plugins, skills, organization, navigate, close])
 }
 
 /** The ⌘K palette: places, models, plugins and skills, filtered as the person types. */
@@ -161,7 +205,7 @@ export function CommandPalette() {
             return [entry.label, entry.hint, entry.keywords].filter(Boolean).join(' ')
           }}
         >
-          <CommandInput placeholder="Search models, plugins, skills and settings" />
+          <CommandInput placeholder="Search threads, models, plugins, skills and settings" />
           <CommandPanel>
             <CommandEmpty>Nothing matches.</CommandEmpty>
             <CommandList>
