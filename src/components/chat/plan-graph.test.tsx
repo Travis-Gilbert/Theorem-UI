@@ -69,6 +69,21 @@ test('selecting a task shows its detail, and its neighbours select from there', 
   expect(next.textContent).toContain('Unblocks')
 })
 
+test('Backspace on a selected task leaves it in the plan', async () => {
+  await render(<PlanGraph view={VIEW} />)
+  await click(await waitFor(() => node('Book movers')))
+  await waitFor(() => document.querySelector('section[aria-label="Book movers"]'))
+  // React Flow deletes on the render where the key reads pressed, so the key comes up separately.
+  for (const type of ['keydown', 'keyup']) {
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent(type, { key: 'Backspace', code: 'Backspace', bubbles: true }))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+  }
+  expect(node('Book movers')).toBeDefined()
+  expect(document.querySelectorAll('.react-flow__node')).toHaveLength(2)
+})
+
 const call = (overrides: Partial<ToolCallMessagePartProps>) =>
   ({
     type: 'tool-call',

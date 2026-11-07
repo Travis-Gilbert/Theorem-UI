@@ -218,6 +218,8 @@ export function PlanGraph({ view, note }: { view: PlanView; note?: string | unde
             minZoom={0.2}
             maxZoom={1.5}
             nodesConnectable={false}
+            // Tasks are Theorem's to remove; a key here would only hide one from the card.
+            deleteKeyCode={null}
             multiSelectionKeyCode={null}
             // The card sits in a scrolling transcript: the wheel scrolls the page, pinch and the controls zoom.
             zoomOnScroll={false}
