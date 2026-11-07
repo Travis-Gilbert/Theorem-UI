@@ -23,16 +23,18 @@ const isBrush = (value: unknown): value is Brush => BRUSHES.some((brush) => brus
 const supportsWebGL2 = () =>
   typeof document !== 'undefined' && !!document.createElement('canvas').getContext('webgl2')
 
+const CHAT_CONTENT =
+  '[data-message-id], .aui-thread-viewport-footer, button, a, input, textarea, [contenteditable]'
+
 /**
  * The empty space of the conversation: a press there draws on the field and a
  * right click opens its menu; anywhere else (a message, the composer, a
- * control) belongs to the chat.
+ * control) belongs to the chat. A popup renders in a portal outside the field's
+ * box, but React still bubbles its events through the box, and capturing such a
+ * press would take the click from whatever it landed on.
  */
-const CHAT_CONTENT =
-  '[data-message-id], .aui-thread-viewport-footer, button, a, input, textarea, [contenteditable], [role="menu"]'
-
-const isFieldSpace = (target: EventTarget) =>
-  target instanceof Element && target.closest(CHAT_CONTENT) === null
+export const isFieldSpace = (field: Element, target: EventTarget) =>
+  target instanceof Element && field.contains(target) && target.closest(CHAT_CONTENT) === null
 
 const menuItem =
   'data-highlighted:bg-hover data-disabled:opacity-50 flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none'
@@ -78,7 +80,7 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
   // Touch scrolls the conversation, so only a mouse or pen draws.
   const onPointerDown = (event: ReactPointerEvent) => {
     if (!game || event.pointerType === 'touch' || event.button !== 0) return
-    if (!isFieldSpace(event.target)) return
+    if (!isFieldSpace(event.currentTarget, event.target)) return
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     stroking.current = true
@@ -87,7 +89,7 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
   const onPointerMove = (event: ReactPointerEvent) => {
     if (!game || event.pointerType === 'touch') return
     if (stroking.current) game.drag(event.clientX, event.clientY)
-    else if (isFieldSpace(event.target)) game.hover(event.clientX, event.clientY)
+    else if (isFieldSpace(event.currentTarget, event.target)) game.hover(event.clientX, event.clientY)
     else game.leave()
   }
   const onPointerEnd = () => {
@@ -98,7 +100,7 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
   // menu only opens on empty space. Stopping the event in the capture phase
   // keeps it from the trigger's own handler.
   const onContextMenuCapture = (event: ReactMouseEvent) => {
-    if (!isFieldSpace(event.target)) event.stopPropagation()
+    if (!isFieldSpace(event.currentTarget, event.target)) event.stopPropagation()
   }
 
   return (
