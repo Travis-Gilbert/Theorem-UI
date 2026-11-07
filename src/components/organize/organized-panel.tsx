@@ -40,7 +40,12 @@ import { Search } from 'lucide-react'
 import { useGlideHighlight } from '@/components/motion'
 import { ProjectGlyph } from './glyphs'
 import { ProjectStateDialog } from './project-state-dialog'
-import { TREE_TICK, OrganizeTree, ThreadRow, useRevealOpenThread  } from './thread-row'
+import {
+  TREE_TICK,
+  OrganizeTree,
+  ThreadRow,
+  useRevealOpenThread,
+} from './thread-row'
 import { neighbour } from '@/lib/theorem/highlight-finders'
 import { useCommandPalette } from '@/components/shell/command-palette'
 import { useTenant } from '@/components/shell/projects'
@@ -88,7 +93,8 @@ const Chevron = ({ open }: { open: boolean }) => (
 
 /** The tree's rows and counts, at the scale of the reference. */
 const ROW = 'h-10 text-md text-ink'
-const COUNT = 'peer-data-[size=default]/menu-button:top-2.5 text-base text-ink-muted'
+const COUNT =
+  'peer-data-[size=default]/menu-button:top-2.5 text-base text-ink-muted'
 
 /** Threads a project lists before "Show more", so one busy project does not push the others away. */
 const THREADS_SHOWN = 4
@@ -146,9 +152,7 @@ function QuickView({
         <span className="min-w-0 flex-1 truncate">{label}</span>
       </CollapsibleTrigger>
       {!empty && (
-        <SidebarMenuBadge className={COUNT}>
-          {threads.length}
-        </SidebarMenuBadge>
+        <SidebarMenuBadge className={COUNT}>{threads.length}</SidebarMenuBadge>
       )}
       <CollapsiblePanel className={panelMotion}>
         <SidebarMenuSub className="my-0.5 gap-0.5 me-0 pe-0">
@@ -219,13 +223,14 @@ function AppsAndOutputs({ project }: { project: ProjectEntry }) {
                       })
                       if (item.artifactId)
                         useArtifactView.getState().open(item.artifactId)
-                      if (item.reviewId)
-                        openReview(item.reviewId)
+                      if (item.reviewId) openReview(item.reviewId)
                     }}
                     className="flex h-7 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-sm outline-none hover:bg-hover focus-visible:outline-2 focus-visible:outline-focus"
                   >
                     <Mark className="size-3.5 shrink-0 text-ink-muted" />
-                    <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {item.title}
+                    </span>
                     {item.revisionCount > 1 && (
                       <span className="text-xs text-ink-muted tabular-nums">
                         {item.revisionCount}
@@ -274,6 +279,7 @@ function ThreadRows({
           thread={thread}
           place={place}
           childThreads={children.get(thread.threadId)}
+          childrenOf={children}
         />
       ))}
       {hidden > 0 && (
@@ -402,9 +408,7 @@ function UnsortedNode({ threads }: { threads: readonly ThreadEntry[] }) {
         />
         <span className="min-w-0 flex-1 truncate">Unsorted</span>
       </CollapsibleTrigger>
-      <SidebarMenuBadge className={COUNT}>
-        {threads.length}
-      </SidebarMenuBadge>
+      <SidebarMenuBadge className={COUNT}>{threads.length}</SidebarMenuBadge>
       <CollapsiblePanel className={panelMotion}>
         <SidebarMenuSub className="my-0.5 ms-5 gap-0.5 me-0 pe-0">
           <ThreadRows threads={threads} place="unsorted" />
@@ -455,7 +459,9 @@ function WorkspaceHeader({
               onClick={() => control.mutate({ paused: !librarian.paused })}
             >
               <Icon.Sparkle className="size-4" />
-              {librarian.paused ? 'Resume the Librarian' : 'Pause the Librarian'}
+              {librarian.paused
+                ? 'Resume the Librarian'
+                : 'Pause the Librarian'}
             </MenuItem>
           )}
           <MenuSeparator />
@@ -513,9 +519,8 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
     if ((event.target as HTMLElement).closest('input, [role="menu"]')) return
-    const links = listRef.current?.querySelectorAll<HTMLAnchorElement>(
-      'a[href^="/c/"]',
-    )
+    const links =
+      listRef.current?.querySelectorAll<HTMLAnchorElement>('a[href^="/c/"]')
     if (!links?.length) return
     const hrefs = [...links].map((link) => link.getAttribute('href') ?? '')
     const focused = (event.target as HTMLElement)
@@ -523,11 +528,7 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
       ?.getAttribute('href')
     const selected =
       focused ?? (openThreadId ? `/c/${openThreadId}` : undefined)
-    const next = neighbour(
-      hrefs,
-      selected,
-      event.key === 'ArrowDown' ? 1 : -1,
-    )
+    const next = neighbour(hrefs, selected, event.key === 'ArrowDown' ? 1 : -1)
     if (!next) return
     event.preventDefault()
     links[hrefs.indexOf(next)]?.focus()
@@ -580,7 +581,11 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
           className="pointer-events-none absolute rounded-lg bg-selected"
         />
         <OrganizeTree.Provider value={tree}>
-          <div ref={listRef} onKeyDown={onKeyDown} className="flex flex-col gap-2">
+          <div
+            ref={listRef}
+            onKeyDown={onKeyDown}
+            className="flex flex-col gap-2"
+          >
             <SidebarMenu className="gap-0.5">
               <QuickView
                 id="attention"

@@ -27,6 +27,12 @@ export function ProjectStateDialog({
 }) {
   const save = useProjectState()
   const [text, setText] = useState(project.state?.text ?? '')
+  // Each opening starts from where the project stands now, however it was opened.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) setText(project.state?.text ?? '')
+  }
   const close = () => onOpenChange(false)
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -38,13 +44,7 @@ export function ProjectStateDialog({
       )
   }
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (next) setText(project.state?.text ?? '')
-        onOpenChange(next)
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
