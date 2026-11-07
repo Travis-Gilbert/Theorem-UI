@@ -1,4 +1,4 @@
-// SOURCING: zustand (the references the next turn carries, shared by the parts that add them and the composer that shows them, as composer-tools shares its toggles), @theoremharness/sdk resourceKey for the keys of its own resource kinds
+// SOURCING: zustand (the references the next turn carries, shared by the parts that add them and the composer that shows them), @theoremharness/sdk resourceKey for the keys of its own resource kinds
 //
 // "Ask about this" on a delegation or a change puts a context reference in
 // the composer instead of pasting text: the front role reads the referenced
@@ -38,11 +38,10 @@ export const useComposerReferences = create<ComposerReferencesState>()(
   (set, get) => ({
     references: [],
     add: (reference) =>
-      set((s) =>
-        s.references.some((r) => referenceKey(r) === referenceKey(reference))
-          ? s
-          : { references: [...s.references, reference] },
-      ),
+      set((s) => ({references:[
+        ...s.references.filter(existing=>referenceKey(existing)!==referenceKey(reference)),
+        reference,
+      ]})),
     remove: (key) =>
       set((s) => ({
         references: s.references.filter((r) => referenceKey(r) !== key),
@@ -58,9 +57,29 @@ export const useComposerReferences = create<ComposerReferencesState>()(
 /** Adds a reference and puts the cursor in the thread's composer. */
 export function askAbout(reference: ComposerReference) {
   useComposerReferences.getState().add(reference)
-  document
-    .querySelector<HTMLTextAreaElement>('textarea.aui-composer-input')
-    ?.focus()
+  focusComposer()
+}
+
+/**
+ * Puts the cursor in the composer the person can see. The conversation
+ * stays mounted, hidden, behind other modes, and a page can show it as a
+ * module too, so the first composer in the document may not be on screen.
+ * Returns whether one was focused.
+ */
+export function focusComposer(): boolean {
+  const composers = document.querySelectorAll<HTMLTextAreaElement>(
+    'textarea.aui-composer-input',
+  )
+  for (const composer of composers) {
+    const shown =
+      typeof composer.checkVisibility === 'function'
+        ? composer.checkVisibility()
+        : composer.offsetParent !== null
+    if (!shown) continue
+    composer.focus()
+    return true
+  }
+  return false
 }
 
 function referenceLabel({ label, location }: ComposerReference): string {

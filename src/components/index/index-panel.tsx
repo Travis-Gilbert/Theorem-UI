@@ -179,7 +179,7 @@ function NewCollectionDialog({
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="text-lg font-medium">
+            <DialogTitle className="font-heading text-lg font-semibold">
               New collection
             </DialogTitle>
             <DialogDescription>

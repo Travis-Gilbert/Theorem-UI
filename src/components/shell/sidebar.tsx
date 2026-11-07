@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel
+// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel, the Pages panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -12,6 +12,7 @@ import {
 import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
 import { IndexPanel } from '@/components/index/index-panel'
+import { PagesPanel } from '@/components/pages/pages-panel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -66,7 +67,7 @@ function NewProjectDialog({
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-heading text-lg font-normal tracking-tight">
+            <DialogTitle className="font-heading text-lg font-semibold">
               New project
             </DialogTitle>
             <DialogDescription>
@@ -237,7 +238,7 @@ function SpacesPanel() {
 /**
  * The navigator beside the rail: the active mode's list above the files.
  * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
- * stays mounted behind the Index, Spaces and the revealed files, so its
+ * stays mounted behind the Index, Pages, Spaces and the revealed files, so its
  * search, scroll and open branches survive a switch. The rail's Files
  * control reveals the files over the mode's list.
  */
@@ -247,7 +248,12 @@ export function ContextPanel() {
   return (
     <div className="on-sheet flex h-full flex-col">
       <div
-        hidden={filesShown || mode === 'spaces' || mode === 'index'}
+        hidden={
+          filesShown ||
+          mode === 'spaces' ||
+          mode === 'index' ||
+          mode === 'pages'
+        }
         className="min-h-0 flex-1"
       >
         <ChatPanel />
@@ -260,6 +266,11 @@ export function ContextPanel() {
       {mode === 'spaces' && (
         <div hidden={filesShown} className="min-h-0 flex-1">
           <SpacesPanel />
+        </div>
+      )}
+      {mode === 'pages' && (
+        <div hidden={filesShown} className="min-h-0 flex-1">
+          <PagesPanel />
         </div>
       )}
       <FoldersSection fill={filesShown} />

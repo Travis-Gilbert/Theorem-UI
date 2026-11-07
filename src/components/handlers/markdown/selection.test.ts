@@ -3,7 +3,14 @@
 import { expect, test } from 'bun:test'
 import { Schema } from '@milkdown/kit/prose/model'
 import { EditorState, TextSelection } from '@milkdown/kit/prose/state'
-import { anchorQuote, askRange, proseExcerpt, quoteAt } from './selection'
+import {
+  anchorQuote,
+  askRange,
+  plainText,
+  proseExcerpt,
+  quoteAt,
+  quotedExcerpt,
+} from './selection'
 
 const schema = new Schema({
   nodes: {
@@ -27,6 +34,7 @@ test('a whole paragraph is the selected paragraph, with its text', () => {
   expect(proseExcerpt(doc, 11, 31)).toEqual({
     part: 'selected paragraph',
     text: 'The first paragraph.',
+    at: 10,
   })
 })
 
@@ -38,6 +46,7 @@ test('a selection across blocks is a passage, its blocks apart', () => {
   expect(proseExcerpt(doc, 1, 31)).toEqual({
     part: 'selected passage',
     text: 'Findings\n\nThe first paragraph.',
+    at: 0,
   })
 })
 
@@ -50,6 +59,32 @@ const repeated = EditorState.create({
   ]),
 })
 // The first paragraph's text runs from 1; "cat" is at 3–6 and 21–24.
+
+test('a selection says where it starts in the text the agent is given', () => {
+  const text = plainText(repeated.doc)
+  for (const [from, to, words] of [
+    [21, 24, 'cat'],
+    [31, 33, 'No'],
+  ] as const) {
+    const excerpt = proseExcerpt(repeated.doc, from, to)
+    expect(excerpt?.text).toBe(words)
+    const at = excerpt?.at ?? -1
+    expect(text.slice(at, at + words.length)).toBe(words)
+  }
+  expect(proseExcerpt(repeated.doc, 21, 24)?.at).toBe(20)
+})
+
+test('a retry finds its quote where it is now, or asks from the start', () => {
+  const part = 'selected text'
+  expect(
+    quotedExcerpt(repeated, { exact: 'cat', prefix: 'Then the ' }, part),
+  ).toEqual({ part, text: 'cat', at: 20 })
+  expect(quotedExcerpt(repeated, { exact: 'gone' }, part)).toEqual({
+    part,
+    text: 'gone',
+    at: 0,
+  })
+})
 
 test('a selection is quoted with the text around it, as the agent will see it', () => {
   expect(quoteAt(repeated.doc, 21, 24)).toEqual({

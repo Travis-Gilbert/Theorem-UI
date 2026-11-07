@@ -45,6 +45,12 @@ export interface RunOutcome {
   durationMs: number
 }
 
+export interface AppSelection {
+  text: string
+  rowId?: string
+  field?: string
+}
+
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
 export interface PageMethods {
   'files.read': {
@@ -66,9 +72,22 @@ export interface PageMethods {
   }
   'state.delete': { params: { name: string; key: string }; result: null }
   'run.request': { params: { target: string }; result: RunRequestResult }
+  'frame.selection': { params: AppSelection; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
   'frame.snapshot': { params: { html: string }; result: null }
+  /** A page module publishing one of its declared outputs. */
+  'module.output': { params: { name: string; value: unknown }; result: null }
+  /** A person used a page module's frame: its next events are theirs. */
+  'module.used': { params: Record<string, never>; result: null }
+  /** A page module sending one of its declared events. */
+  'module.emit': { params: { name: string; payload: unknown }; result: null }
+}
+
+/** What a page module is handed: its settings and its inputs' values. */
+export interface ModuleValues {
+  settings: Record<string, unknown>
+  inputs: Record<string, unknown>
 }
 
 /** The largest snapshot a frame may send, in characters. */
@@ -84,6 +103,10 @@ export interface SandboxMethods {
     params: { name: string; value: Record<string, unknown> }
     result: null
   }
+  /** A page module's settings or inputs changed. */
+  'module.inputs': { params: ModuleValues; result: null }
+  /** A route reached one of a page module's declared actions. */
+  'module.action': { params: { name: string; payload: unknown }; result: null }
 }
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */

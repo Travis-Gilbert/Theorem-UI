@@ -117,7 +117,7 @@ function SettingsForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <DialogHeader>
-        <DialogTitle className="text-lg font-medium">
+        <DialogTitle className="font-heading text-lg font-semibold">
           {client.workspace.name} settings
         </DialogTitle>
         <DialogDescription>

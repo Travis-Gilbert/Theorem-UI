@@ -1,7 +1,6 @@
-// SOURCING: theoremJson (the SDK's fetch passthrough) against Theorem's /graphql (rustyred-thg-mcp's async-graphql schema; a handful of fixed operations need no GraphQL client) and the shared CSRF/idempotency helper from lib/theorem/client
+// SOURCING: lib/theorem/graphql (Theorem's /graphql through the SDK's fetch passthrough) and the shared CSRF/idempotency helper from lib/theorem/client
 import { mutate } from '@/lib/theorem/client'
-import type { MutationHeaders } from '@/lib/theorem/client'
-import { theoremJson } from '@/lib/theorem/passthrough'
+import { graphql as post } from '@/lib/theorem/graphql'
 import type {
   DataModel,
   ObjectType,
@@ -12,41 +11,10 @@ import type {
   RecordVerb,
 } from './contract'
 
-const ENDPOINT = '/graphql'
-
-type GraphQLError = { message: string; path?: (string | number)[] }
-
-/** A response that came back with GraphQL errors and no usable data. */
-export class GraphQLRequestError extends Error {
-  readonly errors: GraphQLError[]
-  constructor(errors: GraphQLError[]) {
-    super(errors.map((error) => error.message).join('; '))
-    this.name = 'GraphQLRequestError'
-    this.errors = errors
-  }
-}
+export { GraphQLRequestError } from '@/lib/theorem/graphql'
 
 /** The write mutation this UI expects at the register's owner. */
 export const RECORD_WRITE_FIELD = 'invokeRecordVerb'
-
-async function post<T>(
-  query: string,
-  variables: Record<string, unknown>,
-  headers?: MutationHeaders,
-): Promise<T> {
-  const body = await theoremJson<unknown>(ENDPOINT, {
-    method: 'POST',
-    headers,
-    body: { query, variables },
-  })
-  const { data, errors } = (body ?? {}) as {
-    data?: T | null
-    errors?: GraphQLError[]
-  }
-  if (errors?.length || data == null)
-    throw new GraphQLRequestError(errors ?? [{ message: 'Empty response' }])
-  return data
-}
 
 const query = <T>(document: string, variables: Record<string, unknown> = {}) =>
   post<T>(document, variables)

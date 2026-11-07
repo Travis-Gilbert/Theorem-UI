@@ -1,4 +1,4 @@
-// SOURCING: hand-rolled. How hard the model is working is Theorem's own reading of a turn (its tool calls, delegations, reasoning and text), and the response is a few lines of exponential decay; no library models either
+// SOURCING: hand-rolled. How hard the model is working is Theorem's own reading of a turn (its tool calls, delegations, reasoning and text), and the response is a few lines of exponential decay and a phase accumulator for the beat; no library models either
 /** What lifts the field: a stretch of text, a stretch of reasoning, or a tool call. */
 export type PulseKind = 'text' | 'reasoning' | 'tool'
 
@@ -41,6 +41,25 @@ const between = (rest: number, busy: number, level: number) => rest * (busy / re
 
 /** Generations per second. */
 export const pace = (level: number) => between(1.5, 24, level)
+
+/**
+ * How far the field is through the current generation, from 0 (it just
+ * stepped) to 1 (the next is due), advanced at the pace of the moment. A step
+ * lands only when the phase reaches 1, so a pulse hurries the generation in
+ * hand on from where it stood rather than starting a new one. Paused, the
+ * phase runs up to 1 and no step is taken.
+ */
+export function beat(
+  phase: number,
+  seconds: number,
+  level: number,
+  playing: boolean,
+): { phase: number; steps: number } {
+  const next = phase + seconds * pace(level)
+  if (!playing) return { phase: Math.min(1, next), steps: 0 }
+  const steps = Math.floor(next)
+  return { phase: next - steps, steps }
+}
 
 /** How strongly the field's glyphs show, as a share of their full weight. */
 export const glow = (level: number) => 0.45 + 0.55 * level

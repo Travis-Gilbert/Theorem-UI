@@ -8,6 +8,7 @@
 import { Crepe } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
 import { commandsCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core'
+import type { Editor } from '@milkdown/kit/core'
 import { clearTextInCurrentBlockCommand } from '@milkdown/kit/preset/commonmark'
 import { Selection } from '@milkdown/kit/prose/state'
 import type { Serializer } from '@milkdown/kit/transformer'
@@ -22,7 +23,6 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import askIcon from '@/assets/icons/rail/noun-chat-52762.svg?raw'
-import embedIcon from '@/assets/icons/records/noun-article-8259879.svg?raw'
 import { renderMermaidSvg } from '@/components/assistant-ui/elements/mermaid-diagram'
 import { nodeViewFactoryCtx } from '@/components/handlers/markdown/syntax'
 import { Icon } from '@/components/icons'
@@ -58,6 +58,14 @@ type Callbacks = {
   projectId?: string
 }
 
+/** Flush the current editor state before an action can capture its source. */
+function reportCurrentMarkdown(
+  editor: Editor,
+  report: (markdown: string) => void,
+) {
+  report(editor.action(getMarkdown()))
+}
+
 /** Mermaid and data fences show as what they draw; their source stays a click away. */
 function fencePreview(
   language: string,
@@ -88,7 +96,7 @@ const MENU: ReadonlyArray<{
   {
     key: 'embed-note',
     label: 'Embed note',
-    icon: () => embedIcon,
+    icon: () => iconMarkup(Icon.Article),
     run: (c) => c.onRequest('note'),
   },
   {
@@ -106,7 +114,7 @@ const MENU: ReadonlyArray<{
   {
     key: 'thread',
     label: 'Conversation',
-    icon: () => iconMarkup(Icon.Chat),
+    icon: () => askIcon,
     run: (c) => c.onRequest('thread'),
   },
   {
@@ -142,6 +150,7 @@ function CrepeEditor({
   onChange,
   callbacks,
   onInsertReady,
+  onFlushReady,
 }: {
   markdown: string
   editable: boolean
@@ -149,6 +158,7 @@ function CrepeEditor({
   onChange: (markdown: string) => void
   callbacks: React.RefObject<Callbacks>
   onInsertReady: (insertMarkdown: (markdown: string) => void) => void
+  onFlushReady: (flush: () => void) => void
 }) {
   const nodeViewFactory = useNodeViewFactory()
   /** The Markdown this editor last showed or serialized. */
@@ -220,6 +230,7 @@ function CrepeEditor({
                 icon: askIcon,
                 onRun: (ctx) => {
                   ctx.get(commandsCtx).call(clearTextInCurrentBlockCommand.key)
+                  reportCurrentMarkdown(crepe.editor, report)
                   callbacks.current.onAsk?.()
                 },
               })
@@ -256,6 +267,7 @@ function CrepeEditor({
       })
     })
     onInsertReady((next) => crepe.editor.action(insert(next)))
+    onFlushReady(() => reportCurrentMarkdown(crepe.editor, report))
     return crepe
   }, [])
 
@@ -267,8 +279,8 @@ function CrepeEditor({
   // last text before the saves are flushed.
   useEffect(() =>
     onLeavePage(() => {
-      const next = get()?.action(getMarkdown())
-      if (next !== undefined) report(next)
+      const editor = get()
+      if (editor) reportCurrentMarkdown(editor, report)
     }),
   )
 
@@ -308,6 +320,7 @@ export function MarkdownBlocks({
 }) {
   const { project } = useActiveProject()
   const insertRef = useRef<(markdown: string) => void>(undefined)
+  const flushRef = useRef<() => void>(() => undefined)
   const pickers = useBlockPickers({
     excludeNote: exclude,
     onPicked: (picked) => insertRef.current?.(picked.markdown),
@@ -331,6 +344,8 @@ export function MarkdownBlocks({
   return (
     <div
       className={cn('theorem-note', className)}
+      onContextMenu={() => flushRef.current()}
+      onBlurCapture={() => flushRef.current()}
       onClick={(event) => {
         const embed = (event.target as Element).closest(`[${EMBED_ATTR}]`)
         const documentId = embed?.getAttribute(EMBED_ATTR)
@@ -346,6 +361,7 @@ export function MarkdownBlocks({
             onChange={onChange}
             callbacks={callbacks}
             onInsertReady={(fn) => (insertRef.current = fn)}
+            onFlushReady={(fn) => (flushRef.current = fn)}
           />
         </ProsemirrorAdapterProvider>
       </MilkdownProvider>

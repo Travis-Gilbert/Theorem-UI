@@ -13,6 +13,9 @@ import { Thread } from '../assistant-ui/elements/thread.aui'
 import { TheoremPartRenderers } from './theorem-parts'
 import { cleanup, render, waitFor } from '../../../test/blocks/render'
 
+import { TheoremError } from '@theoremharness/sdk'
+import { describeError } from '@/lib/theorem/client'
+
 const queryClient = new QueryClient()
 
 const Messages = createContext<ThreadMessageLike[]>([])
@@ -44,6 +47,22 @@ function Harness({ messages }: { messages: ThreadMessageLike[] }) {
 }
 afterEach(cleanup)
 
+test('a research failure with the same request reference renders once', async () => {
+  const message = 'The source check returned an unusable assessment. The assessment omitted or repeated part of the answer.'
+  const correlationId = 'chatreq-research-review'
+  const { container } = await render(<Harness messages={[{
+    id: 'research-failed', role: 'assistant',
+    status: { type: 'incomplete', reason: 'error', error: `${message} Reference: ${correlationId}` },
+    content: [{ type: 'data', name: 'theorem-error', data: {
+      code: 'research_review_invalid_response', message, correlationId, recoverable: true,
+    } }],
+  }]} />)
+  await waitFor(() => container.querySelector('[role="alert"]'))
+  expect(container.textContent.match(/The source check returned an unusable assessment\./g)?.length).toBe(1)
+  expect(container.textContent).toContain(correlationId)
+  expect(container.querySelector('.aui-message-error-root')).toBeNull()
+})
+
 test('a failed turn renders one contextual error, and a plain runtime failure remains visible', async () => {
   const explanation = 'The agent reached its step limit.'
   const { container, rerender } = await render(<Harness messages={[{
@@ -73,4 +92,21 @@ test('a failed turn renders one contextual error, and a plain runtime failure re
   }]} />)
   await waitFor(() => container.querySelector('.aui-message-error-root'))
   expect(container.textContent).toContain('The connection was interrupted.')
+})
+
+test('source-bound journal capacity error renders its explanation, code and reference without a persistence claim', async () => {
+  const error = describeError(new TheoremError({ statusCode: 500, body: {
+    code: 'chat_store_error', title: 'The chat graph could not satisfy the request',
+    detail: 'chunk_store_journal_io: append journal record: No space left on device (os error 28)',
+    correlationId: 'chatreq_01M6QFM64PDHBTYJ7T036GDB3K',
+  } }))
+  const { container } = await render(<Harness messages={[{
+    id: 'storage-full', role: 'assistant', content: [],
+    status: { type: 'incomplete', reason: 'error', error },
+  }]} />)
+  const alert = await waitFor(() => container.querySelector('[role="alert"]'))
+  expect(alert.textContent).toContain('The server ran out of storage')
+  expect(alert.textContent).toContain('chat_store_error / chunk_store_journal_io')
+  expect(alert.textContent).toContain('chatreq_01M6QFM64PDHBTYJ7T036GDB3K')
+  expect(alert.textContent).not.toMatch(/message was (?:not )?saved|message was not sent/)
 })

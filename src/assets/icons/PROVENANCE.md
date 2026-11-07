@@ -240,7 +240,6 @@ them: same style, same line weight, and where possible the same creator.
 | Control | File | Icon | Digest | Creator | Rendition | Chosen by |
 |---|---|---|---|---|---|---|
 | Microphone, idle and capturing | `composer/noun-microphone-8216254.svg` | Microphone (8216254) | `4e6cdaa318bf1d49ff204fa8834a491789fe651ca222091601edda9fc199be03` | Jagat Kreasi | line 8 | Travis |
-| Canvas | `composer/noun-draft-8216278.svg` | draft (8216278) | `336d36918969f8504ace8d9677f677f5cfc519624e1e8be5ce273b64c0d5879f` | Jagat Kreasi | line 8 | Travis |
 | Attach | `composer/noun-attachment-8184735.svg` | Attachment (8184735) | `f2ecf1c68efa226f5747cb07605b979dd0396b7d8258ed939d4ca10c3a50d566` | Angel Yuta | line 7 | Travis |
 | Finish dictation, Stop generation | `composer/noun-stop-8086088.svg` | Stop (8086088) | `ef1f97b09c8f441bf3b98809f02b12601622883619ec3519c9e9334479aa220d` | Jagat Kreasi | line 8 | matched |
 | Remove | `composer/noun-close-8086061.svg` | Close (8086061) | `7222bb2f11dce56ef8c8b86b0be2b90b4afe7735265b8e973fd0dc8f8d4509b9` | Jagat Kreasi | line 8 | matched |
@@ -363,7 +362,9 @@ owner's selections are.
 | `composer/noun-web-8223212.svg` | `3286f48751a00c75407f02c1691729a6980717825fb9fdbea4f0b3a9ac763372` | Dierys Design, web (8223212) | Subscription, as above | Drew Search until 2026-10-22; replaced by `streamline/streamline-cross-region-data-delivery-2.png`. |
 | `records/noun-add-8086054.svg` | `f21760efeeb1a5769100af2a85c7a922932c3bd1bfd1764f6e8bda9c57494cee` | Noun Project asset 8086054; creator as recorded above | Subscription, as above | Drew Add until 2026-11-05; replaced by Lucide Plus. |
 | `records/noun-file-8259863.svg` | `b254f092adcd62e50b828024ef216f30ae97a24b52857eb489a755977d30ab5d` | Noun Project asset 8259863; creator as recorded above | Subscription, as above | Drew File until 2026-11-05; replaced by `streamline/streamline-common-file-double.png`. |
-| `composer/noun-draft-8216278.svg` | `336d36918969f8504ace8d9677f677f5cfc519624e1e8be5ce273b64c0d5879f` | Noun Project asset 8216278; creator as recorded above | Subscription, as above | Drew Draft until 2026-11-05; replaced by `streamline/streamline-common-file-text-edit.png`. |
+| `composer/noun-draft-8216278.svg` | `336d36918969f8504ace8d9677f677f5cfc519624e1e8be5ce273b64c0d5879f` | Jagat Kreasi / Noun Project, asset 8216278 | Subscription, as above | Drew Draft (the goal card) until 2026-11-06; replaced by `streamline/streamline-common-file-text-edit.png`. |
+| `records/noun-article-8259879.svg` | `a9dfb8e8dde770060cca7f135801c30a5b93ab028da23d7e66cf33e7d116300b` | article, Dierys Design (asset 8259879) | Subscription, as above | Drew Article (documents, notes, skills, the slash menu's Embed note) until 2026-11-06; replaced by `streamline/streamline-office-file-text.png`. |
+| `records/noun-layout-8176268.svg` | `75fd929a467cd32dad81c264f8185d70a516740c5b1b6911b847a7d646827990` | Layout, Dierys Design (asset 8176268) | Subscription, as above | Drew Layout (the sidebar toggle, Colors) until 2026-11-06; replaced by `streamline/streamline-browser-page-layout.png`. |
 
 The Lucide files the kit bundles are no longer reached from this surface. They
 remain in `gpui-component`'s own asset bundle for every other surface that
@@ -397,7 +398,6 @@ Reused from the families already admitted, with no new file: `composer/noun-atta
 | File | Draws | Term, creator and asset | Style | SHA-256 |
 | --- | --- | --- | --- | --- |
 | `records/noun-add-8086054.svg` | control Add | add, Jagat Kreasi (asset 8086054) | line 9 | `f21760efeeb1a5769100af2a85c7a922932c3bd1bfd1764f6e8bda9c57494cee` |
-| `records/noun-article-8259879.svg` | field RichText | article, Dierys Design (asset 8259879) | line 8 | `a9dfb8e8dde770060cca7f135801c30a5b93ab028da23d7e66cf33e7d116300b` |
 | `records/noun-checkmark-8086058.svg` | field Boolean | checkmark, Jagat Kreasi (asset 8086058) | line 8 | `e8862eada7d2b77515052928c431114bf2054f78902f9d066631cea4e0313e08` |
 | `records/noun-coding-8259870.svg` | field RawJson | coding, Dierys Design (asset 8259870) | line 8 | `33e0a160465156606072a83287ad90ebdc2c3895500add65574dd9a4742c05a9` |
 | `records/noun-expand-8086092.svg` | control Expand | expand, Jagat Kreasi (asset 8086092) | line 9 | `ea84fb04d755d2779822ad12e05e486b07fa07b57987642a08a2a5b05d18f65f` |
@@ -406,7 +406,6 @@ Reused from the families already admitted, with no new file: `composer/noun-atta
 | `records/noun-menu-8086045.svg` | field Array, control List | menu, Jagat Kreasi (asset 8086045) | line 8 | `3778c1de67f89fb06c00dd446d37d6f52f33b07af5315d404913063bf00d3e47` |
 | `records/noun-archive-8315826.svg` | control Archive | archive, Dierys Design (asset 8315826) | line 8 | `360f451f05cf79f01886688f5db93f8f92f58a7ab688cf6fe9d28af98ffc642d` |
 | `records/noun-eye-8086063.svg` | control Unread | Eye, Jagat Kreasi (asset 8086063) | line 8 | `34f002e915ec846d0892446e012c1d05db82d366008a677204bde5db2853c873` |
-| `records/noun-layout-8176268.svg` | control BoardView | Layout, Dierys Design (asset 8176268) | line 7 | `75fd929a467cd32dad81c264f8185d70a516740c5b1b6911b847a7d646827990` |
 
 The record sheet folds its sections without a disclosure mark. Neither the
 Jagat Kreasi set nor Dierys Design draws a chevron, and a chevron from a
@@ -523,7 +522,7 @@ those downloads too and are byte-identical to the files above.
 |---|---|---|---|
 | Organize | `streamline/streamline-hierarchy-5-organize.png` | Hierarchy 5 Organize | `6ab526d41fd2dbba1cfc107ddcad2e233653ccde15a7491f10fcf6aa679c9bae` |
 | compound node kind | `streamline/streamline-hierarchy-6.png` | Hierarchy 6 | `9813ab25dbd8fb36c9877e8be6a99100242b9e3138be0deb164241b92b8328bc` |
-| Graph | `streamline/streamline-hierarchy-9.png` | Hierarchy 9 | `c368623653bd006579eb8a7e2e15fbeb65a12e8829a09d30aea18ddecb842517` |
+| Graph | `streamline/streamline-astronomy-constellation.png` | Astronomy Constellation | `f3052892c7d375a4cd5d5cc3ed7a9aab301adef981e258dc8cfc13053794d83b` |
 | Fork | `streamline/streamline-workflow-branch.png` | Workflow Branch | `0de93aaa3827eaf1f17744817975f82cf0d16ffe9c0814e781c2b18b0a4d529f` |
 | Proposal | `streamline/streamline-workflow-pull-request.png` | Workflow Pull Request | `df6abce092d33f5726bda4015a33db49e95087161716610b96136b38bb6d1f01` |
 | Draft | `streamline/streamline-common-file-text-edit.png` | Common File Text Edit | `29e8a30b59d9542763f7a37ca7ea0560402890f2c8e97d536ee38f1ffbcc9b00` |
@@ -541,6 +540,20 @@ those downloads too and are byte-identical to the files above.
 | Mail | `streamline/streamline-paginate-filter-mail.png` | Paginate Filter Mail | `bf97bc644288a2bf074560d3586bd74df90ca92b88aac30d7519a325c8e02cbb` |
 | Reject | `streamline/streamline-workflow-request-closed.png` | Workflow Request Closed | `5a70587c8f65d678f39597a21419bf8460a1a49ba11d689b9ce6c69e346b7917` |
 | Route | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
+| Layout | `streamline/streamline-browser-page-layout.png` | Browser Page Layout | `7dccfde413cb043f8d0ff7e1745a657afb5e9e813b96d3edd430d7e7ed76425a` |
+| Delegate | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
+
+One more came on 2026-11-06 as a PNG the owner attached in conversation (48 x
+48, black ink on a transparent ground, the same Light style), copied byte for
+byte. Its Streamline name was matched by shape against Streamline's catalogue,
+where the Fill style of the same mark is "Ai Robot Generate Variation"; the
+attachment itself carried no name. It marks Theorem's own model choice in the
+composer's model switch, the command palette and AI settings, where Spaces's
+Penrose triangle stood in before.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Theorem | `streamline/streamline-ai-robot-generate-variation.png` | Ai Robot Generate Variation (by shape) | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
 
 The rest of those downloads is kept in `streamline/library/`. Nothing imports
 those files, so they do not ship; they are there to reach for. Dzone Logo and
@@ -549,7 +562,7 @@ interface glyph. Share is a different drawing from the Share 1 the registry uses
 
 | File | Streamline name | SHA-256 |
 |---|---|---|
-| `streamline/library/streamline-astronomy-constellation.png` | Astronomy Constellation | `f3052892c7d375a4cd5d5cc3ed7a9aab301adef981e258dc8cfc13053794d83b` |
+| `streamline/library/streamline-hierarchy-9.png` | Hierarchy 9 | `c368623653bd006579eb8a7e2e15fbeb65a12e8829a09d30aea18ddecb842517` |
 | `streamline/library/streamline-dzone-logo.png` | Dzone Logo | `71012ba44e63309339d57d40ab6fb2bff508da391739f5cac2033b1122b6b709` |
 | `streamline/library/streamline-hierarchy-files.png` | Hierarchy Files | `26d15f7cffd146df723d2e5a02dfa886aa13b9eff3ee28de9e7acc26669624b6` |
 | `streamline/library/streamline-rotate-3d.png` | Rotate 3d | `e655ce10aeb6e81d0b36846a6ffe5ebce175beef521141237e8c498cae8c3119` |

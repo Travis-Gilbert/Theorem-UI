@@ -1,6 +1,7 @@
 {
   "name": "theorem-ui",
   "private": true,
+  "packageManager": "bun@1.4.3",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -22,6 +23,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@assistant-ui/core": "0.3.30",
     "@assistant-ui/react": "0.15.30",
     "@assistant-ui/react-markdown": "^0.14.23",
     "@base-ui/react": "^1.9.0",
@@ -35,10 +37,12 @@
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.15",
     "@cosmos.gl/graph": "3.5.1",
+    "@dagrejs/dagre": "3.1.1",
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/modifiers": "9.0.0",
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
+    "@floating-ui/react-dom": "^2.1.9",
     "@flowershow/remark-wiki-link": "3.4.0",
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
@@ -60,9 +64,11 @@
     "@parcel/watcher": "2.6.0",
     "@pierre/diffs": "1.6.1",
     "@prosemirror-adapter/react": "0.5.5",
+    "@puckeditor/core": "0.24.0",
     "@rustyreddb/node": "0.1.0-beta.2",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/highlight": "1.2.11",
     "@tanstack/match-sorter-utils": "9.2.6",
     "@tanstack/react-hotkeys": "0.16.0",
     "@tanstack/react-pacer": "0.24.1",
@@ -86,9 +92,11 @@
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
     "codemirror": "6.0.2",
+    "culori": "4.0.2",
     "d3-array": "3.2.4",
     "d3-dsv": "3.0.1",
     "date-fns": "4.4.0",
+    "diff": "9.0.0",
     "dockview-react": "8.6.1",
     "dompurify": "3.4.17",
     "elkjs": "^0.12.1",
@@ -121,6 +129,7 @@
     "next-themes": "^0.4.6",
     "oauth4webapi": "^3.8.8",
     "object-inspect": "1.13.4",
+    "p-map": "7.1.1",
     "papaparse": "5.7.0",
     "pathe": "2.0.3",
     "pdfjs-dist": "6.3.289",
@@ -177,7 +186,6 @@
     "@types/react-dom": "^19.2.0",
     "@types/write-file-atomic": "4.0.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "culori": "4.0.2",
     "eslint": "^9.20.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "26.1.0",
@@ -203,6 +211,7 @@
   ],
   "patchedDependencies": {
     "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch",
-    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch"
+    "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
+    "@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.5.tgz": "patches/@theoremharness%2Fsdk@vendor%2Ftheoremharness-sdk-0.6.0-alpha.5.tgz.patch"
   }
 }

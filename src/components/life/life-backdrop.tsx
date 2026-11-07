@@ -2,7 +2,7 @@
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useAuiState } from '@assistant-ui/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { Icon } from '@/components/icons'
 import { pulsesSince, signalOf } from '@/lib/life/energy'
 import type { Reading } from '@/lib/life/energy'
@@ -31,8 +31,10 @@ const supportsWebGL2 = () =>
 const CHAT_CONTENT =
   '[data-message-id], .aui-thread-viewport-footer, button, a, input, textarea, [contenteditable], [role="menu"]'
 
-const isFieldSpace = (target: EventTarget) =>
-  target instanceof Element && target.closest(CHAT_CONTENT) === null
+// React portal events bubble through this component even when their DOM nodes
+// belong to a popup outside the field. Never capture those menu interactions.
+const isFieldSpace = (target: EventTarget, field: Element) =>
+  target instanceof Element && field.contains(target) && target.closest(CHAT_CONTENT) === null
 
 const menuItem =
   'data-highlighted:bg-hover data-disabled:opacity-50 flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none'
@@ -78,7 +80,7 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
   // Touch scrolls the conversation, so only a mouse or pen draws.
   const onPointerDown = (event: ReactPointerEvent) => {
     if (!game || event.pointerType === 'touch' || event.button !== 0) return
-    if (!isFieldSpace(event.target)) return
+    if (!isFieldSpace(event.target, event.currentTarget)) return
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     stroking.current = true
@@ -87,28 +89,29 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
   const onPointerMove = (event: ReactPointerEvent) => {
     if (!game || event.pointerType === 'touch') return
     if (stroking.current) game.drag(event.clientX, event.clientY)
-    else if (isFieldSpace(event.target)) game.hover(event.clientX, event.clientY)
+    else if (isFieldSpace(event.target, event.currentTarget)) game.hover(event.clientX, event.clientY)
     else game.leave()
   }
   const onPointerEnd = () => {
     stroking.current = false
     game?.release()
   }
-  // A right click on a message keeps the browser's own menu; the field's
-  // menu only opens on empty space. Stopping the event in the capture phase
-  // keeps it from the trigger's own handler.
-  const onContextMenuCapture = (event: ReactMouseEvent) => {
-    if (!isFieldSpace(event.target)) event.stopPropagation()
+  // Let child menus handle their own event before suppressing the field's
+  // trigger. Keep the browser's default menu on other chat content as well.
+  const onContextMenu: NonNullable<ContextMenu.Trigger.Props['onContextMenu']> = (event) => {
+    if (isFieldSpace(event.target, event.currentTarget)) return
+    event.preventBaseUIHandler()
+    event.stopPropagation()
   }
 
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger
+        onContextMenu={onContextMenu}
         render={
           <div
             data-life-backdrop=""
             className="relative h-full"
-            onContextMenuCapture={onContextMenuCapture}
             onPointerDown={draws ? onPointerDown : undefined}
             onPointerMove={draws ? onPointerMove : undefined}
             onPointerUp={draws ? onPointerEnd : undefined}

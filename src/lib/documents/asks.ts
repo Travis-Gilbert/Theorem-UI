@@ -17,9 +17,13 @@ import {
   theorem,
 } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
-import { pickedModelTurnOptions } from '@/lib/theorem/models'
+import { pickedModel } from '@/lib/theorem/models'
 import { tailRun } from '@/lib/theorem/runtime'
 import type { ChatModelRunResult } from '@assistant-ui/react'
+import type { Node as ProseNode } from '@milkdown/kit/prose/model'
+import { fromBase64 } from '@/lib/blocks/state'
+import { noteMarkdown } from '@/lib/theorem/note-canonical'
+import { splitFrontmatter } from '@/components/handlers/markdown/frontmatter'
 import { useDocumentAsks } from './ask-store'
 import type { Ask } from './ask-store'
 import { marksOf, replyOf } from './marks'
@@ -35,6 +39,12 @@ export type AskedNote = {
   title: string
   /** The note's text as the agent quotes it. */
   text: string
+  /** Immutable editor content captured at Ask, compared with the canonical source before pinning. */
+  documentSource?: {
+    documentId: string
+    doc: ProseNode
+    parse: (markdown: string) => ProseNode
+  }
 }
 
 const store = () => useDocumentAsks.getState()
@@ -120,8 +130,9 @@ async function follow(
  * A send whose reply was lost stays saved, and the client refuses any other
  * send on the thread until it is replayed. Replaying it under its own key gets
  * the turn Theorem already started, or starts it, so the ask that sent it
- * follows that run; a run nobody is waiting for any more is cancelled. Returns
- * the id of the ask it went to.
+ * follows that run; a run nobody is waiting for any more is cancelled. A send
+ * Theorem refuses for good is over, with no run: it fails its ask and frees the
+ * note. Returns the id of the ask whose run it followed.
  */
 async function recoverSend(key: string) {
   const threadId = store().threads[key]
@@ -129,15 +140,22 @@ async function recoverSend(key: string) {
   if (!threadId || !sendKey) return undefined
   const ask = store().asks[key]?.find((known) => known.sendKey === sendKey)
   if (!ask || ask.status === 'stopped') {
-    const runId = await recoverPendingSend(threadId)
-    if (runId) await cancelRun(runId)
+    try {
+      const runId = await recoverPendingSend(threadId)
+      if (runId) await cancelRun(runId)
+    } catch (error) {
+      // Still saved, so the next send would be refused; this is why.
+      if (pendingSendKey(threadId)) throw error
+    }
     return undefined
   }
-  const stop = stops.get(ask.id) ?? new AbortController()
+  const running = stops.get(ask.id)
+  const stop = running ?? new AbortController()
   stops.set(ask.id, stop)
   store().patch(key, ask.id, { status: 'running', error: undefined })
+  let runId: string | undefined
   try {
-    const runId = await recoverPendingSend(threadId)
+    runId = await recoverPendingSend(threadId)
     if (runId) {
       store().patch(key, ask.id, { runId })
       await follow(key, ask.id, runId, stop.signal)
@@ -147,9 +165,31 @@ async function recoverSend(key: string) {
     // Still saved, so the next send would be refused; this is why.
     if (pendingSendKey(threadId)) throw error
   } finally {
-    stops.delete(ask.id)
+    // A retry's own stop still has its fresh send to stop.
+    if (!running) stops.delete(ask.id)
   }
-  return ask.id
+  return runId ? ask.id : undefined
+}
+
+async function canonicalSource(note: AskedNote, signal: AbortSignal) {
+  const source = note.documentSource
+  if (!source) return undefined
+  const snapshot = await theorem().documents.snapshot(
+    { documentId: source.documentId, schema: 'theorem-document/2' },
+    { abortSignal: signal },
+  )
+  const markdown =
+    snapshot.canonical.placement === 'inline'
+      ? noteMarkdown(fromBase64(snapshot.canonical.bytesBase64))
+      : undefined
+  if (
+    markdown === undefined ||
+    !source.doc.eq(source.parse(splitFrontmatter(markdown).body))
+  )
+    throw new Error(
+      'The selected note differs from its saved document. Save or refresh the note, then select the passage again.',
+    )
+  return snapshot.summary
 }
 
 async function run(
@@ -160,9 +200,10 @@ async function run(
   signal: AbortSignal,
 ) {
   try {
-    // A retry's lost send is its own, so replaying it is the whole turn.
+    // A retry's lost send is its own, so its replay's run is the whole turn.
     if ((await recoverSend(note.key)) === id || signal.aborted) return
-    store().patch(note.key, id, { status: 'running' })
+    store().patch(note.key, id, { status: 'running', error: undefined })
+    const document = await canonicalSource(note, signal)
     const threadId = await threadFor(note)
     const { thread } = await theorem().chat.threads.get({ threadId })
     const turn = await mutateThread(threadId, (headers) => {
@@ -172,14 +213,14 @@ async function run(
         threadId,
         branchId: thread.selectedBranchId,
         text: question,
-        // The SDK's union lists only delegation references so far; Theorem's
-        // document markup reads these file references, and the SDK sends the
-        // field as given.
+        // The generated SDK union still lacks document locations; its wire
+        // client preserves this shared SDK reference shape unchanged.
         contextReferences: askReferences(
           note,
           excerpt,
+          document,
         ) as Theorem.ChatContextReference[],
-        model: pickedModelTurnOptions.model,
+        model: pickedModel(),
       })
     })
     store().patch(note.key, id, { runId: turn.run.runId })

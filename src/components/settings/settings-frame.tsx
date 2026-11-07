@@ -80,7 +80,7 @@ export function SettingsPage({
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="text-[20px] font-medium">
+        <h1 className="font-heading text-[20px] font-medium">
           {title}
         </h1>
         {description && (

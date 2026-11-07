@@ -1,4 +1,4 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
+// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, IDE mode's page (by default Theia with the tabbed agent terminal beside it, pages/mode-page.tsx), the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
@@ -6,7 +6,7 @@ import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
 import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
-import { IdeFrame } from '@/components/ide/ide-frame'
+import { ModePage } from '@/components/pages/mode-page'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
@@ -222,7 +222,8 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode Theia fills the sheet, and in Vault mode the Vault does. Each
+ * In IDE mode its page fills the sheet (by default Theia with the agent
+ * terminal beside it), and in Vault mode the Vault does. Each
  * loads on its first visit and then stays, hidden, so its editors and layout
  * survive a switch; the panel and dock stay mounted under them for the same
  * reason.
@@ -250,7 +251,7 @@ function DesktopShell(route: DockRoute) {
               inert={!ide}
               className={cn('absolute inset-0', !ide && 'invisible')}
             >
-              <IdeFrame />
+              <ModePage mode="ide" />
             </div>
           )}
           {vaultLoaded && (
@@ -305,9 +306,7 @@ export function ShellStatus({
 }) {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-2 bg-background px-6 text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
-        {title}
-      </p>
+      <p className="font-heading text-[20px] font-medium">{title}</p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}
     </div>
   )

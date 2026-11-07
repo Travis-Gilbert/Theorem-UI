@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit)
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -11,6 +11,7 @@ import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
   useAui,
+  useAuiState,
   useLocalRuntime,
   useRemoteThreadListRuntime,
 } from '@assistant-ui/react'
@@ -27,35 +28,52 @@ import {
   toAssistantMessages,
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
+import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
-import { useMemo } from 'react'
+import pMap from 'p-map'
+import { useContext, useEffect, useMemo } from 'react'
+import { create } from 'zustand'
+import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
+import { useComposerReferences } from '@/components/chat/composer-references'
+import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
+import { DRAFT_PLAN } from './plans'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
+import { settleKitExpression, useKitClock, useKitSource } from '@/lib/kit/store'
 import {
   describeError,
   describeRunFailure,
+  holdRefusedText,
+  hasStatus,
   mutate,
   mutateThread,
+  pendingSendKey,
   recoverPendingSend,
+  takeRefusedText,
   TERMINAL_RUN_EVENTS,
   theorem,
 } from './client'
 import type { Theorem } from './client'
-import { pickedModelTurnOptions } from './models'
+import { RefusedSend } from './send-recovery'
+import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
+import { isUntitledTitle, threadTitle } from './thread-title'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
 >
 
-function toMetadata(thread: Theorem.Thread): RemoteThreadMetadata {
+function toMetadata(
+  thread: Theorem.Thread,
+  title = thread.title,
+): RemoteThreadMetadata {
   return {
     status: thread.status === 'archived' ? 'archived' : 'regular',
     remoteId: thread.threadId,
-    title: thread.title || undefined,
+    title: title || undefined,
     lastMessageAt:
       thread.lastMessageAtMs !== undefined
         ? new Date(thread.lastMessageAtMs)
@@ -65,12 +83,32 @@ function toMetadata(thread: Theorem.Thread): RemoteThreadMetadata {
   }
 }
 
-function titleFrom(text: string): string {
-  const line = text.replace(/\s+/g, ' ').trim()
-  if (line.length <= 60) return line || 'New chat'
-  const cut = line.slice(0, 60)
-  const space = cut.lastIndexOf(' ')
-  return `${space > 30 ? cut.slice(0, space) : cut}...`
+/** Title writes belong before the SDK reads the revision for its send. */
+async function titleUntitledThread(
+  threadId: string,
+  messages: ChatModelRunOptions['messages'],
+) {
+  const client = theorem()
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const snapshot = await client.chat.threads.get({ threadId })
+    const title = threadTitle(snapshot, messages)
+    if (!isUntitledTitle(snapshot.thread.title) || isUntitledTitle(title))
+      return
+    try {
+      await mutate((headers) =>
+        client.chat.threads.update({
+          threadId,
+          title,
+          ...headers,
+          'If-Match': String(snapshot.thread.revision),
+        }),
+      )
+      return
+    } catch (error) {
+      // Re-read both title and revision: a concurrent custom rename wins.
+      if (!hasStatus(error, 409, 412)) throw error
+    }
+  }
 }
 
 /** Per-turn run settings, such as the agent terminal's coding execution mode. */
@@ -81,20 +119,36 @@ export type TurnOptions = TheoremChatAdapterOptions['turnOptions']
  */
 const chatAdapters = new Map<string, ChatModelAdapter>()
 const runFailures = new Map<string, string>()
+
+/**
+ * The run each thread has going, by thread id, from its stream's first event
+ * until its terminal one: what mid-run input is sent to. A message's run id
+ * arrives only with its first part, which may be a model step away.
+ */
+export const useLiveRuns = create<Partial<Record<string, string>>>(() => ({}))
+
+function noteLiveRun(threadId: string, runId: string | undefined) {
+  if (useLiveRuns.getState()[threadId] === runId) return
+  useLiveRuns.setState({ [threadId]: runId })
+}
 function chatAdapterFor(
   threadId: string,
-  turnOptions?: TurnOptions,
 ): ChatModelAdapter {
   let adapter = chatAdapters.get(threadId)
   if (!adapter) {
     adapter = createTheoremChatAdapter({
       client: theorem(),
       threadId,
-      turnOptions,
       onEvent(event) {
         if (event.sourceEventType === 'RUN.FAILED') {
           runFailures.set(threadId, describeRunFailure(event.payload))
         }
+        noteLiveRun(
+          threadId,
+          TERMINAL_RUN_EVENTS.has(event.sourceEventType)
+            ? undefined
+            : event.runId,
+        )
       },
     })
     chatAdapters.set(threadId, adapter)
@@ -228,14 +282,17 @@ export async function* tailRun(
 async function* resumeLiveRun(
   runId: string,
   abortSignal: AbortSignal,
+  threadId: string,
 ): AsyncGenerator<ChatModelRunResult, void> {
   let settled = false
+  noteLiveRun(threadId, runId)
   try {
     for await (const result of tailRun(runId, abortSignal)) {
       if (result.status) settled = true
       yield result
     }
   } finally {
+    noteLiveRun(threadId, undefined)
     if (!settled && abortSignal.aborted) {
       await mutate((headers) =>
         theorem().chat.runs.cancel({
@@ -249,31 +306,45 @@ async function* resumeLiveRun(
 }
 
 /**
+ * What a thread's last history load left for resume. assistant-ui resumes on
+ * whichever adapter is current by then, which may not be the one that loaded.
+ */
+const loadedForResume = new Map<
+  string,
+  { runId?: string; recoveryError?: unknown }
+>()
+
+/**
  * History for one durable thread: the selected branch from threads.get, with
  * a run that was live at load reattached by resume. `threadId` is read at load
  * time; undefined means a thread not created yet.
  */
 export function createHistoryAdapter(
   threadId: () => string | undefined,
+  /** A refused send's text was held under its thread, as history lacks it. */
+  onRefused?: () => void,
 ): ThreadHistoryAdapter {
-  // Run left open by the last history load; resume reattaches to it.
-  let liveRunId: string | undefined
-  let recoveryError: unknown
   return {
     async load() {
       const remoteId = threadId()
       if (!remoteId) return { messages: [] }
-      recoveryError = undefined
+      let recoveryError: unknown
       try {
         await recoverPendingSend(remoteId)
       } catch (error) {
         recoveryError = error
+        if (error instanceof RefusedSend) {
+          holdRefusedText(remoteId, error.text)
+          onRefused?.()
+        }
       }
       const snapshot = await theorem().chat.threads.get({
         threadId: remoteId,
       })
+      // The agent's manner lives on its identity, not the thread; the owner's
+      // snapshot carries it so the figure opens as the agent last chose.
+      settleKitExpression(snapshot.figureExpression)
       const runId = snapshot.liveRun?.runId
-      liveRunId = runId
       // The live run's message is rebuilt by resume from sequence zero.
       const settled = snapshot.messages.filter(
         (message) =>
@@ -282,20 +353,51 @@ export function createHistoryAdapter(
       const repository = ExportedMessageRepository.fromArray(
         toHistoryMessages(settled, snapshot.thread),
       )
-      return runId || recoveryError ? { ...repository, unstable_resume: true } : repository
+      if (!runId && !recoveryError) return repository
+      loadedForResume.set(remoteId, { runId, recoveryError })
+      return { ...repository, unstable_resume: true }
     },
     async *resume({ abortSignal }) {
-      if (liveRunId) yield* resumeLiveRun(liveRunId, abortSignal)
+      const remoteId = threadId()
+      const { runId, recoveryError } =
+        (remoteId && loadedForResume.get(remoteId)) || {}
+      if (remoteId) loadedForResume.delete(remoteId)
+      if (runId && remoteId) yield* resumeLiveRun(runId, abortSignal, remoteId)
       else if (recoveryError) throw new Error(describeError(recoveryError), { cause: recoveryError })
     },
     // Theorem persists every turn itself; nothing to write from the client.
     async append() {},
   }
 }
+
+/**
+ * Puts a refused send's text in this thread's composer, if this is the open chat.
+ * Only the open chat's composer is reachable, so the text waits until then.
+ */
+function giveBackRefusedText(aui: ReturnType<typeof useAui>) {
+  const { id, remoteId } = aui.threadListItem.getState()
+  if (!remoteId || aui.threads.getState().mainThreadId !== id) return
+  const text = takeRefusedText(remoteId)
+  if (text === undefined) return
+  const composer = aui.threads.thread('main').composer()
+  const draft = composer.getState().text.trimEnd()
+  composer.setText(draft ? `${text}\n\n${draft}` : text)
+}
+
 function useThreadAdapters() {
   const aui = useAui()
+  const open = useAuiState(
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
+  )
+  useEffect(() => {
+    if (open) giveBackRefusedText(aui)
+  }, [aui, open])
   const history = useMemo(
-    () => createHistoryAdapter(() => aui.threadListItem.getState().remoteId),
+    () =>
+      createHistoryAdapter(
+        () => aui.threadListItem.getState().remoteId,
+        () => giveBackRefusedText(aui),
+      ),
     [aui],
   )
   return useMemo(() => ({ history }), [history])
@@ -309,27 +411,51 @@ export async function* runTurn(
   threadId: string,
   options: ChatModelRunOptions,
   turnOptions?: TurnOptions,
+  accepted?: () => void,
 ): AsyncGenerator<ChatModelRunResult, void> {
   const text = options.messages.at(-1)?.content
     .map((part) => part.type === 'text' ? part.text : '').join('\n')
-  const recovered = await recoverPendingSend(threadId, text, options.abortSignal)
+  const recovered = await recoverPendingSend(threadId, text, options.abortSignal).catch((error: unknown) => {
+    // Refused for good: that one is over, so this send is the turn.
+    if (pendingSendKey(threadId)) throw error
+    return undefined
+  })
   if (recovered) {
-    yield* resumeLiveRun(recovered, options.abortSignal)
+    yield* resumeLiveRun(recovered, options.abortSignal, threadId)
     return
   }
   runFailures.delete(threadId)
+  await titleUntitledThread(threadId, options.messages)
   const messages = await alignWithDurableBranch(threadId, options.messages)
-  const result = chatAdapterFor(threadId, turnOptions).run({
+  // The adapter retains SDK message identity across runs; model and surface
+  // options belong to this invocation, even when another surface opened it.
+  const custom = options.runConfig.custom ?? {}
+  const configured = custom.theoremTurnOptions
+  const result = chatAdapterFor(threadId).run({
     ...options,
     messages,
+    runConfig: {
+      ...options.runConfig,
+      custom: {
+        ...custom,
+        theoremTurnOptions: {
+          ...turnOptions,
+          ...(configured && typeof configured === 'object' ? configured : {}),
+        },
+      },
+    },
   })
   if (!(Symbol.asyncIterator in result)) {
-    yield await result
+    const step = await result
+    accepted?.()
+    yield step
     return
   }
   let runId: string | undefined
+  let didAccept = false
   try {
     for await (const step of result) {
+      if (!didAccept) { accepted?.(); didAccept = true }
       const custom = step.metadata?.custom as
         { theoremRunId?: string } | undefined
       runId = custom?.theoremRunId ?? runId
@@ -355,21 +481,53 @@ export async function* runTurn(
     if (!known) {
       const resumed = await recoverPendingSend(threadId, text, options.abortSignal)
       if (!resumed) throw error
-      yield* resumeLiveRun(resumed, options.abortSignal)
+      if (!didAccept) accepted?.()
+      yield* resumeLiveRun(resumed, options.abortSignal, threadId)
       return
     }
-    yield* resumeLiveRun(known, options.abortSignal)
+    if (!didAccept) accepted?.()
+    yield* resumeLiveRun(known, options.abortSignal, threadId)
+  } finally {
+    // A stop ends the stream without a terminal event.
+    noteLiveRun(threadId, undefined)
   }
+}
+/** Whether a streamed step carries a finished `draft_plan` call. */
+export function draftedPlan(step: ChatModelRunResult): boolean {
+  return (step.content ?? []).some(
+    (part) => part.type === 'tool-call' && part.toolName === DRAFT_PLAN && part.result !== undefined && !part.isError,
+  )
 }
 function useTheoremThreadRuntime() {
   const aui = useAui()
+  // Absent outside the app's query provider; a send there carries no effort level.
+  const queryClient = useContext(QueryClientContext)
+  const turnOptions = useMemo(() => modelTurnOptions(queryClient), [queryClient])
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
         try {
+          const references = useComposerReferences.getState().references
           const { remoteId } = await aui.threadListItem.initialize()
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
-          yield* runTurn(remoteId, options, pickedModelTurnOptions)
+          const custom = options.runConfig.custom ?? {}
+          const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
+          // The composer's context, Web and Plan toggles, read at each send like the model pick.
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
+          if (added.capabilityScope && added.planning) added.capabilityScope.push(DRAFT_PLAN)
+          const composed = Object.keys(added).length ? {
+            ...options,
+            runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
+          } : options
+          const turn = runTurn(remoteId,composed,turnOptions,()=>{
+            // Recovery replays its saved request; only a newly accepted send consumes these references.
+            useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
+          })
+          for await (const step of turn) {
+            // Plan stays on until a plan is written; the turn that writes one turns it off.
+            if (draftedPlan(step)) usePlanning.getState().set(false)
+            yield step
+          }
         } catch (error) {
           if (options.abortSignal.aborted) throw error
           // Keep SDK exceptions intact for recovery above; only format at
@@ -378,12 +536,28 @@ function useTheoremThreadRuntime() {
         }
       },
     }),
-    [aui],
+    [aui, turnOptions],
   )
-  return useLocalRuntime(adapter)
+  const runtime = useLocalRuntime(adapter)
+  useKitSource(runtime)
+  useEffect(() => {
+    let busy = false
+    const abort = new AbortController()
+    const refresh = async () => {
+      const remoteId = aui.threadListItem.getState().remoteId
+      if (busy || !remoteId || document.visibilityState !== 'visible') return
+      busy = true
+      try { await refreshConversation(runtime.thread,()=>theorem().chat.threads.get({threadId:remoteId},{abortSignal:abort.signal})) }
+      catch { /* A failed refresh leaves the last confirmed transcript intact. */ }
+      finally { busy = false }
+    }
+    const timer = setInterval(()=>void refresh(),3000)
+    return () => {clearInterval(timer);abort.abort()}
+  },[aui,runtime])
+  return runtime
 }
 
-function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
+export function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
   const client = theorem()
   return {
     async list(params) {
@@ -400,9 +574,23 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
         ...documentThreadIds(),
       ])
       return {
-        threads: page.items
-          .filter((thread) => !apart.has(thread.threadId))
-          .map(toMetadata),
+        threads: await pMap(
+          page.items.filter((thread) => !apart.has(thread.threadId)),
+          async (thread) => {
+            if (!isUntitledTitle(thread.title)) return toMetadata(thread)
+            try {
+              const snapshot = await client.chat.threads.get(
+                { threadId: thread.threadId },
+                { timeoutInSeconds: 10, maxRetries: 0 },
+              )
+              return toMetadata(snapshot.thread, threadTitle(snapshot))
+            } catch {
+              // One inaccessible history must not hide the rest of the chats.
+              return toMetadata(thread)
+            }
+          },
+          { concurrency: 4 },
+        ),
         nextCursor: page.nextCursor,
       }
     },
@@ -442,22 +630,12 @@ function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
     },
     async fetch(remoteId) {
       const snapshot = await client.chat.threads.get({ threadId: remoteId })
-      return toMetadata(snapshot.thread)
+      return toMetadata(snapshot.thread, threadTitle(snapshot))
     },
+    // This callback runs concurrently with sends; only runTurn writes titles.
     async generateTitle(remoteId, messages) {
       const snapshot = await client.chat.threads.get({ threadId: remoteId })
-      let title = snapshot.thread.title
-      if (!title) {
-        const first = messages.find((message) => message.role === 'user')
-        const text =
-          first?.content
-            .map((part) => (part.type === 'text' ? part.text : ''))
-            .join(' ') ?? ''
-        title = titleFrom(text)
-        await mutateThread(remoteId, (headers) =>
-          client.chat.threads.update({ threadId: remoteId, title, ...headers }),
-        )
-      }
+      const title = threadTitle(snapshot, messages)
       return createAssistantStream((controller) => {
         controller.appendText(title)
       })
@@ -484,6 +662,7 @@ export function TheoremRuntimeProvider({
     threadId,
     onThreadIdChange,
   })
+  useKitClock()
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />

@@ -71,12 +71,40 @@ export function readIntent(data: unknown): IntentPart | undefined {
     : undefined
 }
 
+const ID = String.raw`(?:[a-z][\w.-]*:)?(?:[0-9a-f]{12,}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})`
+const HAS_ID = new RegExp(String.raw`\b${ID}\b`, 'i')
+const ID_CLAUSE = new RegExp(String.raw`[^;,]*\b${ID}\b[^;,]*[;,]?`, 'gi')
+const ID_TOKEN = new RegExp(String.raw`\s*\b${ID}\b`, 'gi')
+
+/** An aside that names ids keeps the rest of what it says, and goes when nothing is left. */
+function asideWithoutIds(aside: string, inner: string): string {
+  if (!HAS_ID.test(inner)) return aside
+  const rest = inner.replace(ID_CLAUSE, '').replace(/^[\s;,]+|[\s;,]+$/g, '')
+  return rest ? ` (${rest})` : ''
+}
+
+/**
+ * The objective as a person reads it: the front role writes the object ids
+ * the worker needs into its prompt ("(documentId note:8183…; keep the
+ * shortcuts)"), and those clauses stay with the worker.
+ */
+export function plainObjective(objective: string): string {
+  return objective
+    .replace(/\s*\(([^()]*)\)/g, asideWithoutIds)
+    .replace(ID_TOKEN, '')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 /** States in which the specialist has not settled yet. */
 export const LIVE_DELEGATION_STATES: ReadonlySet<DelegationState> = new Set([
   'proposed',
   'admitted',
   'started',
 ])
+
+const POLLING_DELEGATION_STATES = new Set([...LIVE_DELEGATION_STATES, 'published'])
 
 /** The side of a change that exists: the new file, or the base of a deletion. */
 export const changeSide = (change: ChangeSetEntry): 'before' | 'after' =>
@@ -116,7 +144,7 @@ export function useThreadDelegation(
   delegationId: string,
 ): DelegationPart | undefined {
   const messages = useAuiState((s) => s.thread.messages)
-  return useMemo(() => {
+  const stored = useMemo(() => {
     let latest: DelegationPart | undefined
     for (const message of messages) {
       if (message.role !== 'assistant') continue
@@ -128,11 +156,44 @@ export function useThreadDelegation(
     }
     return latest
   }, [messages, delegationId])
+  return useLiveDelegation(stored)
+}
+
+function currentDelegation(
+  seed: DelegationPart | undefined,
+  records: readonly DelegationPart[] | undefined,
+) {
+  if (!seed) return undefined
+  const polled = records?.find((item) => item.delegationId === seed.delegationId)
+  return polled && polled.updatedAtMs >= seed.updatedAtMs ? polled : seed
+}
+
+/** Work outlives its parent response, so its durable record owns the card's status. */
+export function useLiveDelegation(
+  seed: DelegationPart | undefined,
+): DelegationPart | undefined {
+  const query = useQuery({
+    queryKey: ['theorem', 'delegations', seed?.parentRunId],
+    enabled: !!seed,
+    queryFn: ({ signal }) =>
+      theorem().chat.runs.delegations(
+        { runId: seed!.parentRunId },
+        { abortSignal: signal },
+      ),
+    refetchInterval: ({ state }) => {
+      const current = currentDelegation(seed, state.data?.delegations)
+      if (!current || !POLLING_DELEGATION_STATES.has(current.state)) return undefined
+      if (current.state === 'published' && current.problem) return undefined
+      return 2000
+    },
+    staleTime: 1000,
+  })
+  return currentDelegation(seed, query.data?.delegations)
 }
 
 /** Set while the desktop dock is mounted: opens a delegation's panel. */
 export const useDelegationDock = create<{
-  open?: (delegationId: string) => void
+  open?: (delegationId: string, title: string) => void
 }>(() => ({}))
 
 const RESUME_ATTEMPTS = 8

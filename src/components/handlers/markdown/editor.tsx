@@ -330,6 +330,14 @@ function CrepeFile({
         workspaceId: file.client.workspace.id,
         path: file.path,
         title: basename(file.path).replace(/\.md$/i, ''),
+        captureDocument: file.entry.theorem?.documentId
+          ? () =>
+              crepeRef.current!.editor.action((ctx) => ({
+                documentId: file.entry.theorem!.documentId!,
+                doc: ctx.get(editorViewCtx).state.doc,
+                parse: ctx.get(parserCtx),
+              }))
+          : undefined,
       }}
     >
       {editor}

@@ -205,16 +205,30 @@ async function bundle(
     `import { startStandalone } from './standalone'`,
     `void startStandalone(cell, ${JSON.stringify(data)})`,
   ].join('\n')
+  return bundleScript(entry, cell.code, esbuild)
+}
+
+/** The existing App bridge bundled for a hosted document's opaque frame. */
+export async function bundleAppBridge(esbuild?: Bundler): Promise<string> {
+  return bundleScript("import './app-bridge'", '', esbuild ?? await browserEsbuild(), 'iife')
+}
+
+async function bundleScript(
+  entry: string,
+  cell: string,
+  esbuild: Bundler,
+  format: 'esm' | 'iife' = 'esm',
+): Promise<string> {
   const result = await esbuild.build({
     entryPoints: ['theorem:entry'],
     bundle: true,
     write: false,
-    format: 'esm',
+    format,
     target: 'es2022',
     minify: true,
     legalComments: 'none',
     logLevel: 'silent',
-    plugins: [exportPlugin(entry, cell.code)],
+    plugins: [exportPlugin(entry, cell)],
   })
   const output = result.outputFiles[0]
   if (!output) throw new Error('esbuild wrote nothing')

@@ -6,7 +6,12 @@ import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import type { CanvasSource } from '@/lib/theorem/canvas-agent'
 import type { Theorem } from '@/lib/theorem/client'
-import { reloadNote, useNote, useNoteStatus } from '@/lib/theorem/notes'
+import {
+  noteKey,
+  reloadNote,
+  useNote,
+  useNoteStatus,
+} from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 import { NoteEditor } from './note-editor'
@@ -62,11 +67,10 @@ export function noteSource(
     documentId: note.documentId,
     title: note.title,
     markdown: note.markdown,
+    savedMarkdown: note.savedMarkdown,
+    revision: { ...note.revision },
     placementId,
-    selection:
-      quote && range
-        ? { quote, ...range, revision: String(note.revision.position) }
-        : undefined,
+    selection: quote ? { quote, range } : undefined,
   }
 }
 
@@ -139,11 +143,13 @@ export function NotePanel({
   const openComposer = useComposer((s) => s.open)
 
   const ask = (anchor: { x: number; y: number }, quote?: string) => {
-    if (!note.data) return
+    // The editor flushes immediately before Ask, ahead of React's next render.
+    const current = queryClient.getQueryData<Note>(noteKey(documentId))
+    if (!current) return
     openComposer({
       anchor,
       sources: [
-        noteSource(note.data, placementOf(queryClient, documentId), quote),
+        noteSource(current, placementOf(queryClient, documentId), quote),
       ],
     })
   }
