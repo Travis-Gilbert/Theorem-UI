@@ -11,7 +11,6 @@ import { CatchBoundary } from '@tanstack/react-router'
 import type {
   DataMessagePartComponent,
   ToolCallMessagePartComponent,
-  ToolCallMessagePartProps,
 } from '@assistant-ui/react'
 import { useEffect, useMemo, useState } from 'react'
 import type { FC } from 'react'
@@ -169,14 +168,42 @@ export type TheoremApproval = {
   risk: string
   status: string
   approved: boolean | undefined
+  /** The host's words for an approval that settled unanswered: expired or replaced. */
+  reason: string | undefined
   options: Array<{ optionId: string; name: string; kind: string }>
 }
 
-export function readApproval(
-  interrupt: ToolCallMessagePartProps['interrupt'],
-): TheoremApproval | undefined {
-  if (interrupt?.type !== 'human') return undefined
-  const part = object(interrupt.payload)
+/** What became of an approval, as `ApprovalPart::outcome` in theorem-surface-contracts collapses it. */
+export type ApprovalOutcome =
+  'awaiting' | 'approved' | 'declined' | 'failed' | 'unanswered'
+
+const AWAITING_STATUSES = new Set(['requires_action', 'pending', 'open'])
+
+/**
+ * An approval is awaited only while its status says so. An expired or
+ * replaced request settles `incomplete` with `approved` still unset, so an
+ * unset decision alone is not a question anyone can answer.
+ */
+export function approvalOutcome(
+  approval: Pick<TheoremApproval, 'status' | 'approved'>,
+): ApprovalOutcome {
+  if (AWAITING_STATUSES.has(approval.status)) return 'awaiting'
+  if (approval.approved === true) return 'approved'
+  if (approval.approved === false) return 'declined'
+  return approval.status === 'failed' ? 'failed' : 'unanswered'
+}
+
+/**
+ * The approval a tool call carries, settled or not. The SDK keeps the latest
+ * `tool_approval` snapshot on the part's `artifact.theoremApproval` and sets
+ * its human `interrupt` only while the approval awaits a decision, so an
+ * answered, expired or replaced approval is read here without holding the
+ * message in requires-action.
+ */
+export function readApproval(toolCall: {
+  readonly artifact?: unknown
+}): TheoremApproval | undefined {
+  const part = object(object(toolCall.artifact).theoremApproval)
   const approvalId = str(part.approvalId)
   const toolCallId = str(part.toolCallId)
   if (!approvalId || !toolCallId) return undefined
@@ -202,6 +229,7 @@ export function readApproval(
     risk: str(part.risk) ?? 'unknown',
     status: str(part.status) ?? 'pending',
     approved: typeof part.approved === 'boolean' ? part.approved : undefined,
+    reason: str(part.reason),
     options,
   }
 }
@@ -249,14 +277,12 @@ export function sendApprovalDecision(
 export function isStandaloneToolCall(part: {
   type: string
   toolName?: string
-  interrupt?: unknown
+  artifact?: unknown
 }) {
   if (part.type !== 'tool-call') return false
   if (part.toolName && ARTIFACT_TOOLS.has(part.toolName)) return true
-  const approval = readApproval(
-    part.interrupt as ToolCallMessagePartProps['interrupt'],
-  )
-  return approval !== undefined && approval.approved === undefined
+  const approval = readApproval(part)
+  return approval !== undefined && approvalOutcome(approval) === 'awaiting'
 }
 
 const TheoremApprovalCard: FC<{
@@ -275,6 +301,10 @@ const TheoremApprovalCard: FC<{
         : 'denied',
   )
   const [error, setError] = useState<string>()
+  // The part can settle while the card is open; a request nobody answered
+  // offers no buttons, and the host's reason says why.
+  const outcome = approvalOutcome(approval)
+  const unanswered = outcome === 'unanswered' || outcome === 'failed'
 
   const decide = async (choice: ApprovalChoice, granted: boolean) => {
     if (!runId) {
@@ -301,7 +331,13 @@ const TheoremApprovalCard: FC<{
   return (
     <div className="my-3 flex flex-col gap-2">
       <ApprovalCard
-        state={state}
+        state={unanswered ? 'denied' : state}
+        statusLabel={
+          unanswered
+            ? (approval.reason ??
+              (outcome === 'failed' ? 'The request failed' : 'Not answered'))
+            : undefined
+        }
         title={approval.summary}
         subtitle={approvalSubtitle(approval)}
         command={argsText || undefined}
@@ -330,7 +366,7 @@ const TheoremApprovalCard: FC<{
 /** ToolFallback slot: artifact tools, Theorem approvals, then the generic tool card. */
 export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
-  const approval = readApproval(props.interrupt)
+  const approval = readApproval(props)
   if (approval && props.result === undefined)
     return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
   return <ToolFallback {...props} />
@@ -371,13 +407,11 @@ function progressLabels(
 export const RunningIndicator: FC = () => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   const awaiting = useAuiState((s) =>
-    s.message.content.some(
-      (part) =>
-        part.type === 'tool-call' &&
-        part.result === undefined &&
-        readApproval(part.interrupt)?.approved === undefined &&
-        readApproval(part.interrupt) !== undefined,
-    ),
+    s.message.content.some((part) => {
+      if (part.type !== 'tool-call' || part.result !== undefined) return false
+      const approval = readApproval(part)
+      return approval !== undefined && approvalOutcome(approval) === 'awaiting'
+    }),
   )
   const label = useAuiState((s) => {
     const last = s.message.content.findLast(

@@ -359,7 +359,16 @@ export class TheoremChatAgent implements ChatAgent, FrontendApplicationContribut
 
     /** Theia asks with its own Allow and Deny; a decision made in the Theorem UI settles the question here. */
     protected approve(content: ToolCallChatResponseContentImpl, approval: ChatApproval): void {
-        if (approval.approved === undefined) {
+        if (approval.settled) {
+            // No one answered and the turn moved on. Close the prompt, if one
+            // is open, without deciding: the `confirmed` rejection is ignored
+            // below. The call ends with the reason in place of a result.
+            if (!this.settled.has(content)) {
+                this.settled.add(content);
+                content.cancelConfirmation();
+                content.complete(approval.settled.reason ?? 'The request ended without an answer.');
+            }
+        } else if (approval.approved === undefined) {
             if (!this.asked.has(content)) {
                 this.asked.add(content);
                 content.requestUserConfirmation();

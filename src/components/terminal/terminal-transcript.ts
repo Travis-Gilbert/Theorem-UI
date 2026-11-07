@@ -11,7 +11,7 @@ import {
   toolOutput,
 } from './terminal-code'
 import type { CodePart, Open, Output, ProsePart, Token } from './terminal-code'
-import { readApproval } from '@/components/chat/theorem-parts'
+import { approvalOutcome, readApproval } from '@/components/chat/theorem-parts'
 import { describeError } from '@/lib/theorem/client'
 
 export type Approval = {
@@ -217,10 +217,10 @@ export function snapshotOf(
         return []
       }
       if (part.type !== 'tool-call') return []
-      const asked = readApproval(part.interrupt)
+      const asked = readApproval(part)
       const waiting =
         asked !== undefined &&
-        asked.approved === undefined &&
+        approvalOutcome(asked) === 'awaiting' &&
         part.result === undefined
       if (waiting && runId && !approval) {
         const kind = (k: string) =>
