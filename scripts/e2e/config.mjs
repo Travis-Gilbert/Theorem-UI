@@ -7,10 +7,12 @@ const port = (name, fallback) => Number(process.env[name] ?? fallback)
 export const UI_PORT = port('E2E_UI_PORT', 3102)
 export const API_PORT = port('E2E_API_PORT', 8392)
 export const IDENTITY_PORT = port('E2E_IDENTITY_PORT', 8398)
+export const STANDIN_PORT = port('E2E_STANDIN_PORT', 8399)
 
 export const UI = `http://localhost:${UI_PORT}`
 export const API = `http://127.0.0.1:${API_PORT}`
 export const IDENTITY = `http://127.0.0.1:${IDENTITY_PORT}`
+export const STANDIN = `http://127.0.0.1:${STANDIN_PORT}`
 
 /** Secrets, the store and logs. Outside the repo, so nothing here can be committed. */
 export const DATA_DIR =

@@ -8,6 +8,8 @@
   "scripts": {
     "e2e:stack": "node scripts/e2e/stack.mjs",
     "e2e:review": "node scripts/e2e/review.mjs",
+    "e2e:models": "node scripts/e2e/models.mjs",
+    "e2e:keys": "node scripts/e2e/keys.mjs",
     "dev": "sh terminal/build.sh && bun --bun vite dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "sh scripts/build.sh",

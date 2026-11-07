@@ -11,6 +11,21 @@ import { ACCOUNT, DATA_DIR, UI } from './config.mjs'
 const BROWSER_STATE = join(DATA_DIR, 'browser-state.json')
 export const SHOTS = join(DATA_DIR, 'shots')
 
+// Playwright's own error messages carry the request log, session cookie included,
+// so a crash says only what went wrong and where.
+function crash(error) {
+  const lines = String(error?.stack ?? error).split('\n')
+  console.error(lines[0])
+  console.error(lines.filter((line) => line.trim().startsWith('at ')).join('\n'))
+  process.exit(1)
+}
+process.on('uncaughtException', crash)
+process.on('unhandledRejection', crash)
+
+// How long one read may take. A busy machine or a debug server can make a read
+// slow; the scenario's own patience and its checks decide what that means.
+export const READ = { timeout: 120_000 }
+
 const failed = []
 
 export function check(name, passed, detail = '') {
@@ -61,7 +76,12 @@ export async function open(path = '/') {
         `${response.status()} ${response.request().method()} ${response.url().replace(UI, '').slice(0, 90)}`,
       )
   })
-  const asked = await context.request.get(`${UI}/api/chat/v1/bootstrap`)
+  // A cold Vite or a server replaying its journal can take a while to answer.
+  const asked = await context.request
+    .get(`${UI}/api/chat/v1/bootstrap`, READ)
+    .catch(() => {
+      throw new Error(`${UI} did not answer the bootstrap request`)
+    })
   if (asked.status() === 401) {
     await page.goto(`${UI}/login`, { waitUntil: 'domcontentloaded', timeout: 120_000 })
     await signIn(page)

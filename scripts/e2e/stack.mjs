@@ -10,6 +10,11 @@
 //
 // Then, in another shell: node scripts/e2e/review.mjs
 // Generated secrets stay in E2E_DATA_DIR, in a file only this user can read.
+//
+// With E2E_KEY_STANDIN set, for scripts/e2e/keys.mjs, the deployment has no OpenRouter
+// key and reaches OpenRouter through scripts/e2e/provider-standin.mjs. That takes only
+// a generated test key and swaps in the real one as it forwards, so a page never
+// holds a real key.
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import {
@@ -28,6 +33,8 @@ import {
   API_PORT,
   DATA_DIR,
   IDENTITY,
+  STANDIN,
+  STANDIN_PORT,
   UI,
   UI_PORT,
 } from './config.mjs'
@@ -36,6 +43,16 @@ const CLIENT_ID = 'theorem-ui-e2e'
 const IDENTITY_CLIENT_ID = 'theorem-e2e'
 const READY_ATTEMPTS = 240
 const READY_INTERVAL_MS = 1_000
+const STANDIN_MODELS = [
+  'deepseek/deepseek-v4-flash-0731',
+  'deepseek/deepseek-v4-pro-0813',
+  'deepseek/deepseek-v4.1-flash',
+  'deepseek/deepseek-v4.1-flash-1017',
+  'minimax/minimax-m3',
+  'qwen/qwen3.8-flash',
+  'z-ai/glm-5.3',
+  'z-ai/glm-5.3-flash',
+]
 
 const root = resolve(import.meta.dirname, '../..')
 const server = process.env.E2E_SERVER_BIN
@@ -46,17 +63,18 @@ if (!server || !existsSync(server)) {
 
 function secrets() {
   const path = join(DATA_DIR, 'secrets.json')
-  if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8'))
   const hex = (bytes) => randomBytes(bytes).toString('hex')
-  const fresh = {
+  const all = {
     sessionSigningKey: hex(32),
     publicationSigningKey: hex(32),
     identityClientSecret: hex(24),
     identityCookieKey: hex(24),
     uiSessionSecret: hex(32),
+    testProviderKey: `sk-or-e2e-${hex(24)}`,
+    ...(existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}),
   }
-  writeFileSync(path, JSON.stringify(fresh), { mode: 0o600 })
-  return fresh
+  writeFileSync(path, JSON.stringify(all), { mode: 0o600 })
+  return all
 }
 
 function providerKeys() {
@@ -116,9 +134,28 @@ start('identity', process.execPath, ['scripts/e2e/identity.mjs'], {
 })
 await ready('identity', `${IDENTITY}/.well-known/openid-configuration`)
 
+const serverEnv = { ...process.env, ...providerKeys() }
+if (process.env.E2E_KEY_STANDIN) {
+  start('standin', process.execPath, ['scripts/e2e/provider-standin.mjs'], {
+    ...process.env,
+    E2E_STANDIN_PORT: String(STANDIN_PORT),
+    E2E_STANDIN_TEST_KEY: secret.testProviderKey,
+    E2E_STANDIN_REAL_KEY: serverEnv.OPENROUTER_API_KEY,
+  })
+  await ready('standin', `${STANDIN}/__calls`)
+  const endpoint = { endpoint: `${STANDIN}/api/v1` }
+  serverEnv.THEOREM_MODELS_JSON = join(DATA_DIR, 'standin-models.json')
+  writeFileSync(
+    serverEnv.THEOREM_MODELS_JSON,
+    JSON.stringify({
+      models: { openrouter: Object.fromEntries(STANDIN_MODELS.map((model) => [model, endpoint])) },
+    }),
+  )
+  delete serverEnv.OPENROUTER_API_KEY
+}
+
 start('server', server, [], {
-  ...process.env,
-  ...providerKeys(),
+  ...serverEnv,
   RUSTY_RED_PORT: String(API_PORT),
   RUSTY_RED_DATA_DIR: join(DATA_DIR, 'store'),
   RUSTY_RED_ALLOWED_ORIGINS: UI,
@@ -130,7 +167,6 @@ start('server', server, [], {
   RUSTY_RED_TENANT_ALLOWLIST: ACCOUNT,
   RUSTY_RED_SESSION_SIGNING_KEY_HEX: secret.sessionSigningKey,
   THEOREM_PUBLICATION_SIGNING_KEY_HEX: secret.publicationSigningKey,
-  THEOREMWEB_CHAT_MODEL: 'openrouter/thinkingmachines/inkling',
   RUSTY_RED_OAUTH_ENABLED: 'true',
   RUSTY_RED_OAUTH_PUBLIC_URL: API,
   RUSTY_RED_OAUTH_IDENTITY_PROVIDER: 'oidc',
