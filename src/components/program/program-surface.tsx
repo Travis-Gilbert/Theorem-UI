@@ -6,7 +6,7 @@ import { useSearch } from '@tanstack/react-router'
 import { useDebouncedValue } from '@tanstack/react-pacer'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProgramDefinition } from '@/lib/program/contracts'
-import type { ProgramLayout } from '@/lib/program/api'
+import type { LoadedProgram, ProgramLayout } from '@/lib/program/api'
 import { lintProgram } from '@/lib/program/compute'
 import type { LintDiagnostic, LintSeverity } from '@/lib/program/compute'
 import type { ProgramNodeData } from '@/lib/program/flow'
@@ -183,12 +183,25 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
   useProgramLint(nodeId)
   useProgramValidation()
 
+  const applied = useRef<LoadedProgram>(undefined)
   useEffect(() => {
     const answer = loaded.data
-    if (!answer) return
+    // A cached copy waits for the fresh one, so nothing is edited on a stale graph.
+    if (!answer || loaded.isFetching || answer === applied.current) return
+    applied.current = answer
+    // Definition edits not saved yet are newer than any copy fetched before they land;
+    // autosave writes them. A compound change or a fresh start has nothing pending.
+    const pending = () => {
+      const doc = useProgramDoc.getState()
+      return (
+        doc.nodeId === answer.node_id &&
+        doc.definitionRevision > doc.savedDefinition
+      )
+    }
+    if (pending()) return
     let live = true
     void layoutProgram(answer.program, answer.layout).then((positions) => {
-      if (!live) return
+      if (!live || pending()) return
       useProgramDoc.getState().open(answer, positions)
       if (answer.layout?.last_run_id) {
         void reattachProgramRun(answer.layout.last_run_id)
@@ -218,7 +231,7 @@ function OpenProgram({ nodeId }: { nodeId: string }) {
     return () => {
       live = false
     }
-  }, [loaded.data])
+  }, [loaded.data, loaded.isFetching])
   useEffect(
     () => () => {
       flush()

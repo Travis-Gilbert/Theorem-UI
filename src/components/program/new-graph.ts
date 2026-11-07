@@ -10,6 +10,7 @@ import {
   saveProgram,
 } from '@/lib/program/api'
 import type { ProgramDefinition } from '@/lib/program/contracts'
+import { useProgramDoc } from '@/lib/program/store'
 
 export const freeName = (base: string, taken: Set<string>) => {
   if (!taken.has(base)) return base
@@ -64,6 +65,9 @@ export function useNewGraph() {
     onSuccess: (saved, { replacing, replace }) => {
       void client.invalidateQueries({ queryKey: programKeys.list() })
       if (replacing) {
+        // The open graph gives way to its replacement, so nothing of it is saved over it.
+        if (useProgramDoc.getState().nodeId === replacing)
+          useProgramDoc.getState().close()
         void client.invalidateQueries({ queryKey: programKeys.load(replacing) })
         return
       }
