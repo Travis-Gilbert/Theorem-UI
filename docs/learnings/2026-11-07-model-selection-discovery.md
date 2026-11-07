@@ -21,5 +21,8 @@ catalog owner; this UI does not fetch an independent roster or infer provider
 health from a listing. No new dependency or custom transport was added.
 
 The changes were transplanted onto current main independently of the concurrent
-composer Plan/Effort branch. Live authenticated model-switch and response checks
-remain separate from fixture tests.
+composer Plan/Effort branch. A Chromium check rendered the unavailable directory, used Retry to load a
+recovered catalog, and starred the discovered model. The test used API fixtures;
+it is not evidence of authenticated production behavior. Production Worker
+version `7bd69e80-c974-4358-8d9a-04ebb502804a` deployed source `94ef709`.
+Live authenticated model-switch and response checks remain separate gates.
