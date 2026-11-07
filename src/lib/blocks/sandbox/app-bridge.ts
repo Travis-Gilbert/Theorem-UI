@@ -59,6 +59,13 @@ const context = connectToPage().then((port) => {
       text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),
     }).catch(() => {})
   }
+  // A person's input inside the frame never reaches the page; say so, so a
+  // module's next event starts its own chain.
+  const used = () => {
+    void call<PageMethods, 'module.used'>(rpc, 'module.used', {}).catch(() => {})
+  }
+  document.addEventListener('pointerdown', used, true)
+  document.addEventListener('keydown', used, true)
   document.addEventListener('selectionchange',selection)
   document.addEventListener('pointerup',selection)
   document.addEventListener('keyup',selection)

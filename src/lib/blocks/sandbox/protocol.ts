@@ -78,6 +78,8 @@ export interface PageMethods {
   'frame.snapshot': { params: { html: string }; result: null }
   /** A page module publishing one of its declared outputs. */
   'module.output': { params: { name: string; value: unknown }; result: null }
+  /** A person used a page module's frame: its next events are theirs. */
+  'module.used': { params: Record<string, never>; result: null }
   /** A page module sending one of its declared events. */
   'module.emit': { params: { name: string; payload: unknown }; result: null }
 }

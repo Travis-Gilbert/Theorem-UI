@@ -32,7 +32,7 @@ import {
 } from '@/lib/modules/sandbox'
 import type { Request } from '@/lib/modules/sandbox'
 import { useModuleFiles, useVaultClient } from '@/lib/modules/store'
-import { useModuleActions } from './page-runtime'
+import { useModuleActions, usePageRuntime } from './page-runtime'
 import type { ModuleFiles } from '@/lib/modules/store'
 import type { WorkspaceClient, WorkspaceId } from '@/lib/workspace/types'
 
@@ -270,6 +270,7 @@ function ModuleFrameBody({
   allowed: RequestedCapabilities
   view: ModuleViewProps
 }) {
+  const runtime = usePageRuntime()
   const allowedKey = JSON.stringify(allowed)
   const netKey = JSON.stringify(allowed.net)
   const [frameDocument, setFrameDocument] = useState<{
@@ -363,6 +364,7 @@ function ModuleFrameBody({
                 events: definition.events,
                 output: (name, value) => latest.current.output(name, value),
                 emit: (name, payload) => latest.current.emit(name, payload),
+                used: () => runtime.used(latest.current.path),
               })
               rpc.current = connected
               const { settings, inputs } = latest.current

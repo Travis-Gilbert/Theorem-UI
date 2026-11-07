@@ -150,6 +150,7 @@ function PlacedModule({
   arranging: boolean
 }) {
   const view = useInstance(definition, props, arranging)
+  const runtime = usePageRuntime()
   const notice = useInstanceNotices((s) => s.notices[view.path])
   const title = props.title || definition.label
   const { implementation } = definition
@@ -162,29 +163,36 @@ function PlacedModule({
   )
   return (
     <InstanceProvider path={view.path}>
-      <ModuleFrame
-        title={title}
-        notice={notice}
-        arranging={arranging}
-        height={definition.category === 'Composite' ? undefined : 420}
+      {/* A person's pointer or key here starts this instance's next chain. */}
+      <div
+        className="contents"
+        onPointerDownCapture={() => runtime.used(view.path)}
+        onKeyDownCapture={() => runtime.used(view.path)}
       >
-        <ModuleBoundary label={title}>
-          {/* A composite's parts belong to it, not to the side around it. */}
-          <SideContext.Provider value={null}>
-            <EmptyReportContext.Provider value={report}>
-              {implementation.kind === 'builtin' && (
-                <implementation.Component {...view} />
-              )}
-              {implementation.kind === 'sandboxed-html' && (
-                <SandboxedModule definition={definition} view={view} />
-              )}
-              {implementation.kind === 'composite' && (
-                <CompositeModule definition={definition} view={view} />
-              )}
-            </EmptyReportContext.Provider>
-          </SideContext.Provider>
-        </ModuleBoundary>
-      </ModuleFrame>
+        <ModuleFrame
+          title={title}
+          notice={notice}
+          arranging={arranging}
+          height={definition.category === 'Composite' ? undefined : 420}
+        >
+          <ModuleBoundary label={title}>
+            {/* A composite's parts belong to it, not to the side around it. */}
+            <SideContext.Provider value={null}>
+              <EmptyReportContext.Provider value={report}>
+                {implementation.kind === 'builtin' && (
+                  <implementation.Component {...view} />
+                )}
+                {implementation.kind === 'sandboxed-html' && (
+                  <SandboxedModule definition={definition} view={view} />
+                )}
+                {implementation.kind === 'composite' && (
+                  <CompositeModule definition={definition} view={view} />
+                )}
+              </EmptyReportContext.Provider>
+            </SideContext.Provider>
+          </ModuleBoundary>
+        </ModuleFrame>
+      </div>
     </InstanceProvider>
   )
 }

@@ -18,8 +18,8 @@ export const MAX_EVENTS_PER_SECOND = 30
 /**
  * An event an instance sends this soon after an action reached it continues
  * that action's chain, so a loop through a module that answers later (a
- * sandboxed frame, an effect) still meets the depth limit. The page decides
- * this, not the module: a frame could not be trusted to say.
+ * sandboxed frame, an effect) still meets the depth limit. A person using
+ * the instance in between (`used`) starts its next event afresh.
  */
 export const CHAIN_WINDOW_MS = 5000
 
@@ -75,6 +75,11 @@ export interface PageRuntime {
     action: string,
     handler: ActionHandler,
   ) => () => void
+  /**
+   * A person used the instance (a pointer or a key on it): what it sends
+   * next is theirs, not a reply to the last action that reached it.
+   */
+  used: (instance: string) => void
   /** Calls one of an instance's actions, as a route to it would. */
   act: (instance: string, action: string, payload: unknown) => void
   /** Hands an inner instance's event on as its composite's own event. */
@@ -223,6 +228,9 @@ export function createPageRuntime(
             return next
           }, true)
       }
+    },
+    used: (instance) => {
+      reached.delete(instance)
     },
     act: (instance, action, payload) => {
       const handler = disposed ? undefined : handlers.get(key(instance, action))

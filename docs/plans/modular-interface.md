@@ -75,8 +75,10 @@ This is a first release. The owner's design (pasted with the request on
   - Events handed round in a loop stop at depth 8. An event an instance
     sends within 5 seconds of an action reaching it continues that action's
     chain, so a loop through a module that answers later (a sandboxed frame,
-    an effect) stops too. The page infers this; a frame is never asked. A loop
-    slower than that is the person's to stop.
+    an effect) stops too. A person's pointer or key on the instance in
+    between starts its next event afresh (`runtime.used`; a frame reports its
+    own input as `module.used`, since it never reaches the page). A loop slower
+    than that is the person's to stop.
   - An instance sending more than 30 events a second is stopped, with a
     notice.
   - Setting an output equal to its current value does nothing.

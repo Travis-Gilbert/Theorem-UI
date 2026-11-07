@@ -22,6 +22,7 @@ import {
   setInstalled,
 } from '@/lib/modules/registry'
 import type { ModuleDefinition, ModuleViewProps } from '@/lib/modules/registry'
+import { MAX_EVENT_DEPTH } from '@/lib/modules/runtime'
 import { BUILTIN_TEMPLATES } from '@/lib/modules/templates'
 import { create } from 'zustand'
 import { useOwner } from './builtins'
@@ -170,6 +171,13 @@ function Shows() {
   const [shown, setShown] = useState('nothing yet')
   useModuleAction('show', (payload) => setShown(`shown: ${String(payload)}`))
   return <output>{shown}</output>
+}
+
+/** Shows what reached it, and hands it on when clicked: a linked view. */
+function Linked({ emit }: ModuleViewProps) {
+  const [shown, setShown] = useState(0)
+  useModuleAction('show', () => setShown((n) => n + 1))
+  return <button onClick={() => emit('pick', 'x')}>{`shown ${shown}`}</button>
 }
 
 function ShowsAny() {
@@ -321,6 +329,54 @@ test('a module whose actions come from its manifest answers a route to each', as
     await waitFor(() => container.textContent.includes('hide: chosen'))
   } finally {
     for (const remove of removals) remove()
+  }
+})
+
+// Review found that clicks a second apart between two linked views inherited
+// each other's depth, and stopped reaching the other after eight.
+test('a person alternating between two linked views is never cut off', async () => {
+  const remove = registerBuiltin(
+    builtin({
+      id: 'test.linked',
+      label: 'Linked',
+      events: [{ name: 'pick', label: 'Pick', type: 'text' }],
+      actions: [{ name: 'show', label: 'Show', type: 'text' }],
+      Component: Linked,
+    }),
+  )
+  try {
+    const { container } = await render(
+      withComposites({
+        root: { props: {} },
+        content: [
+          instance('test.linked', 'one', {
+            on: { pick: [{ to: { instance: 'two', action: 'show' } }] },
+          }),
+          instance('test.linked', 'two', {
+            on: { pick: [{ to: { instance: 'one', action: 'show' } }] },
+          }),
+        ],
+      }),
+    )
+    const [one, two] = await waitFor(() => {
+      const buttons = [...container.querySelectorAll('button')]
+      return buttons.length === 2 && buttons
+    })
+    const clicks = 2 * MAX_EVENT_DEPTH
+    for (let click = 0; click < clicks; click++) {
+      const button = click % 2 ? two! : one!
+      act(() => {
+        button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+        button.click()
+      })
+    }
+    await waitFor(
+      () =>
+        one!.textContent === `shown ${clicks / 2}` &&
+        two!.textContent === `shown ${clicks / 2}`,
+    )
+  } finally {
+    remove()
   }
 })
 

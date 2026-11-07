@@ -28,6 +28,8 @@ export interface ModulePorts {
   events: ReadonlyArray<PortSpec>
   output: (name: string, value: unknown) => void
   emit: (name: string, payload: unknown) => void
+  /** A person used the frame; input inside it never reaches the page. */
+  used: () => void
 }
 
 function declared(
@@ -45,7 +47,7 @@ function declared(
     throw new BridgeDenied(`The ${what} "${name}" takes a ${port.type} value`)
 }
 
-/** Serves `module.output` and `module.emit` to one module's frame. */
+/** Serves `module.output`, `module.emit` and `module.used` to one module's frame. */
 export function serveModule(rpc: Rpc, ports: ModulePorts): void {
   serve<PageMethods, 'module.output'>(rpc, 'module.output', (raw) => {
     const { name, value } = params.output.parse(raw)
@@ -57,6 +59,12 @@ export function serveModule(rpc: Rpc, ports: ModulePorts): void {
     const { name, payload } = params.emit.parse(raw)
     declared(ports.events, name, 'event', payload)
     ports.emit(name, payload)
+    return null
+  })
+  // Only the frame can see its input. Trusting it costs nothing: the depth
+  // limit is against accidental loops, and the rate limit still holds.
+  serve<PageMethods, 'module.used'>(rpc, 'module.used', () => {
+    ports.used()
     return null
   })
 }

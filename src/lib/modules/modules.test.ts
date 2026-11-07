@@ -523,6 +523,31 @@ describe('runtime', () => {
     expect(h.notices).toEqual([])
   })
 
+  // Review found that a person's clicks within the window inherited the
+  // last action's depth, so alternating between two linked views stopped.
+  test("a person's use of an instance starts its next chain", () => {
+    const h = host()
+    const runtime = createPageRuntime(lookup, h)
+    let shown = 0
+    for (const [self, other] of [
+      ['b1', 'b2'],
+      ['b2', 'b1'],
+    ] as const) {
+      runtime.wire(self, {
+        type: 'theorem.test.inspector',
+        on: { again: [{ to: { instance: other, action: 'show' } }] },
+      })
+      runtime.handle(self, 'show', () => shown++)
+    }
+    for (let click = 0; click < 2 * MAX_EVENT_DEPTH; click++) {
+      const self = click % 2 ? 'b2' : 'b1'
+      runtime.used(self)
+      runtime.emit(self, 'again', { id: String(click) })
+    }
+    expect(shown).toBe(2 * MAX_EVENT_DEPTH)
+    expect(h.notices).toEqual([])
+  })
+
   test('an instance flooding events is stopped', () => {
     const h = host()
     let clock = 0

@@ -28,17 +28,19 @@ function connected() {
   const frame = rpcOver(channel.port2)
   const published: Array<[string, unknown]> = []
   const sent: Array<[string, unknown]> = []
+  const uses: number[] = []
   serveModule(host, {
     outputs,
     events,
     output: (name, value) => published.push([name, value]),
     emit: (name, payload) => sent.push([name, payload]),
+    used: () => uses.push(1),
   })
   const close = () => {
     channel.port1.close()
     channel.port2.close()
   }
-  return { host, frame, published, sent, close }
+  return { host, frame, published, sent, uses, close }
 }
 
 const refused = (promise: Promise<unknown>) =>
@@ -115,6 +117,16 @@ describe('a sandboxed module', () => {
         inputs: { item: undefined },
       })
       expect(received).toEqual([{ settings: { label: 'x' }, inputs: {} }])
+    } finally {
+      close()
+    }
+  })
+
+  test('says when a person used it', async () => {
+    const { frame, uses, close } = connected()
+    try {
+      await call<PageMethods, 'module.used'>(frame, 'module.used', {})
+      expect(uses).toHaveLength(1)
     } finally {
       close()
     }
