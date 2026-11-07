@@ -341,6 +341,18 @@ describe("the figure's own choices", () => {
     expect(back.until - back.since).toBeGreaterThanOrEqual(SHIFT_MS)
   })
 
+  test('an idle shift comes within 28 s, and may be a peek that plays once', () => {
+    const latest = poseAct(stage(), 0, chances(0.999))
+    expect(latest.until).toBeGreaterThan(SHIFT_MS)
+    expect(latest.until).toBeLessThan(28_000)
+    // The last choice after the idle poses: the figure's own peek.
+    const peek = nextAct(latest, stage(), latest.until, chances(0.99))
+    expect(peek).toMatchObject({ tag: 'peek', unprompted: true, once: true })
+    expect(peek.until).toBe(latest.until + tagLength(KIT_SHEET, 'peek'))
+    const after = stage({ lastShift: latest.until })
+    expect(nextAct(peek, after, peek.until, chances(0)).tag).toBe('rest')
+  })
+
   test('no shift is admitted within 20 s of the last', () => {
     const rest = poseAct(stage(), 0, chances(0))
     const early = nextAct(
@@ -372,7 +384,9 @@ describe("the figure's own choices", () => {
     // Chance 0: flourish, and the first of celebrate, stretch, wave, pounce.
     const flourish = nextAct(working, done, 100, chances(0))
     expect(flourish).toMatchObject({ tag: 'celebrate', unprompted: true })
-    expect(nextAct(working, done, 100, chances(0.9)).tag).toBe('nod')
+    // Three turns in four flourish; the fourth nods.
+    expect(nextAct(working, done, 100, chances(0.7, 0)).tag).toBe('celebrate')
+    expect(nextAct(working, done, 100, chances(0.8)).tag).toBe('nod')
     const chosen = { ...done, chosen: true }
     expect(nextAct(working, chosen, 100, chances(0)).tag).toBe('nod')
 
@@ -387,16 +401,41 @@ describe("the figure's own choices", () => {
     expect(nextAct(pounce, work, 1_600, chances(0)).tag).toBe('lean_in')
   })
 
-  test('work and ask hold their pose; nothing shifts on its own', () => {
+  test('while it works on the default pose, Kit thinks for a while, then leans in again', () => {
     const work = stage({
       liveness: 'work',
-      pose: 'think',
-      chosen: true,
+      pose: 'lean_in',
       lastShift: -SHIFT_MS,
     })
-    const act = poseAct(work, 0, chances(0))
-    expect(act.until).toBe(Infinity)
-    expect(nextAct(act, work, 10 * SHIFT_MS, chances(0))).toBe(act)
+    const lean = poseAct(work, 0, chances(0))
+    expect(lean).toMatchObject({ tag: 'lean_in', until: SHIFT_MS })
+    expect(nextAct(lean, work, SHIFT_MS - 1, chances(0))).toBe(lean)
+    const think = nextAct(lean, work, SHIFT_MS, chances(0))
+    expect(think).toMatchObject({
+      tag: 'think',
+      liveness: 'work',
+      pose: 'lean_in',
+      unprompted: true,
+    })
+    const later = stage({ ...work, lastShift: SHIFT_MS })
+    const back = nextAct(think, later, think.until, chances(0))
+    expect(back).toMatchObject({ tag: 'lean_in', unprompted: false })
+    // Never into point: that points at an artifact only the agent knows of.
+    expect(nextAct(lean, work, SHIFT_MS, chances(0.99)).tag).toBe('think')
+  })
+
+  test("the agent's work pose, attend and ask hold; nothing shifts on its own", () => {
+    const held = [
+      stage({ liveness: 'work', pose: 'think', chosen: true }),
+      stage({ liveness: 'work', pose: 'point', chosen: true }),
+      stage({ liveness: 'attend', pose: 'lean_in' }),
+      stage({ liveness: 'ask', pose: 'tilt' }),
+    ].map((fields) => ({ ...fields, lastShift: -SHIFT_MS }))
+    for (const fields of held) {
+      const act = poseAct(fields, 0, chances(0))
+      expect(act.until).toBe(Infinity)
+      expect(nextAct(act, fields, 10 * SHIFT_MS, chances(0))).toBe(act)
+    }
   })
 })
 

@@ -1,4 +1,4 @@
-// SOURCING: hand-rolled. The figure's own choices within the liveness its run allows: Theorem's ADDENDUM-1 (one unprompted shift per 20 s while idle) and ADDENDUM-2 §2 (each liveness's default and allowed set; pounce is the figure's flourish for idle and done), timed on the deadline clock rather than animation frames (ADDENDUM-2 §4)
+// SOURCING: hand-rolled. The figure's own choices within the liveness its run allows: Theorem's ADDENDUM-1 (one unprompted shift per 20 s while idle; the same floor holds the shift while working) and ADDENDUM-2 §2 (each liveness's default and allowed set; pounce is the figure's flourish for idle and done; work's `think` instead of `lean_in`), timed on the deadline clock rather than animation frames (ADDENDUM-2 §4)
 import { ALLOWED_POSES } from './liveness'
 import type { Liveness, Pose } from './liveness'
 import { KIT_SHEET, tagLength } from './sheet'
@@ -23,15 +23,36 @@ export interface Act {
 
 /** At most one unprompted shift in this long (ADDENDUM-1's rate). */
 export const SHIFT_MS = 20_000
-/** How much later than the earliest admission an idle shift may come. */
-const SHIFT_JITTER_MS = 15_000
-/** How long a looping idle shift holds before the figure goes back to its pose. */
+/** How much later than the earliest admission a shift may come. */
+const SHIFT_JITTER_MS = 8_000
+/** How long a looping shift holds before the figure goes back to its pose. */
 const SHIFT_HOLD_MS = [6_000, 10_000] as const
 /** Idle this long, a shift may be sleep, which lasts until something happens. */
 export const SLEEP_AFTER_MS = 180_000
 
-/** Poses that play one pass and hold, rather than loop. */
-const ONCE: ReadonlySet<KitTag> = new Set<KitTag>(['nod', 'stretch', 'pounce'])
+/** How often a turn that ends with no pose of the agent's ends in a flourish. */
+const DONE_FLOURISH_CHANCE = 0.75
+
+/** Poses and flourishes that play one pass and hold, rather than loop. */
+const ONCE: ReadonlySet<KitTag> = new Set<KitTag>([
+  'nod',
+  'stretch',
+  'pounce',
+  'peek',
+])
+
+/**
+ * The figure's own flourishes beside the idle poses: a glance out and back.
+ * Sleep is chosen apart, after a long idle.
+ */
+const IDLE_FLOURISHES: readonly KitTag[] = ['peek']
+
+/**
+ * What the figure shifts into while it works and the agent chose nothing:
+ * `think`. Work's other pose, `point`, points at the forming artifact, which
+ * the figure does not know of, so only the agent picks it.
+ */
+const WORK_SHIFTS: readonly Pose[] = ['think']
 
 /** What the figure knows when it chooses. */
 export interface Stage {
@@ -49,15 +70,23 @@ export interface Stage {
 const pick = <T>(items: readonly T[], random: () => number): T | undefined =>
   items[Math.floor(random() * items.length)]
 
+/**
+ * Whether the figure may shift on its own here: while idle, and while it works
+ * on a pose the agent did not choose.
+ */
+const shifts = (stage: Stage) =>
+  stage.liveness === 'idle' || (stage.liveness === 'work' && !stage.chosen)
+
 /** The pose itself: what the figure does when it chooses nothing more. */
 export function poseAct(stage: Stage, now: number, random: () => number): Act {
-  const idle = stage.liveness === 'idle'
   return {
     tag: stage.pose,
     liveness: stage.liveness,
     pose: stage.pose,
     since: now,
-    until: idle ? now + SHIFT_MS + random() * SHIFT_JITTER_MS : Infinity,
+    until: shifts(stage)
+      ? now + SHIFT_MS + random() * SHIFT_JITTER_MS
+      : Infinity,
     once: ONCE.has(stage.pose),
     unprompted: false,
   }
@@ -92,9 +121,10 @@ function flourish(
  * liveness and the agent's pose always win: a new one ends whatever was
  * playing, except that a flourish begun while done lands as done gives way to
  * idle. Within a pose the figure may shift on its own, at most once per
- * `SHIFT_MS`: when a turn is done and the agent chose nothing, into one of
- * done's flourishes; while idle, into another idle pose, or after a long idle,
- * to sleep.
+ * `SHIFT_MS`: when a turn is done and the agent chose nothing, most often into
+ * one of done's flourishes; while idle, into another idle pose or a peek, or
+ * after a long idle, to sleep; while it works on the default pose, into
+ * `think` for a while. An agent's chosen pose, attend and ask hold.
  */
 export function nextAct(
   act: Act,
@@ -112,13 +142,23 @@ export function nextAct(
   const admitted = now - stage.lastShift >= SHIFT_MS
   if (!same && stage.liveness === 'done' && !stage.chosen && admitted) {
     const flourishes = ALLOWED_POSES.done.filter((pose) => pose !== stage.pose)
-    const tag = random() < 0.5 ? pick(flourishes, random) : undefined
+    const tag =
+      random() < DONE_FLOURISH_CHANCE ? pick(flourishes, random) : undefined
     if (tag) return flourish(tag, stage, now, random)
   }
-  if (same && stage.liveness === 'idle' && !act.unprompted && admitted) {
-    const sleepy = now - stage.idleSince >= SLEEP_AFTER_MS && random() < 0.4
-    const shifts = ALLOWED_POSES.idle.filter((pose) => pose !== stage.pose)
-    const tag = sleepy ? 'sleep' : pick(shifts, random)
+  if (same && !act.unprompted && admitted && shifts(stage)) {
+    const idle = stage.liveness === 'idle'
+    const sleepy =
+      idle && now - stage.idleSince >= SLEEP_AFTER_MS && random() < 0.4
+    const choices: readonly KitTag[] = idle
+      ? [...ALLOWED_POSES.idle, ...IDLE_FLOURISHES]
+      : WORK_SHIFTS
+    const tag = sleepy
+      ? 'sleep'
+      : pick(
+          choices.filter((choice) => choice !== stage.pose),
+          random,
+        )
     if (tag) return flourish(tag, stage, now, random)
   }
   return poseAct(stage, now, random)
