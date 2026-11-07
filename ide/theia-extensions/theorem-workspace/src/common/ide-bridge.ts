@@ -25,7 +25,7 @@ export interface DelegationChanges {
     path?: string;
 }
 
-/** A pending tool approval, decided through the Theorem UI. */
+/** A tool approval, decided through the Theorem UI. */
 export interface ChatApproval {
     runId: string;
     approvalId: string;
@@ -33,6 +33,12 @@ export interface ChatApproval {
     summary: string;
     /** Set once decided. */
     approved?: boolean;
+    /**
+     * Set when the request settled with no answer: it expired, was replaced,
+     * or failed. The frame closes any prompt it opened for it and sends no
+     * decision; `reason` says why, when the server gave one.
+     */
+    settled?: { reason?: string };
     options: { optionId: string; name: string; kind: string }[];
 }
 

@@ -30,8 +30,12 @@ interface KitState {
   readonly expression: KitExpression | undefined
   /** The pose the figure takes now: the expression's when liveness allows it. */
   readonly pose: Pose
-  /** The live expression part last applied, so a replayed one applies once. */
-  readonly appliedPartId: string | undefined
+  /**
+   * Every live expression part already applied, from any conversation, so
+   * each applies once: a conversation that reports again while it still
+   * carries an older part cannot put that part back over a newer one.
+   */
+  readonly applied: ReadonlySet<string>
   /** What the sprite plays: the pose, or a flourish the figure chose itself. */
   readonly act: Act
   /** When the figure's last unprompted shift began, as epoch milliseconds. */
@@ -47,7 +51,7 @@ const initial: KitState = {
   liveness: 'idle',
   expression: undefined,
   pose: 'rest',
-  appliedPartId: undefined,
+  applied: new Set(),
   // Not yet started: resting until the clock wakes it (`wakeKit`) or a fact
   // arrives, so nothing shifts before the figure is on screen.
   act: {
@@ -131,14 +135,16 @@ export function reportKit(
   const previous = useKit.getState()
   if (sameFacts(previous.sources[source], facts)) return
   const live = facts.expression
-  const fresh =
-    live && live.partId !== previous.appliedPartId ? live : undefined
+  const fresh = live && !previous.applied.has(live.partId) ? live : undefined
   useKit.setState(
     settle(
       previous,
       {
         sources: { ...previous.sources, [source]: facts },
-        ...(fresh && { expression: fresh.value, appliedPartId: fresh.partId }),
+        ...(fresh && {
+          expression: fresh.value,
+          applied: new Set(previous.applied).add(fresh.partId),
+        }),
       },
       now,
     ),

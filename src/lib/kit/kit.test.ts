@@ -227,6 +227,24 @@ describe('Kit', () => {
     reportKit('chat', { running: true, asking: true, expression: live }, 3)
     expect(useKit.getState().expression).toEqual({ pose: 'stretch' })
   })
+
+  test("a conversation's older expression does not return over another's newer one", () => {
+    const older = { partId: 'chatpart_chat', value: { pose: 'think' as const } }
+    const newer = {
+      partId: 'chatpart_terminal',
+      value: { pose: 'point' as const },
+    }
+    reportKit('chat', { running: true, asking: false, expression: older }, 1)
+    reportKit(
+      'terminal',
+      { running: true, asking: false, expression: newer },
+      2,
+    )
+    expect(useKit.getState().expression).toEqual({ pose: 'point' })
+    // The chat starts asking while its last part is still the older one.
+    reportKit('chat', { running: true, asking: true, expression: older }, 3)
+    expect(useKit.getState().expression).toEqual({ pose: 'point' })
+  })
 })
 
 describe('the sheet', () => {

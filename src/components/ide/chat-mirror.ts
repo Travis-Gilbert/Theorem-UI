@@ -17,7 +17,7 @@ import type {
 
 type Ide = RemoteProxy<IdeFrameMethods>
 
-function toPart(
+export function toPart(
   part: ThreadMessage['content'][number],
   runId: string | undefined,
 ): ChatPart | undefined {
@@ -26,12 +26,11 @@ function toPart(
     case 'reasoning':
       return { type: part.type, text: part.text }
     case 'tool-call': {
-      const asked = readApproval(part.interrupt)
-      // The frame offers a decision for any approval it is given, so one that
-      // settled unanswered (expired or replaced) goes as a plain tool call.
-      const outcome = asked && approvalOutcome(asked)
-      const approval =
-        outcome === 'unanswered' || outcome === 'failed' ? undefined : asked
+      const approval = readApproval(part.interrupt)
+      // One that settled unanswered (expired, replaced or failed) goes marked
+      // settled, so the frame closes a prompt it already opened for it.
+      const outcome = approval && approvalOutcome(approval)
+      const settled = outcome === 'unanswered' || outcome === 'failed'
       return {
         type: 'tool-call',
         toolCallId: part.toolCallId,
@@ -47,6 +46,7 @@ function toPart(
                 toolCallId: approval.toolCallId,
                 summary: approval.summary,
                 approved: approval.approved,
+                settled: settled ? { reason: approval.reason } : undefined,
                 options: approval.options,
               }
             : undefined,

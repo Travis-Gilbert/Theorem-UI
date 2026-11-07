@@ -1,8 +1,9 @@
 // SOURCING: lib/kit (the store's act and liveness, the sheet's frames); a CSS background stepped by timers at each frame's boundary rather than every animation frame, image-rendering: pixelated for the 32-pixel sheet; prefersReducedMotion from lib/motion; the status node of Theorem's ADDENDUM-2 §5 (named, described in words, polite, busy only while working)
 import { useEffect, useRef } from 'react'
 import sheetUrl from '@/assets/kit/kit.png'
-import type { Liveness, Pose } from '@/lib/kit/liveness'
+import type { Liveness } from '@/lib/kit/liveness'
 import { KIT_SHEET, frameAt, frameOrigin } from '@/lib/kit/sheet'
+import type { KitTag } from '@/lib/kit/sheet'
 import { useKit } from '@/lib/kit/store'
 import { prefersReducedMotion } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -15,7 +16,7 @@ const LIVENESS_WORDS: Record<Liveness, string> = {
   done: 'done',
 }
 
-const POSE_WORDS: Record<Pose, string> = {
+const TAG_WORDS: Record<KitTag, string> = {
   rest: 'resting',
   lean_in: 'leaning in',
   think: 'thinking',
@@ -29,11 +30,22 @@ const POSE_WORDS: Record<Pose, string> = {
   sit: 'sitting',
   sway: 'swaying',
   pounce: 'pouncing',
+  walk: 'walking',
+  run: 'running',
+  crouch: 'crouching',
+  air: 'leaping',
+  fall: 'falling',
+  held: 'held',
+  peek: 'peeking',
+  sleep: 'asleep',
 }
 
-/** Kit's state in words: its liveness, then the pose it holds. */
-export const describeKit = (liveness: Liveness, pose: Pose) =>
-  `${LIVENESS_WORDS[liveness]} · ${POSE_WORDS[pose]}`
+/**
+ * Kit's state in words: its liveness, then what the sprite plays, which is
+ * the pose or a flourish of the figure's own (sleep, an idle shift).
+ */
+export const describeKit = (liveness: Liveness, tag: KitTag) =>
+  `${LIVENESS_WORDS[liveness]} · ${TAG_WORDS[tag]}`
 
 /**
  * Kit, the agent's figure: one fox for the one agent, whichever conversation
@@ -45,7 +57,6 @@ export const describeKit = (liveness: Liveness, pose: Pose) =>
 export function Kit({ className }: { className?: string }) {
   const act = useKit((state) => state.act)
   const liveness = useKit((state) => state.liveness)
-  const pose = useKit((state) => state.pose)
   const sprite = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -74,7 +85,7 @@ export function Kit({ className }: { className?: string }) {
     return () => clearTimeout(timer)
   }, [act])
 
-  const description = describeKit(liveness, pose)
+  const description = describeKit(liveness, act.tag)
   return (
     <div
       role="status"
