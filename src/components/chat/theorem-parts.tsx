@@ -724,6 +724,8 @@ const RENDERERS = (
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],
+    // Kit's client operations: the fox on the stage shows what they did.
+    ['theorem-client_operation', Inert],
     // The native agent's program: what it does shows up as its host calls
     // and their artifacts, and its stored source is not the full program.
     ['theorem-program', Inert],

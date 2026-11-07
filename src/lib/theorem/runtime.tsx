@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit), declares Kit's client operations on its sends and serves them
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -39,8 +39,10 @@ import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
 import { DRAFT_PLAN } from './plans'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
+import { KitStage } from '@/components/kit/kit-stage'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
+import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
 import { settleKitExpression, useKitClock, useKitSource } from '@/lib/kit/store'
 import {
   describeError,
@@ -513,7 +515,7 @@ function useTheoremThreadRuntime() {
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
           if (added.capabilityScope && added.planning) added.capabilityScope.push(DRAFT_PLAN)
           const composed = Object.keys(added).length ? {
             ...options,
@@ -540,6 +542,7 @@ function useTheoremThreadRuntime() {
   )
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)
+  useKitRequests(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()
@@ -667,6 +670,7 @@ export function TheoremRuntimeProvider({
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
       {children}
+      <KitStage />
     </AssistantRuntimeProvider>
   )
 }
