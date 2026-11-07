@@ -2,7 +2,7 @@
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useAuiState } from '@assistant-ui/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { Icon } from '@/components/icons'
 import { pulsesSince, signalOf } from '@/lib/life/energy'
 import type { Reading } from '@/lib/life/energy'
@@ -96,22 +96,22 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
     stroking.current = false
     game?.release()
   }
-  // A right click on a message keeps the browser's own menu; the field's
-  // menu only opens on empty space. Stopping the event in the capture phase
-  // keeps it from the trigger's own handler.
-  const onContextMenuCapture = (event: ReactMouseEvent) => {
-    if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target)) return
-    if (!isFieldSpace(event.target, event.currentTarget)) event.stopPropagation()
+  // Let child menus handle their own event before suppressing the field's
+  // trigger. Keep the browser's default menu on other chat content as well.
+  const onContextMenu: NonNullable<ContextMenu.Trigger.Props['onContextMenu']> = (event) => {
+    if (isFieldSpace(event.target, event.currentTarget)) return
+    event.preventBaseUIHandler()
+    event.stopPropagation()
   }
 
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger
+        onContextMenu={onContextMenu}
         render={
           <div
             data-life-backdrop=""
             className="relative h-full"
-            onContextMenuCapture={onContextMenuCapture}
             onPointerDown={draws ? onPointerDown : undefined}
             onPointerMove={draws ? onPointerMove : undefined}
             onPointerUp={draws ? onPointerEnd : undefined}

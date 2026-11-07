@@ -2,6 +2,7 @@ import { act } from 'react'
 import { createPortal } from 'react-dom'
 import { afterEach, expect, mock, spyOn, test } from 'bun:test'
 import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
+import type { ThreadMessageLike } from '@assistant-ui/react'
 import { cleanup, render } from '../../../test/blocks/render'
 import { useLifeControls } from '@/lib/life/store'
 import * as life from './mount-life'
@@ -22,7 +23,12 @@ afterEach(async () => {
 })
 
 function Harness() {
-  const runtime = useExternalStoreRuntime({ messages: [], isRunning: false, onNew: async () => {} })
+  const runtime = useExternalStoreRuntime({
+    messages: [] as ThreadMessageLike[],
+    convertMessage: (message: ThreadMessageLike) => message,
+    isRunning: false,
+    onNew: async () => {},
+  })
   return <AssistantRuntimeProvider runtime={runtime}><LifeBackdrop>
     <div data-testid="field">Empty conversation space</div>
     <textarea aria-label="Message" />
@@ -57,8 +63,11 @@ test('portaled model options keep pointer and context-menu events', async () => 
   expect(event.defaultPrevented).toBe(false)
   expect(capture).not.toHaveBeenCalled()
   expect(press).not.toHaveBeenCalled()
-  await act(async () => { model.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })) })
+  const context = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+  await act(async () => { model.dispatchEvent(context) })
   expect(portalContextMenu).toHaveBeenCalledTimes(1)
+  expect(context.defaultPrevented).toBe(false)
+  expect(document.querySelector('[data-life-backdrop][data-popup-open]')).toBeNull()
 })
 
 test('empty field space still draws while the composer keeps its input events', async () => {
@@ -68,4 +77,8 @@ test('empty field space still draws while the composer keeps its input events', 
   expect((await pointerDown(document.querySelector('[data-testid="field"]')!)).defaultPrevented).toBe(true)
   expect(capture).toHaveBeenCalledWith(1)
   expect(press).toHaveBeenCalledTimes(1)
+  const context = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+  await act(async () => { document.querySelector('[data-testid="field"]')!.dispatchEvent(context) })
+  expect(context.defaultPrevented).toBe(true)
+  expect(document.querySelector('[data-life-backdrop][data-popup-open]')).not.toBeNull()
 })

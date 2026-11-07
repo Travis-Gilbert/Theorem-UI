@@ -58,4 +58,13 @@ Evidence on UI main base `d07332fc2c772b131db70518b86aa720bca62582`:
   under `/Volumes/SSD Samsung/theorem-chat-search-evidence/model-selection-discovery`.
   The temporary route was removed from the app before production building.
 
-Typecheck, release build, independent review and deployment are pending.
+Independent spec and standards reviews found an additional context-menu edge:
+letting a portaled event pass the capture handler still allowed Base UI's
+bubbling trigger to open the Life menu. A stronger regression failed on that
+behavior. The trigger now uses Base UI's `preventBaseUIHandler()` in the bubble
+phase for non-field events; child context handlers run and native defaults are
+preserved. Both reviewers rechecked the correction with no remaining findings;
+all 32 focused tests passed with 83 assertions. The test runtime also supplies
+the SDK's typed message conversion so TypeScript does not infer `never`.
+
+Typecheck, release build and deployment are pending.
