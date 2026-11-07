@@ -177,14 +177,32 @@ export function ScheduleStatus() {
       {state ? (
         <>
           <TriggerFacts state={state} />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pause.isPending}
-            onClick={() => pause.mutate(!state.paused)}
-          >
-            {state.paused ? 'Resume' : 'Pause'}
-          </Button>
+          {/* Activated, but an earlier version still fires: the switch is not done. */}
+          {replaces && (
+            <p className="text-xs text-ink-muted">
+              An earlier version is still running alongside this one.
+            </p>
+          )}
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pause.isPending}
+              onClick={() => pause.mutate(!state.paused)}
+            >
+              {state.paused ? 'Resume' : 'Pause'}
+            </Button>
+            {replaces && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={pauseRunning.isPending}
+                onClick={() => pauseRunning.mutate()}
+              >
+                Pause earlier version
+              </Button>
+            )}
+          </div>
         </>
       ) : (
         <div className="flex gap-1">
