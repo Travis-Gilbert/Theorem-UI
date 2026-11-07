@@ -67,4 +67,21 @@ preserved. Both reviewers rechecked the correction with no remaining findings;
 all 32 focused tests passed with 83 assertions. The test runtime also supplies
 the SDK's typed message conversion so TypeScript does not infer `never`.
 
-Typecheck, release build and deployment are pending.
+Final validation passed:
+
+```sh
+bun test src/components/life/life-backdrop.test.tsx src/components/life/mount-life.test.ts src/components/chat/model-picker.test.tsx src/lib/theorem/models.test.ts src/routes/settings/ai.test.tsx
+bun run typecheck
+bunx eslint src/components/life/life-backdrop.tsx src/components/life/life-backdrop.test.tsx
+CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR='/Volumes/SSD Samsung/theorem-picker-terminal-target' TMPDIR='/Volumes/SSD Samsung/theorem-chat-search-tmp' bun run build:cloudflare
+bunx wrangler deploy --config .output/server/wrangler.json
+```
+
+The complete release build rebuilt the terminal and IDE assets. UI code
+`fc7d62b3b339b9adba4b4986083506e2706d51b7` is pushed to main and deployed as
+Cloudflare Worker version `0640cc8b-65a6-481b-a14a-c3104a9c4933`. A fresh browser
+request to theorem.rs returned HTTP 200 and loaded `sidebar-BEsR152R.js`, whose
+SHA-256 exactly matches the locally built bundle containing the corrected Life
+event handlers. The backend was not changed by this follow-up. Authenticated
+production selection/model execution remains outside the automated check;
+the reproduced interaction and its fix were exercised with API fixtures.
