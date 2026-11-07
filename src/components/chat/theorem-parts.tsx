@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -6,7 +6,12 @@
 // approvals (decided through runs.command, since Theorem owns approvals), and
 // gives the artifact tools a pending card while they run. Delegated work has
 // its own cards in delegation-parts.
-import { useAui, useAuiState, useAssistantDataUI } from '@assistant-ui/react'
+import {
+  MessagePrimitive,
+  useAui,
+  useAuiState,
+  useAssistantDataUI,
+} from '@assistant-ui/react'
 import { CatchBoundary } from '@tanstack/react-router'
 import type {
   DataMessagePartComponent,
@@ -17,11 +22,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FC } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
-import {
-  CollapsibleContent,
-  CollapsibleRoot,
-  CollapsibleTrigger,
-} from '@/components/assistant-ui/elements/collapsible-root'
+import { CollapsibleTrigger } from '@/components/assistant-ui/elements/collapsible-root'
 import {
   ReasoningContent,
   ReasoningRoot,
@@ -29,6 +30,10 @@ import {
   ReasoningTrigger,
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+} from '@/components/assistant-ui/elements/tool-group.aui'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import {
   ARTIFACT_PART,
@@ -339,7 +344,7 @@ export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   return <ToolFallback {...props} />
 }
 
-/* ------------------------------------------------------------ progress strip */
+/* ------------------------------------------------------------- run summary */
 
 const LIVE_STATUSES = new Set([
   'running',
@@ -401,21 +406,29 @@ export const RunningIndicator: FC = () => {
   )
 }
 
-/** One strip per message summarizing the run's progress steps, shown once the turn settles. */
-const ProgressPart: DataMessagePartComponent = ({ data }) => {
+/**
+ * A settled run's one line: its outcome, opening to its steps and to the tool
+ * calls it made. Tool calls draw no row of their own; the thread folds them
+ * here (`tools` holds their part indices), so a finished turn reads as its
+ * answer under one quiet line, each call's arguments and result a click away.
+ */
+export const RunSummary: FC<{
+  tools: readonly number[]
+  Tool: ToolCallMessagePartComponent
+}> = ({ tools, Tool }) => {
   const settled = useAuiState((s) => s.message.status?.type !== 'running')
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
   const labels = useMemo(() => progressLabels(content), [content])
-  const isLast = useAuiState((s) => {
+  const lastStatus = useAuiState((s) => {
     const last = s.message.content.findLast(
       (part) => part.type === 'data' && part.name === 'theorem-progress',
     )
-    return last?.type === 'data' && last.data === data
+    return last?.type === 'data' ? str(object(last.data).status) : undefined
   })
   // Labels are what the run was doing while live ("Working"), even on the
-  // step that completes, so the strip names the outcome from the statuses: the
+  // step that completes, so the line names the outcome from the statuses: the
   // message's, then the last step's.
   const outcome = useAuiState((s) =>
     s.message.status?.type === 'complete'
@@ -426,28 +439,56 @@ const ProgressPart: DataMessagePartComponent = ({ data }) => {
           : 'Did not finish'
         : undefined,
   )
-  const finished = DONE_STATUSES.has(str(object(data).status) ?? 'complete')
-  if (!settled || !isLast || labels.length === 0) return null
+  const components = useMemo(() => ({ tools: { Fallback: Tool } }), [Tool])
+  if (!settled || (labels.length === 0 && tools.length === 0)) return null
+  const finished = DONE_STATUSES.has(lastStatus ?? 'complete')
   const result = outcome ?? (finished ? 'Done' : 'Did not finish')
   const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
+  const steps = labels.length > 1
+  const line = (
+    <>
+      <StatusIcon className="size-3.5" />
+      {steps
+        ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
+        : result}
+    </>
+  )
+  if (!steps && tools.length === 0)
+    return (
+      <p
+        data-slot="run-summary"
+        className="my-1 flex items-center gap-1.5 py-1 text-sm text-ink-faint"
+      >
+        {line}
+      </p>
+    )
   return (
-    <CollapsibleRoot className="my-1 text-sm text-ink-faint">
-      <CollapsibleTrigger className="flex items-center gap-1.5 py-1 hover:text-ink">
-        <StatusIcon className="size-3.5" />
-        {labels.length > 1
-          ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
-          : result}
+    <ToolGroupRoot
+      variant="ghost"
+      data-slot="run-summary"
+      className="my-1 text-sm text-ink-faint"
+    >
+      <CollapsibleTrigger className="group/trigger flex items-center gap-1.5 py-1 hover:text-ink">
+        {line}
+        <Icon.Next className="size-3 shrink-0 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
       </CollapsibleTrigger>
-      {labels.length > 1 && (
-        <CollapsibleContent>
-          <ol className="ms-5 list-decimal py-1 text-sm leading-6">
+      <ToolGroupContent>
+        {steps && (
+          <ol className="ms-5 list-decimal text-sm leading-6">
             {labels.map((label, index) => (
               <li key={index}>{label}</li>
             ))}
           </ol>
-        </CollapsibleContent>
-      )}
-    </CollapsibleRoot>
+        )}
+        {tools.map((index) => (
+          <MessagePrimitive.PartByIndex
+            key={index}
+            index={index}
+            components={components}
+          />
+        ))}
+      </ToolGroupContent>
+    </ToolGroupRoot>
   )
 }
 
@@ -626,7 +667,6 @@ function guarded(
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
-    ['theorem-progress', ProgressPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
     ['theorem-error', ErrorPart],
@@ -641,6 +681,8 @@ const RENDERERS = (
     guarded(name, render),
   ])
   .concat([
+    // The run's steps are drawn once per message by RunSummary.
+    ['theorem-progress', Inert],
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],

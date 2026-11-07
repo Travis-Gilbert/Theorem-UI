@@ -17,15 +17,11 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
   isStandaloneToolCall,
   RunningIndicator,
+  RunSummary,
   TheoremToolCall,
 } from "@/components/chat/theorem-parts";
 import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
@@ -55,6 +51,7 @@ import {
   createContext,
   useContext,
   useLayoutEffect,
+  useMemo,
   useRef,
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
@@ -82,7 +79,9 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
  * the whole message; the remaining slots override how the
  * assistant message renders tool calls and part groups. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
+ * `ToolFallback`. Without `ToolGroup`, grouped tool calls draw no row of
+ * their own and fold into the settled run's summary line (`RunSummary`).
+ * When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
  * tool group; without it they render like any other tool call.
  */
@@ -555,12 +554,25 @@ export const AssistantMessageContent: FC = () => {
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
+  // Theorem: a tool group draws no row; its calls fold into the run summary.
+  const parts = useAuiState((s) => s.message.parts);
+  const toolUIs = useAuiState((s) => s.tools.toolUIs);
+  const folded = useMemo(
+    () =>
+      ToolGroup
+        ? []
+        : parts.flatMap((part, index) =>
+            groupBy(part, { toolUIs }).at(-1) === "group-tool" ? [index] : [],
+          ),
+    [ToolGroup, groupBy, parts, toolUIs],
+  );
 
   return (
     <div
       data-slot="aui_assistant-message-content"
       className="text-foreground px-2 leading-6 wrap-break-word"
     >
+      <RunSummary tools={folded} Tool={ToolFallbackComponent} />
       <MessagePrimitive.GroupedParts groupBy={groupBy}>
         {({ part, children }) => {
           switch (part.type) {
@@ -571,18 +583,9 @@ export const AssistantMessageContent: FC = () => {
                 <TaskGroupComponent group={part} />
               ) : null;
             case "group-tool":
-              if (ToolGroup) {
-                return <ToolGroup group={part}>{children}</ToolGroup>;
-              }
-              return (
-                <ToolGroupRoot variant="ghost">
-                  <ToolGroupTrigger
-                    count={part.indices.length}
-                    active={part.status.type === "running"}
-                  />
-                  <ToolGroupContent>{children}</ToolGroupContent>
-                </ToolGroupRoot>
-              );
+              return ToolGroup ? (
+                <ToolGroup group={part}>{children}</ToolGroup>
+              ) : null;
             case "group-reasoning": {
               if (ReasoningGroup) {
                 return (
