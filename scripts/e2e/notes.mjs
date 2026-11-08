@@ -15,23 +15,35 @@ const BODY = 'The heron came back to the pond.'
 
 const session = await open('/notes')
 const { page, context } = session
-const shot = (name) => page.screenshot({ path: join(SHOTS, `notes-${name}.png`) })
+const shot = (name) =>
+  page.screenshot({ path: join(SHOTS, `notes-${name}.png`) })
 const notesNav = page.getByRole('navigation', { name: 'Notes' })
 const trashNav = page.getByRole('navigation', { name: 'Trash' })
 const editor = page.locator('.ProseMirror').first()
-const documentIdOf = () => decodeURIComponent(new URL(page.url()).pathname.split('/')[2] ?? '')
+const documentIdOf = () =>
+  decodeURIComponent(new URL(page.url()).pathname.split('/')[2] ?? '')
 
 const readDocument = async (documentId) => {
   const response = await context.request.get(
     `${UI}/api/documents/v2/documents/${encodeURIComponent(documentId)}?schema=${SCHEMA}`,
     READ,
   )
-  return { status: response.status(), body: response.ok() ? await response.json() : undefined }
+  return {
+    status: response.status(),
+    body: response.ok() ? await response.json() : undefined,
+  }
 }
 
 // The mode is on the rail and opens with a way to start a note.
-await page.getByRole('heading', { name: 'Notes' }).or(page.getByText('Notes', { exact: true })).first().waitFor(READ)
-check('the rail offers Notes', (await page.getByRole('button', { name: 'Notes' }).count()) > 0)
+await page
+  .getByRole('heading', { name: 'Notes' })
+  .or(page.getByText('Notes', { exact: true }))
+  .first()
+  .waitFor(READ)
+check(
+  'the rail offers Notes',
+  (await page.getByRole('button', { name: 'Notes' }).count()) > 0,
+)
 const start = page.getByRole('button', { name: 'New note' }).last()
 await start.waitFor(READ)
 await shot('empty')
@@ -50,16 +62,78 @@ await page.keyboard.type(BODY)
 // The panel says "Saved" before anything is typed too, so wait on Theorem itself.
 const savedBy = Date.now() + 60_000
 let saved = await readDocument(documentId)
-while (!saved.body?.markdownProjection?.includes(BODY) && Date.now() < savedBy) {
+while (
+  !saved.body?.markdownProjection?.includes(BODY) &&
+  Date.now() < savedBy
+) {
   await page.waitForTimeout(500)
   saved = await readDocument(documentId)
 }
 check('Theorem holds the note', saved.status === 200, String(saved.status))
-check('with the text that was typed', Boolean(saved.body?.markdownProjection?.includes(BODY)))
-check('titled from its first line', saved.body?.summary?.title === TITLE, saved.body?.summary?.title)
+check(
+  'with the text that was typed',
+  Boolean(saved.body?.markdownProjection?.includes(BODY)),
+)
+check(
+  'titled from its first line',
+  saved.body?.summary?.title === TITLE,
+  saved.body?.summary?.title,
+)
 await notesNav.getByRole('button', { name: TITLE }).waitFor(READ)
 check('the list shows it by its title', true)
 await shot('written')
+
+// What agents wrote waits in its own folder after the person's notes, in the
+// complement of the person's folder colour.
+const agentFolder = notesNav.getByRole('button', { name: 'Agent notes' })
+await agentFolder.waitFor(READ)
+const after = await notesNav.evaluate((nav) => {
+  const buttons = [...nav.querySelectorAll('button')]
+  const folder = buttons.findIndex(
+    (button) => button.textContent?.trim() === 'Agent notes',
+  )
+  return folder === buttons.length - 1
+})
+check('the Agent notes folder comes after the notes', after)
+await agentFolder.click()
+check('it opens', (await agentFolder.getAttribute('aria-expanded')) === 'true')
+const agentRows = await context.request.get(
+  `${UI}/api/documents/v2/documents?schema=${SCHEMA}&limit=5&includeAgentEncoded=true&origin=agent_encoded`,
+  READ,
+)
+const agentPage = agentRows.ok() ? await agentRows.json() : undefined
+check(
+  'Theorem lists agent memory alone',
+  agentRows.ok() &&
+    agentPage.documents.every((row) => row.origin.kind === 'agent_encoded'),
+  String(agentRows.status()),
+)
+if (agentPage?.documents?.length) {
+  await notesNav
+    .getByRole('button', {
+      name: agentPage.documents[0].title || 'Untitled note',
+    })
+    .first()
+    .waitFor(READ)
+  check('the folder shows what agents wrote', true)
+}
+const colours = await page.evaluate(() => {
+  const fill = (selector) => {
+    const mark = document.querySelector(selector)
+    return mark ? getComputedStyle(mark).fill : undefined
+  }
+  return {
+    person: fill('svg.fill-folder'),
+    agent: fill('svg.fill-folder-agent'),
+  }
+})
+check(
+  "the agent folder is not the colour of the person's folders",
+  Boolean(colours.agent) && colours.agent !== colours.person,
+  JSON.stringify(colours),
+)
+await shot('agent-folder')
+await agentFolder.click()
 
 // After a reload the editor shows what Theorem kept.
 await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
@@ -69,16 +143,25 @@ check('a reload shows the saved text', true)
 // Search finds it by what it says.
 await page.getByLabel('Search notes').fill(MARK)
 await notesNav.getByRole('button', { name: TITLE }).waitFor(READ)
-check('search finds the note', (await notesNav.getByRole('button').count()) >= 1)
+check(
+  'search finds the note',
+  (await notesNav.getByRole('button').count()) >= 1,
+)
 await page.getByLabel('Search notes').fill('')
 
 // The Trash takes it and gives it back.
 await page.getByRole('button', { name: 'Move to Trash' }).click()
 await page.waitForURL((url) => url.pathname === '/notes', READ)
-await notesNav.getByRole('button', { name: TITLE }).waitFor({ state: 'detached', ...READ })
+await notesNav
+  .getByRole('button', { name: TITLE })
+  .waitFor({ state: 'detached', ...READ })
 check('a trashed note leaves the list', true)
 const retired = await readDocument(documentId)
-check('Theorem reports it retired', retired.body?.summary?.retired === true, JSON.stringify(retired.body?.summary?.retired))
+check(
+  'Theorem reports it retired',
+  retired.body?.summary?.retired === true,
+  JSON.stringify(retired.body?.summary?.retired),
+)
 await page.getByRole('button', { name: 'Trash', exact: true }).click()
 await trashNav.getByRole('button', { name: TITLE }).click(READ)
 await page.getByText('In the Trash. Restore it to edit it.').waitFor(READ)

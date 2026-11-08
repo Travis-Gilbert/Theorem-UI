@@ -4,6 +4,8 @@ import {
   lifecycleRequest,
   nextPageParams,
   noteEntry,
+  onShelf,
+  shelfRequest,
   summaryFacts,
 } from './note-library'
 
@@ -126,5 +128,35 @@ describe('lifecycleRequest', () => {
     expect(lifecycleRequest('restore', summary(), headers).path).toBe(
       '/api/documents/v2/documents/doc%3A1/restorations',
     )
+  })
+})
+
+describe('shelves', () => {
+  test("the person's notes leave out what agents wrote", () => {
+    expect(shelfRequest('notes')).toEqual({ includeAgentEncoded: false })
+  })
+
+  test('the Agent notes folder asks Theorem for agent memory alone', () => {
+    expect(shelfRequest('agent')).toEqual({
+      includeAgentEncoded: true,
+      queryParams: { origin: 'agent_encoded' },
+    })
+  })
+
+  test('the Trash asks for retired documents', () => {
+    expect(shelfRequest('trash')).toEqual({
+      includeAgentEncoded: false,
+      queryParams: { retired: 'only' },
+    })
+  })
+
+  test('each shelf keeps only its own rows, whatever a server sends', () => {
+    const mine = noteEntry(facts())
+    const agents = noteEntry(facts({ origin: encoded() }))
+    const trashed = noteEntry(facts({ retired: true }))
+    const rows = [mine, agents, trashed]
+    expect(rows.filter((row) => onShelf(row, 'notes'))).toEqual([mine])
+    expect(rows.filter((row) => onShelf(row, 'agent'))).toEqual([agents])
+    expect(rows.filter((row) => onShelf(row, 'trash'))).toEqual([trashed])
   })
 })

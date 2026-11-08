@@ -1,14 +1,19 @@
-// SOURCING: @tanstack/react-router (a note is /notes/$documentId), the Pages panel's row and heading grammar, ui/input, TooltipIconButton, the note library (Theorem Documents v2 through note-library.ts)
+// SOURCING: @tanstack/react-router (a note is /notes/$documentId), the Pages panel's row and heading grammar, ui/input, TooltipIconButton, ui/filesystem-item (the file tree's folder row, for Agent notes), lucide Folder, the note library (Theorem Documents v2 through note-library.ts)
 import { useNavigate, useParams } from '@tanstack/react-router'
+import { Folder } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import {
+  FilesystemItem,
+  FilesystemMarks,
+} from '@/components/ui/filesystem-item'
 import { Input } from '@/components/ui/input'
 import { describeError } from '@/lib/theorem/client'
 import { useNewNote, useNoteLibrary } from '@/lib/theorem/note-library'
-import type { NoteEntry } from '@/lib/theorem/note-library'
+import type { NoteEntry, NoteShelf } from '@/lib/theorem/note-library'
 
 const row =
   'group relative flex h-7 w-full items-center gap-2 rounded-md px-2 text-start text-sm transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill'
@@ -66,6 +71,7 @@ export function NotesPanel() {
         className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
       >
         <NoteList query={query} shelf={shelf} />
+        {shelf === 'notes' && <AgentNotes query={query} />}
       </nav>
       <div className="shrink-0 border-t border-separator px-2 py-2">
         <button
@@ -89,27 +95,56 @@ export function NotesPanel() {
   )
 }
 
-function NoteList({
-  query,
-  shelf,
-}: {
-  query: string
-  shelf: 'notes' | 'trash'
-}) {
+const emptyShelf: Record<NoteShelf, string> = {
+  notes: 'No notes yet. Start one with the plus.',
+  agent: 'No agent has written a note yet.',
+  trash: 'The Trash is empty.',
+}
+
+/**
+ * The folder of what agents wrote to their memory, after the person's own
+ * notes. Its colour is the complement of the person's folders.
+ */
+function AgentNotes({ query }: { query: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <FilesystemItem
+      open={open}
+      row={
+        <button
+          type="button"
+          className={`${row} mt-1 gap-1 ps-1`}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <FilesystemMarks
+            folder
+            open={open}
+            icon={
+              <Folder
+                aria-hidden="true"
+                className="size-4 shrink-0 fill-folder-agent text-folder-agent"
+              />
+            }
+          />
+          <span className="min-w-0 flex-1 truncate">Agent notes</span>
+        </button>
+      }
+    >
+      <div className="ps-5">
+        <NoteList query={query} shelf="agent" />
+      </div>
+    </FilesystemItem>
+  )
+}
+
+function NoteList({ query, shelf }: { query: string; shelf: NoteShelf }) {
   const library = useNoteLibrary(query, shelf)
   if (library.isPending) return <Hint>Loading notes…</Hint>
   if (library.isError)
     return <Hint>{describeError(library.error, 'document')}</Hint>
   if (!library.data.length)
-    return (
-      <Hint>
-        {query.trim()
-          ? 'Nothing matches.'
-          : shelf === 'trash'
-            ? 'The Trash is empty.'
-            : 'No notes yet. Start one with the plus.'}
-      </Hint>
-    )
+    return <Hint>{query.trim() ? 'Nothing matches.' : emptyShelf[shelf]}</Hint>
   return (
     <>
       <ul className="flex flex-col">
@@ -151,15 +186,6 @@ function NoteRow({ entry }: { entry: NoteEntry }) {
         }
       >
         <span className="min-w-0 flex-1 truncate">{entry.title}</span>
-        {entry.source === 'encoded' && (
-          <span
-            className="flex shrink-0 items-center gap-1 text-[11px] text-ink-faint-sheet"
-            title="An agent wrote this from its memory"
-          >
-            <Icon.Agent className="size-3 text-ink-faint" />
-            Agent
-          </span>
-        )}
       </button>
     </li>
   )

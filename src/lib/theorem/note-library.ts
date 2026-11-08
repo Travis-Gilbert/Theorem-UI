@@ -103,9 +103,37 @@ export function lifecycleRequest(
 export const refreshLibrary = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: noteLibraryKey })
 
-/** The person's notes, newest first, or the Trash; `query` searches titles and text. */
-export function useNoteLibrary(query: string, shelf: 'notes' | 'trash') {
+/**
+ * Where a note is kept: the person's own notes, the Agent notes folder of what
+ * agents wrote to their memory, or the Trash.
+ */
+export type NoteShelf = 'notes' | 'agent' | 'trash'
+
+/** What Theorem is asked for to fill a shelf. */
+export function shelfRequest(shelf: NoteShelf): {
+  includeAgentEncoded: boolean
+  queryParams?: Record<string, string>
+} {
+  if (shelf === 'agent')
+    return {
+      includeAgentEncoded: true,
+      queryParams: { origin: 'agent_encoded' },
+    }
+  if (shelf === 'trash')
+    return { includeAgentEncoded: false, queryParams: { retired: 'only' } }
+  return { includeAgentEncoded: false }
+}
+
+/** Whether a row belongs on a shelf, so a server that ignores a filter cannot mix them. */
+export const onShelf = (entry: NoteEntry, shelf: NoteShelf) =>
+  shelf === 'trash'
+    ? entry.retired
+    : !entry.retired && (entry.source === 'encoded') === (shelf === 'agent')
+
+/** A shelf's notes, newest first; `query` searches titles and text. */
+export function useNoteLibrary(query: string, shelf: NoteShelf) {
   const search = query.trim() || undefined
+  const { includeAgentEncoded, queryParams } = shelfRequest(shelf)
   return useInfiniteQuery({
     queryKey: [...noteLibraryKey, shelf, search],
     initialPageParam: undefined as ReturnType<typeof nextPageParams>,
@@ -114,19 +142,18 @@ export function useNoteLibrary(query: string, shelf: 'notes' | 'trash') {
         {
           schema: SCHEMA,
           limit: PAGE_SIZE,
-          includeAgentEncoded: true,
+          includeAgentEncoded,
           query: search,
           ...pageParam,
         },
-        shelf === 'trash' ? { queryParams: { retired: 'only' } } : undefined,
+        queryParams ? { queryParams } : undefined,
       ),
     getNextPageParam: nextPageParams,
     select: (data) =>
       data.pages
         .flatMap((page) => page.documents)
         .map((summary) => noteEntry(summaryFacts(summary)))
-        // A server that predates the Trash ignores `retired=only`; keep its live rows out.
-        .filter((entry) => entry.retired === (shelf === 'trash')),
+        .filter((entry) => onShelf(entry, shelf)),
     staleTime: 10_000,
   })
 }
