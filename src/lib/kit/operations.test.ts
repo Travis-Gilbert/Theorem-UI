@@ -269,6 +269,20 @@ describe('answering the run', () => {
     })
   })
 
+  test('a receipt that fails to post is sent again; Kit does not move again', async () => {
+    const moves = fakeDriver(() => Promise.resolve(true))
+    let attempts = 0
+    const post = async () => {
+      attempts += 1
+      if (attempts < 3) throw new Error('connection dropped')
+    }
+    const requests = [request('a', 'kit.move', { to: 'rail' })]
+    await serveKitRequests(requests, post, () => 0)
+    await serveKitRequests(requests, post, () => 0)
+    expect(attempts).toBe(3)
+    expect(moves).toHaveLength(1)
+  })
+
   test('an error on the page is a failed receipt, not a stuck run', async () => {
     fakeDriver(() => Promise.reject(new Error('layout went away')))
     const posted: Receipt[] = []

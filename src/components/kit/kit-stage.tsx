@@ -83,7 +83,10 @@ export function KitStage() {
   useEffect(() => {
     if (prefersReducedMotion()) return
     let timer: ReturnType<typeof setTimeout>
+    // A stroll under way when the stage goes must not schedule another.
+    let stopped = false
     const schedule = () => {
+      if (stopped) return
       const [least, most] = WANDER_MS
       timer = setTimeout(stroll, least + Math.random() * (most - least))
     }
@@ -115,7 +118,10 @@ export function KitStage() {
       schedule()
     }
     schedule()
-    return () => clearTimeout(timer)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
   }, [])
 
   const shown = shownTag(stage, act, now)

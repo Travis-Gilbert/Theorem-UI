@@ -37,6 +37,8 @@ export class KitDriver {
   private readonly draggable: Draggable
   private animation: JSAnimation | undefined
   private settle: ((landed: boolean) => void) | undefined
+  /** Ends the crouch under way, as finished or cut short. */
+  private crouching: ((finished: boolean) => void) | undefined
   private x = 0
   private y = 0
   private dragged = false
@@ -125,14 +127,16 @@ export class KitDriver {
   }
 
   /**
-   * Ends the running tween. Cut short, its promise resolves as not landed;
-   * finished, as landed, and the caller puts Kit where the tween was going.
+   * Ends the running tween or crouch. Cut short, its promise resolves as not
+   * landed; finished, as landed, and the caller puts Kit where it was going.
    */
   private stop(finished = false) {
     this.animation?.cancel()
     this.animation = undefined
     this.settle?.(finished)
     this.settle = undefined
+    this.crouching?.(finished)
+    this.crouching = undefined
   }
 
   /** No tween plays: motion is reduced, or the page is hidden and anime.js is paused. */
@@ -215,17 +219,26 @@ export class KitDriver {
     })
   }
 
-  private crouch(): Promise<void> {
+  /** Crouches a moment; resolves false when stopped first (a grab, or another move). */
+  private crouch(): Promise<boolean> {
     this.setMotion('crouch')
-    return new Promise((resolve) => setTimeout(resolve, CROUCH_MS))
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.crouching = undefined
+        resolve(true)
+      }, CROUCH_MS)
+      this.crouching = (finished) => {
+        clearTimeout(timer)
+        resolve(finished)
+      }
+    })
   }
 
   /** Lands on `line` at `at`, crouching, then stands still. */
   private async land(line: PerchLine, at: number) {
     changeStage({ perch: line.name, at })
     this.place(...standPoint(line, at))
-    if (!this.instant()) await this.crouch()
-    this.setMotion('still')
+    if (this.instant() || (await this.crouch())) this.setMotion('still')
   }
 
   /** Falls from where Kit is to whatever is below it. */
@@ -302,10 +315,14 @@ export class KitDriver {
 
   /** A jump in an arc from where Kit is to `at` along `perch`, following the perch if it moves mid-air. */
   private async leap(perch: PerchName, at: number, rise = 0): Promise<boolean> {
-    await this.crouch()
+    if (!(await this.crouch())) return false
     const start = { x: this.x, y: this.y }
     const goal = perchLine(perch)
-    if (!goal) return false
+    if (!goal) {
+      // The perch went away during the crouch: Kit settles where it is.
+      void this.drop()
+      return false
+    }
     const [gx, gy] = standPoint(goal, at)
     const distance = Math.hypot(gx - start.x, gy - start.y)
     const height = Math.max(rise || 40, distance * 0.22, start.y - gy + 36)

@@ -1,8 +1,9 @@
-// SOURCING: Theorem's Kit contract (theorem-surface-contracts kit: the declarations in contract/operations.json and the ts-rs types beside it, copied from rustyredcore_THG/bindings/theorem-surface-contracts/kit); Theorem's client operations (theorem-surface-contracts client_operation: a page declares operations in `clientOperations` beside `clientSurface` on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, and the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); assistant-ui ThreadMessage content as the SDK adapter maps that part (`theorem-client_operation` data)
+// SOURCING: Theorem's Kit contract (theorem-surface-contracts kit: the declarations in contract/operations.json and the ts-rs types beside it, copied from rustyredcore_THG/bindings/theorem-surface-contracts/kit); Theorem's client operations (theorem-surface-contracts client_operation: a page declares operations in `clientOperations` beside `clientSurface` on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, and the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); assistant-ui ThreadMessage content as the SDK adapter maps that part (`theorem-client_operation` data); @tanstack/react-query's MutationObserver retries a receipt that failed to post, with backoff, pausing while offline
 import type { ThreadMessage } from '@assistant-ui/react'
 import type { Theorem } from '@theoremharness/sdk'
+import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { mutate, theorem } from '@/lib/theorem/client'
+import { hasStatus, mutate, theorem } from '@/lib/theorem/client'
 import type { KitGesture } from './contract/KitGesture'
 import operations from './contract/operations.json'
 import { KitRefusal, kitDriver } from './driver'
@@ -209,6 +210,12 @@ export function say(text: string, now = Date.now()) {
   })
 }
 
+/** A receipt that fails to post is sent again this many times; a refusal by the server is final. */
+const RECEIPT_RETRIES = 6
+const receiptDelay = (failures: number) =>
+  Math.min(1000 * 2 ** failures, 15_000)
+const receipts = new QueryClient()
+
 /** Requests answered, or being answered, by this page. */
 const served = new Set<string>()
 /** The request being carried out; the next waits for it, so "walk there, then nod" plays in that order. */
@@ -231,6 +238,7 @@ export function serveKitRequests(
     request: KitRequest,
     receipt: Receipt,
   ) => Promise<unknown> = postReceipt,
+  retryDelay: (failures: number) => number = receiptDelay,
 ): Promise<void> {
   for (const request of requests) {
     if (served.has(request.requestRef)) continue
@@ -246,14 +254,22 @@ export function serveKitRequests(
         }
       }
       const scene = kitScene()
-      await post(request, {
-        outcome: answer.outcome,
-        revision: scene.revision,
-        ...(answer.reason && { reason: answer.reason }),
-        result: scene,
-      }).catch((error: unknown) => {
-        console.warn('Kit could not answer its run', error)
+      // Kit has already acted, so only the receipt is sent again.
+      await new MutationObserver(receipts, {
+        mutationFn: (receipt: Receipt) => post(request, receipt),
+        retry: (failures, error) =>
+          failures < RECEIPT_RETRIES && !hasStatus(error, 400, 404, 409, 422),
+        retryDelay,
       })
+        .mutate({
+          outcome: answer.outcome,
+          revision: scene.revision,
+          ...(answer.reason && { reason: answer.reason }),
+          result: scene,
+        })
+        .catch((error: unknown) => {
+          console.warn('Kit could not answer its run', error)
+        })
       // A gesture plays out before the next request takes Kit's body.
       const { gesture } = useKitStage.getState()
       if (request.operation === 'kit.gesture' && gesture)
