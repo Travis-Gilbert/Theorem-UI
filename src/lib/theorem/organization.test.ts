@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   applyPlacement,
   nestByOrigin,
+  rootOf,
   organizationFromThreads,
   organizedViews,
   primaryProjectId,
@@ -10,7 +11,10 @@ import {
 import type { Membership, ProjectEntry, ThreadEntry } from './organization'
 import type { Theorem } from './client'
 
-const project = (projectId: string, over: Partial<ProjectEntry> = {}): ProjectEntry => ({
+const project = (
+  projectId: string,
+  over: Partial<ProjectEntry> = {},
+): ProjectEntry => ({
   projectId,
   title: projectId,
   isInbox: false,
@@ -21,7 +25,10 @@ const project = (projectId: string, over: Partial<ProjectEntry> = {}): ProjectEn
   ...over,
 })
 
-const member = (projectId: string, over: Partial<Membership> = {}): Membership => ({
+const member = (
+  projectId: string,
+  over: Partial<Membership> = {},
+): Membership => ({
   projectId,
   by: 'librarian',
   pinned: false,
@@ -30,7 +37,10 @@ const member = (projectId: string, over: Partial<Membership> = {}): Membership =
   ...over,
 })
 
-const thread = (threadId: string, over: Partial<ThreadEntry> = {}): ThreadEntry => ({
+const thread = (
+  threadId: string,
+  over: Partial<ThreadEntry> = {},
+): ThreadEntry => ({
   threadId,
   title: threadId,
   homeProjectId: 'inbox',
@@ -48,7 +58,15 @@ describe('organizedViews', () => {
       thread('review', {
         memberships: [member('a'), member('b')],
         attention: {
-          reasons: [{ kind: 'review', reviewId: 'r', title: 't', optionCount: 2, atMs: 2 }],
+          reasons: [
+            {
+              kind: 'review',
+              reviewId: 'r',
+              title: 't',
+              optionCount: 2,
+              atMs: 2,
+            },
+          ],
           running: false,
         },
       }),
@@ -70,15 +88,23 @@ describe('organizedViews', () => {
   test('a thread in two projects shows in each and in its attention view', () => {
     const views = organizedViews(organization)
     expect(views.projects.map((p) => p.project.projectId)).toEqual(['a', 'b'])
-    expect(views.projects[0]!.threads.map((t) => t.threadId)).toEqual(['review', 'live'])
-    expect(views.projects[1]!.threads.map((t) => t.threadId)).toEqual(['review'])
+    expect(views.projects[0]!.threads.map((t) => t.threadId)).toEqual([
+      'review',
+      'live',
+    ])
+    expect(views.projects[1]!.threads.map((t) => t.threadId)).toEqual([
+      'review',
+    ])
     expect(views.attention.map((t) => t.threadId)).toEqual(['review'])
     expect(views.running.map((t) => t.threadId)).toEqual(['live'])
   })
 
   test('no live membership is Unsorted and the inbox is not a project', () => {
     const views = organizedViews(organization)
-    expect(views.unsorted.map((t) => t.threadId)).toEqual(['snoozed', 'terminal'])
+    expect(views.unsorted.map((t) => t.threadId)).toEqual([
+      'snoozed',
+      'terminal',
+    ])
     expect(views.later.map((t) => t.threadId)).toEqual(['snoozed'])
     expect(views.projects.some((p) => p.project.isInbox)).toBe(false)
   })
@@ -90,12 +116,20 @@ describe('organizedViews', () => {
   })
 
   test('a changing badge does not reorder the tree', () => {
-    const before = organizedViews(organization).projects[0]!.threads.map((t) => t.threadId)
+    const before = organizedViews(organization).projects[0]!.threads.map(
+      (t) => t.threadId,
+    )
     const after = organizedViews({
       ...organization,
       threads: organization.threads.map((t) =>
         t.threadId === 'live'
-          ? { ...t, attention: { reasons: [{ kind: 'failed' as const, runId: 'run', atMs: 3 }], running: false } }
+          ? {
+              ...t,
+              attention: {
+                reasons: [{ kind: 'failed' as const, runId: 'run', atMs: 3 }],
+                running: false,
+              },
+            }
           : t,
       ),
     }).projects[0]!.threads.map((t) => t.threadId)
@@ -108,26 +142,61 @@ describe('primaryProjectId', () => {
     expect(
       primaryProjectId(
         thread('t', {
-          memberships: [member('old', { atMs: 1 }), member('mine', { atMs: 5, pinned: true })],
+          memberships: [
+            member('old', { atMs: 1 }),
+            member('mine', { atMs: 5, pinned: true }),
+          ],
         }),
       ),
     ).toBe('mine')
   })
 
   test('no membership falls back to home', () => {
-    expect(primaryProjectId(thread('t', { homeProjectId: 'home' }))).toBe('home')
+    expect(primaryProjectId(thread('t', { homeProjectId: 'home' }))).toBe(
+      'home',
+    )
   })
 })
 
 describe('nestByOrigin', () => {
   test('a fork sits under a source in the same list and stands alone otherwise', () => {
     const fork = thread('fork', {
-      origin: { kind: 'forked', threadId: 'source', branchId: 'b', messageId: 'm' },
+      origin: {
+        kind: 'forked',
+        threadId: 'source',
+        branchId: 'b',
+        messageId: 'm',
+      },
     })
-    const orphan = thread('orphan', { origin: { kind: 'continued', threadId: 'elsewhere' } })
+    const orphan = thread('orphan', {
+      origin: { kind: 'continued', threadId: 'elsewhere' },
+    })
     const { roots, children } = nestByOrigin([thread('source'), fork, orphan])
     expect(roots.map((t) => t.threadId)).toEqual(['source', 'orphan'])
     expect(children.get('source')?.map((t) => t.threadId)).toEqual(['fork'])
+  })
+})
+
+describe('rootOf', () => {
+  test('follows a nested thread up to the root it shows under', () => {
+    const threads = [
+      thread('root'),
+      thread('fork', {
+        origin: {
+          kind: 'forked',
+          threadId: 'root',
+          branchId: 'b',
+          messageId: 'm',
+        },
+      }),
+      thread('deep', { origin: { kind: 'continued', threadId: 'fork' } }),
+      thread('orphan', {
+        origin: { kind: 'continued', threadId: 'elsewhere' },
+      }),
+    ]
+    expect(rootOf(threads, 'deep')).toBe('root')
+    expect(rootOf(threads, 'orphan')).toBe('orphan')
+    expect(rootOf(threads, 'root')).toBe('root')
   })
 })
 
@@ -149,8 +218,18 @@ describe('applyPlacement', () => {
 
 describe('organizationFromThreads', () => {
   const apiProject = (projectId: string, createdAtMs: number) =>
-    ({ projectId, title: projectId, instructions: '', status: 'regular', createdAtMs }) as Theorem.Project
-  const apiThread = (threadId: string, projectId: string, over: Partial<Theorem.Thread> = {}) =>
+    ({
+      projectId,
+      title: projectId,
+      instructions: '',
+      status: 'regular',
+      createdAtMs,
+    }) as Theorem.Project
+  const apiThread = (
+    threadId: string,
+    projectId: string,
+    over: Partial<Theorem.Thread> = {},
+  ) =>
     ({
       threadId,
       projectId,

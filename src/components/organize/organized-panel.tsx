@@ -53,6 +53,7 @@ import { useShell } from '@/components/shell/shell-state'
 import { describeError } from '@/lib/theorem/client'
 import {
   nestByOrigin,
+  rootOf,
   organizationKey,
   useLibrarianControl,
   useOrganization,
@@ -264,11 +265,13 @@ function ThreadRows({
   const { threadId: openThreadId } = useParams({ strict: false })
   const [showAll, setShowAll] = useState(false)
   // The first few, and the open one wherever it is, so it stays visibly in its project.
+  // A nested open one keeps the root it shows under.
+  const openRoot = openThreadId && rootOf(threads, openThreadId)
   const shown = showAll
     ? roots
     : roots.filter(
         (thread, index) =>
-          index < THREADS_SHOWN || thread.threadId === openThreadId,
+          index < THREADS_SHOWN || thread.threadId === openRoot,
       )
   const hidden = roots.length - shown.length
   return (
