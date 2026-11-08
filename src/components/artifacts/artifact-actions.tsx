@@ -1,34 +1,30 @@
-// Reuse the canonical AppDocument owner, clipboard hook, and shared action buttons.
+// SOURCING: useCopyToClipboard and ui/button; what Copy and Download hand over comes from the registry's sourceOf
 import { useState } from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { BlockMessage } from '@/components/blocks/block-status'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { appDocumentFor } from '@/lib/theorem/apps'
 import { describeError } from '@/lib/theorem/client'
 import { fileNameFor } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
+import { sourceOf } from './artifact-registry'
 
-async function sourceFor(artifact: TheoremArtifact): Promise<string> {
-  if (artifact.rendererId !== 'theorem-app') return artifact.content
-  if (!artifact.documentId)
-    throw new Error('The App has no saved document reference.')
-  // Re-authorize every action and join the view's save queue. Never fall back to
-  // a cached snapshot or an artifact's empty inline placeholder after failure.
-  return (await appDocumentFor(artifact.documentId).load()).html
-}
-
-/** Download saved App source, or the selected inline artifact revision. */
-export async function download(artifact: TheoremArtifact): Promise<void> {
-  const content = await sourceFor(artifact)
+/**
+ * Download a revision's source: the App as saved now for its newest
+ * revision, the pinned source for an older one, the inline text otherwise.
+ */
+export async function download(
+  artifact: TheoremArtifact,
+  latest = true,
+): Promise<void> {
+  const source = sourceOf(artifact, latest)
+  // Re-authorize every action; never fall back to a cached snapshot or an
+  // empty inline placeholder after a failure.
+  const content = await source.load()
   if (!content) throw new Error('There is no saved content to download.')
-  const type =
-    artifact.kind === 'app'
-      ? 'text/html'
-      : artifact.kind === 'document'
-        ? 'text/markdown'
-        : 'text/plain'
-  const url = URL.createObjectURL(new Blob([content], { type }))
+  const url = URL.createObjectURL(
+    new Blob([content], { type: source.mediaType }),
+  )
   try {
     const link = document.createElement('a')
     link.href = url
@@ -42,9 +38,12 @@ export async function download(artifact: TheoremArtifact): Promise<void> {
 /** Both the panel and conversation card report action failures in place. */
 export function ArtifactActions({
   artifact,
+  latest = true,
   copy = false,
 }: {
   artifact: TheoremArtifact
+  /** Whether this is the artifact's newest revision in the thread. */
+  latest?: boolean
   copy?: boolean
 }) {
   const [pending, setPending] = useState(false)
@@ -54,7 +53,8 @@ export function ArtifactActions({
   const { isCopied, copyToClipboard, resetCopied } = useCopyToClipboard({
     onError: fail,
   })
-  const app = artifact.rendererId === 'theorem-app'
+  const source = sourceOf(artifact, latest)
+  const noun = source.noun
   const attempt = async (action: () => Promise<void>) => {
     setError(undefined)
     resetCopied()
@@ -71,26 +71,26 @@ export function ArtifactActions({
     <div className="flex flex-wrap items-center gap-0.5">
       {copy && (
         <CopySourceButton
-          app={app}
+          noun={noun}
           isCopied={isCopied}
           pending={pending}
           onClick={() =>
-            void attempt(async () => copyToClipboard(await sourceFor(artifact)))
+            void attempt(async () => copyToClipboard(await source.load()))
           }
         />
       )}
       <Button
         variant="ghost"
         size="icon"
-        aria-label={app ? 'Download App source' : 'Download'}
+        aria-label={noun ? `Download ${noun}` : 'Download'}
         title={
-          app
-            ? 'Download current saved HTML source; saved state is not included'
+          noun
+            ? `Download ${latest ? 'current saved' : "this revision's"} source; saved state is not included`
             : 'Download'
         }
         className="size-8 p-1.5"
         disabled={pending}
-        onClick={() => void attempt(() => download(artifact))}
+        onClick={() => void attempt(() => download(artifact, latest))}
       >
         <Icon.Download className="size-4" />
       </Button>
@@ -100,12 +100,12 @@ export function ArtifactActions({
 }
 
 function CopySourceButton({
-  app,
+  noun,
   isCopied,
   pending,
   onClick,
 }: {
-  app: boolean
+  noun: string
   isCopied: boolean
   pending: boolean
   onClick: () => void
@@ -114,8 +114,8 @@ function CopySourceButton({
     <Button
       variant="ghost"
       size="icon"
-      aria-label={isCopied ? 'Copied' : app ? 'Copy App source' : 'Copy'}
-      title={app ? 'Copy current saved App source' : 'Copy'}
+      aria-label={isCopied ? 'Copied' : noun ? `Copy ${noun}` : 'Copy'}
+      title={noun ? `Copy ${noun}` : 'Copy'}
       className="size-8 p-1.5"
       disabled={pending}
       onClick={onClick}

@@ -67,8 +67,11 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
     payloadRef: text(part.payloadRef),
     runId: text(part.runId),
     sourceTool: text(part.sourceTool),
-    documentId:text(payload.documentId),
-    documentPosition:typeof object(payload.revision).position === 'number' ? object(payload.revision).position as number : text(object(payload.revision).position),
+    documentId: text(payload.documentId),
+    documentPosition:
+      typeof object(payload.revision).position === 'number'
+        ? (object(payload.revision).position as number)
+        : text(object(payload.revision).position),
   }
 }
 
