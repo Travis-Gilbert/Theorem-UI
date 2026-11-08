@@ -1,4 +1,4 @@
-// SOURCING: ui/button (ghost icon buttons) for header actions, useCopyToClipboard hook; content renders through artifact-renderers
+// SOURCING: ui/button (ghost icon buttons) for header actions, useCopyToClipboard hook; bodies render through the registry (artifact-renderers' ArtifactView)
 import { useLayoutEffect, useRef } from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { kindLabel, useThreadArtifacts } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
 import { ArtifactActions } from './artifact-actions'
-import { ArtifactBody } from './artifact-renderers'
+import { ArtifactView } from './artifact-renderers'
 import { useArtifactView } from './artifact-view'
 
 export { download } from './artifact-actions'
@@ -63,8 +63,10 @@ export function ArtifactPanel({
   const versions = artifacts.get(artifactId)
   if (!versions?.length) return null
   const index = selectedArtifactIndex(versions, revision)
-  const artifact = versions[index] ?? versions[versions.length - 1]
-  if (!artifact) return null
+  const newest = versions[versions.length - 1]
+  const artifact = versions[index] ?? newest
+  if (!artifact || !newest) return null
+  const latest = artifact === newest
   const goTo = (next: number) =>
     select(
       artifactId,
@@ -89,19 +91,24 @@ export function ArtifactPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-(--spacing-reading) px-6 py-6">
-          <ArtifactBody key={artifactBodyKey(artifact)} artifact={artifact} />
+          {/* The newest revision stays mounted while an older one is shown,
+              so a live session and an unsaved edit outlast a look back. */}
+          <div hidden={!latest}>
+            <ArtifactView artifact={newest} distance="interactive" latest />
+          </div>
+          {!latest && (
+            <ArtifactView
+              key={artifact.revision}
+              artifact={artifact}
+              distance="interactive"
+              latest={false}
+            />
+          )}
         </div>
       </div>
     </section>
   )
 }
-
-function artifactBodyKey(artifact: TheoremArtifact) {
-  return artifact.rendererId === 'theorem-app'
-    ? artifact.documentId
-    : artifact.revision
-}
-
 function ArtifactPanelHeader({
   artifact,
   index,
@@ -160,7 +167,12 @@ function ArtifactPanelHeader({
         </div>
       )}
 
-      <ArtifactActions key={artifact.revision} artifact={artifact} copy />
+      <ArtifactActions
+        key={artifact.revision}
+        artifact={artifact}
+        latest={index === versionCount - 1}
+        copy
+      />
       {onExpandedChange && (
         <Button
           variant="ghost"

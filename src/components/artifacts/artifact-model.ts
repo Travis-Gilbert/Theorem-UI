@@ -67,8 +67,11 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
     payloadRef: text(part.payloadRef),
     runId: text(part.runId),
     sourceTool: text(part.sourceTool),
-    documentId:text(payload.documentId),
-    documentPosition:typeof object(payload.revision).position === 'number' ? object(payload.revision).position as number : text(object(payload.revision).position),
+    documentId: text(payload.documentId),
+    documentPosition:
+      typeof object(payload.revision).position === 'number'
+        ? (object(payload.revision).position as number)
+        : text(object(payload.revision).position),
   }
 }
 
@@ -137,18 +140,26 @@ export function kindLabel(artifact: TheoremArtifact): string {
   }
 }
 
-/** Download file name for an artifact revision. */
-export function fileNameFor(artifact: TheoremArtifact): string {
+const MEDIA_EXTENSIONS: Record<string, string> = {
+  'text/html': 'html',
+  'text/markdown': 'md',
+  'text/vnd.mermaid': 'mmd',
+}
+
+/** Download file name for an artifact revision whose source has `mediaType`. */
+export function fileNameFor(
+  artifact: TheoremArtifact,
+  mediaType: string,
+): string {
   const base =
     artifact.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') || 'artifact'
-  if (artifact.kind === 'app') return `${base}.html`
-  if (artifact.kind === 'document') return `${base}.md`
-  if (artifact.kind === 'diagram') return `${base}.mmd`
-  const ext = artifact.language
-    ? EXTENSIONS[artifact.language.toLowerCase()]
-    : undefined
-  return `${base}.${ext ?? artifact.language ?? 'txt'}`
+  const ext =
+    MEDIA_EXTENSIONS[mediaType] ??
+    (artifact.language
+      ? (EXTENSIONS[artifact.language.toLowerCase()] ?? artifact.language)
+      : 'txt')
+  return `${base}.${ext}`
 }

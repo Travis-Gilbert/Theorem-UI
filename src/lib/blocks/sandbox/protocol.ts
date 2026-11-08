@@ -49,6 +49,9 @@ export interface AppSelection {
   text: string
   rowId?: string
   field?: string
+  /** The nearest `[data-entity-id]` the person selected or clicked, such as one GPU lane. */
+  entityId?: string
+  entityLabel?: string
 }
 
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
