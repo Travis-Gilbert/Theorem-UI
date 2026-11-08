@@ -52,7 +52,10 @@ async function signIn(page) {
 
 export async function open(path = '/') {
   mkdirSync(SHOTS, { recursive: true })
-  const browser = await chromium.launch()
+  // Full Chromium in new headless mode. The separate headless shell (Playwright
+  // 1.64, revision 1248) never paints a frame on macOS 27, so every screenshot
+  // and click waits forever.
+  const browser = await chromium.launch({ channel: 'chromium' })
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     colorScheme: 'dark',
