@@ -69,6 +69,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // The Remux session feature and its GhosttyKit build target iOS 18.
       { ios: { deploymentTarget: '18.0' } },
     ],
+    // Puts Remux's images in the app's asset catalog (see the plugin for why).
+    './modules/theorem-session/app.plugin.js',
   ],
   experiments: { typedRoutes: true },
   extra: {

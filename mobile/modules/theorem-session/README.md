@@ -24,6 +24,9 @@ terminal shows only for someone who turns on **Show terminal** in Settings.
 - `index.tsx`: `computers()`, `sessionSupport()` and `TheoremTerminalView`.
   The module is optional: without it (Expo Go, a build without GhosttyKit)
   the app says why.
+- `app.plugin.js`: at prebuild, copies Remux's image sets into the app's
+  `Images.xcassets`, where Remux finds them by name. A catalog shipped through
+  the pod would compile a second `Assets.car`, which Xcode refuses.
 
 Before `pod install` (local builds and EAS), run `scripts/fetch-ghosttykit.sh`.
 The podspec refuses to install without it. The script keeps only the iOS

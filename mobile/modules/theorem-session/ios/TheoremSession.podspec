@@ -25,9 +25,10 @@ Pod::Spec.new do |s|
 
   s.source_files = ['*.swift', 'vendor/remux/Sources/**/*.swift']
   s.exclude_files = ['vendor/remux/Sources/App/RemuxApp.swift']
-  # Copied into the app bundle, where Remux looks them up (Bundle.main, Image(named:)).
+  # Copied into the app bundle, where Remux looks them up (Bundle.main). Its
+  # Assets.xcassets is not listed: app.plugin.js merges it into the app's own
+  # catalog, since a pod catalog compiles a second Assets.car that Xcode rejects.
   s.resources = [
-    'vendor/remux/Assets.xcassets',
     'vendor/remux/Resources/install_authorized_key.sh',
     'vendor/remux/Resources/ThirdPartyNotices.txt',
   ]
