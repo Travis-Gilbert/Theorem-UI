@@ -18,6 +18,7 @@ import type {
   Representation,
 } from '@/lib/artifacts/contributions'
 import { appDocumentFor } from '@/lib/theorem/apps'
+import { fileNameFor } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
 
 export type RendererProps = {
@@ -154,6 +155,11 @@ const SOURCES: Record<
     mediaType: 'text/markdown',
     load: inline(artifact),
   }),
+  'theorem.diagram': (artifact) => ({
+    noun: '',
+    mediaType: 'text/vnd.mermaid',
+    load: inline(artifact),
+  }),
   'theorem.app': (artifact, latest) => ({
     noun: 'App source',
     mediaType: 'text/html',
@@ -184,6 +190,10 @@ export function sourceOf(
     }
   )
 }
+
+/** What Download names the revision: the extension follows the source's media type. */
+export const fileNameOf = (artifact: TheoremArtifact, latest: boolean) =>
+  fileNameFor(artifact, sourceOf(artifact, latest).mediaType)
 
 /**
  * Whether showing the artifact at a distance holds a live session. A live

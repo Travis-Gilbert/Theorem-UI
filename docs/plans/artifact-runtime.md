@@ -26,8 +26,9 @@ Status: **implemented** (observed in source and tests), **adapter** (exists, nee
 | Edge | Before | Owner | This slice |
 |---|---|---|---|
 | ArtifactContribution / resolve | Rust only, unused in production; UI chose by `rendererId` string with four `=== 'theorem-app'` branches (AR-I10) | theorem-surface-contracts | TS projection of `resolve` with the Rust tests ported; UI contributions + mount table; branches removed |
+| Remaining kind switches | `fileNameFor` branched on kind for the extension; `kindLabel` and `ArtifactKindIcon` switch on kind | UI | the extension now follows the media type the contribution hands over (`sourceOf`); the label and icon are chrome, not renderer choice, and stay until contributions carry a glyph |
 | Contribution manifest over HTTP | absent | Theorem modules | out of slice; the UI declares its built-in contributions in the same wire shape (`readContribution` parses it) |
-| Builder App production | implemented (start_work builder -> complete_work.app -> doc store) | conversation_apps | starter kit `theorem-app-kit/1` added (B1, Codex) |
+| Builder App production | implemented (start_work builder -> complete_work.app -> doc store) | conversation_apps | starter kit `theorem-app-kit/1` added (B1, Codex); the release gate found settlement losing a CAS race to the 1 s lease heartbeat, so the App never published (fixed, B4, Codex) |
 | App part pins revision | implemented (`payload.revision`, inline pinned HTML) | delivery.rs | UI now opens that pinned HTML for historical revisions |
 | Inline preview (AR-009) | adapter: chat card, click to expand, then Run, latest revision only | UI | Preview renderer: sandboxed frame of the pinned revision, live only while on screen, snapshot poster off screen |
 | Workspace open (AR-010) | implemented (dock panel, same artifact id, revision pin per artifact) | UI | unchanged; body chosen by resolve at Interactive |

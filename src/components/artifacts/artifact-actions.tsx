@@ -28,7 +28,7 @@ export async function download(
   try {
     const link = document.createElement('a')
     link.href = url
-    link.download = fileNameFor(artifact)
+    link.download = fileNameFor(artifact, source.mediaType)
     link.click()
   } finally {
     URL.revokeObjectURL(url)

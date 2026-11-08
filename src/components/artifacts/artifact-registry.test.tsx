@@ -7,6 +7,7 @@ import { cleanup, render, waitFor } from '../../../test/blocks/render'
 import { readArtifact } from './artifact-model'
 import { PinnedAppFrame } from './app-revision-frame'
 import {
+  fileNameOf,
   isLive,
   representationOf,
   sourceOf,
@@ -102,3 +103,31 @@ test('the pinned frame runs the pinned source in the App sandbox and is inert as
     compile.mockRestore()
   }
 }, 20_000)
+
+function part(kind: string, language: string, title: string) {
+  return readArtifact({
+    artifactId: `${kind}-1`,
+    artifactRevision: '1',
+    artifactKind: kind,
+    rendererId: `theorem-${kind}`,
+    lifecycle: 'ready',
+    patchSequence: 1,
+    payload: { title, content: 'x', language },
+  })!
+}
+
+test('a download is named for the media type its contribution hands over', () => {
+  expect(fileNameOf(app(), true)).toBe('cpu-vs-gpu.html')
+  expect(fileNameOf(part('diagram', 'mermaid', 'Warp flow'), true)).toBe(
+    'warp-flow.mmd',
+  )
+  expect(fileNameOf(part('document', 'markdown', 'Notes'), true)).toBe(
+    'notes.md',
+  )
+  expect(fileNameOf(part('code', 'typescript', 'Lane sim'), true)).toBe(
+    'lane-sim.ts',
+  )
+  expect(sourceOf(part('diagram', 'mermaid', 'Warp flow'), true).mediaType).toBe(
+    'text/vnd.mermaid',
+  )
+})
