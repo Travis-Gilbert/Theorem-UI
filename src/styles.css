@@ -311,7 +311,10 @@
   --spacing-rail: 44px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
-  --spacing-reading: 720px;
+  /* The reading column of a conversation, an artifact and the highlights:
+     wide enough that an agent's answer, its tables and code, read without
+     the column closing in on them. */
+  --spacing-reading: 1080px;
 
   @keyframes collapsible-down {
     from {

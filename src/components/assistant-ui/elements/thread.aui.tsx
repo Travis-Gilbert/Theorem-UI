@@ -223,8 +223,9 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
         // The reading measure is the text's width; the column's side padding sits outside it.
         ["--thread-max-width" as string]: "calc(var(--spacing-reading) + 2rem)",
         ["--composer-bg" as string]: "var(--surface-composer)",
-        ["--composer-radius" as string]: "var(--radius-2xl)",
-        ["--composer-padding" as string]: "12px",
+        // A composer with room to write in: three lines at rest, and a frame to match.
+        ["--composer-radius" as string]: "20px",
+        ["--composer-padding" as string]: "16px",
       }}
     >
       <ThreadPrimitive.Viewport
@@ -497,7 +498,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
       <AttachmentRefusals />
       <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" data-kit-perch="composer" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem, / for tools"
-                      className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-72 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-2 text-[1rem] leading-6 outline-none focus-visible:outline-none"
+                      className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-96 min-h-[5.5rem] w-full resize-none bg-transparent px-2 pt-1 pb-2 text-[1rem] leading-7 outline-none focus-visible:outline-none"
                       rows={1}
                       autoFocus={autoFocus}
                       enterKeyHint="send"

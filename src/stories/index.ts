@@ -16,6 +16,8 @@ export type StoryMeta = {
 
 const SIDEBAR_REF = 'sidebar-compare@2026-11-05.webp'
 const CANVAS_REF = 'canvas-note-types@2026-11-05.png'
+/** The coding-workspace mockup the person attached: the terminal against the code pane, and the fox. */
+const CODING_REF = 'coding-workspace-mockup@2026-11-08.png'
 
 export const STORIES: readonly StoryMeta[] = [
   {
@@ -71,6 +73,14 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     reference: CANVAS_REF,
     viewport: { width: 1440, height: 900 },
+  },
+  {
+    id: 'conversation-wide',
+    title: 'Conversation on a wide sheet',
+    lane: 'original',
+    reference: CODING_REF,
+    viewport: { width: 1600, height: 1000 },
+    threadId: 'thread-app-gallery',
   },
   {
     id: 'shell-compare',

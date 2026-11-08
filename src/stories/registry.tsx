@@ -12,6 +12,7 @@ import { ReviewCard } from '@/components/review/review-card'
 import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
+import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
@@ -82,6 +83,17 @@ function ShellCompareStory() {
   )
 }
 
+/** The thread alone on the sheet: the reading column and the composer at desktop width. */
+function ConversationWideStory() {
+  return (
+    <WithRuntime>
+      <div className="bg-sheet h-dvh w-full">
+        <Thread />
+      </div>
+    </WithRuntime>
+  )
+}
+
 function NoteKindsStory() {
   const { data: note } = useNote('doc-everything')
   if (!note) return null
@@ -144,6 +156,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'compare-pane': ComparePaneStory,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'conversation-wide': ConversationWideStory,
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
   'program-note': ProgramNoteStory,
