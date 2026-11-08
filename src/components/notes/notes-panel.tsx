@@ -94,7 +94,7 @@ export function NotesPanel() {
             />
           }
         >
-          <Icon.Add className="size-4" />
+          <Icon.NewNote className="size-4" />
         </Toolbar.Button>
         <Toolbar.Button
           render={
@@ -262,7 +262,7 @@ function SortMenu({ order }: { order: NoteOrder }) {
 }
 
 const emptyShelf: Record<NoteShelf, string> = {
-  notes: 'No notes yet. Start one with the plus.',
+  notes: 'No notes yet. Start one with New note.',
   agent: 'No agent has written a note yet.',
   trash: 'The Trash is empty.',
 }
@@ -670,7 +670,7 @@ const MARKS: Record<
   written: { Mark: Icon.Article, tone: 'text-ink-faint' },
   editing: { Mark: Icon.Draft, tone: 'text-ink-muted', said: 'saving' },
   unsaved: { Mark: Icon.Draft, tone: 'text-error-ink', said: 'not saved' },
-  agent: { Mark: Icon.Agent, tone: 'text-ink-faint' },
+  agent: { Mark: Icon.AgentNote, tone: 'text-ink-faint' },
   copied: { Mark: Icon.Attachments, tone: 'text-ink-faint' },
 }
 

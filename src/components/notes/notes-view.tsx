@@ -51,7 +51,7 @@ function NoNoteOpen() {
           })
         }
       >
-        <Icon.Add />
+        <Icon.NewNote />
         New note
       </Button>
       {create.error && (

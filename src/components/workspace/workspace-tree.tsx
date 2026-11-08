@@ -483,7 +483,7 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                 className={menuItem}
                 onClick={() => makeIn('note')}
               >
-                <Icon.Add className="size-4" />
+                <Icon.NewNote className="size-4" />
                 New note
               </ContextMenu.Item>
               <ContextMenu.Item

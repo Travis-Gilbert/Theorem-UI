@@ -98,7 +98,7 @@ function WorkspaceSection({
             >
               <Menu.Popup className={`min-w-48 ${menuPopup}`}>
                 <Menu.Item className={menuItem} onClick={() => make('note')}>
-                  <Icon.Add className="size-4" />
+                  <Icon.NewNote className="size-4" />
                   New note
                 </Menu.Item>
                 <Menu.Item className={menuItem} onClick={() => make('folder')}>
