@@ -160,14 +160,14 @@
   --link: var(--teal-ink);
   --graph-label: var(--ink);
   --popover: var(--surface-raised);
-  --term-bg: #2e2519;
-  --term-raised: #3a2e1b;
-  --term-line: #4f422d;
-  --term-ink: #d7cdc6;
-  --term-bright: #eee8e4;
-  --term-muted: #9f958d;
+  --term-bg: #292623;
+  --term-raised: #332f2b;
+  --term-line: #48433e;
+  --term-ink: #d1cfcd;
+  --term-bright: #ebe9e8;
+  --term-muted: #999695;
   --term-sage: #8aa8a0;
-  --term-gold: #d5bc8a;
+  --term-gold: #d6bc8a;
   --term-error: #e08a8f;
 }
 
@@ -217,13 +217,13 @@
   --graph-tag: #89be6b;
   --graph-attachment: #cba843;
   --link: var(--teal-ink);
-  --term-bg: #25221b;
-  --term-raised: #2f2b21;
-  --term-line: #433f33;
-  --term-ink: #cdc9c4;
-  --term-bright: #e5e3e0;
-  --term-muted: #96928d;
-  --term-sage: #86a49c;
-  --term-gold: #d1b785;
+  --term-bg: #232220;
+  --term-raised: #2c2b28;
+  --term-line: #403f3b;
+  --term-ink: #cbc9c8;
+  --term-bright: #e3e3e2;
+  --term-muted: #949291;
+  --term-sage: #86a39c;
+  --term-gold: #d0b785;
   --term-error: #db868b;
 }

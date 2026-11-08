@@ -162,3 +162,24 @@ test("a tinted workspace's terminal takes its hue, turned as the slate's is from
     expect(hueGap(c, h, tint.h + turn)).toBeLessThanOrEqual(ROUNDING)
   }
 })
+
+test("a warm workspace's terminal keeps the workspace's own tint: graphite, not brown", () => {
+  for (const name of [
+    'Stone',
+    'Stone dark',
+    'red dark',
+    'green light',
+  ] as const) {
+    const { tint } = measure(WORKSPACES[name])
+    const { c } = lch(terminalTheme(WORKSPACES[name]).bg)
+    expect(c).toBeLessThanOrEqual(tint.c + ROUNDING)
+  }
+  for (const name of ['Stone', 'Stone dark'] as const)
+    expect(lch(terminalTheme(WORKSPACES[name]).bg).c).toBeLessThan(0.01)
+})
+
+test("a cool workspace's terminal takes the slate's extra tint", () => {
+  const { c } = lch(terminalTheme(WORKSPACES['GitHub Sharp dark']).bg)
+  const { tint } = measure(WORKSPACES['GitHub Sharp dark'])
+  expect(c).toBeGreaterThan(3 * tint.c)
+})
