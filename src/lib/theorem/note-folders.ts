@@ -59,8 +59,8 @@ export function noteFolders(collections: Collection[]): NoteFolders {
 }
 
 /** The loose notes, and the notes of each folder, by the document each row opens. */
-export function placeNotes(
-  entries: NoteEntry[],
+export function placeNotes<T extends NoteEntry>(
+  entries: T[],
   folderOf: ReadonlyMap<string, string>,
 ) {
   return {

@@ -8,6 +8,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { mutate, theorem } from './client'
 import type { MutationHeaders, Theorem } from './client'
@@ -19,6 +20,8 @@ import {
   primeNote,
 } from './notes'
 import type { SaveStatus } from './notes'
+import { needsEveryPage, sortNotes } from './note-order'
+import type { ListedNote, NoteOrder } from './note-order'
 import { theoremJson } from './passthrough'
 
 const SCHEMA = 'theorem-document/2'
@@ -144,11 +147,25 @@ export const onShelf = (entry: NoteEntry, shelf: NoteShelf) =>
     ? entry.retired
     : !entry.retired && (entry.source === 'encoded') === (shelf === 'agent')
 
-/** A shelf's notes, newest first; `query` searches titles and text. */
-export function useNoteLibrary(query: string, shelf: NoteShelf) {
+/** A listed summary as a row that knows where it stands in Theorem's history. */
+export const listedNote = (summary: Theorem.DocumentSummary): ListedNote => ({
+  ...noteEntry(summaryFacts(summary)),
+  createdPosition: summary.createdPosition,
+  updatedPosition: summary.updatedPosition,
+})
+
+/**
+ * A shelf's notes in `order`; `query` searches titles and text. Theorem pages
+ * by last edit, so any other order reads every page before it is shown.
+ */
+export function useNoteLibrary(
+  query: string,
+  shelf: NoteShelf,
+  order: NoteOrder = 'edited',
+) {
   const search = query.trim() || undefined
   const { includeAgentEncoded, queryParams } = shelfRequest(shelf)
-  return useInfiniteQuery({
+  const library = useInfiniteQuery({
     queryKey: [...noteLibraryKey, shelf, search],
     initialPageParam: undefined as ReturnType<typeof nextPageParams>,
     queryFn: ({ pageParam }) =>
@@ -164,12 +181,22 @@ export function useNoteLibrary(query: string, shelf: NoteShelf) {
       ),
     getNextPageParam: nextPageParams,
     select: (data) =>
-      data.pages
-        .flatMap((page) => page.documents)
-        .map((summary) => noteEntry(summaryFacts(summary)))
-        .filter((entry) => onShelf(entry, shelf)),
+      sortNotes(
+        data.pages
+          .flatMap((page) => page.documents)
+          .map(listedNote)
+          .filter((entry) => onShelf(entry, shelf)),
+        order,
+      ),
     staleTime: 10_000,
   })
+  const every = needsEveryPage(order)
+  const { hasNextPage, isFetchingNextPage, isError, fetchNextPage } = library
+  useEffect(() => {
+    if (every && hasNextPage && !isFetchingNextPage && !isError)
+      void fetchNextPage()
+  }, [every, hasNextPage, isFetchingNextPage, isError, fetchNextPage])
+  return library
 }
 
 export function useNewNote() {

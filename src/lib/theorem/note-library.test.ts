@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { Theorem } from './client'
 import {
   lifecycleRequest,
+  listedNote,
   nextPageParams,
   noteEntry,
   noteMark,
@@ -185,5 +186,17 @@ describe('noteMark', () => {
     expect(noteMark(noteEntry(facts({ origin: encoded('doc:copy') })))).toBe(
       'copied',
     )
+  })
+})
+
+test('a listed note keeps when it was made and last written, for sorting', () => {
+  const listed = listedNote(
+    summary({ createdPosition: 3, updatedPosition: 12 }),
+  )
+  expect(listed).toMatchObject({
+    documentId: 'doc:1',
+    title: 'Groceries',
+    createdPosition: 3,
+    updatedPosition: 12,
   })
 })
