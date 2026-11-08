@@ -1,9 +1,21 @@
 // The message card reuses the canonical App renderer and artifact panel actions.
+//
+// Beside the chat's dock an artifact opens in its panel; on a page whose
+// conversation has no dock beside it (the IDE's), it opens in the message,
+// in line with the response, and Open takes it to chat's larger panel.
 import { useAuiState } from '@assistant-ui/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { followArtifact } from '@/components/ide/follow'
+import { useOpenMode } from '@/components/shell/modes'
 import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { kindLabel, useThreadArtifacts } from './artifact-model'
@@ -12,23 +24,39 @@ import { ArtifactBody } from './artifact-renderers'
 import { ArtifactActions } from './artifact-actions'
 import { useArtifactView } from './artifact-view'
 
+/**
+ * Where a conversation's artifacts open: in the dock's panels beside it, or
+ * in the message itself when the conversation has no dock beside it.
+ */
+export const ArtifactPlacement = createContext<'panel' | 'inline'>('panel')
+
 export function ArtifactMessage({ artifact }: { artifact: TheoremArtifact }) {
   const artifacts = useThreadArtifacts()
-  const [inlineOpen, setInlineOpen] = useState(false)
+  const inline = useContext(ArtifactPlacement) === 'inline'
+  const [inlineOpen, setInlineOpen] = useState(inline)
+  /** An App runs inline once the person asks; its Run control stays the way in. */
+  const [asked, setAsked] = useState(false)
   const isApp = artifact.rendererId === 'theorem-app'
   const { open } = useArtifactView.getState()
+  const openMode = useOpenMode()
   const selected = useArtifactView(
     (s) => s.openId !== undefined && s.openId === artifact.artifactId,
   )
-  const { cardRef, launch } = useArtifactLaunch(artifact)
+  const { cardRef, launch } = useArtifactLaunch(artifact, !inline)
 
   const versions = artifacts.get(artifact.artifactId) ?? [artifact]
   const position = versions.findIndex((v) => v.revision === artifact.revision)
   const latest = position === versions.length - 1
   const show = () => {
-    setInlineOpen(false)
+    if (!inline) setInlineOpen(false)
     launch()
     open(artifact.artifactId, latest ? undefined : artifact.revision)
+    // The dock is chat's; from a page the larger view is there.
+    if (inline) void openMode('chat')
+  }
+  const toggle = () => {
+    setAsked(true)
+    setInlineOpen((value) => !value)
   }
 
   return (
@@ -40,7 +68,8 @@ export function ArtifactMessage({ artifact }: { artifact: TheoremArtifact }) {
         inlineOpen={inlineOpen}
         isApp={isApp}
         version={versions.length > 1 ? ` · v${position + 1}` : ''}
-        onClick={() => (isApp ? setInlineOpen((value) => !value) : show())}
+        expandable={isApp || inline}
+        onClick={() => (isApp || inline ? toggle() : show())}
         show={show}
       />
       {inlineOpen && (
@@ -51,7 +80,7 @@ export function ArtifactMessage({ artifact }: { artifact: TheoremArtifact }) {
           <ArtifactBody
             key={artifact.documentId}
             artifact={artifact}
-            initiallyRunning
+            initiallyRunning={!inline || asked}
           />
         </div>
       )}
@@ -65,6 +94,7 @@ function ArtifactMessageCard({
   selected,
   inlineOpen,
   isApp,
+  expandable,
   version,
   onClick,
   show,
@@ -74,6 +104,8 @@ function ArtifactMessageCard({
   selected: boolean
   inlineOpen: boolean
   isApp: boolean
+  /** Whether the card opens the artifact in the message rather than in a panel. */
+  expandable: boolean
   version: string
   onClick: () => void
   show: () => void
@@ -94,7 +126,7 @@ function ArtifactMessageCard({
       <button
         type="button"
         onClick={onClick}
-        aria-expanded={isApp ? inlineOpen : undefined}
+        aria-expanded={expandable ? inlineOpen : undefined}
         className="flex min-w-0 flex-1 items-center gap-3 text-start"
         aria-label={`Open ${artifact.title}`}
       >
@@ -132,7 +164,8 @@ function ArtifactMessageCard({
   )
 }
 
-function useArtifactLaunch(artifact: TheoremArtifact) {
+/** `follows`: an artifact the working turn writes opens in its panel as it does. */
+function useArtifactLaunch(artifact: TheoremArtifact, follows: boolean) {
   const live = useAuiState((s) => s.message.status?.type === 'running')
   const { artifactId, revision, rendererId } = artifact
   const cardRef = useRef<HTMLDivElement>(null)
@@ -144,10 +177,11 @@ function useArtifactLaunch(artifact: TheoremArtifact) {
       )
   }, [artifactId])
   // Apps stay in the chat until clicked; other artifacts keep Follow behavior.
+  // Inline, the artifact already shows in the message as it is written.
   useEffect(() => {
-    if (!live || rendererId === 'theorem-app') return
+    if (!follows || !live || rendererId === 'theorem-app') return
     launch()
     followArtifact(artifactId)
-  }, [live, artifactId, revision, rendererId, launch])
+  }, [follows, live, artifactId, revision, rendererId, launch])
   return { cardRef, launch }
 }

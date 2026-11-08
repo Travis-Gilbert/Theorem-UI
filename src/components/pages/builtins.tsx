@@ -17,6 +17,7 @@ import {
 } from 'react'
 import { create } from 'zustand'
 import type { StoreApi, UseBoundStore } from 'zustand'
+import { ArtifactPlacement } from '@/components/artifacts/artifact-message'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { DocumentApp } from '@/components/blocks/document-app'
 import { useComposerReferences } from '@/components/chat/composer-references'
@@ -359,9 +360,11 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
   if (!mine) return <Elsewhere what="The conversation" onTake={take} />
   return (
     <div className="h-full min-h-[320px]">
-      <LifeBackdrop>
-        <Thread autoFocus={false} />
-      </LifeBackdrop>
+      <ArtifactPlacement.Provider value="inline">
+        <LifeBackdrop>
+          <Thread autoFocus={false} />
+        </LifeBackdrop>
+      </ArtifactPlacement.Provider>
     </div>
   )
 }
@@ -568,7 +571,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
     id: 'theorem.conversation',
     label: 'Conversation',
     description:
-      'The conversation and its composer, over the Life field. Moving it keeps the draft.',
+      'The conversation and its composer, over the Life field, its artifacts open in line. Moving it keeps the draft.',
     settings: [
       {
         name: 'conversation',
