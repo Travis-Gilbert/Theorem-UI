@@ -11,6 +11,8 @@ import {
   test,
 } from 'bun:test'
 import { useAui, useAuiState } from '@assistant-ui/react'
+import { toastManager } from '@/components/coss/toast'
+import { TheoremError } from '@theoremharness/sdk'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
 import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
@@ -551,4 +553,29 @@ test('research and planning retain an explicit caller capability scope', async (
   expect(sends[0]?.webResearch).toBe(true)
   expect(sends[0]?.planning).toBe(true)
   expect(sends[0]?.capabilityScope).toEqual(['web_read'])
+})
+
+
+test('new chat creation failures are visible and still reject admission', async () => {
+  const failure = new TheoremError({ statusCode: 500, body: {
+    code: 'chat_store_error', detail: 'tenant_memory_quota_exceeded: tenant memory quota exceeded: projected 805853256 > quota 805306368', correlationId: 'chatreq-capacity',
+  } })
+  const createThread = spyOn(theorem().chat.threads, 'create').mockRejectedValue(failure)
+  const notify = spyOn(toastManager, 'add').mockReturnValue('capacity-toast')
+  try {
+    await expect(createThreadListAdapter(() => 'project').initialize('local-chat')).rejects.toBe(failure)
+    expect(notify).toHaveBeenCalledWith({ type: 'error', title: 'Could not confirm chat creation', description: 'The chat store reached its configured memory budget. The server operator must restore capacity before this request can succeed. Reference: chatreq-capacity' })
+    expect(sends).toHaveLength(0)
+  } finally { createThread.mockRestore(); notify.mockRestore() }
+})
+
+
+test('a lost thread-creation reply does not claim that the thread was not saved', async () => {
+  const failure = new TypeError('Network disconnected')
+  const createThread = spyOn(theorem().chat.threads, 'create').mockRejectedValue(failure)
+  const notify = spyOn(toastManager, 'add').mockReturnValue('transport-toast')
+  try {
+    await expect(createThreadListAdapter(() => 'project').initialize('local-chat')).rejects.toBe(failure)
+    expect(notify).toHaveBeenCalledWith({ type: 'error', title: 'Could not confirm chat creation', description: 'Network disconnected' })
+  } finally { createThread.mockRestore(); notify.mockRestore() }
 })

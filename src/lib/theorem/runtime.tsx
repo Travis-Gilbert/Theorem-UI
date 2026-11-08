@@ -35,6 +35,7 @@ import { useContext, useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
+import { toastManager } from '@/components/coss/toast'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
 import { DRAFT_PLAN } from './plans'
@@ -706,10 +707,19 @@ export function createThreadListAdapter(
       }
     },
     async initialize() {
-      const created = await mutate((headers) =>
-        client.chat.threads.create({ projectId: activeProject(), ...headers }),
-      )
-      return { remoteId: created.record.threadId }
+      try {
+        const created = await mutate((headers) =>
+          client.chat.threads.create({ projectId: activeProject(), ...headers }),
+        )
+        return { remoteId: created.record.threadId }
+      } catch (error) {
+        toastManager.add({
+          type: 'error',
+          title: 'Could not confirm chat creation',
+          description: describeError(error),
+        })
+        throw error
+      }
     },
     async rename(remoteId, title) {
       await mutateThread(remoteId, (headers) =>

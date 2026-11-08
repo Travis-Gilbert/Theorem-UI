@@ -140,3 +140,22 @@ and `node --import tsx --test tests/assistant-ui.test.ts`.
 
 Backend integration, live browser acceptance, full production build and
 deployment are parent-owned and have not been established by these fixtures.
+
+
+## New-chat capacity failures
+
+A signed-in empty chat creation returned `500 chat_store_error` with
+`tenant_memory_quota_exceeded` before any model call. The runtime previously
+restored the draft without a visible explanation. The existing thread-list
+adapter now sends that initialization failure to the mounted global toast
+manager and rethrows the original error so assistant-ui still restores the
+unsent draft. Its title says “Could not confirm chat creation” because transport
+failures can occur after a server commit. The exact server code and quota prefix
+receive a memory-budget explanation; other errors retain their own detail and
+request reference. It does not infer disk exhaustion or message persistence.
+
+Two failing behavior assertions reproduced the missing explanation/notification;
+all 40 client/runtime tests pass after repair, including a lost-response control.
+Coverage-backed CRAP is 8.0 for the capacity explainer and 6.0 for the thread-list
+adapter; dryer found no duplicates at 0.8, and all three selected capacity-guard
+mutations were killed. Rendered live toast behavior remains a separate check.
