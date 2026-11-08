@@ -6,6 +6,19 @@ import { isNotServed, theoremJson } from './passthrough'
 
 export type ImportStatus = 'queued' | 'extracting' | 'indexing' | 'ready' | 'failed'
 
+/**
+ * What the import's statements did to the person's UserModel. Theorem's policy
+ * decides: `applied` values were written, `held` ones are kept as evidence
+ * without changing the model (dated, tentative, scoped, or set elsewhere),
+ * and `rejected` ones were not the person's own explicit statements.
+ */
+export type ImportUserModel = {
+  state: 'pending' | 'applied' | 'skipped' | 'failed'
+  applied: number
+  held: number
+  rejected: number
+}
+
 export type ImportRecord = {
   importId: string
   projectId: string
@@ -17,6 +30,8 @@ export type ImportRecord = {
   documentId?: string
   chunks?: number
   characters?: number
+  provider?: string
+  userModel?: ImportUserModel
   createdAtMs: number
   updatedAtMs: number
 }
@@ -30,6 +45,10 @@ const RUNNING: ReadonlySet<ImportStatus> = new Set(['queued', 'extracting', 'ind
 
 export const isRunning = (record: ImportRecord) => RUNNING.has(record.status)
 
+/** Retrievable, but Theorem is still reading it for the UserModel. */
+export const isLearning = (record: ImportRecord) =>
+  record.status === 'ready' && record.userModel?.state === 'pending'
+
 const importsKey = (projectId: string) => ['theorem', 'imports', projectId] as const
 const importsPath = (projectId: string) =>
   `/api/chat/v1/projects/${encodeURIComponent(projectId)}/imports`
@@ -40,9 +59,9 @@ export const importsQuery = (projectId: string) =>
     queryFn: async () =>
       (await theoremJson<{ items: ImportRecord[] }>(importsPath(projectId))).items,
     retry: (count, error) => !isNotServed(error) && count < 2,
-    // Poll while Theorem is still extracting or indexing something.
+    // Poll while Theorem is still extracting, indexing or reading something.
     refetchInterval: (query) =>
-      query.state.data?.some(isRunning) ? 2000 : false,
+      query.state.data?.some((record) => isRunning(record) || isLearning(record)) ? 2000 : false,
   })
 
 export function useImports(projectId: string | undefined) {
@@ -62,7 +81,7 @@ const base64Url = (text: string) =>
  * Sends a file's bytes to the project's uploads route, the same intake chat
  * attachments use, and returns its upload id for an `upload` import.
  */
-async function uploadFile(projectId: string, file: File): Promise<string> {
+export async function uploadFile(projectId: string, file: File): Promise<string> {
   const digest = hex(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))
   return mutate(async (headers) => {
     const response = await theorem().fetch(
@@ -79,10 +98,11 @@ async function uploadFile(projectId: string, file: File): Promise<string> {
         body: file,
       },
     )
+    // The uploads route answers `{ record: ChatUpload }`.
     const body = (await response.json().catch(() => undefined)) as
-      | { uploadId?: string; upload?: { uploadId?: string } }
+      | { record?: { uploadId?: string } }
       | undefined
-    const uploadId = body?.upload?.uploadId ?? body?.uploadId
+    const uploadId = body?.record?.uploadId
     if (!response.ok || !uploadId)
       throw new TheoremError({
         message: `Upload of ${file.name} answered ${response.status}`,
