@@ -14,9 +14,19 @@ const json = (status: number, body: unknown) =>
     headers: { 'content-type': 'application/json' },
   })
 
-/** Answers `/api/` from the map and leaves the dev server's own requests alone. */
+/** The platform's fetch, kept on every fake so a second install answers over it, not over the first. */
+const REAL = Symbol('real fetch')
+type Fetch = typeof window.fetch & { [REAL]?: typeof window.fetch }
+
+/**
+ * Answers `/api/` from the map and leaves the dev server's own requests alone.
+ * Restoring takes out only this install: a story mounted again renders its
+ * install before the last one's cleanup runs, and that cleanup must not put
+ * the platform's fetch back under the new one.
+ */
 export function installFakeTheorem(routes: FakeRoutes) {
-  const real = window.fetch
+  const current: Fetch = window.fetch
+  const real = current[REAL] ?? current
   const table = Object.entries(routes).map(([key, answer]) => {
     const [method = 'GET', pathname = ''] = key.split(' ')
     return { method, pattern: new URLPattern({ pathname }), answer }
@@ -35,8 +45,12 @@ export function installFakeTheorem(routes: FakeRoutes) {
     }
     return json(404, { title: 'Not in this story', path: url.pathname })
   }
-  window.fetch = Object.assign(fake, { preconnect: real.preconnect })
+  const installed: Fetch = Object.assign(fake, {
+    preconnect: real.preconnect,
+    [REAL]: real,
+  })
+  window.fetch = installed
   return () => {
-    window.fetch = real
+    if (window.fetch === installed) window.fetch = real
   }
 }

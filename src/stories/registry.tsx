@@ -13,6 +13,7 @@ import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
@@ -84,11 +85,14 @@ function ShellCompareStory() {
 }
 
 /** The thread alone on the sheet: the reading column and the composer at desktop width. */
+/** The conversation as the chat mode shows it (ModeView): over the Life field, on the sheet's gradient. */
 function ConversationWideStory() {
   return (
     <WithRuntime>
       <div className="bg-sheet h-dvh w-full">
-        <Thread />
+        <LifeBackdrop>
+          <Thread />
+        </LifeBackdrop>
       </div>
     </WithRuntime>
   )

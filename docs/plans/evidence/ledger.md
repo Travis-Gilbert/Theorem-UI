@@ -19,4 +19,9 @@ Reference hashes (sha256):
 | Space canvas, typed notes, note kinds | original, drawn to the screenshot | no upstream code | this repo | `b435312b…` |
 | Conversation column and composer, terminal on Stone, Theia theme from the UI's tokens | original, drawn to the mockup's colour relationship | no upstream code | this repo | `b69c6876…` |
 
+## Collages
+
+- `collages/conversation-wide.png`: `/story/conversation-wide` against `refs/coding-workspace-mockup@2026-11-08.png`, 16.9% differs at 0.2. Captured in the Claude desktop app's built-in browser rather than Playwright: the story at 1600x1000, shown at 2x and taken in four quadrants, stitched by `scripts/story-oracle.mjs collage`. The Life field was paused and Kit held in place while it was taken, since both move. The mockup is the whole workspace and the story is the conversation alone, so the number mostly measures that; what the collage is for is the column's width, the composer's height, the sheet's gradient and the field behind the conversation.
+- The coding workspace has no story yet. Theia runs in its own frame with its own fetch, which the story's fake Theorem does not answer, so it was checked in the app against a stub Theorem instead.
+
 Fidelity seals are made by a person who has opened the collage. None has been made yet.
