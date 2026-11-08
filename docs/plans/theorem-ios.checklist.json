@@ -1,0 +1,239 @@
+{
+  "spec": "docs/plans/theorem-ios.md",
+  "items": [
+    {
+      "id": "p0-dev-client",
+      "item": "Phase 0: minimal Expo development client with native assistant-ui",
+      "status": "in_progress",
+      "evidence": "mobile/: Expo SDK 58 (expo 58.0.23, RN 0.88.1, React 19.3), expo-dev-client, @assistant-ui/react-native 0.1.51 through useExternalStoreRuntime (src/features/chat/runtime.ts). Typecheck clean, bun test src 30 pass, expo export --platform ios bundles, expo prebuild --platform ios succeeds, expo-doctor 20/20. Not built natively, run on a device or simulator, or exercised against the authority."
+    },
+    {
+      "id": "p0-remux-view",
+      "item": "Phase 0: one embedded Remux-derived view",
+      "status": "in_progress",
+      "evidence": "mobile/modules/theorem-session: Remux vendored byte-for-byte at h3nock/remux@3646b2ff (MIT notice kept, ios/vendor/remux/VENDORED.md), hosted as an Expo native view (TheoremSessionView.swift, RootView in a UIHostingController with scenePhase injected). Autolinking resolves the TheoremSession pod and CocoaPods 1.17 evaluates the podspec; the pinned GhosttyKit downloads and passes its sha256. The Swift has never been compiled: there was no Xcode in the environment that built it."
+    },
+    {
+      "id": "p0-pin-versions",
+      "item": "Phase 0: pin versions",
+      "status": "done",
+      "evidence": "mobile/package.json and mobile/bun.lock (bunfig minimumReleaseAge 3 days, no exemptions); Remux revision, GhosttyKit release ghosttykit-20261104 with its sha256, and the Citadel, swift-nio, swift-nio-ssh and swift-crypto revisions are pinned in the podspec and recorded in VENDORED.md."
+    },
+    {
+      "id": "p0-herdr-session",
+      "item": "Phase 0: verify a real Herdr session; matched Remux/Herdr pair",
+      "status": "pending",
+      "evidence": "No Herdr version is pinned and no session has been opened. Remux's own server, credential and Herdr stores are what the hosted view uses."
+    },
+    {
+      "id": "p0-providers",
+      "item": "Phase 0: structured Codex and Claude Code communication, official authentication paths, tool permission round trip",
+      "status": "pending",
+      "evidence": "Not started. The app talks only to hosted Theorem agents through the Theorem SDK; no provider adapter, host companion or pairing exists."
+    },
+    {
+      "id": "p0-sdk-audit",
+      "item": "Phase 0: audit the headless SDK; validate platform globals, attachment uploads, native imports, view detach versus explicit stop",
+      "status": "in_progress",
+      "evidence": "HeadlessConversation is reused unchanged. Theorem packages/theorem-sdk gains projectThreadView, a pure projection that never dispatches, so unmounting cannot stop a run (Theorem 422a212c). src/lib/polyfills.ts installs and asserts the globals the SDK needs; Stop is the only path to session.stop (src/features/chat/runtime.ts). Attachment uploads are not validated: the composer sends text only."
+    },
+    {
+      "id": "p0-sdk-versions",
+      "item": "Phase 0: record the current web SDK version and the shared version selected for mobile",
+      "status": "done",
+      "evidence": "Web: @theoremharness/sdk 0.5.0 (vendor/theoremharness-sdk-0.5.0.tgz). Mobile: 0.6.0-alpha.1 packed from Theorem 422a212c on claude/theorem-ios-app-knkszc (mobile/vendor, sha256 bb47692908b0db6494dfeee47af79e9f482a4bec9add37c3b9a82ab5ffc7abd0). The web app moves to it once the SDK change merges and is published."
+    },
+    {
+      "id": "p0-binding",
+      "item": "Phase 0: select the adapter-backed or external-store binding",
+      "status": "done",
+      "evidence": "External store: useExternalStoreRuntime over projectThreadView, so web and native share one projection and the SDK's journal, idempotent command ids and snapshot/event recovery stay the only send and recovery path. src/features/chat/binding.test.ts covers it."
+    },
+    {
+      "id": "p0-universal",
+      "item": "Phase 0: universal-device targeting; native-view resizing on iPad",
+      "status": "in_progress",
+      "evidence": "supportsTablet with requireFullScreen false; the prebuilt project has TARGETED_DEVICE_FAMILY 1,2 and an iOS 18.0 deployment target. Tabs use the adaptable sidebar, and Chat splits list and conversation at 768pt and above. Resizing has not been observed on an iPad."
+    },
+    {
+      "id": "p1-sign-in",
+      "item": "Phase 1: sign in",
+      "status": "in_progress",
+      "evidence": "OAuth 2.1 authorization code with PKCE (S256), RFC 8707 resource and RFC 9207 iss checks through ASWebAuthenticationSession with an HTTPS callback (src/lib/oauth.ts, src/lib/auth.ts; oauth.test.ts). Tokens are kept in the Keychain only. The authority must list the theorem-ios client and theorem.rs must serve the app's association (mobile/docs/sign-in.md); neither is done, so sign-in has not been run."
+    },
+    {
+      "id": "p1-pairing",
+      "item": "Phase 1: pairing, connected-agent selection",
+      "status": "pending",
+      "evidence": "Theorem publishes no pairing or host-companion API. Platinum and Settings say so instead of showing hosts."
+    },
+    {
+      "id": "p1-hosted-chat",
+      "item": "Phase 1: one project, canonical session mapping, streaming chat, supported approvals, stop, local drafts, snapshot/event recovery",
+      "status": "in_progress",
+      "evidence": "Projects and threads from the typed chat API, streaming through HeadlessConversation, approval cards with ranked choices, explicit Stop, drafts and the conversation journal in SQLite (journal-store.ts refuses journals that carry credentials). Not built natively, run on a device or simulator, or exercised against the authority."
+    },
+    {
+      "id": "p1-exit",
+      "item": "Phase 1 exit: pair, sign in, send a message and a file from a physical device, approve a tool, background, return to the same run; lost acknowledgment and host interruption reconcile without duplicate execution",
+      "status": "pending",
+      "evidence": "Not run. File send and pairing are not implemented."
+    },
+    {
+      "id": "A01",
+      "item": "New user connects Codex: Pairing and supported sign-in reach native chat without terminal/SSH configuration",
+      "status": "pending",
+      "evidence": "No pairing or Codex adapter."
+    },
+    {
+      "id": "A02",
+      "item": "New user connects Claude Code: Official host-side authentication reaches structured chat; personal and hosted billing modes are distinguishable",
+      "status": "pending",
+      "evidence": "No Claude Code adapter or host-side authentication."
+    },
+    {
+      "id": "A03",
+      "item": "Two providers in one project: Both remain independently identified; selected shared context has visible scope and provenance",
+      "status": "pending",
+      "evidence": "No external providers."
+    },
+    {
+      "id": "A04",
+      "item": "Agent-to-agent handoff: Sender, recipient, lineage, and context references persist; retries do not duplicate delivery",
+      "status": "pending",
+      "evidence": "No handoff surface."
+    },
+    {
+      "id": "A05",
+      "item": "Phone background/termination: Host run state and local drafts reconcile without a duplicate run",
+      "status": "in_progress",
+      "evidence": "Drafts and the SDK journal persist in SQLite and sends reuse their command ids, so a relaunch reconciles instead of resending. Not exercised against background or termination on a device."
+    },
+    {
+      "id": "A06",
+      "item": "Inbox delivery: Meaningful incoming work persists while the phone is closed and appears after missed push",
+      "status": "pending",
+      "evidence": "Theorem has no durable inbox API; Inbox explains that instead of deriving one from chat."
+    },
+    {
+      "id": "A07",
+      "item": "Approval race: A decision from one client resolves the request; a stale second response cannot re-execute it",
+      "status": "in_progress",
+      "evidence": "Each decision is chat.runs.command \"approval\" with an idempotency key reused for the same choice, so a retried press cannot become a second decision, and choices show only while the snapshot says the approval is undecided (src/features/chat/approval-card.tsx). Settling a race between two clients is the authority's; it has not been exercised."
+    },
+    {
+      "id": "A08",
+      "item": "Remux attention event: It opens the correct session and only shows approval controls when an actual request exists",
+      "status": "pending",
+      "evidence": "Remux attention events are not routed into the app."
+    },
+    {
+      "id": "A09",
+      "item": "Browser round trip: Link navigation and return preserve the chat draft and browser session",
+      "status": "in_progress",
+      "evidence": "The browser is one retained layer over every destination; hiding it keeps pages alive and drafts are stored per thread. Not run."
+    },
+    {
+      "id": "A10",
+      "item": "Page capture: Agent context is added explicitly with origin and capture metadata",
+      "status": "in_progress",
+      "evidence": "Attach page records URL, title, capture time and selected text into the open conversation's draft only when the person asks (src/features/browser/browser-host.tsx). Not run."
+    },
+    {
+      "id": "A11",
+      "item": "Artifact navigation: Chat, Inbox, and Library resolve the same artifact and selected revision",
+      "status": "pending",
+      "evidence": "Artifacts are unavailable: Theorem publishes no versioned artifact identity."
+    },
+    {
+      "id": "A12",
+      "item": "Offline note recovery: Saved local edits survive termination and sync without silent data loss",
+      "status": "pending",
+      "evidence": "Notes are read-only on iPhone."
+    },
+    {
+      "id": "A13",
+      "item": "Agent note change: A stale proposal cannot overwrite a newer human revision",
+      "status": "pending",
+      "evidence": "No note editing."
+    },
+    {
+      "id": "A14",
+      "item": "Native session integration: Attach/input/resize/reconnect work with the pinned Herdr version and one connection owner",
+      "status": "pending",
+      "evidence": "Remux is hosted with its own stores; no Herdr pin, Theorem carrier or typed attach, detach and focus."
+    },
+    {
+      "id": "A15",
+      "item": "Platinum observation/control: Actual host surface is shown; takeover is acknowledged; local preemption and expiry work",
+      "status": "pending",
+      "evidence": "No Platinum surface API."
+    },
+    {
+      "id": "A16",
+      "item": "Lost remote connection: Stale input is discarded and held input state is released",
+      "status": "pending",
+      "evidence": "Depends on A14 and A15."
+    },
+    {
+      "id": "A17",
+      "item": "Accessibility: Key tasks work with large text, VoiceOver, reduced motion, and hardware keyboard",
+      "status": "in_progress",
+      "evidence": "Controls carry accessibility labels and roles, text follows Dynamic Type, and reduced motion is read from the system (src/ui). Not checked with VoiceOver, large text or a hardware keyboard."
+    },
+    {
+      "id": "A18",
+      "item": "Independent client: The app runs without TheoremWeb/PWA routes or deployment",
+      "status": "in_progress",
+      "evidence": "The app calls the Theorem authority directly through the SDK; it uses no TheoremWeb or PWA route. Its sign-in callback association is served by Theorem UI on theorem.rs (/.well-known/apple-app-site-association), a configurable host rather than a route the app depends on. Not run."
+    },
+    {
+      "id": "A19",
+      "item": "Settings correctness: Changes show actual scope and effective runner state; failed changes remain visible",
+      "status": "pending",
+      "evidence": "Settings shows the account, execution workspaces and appearance; only appearance can be changed, and host, memory, plugin, skill and notification settings are not available."
+    },
+    {
+      "id": "A20",
+      "item": "Account/host failure: Revoked auth, sleeping host, and incompatible versions yield accurate recovery paths",
+      "status": "in_progress",
+      "evidence": "A refused refresh signs out with a reason, an unreachable authority keeps the session for a retry, and a 404 or 403 conversation shows a recovery view that opens nothing else. Sleeping hosts and version checks are not implemented. Not run."
+    },
+    {
+      "id": "A21",
+      "item": "Uncertain provider submission: Lost acknowledgment or broker restart triggers reconciliation; unresolved outcome cannot silently launch duplicate work",
+      "status": "pending",
+      "evidence": "No provider submissions."
+    },
+    {
+      "id": "A22",
+      "item": "Hosted agent without desktop: An authorized user opens a cloud/Theorem conversation without installing a personal host companion",
+      "status": "in_progress",
+      "evidence": "Hosted Theorem conversations need only Theorem sign-in, with no host companion. Blocked on client registration and the association file (A18, p1-sign-in); not run."
+    },
+    {
+      "id": "A23",
+      "item": "Notification during signed-out launch: Sign-in and workspace selection preserve the destination and open the correct current source item",
+      "status": "in_progress",
+      "evidence": "A link that arrives while signed out is remembered and opened after sign-in (src/lib/pending-destination.ts). There are no notifications yet."
+    },
+    {
+      "id": "A24",
+      "item": "Approval accepted while host disconnects: Decision and delivery states remain distinct; reconnect reconciles acknowledgment without repeating the action",
+      "status": "in_progress",
+      "evidence": "The approval card shows the person's decision, Theorem's acceptance and the run's confirmation as separate states, and never queues or replays a decision on reconnect. A disconnect during acceptance has not been exercised."
+    },
+    {
+      "id": "A25",
+      "item": "File attachment from phone: Upload and provider access succeed, failures are visible, and retries preserve message/run identity",
+      "status": "pending",
+      "evidence": "File attachment is not implemented."
+    },
+    {
+      "id": "A26",
+      "item": "Adaptive iPad build: Universal target and native views handle narrow windows, keyboard changes, and resizing without losing selection",
+      "status": "in_progress",
+      "evidence": "Universal target; on wide windows Chat keeps the selected thread in the URL, and moving between wide and narrow keeps it selected. Not observed on an iPad."
+    }
+  ]
+}
