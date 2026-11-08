@@ -255,6 +255,21 @@ describe('LogFollower', () => {
     expect(numbers).toEqual(numbers.map((_, i) => numbers[0]! + i))
   })
 
+  test('a long Codex log still names its folder when the read starts past session_meta', async () => {
+    const file = join(root, 'long-codex.jsonl')
+    const lines = [
+      JSON.stringify({ timestamp: 't0', type: 'session_meta', payload: { id: 'c2', cwd: '/work/api' } }),
+      ...Array.from({ length: 200 }, (_, i) =>
+        JSON.stringify({ timestamp: `t${i + 1}`, type: 'event_msg', payload: { type: 'user_message', message: `turn ${i} ${'.'.repeat(60)}` } }),
+      ),
+    ]
+    write(file, `${lines.join('\n')}\n`)
+    const follower = new LogFollower('codex', file, 4_000)
+    await follower.poll(run)
+    expect(follower.startedMidway).toBe(true)
+    expect(follower.transcript.cwd).toBe('/work/api')
+  })
+
   test('steps over a line longer than a whole read', async () => {
     const file = join(root, 'huge-line.jsonl')
     write(file, `{"type":"user","message":{"content":"hi"}}\n{"type":"user","x":"${'y'.repeat(9000)}"}\n{"type":"user","message":{"content":"after"}}\n`)
@@ -336,15 +351,51 @@ describe('discovery', () => {
 describe('tmux scripts against a private tmux server', () => {
   const env = () => `${process.env.PATH}`
 
+  /** The pane id and its process, for a session running `command`. */
+  const paneOf = (session: string) => {
+    const [id, pid] = sh(`tmux list-panes -t ${session} -F '#{pane_id} #{pane_pid}'`, env()).trim().split(' ')
+    return { id: id!, pid: Number(pid) }
+  }
+
   test('sendScript types the message exactly, then Enter', async () => {
     const out = join(root, 'typed.txt')
     sh(`tmux new-session -d -s typing -x 200 -y 50 "cat > '${out}'"`, env())
-    const pane = sh(`tmux list-panes -t typing -F '#{pane_id}'`, env()).trim()
+    const pane = paneOf('typing')
     const message = `Fix it: don't run $HOME or \`rm\`\nTHEOREM_not\n"quoted" \\ done`
-    const result = afterMark(sh(sendScript(pane, message, 'abc123'), env()))
+    const result = afterMark(sh(sendScript(pane.id, pane.pid, message, 'abc123'), env()))
     expect(result).toEqual(['sent'])
     await Bun.sleep(300)
     expect(readFileSync(out, "utf8")).toBe(`${message}\n`)
+  })
+
+  test('sendScript types nothing when the agent process no longer holds the pane', async () => {
+    const out = join(root, 'not-typed.txt')
+    sh(`tmux new-session -d -s other -x 200 -y 50 "cat > '${out}'"`, env())
+    const pane = paneOf('other')
+    const gone = Bun.spawnSync(['true']).pid
+    expect(afterMark(sh(sendScript(pane.id, gone, 'hello', 'tok1'), env()))).toEqual(['refused'])
+    // Alive, but not on this pane's terminal.
+    expect(afterMark(sh(sendScript(pane.id, process.pid, 'hello', 'tok2'), env()))).toEqual(['refused'])
+    expect(afterMark(sh(sendScript('%999999', pane.pid, 'hello', 'tok3'), env()))).toEqual(['refused'])
+    await Bun.sleep(300)
+    expect(readFileSync(out, 'utf8')).toBe('')
+  })
+
+  test('sendScript refuses once an agent started from a shell has exited back to it', async () => {
+    const marker = join(root, 'shell-ran-it')
+    const pidFile = join(root, 'agent.pid')
+    sh(`tmux new-session -d -s shelled -x 200 -y 50 "sh -i"`, env())
+    const pane = paneOf('shelled')
+    // An interactive shell runs the "agent" as its own foreground job.
+    sh(`tmux send-keys -t ${pane.id} 'sh -c "echo \\$\\$ > ${pidFile}; exec cat > /dev/null"' Enter`, env())
+    for (let i = 0; i < 40 && !readFileSync(pidFile, { flag: 'a+' }).toString().trim(); i++) await Bun.sleep(50)
+    const agentPid = Number(readFileSync(pidFile, 'utf8').trim())
+    expect(afterMark(sh(sendScript(pane.id, agentPid, 'for the agent', 'tok4'), env()))).toEqual(['sent'])
+    process.kill(agentPid)
+    await Bun.sleep(300)
+    expect(afterMark(sh(sendScript(pane.id, agentPid, `touch '${marker}'`, 'tok5'), env()))).toEqual(['refused'])
+    await Bun.sleep(300)
+    expect(await Bun.file(marker).exists()).toBe(false)
   })
 
   test('startScript starts the agent in the folder, with the prompt as one argument', async () => {

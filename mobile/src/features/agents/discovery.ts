@@ -7,7 +7,15 @@ import { claudeTitleFragment, decodeFragment } from './claude-log'
 import { codexTitleFragment } from './codex-log'
 import { afterMark, type Agent } from './shell'
 
-export type Pane = { id: string; session: string; pid: number; path: string; agent?: Agent }
+export type Pane = {
+  id: string
+  session: string
+  pid: number
+  path: string
+  agent?: Agent
+  /** The agent's own process: a send checks it still holds the pane's terminal. */
+  agentPid?: number
+}
 
 export type Discovery = {
   tmux: boolean
@@ -50,6 +58,12 @@ export function agentOf(args: string): Agent | undefined {
   return undefined
 }
 
+/** The folder in a `"cwd":"…"` fragment that grep cut from a log line. */
+export function cwdOfFragment(fragment: string): string | undefined {
+  const match = fragment.match(/^"cwd":"((?:[^"\\]|\\.)*)"$/)
+  return match ? decodeFragment(match[1]!) : undefined
+}
+
 /** Parses discoveryScript output. Returns undefined when the script's marker never arrived. */
 export function parseDiscovery(stdout: string): Discovery | undefined {
   const lines = afterMark(stdout)
@@ -89,8 +103,8 @@ export function parseDiscovery(stdout: string): Discovery | undefined {
       }
       case 'cwd': {
         const entry = logs.get(fields[1] ?? '')
-        const match = fields.slice(2).join('\t').match(/^"cwd":"((?:[^"\\]|\\.)*)"$/)
-        if (entry && match) entry.cwd = decodeFragment(match[1]!)
+        const cwd = cwdOfFragment(fields.slice(2).join('\t'))
+        if (entry && cwd !== undefined) entry.cwd = cwd
         break
       }
       case 'title': {
@@ -113,6 +127,7 @@ export function parseDiscovery(stdout: string): Discovery | undefined {
       const agent = args.has(pid) ? agentOf(args.get(pid)!) : undefined
       if (agent) {
         pane.agent = agent
+        pane.agentPid = pid
         break
       }
       queue.push(...(children.get(pid) ?? []))

@@ -1,4 +1,4 @@
-// SOURCING: POSIX sh (quoting, quoted here-documents, brace groups), tmux(1) list-panes / load-buffer / paste-buffer -p / send-keys / new-session -P, ps(1) -A -o, awk; the fallback PATH is Remux's RemoteProgramCommand.fallbackPath
+// SOURCING: POSIX sh (quoting, quoted here-documents, brace groups), tmux(1) list-panes / display-message #{pane_tty} / load-buffer / paste-buffer -p / send-keys / new-session -P, ps(1) -A -o and -o pgid,tpgid,tty, awk; the fallback PATH is Remux's RemoteProgramCommand.fallbackPath
 //
 // Every script runs as `exec /bin/sh -s` with the script on stdin (see
 // modules/theorem-session), so the computer's login shell, whether bash, zsh or
@@ -211,16 +211,39 @@ export function lineLengthScript(path: string, offset: number): string {
   )
 }
 
-/** Types `text` into a pane as one bracketed paste, then presses Enter. */
-export function sendScript(pane: string, text: string, token: string): string {
+/**
+ * The first `"cwd":"…"` fragment in a log, as discoveryScript prints it. A
+ * Codex log names its folder only in its opening session_meta line, which a
+ * read of the end of a long log does not reach.
+ */
+export function firstCwdScript(path: string): string {
+  return script(`grep -m 1 -o '"cwd":"[^"]*"' ${quote(path)} 2>/dev/null | head -n 1`)
+}
+
+/**
+ * Types `text` into a pane as one bracketed paste, then presses Enter. Before
+ * the paste and again before Enter, the agent process `agentPid` must still
+ * hold the pane's terminal (its process group is the terminal's foreground
+ * group): an agent that has exited leaves its shell there, and the shell would
+ * run the message as commands. Prints `sent`, or `refused` when nothing was
+ * typed because the agent no longer holds the pane.
+ */
+export function sendScript(pane: string, agentPid: number, text: string, token: string): string {
   const buffer = `theorem-${token.replace(/[^A-Za-z0-9]/g, '').slice(0, 12)}`
   return script(
+    'owns() {',
+    `  tty=$(tmux display-message -p -t ${quote(pane)} '#{pane_tty}' 2>/dev/null) || return 1`,
+    `  set -- $(ps -o pgid= -o tpgid= -o tty= -p ${Math.floor(agentPid)} 2>/dev/null)`,
+    '  [ "$#" -eq 3 ] && [ "$1" = "$2" ] && [ "/dev/$3" = "$tty" ]',
+    '}',
+    'owns || { printf "refused\n"; exit 0; }',
     heredoc(`text=$(cat); printf '%s' "$text" | tmux load-buffer -b ${buffer} -`, text, token),
     `tmux paste-buffer -p -d -b ${buffer} -t ${quote(pane)} || exit 3`,
     // Let the agent take the paste before Enter submits it.
     'sleep 0.3',
+    'owns || exit 3',
     `tmux send-keys -t ${quote(pane)} Enter || exit 3`,
-    'printf "sent\\n"',
+    'printf "sent\n"',
   )
 }
 

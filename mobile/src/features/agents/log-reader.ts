@@ -1,12 +1,13 @@
-// SOURCING: readScript / lineLengthScript output (./shell); the line readers in ./claude-log and ./codex-log
+// SOURCING: readScript / lineLengthScript / firstCwdScript output (./shell); the line readers in ./claude-log and ./codex-log
 //
 // Follows one agent log on a computer: the last part of it first, then
 // whatever is appended. Only whole lines are applied, so a line the agent is
 // still writing is read on a later poll. Nothing here writes to the computer.
 import { applyClaudeLine } from './claude-log'
 import { applyCodexLine } from './codex-log'
+import { cwdOfFragment } from './discovery'
 import type { Runner } from './remote'
-import { afterMark, lineLengthScript, readScript, type Agent } from './shell'
+import { afterMark, firstCwdScript, lineLengthScript, readScript, type Agent } from './shell'
 import { emptyTranscript, oversizedNote, assistantTurn, type Transcript } from './transcript'
 
 /** How much of the end of a log the first read shows. */
@@ -67,6 +68,11 @@ export class LogFollower {
       }
       if (first) this.startedMidway = read.from > 0
       for (const line of read.lines) if (this.apply(this.transcript, line)) changed = true
+      // The folder decides which pane is this conversation's; a midway read may not have passed it.
+      if (first && read.from > 0 && this.transcript.cwd === undefined) {
+        const fragment = afterMark(await run(firstCwdScript(this.path)))?.[0]
+        this.transcript.cwd = fragment === undefined ? undefined : cwdOfFragment(fragment)
+      }
       this.offset = read.from + read.used
       if (this.offset >= read.size) return { changed, caughtUp: true, missing: false }
       if (read.used > 0) continue

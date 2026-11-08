@@ -34,7 +34,7 @@ export function appendToDraft(key: string, text: string): void {
   for (const listener of listeners) listener(key)
 }
 
-/** The conversation the person last had open: where browser captures go. */
+/** The draft key of the conversation the person last had open, Theorem's or an agent's: where browser captures go. */
 let current: string | undefined
 export const setCurrentThread = (threadId: string | undefined) => {
   current = threadId

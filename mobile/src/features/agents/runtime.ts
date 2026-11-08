@@ -3,8 +3,8 @@
 // A Claude Code or Codex conversation on a computer, as assistant-ui sees it.
 // The agent's own log is the conversation: Theorem reads it over SSH and
 // never keeps a second copy. Sending types into the tmux pane running the
-// agent; Stop presses Escape there. Leaving the screen stops reading, never
-// the agent.
+// agent, only while the agent still holds that pane's terminal; Stop presses
+// Escape there. Leaving the screen stops reading, never the agent.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import * as Crypto from 'expo-crypto'
@@ -14,7 +14,7 @@ import {
   type AssistantRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react-native'
-import { readDraft, writeDraft } from '@/lib/drafts'
+import { onDraftChanged, readDraft, setCurrentThread, writeDraft } from '@/lib/drafts'
 import { livenessOf, parseDiscovery, type Liveness } from './discovery'
 import { LogFollower } from './log-reader'
 import { HostKeyError, runnerFor } from './remote'
@@ -36,6 +36,14 @@ export class SendUncertainError extends Error {
       { cause },
     )
     this.name = 'SendUncertainError'
+  }
+}
+
+/** Nothing was typed: the agent no longer holds its terminal. */
+export class AgentGoneError extends Error {
+  constructor(agent: Agent) {
+    super(`${agentName[agent]} is no longer running in its terminal, so nothing was sent. Your message is back in the composer.`)
+    this.name = 'AgentGoneError'
   }
 }
 
@@ -195,20 +203,35 @@ export function useAgentConversation({ computerId, agent, path }: AgentTarget): 
       const text = textOf(message)
       const current = livenessRef.current
       if (!text || current?.kind !== 'live') return
+      const giveBack = () => {
+        runtimeRef.current?.thread.composer.setText(text)
+        writeDraft(draftKey, text)
+        checkLiveness.current = true
+      }
+      const agentPid = current.pane.agentPid
+      if (agentPid === undefined) {
+        setSendError(new AgentGoneError(agent))
+        return giveBack()
+      }
       setSendError(undefined)
       setPending({ text, turns: userTurns(follower.transcript) })
       writeDraft(draftKey, '')
       try {
-        const out = afterMark(await run(sendScript(current.pane.id, text, Crypto.randomUUID())))
+        const out = afterMark(await run(sendScript(current.pane.id, agentPid, text, Crypto.randomUUID())))
+        if (out?.[0] === 'refused') {
+          setPending(undefined)
+          setSendError(new AgentGoneError(agent))
+          giveBack()
+          wake.current?.()
+          return
+        }
         if (out?.[0] !== 'sent') throw new Error('The computer did not confirm the send.')
         wake.current?.()
       } catch (caught) {
         // Never typed again automatically: the agent may already have it.
         setPending(undefined)
         setSendError(new SendUncertainError(agent, caught))
-        runtimeRef.current?.thread.composer.setText(text)
-        writeDraft(draftKey, text)
-        checkLiveness.current = true
+        giveBack()
       }
     },
     // The only path to interrupting the agent: the person pressed Stop.
@@ -225,11 +248,20 @@ export function useAgentConversation({ computerId, agent, path }: AgentTarget): 
   })
   runtimeRef.current = runtime
 
+  // Restore and keep the draft; page references from the browser land here while this is open.
   useEffect(() => {
     const composer = runtime.thread.composer
     const saved = readDraft(draftKey)
     if (saved && !composer.getState().text) composer.setText(saved)
-    return composer.subscribe(() => writeDraft(draftKey, composer.getState().text))
+    setCurrentThread(draftKey)
+    const unsubscribe = composer.subscribe(() => writeDraft(draftKey, composer.getState().text))
+    const unlisten = onDraftChanged((key) => {
+      if (key === draftKey) composer.setText(readDraft(draftKey))
+    })
+    return () => {
+      unsubscribe()
+      unlisten()
+    }
   }, [runtime, draftKey])
 
   const retry = useCallback(() => {

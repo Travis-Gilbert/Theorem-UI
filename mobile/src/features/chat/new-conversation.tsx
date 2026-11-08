@@ -33,7 +33,7 @@ import type { Selection } from './selection'
 import { createThread, loadProjects } from './threads'
 
 const DRAFT = 'new-conversation'
-/** How long to look for the log a new agent session writes. */
+/** How long each look for the log a new agent session writes lasts. */
 const LOG_WAIT_MS = 40_000
 
 export type Opened = Exclude<Selection, { kind: 'new' }>
@@ -85,18 +85,35 @@ export function NewConversation({ onOpen }: { onOpen: (opened: Opened) => void }
   const chosen: Destination | undefined =
     destination ?? (first ? { kind: 'theorem', projectId: first.projectId, projectTitle: first.title } : undefined)
 
+  /**
+   * Looks for the session's log until it turns up or this look's time runs out.
+   * `since` is the computer's clock and only filters logs; the deadline is the
+   * phone's, so every look, Look again included, gets its full time. The agent
+   * has already started, so a failure here never puts the message back.
+   */
   const findLog = async (wait: Waiting) => {
     const run = runnerFor(wait.destination.computerId)
-    while (Date.now() - wait.since * 1000 < LOG_WAIT_MS + 5_000) {
-      const lines = afterMark(await run(findStartedLogScript(wait.destination.agent, wait.destination.folder, wait.since)))
-      const found = lines?.find((line) => line.startsWith('log\t'))?.slice(4)
-      if (found) {
-        void refreshComputers()
-        return onOpen({ kind: 'agent', computerId: wait.destination.computerId, agent: wait.destination.agent, path: found })
+    const deadline = Date.now() + LOG_WAIT_MS
+    try {
+      while (Date.now() < deadline) {
+        const lines = afterMark(await run(findStartedLogScript(wait.destination.agent, wait.destination.folder, wait.since)))
+        const found = lines?.find((line) => line.startsWith('log\t'))?.slice(4)
+        if (found) {
+          void refreshComputers()
+          return onOpen({ kind: 'agent', computerId: wait.destination.computerId, agent: wait.destination.agent, path: found })
+        }
+        await sleep(1_500)
       }
-      await sleep(1_500)
+    } catch (caught) {
+      setError(caught)
     }
     setWaiting({ ...wait, gaveUp: true })
+  }
+
+  const lookAgain = (wait: Waiting) => {
+    setError(undefined)
+    setWaiting({ ...wait, gaveUp: false })
+    void findLog(wait)
   }
 
   const start = async (text: string) => {
@@ -178,6 +195,8 @@ export function NewConversation({ onOpen }: { onOpen: (opened: Opened) => void }
 
   const notes: SurfaceNote[] = []
   if (busy) notes.push({ tone: 'muted', text: busy })
+  else if (waiting && !waiting.gaveUp)
+    notes.push({ tone: 'muted', text: `Waiting for ${agentName[waiting.destination.agent]} to begin…` })
   if (waiting?.gaveUp) {
     const name = agentName[waiting.destination.agent]
     notes.push({
@@ -194,7 +213,7 @@ export function NewConversation({ onOpen }: { onOpen: (opened: Opened) => void }
                 params: { computer: waiting.destination.computerId, session: waiting.session },
               }),
           }
-        : { label: 'Look again', onPress: () => void findLog({ ...waiting, gaveUp: false }) },
+        : { label: 'Look again', onPress: () => lookAgain(waiting) },
     })
   }
   if (error) notes.push({ tone: 'error', text: describeError(error) })
