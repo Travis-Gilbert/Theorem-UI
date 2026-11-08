@@ -63,6 +63,9 @@ import { modelTurnOptions } from './models'
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
 
+import { KitStage } from '@/components/kit/kit-stage'
+import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
+
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
 >
@@ -615,7 +618,7 @@ function useTheoremThreadRuntime() {
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
           if (added.capabilityScope && added.planning) added.capabilityScope.push(DRAFT_PLAN)
           const composed = Object.keys(added).length ? {
             ...options,
@@ -642,6 +645,7 @@ function useTheoremThreadRuntime() {
   )
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)
+  useKitRequests(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()
@@ -784,6 +788,7 @@ export function TheoremRuntimeProvider({
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
       {children}
+      <KitStage />
     </AssistantRuntimeProvider>
   )
 }
