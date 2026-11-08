@@ -42,25 +42,57 @@ function statusOf(message: MessageState): { tone: Tone; label: string } | undefi
 const plainText = (message: MessageState) =>
   message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n\n')
 
-function Disclosure({ title, children }: { title: string; children: React.ReactNode }) {
+/** A compact activity row (DESIGN.md): one line that opens to show what is behind it. */
+function Disclosure({
+  title,
+  state,
+  children,
+}: {
+  title: string
+  state?: { tone: Tone; label: string }
+  children: React.ReactNode
+}) {
   const { palette } = useTheme()
   const [open, setOpen] = useState(false)
   return (
-    <View style={[styles.disclosure, { borderColor: palette.lineSeparator }]}>
+    <View>
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
+        accessibilityLabel={[title, state?.label].filter(Boolean).join(', ')}
         accessibilityState={{ expanded: open }}
-        style={styles.disclosureHead}
-        hitSlop={6}
+        style={({ pressed }) => [styles.step, pressed ? { backgroundColor: palette.hover } : null]}
+        hitSlop={4}
       >
-        <Text variant="label" tone="muted">
-          {open ? '▾' : '▸'} {title}
+        <Text variant="label" tone="muted" numberOfLines={1} style={styles.stepTitle}>
+          {title}
+        </Text>
+        {state ? <StatusLabel {...state} /> : null}
+        <Text variant="label" tone="faint" style={styles.chevron}>
+          {open ? '⌃' : '›'}
         </Text>
       </Pressable>
-      {open ? <View style={styles.disclosureBody}>{children}</View> : null}
+      {open ? (
+        <View style={[styles.stepBody, { backgroundColor: palette.raised, borderColor: palette.lineSeparator }]}>
+          {children}
+        </View>
+      ) : null}
     </View>
   )
+}
+
+const stepState = (part: Extract<Part, { type: 'tool-call' }>): { tone: Tone; label: string } | undefined =>
+  part.result === undefined
+    ? { tone: 'live', label: 'Running' }
+    : part.isError
+      ? { tone: 'error', label: 'Failed' }
+      : undefined
+
+/** The title ./agents gives a step, or the tool's name made readable. */
+function stepTitleOf(part: Extract<Part, { type: 'tool-call' }>): string {
+  const title = object(object(part.artifact).theoremStep).title
+  if (typeof title === 'string' && title) return title
+  return part.toolName.replace(/^mcp__/, '').replace(/__/g, ' · ').replace(/_/g, ' ')
 }
 
 function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
@@ -80,17 +112,16 @@ function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
       const approval = readApproval(part.artifact)
       if (approval && part.result === undefined)
         return <ApprovalCard approval={approval} runId={runId} argsText={part.argsText} />
-      const state = part.result === undefined ? 'running' : part.isError ? 'failed' : 'done'
       return (
-        <Disclosure title={`${part.toolName} · ${state}`}>
+        <Disclosure title={stepTitleOf(part)} state={stepState(part)}>
           {part.argsText ? (
-            <Text variant="code" selectable>
+            <Text variant="code" selectable numberOfLines={24}>
               {part.argsText}
             </Text>
           ) : null}
           {part.result !== undefined ? (
-            <Text variant="code" selectable numberOfLines={40}>
-              {typeof part.result === 'string' ? part.result : JSON.stringify(part.result, null, 2)}
+            <Text variant="code" tone={part.isError ? 'error' : 'ink'} selectable numberOfLines={40}>
+              {typeof part.result === 'string' ? part.result || 'No output.' : JSON.stringify(part.result, null, 2)}
             </Text>
           ) : null}
         </Disclosure>
@@ -150,15 +181,29 @@ export const MessageView = memo(function MessageView({ message }: { message: Mes
 })
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.sm },
+  row: { paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.xs },
   userRow: { alignItems: 'flex-end' },
   bubble: {
     maxWidth: '85%',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.card,
+    borderRadius: radius.composer,
   },
-  disclosure: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.control },
-  disclosureHead: { minHeight: 36, justifyContent: 'center', paddingHorizontal: space.sm },
-  disclosureBody: { paddingHorizontal: space.sm, paddingBottom: space.sm, gap: space.xs },
+  step: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    minHeight: 32,
+    marginHorizontal: -space.sm,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.control,
+  },
+  stepTitle: { flex: 1 },
+  chevron: { width: 12, textAlign: 'center' },
+  stepBody: {
+    padding: space.sm,
+    gap: space.sm,
+    borderRadius: radius.control,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
 })

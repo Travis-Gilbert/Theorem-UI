@@ -12,9 +12,12 @@ export function Row({
   selected,
   onPress,
   accessibilityHint,
+  wrap,
 }: {
   title: string
   detail?: string
+  /** Show the whole detail instead of two lines, for explanations and errors. */
+  wrap?: boolean
   trailing?: ReactNode
   selected?: boolean
   onPress?: () => void
@@ -28,7 +31,7 @@ export function Row({
           {title}
         </Text>
         {detail ? (
-          <Text variant="label" tone="muted" numberOfLines={2}>
+          <Text variant="label" tone="muted" numberOfLines={wrap ? undefined : 2}>
             {detail}
           </Text>
         ) : null}

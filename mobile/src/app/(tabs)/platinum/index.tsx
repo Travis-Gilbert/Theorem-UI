@@ -1,4 +1,4 @@
-// SOURCING: the spec's Platinum workspace view (section 11); Theorem has no pairing or application-surface API for it yet. Terminal sessions come from the theorem-session module.
+// SOURCING: the spec's Platinum workspace view (section 11); Theorem has no pairing or application-surface API for it yet. Computers saved on this device come from the theorem-session module.
 import { router } from 'expo-router'
 import { Button } from '@/ui/button'
 import { Screen } from '@/ui/screen'
@@ -12,10 +12,10 @@ export default function PlatinumScreen() {
         reason="Pairing a computer and viewing its Platinum workspace need a host pairing service and an application-surface contract that Theorem does not provide yet. This screen will show host availability and who holds control once they exist; it does not show a simulated desktop."
       />
       <Unavailable
-        title="Terminal sessions"
-        reason="Open tmux or Herdr sessions on your own computers over SSH. Until Theorem can pair a computer, this uses a direct SSH connection that you set up on this device."
+        title="Claude Code and Codex on your computers"
+        reason="Talk to Claude Code or Codex running on a computer of yours from Chat. Until Theorem can pair a computer, this uses a direct SSH connection that you set up on this device."
       >
-        <Button label="Open terminal sessions" onPress={() => router.push('/session')} />
+        <Button label="Add a computer" onPress={() => router.push('/computer')} />
       </Unavailable>
       <Unavailable
         title="Hosted agents work without a computer"

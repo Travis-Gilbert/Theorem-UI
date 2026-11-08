@@ -1,9 +1,9 @@
-// SOURCING: ExpoModulesCore Module DSL (Name, Constant, View, Events); GhosttyKit ghostty_info() build mode, as Remux's RemuxApp.swift checks it
+// SOURCING: ExpoModulesCore Module DSL (Name, Constant, AsyncFunction, View, Prop, Events, Exception); GhosttyKit ghostty_info() build mode, as Remux's RemuxApp.swift checks it
 import ExpoModulesCore
 import GhosttyKit
 
-/// The session feature as React Native sees it: provenance constants and one native view.
-/// Terminal bytes, rendering and input stay inside the native view.
+/// The session feature as React Native sees it. Headless by default: computers, and commands run on
+/// them over Remux's SSH pool. The terminal view exists for the person who turned it on in Settings.
 public final class TheoremSessionModule: Module {
   public func definition() -> ModuleDefinition {
     Name("TheoremSession")
@@ -11,10 +11,64 @@ public final class TheoremSessionModule: Module {
     Constant("remuxRevision") { RemuxProvenance.revision }
     Constant("ghosttyKitRelease") { RemuxProvenance.ghosttyKitRelease }
     Constant("ghosttyBuildMode") { GhosttyBuild.modeName }
-    /// Nil when this build may host sessions; otherwise why it may not.
+    /// Empty when this build may host terminal sessions; otherwise why it may not.
     Constant("unavailableReason") { GhosttyBuild.releaseValidationFailure ?? "" }
 
-    View(TheoremSessionView.self) {
+    AsyncFunction("listComputers") { () async throws -> [[String: Any]] in
+      try await TheoremRemux.bridge().list().map(\.record)
+    }
+
+    /// The credential arrives once, goes to the Keychain, and is not returned or kept here.
+    AsyncFunction("saveComputer") { (input: [String: Any]) async throws -> [String: Any] in
+      guard let id = (input["id"] as? String).flatMap(UUID.init(uuidString:)) else {
+        throw TheoremComputerError.invalidInput("The computer needs an id.")
+      }
+      let credential = input["credential"] as? [String: Any] ?? [:]
+      let secret: SSHCredential
+      switch credential["kind"] as? String {
+      case "password":
+        secret = .password(credential["password"] as? String ?? "")
+      case "privateKey":
+        let passphrase = (credential["passphrase"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        secret = .privateKey(SSHPrivateKeyCredential(
+          privateKeyPEM: credential["privateKey"] as? String ?? "",
+          passphrase: passphrase
+        ))
+      default:
+        throw TheoremComputerError.invalidInput("Choose a password or a private key.")
+      }
+      return try await TheoremRemux.bridge().save(
+        id: id,
+        name: input["name"] as? String ?? "",
+        host: input["host"] as? String ?? "",
+        port: input["port"] as? Int ?? 22,
+        username: input["username"] as? String ?? "",
+        credential: secret
+      ).record
+    }
+
+    AsyncFunction("removeComputer") { (id: String) async throws in
+      guard let uuid = UUID(uuidString: id) else { throw TheoremComputerError.notFound }
+      try await TheoremRemux.bridge().remove(uuid)
+    }
+
+    AsyncFunction("run") { (id: String, script: String) async throws -> [String: Any] in
+      guard let uuid = UUID(uuidString: id) else { throw TheoremComputerError.notFound }
+      return try await TheoremRemux.bridge().run(uuid, script: script).record
+    }
+
+    AsyncFunction("trustHostKey") { (id: String, fingerprint: String) async throws in
+      guard let uuid = UUID(uuidString: id) else { throw TheoremComputerError.notFound }
+      try await TheoremRemux.bridge().trustHostKey(uuid, fingerprint: fingerprint)
+    }
+
+    View(TheoremTerminalView.self) {
+      Prop("computerId") { (view: TheoremTerminalView, value: String) in
+        view.computerID = UUID(uuidString: value)
+      }
+      Prop("session") { (view: TheoremTerminalView, value: String) in
+        view.sessionName = value
+      }
       Events("onSceneChange")
     }
   }

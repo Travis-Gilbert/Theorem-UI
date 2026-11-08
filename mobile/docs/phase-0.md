@@ -17,7 +17,7 @@ No native build, simulator or device run, and no live sign-in have been done. Re
 | Conversation binding | External store: `useExternalStoreRuntime` over the SDK's `projectThreadView(state)`                                                           | The SDK's `HeadlessConversation` keeps the only send, journal, idempotency and snapshot/event recovery path, so web and native share one set of semantics. The projection never dispatches, so a view unmounting cannot stop a run.                                                                                                                                                                                                                                       |
 | SDK version          | Mobile: 0.6.0-alpha.1 packed from Theorem `5a18077c` (branch `claude/theorem-ios-app-knkszc`). Web, on main: 0.6.0-alpha.5 with a local patch | 0.6.0-alpha.1 adds `projectThreadView` and takes its types from `@assistant-ui/core`, which both the web and the native assistant-ui re-export. Tarball SHA-256 `bb47692908b0db6494dfeee47af79e9f482a4bec9add37c3b9a82ab5ffc7abd0`; repacking `5a18077c` reproduces it byte for byte. The web's alpha.5 comes from another SDK line, which has no `projectThreadView`. The two lines have to be merged into one release before the web and the phone can share a version. |
 | Sign-in              | PKCE public client `theorem-ios`; ASWebAuthenticationSession with the HTTPS callback `https://theorem.rs/auth/ios/callback`                   | Theorem refuses custom-scheme redirect URIs. An HTTPS callback needs the app's `webcredentials` association, which Theorem UI now serves (see `sign-in.md`).                                                                                                                                                                                                                                                                                                              |
-| Session feature      | Remux vendored unmodified; its `RootView` hosted as an Expo native view                                                                       | Owner's choice ("copy remux in"). Remux's public entry is `RootView`; its shell types are private, and its feature layers use App-layer types, so everything except the `@main` file is compiled.                                                                                                                                                                                                                                                                         |
+| Session feature      | Remux vendored with one recorded patch; headless computers and SSH scripts for chat, its `RootView` only as an opt-in terminal                | Owner's choice ("copy remux in"). Remux's public entry is `RootView`; its shell types are private, and its feature layers use App-layer types, so everything except the `@main` file is compiled.                                                                                                                                                                                                                                                                         |
 | Deployment floor     | iOS 18.0 (`expo-build-properties`)                                                                                                            | Remux and its GhosttyKit build target iOS 18. The HTTPS callback needs iOS 17.4, so 18 covers it.                                                                                                                                                                                                                                                                                                                                                                         |
 | Devices              | One universal target (`supportsTablet`, no full-screen requirement)                                                                           | iPad uses the same app with the adaptable sidebar and a split Chat view from 768pt.                                                                                                                                                                                                                                                                                                                                                                                       |
 
@@ -55,21 +55,26 @@ Native: the Remux revision, GhosttyKit release and SHA-256, and the Swift packag
 
 - The Swift in `modules/theorem-session` has never been compiled, linked or run.
 - No Herdr version is pinned and no Herdr session has been opened. The matched Remux/Herdr pair in the Phase 0 exit criteria is open.
-- Codex and Claude Code communication, provider authentication and the tool permission round trip have not been started.
+- Codex and Claude Code over SSH are implemented and their scripts tested locally (dash, bash, real tmux); no run against a real computer or agent has happened. Answering an agent's permission prompt needs the terminal.
 - Attachment uploads are not implemented or validated.
 - Attach and detach of the native view, and background and resume, have not been observed.
 - iPad resizing has not been observed.
 - Sign-in has not been run. It needs the `theorem-ios` client deployed on the store and `THEOREM_IOS_APP_IDS` set on theorem.rs, as described in `sign-in.md`.
 
-## Remux hosting limits
+## Remux behind chat
 
-The hosted view is Remux's own interface. It keeps Remux's own saved-server library, connection setup, JSON stores under Application Support, and SSH credentials in the Keychain under its own service name.
+People do not see Remux. Chat lists Claude Code and Codex conversations on saved computers, reads their logs over Remux's SSH pool and types replies into their tmux panes. The terminal opens only from a conversation, and only after the person turns on Show terminal in Settings. `../modules/theorem-session/README.md` describes how.
+
+Not yet established for this:
+
+- no script has run against a real computer from the app;
+- the Claude Code and Codex log formats are undocumented, and the parsers are tested only against fixtures written from their current shape;
+- a permission prompt inside the agent is detected only as a step with no result for 30 seconds.
 
 Phase 4 work is still to do:
 
 - Theorem pairing;
-- a Theorem-carried Herdr transport;
-- typed attach, detach and focus commands from React Native;
+- a Theorem-carried transport, and Herdr;
 - session-state events into the app.
 
-Closing the screen detaches this device. Sessions keep running on their host.
+Leaving a conversation or closing the terminal detaches this device. Sessions keep running on their host.

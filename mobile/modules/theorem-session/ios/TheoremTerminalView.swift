@@ -1,13 +1,17 @@
-// SOURCING: ExpoModulesCore ExpoView and EventDispatcher; SwiftUI UIHostingController; UIKit UIScene activation notifications; Remux RootView and RemuxAppDependencies.launch() (vendor/remux/Sources/App)
+// SOURCING: ExpoModulesCore ExpoView and EventDispatcher; SwiftUI UIHostingController; UIKit UIScene activation notifications; Remux RootView with the `opening` patch recorded in vendor/remux/VENDORED.md, over TheoremRemux.dependencies
 import ExpoModulesCore
 import SwiftUI
 import UIKit
 
-/// Hosts Remux's session feature. Removing this view detaches the client: the
-/// tmux or Herdr session keeps running on its host, as when Remux closes.
-/// The scene observers end with the host (detachHost), not in deinit.
-final class TheoremSessionView: ExpoView {
+/// The terminal for one tmux session on a saved computer, shown only when the person turned on
+/// Show terminal in Settings. Remux opens that session directly. Removing this view detaches the
+/// client: the session keeps running on its host, as when Remux closes. The scene observers end with
+/// the host (detachHost), not in deinit.
+final class TheoremTerminalView: ExpoView {
   let onSceneChange = EventDispatcher()
+  /// Set by React Native before the view reaches a window; a change reopens the host.
+  var computerID: UUID? { didSet { if oldValue != computerID { reopen() } } }
+  var sessionName = "" { didSet { if oldValue != sessionName { reopen() } } }
 
   private let scene = HostedScenePhase()
   private var host: UIHostingController<AnyView>?
@@ -34,13 +38,25 @@ final class TheoremSessionView: ExpoView {
     host?.view.frame = bounds
   }
 
+  private func reopen() {
+    guard window != nil else { return }
+    detachHost()
+    scene.track(window?.windowScene) { [weak self] phase in
+      self?.onSceneChange(["phase": phase.name])
+    }
+    attachHost()
+  }
+
   private func attachHost() {
-    guard host == nil else { return }
+    guard host == nil, let computerID, !sessionName.isEmpty else { return }
     let content: AnyView
     if let failure = GhosttyBuild.releaseValidationFailure {
       content = AnyView(Text(failure).padding())
     } else {
-      content = AnyView(HostedRemux(scene: scene))
+      content = AnyView(HostedRemux(
+        scene: scene,
+        opening: RemuxRootOpening(serverID: computerID, locator: SessionLocator(backend: .tmux, name: sessionName))
+      ))
     }
     let controller = UIHostingController(rootView: content)
     controller.view.backgroundColor = .clear
@@ -78,9 +94,11 @@ final class TheoremSessionView: ExpoView {
 /// UIScene activation state is passed in here.
 private struct HostedRemux: View {
   @ObservedObject var scene: HostedScenePhase
+  let opening: RemuxRootOpening
 
   var body: some View {
-    RootView().environment(\.scenePhase, scene.phase)
+    RootView(dependencies: TheoremRemux.dependencies, opening: opening)
+      .environment(\.scenePhase, scene.phase)
   }
 }
 

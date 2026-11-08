@@ -60,7 +60,11 @@ function Navigation() {
             name="settings"
             options={{ presentation: 'modal', headerShown: true, title: 'Settings' }}
           />
-          <Stack.Screen name="session" options={{ presentation: 'fullScreenModal', headerShown: true }} />
+          <Stack.Screen
+            name="computer"
+            options={{ presentation: 'modal', headerShown: true, title: 'Add a computer' }}
+          />
+          <Stack.Screen name="terminal" options={{ presentation: 'fullScreenModal', headerShown: true }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />

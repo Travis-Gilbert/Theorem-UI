@@ -122,6 +122,7 @@ export const type = {
 } as const
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const
-export const radius = { control: 8, card: 12, pill: 999 } as const
+/** DESIGN.md radii: the composer is 16 du. */
+export const radius = { control: 8, card: 12, composer: 16, pill: 999 } as const
 /** Apple's minimum touch target. */
 export const touchTarget = 44

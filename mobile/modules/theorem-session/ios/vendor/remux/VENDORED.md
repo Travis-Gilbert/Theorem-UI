@@ -19,8 +19,18 @@ Byte-for-byte copies from the upstream revision:
 
 Not copied: the Xcode project and `project.yml`, the app icon (`Remux.icon`,
 `IconComposerLayers`), `Info.plist`, tests, UI tests, the website and the
-release scripts. No upstream file has been edited; Theorem code lives one
-directory up (`ios/*.swift`).
+release scripts. Theorem code lives one directory up (`ios/*.swift`). Every
+upstream file is byte-for-byte except the patched files recorded below.
+
+## Patches
+
+Each patch is a diff against the upstream revision in `patches/`. Reapply them
+in order after copying a new revision (`git apply patches/*.patch` from this
+directory), then record the new SHA-256 of each patched file.
+
+| Patch | File | SHA-256 of the patched file | Why |
+| --- | --- | --- | --- |
+| `0001-root-view-opening.patch` | `Sources/App/RootView.swift` | `1bd8f412214fb8946385953ebccd13600816cd9a8b0931416e5f9336604f7c76` | Adds `RemuxRootOpening` and an `opening:` argument to `RootView`, so Theorem's terminal opens one tmux session on one saved computer as soon as the library loads (through Remux's own `RemuxRootModel.connectToDiscoveredSession`). Remux's library, connection setup and stores are otherwise unchanged. |
 
 ## How it is built
 

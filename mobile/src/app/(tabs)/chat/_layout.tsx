@@ -9,6 +9,8 @@ export default function ChatLayout() {
         name="index"
         options={{ title: 'Chat', headerLargeTitle: true, headerRight: () => <SettingsButton /> }}
       />
+      <Stack.Screen name="new" options={{ title: 'New conversation' }} />
+      <Stack.Screen name="agent" options={{ title: 'Conversation' }} />
       <Stack.Screen name="[threadId]" options={{ title: 'Conversation' }} />
     </Stack>
   )
