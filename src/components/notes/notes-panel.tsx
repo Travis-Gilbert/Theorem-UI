@@ -42,6 +42,8 @@ import {
 import type { NoteEntry, NoteMark, NoteShelf } from '@/lib/theorem/note-library'
 import { NOTE_ORDERS } from '@/lib/theorem/note-order'
 import type { NoteOrder } from '@/lib/theorem/note-order'
+import { sectionName } from './note-sections'
+import type { NoteSection } from './note-sections'
 import { useNote, useNoteStatus } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 
@@ -137,8 +139,14 @@ export function NotesPanel() {
       >
         {shelf === 'notes' ? (
           <>
-            {naming && <NewFolder onDone={() => setNaming(false)} />}
-            <NotesTree query={query} order={order} />
+            <NotesTree
+              query={query}
+              order={order}
+              newFolder={
+                naming && <NewFolder onDone={() => setNaming(false)} />
+              }
+            />
+            <SectionHeader section="agents" />
             <AgentNotes query={query} order={order} />
           </>
         ) : (
@@ -266,7 +274,16 @@ const TOP_LEVEL = 'top-level'
  * The person's folders, then their loose notes. A note dragged onto a folder
  * moves into it, and dragged onto the loose notes moves out to the top level.
  */
-function NotesTree({ query, order }: { query: string; order: NoteOrder }) {
+function NotesTree({
+  query,
+  order,
+  newFolder,
+}: {
+  query: string
+  order: NoteOrder
+  /** The field naming a new folder, while there is one. */
+  newFolder: ReactNode
+}) {
   const library = useNoteLibrary(query, 'notes', order)
   const folders = useNoteFolders()
   const move = useMoveNote()
@@ -317,14 +334,23 @@ function NotesTree({ query, order }: { query: string; order: NoteOrder }) {
           {describeError(move.error, 'document')}
         </p>
       )}
-      {shown.map((folder) => (
-        <NoteFolderItem
-          key={folder.collectionId}
-          folder={folder}
-          notes={inFolder(folder.collectionId)}
-          searching={searching}
-        />
-      ))}
+      {(shown.length > 0 || newFolder) && (
+        <>
+          <SectionHeader section="folders" />
+          {newFolder}
+          {shown.map((folder) => (
+            <NoteFolderItem
+              key={folder.collectionId}
+              folder={folder}
+              notes={inFolder(folder.collectionId)}
+              searching={searching}
+            />
+          ))}
+        </>
+      )}
+      {(loose.length > 0 || !searching || !shown.length) && (
+        <SectionHeader section="notes" />
+      )}
       <TopLevel>
         {loose.length ? (
           <ul className="flex flex-col">
@@ -332,9 +358,11 @@ function NotesTree({ query, order }: { query: string; order: NoteOrder }) {
               <DraggableNoteRow key={entry.documentId} entry={entry} />
             ))}
           </ul>
+        ) : !shown.length ? (
+          <Hint>{searching ? 'Nothing matches.' : emptyShelf.notes}</Hint>
         ) : (
-          !shown.length && (
-            <Hint>{searching ? 'Nothing matches.' : emptyShelf.notes}</Hint>
+          !searching && (
+            <Hint>Drag a note here to take it out of its folder.</Hint>
           )
         )}
         {library.hasNextPage && (
@@ -410,6 +438,55 @@ function NoteFolderItem({
   )
 }
 
+/**
+ * A section's heading, set above its rows a size up and semibold. Clicking it
+ * renames it; Enter keeps the name, Escape keeps the old one, and an empty
+ * name gives the section its own back.
+ */
+function SectionHeader({ section }: { section: NoteSection }) {
+  const name = useShell((state) => sectionName(section, state.noteSections))
+  const rename = useShell((state) => state.renameNoteSection)
+  const [editing, setEditing] = useState(false)
+  return (
+    <h3
+      data-slot="notes-section"
+      className="mt-3 flex h-7 items-center px-2 first:mt-0"
+    >
+      {editing ? (
+        <input
+          // The person clicked the heading to rename it a moment ago.
+          autoFocus
+          aria-label="Section name"
+          defaultValue={name}
+          className="min-w-0 flex-1 rounded-sm bg-transparent text-[14.5px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+          onFocus={(event) => event.target.select()}
+          onBlur={(event) => {
+            rename(section, event.currentTarget.value)
+            setEditing(false)
+          }}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return
+            if (event.key === 'Enter') event.currentTarget.blur()
+            if (event.key === 'Escape') {
+              event.currentTarget.value = name
+              event.currentTarget.blur()
+            }
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          title="Rename this section"
+          className="min-w-0 flex-1 truncate rounded-sm text-start text-[14.5px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+          onClick={() => setEditing(true)}
+        >
+          {name}
+        </button>
+      )}
+    </h3>
+  )
+}
+
 /** Name a new folder in place; Enter makes it, Escape or leaving it empty does not. */
 function NewFolder({ onDone }: { onDone: () => void }) {
   const folders = useNoteFolders()
@@ -464,7 +541,7 @@ function AgentNotes({ query, order }: { query: string; order: NoteOrder }) {
       row={
         <button
           type="button"
-          className={`${row} mt-1 gap-1 ps-1`}
+          className={`${row} gap-1 ps-1`}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >

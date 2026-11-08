@@ -2,6 +2,11 @@
 import type { SerializedDockview } from 'dockview-react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { renameSection } from '@/components/notes/note-sections'
+import type {
+  NoteSection,
+  SectionNames,
+} from '@/components/notes/note-sections'
 import type { NoteOrder } from '@/lib/theorem/note-order'
 import type { ShellMode } from './modes'
 
@@ -63,8 +68,11 @@ type ShellState = {
   >
   /** The order Notes mode lists notes in. */
   noteOrder: NoteOrder
+  /** The names the person gave the Notes panel's sections. */
+  noteSections: SectionNames
   setProjectId: (projectId: string) => void
   setNoteOrder: (order: NoteOrder) => void
+  renameNoteSection: (section: NoteSection, name: string) => void
   saveLayout: (projectId: string, layout: SavedLayout) => void
   setPanelWidth: (width: number) => void
   togglePanel: (mode: ShellMode) => void
@@ -103,6 +111,7 @@ export const useShell = create<ShellState>()(
       panelCollapsed: {},
       filesShown: false,
       noteOrder: 'edited',
+      noteSections: {},
       chatThreadId: undefined,
       explorerOpen: false,
       organizeOpen: {},
@@ -114,6 +123,10 @@ export const useShell = create<ShellState>()(
       sideWidth: 620,
       terminalTabs: {},
       setNoteOrder: (noteOrder) => set({ noteOrder }),
+      renameNoteSection: (section, name) =>
+        set((s) => ({
+          noteSections: renameSection(s.noteSections, section, name),
+        })),
       setProjectId: (projectId) => set({ projectId }),
       saveLayout: (projectId, layout) =>
         set((s) => ({ layouts: { ...s.layouts, [projectId]: layout } })),
@@ -231,6 +244,7 @@ export const useShell = create<ShellState>()(
         terminalThreadIds,
         terminalTabs,
         noteOrder,
+        noteSections,
       }) => ({
         projectId,
         layouts,
@@ -245,6 +259,7 @@ export const useShell = create<ShellState>()(
         terminalThreadIds,
         terminalTabs,
         noteOrder,
+        noteSections,
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined

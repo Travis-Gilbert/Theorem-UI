@@ -91,6 +91,45 @@ check(
   (await panelTitle.textContent())?.trim() === TITLE,
   await panelTitle.textContent(),
 )
+
+// The rows sit under section headings a size up and semibold, and the person
+// can rename a heading by clicking it.
+const sections = () =>
+  notesNav.locator('[data-slot="notes-section"]').allTextContents()
+check(
+  'the list is split under section headings',
+  JSON.stringify((await sections()).slice(-2)) ===
+    JSON.stringify(['Notes', 'Agents']),
+  JSON.stringify(await sections()),
+)
+const type = await page.evaluate(() => {
+  const heading = document.querySelector('[data-slot="notes-section"] button')
+  const rowTitle = document.querySelector('nav li button span')
+  const look = (el) => el && getComputedStyle(el)
+  return {
+    heading: look(heading)?.fontSize,
+    weight: look(heading)?.fontWeight,
+    row: look(rowTitle)?.fontSize,
+  }
+})
+check(
+  'headings are 1.5px larger than rows, and semibold',
+  parseFloat(type.heading) - parseFloat(type.row) === 1.5 &&
+    type.weight === '600',
+  JSON.stringify(type),
+)
+const RENAMED = `Loose pages ${MARK}`
+await notesNav
+  .locator('[data-slot="notes-section"]')
+  .getByRole('button', { name: 'Notes', exact: true })
+  .click()
+await page.getByLabel('Section name').fill(RENAMED)
+await page.keyboard.press('Enter')
+check(
+  'clicking a heading renames it',
+  (await sections()).includes(RENAMED),
+  JSON.stringify(await sections()),
+)
 const settledBy = Date.now() + 30_000
 let settled = await openMark()
 while (settled !== 'written' && Date.now() < settledBy) {
@@ -288,6 +327,21 @@ check(
     .getAttribute('aria-checked')) === 'true',
 )
 await page.getByRole('menuitemradio', { name: 'Recently edited' }).click()
+check(
+  'and so is the name given to a heading',
+  (await sections()).includes(RENAMED),
+)
+await notesNav
+  .locator('[data-slot="notes-section"]')
+  .getByRole('button', { name: RENAMED })
+  .click()
+await page.getByLabel('Section name').fill('')
+await page.keyboard.press('Enter')
+check(
+  'an emptied heading takes its own name back',
+  (await sections()).includes('Notes'),
+  JSON.stringify(await sections()),
+)
 
 // A folder is a Theorem collection: the plus folder button makes one, a note
 // dragged onto it moves in, and Move to takes it back out.
