@@ -449,7 +449,6 @@ export function InspectorColumn({ className }: { className?: string }) {
     />
   )
 }
-
 /**
  * Below the desktop width the inspector covers the view. The view stays
  * mounted, so it has to leave the tab order and the keyboard, the way Theia

@@ -1,7 +1,9 @@
 // SOURCING: the app's FilesystemTree (components/ui/filesystem-tree: lucide icons, framer-motion, tree roles and arrow keys), @tanstack/react-query via lib/theorem/project-files (the cached root, children and content reads)
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Folder } from 'lucide-react'
 import { useState } from 'react'
+import { SidebarGroup, SidebarGroupLabel } from '@/components/coss/sidebar'
+import { FolderTrees } from '@/components/workspace/folders'
 import { FilesystemTree } from '@/components/ui/filesystem-tree'
 import type { FilesystemNode } from '@/components/ui/filesystem-tree'
 import { describeError } from '@/lib/theorem/client'
@@ -101,11 +103,8 @@ function ExplorerBody({ projectId }: { projectId: string }) {
   if (root.isPending)
     return <p className="px-3 py-2 text-sm text-ink-faint">Reading files…</p>
   if (root.error)
-    return isUnconfigured(root.error) ? (
-      <p className="px-3 py-2 text-sm leading-relaxed text-ink-muted">
-        No project folder is connected.
-      </p>
-    ) : (
+    // A server with no folder bound simply has no project tree to show.
+    return isUnconfigured(root.error) ? null : (
       <p className="px-3 py-2 text-sm leading-relaxed text-error-ink">
         {describeError(root.error)}
       </p>
@@ -127,18 +126,19 @@ export function Explorer() {
   const name = root.data?.root.name
 
   return (
-    <section
-      aria-label="Explorer"
+    <SidebarGroup
+      role="region"
+      aria-label="Files"
       className={cn(
-        'mx-2 mb-2 flex min-h-0 flex-col overflow-hidden border-t border-separator pt-1',
+        'mb-2 min-h-0 overflow-hidden border-t border-separator pt-1',
         open ? 'max-h-[50%] shrink' : 'shrink-0',
       )}
     >
-      <button
-        type="button"
+      <SidebarGroupLabel
+        render={<button type="button" />}
         aria-expanded={open}
         onClick={toggle}
-        className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-ink-faint-sheet outline-none hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+        className="h-10 gap-2 text-base text-ink hover:text-ink"
       >
         <ChevronRight
           aria-hidden
@@ -147,16 +147,18 @@ export function Explorer() {
             open && 'rotate-90',
           )}
         />
-        Explorer
+        <Folder aria-hidden className="size-[18px] text-ink-muted" />
+        Files
         {name && (
           <span className="min-w-0 truncate text-ink-muted">· {name}</span>
         )}
-      </button>
-      {open && project && (
+      </SidebarGroupLabel>
+      {open && (
         <div className="min-h-0 flex-1 overflow-auto">
-          <ExplorerBody projectId={project.projectId} />
+          {project && <ExplorerBody projectId={project.projectId} />}
+          <FolderTrees />
         </div>
       )}
-    </section>
+    </SidebarGroup>
   )
 }

@@ -21,10 +21,8 @@ import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
 import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
-// Nor a two-way chevron for switchers, a terminal, a bare close cross, the
-// panels mark (a top bar over a right-hand panel, drawn here as Lucide's
-// top-left panels mirrored), a mark for a continued thread, or the
-// settings marks (a star for a picked model, a key, a plugin, a model chip),
+// Nor a two-way chevron for switchers, a terminal, a bare close cross, a plus, a mark for a continued thread, or the
+// settings marks (a star for a picked model, a key, a plugin),
 // or the data-table controls (sort arrows and the sort list, a filter, column
 // options, hide and pin, a drag grip, one- and two-step chevrons for pages
 // and selects, a calendar), or the Life controls (play, pause, one step,
@@ -37,21 +35,21 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  SquareDashed,
   ChevronUp,
   ChevronsLeft as First,
   ChevronsRight as Last,
   ChevronsUpDown as UpDown,
   CornerDownRight as Continue,
-  Cpu as Model,
   EyeOff as Hide,
   GripVertical as Grip,
   KeyRound as Key,
   Pause,
   Play,
   ListFilter as Filter,
-  PanelsTopLeft,
   Pin,
   PinOff as Unpin,
+  Plus as Add,
   Puzzle as Plugin,
   Settings2 as Columns,
   Shuffle,
@@ -60,24 +58,66 @@ import {
   Star,
   Trash2 as Delete,
   X,
-  GraduationCap as Skill,
   BellOff as Mute,
   History,
+  Radar,
+  Database,
+  FunctionSquare,
+  ShieldCheck,
+  Sigma,
+  MessageCircleQuestion,
+  Eye as ViewEye,
+  PlugZap,
+  Table2,
+  Hash,
+  FileText,
+  Circle,
+  AudioLines as Audio,
+  Bell,
+  Inbox,
+  Braces as Json,
+  Clock3 as Later,
+  Columns2 as Compare,
+  Film as Video,
+  Image as ImageMark,
+  LayoutGrid as Apps,
+  ListChecks as Checklist,
+  MessagesSquare as Conversation,
+  SquareArrowOutUpRight as Detach,
+  Sparkles as Sparkle,
+  Undo2 as Undo,
 } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
 import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
-import Add from '@/assets/icons/records/noun-add-8086054.svg?react'
 import Archive from '@/assets/icons/records/noun-archive-8315826.svg?react'
 import Check from '@/assets/icons/records/noun-checkmark-8086058.svg?react'
 import Coding from '@/assets/icons/records/noun-coding-8259870.svg?react'
 import Expand from '@/assets/icons/records/noun-expand-8086092.svg?react'
 import Eye from '@/assets/icons/records/noun-eye-8086063.svg?react'
-import File from '@/assets/icons/records/noun-file-8259863.svg?react'
 import Menu from '@/assets/icons/records/noun-menu-8086045.svg?react'
 import Link from '@/assets/icons/records/noun-link-8086078.svg?react'
 import ProjectRow from '@/assets/icons/tree/noun-data-8394841.svg?react'
+import AgentCursor from '@/assets/icons/streamline/streamline-agent-software-cursor-bot-2.png'
+import AiFileRobot from '@/assets/icons/streamline/streamline-ai-file-robot.png'
+import AiRouting from '@/assets/icons/streamline/streamline-ai-routing-agent-direction-1.png'
+import AiVariation from '@/assets/icons/streamline/streamline-ai-generate-variation-robot.png'
+import DesignFileSelect from '@/assets/icons/streamline/streamline-design-file-select.png'
+import HierarchyTwo from '@/assets/icons/streamline/streamline-hierarchy-2.png'
+import HierarchyFive from '@/assets/icons/streamline/streamline-hierarchy-5.png'
+import PaginateMail from '@/assets/icons/streamline/streamline-paginate-filter-mail.png'
+import WorkflowClosed from '@/assets/icons/streamline/streamline-workflow-request-closed.png'
+import AiScienceSpark from '@/assets/icons/streamline/streamline-ai-science-spark.png'
+import BrowserPageLayout from '@/assets/icons/streamline/streamline-browser-page-layout.png'
 import CodeWrite from '@/assets/icons/streamline/streamline-code-write-1.png'
+import CommonFileTextEdit from '@/assets/icons/streamline/streamline-common-file-text-edit.png'
+import HierarchyOrganize from '@/assets/icons/streamline/streamline-hierarchy-5-organize.png'
+import HierarchySix from '@/assets/icons/streamline/streamline-hierarchy-6.png'
+import OfficeFileText from '@/assets/icons/streamline/streamline-office-file-text.png'
+import PencilNote from '@/assets/icons/streamline/streamline-pencil-write-1.png'
+import PaperPlane from '@/assets/icons/streamline/streamline-travel-paper-plane.png'
+import WorkflowBranch from '@/assets/icons/streamline/streamline-workflow-branch.png'
+import WorkflowPullRequest from '@/assets/icons/streamline/streamline-workflow-pull-request.png'
 import CopyPaste from '@/assets/icons/streamline/streamline-copy-paste-1.png'
 import CrossRegion from '@/assets/icons/streamline/streamline-cross-region-data-delivery-2.png'
 import FileOpen from '@/assets/icons/streamline/streamline-file-open.png'
@@ -102,14 +142,8 @@ import FolderFile1 from '@/assets/icons/streamline/streamline-folder-file-1.png'
 import WebpageBullets from '@/assets/icons/streamline/streamline-ui-webpage-bullets.png'
 import ZipFileLock from '@/assets/icons/streamline/streamline-zip-file-lock.png'
 import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warning.png'
-import CommonFileTextEdit from '@/assets/icons/streamline/streamline-common-file-text-edit.png'
-import OfficeFileText from '@/assets/icons/streamline/streamline-office-file-text.png'
-import BrowserPageLayout from '@/assets/icons/streamline/streamline-browser-page-layout.png'
-import WorkflowBranch from '@/assets/icons/streamline/streamline-workflow-branch.png'
+
 import AstronomyConstellation from '@/assets/icons/streamline/streamline-astronomy-constellation.png'
-import Hierarchy2 from '@/assets/icons/streamline/streamline-hierarchy-2.png'
-import AiFileRobot from '@/assets/icons/streamline/streamline-ai-file-robot.png'
-import AiRoutingAgent from '@/assets/icons/streamline/streamline-ai-routing-agent-direction-1.png'
 import AiRobotVariation from '@/assets/icons/streamline/streamline-ai-robot-generate-variation.png'
 
 type SvgMark = FC<
@@ -167,9 +201,7 @@ const Share = masked(ShareBox)
 const Web = masked(CrossRegion)
 const Exit = masked(XMark)
 
-function Panels({ className, ...props }: ComponentProps<typeof PanelsTopLeft>) {
-  return <PanelsTopLeft {...props} className={cn('-scale-x-100', className)} />
-}
+const Panels = masked(BrowserPageLayout)
 
 const flap =
   'icon-mask box-flap absolute inset-0 duration-(--duration-exit) ease-exit group-hover/open:duration-(--duration-lift) group-hover/open:ease-lift group-focus-visible/open:duration-(--duration-lift) group-focus-visible/open:ease-lift'
@@ -221,16 +253,32 @@ const Trusted = masked(ZipFileLock)
 const Untrusted = masked(ZipFileWarning)
 const Plan = masked(WebpageBullets)
 const TheoremVault = masked(SquareWireframe)
-const Draft = masked(CommonFileTextEdit)
-const Article = masked(OfficeFileText)
-const Layout = masked(BrowserPageLayout)
-const Fork = masked(WorkflowBranch)
-const Graph = masked(AstronomyConstellation)
-const Outline = masked(Hierarchy2)
+const AddNode = masked(HierarchyFive)
 const Agent = masked(AiFileRobot)
-const Delegate = masked(AiRoutingAgent)
+const Delegate = masked(AiRouting)
+
 /** Theorem's own model choice, where the person has not picked one. */
 const Theorem = masked(AiRobotVariation)
+const File = masked(CommonFileDouble)
+const Follow = masked(AgentCursor)
+const Mail = masked(PaginateMail)
+const Model = masked(AiVariation)
+const NewGraph = masked(DesignFileSelect)
+const Outline = masked(HierarchyTwo)
+const Reject = masked(WorkflowClosed)
+const Route = masked(AiRouting)
+const Article = masked(OfficeFileText)
+const Layout = masked(BrowserPageLayout)
+const Canvas = masked(CodeWrite)
+const Draft = masked(CommonFileTextEdit)
+const Fork = masked(WorkflowBranch)
+const Graph = masked(AstronomyConstellation)
+const Note = masked(PencilNote)
+const Organize = masked(HierarchyOrganize)
+const Proposal = masked(WorkflowPullRequest)
+const Skill = masked(AiScienceSpark)
+const Compound = masked(HierarchySix)
+const Sink = masked(PaperPlane)
 const Copied = solid(CopiedMark)
 const Edit = solid(EditMark)
 const More = solid(MoreMark)
@@ -239,12 +287,54 @@ const Previous = solid(PreviousMark)
 const Reload = solid(ReloadMark)
 const TreeFolder = solid(FolderMark)
 const TreeFolderOpen = solid(FolderOpenMark)
+/** A program node's kind reads by its glyph and silhouette, never by hue. */
+export const ProgramKindMark = {
+  external_endpoint: PlugZap,
+  source: Database,
+  sentinel: Radar,
+  rule: FunctionSquare,
+  stochastic: Skill,
+  verify: ShieldCheck,
+  fold: Sigma,
+  human_input: MessageCircleQuestion,
+  sink: Sink,
+  compound: Compound,
+  view: ViewEye,
+} as const
+
+/** The five port shape classes, each paired with a low-chroma color at the node. */
+export const PortClassMark = {
+  table: Table2,
+  graph: Graph,
+  value: Hash,
+  record: FileText,
+  other: Circle,
+} as const
+
 export const Icon = {
+  Group: SquareDashed,
+  Apps,
+  Audio,
+  Bell,
+  Inbox,
+  Checklist,
+  Compare,
+  Conversation,
+  Detach,
+  Image: ImageMark,
+  Json,
+  Later,
+  Sigma,
+  Sparkle,
+  Table: Table2,
+  Undo,
+  Video,
   Download,
   Open,
   X,
   Artifact,
   Add,
+  AddNode,
   Archive,
   ArrowDown,
   ArrowUp,
@@ -273,6 +363,7 @@ export const Icon = {
   File,
   Filter,
   First,
+  Follow,
   Folder,
   FolderOpen,
   Fork,
@@ -283,12 +374,14 @@ export const Icon = {
   Last,
   Layout,
   Link,
+  Mail,
   Menu,
   Microphone,
   Model,
   Moon,
   More,
   NewChat,
+  NewGraph,
   Next,
   Panels,
   Pause,
@@ -307,6 +400,7 @@ export const Icon = {
   Shuffle,
   SortList,
   Spaces: PenroseTriangle,
+  Canvas,
   Star,
   StepForward,
   Stop,
@@ -323,10 +417,16 @@ export const Icon = {
   History,
   Index: Archive,
   Mute,
+  Note,
   Notes,
   OpenFolder,
+  Organize,
   Outline,
   Plan,
+  Proposal,
+  Reject,
+  Route,
+  Sink,
   Skill,
   Theorem,
   TheoremVault,

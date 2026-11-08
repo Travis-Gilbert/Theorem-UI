@@ -1,3 +1,5 @@
+import '@/lib/openui-devtools-off'
+
 import {
   HeadContent,
   Link,

@@ -176,7 +176,11 @@ export function describeError(error: unknown, service: 'chat' | 'document' = 'ch
     const text = (value: unknown) =>
       typeof value === 'string' && value.trim() ? value.trim() : undefined
     const detail = explainStorageCapacity(body?.code, text(body?.detail))
-    let message = detail ?? text(body?.title)
+    let message =
+      detail ??
+      text(body?.title) ??
+      text(body?.message) ??
+      text(body?.error)
     if (error instanceof RefusedSend) {
       // The title, as the detail talks in revision numbers.
       const reason = text(body?.title) ?? detail

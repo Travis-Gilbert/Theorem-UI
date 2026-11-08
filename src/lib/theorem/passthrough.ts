@@ -11,9 +11,14 @@ import { theorem } from './client'
  */
 export async function theoremJson<T>(
   path: string,
-  init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+  init: {
+    method?: string
+    body?: unknown
+    headers?: Record<string, string>
+    keepalive?: boolean
+  } = {},
 ): Promise<T> {
-  const response = await theorem().fetch(path, {
+  const request = {
     method: init.method ?? 'GET',
     headers: {
       Accept: 'application/json',
@@ -21,7 +26,11 @@ export async function theoremJson<T>(
       ...init.headers,
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  })
+  }
+  // The SDK's passthrough forwards method, headers and body and drops keepalive.
+  const response = init.keepalive
+    ? await window.fetch(path, { ...request, keepalive: true })
+    : await theorem().fetch(path, request)
   const text = await response.text()
   const body: unknown = text ? JSON.parse(text) : undefined
   if (!response.ok)

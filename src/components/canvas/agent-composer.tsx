@@ -26,6 +26,7 @@ import {
   userAuthorship,
 } from '@/lib/theorem/spaces'
 import type { SpaceEdit } from '@/lib/theorem/spaces'
+import { useCanvasView } from './canvas-view'
 import { useComposer } from './composer-state'
 import type { ComposerRequest } from './composer-state'
 
@@ -110,7 +111,9 @@ function ComposerBody({
   const [prompt, setPrompt] = useState('')
   const [run, setRun] = useState<Run>({ phase: 'idle' })
   const abort = useRef<AbortController>(undefined)
-  const spaceId = spaceIdFor(projectId)
+  // A result lands on the canvas being looked at, nested or not.
+  const crumb = useCanvasView((s) => s.trail.at(-1))
+  const spaceId = crumb?.spaceId ?? spaceIdFor(projectId)
 
   // Closing the composer stops a run that is still streaming.
   useEffect(() => () => abort.current?.abort(), [])

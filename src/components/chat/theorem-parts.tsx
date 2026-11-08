@@ -40,6 +40,8 @@ import {
 } from '@/components/artifacts/artifact-model'
 import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
+import { NoteImage } from '@/components/notes/kinds/embed-block'
+import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
 import { Icon } from '@/components/icons'
 import {
@@ -48,6 +50,7 @@ import {
   mutate,
   theorem,
 } from '@/lib/theorem/client'
+import { uploadContentPath } from '@/lib/theorem/uploads'
 import { DRAFT_PLAN } from '@/lib/theorem/plans'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { cn, humanize } from '@/lib/utils'
@@ -620,6 +623,15 @@ const ATTACHMENT_STATES: Partial<Record<string, string>> = {
 
 const AttachmentPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
+  const uploadId = str(part.uploadId)
+  if (uploadId && str(part.mediaType)?.startsWith('image/'))
+    return (
+      <NoteImage
+        src={uploadContentPath(uploadId)}
+        alt={str(part.name) ?? 'Attachment'}
+        className="me-1.5 mt-2 inline-block max-h-40 rounded-md border border-separator"
+      />
+    )
   return (
     <span className="me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted">
       <Icon.Attachment className="size-3" />
@@ -702,9 +714,16 @@ function guarded(
   )
 }
 
+/** The answer's message carries which review it answered, so its card can reopen it. */
+const ReviewAnswerPart: DataMessagePartComponent = ({ data }) => {
+  const reviewId = str(object(data).reviewId)
+  return reviewId ? <ReviewAnswerCard reviewId={reviewId} /> : null
+}
+
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
+    ['theorem-review_answer', ReviewAnswerPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
     ['theorem-error', ErrorPart],

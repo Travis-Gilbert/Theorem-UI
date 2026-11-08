@@ -1,6 +1,6 @@
 # Delegations, change sets and the IDE: contract and plan
 
-Theorem's front role (Inkling) already delegates work to specialist roles, runs
+Theorem's front role already delegates work to specialist roles, runs
 them in isolated overlays, collects receipts and reviews the result. The Theorem
 UI shows almost none of it: a delegation is a generic `delegate` tool card, and
 what a specialist changed cannot be seen as a diff in the chat or in Theia. This

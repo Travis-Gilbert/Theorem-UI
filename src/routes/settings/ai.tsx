@@ -25,14 +25,20 @@ export const Route = createFileRoute('/settings/ai')({
 const TABS = [
   { value: 'models', label: 'Models', Mark: Icon.Model },
   { value: 'plugins', label: 'Plugins', Mark: Icon.Plugin },
-  { value: 'skills', label: 'Skills', Mark: Icon.Article },
+  { value: 'skills', label: 'Skills', Mark: Icon.Skill },
 ] as const
 
 function AiSettings() {
   return (
-    <SettingsPage title="AI" description="The models Theorem can run, and the plugins and skills it brings to a conversation.">
+    <SettingsPage
+      title="AI"
+      description="The models Theorem can run, and the plugins and skills it brings to a conversation."
+    >
       <Tabs defaultValue="models" className="gap-6">
-        <TabsList variant="underline" className="w-full justify-start border-b border-separator">
+        <TabsList
+          variant="underline"
+          className="w-full justify-start border-b border-separator"
+        >
           {TABS.map(({ value, label, Mark }) => (
             <TabsTab key={value} value={value} className="grow-0 gap-1.5">
               <Mark className="size-3.5" />
@@ -129,7 +135,12 @@ function CatalogList({
   Mark,
   empty,
 }: {
-  items: readonly { id: string; name: string; description?: string; plugin?: string }[]
+  items: readonly {
+    id: string
+    name: string
+    description?: string
+    plugin?: string
+  }[]
   Mark: ComponentType<SVGProps<SVGSVGElement>>
   empty: string
 }) {
@@ -142,7 +153,9 @@ function CatalogList({
           key={item.id}
           Mark={Mark}
           title={item.name}
-          description={[item.plugin, item.description].filter(Boolean).join(' · ')}
+          description={[item.plugin, item.description]
+            .filter(Boolean)
+            .join(' · ')}
         />
       ))}
     </SettingsBox>
@@ -152,11 +165,18 @@ function CatalogList({
 function PluginsTab() {
   const { plugins, error } = useCatalogEntries()
   return (
-    <SettingsSection title="Plugins" description="Bundles of tools and skills installed in your Theorem.">
+    <SettingsSection
+      title="Plugins"
+      description="Bundles of tools and skills installed in your Theorem."
+    >
       {error ? (
         <p className="text-sm text-ink-muted">{describeError(error)}</p>
       ) : (
-        <CatalogList items={plugins} Mark={Icon.Plugin} empty="No plugins installed." />
+        <CatalogList
+          items={plugins}
+          Mark={Icon.Plugin}
+          empty="No plugins installed."
+        />
       )}
     </SettingsSection>
   )
@@ -165,11 +185,18 @@ function PluginsTab() {
 function SkillsTab() {
   const { skills, error } = useCatalogEntries()
   return (
-    <SettingsSection title="Skills" description="Instructions Theorem loads when a conversation needs them.">
+    <SettingsSection
+      title="Skills"
+      description="Instructions Theorem loads when a conversation needs them."
+    >
       {error ? (
         <p className="text-sm text-ink-muted">{describeError(error)}</p>
       ) : (
-        <CatalogList items={skills} Mark={Icon.Article} empty="No skills available." />
+        <CatalogList
+          items={skills}
+          Mark={Icon.Skill}
+          empty="No skills available."
+        />
       )}
     </SettingsSection>
   )

@@ -1,7 +1,8 @@
 "use client";
 
-import { useComposerSend } from "@assistant-ui/core/react";
-
+import { ToastProvider, toastManager } from "@/components/coss/toast";
+import { ProjectContextChip } from "@/components/organize/thread-header";
+import { ThreadReviewCards } from "@/components/review/review-card";
 import {
   ComposerAddAttachment,
   ComposerAttachments,
@@ -21,17 +22,13 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
 import {
   isStandaloneToolCall,
   RunningIndicator,
-  RunSummary,
   TheoremToolCall,
+  RunSummary,
 } from "@/components/chat/theorem-parts";
-import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
-import { EffortPicker } from "@/components/chat/effort-picker";
-import { DirectiveText } from "./directive-text.aui";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { attendKit } from "@/lib/kit/store";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -54,16 +51,32 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
-import type { ComponentType, FC, PropsWithChildren } from "react";
+import type { ComponentType, FC, PropsWithChildren, ReactNode } from "react";
+import {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleTrigger,
+} from "@/components/coss/collapsible";
+import { ProjectGlyph } from "@/components/organize/glyphs";
+import { useTenant } from "@/components/shell/projects";
+import { ChevronRight } from "lucide-react";
 
 import { Magnet, useArrivedLive } from "@/components/motion";
 import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
 
 import { ComposerReferences } from "@/components/chat/composer-references";
+import { answerBody } from "@/lib/theorem/reviews";
 import { useStartThreadFrom } from "@/lib/theorem/thread-tree";
 
 import { hasTheoremError } from "@/lib/theorem/message-history";
+
+import { useComposerSend } from "@assistant-ui/core/react";
+import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
+import { EffortPicker } from "@/components/chat/effort-picker";
+import { DirectiveText } from "./directive-text.aui";
+import { attendKit } from "@/lib/kit/store";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -162,13 +175,13 @@ const ThreadHistorySkeleton: FC = () => (
     className="animate-in fade-in fill-mode-both flex flex-col gap-y-6 [animation-delay:150ms] [animation-duration:200ms]"
   >
     <span className="sr-only">Loading conversation</span>
-    <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
+    <Skeleton className="h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
     <div className="flex flex-col gap-y-2">
       <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
       <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
       <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
     </div>
-    <Skeleton className="ml-auto h-9 w-1/3 rounded-xl motion-reduce:animate-none" />
+    <Skeleton className="h-9 w-1/3 rounded-xl motion-reduce:animate-none" />
     <div className="flex flex-col gap-y-2">
       <Skeleton className="h-4 w-10/12 motion-reduce:animate-none" />
       <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
@@ -229,6 +242,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             <ThreadHistorySkeleton />
           </AuiIf>
 
+          <ProjectContextChip />
+
           <ThreadLoadEarlier />
 
           <div
@@ -239,6 +254,8 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
               {() => <ThreadMessage />}
             </ThreadPrimitive.Messages>
           </div>
+
+          <ThreadReviewCards />
 
           <ThreadPrimitive.ViewportFooter
             ref={footerRef}
@@ -433,6 +450,22 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
+/** A file the composer refuses never reaches its tray, so the refusal is said here. */
+const AttachmentRefusals: FC = () => {
+  useAuiEvent("composer.attachmentAddError", (event) => {
+    toastManager.add({
+      type: "error",
+      title:
+        event.reason === "not-accepted"
+          ? "Theorem does not take this kind of file"
+          : "That file could not be added",
+      description:
+        event.reason === "not-accepted" ? event.contentType : event.message,
+    });
+  });
+  return <ToastProvider position="top-center" />;
+};
+
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui();
   const shellRef = useRef<HTMLDivElement>(null);
@@ -461,6 +494,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
       <ComposerToolTrigger />
       {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
+      <AttachmentRefusals />
       <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" data-kit-perch="composer" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem, / for tools"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-72 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-2 text-[1rem] leading-6 outline-none focus-visible:outline-none"
@@ -549,6 +583,63 @@ const MessageError: FC = () => {
 };
 
 /** An assistant message's parts as the thread shows them; a delegation panel shows a specialist's run with it. */
+/** How long the person waited for this reply, for history that kept no part timing. */
+const turnSeconds = (s: AssistantState) => {
+  const { messages } = s.thread;
+  const at = messages.findIndex((message) => message.id === s.message.id);
+  const asked = messages.slice(0, Math.max(at, 0)).findLast(
+    (message) => message.role === "user",
+  );
+  const replied = messages[at];
+  if (!asked || !replied) return undefined;
+  return Math.round(
+    (replied.createdAt.getTime() - asked.createdAt.getTime()) / 1000,
+  );
+};
+
+const spokenSeconds = (seconds: number) =>
+  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+
+/**
+ * The reasoning and tool calls behind a reply, one row until it is opened. It
+ * stands open while the model works and folds once it is done, unless the
+ * person has already chosen.
+ */
+const WorkGroup: FC<{ group: ThreadGroupPart; children: ReactNode }> = ({
+  group,
+  children,
+}) => {
+  const running = group.status.type === "running";
+  const turn = useAuiState(turnSeconds);
+  const [chosen, setChosen] = useState<boolean>();
+  const seconds = reasoningDuration(group.timing) ?? turn;
+  return (
+    <Collapsible
+      data-slot="aui_chain-of-thought"
+      className="mb-3"
+      open={chosen ?? running}
+      onOpenChange={setChosen}
+    >
+      <CollapsibleTrigger className="group/work flex h-9 w-full items-center gap-2 rounded-lg border border-separator bg-raised/40 px-3 text-sm text-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus">
+        <ChevronRight
+          aria-hidden
+          className="size-3.5 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/work:rotate-90"
+        />
+        <span className={cn(running && "shimmer motion-reduce:animate-none")}>
+          {running
+            ? "Working"
+            : seconds
+              ? `Worked for ${spokenSeconds(seconds)}`
+              : "Worked"}
+        </span>
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <div className="pt-2">{children}</div>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+};
+
 export const AssistantMessageContent: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = TheoremToolCall,
@@ -580,7 +671,7 @@ export const AssistantMessageContent: FC = () => {
         {({ part, children }) => {
           switch (part.type) {
             case "group-chainOfThought":
-              return <div data-slot="aui_chain-of-thought">{children}</div>;
+              return <WorkGroup group={part}>{children}</WorkGroup>;
             case "group-task":
               return TaskGroupComponent ? (
                 <TaskGroupComponent group={part} />
@@ -640,6 +731,10 @@ export const AssistantMessageContent: FC = () => {
     </div>
   );
 };
+/** A mark, then who spoke above what they said, as in docs/plans/evidence/refs/sidebar-compare@2026-11-05.webp. */
+const MESSAGE_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2";
+const MESSAGE_SPEAKER = "flex min-h-6 items-center gap-2 px-2 font-medium text-ink";
+
 const AssistantMessage: FC = () => {
   const live = useArrivedLive();
   const ACTION_BAR_PT = "pt-1.5";
@@ -651,16 +746,28 @@ const AssistantMessage: FC = () => {
       data-slot="aui_assistant-message-root"
       data-role="assistant"
       data-live={live || undefined}
-      className="data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className={cn(
+        MESSAGE_GRID,
+        "data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]",
+      )}
     >
-      <AssistantMessageContent />
-
-      <div
-        data-slot="aui_assistant-message-footer"
-        className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
+      <span
+        aria-hidden
+        className="text-ink-muted flex size-8 items-center justify-center"
       >
-        <BranchPicker />
-        <AssistantActionBar />
+        <ProjectGlyph className="size-5" />
+      </span>
+      <div className="min-w-0">
+        <div className={cn(MESSAGE_SPEAKER, "mb-1.5")}>Theorem</div>
+        <AssistantMessageContent />
+
+        <div
+          data-slot="aui_assistant-message-footer"
+          className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
+        >
+          <BranchPicker />
+          <AssistantActionBar />
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
@@ -754,6 +861,7 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 
 const UserMessage: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const tenant = useTenant();
   // A message just sent from the composer flies up from where it was typed.
   useLayoutEffect(() => {
     const origin = takeLaunch();
@@ -764,10 +872,10 @@ const UserMessage: FC = () => {
       '[data-slot="aui_user-message-root"]',
     );
     root?.style.setProperty("content-visibility", "visible");
-    // The bubble sits at the end of the line, so it rises from the composer's
-    // end edge rather than swinging across from where the text started.
+    // The message starts where the composer's text does, so it rises straight
+    // up rather than swinging across.
     const { width } = content.getBoundingClientRect();
-    const start = new DOMRect(origin.right - width, origin.top, width, origin.height);
+    const start = new DOMRect(origin.left, origin.top, width, origin.height);
     void flyFrom(content, start)?.then(() =>
       root?.style.removeProperty("content-visibility"),
     );
@@ -776,30 +884,58 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="grid auto-rows-auto grid-cols-[minmax(0,30%)_minmax(0,70%)] content-start gap-y-2 px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className={cn(
+        MESSAGE_GRID,
+        "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
+      )}
       data-role="user"
     >
-      <UserMessageAttachments />
-
-      <div className="aui-user-message-content-wrapper relative col-start-2 flex min-w-0 justify-end">
-        <div
-          ref={contentRef}
-          className="aui-user-message-content peer text-ink py-1 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
-        >
-          <MessagePrimitive.Parts
-            components={{ Text: DirectiveText, File: UserFilePart, Image: UserImagePart }}
-          />
+      <span
+        aria-hidden
+        className="bg-action text-ink flex size-8 items-center justify-center rounded-full text-sm font-medium"
+      >
+        {tenant?.charAt(0).toUpperCase()}
+      </span>
+      <div className="min-w-0">
+        <div className={MESSAGE_SPEAKER}>
+          You
+          <div className="aui-user-action-bar-wrapper">
+            <UserActionBar />
+          </div>
         </div>
-        <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
-          <UserActionBar />
+        <UserMessageAttachments />
+        <div className="aui-user-message-content-wrapper px-2">
+          <div
+            ref={contentRef}
+            className="aui-user-message-content text-ink leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
+          >
+            <MessagePrimitive.Parts
+              components={{
+                File: UserFilePart,
+                Image: UserImagePart,
+                Text: UserTextPart,
+              }}
+            />
+          </div>
         </div>
+        <BranchPicker data-slot="aui_user-branch-picker" className="px-1" />
       </div>
-
-      <BranchPicker
-        data-slot="aui_user-branch-picker"
-        className="col-span-full col-start-1 -me-1 justify-end"
-      />
     </MessagePrimitive.Root>
+  );
+};
+
+/** A review's answer has a card naming the review, so the line telling the agent which one stays out of view. */
+const UserTextPart: TextMessagePartComponent = (part) => {
+  const answered = useAuiState((s) =>
+    s.message.parts.some(
+      (part) => part.type === "data" && part.name === "theorem-review_answer",
+    ),
+  );
+  return (
+    <DirectiveText
+      {...part}
+      text={answered ? answerBody(part.text) : part.text}
+    />
   );
 };
 

@@ -18,7 +18,7 @@ export type TerminalTab = { id: string; title: string; threadId?: string }
 export type SideDrawer = 'terminal'
 
 /** The context panel's working range in px; it opens at the default. */
-export const PANEL_WIDTH = { min: 184, default: 224, max: 296 } as const
+export const PANEL_WIDTH = { min: 240, default: 354, max: 420 } as const
 
 type ShellState = {
   /** Project whose threads the sidebar lists. Falls back to the first project. */
@@ -43,6 +43,8 @@ type ShellState = {
   chatThreadId: string | undefined
   /** Whether the chat panel's file explorer is expanded. */
   explorerOpen: boolean
+  /** Which quick views and projects a person opened or closed in the sidebar. */
+  organizeOpen: Readonly<Record<string, boolean>>
   /** Whether the agent terminal drawer is up. Not persisted. */
   terminalOpen: boolean
   /** The bottom drawer's snap point: its height as a share of the window. */
@@ -67,6 +69,7 @@ type ShellState = {
   setFilesShown: (shown: boolean) => void
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
+  setOrganizeOpen: (key: string, open: boolean) => void
   setTerminalOpen: (open: boolean) => void
   setTerminalHeight: (height: number) => void
   setTerminalThread: (projectId: string, threadId: string | undefined) => void
@@ -97,7 +100,8 @@ export const useShell = create<ShellState>()(
       panelCollapsed: {},
       filesShown: false,
       chatThreadId: undefined,
-      explorerOpen: true,
+      explorerOpen: false,
+      organizeOpen: {},
       terminalOpen: false,
       terminalHeight: 0.46,
       terminalThreads: {},
@@ -123,6 +127,8 @@ export const useShell = create<ShellState>()(
       setFilesShown: (filesShown) => set({ filesShown }),
       setChatThreadId: (chatThreadId) => set({ chatThreadId }),
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
+      setOrganizeOpen: (key, open) =>
+        set((s) => ({ organizeOpen: { ...s.organizeOpen, [key]: open } })),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
       setTerminalHeight: (terminalHeight) => set({ terminalHeight }),
       setTerminalThread: (projectId, threadId) =>
@@ -204,14 +210,18 @@ export const useShell = create<ShellState>()(
       // sits beside the dock, so older layouts are dropped rather than restored
       // with a panel the dock no longer has. Version 3 narrowed the panel's
       // range, so widths saved against the wider one start over at the default.
-      // Version 3 kept filesShown, which now lasts only for the visit.
-      version: 4,
+      // Version 3 kept filesShown, which now lasts only for the visit. Version 4
+      // (on main) dropped it; version 4 (on the canvas branch) widened the panel
+      // for the project tree and folded the files away. Version 5 does both for
+      // whichever version 4 a layout was saved under.
+      version: 5,
       partialize: ({
         projectId,
         layouts,
         panelWidth,
         panelCollapsed,
         explorerOpen,
+        organizeOpen,
         terminalHeight,
         sideWidth,
         terminalThreads,
@@ -223,6 +233,7 @@ export const useShell = create<ShellState>()(
         panelWidth,
         panelCollapsed,
         explorerOpen,
+        organizeOpen,
         terminalHeight,
         sideWidth,
         terminalThreads,
@@ -231,11 +242,13 @@ export const useShell = create<ShellState>()(
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined
-        if (version === 2 || version === 3) {
-          const { filesShown: _, ...kept } = state as ShellState
-          return version === 2
-            ? { ...kept, panelWidth: PANEL_WIDTH.default }
-            : kept
+        if (version >= 2 && version <= 4) {
+          const { filesShown: _, ...kept } = (state ?? {}) as ShellState
+          return {
+            ...kept,
+            panelWidth: PANEL_WIDTH.default,
+            explorerOpen: false,
+          }
         }
         return { projectId: state?.projectId, layouts: {} }
       },

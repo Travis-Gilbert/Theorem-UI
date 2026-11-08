@@ -437,7 +437,7 @@ test('existing New Chat rows get meaningful projected titles without revision wr
     text: 'Private',
   })
   inaccessibleTitles.add('title-inaccessible')
-  const adapter = createThreadListAdapter('project')
+  const adapter = createThreadListAdapter(() => 'project')
   const page = await adapter.list()
   expect(page.threads.map((thread) => thread.title)).toEqual([
     'Compare SQLite and PostgreSQL',
@@ -455,7 +455,7 @@ test.each(['New Chat', ''])(
   'automatic title generation is read-only for %j',
   async (title) => {
     titleThreads.set('title-stream', { title, revision: 1, text: '' })
-    const stream = await createThreadListAdapter('project').generateTitle(
+    const stream = await createThreadListAdapter(() => 'project').generateTitle(
       'title-stream',
       options('Plan a small notes app').messages,
     )
@@ -505,7 +505,7 @@ test('old title recovery bounds concurrent history reads', async () => {
     await new Promise<void>((resolve) => releases.push(resolve))
     active -= 1
   }
-  const pending = createThreadListAdapter('project').list()
+  const pending = createThreadListAdapter(() => 'project').list()
   await waitFor(() => titleReads.length === 4)
   expect(active).toBe(4)
   releases.splice(0).forEach((release) => release())

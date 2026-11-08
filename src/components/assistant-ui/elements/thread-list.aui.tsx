@@ -57,7 +57,7 @@ export const ThreadList: FC = () => {
 };
 
 /** Why the last fork or continuation did not start, until it is dismissed. */
-const ThreadFromFailure: FC = () => {
+export const ThreadFromFailure: FC = () => {
   const failure = useThreadFromFailure((s) => s.failure);
   const dismiss = useThreadFromFailure((s) => s.dismiss);
   if (!failure) return null;
@@ -640,7 +640,7 @@ export const ThreadListItem: FC = () => {
                   "size-1.5 rounded-full group-hover:hidden group-has-focus-visible:hidden group-has-data-[state=open]:hidden group-data-popup-open:hidden",
                   status === "running"
                     ? "bg-teal dark:bg-teal-ink animate-pulse"
-                    : "bg-ochre",
+                    : "bg-attention",
                 )}
               />
             )}
@@ -740,7 +740,7 @@ export const ThreadListItem: FC = () => {
   );
 };
 
-const ThreadBranchRow: FC<{
+export const ThreadBranchRow: FC<{
   threadId: string;
   branch: Theorem.Branch;
   /** Position among the thread's branches, counting the root as 1. */
@@ -772,7 +772,7 @@ const ThreadBranchRow: FC<{
  * The guide runs past every child and turns into the last one, at the middle
  * of its row so a nested thread's own children stay below the turn.
  */
-const TreeGuide: FC<{ isLast: boolean }> = ({ isLast }) => (
+export const TreeGuide: FC<{ isLast: boolean }> = ({ isLast }) => (
   <span
     aria-hidden="true"
     className={cn(
@@ -782,13 +782,13 @@ const TreeGuide: FC<{ isLast: boolean }> = ({ isLast }) => (
   />
 );
 
-const originLabel: Record<Theorem.ThreadOrigin["kind"], string> = {
+export const originLabel: Record<Theorem.ThreadOrigin["kind"], string> = {
   forked: "forked from another thread",
   continued: "continued from another thread",
 };
 
 /** Marks a thread that began as a fork or a continuation of another. */
-const OriginMark: FC<{ kind: Theorem.ThreadOrigin["kind"] }> = ({ kind }) => {
+export const OriginMark: FC<{ kind: Theorem.ThreadOrigin["kind"] }> = ({ kind }) => {
   const Mark = kind === "forked" ? Icon.Fork : Icon.Continue;
   return (
     <Mark

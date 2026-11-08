@@ -27,7 +27,6 @@ export function ArtifactKindIcon({
         : Icon.Article
   return <Glyph className={className} />
 }
-
 /** Canvas for one artifact: header actions, revision switcher, rendered body. */
 export function ArtifactPanel({
   artifactId,

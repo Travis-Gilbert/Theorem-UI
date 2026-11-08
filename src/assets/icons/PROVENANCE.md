@@ -360,6 +360,8 @@ owner's selections are.
 | `rail/noun-pages-8285393.svg` | `387d4d95fa53ed650caade86d4fe5f7c8f63c48e4966b14c8e37ab6b773001f9` | Not recorded | Subscription, as above | Never recorded here. Removed 2026-10-22 with the other Noun files nothing in Theorem UI imports. |
 | `tree/noun-file-8434068.svg` | `1e6655aa7a4755809bc860867e533dcce5a51cc73b45c476ad020beb5824f6be` | El Hikami / Noun Project, asset 8434068 | Subscription, as above | Drew the Projects tree's child rows. Removed 2026-10-22 with the other Noun files nothing in Theorem UI imports. |
 | `composer/noun-web-8223212.svg` | `3286f48751a00c75407f02c1691729a6980717825fb9fdbea4f0b3a9ac763372` | Dierys Design, web (8223212) | Subscription, as above | Drew Search until 2026-10-22; replaced by `streamline/streamline-cross-region-data-delivery-2.png`. |
+| `records/noun-add-8086054.svg` | `f21760efeeb1a5769100af2a85c7a922932c3bd1bfd1764f6e8bda9c57494cee` | Noun Project asset 8086054; creator as recorded above | Subscription, as above | Drew Add until 2026-11-05; replaced by Lucide Plus. |
+| `records/noun-file-8259863.svg` | `b254f092adcd62e50b828024ef216f30ae97a24b52857eb489a755977d30ab5d` | Noun Project asset 8259863; creator as recorded above | Subscription, as above | Drew File until 2026-11-05; replaced by `streamline/streamline-common-file-double.png`. |
 | `composer/noun-draft-8216278.svg` | `336d36918969f8504ace8d9677f677f5cfc519624e1e8be5ce273b64c0d5879f` | Jagat Kreasi / Noun Project, asset 8216278 | Subscription, as above | Drew Draft (the goal card) until 2026-11-06; replaced by `streamline/streamline-common-file-text-edit.png`. |
 | `records/noun-article-8259879.svg` | `a9dfb8e8dde770060cca7f135801c30a5b93ab028da23d7e66cf33e7d116300b` | article, Dierys Design (asset 8259879) | Subscription, as above | Drew Article (documents, notes, skills, the slash menu's Embed note) until 2026-11-06; replaced by `streamline/streamline-office-file-text.png`. |
 | `records/noun-layout-8176268.svg` | `75fd929a467cd32dad81c264f8185d70a516740c5b1b6911b847a7d646827990` | Layout, Dierys Design (asset 8176268) | Subscription, as above | Drew Layout (the sidebar toggle, Colors) until 2026-11-06; replaced by `streamline/streamline-browser-page-layout.png`. |
@@ -479,7 +481,7 @@ a paid plan does not.
 | Send | `streamline/streamline-send-email-1.png` | Send Email 1 | `f8f28286ecb00457a400fb6dfd2bc15d0c66c71f2fd4e58d37c0bc5b03e32d17` |
 | Share | `streamline/streamline-share-1.png` | Share 1 | `6dce180df4d355ff4a0597747ac74474aeadc7355ae08c0f312f0ec762586776` |
 | Web | `streamline/streamline-cross-region-data-delivery-2.png` | Amazon Web Service Cross Region Data Delivery 2 | `bf2af3fedbfe2ef27e2326eefa76bc188a32bd7b2f02fb483e1e412cc0fdaeb5` |
-| Diagram | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
+| Diagram, Canvas | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
 | Folder | `streamline/streamline-folder.png` | Folder | `f2c5c9fd0f6f8ad25bf7ef6c61879d89ad68211c06734c68bd4bdc613c8d926e` |
 | FolderOpen | `streamline/streamline-file-open.png` | File Open | `e62ed40466af24caa37dc1b970e9e24d3f76073ebc877701ddda7c8ecf6a637a` |
 | Artifact | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
@@ -510,22 +512,35 @@ renamed the same way.
 | Plan | `streamline/streamline-ui-webpage-bullets.png` | Ui Webpage Bullets | `b2672570fdbe15028a0f18287e63ac33dd6e2f5a8ae303557f0d496cc1d15d2d` |
 | TheoremVault | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
 
-Eight more came on 2026-11-06 from the owner's downloads
-"streamline-ultimate-light-notes.zip", "graph_and_layout.zip",
-"streamline-ultimate-light.zip" and
-"streamline-ultimate-light--graphs_and_git.zip", copied and renamed the same
-way. Three replace Noun marks and four replace Lucide stand-ins; Delegate is
-new and marks a delegated run's card, which borrowed Code before.
+Twenty more came from the owner's downloads of 2026-11-05,
+"streamline-ultimate-light--graphs and git.zip", "streamline-ultimate-light-notes.zip",
+"streamline-ultimate-light.zip" and "streamline-ultimate-light--48x48-PNG(16).zip",
+copied and renamed the same way. Common File Double and Pencil Write 2 were in
+those downloads too and are byte-identical to the files above.
 
 | Registry name | File | Streamline name | SHA-256 |
 |---|---|---|---|
+| Organize | `streamline/streamline-hierarchy-5-organize.png` | Hierarchy 5 Organize | `6ab526d41fd2dbba1cfc107ddcad2e233653ccde15a7491f10fcf6aa679c9bae` |
+| compound node kind | `streamline/streamline-hierarchy-6.png` | Hierarchy 6 | `9813ab25dbd8fb36c9877e8be6a99100242b9e3138be0deb164241b92b8328bc` |
+| Graph | `streamline/streamline-astronomy-constellation.png` | Astronomy Constellation | `f3052892c7d375a4cd5d5cc3ed7a9aab301adef981e258dc8cfc13053794d83b` |
+| Fork | `streamline/streamline-workflow-branch.png` | Workflow Branch | `0de93aaa3827eaf1f17744817975f82cf0d16ffe9c0814e781c2b18b0a4d529f` |
+| Proposal | `streamline/streamline-workflow-pull-request.png` | Workflow Pull Request | `df6abce092d33f5726bda4015a33db49e95087161716610b96136b38bb6d1f01` |
 | Draft | `streamline/streamline-common-file-text-edit.png` | Common File Text Edit | `29e8a30b59d9542763f7a37ca7ea0560402890f2c8e97d536ee38f1ffbcc9b00` |
 | Article | `streamline/streamline-office-file-text.png` | Office File Text | `fedbb8d674c68477946e8ed9f5d551c8857366306303dfe1db0904c79378906f` |
-| Layout | `streamline/streamline-browser-page-layout.png` | Browser Page Layout | `7dccfde413cb043f8d0ff7e1745a657afb5e9e813b96d3edd430d7e7ed76425a` |
-| Fork | `streamline/streamline-workflow-branch.png` | Workflow Branch | `0de93aaa3827eaf1f17744817975f82cf0d16ffe9c0814e781c2b18b0a4d529f` |
-| Graph | `streamline/streamline-astronomy-constellation.png` | Astronomy Constellation | `f3052892c7d375a4cd5d5cc3ed7a9aab301adef981e258dc8cfc13053794d83b` |
-| Outline | `streamline/streamline-hierarchy-2.png` | Hierarchy 2 | `39089aabb50f744069c7cae7ed01f1c915fbb594561584453ef2d2c617520f4e` |
+| Note | `streamline/streamline-pencil-write-1.png` | Pencil Write 1 | `efcdfbb43332464cae8e66bb92c9fdfd98c2bf3ab734ac7f268acbee1fe1bde3` |
 | Agent | `streamline/streamline-ai-file-robot.png` | Ai File Robot | `4526790a1bff823de8c9e32d1ce60c1190b370a6f6360751ec1a275fb98329aa` |
+| Skill, stochastic node kind | `streamline/streamline-ai-science-spark.png` | Ai Science Spark | `ab6c4ffcecdb3329cf714d923cbc7b2f1394217e506a677d7720e2c071af8bfb` |
+| Sink, sink node kind | `streamline/streamline-travel-paper-plane.png` | Travel Paper Plane | `a38d362623d1a982edb9b1bc37b5abf36db941a95cc4f85f38fc12f15ec270ac` |
+| Panels | `streamline/streamline-browser-page-layout.png` (from "graph and layout.zip") | Browser Page Layout | `7dccfde413cb043f8d0ff7e1745a657afb5e9e813b96d3edd430d7e7ed76425a` |
+| Follow | `streamline/streamline-agent-software-cursor-bot-2.png` | Agent Software Cursor Bot 2 | `1b8d517f16c6fa3c97715a4c15450d3e42f8173d4730dfc3815e9a9a46c7788a` |
+| AddNode | `streamline/streamline-hierarchy-5.png` | Hierarchy 5 | `4fd570f8b7aeae87fb02840c8bdd4c868e5f990813ac934c7bd9b5c10ca02053` |
+| NewGraph | `streamline/streamline-design-file-select.png` | Design File Select | `2d59eeb844b160ffc211c87bb773531224e10614856dc315d4a5114634243659` |
+| Outline | `streamline/streamline-hierarchy-2.png` | Hierarchy 2 | `39089aabb50f744069c7cae7ed01f1c915fbb594561584453ef2d2c617520f4e` |
+| Model | `streamline/streamline-ai-generate-variation-robot.png` | Ai Generate Variation Robot | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
+| Mail | `streamline/streamline-paginate-filter-mail.png` | Paginate Filter Mail | `bf97bc644288a2bf074560d3586bd74df90ca92b88aac30d7519a325c8e02cbb` |
+| Reject | `streamline/streamline-workflow-request-closed.png` | Workflow Request Closed | `5a70587c8f65d678f39597a21419bf8460a1a49ba11d689b9ce6c69e346b7917` |
+| Route | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
+| Layout | `streamline/streamline-browser-page-layout.png` | Browser Page Layout | `7dccfde413cb043f8d0ff7e1745a657afb5e9e813b96d3edd430d7e7ed76425a` |
 | Delegate | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
 
 One more came on 2026-11-06 as a PNG the owner attached in conversation (48 x
@@ -540,7 +555,26 @@ Penrose triangle stood in before.
 |---|---|---|---|
 | Theorem | `streamline/streamline-ai-robot-generate-variation.png` | Ai Robot Generate Variation (by shape) | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
 
-A skill has no owned mark yet: Lucide's GraduationCap stands in, as Lucide's
-trash does for Delete, and Lucide's BellOff for muting a link suggestion.
+The rest of those downloads is kept in `streamline/library/`. Nothing imports
+those files, so they do not ship; they are there to reach for. Dzone Logo and
+Tripit Logo draw real companies' marks, so check before using either as an
+interface glyph. Share is a different drawing from the Share 1 the registry uses.
+
+| File | Streamline name | SHA-256 |
+|---|---|---|
+| `streamline/library/streamline-hierarchy-9.png` | Hierarchy 9 | `c368623653bd006579eb8a7e2e15fbeb65a12e8829a09d30aea18ddecb842517` |
+| `streamline/library/streamline-dzone-logo.png` | Dzone Logo | `71012ba44e63309339d57d40ab6fb2bff508da391739f5cac2033b1122b6b709` |
+| `streamline/library/streamline-hierarchy-files.png` | Hierarchy Files | `26d15f7cffd146df723d2e5a02dfa886aa13b9eff3ee28de9e7acc26669624b6` |
+| `streamline/library/streamline-rotate-3d.png` | Rotate 3d | `e655ce10aeb6e81d0b36846a6ffe5ebce175beef521141237e8c498cae8c3119` |
+| `streamline/library/streamline-scale-3d.png` | Scale 3d | `1123f94ff8bf46dad98d151e6a40e96234841f841444077ad302f09ccf95de2f` |
+| `streamline/library/streamline-share.png` | Share | `ff7948a797a0e3bcf074c9e66cfdbd29f15e4bf928675c4429edc27a7ea1bb0b` |
+| `streamline/library/streamline-tripit-logo.png` | Tripit Logo | `ef8a4fc89fdcf6bd93ac46fb5fd3de6b4f89f27ed7374b30ef8b09cc3d65bebd` |
+| `streamline/library/streamline-workflow-exit-door.png` | Workflow Exit Door | `bad924ee9a0e88036e14e49add8dc7cc78885f71a97ea0d66b0417e2c0d2d227` |
+| `streamline/library/streamline-workflow-request-draft.png` | Workflow Request Draft | `c3b14b30f117989226f49c29e7d154cbb28a9679470ff5b28bb5df22e1807ea0` |
+| `streamline/library/streamline-ai-folder-spark.png` | Ai Folder Spark | `ae9fcb01649b48af25b34cec8cfc1623e9419179ddcd91b0bacab1f6a428459e` |
+
+None of those downloads draws a plus, so Lucide's stands in for Add, as Lucide's
+trash does for Delete and Lucide's BellOff for muting a link suggestion. File
+reuses Common File Double.
 
 The files they replace in the registry are listed under Retired.

@@ -95,7 +95,7 @@ index 1953a5a476432c8a5927a8801f3a9f870083ed87..df89491c0fc1b42c2d91a289a54a73d8
          }
          run = turn.run;
          const record = "message" in turn.record ? turn.record.message : turn.record;
-diff --git a/dist/background-send-retry.cjs b/dist/background-send-retry.cjs
+diff --git a/node_modules/@theoremharness/sdk/dist/background-send-retry.cjs b/dist/background-send-retry.cjs
 new file mode 100644
 index 0000000000000000000000000000000000000000..e598bb648c194d86cc79b6286a905e8a535e0286
 --- /dev/null

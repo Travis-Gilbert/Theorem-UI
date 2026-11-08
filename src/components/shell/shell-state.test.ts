@@ -20,3 +20,17 @@ test('a reload opens the panel on its own list, not the files', async () => {
   expect(saved.state.filesShown).toBeUndefined()
   localStorage.removeItem('theorem-ui:shell')
 })
+
+test('a layout saved under either version 4 takes the wider panel and folds the files', async () => {
+  localStorage.setItem(
+    'theorem-ui:shell',
+    JSON.stringify({
+      state: { panelWidth: 200, explorerOpen: true },
+      version: 4,
+    }),
+  )
+  await useShell.persist.rehydrate()
+  expect(useShell.getState().explorerOpen).toBe(false)
+  expect(useShell.getState().panelWidth).not.toBe(200)
+  localStorage.removeItem('theorem-ui:shell')
+})

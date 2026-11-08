@@ -1,6 +1,6 @@
 // SOURCING: bun:test over reportUnsaved, with a stand-in host that records
 // the edited mark and delivers host events.
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { useUnsavedFiles } from '@/lib/handlers/file-sync'
 import { newPage } from '@/lib/modules/layout'
 import { usePageDrafts } from '@/lib/modules/drafts'
@@ -24,11 +24,16 @@ function standInHost() {
 
 describe('reportUnsaved', () => {
   let stop = () => {}
-  afterEach(() => {
-    stop()
+  // Other files' editors can leave a note or a draft behind in these stores.
+  const clear = () => {
     useNoteStatus.setState({ status: {} })
     useUnsavedFiles.setState({ unsaved: false })
     usePageDrafts.setState({ drafts: {} })
+  }
+  beforeEach(clear)
+  afterEach(() => {
+    stop()
+    clear()
   })
 
   test('marks the window while a note is not saved', () => {

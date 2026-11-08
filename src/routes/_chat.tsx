@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link, the ⌘K palette and the model preferences sync mounted with the shell
+// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link, the ⌘K palette and the model preferences sync mounted with the shell, lib/theorem/organization for the project a thread belongs to
 import {
   createFileRoute,
   Outlet,
@@ -12,6 +12,7 @@ import { useShellMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError, isSignedOut } from '@/lib/theorem/client'
+import { primaryProjectId, useOrganization } from '@/lib/theorem/organization'
 import { PreferencesSync } from '@/lib/theorem/models'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 
@@ -35,6 +36,16 @@ function ChatLayout() {
   useEffect(() => {
     if (mode === 'chat') useShell.getState().setChatThreadId(threadId)
   }, [mode, threadId])
+
+  // A thread opens in the project it belongs to, wherever it was reached from.
+  const { data: organization } = useOrganization()
+  const openThread = organization?.threads.find(
+    (thread) => thread.threadId === openThreadId,
+  )
+  const homeOfThread = openThread && primaryProjectId(openThread)
+  useEffect(() => {
+    if (homeOfThread) useShell.getState().setProjectId(homeOfThread)
+  }, [openThreadId, homeOfThread])
 
   // Outside chat the mode stays on screen and only the conversation behind it moves.
   const onThreadIdChange = useCallback(
@@ -68,7 +79,6 @@ function ChatLayout() {
 
   return (
     <TheoremRuntimeProvider
-      key={project.projectId}
       projectId={project.projectId}
       threadId={openThreadId}
       onThreadIdChange={onThreadIdChange}

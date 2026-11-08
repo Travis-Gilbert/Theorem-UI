@@ -71,6 +71,8 @@ interface Mode {
   tiers: Record<Tier, { l: number; c: number }>
   /** The family whose ink links are drawn in. */
   link: Family
+  /** What wants a person: warmer than ochre, which is the warning family. */
+  attention: { strong: { l: number; c: number }; ink: { l: number; c: number } }
 }
 
 /** Hover and pressed sit one or two of these from their strong colour. */
@@ -113,13 +115,13 @@ const githubNeutrals = {
     'surface-rail': 0.084,
     'sheet-from': 0.178,
     'sheet-to': 0.119,
-    'ink-faint-top': 0.606,
-    'ink-faint-bottom': 0.564,
-    ink: 0.796,
-    'ink-muted': 0.674,
-    'ink-faint': 0.564,
-    'line-control': 0.301,
-    'line-separator': 0.195,
+    'ink-faint-top': 0.64,
+    'ink-faint-bottom': 0.6,
+    ink: 0.94,
+    'ink-muted': 0.8,
+    'ink-faint': 0.62,
+    'line-control': 0.33,
+    'line-separator': 0.235,
     'on-redwood': 0.078,
     'graph-note': 0.809,
     'graph-unresolved': 0.401,
@@ -131,6 +133,7 @@ const githubNeutrals = {
 /** GitHub Sharp's cool grey and Stone's warm one. */
 const GITHUB_HUE = 250
 const STONE_HUE = 70
+const ATTENTION_HUE = 75
 
 const modes: Array<Mode & { hue: number }> = [
   {
@@ -149,6 +152,7 @@ const modes: Array<Mode & { hue: number }> = [
       focus: { l: 0.558, c: 0.123 },
     },
     link: 'redwood',
+    attention: { strong: { l: 0.62, c: 0.145 }, ink: { l: 0.47, c: 0.105 } },
   },
   {
     selector: '.dark',
@@ -166,6 +170,7 @@ const modes: Array<Mode & { hue: number }> = [
       focus: { l: 0.558, c: 0.123 },
     },
     link: 'redwood',
+    attention: { strong: { l: 0.8, c: 0.14 }, ink: { l: 0.86, c: 0.105 } },
   },
   {
     selector: "[data-palette='stone']",
@@ -205,6 +210,7 @@ const modes: Array<Mode & { hue: number }> = [
       focus: { l: 0.395, c: 0.063 },
     },
     link: 'teal',
+    attention: { strong: { l: 0.56, c: 0.125 }, ink: { l: 0.4, c: 0.09 } },
   },
   {
     selector: ".dark[data-palette='stone']",
@@ -225,8 +231,8 @@ const modes: Array<Mode & { hue: number }> = [
       'sheet-to': 0.099,
       'ink-faint-top': 0.582,
       'ink-faint-bottom': 0.536,
-      ink: 0.82,
-      'ink-muted': 0.616,
+      ink: 0.9,
+      'ink-muted': 0.72,
       'ink-faint': 0.512,
       'line-control': 0.251,
       'line-separator': 0.208,
@@ -246,6 +252,7 @@ const modes: Array<Mode & { hue: number }> = [
       focus: { l: 0.666, c: 0.095 },
     },
     link: 'teal',
+    attention: { strong: { l: 0.8, c: 0.13 }, ink: { l: 0.86, c: 0.1 } },
   },
 ]
 
@@ -328,6 +335,17 @@ export function modeTokens(mode: Mode & { hue: number }) {
     c: Math.min(focus.c, maxChroma(focus.l, mode.hues.focus)),
     h: mode.hues.focus,
   })
+
+  for (const [name, { l, c }] of [
+    ['attention', mode.attention.strong],
+    ['attention-ink', mode.attention.ink],
+  ] as const)
+    tokens[name] = hex({
+      mode: 'oklch',
+      l,
+      c: Math.min(c, maxChroma(l, ATTENTION_HUE)),
+      h: ATTENTION_HUE,
+    })
 
   const graph = mode.tiers.graph
   const graphChroma = tierChroma(graph.l, graph.c, Object.values(graphHues))

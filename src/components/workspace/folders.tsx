@@ -1,4 +1,4 @@
-// SOURCING: Base UI Collapsible (each folder folds, its row marked as the
+// SOURCING: coss ui Sidebar (the section's group parts), Base UI Collapsible (each folder folds, its row marked as the
 // tree's rows are, by the filesystem-item component) and Menu (a folder's own
 // commands, styled as the project switcher's), the assistant-ui
 // TooltipIconButton (Search, Open folder), WorkspaceTree (@headless-tree/react),
@@ -8,8 +8,12 @@ import { Collapsible } from '@base-ui/react/collapsible'
 import { Menu } from '@base-ui/react/menu'
 import { useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+} from '@/components/coss/sidebar'
 import { Icon } from '@/components/icons'
-import { useSessionState } from '@/components/shell/projects'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { FilesystemMarks } from '@/components/ui/filesystem-item'
@@ -34,6 +38,8 @@ import {
   makeEntry,
 } from './workspace-tree'
 
+import { useSessionState } from '@/components/shell/projects'
+
 function WorkspaceSection({
   workspace,
   name = workspace.name,
@@ -56,7 +62,7 @@ function WorkspaceSection({
       <div className="group/title relative flex items-center">
         <Collapsible.Trigger
           title={workspace.path || undefined}
-          className="flex h-8 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-base font-medium transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+          className="flex h-8 w-full items-center gap-1.5 rounded-md ps-2 pe-8 text-start text-sm transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
         >
           <FilesystemMarks
             folder
@@ -65,7 +71,7 @@ function WorkspaceSection({
               client.theorem && (
                 <Icon.TheoremVault
                   aria-hidden="true"
-                  className="size-6 shrink-0 text-ink-muted"
+                  className="size-4 shrink-0 text-ink-muted"
                 />
               )
             }
@@ -180,7 +186,6 @@ export function homeAbsence({
   if (isPending) return 'loading'
   return signIn && signedOut ? 'signed-out' : null
 }
-
 /** Home while there is no Theorem vault to show. */
 function HomeAbsent({ absence }: { absence: 'loading' | 'signed-out' }) {
   if (absence === 'loading')
@@ -207,26 +212,20 @@ function HomeAbsent({ absence }: { absence: 'loading' | 'signed-out' }) {
 export function FoldersSection({ fill = false }: { fill?: boolean }) {
   const { available, workspaces } = useWorkspaces()
   const openFolder = useOpenFolder()
-  const home = workspaces.find(isTheoremWorkspace)
-  const device = workspaces.filter((workspace) => workspace !== home)
-  const session = useSessionState()
-  const absence = homeAbsence({
-    isPending: useWorkspaces().isPending || session.isPending,
-    signIn: useSignInConfigured(),
-    signedOut: session.signedOut,
-  })
   if (!fill && (!available || (!workspaces.length && !openFolder))) return null
 
   return (
-    <section
+    <SidebarGroup
       aria-label="Files"
       className={cn(
-        'flex min-h-0 flex-col',
+        'min-h-0',
         fill ? 'flex-1' : 'max-h-[50%] shrink-0 border-t border-separator',
       )}
     >
-      <div className="flex h-10 shrink-0 items-center ps-3.5 pe-2 text-sm font-medium text-ink-faint-sheet">
-        <h2 className="flex-1">Files</h2>
+      <div className="flex shrink-0 items-center">
+        <SidebarGroupLabel render={<h2 />} className="min-w-0 flex-1">
+          Files
+        </SidebarGroupLabel>
         {workspaces.length > 0 && (
           <TooltipIconButton
             tooltip="Search"
@@ -237,47 +236,67 @@ export function FoldersSection({ fill = false }: { fill?: boolean }) {
           </TooltipIconButton>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {home ? (
+      <SidebarGroupContent className="min-h-0 flex-1 overflow-y-auto">
+        <FolderTrees fill={fill} />
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
+}
+
+/** Home, then the folders on this device, with no heading of their own. */
+export function FolderTrees({ fill = false }: { fill?: boolean }) {
+  const { workspaces } = useWorkspaces()
+  const openFolder = useOpenFolder()
+  const home = workspaces.find(isTheoremWorkspace)
+  const device = workspaces.filter((workspace) => workspace !== home)
+  const session = useSessionState()
+  const absence = homeAbsence({
+    isPending: useWorkspaces().isPending || session.isPending,
+    signIn: useSignInConfigured(),
+    signedOut: session.signedOut,
+  })
+
+  return (
+    <>
+      {home ? (
+        <section aria-label="Home">
+          <WorkspaceSection workspace={home} name="Home" />
+        </section>
+      ) : (
+        fill &&
+        absence && (
           <section aria-label="Home">
-            <WorkspaceSection workspace={home} name="Home" />
+            <h3 className={groupLabel}>Home</h3>
+            <HomeAbsent absence={absence} />
           </section>
-        ) : (
-          fill &&
-          absence && (
-            <section aria-label="Home">
-              <h3 className={groupLabel}>Home</h3>
-              <HomeAbsent absence={absence} />
-            </section>
-          )
-        )}
-        {(device.length > 0 || openFolder) && (
-          <section aria-label="On this device" className="pt-2">
-            <div className={groupLabel}>
-              <h3 className="flex-1">On this device</h3>
-              {openFolder && (
-                <TooltipIconButton
-                  tooltip="Open folder"
-                  className="size-6 p-1"
-                  disabled={openFolder.isPending}
-                  onClick={() => openFolder.mutate()}
-                >
-                  <Icon.Add className="size-3.5" />
-                </TooltipIconButton>
-              )}
-            </div>
-            {device.length ? (
-              device.map((workspace) => (
-                <WorkspaceSection key={workspace.id} workspace={workspace} />
-              ))
-            ) : (
-              <p className="px-2 text-sm text-ink-faint-sheet">
-                Open a folder to work with its files here.
-              </p>
+        )
+      )}
+      {(device.length > 0 || openFolder) && (
+        <section aria-label="On this device" className="pt-2">
+          <div className={groupLabel}>
+            <h3 className="flex-1">On this device</h3>
+            {openFolder && (
+              <TooltipIconButton
+                tooltip="Open folder"
+                className="size-6 p-1"
+                disabled={openFolder.isPending}
+                onClick={() => openFolder.mutate()}
+              >
+                <Icon.Add className="size-3.5" />
+              </TooltipIconButton>
             )}
-          </section>
-        )}
-      </div>
-    </section>
+          </div>
+          {device.length ? (
+            device.map((workspace) => (
+              <WorkspaceSection key={workspace.id} workspace={workspace} />
+            ))
+          ) : (
+            <p className="px-2 text-sm text-ink-faint-sheet">
+              Open a folder to work with its files here.
+            </p>
+          )}
+        </section>
+      )}
+    </>
   )
 }

@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit), declares Kit's client operations on its sends and serves them
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit)
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -31,7 +31,7 @@ import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui
 import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useContext, useEffect, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
@@ -39,10 +39,8 @@ import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
 import { DRAFT_PLAN } from './plans'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
-import { KitStage } from '@/components/kit/kit-stage'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
-import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
 import { settleKitExpression, useKitClock, useKitSource } from '@/lib/kit/store'
 import {
   describeError,
@@ -58,11 +56,15 @@ import {
   theorem,
 } from './client'
 import type { Theorem } from './client'
+import { chatAttachments, turnUploads } from './chat-attachments'
 import { RefusedSend } from './send-recovery'
 import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
+
+import { KitStage } from '@/components/kit/kit-stage'
+import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -166,14 +168,33 @@ function chatAdapterFor(
 async function alignWithDurableBranch(
   threadId: string,
   messages: ChatModelRunOptions['messages'],
-): Promise<ChatModelRunOptions['messages']> {
+): Promise<{
+  messages: ChatModelRunOptions['messages']
+  uploadIds: string[]
+}> {
   const user = messages.at(-1)
-  if (!user || user.role !== 'user') return messages
+  if (!user || user.role !== 'user') return { messages, uploadIds: [] }
   const { messages: durable } = await theorem().chat.threads.get({ threadId })
-  if (durable.some((message) => message.messageId === user.id)) return messages
   const slot = durable[messages.length - 1]
-  if (slot?.role !== 'user') return messages
-  return [...messages.slice(0, -1), { ...user, id: slot.messageId }]
+  const id = durable.some((message) => message.messageId === user.id)
+    ? user.id
+    : slot?.role === 'user'
+      ? slot.messageId
+      : user.id
+  // The SDK's adapter takes text turns; what they carry goes as upload ids.
+  const content = user.content.filter((part) => part.type === 'text')
+  const text = content.map((part) => part.text).join('\n')
+  return {
+    messages: [
+      ...messages.slice(0, -1),
+      { ...user, id, content, attachments: [] },
+    ],
+    uploadIds: turnUploads(
+      text,
+      user.attachments.map((attachment) => attachment.id),
+      durable.find((message) => message.messageId === id),
+    ),
+  }
 }
 
 function contentOf(parts: Map<string, Theorem.StoredPart>) {
@@ -317,6 +338,84 @@ const loadedForResume = new Map<
 >()
 
 /**
+ * The selected branch as Theorem has it, and the run to tail for what it does
+ * not hold yet: a live one, or a failed one that left its turn with no reply,
+ * whose failure is only in its events.
+ */
+async function durableHistory(threadId: string) {
+  const snapshot = await theorem().chat.threads.get({ threadId })
+  const { lastRun, pendingTurn } = snapshot.thread
+  const unanswered = snapshot.messages.at(-1)?.role === 'user' && !pendingTurn
+  const runId =
+    snapshot.liveRun?.runId ??
+    (unanswered && lastRun?.outcome === 'failed' ? lastRun.runId : undefined)
+  // The tailed run's message is rebuilt from sequence zero, and an answer queued
+  // behind that run comes after it.
+  const settled = snapshot.messages.filter(
+    (message) =>
+      !(snapshot.liveRun && message.messageId === pendingTurn?.messageId) &&
+      (!runId || message.runId !== runId || message.role === 'user'),
+  )
+  return {
+    snapshot,
+    repository: ExportedMessageRepository.fromArray(
+      toHistoryMessages(settled, snapshot.thread),
+    ),
+    runId,
+    more: Boolean(snapshot.liveRun ?? pendingTurn),
+  }
+}
+
+const FOLLOW_INTERVAL_MS = 2_000
+const FOLLOW_LOOKS = 60
+
+/**
+ * Takes a turn written outside the composer into the open thread: a review's
+ * answer goes to its own route, which commits the message and starts the run.
+ * The message arrives now and the run streams. A turn queued behind a live run
+ * is picked up when that run ends; one waiting to start, when it starts.
+ */
+export function useFollowThread() {
+  const aui = useAui()
+  return async (threadId: string) => {
+    const isOpen = () => aui.threadListItem.getState().remoteId === threadId
+    const isRunning = () => aui.thread().getState().isRunning
+    let tailed: string | undefined
+    for (let look = 0; look < FOLLOW_LOOKS && isOpen(); look++) {
+      if (isRunning()) {
+        // On the state the next look reads: a run's end event comes before it.
+        await new Promise<void>((settle) => {
+          const stop = aui.subscribe(() => {
+            if (isOpen() && isRunning()) return
+            stop()
+            settle()
+          })
+        })
+        continue
+      }
+      const { repository, runId, more } = await durableHistory(threadId)
+      if (!isOpen() || isRunning()) continue
+      // A run's end reaches the page before the thread lets go of the run.
+      if (!runId || runId !== tailed) {
+        aui.thread().import(repository)
+        if (runId) {
+          tailed = runId
+          const head = repository.messages.at(-1)?.message.id ?? null
+          await aui.thread().resumeRun({
+            parentId: head,
+            sourceId: head,
+            stream: ({ abortSignal }) => resumeLiveRun(runId, abortSignal, threadId),
+          })
+          continue
+        }
+      }
+      if (!more) return
+      await new Promise((settle) => setTimeout(settle, FOLLOW_INTERVAL_MS))
+    }
+  }
+}
+
+/**
  * History for one durable thread: the selected branch from threads.get, with
  * a run that was live at load reattached by resume. `threadId` is read at load
  * time; undefined means a thread not created yet.
@@ -340,21 +439,10 @@ export function createHistoryAdapter(
           onRefused?.()
         }
       }
-      const snapshot = await theorem().chat.threads.get({
-        threadId: remoteId,
-      })
+      const { snapshot, repository, runId } = await durableHistory(remoteId)
       // The agent's manner lives on its identity, not the thread; the owner's
       // snapshot carries it so the figure opens as the agent last chose.
       settleKitExpression(snapshot.figureExpression)
-      const runId = snapshot.liveRun?.runId
-      // The live run's message is rebuilt by resume from sequence zero.
-      const settled = snapshot.messages.filter(
-        (message) =>
-          !runId || message.runId !== runId || message.role === 'user',
-      )
-      const repository = ExportedMessageRepository.fromArray(
-        toHistoryMessages(settled, snapshot.thread),
-      )
       if (!runId && !recoveryError) return repository
       loadedForResume.set(remoteId, { runId, recoveryError })
       return { ...repository, unstable_resume: true }
@@ -402,7 +490,18 @@ function useThreadAdapters() {
       ),
     [aui],
   )
-  return useMemo(() => ({ history }), [history])
+  const attachments = useMemo(
+    () =>
+      chatAttachments(async () => {
+        const { remoteId } = await aui.threadListItem.initialize()
+        const { thread } = await theorem().chat.threads.get({
+          threadId: remoteId,
+        })
+        return thread.projectId
+      }),
+    [aui],
+  )
+  return useMemo(() => ({ history, attachments }), [history, attachments])
 }
 
 /**
@@ -428,7 +527,10 @@ export async function* runTurn(
   }
   runFailures.delete(threadId)
   await titleUntitledThread(threadId, options.messages)
-  const messages = await alignWithDurableBranch(threadId, options.messages)
+  const { messages, uploadIds } = await alignWithDurableBranch(
+    threadId,
+    options.messages,
+  )
   // The adapter retains SDK message identity across runs; model and surface
   // options belong to this invocation, even when another surface opened it.
   const custom = options.runConfig.custom ?? {}
@@ -443,6 +545,7 @@ export async function* runTurn(
         theoremTurnOptions: {
           ...turnOptions,
           ...(configured && typeof configured === 'object' ? configured : {}),
+          ...(uploadIds.length ? { uploadIds } : {}),
         },
       },
     },
@@ -560,12 +663,18 @@ function useTheoremThreadRuntime() {
   return runtime
 }
 
-export function createThreadListAdapter(projectId: string): RemoteThreadListAdapter {
+/**
+ * Threads open from any project, so the runtime stays up across projects and
+ * asks for the active one when it lists or creates.
+ */
+export function createThreadListAdapter(
+  activeProject: () => string,
+): RemoteThreadListAdapter {
   const client = theorem()
   return {
     async list(params) {
       const page = await client.chat.threads.list({
-        projectId,
+        projectId: activeProject(),
         cursor: params?.after,
         includeArchived: true,
         limit: 50,
@@ -599,7 +708,7 @@ export function createThreadListAdapter(projectId: string): RemoteThreadListAdap
     },
     async initialize() {
       const created = await mutate((headers) =>
-        client.chat.threads.create({ projectId, ...headers }),
+        client.chat.threads.create({ projectId: activeProject(), ...headers }),
       )
       return { remoteId: created.record.threadId }
     },
@@ -658,7 +767,16 @@ export function TheoremRuntimeProvider({
   onThreadIdChange: (threadId: string | undefined) => void
   children: ReactNode
 }) {
-  const adapter = useMemo(() => createThreadListAdapter(projectId), [projectId])
+  const project = useRef(projectId)
+  useEffect(() => {
+    project.current = projectId
+  }, [projectId])
+  const adapter = useMemo(
+    // The adapter reads the ref when it's called, never during render.
+    // eslint-disable-next-line react-hooks/refs
+    () => createThreadListAdapter(() => project.current),
+    [],
+  )
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: useTheoremThreadRuntime,
     adapter,
