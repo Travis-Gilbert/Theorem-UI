@@ -93,7 +93,7 @@ check(
 )
 
 // The rows sit under section headings a size up and semibold, and the person
-// can rename a heading by clicking it.
+// can rename a heading by double-clicking it.
 const sections = () =>
   notesNav.locator('[data-slot="notes-section"]').allTextContents()
 check(
@@ -122,11 +122,11 @@ const RENAMED = `Loose pages ${MARK}`
 await notesNav
   .locator('[data-slot="notes-section"]')
   .getByRole('button', { name: 'Notes', exact: true })
-  .click()
+  .dblclick()
 await page.getByLabel('Section name').fill(RENAMED)
 await page.keyboard.press('Enter')
 check(
-  'clicking a heading renames it',
+  'double-clicking a heading renames it',
   (await sections()).includes(RENAMED),
   JSON.stringify(await sections()),
 )
@@ -287,7 +287,11 @@ await page.getByLabel('Search notes').blur()
 // Sort lists the notes by last edit, creation or title, and keeps the choice.
 const looseTitles = () =>
   notesNav.evaluate((nav) =>
-    [...nav.querySelectorAll(':scope > div > ul > li button')].map((b) =>
+    [
+      ...nav.querySelectorAll(
+        'section[data-section-id="notes"] > div > ul > li button',
+      ),
+    ].map((b) =>
       b.textContent.replace(/\s*\((saving|not saved)\)$/, '').trim(),
     ),
   )
@@ -331,16 +335,119 @@ check(
   'and so is the name given to a heading',
   (await sections()).includes(RENAMED),
 )
-await notesNav
-  .locator('[data-slot="notes-section"]')
-  .getByRole('button', { name: RENAMED })
-  .click()
+const sectionHeading = (name) =>
+  notesNav
+    .locator('[data-slot="notes-section"]')
+    .getByRole('button', { name, exact: true })
+const menuOn = async (name, item) => {
+  await sectionHeading(name).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: item, exact: true }).click()
+}
+await menuOn(RENAMED, 'Rename section')
 await page.getByLabel('Section name').fill('')
 await page.keyboard.press('Enter')
 check(
-  'an emptied heading takes its own name back',
+  'an emptied name keeps the one the section had',
+  (await sections()).includes(RENAMED),
+  JSON.stringify(await sections()),
+)
+await menuOn(RENAMED, 'Rename section')
+await page.getByLabel('Section name').fill('Notes')
+await page.keyboard.press('Enter')
+check(
+  'Rename section in the right-click menu renames it',
   (await sections()).includes('Notes'),
   JSON.stringify(await sections()),
+)
+
+// Sections are the person's own: made from the right-click menu, filled by
+// dragging, folded away, moved, and deleted without losing a note. Earlier
+// runs leave many folders and notes behind, so Folders is folded first and
+// the new section made under it, where both stay in view.
+const until = async (test) => {
+  const by = Date.now() + 30_000
+  while (!(await test()) && Date.now() < by) await page.waitForTimeout(500)
+  return test()
+}
+const dragOnto = async (what, where) => {
+  const from = await what.boundingBox()
+  const to = await where.boundingBox()
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(
+    from.x + from.width / 2,
+    from.y + from.height / 2 + 12,
+    {
+      steps: 4,
+    },
+  )
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
+    steps: 12,
+  })
+  await page.mouse.up()
+}
+const READING = `Reading ${MARK}`
+await sectionHeading('Folders').click()
+await menuOn('Folders', 'New section')
+await page.getByLabel('Section name').fill(READING)
+await page.keyboard.press('Enter')
+const order0 = await sections()
+check(
+  'New section makes a section after the one right-clicked',
+  order0.indexOf(READING) === order0.indexOf('Folders') + 1,
+  JSON.stringify(order0),
+)
+// A locator inside has: is read from the section, so it names the heading alone.
+const reading = notesNav.locator('section', {
+  has: page.getByRole('button', { name: READING, exact: true }),
+})
+await dragOnto(
+  notesNav.getByRole('button', { name: TITLE }),
+  sectionHeading(READING),
+)
+check(
+  'a note dragged onto a section sits in it',
+  await until(
+    async () =>
+      (await reading.getByRole('button', { name: TITLE }).count()) === 1,
+  ),
+)
+await sectionHeading(READING).click()
+check(
+  'clicking a heading folds its rows away',
+  (await reading.getByRole('button', { name: TITLE }).count()) === 0 &&
+    (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
+)
+await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
+await sectionHeading(READING).waitFor(READ)
+check(
+  'the section, its note and its folding are kept after a reload',
+  (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
+)
+await sectionHeading(READING).click()
+await reading.getByRole('button', { name: TITLE }).waitFor(READ)
+check('clicking it again opens it on the note', true)
+await dragOnto(sectionHeading(READING), sectionHeading('Folders'))
+check(
+  'a section dragged by its heading moves to that place',
+  await until(async () => (await sections())[0] === READING),
+  JSON.stringify(await sections()),
+)
+await shot('sections')
+await menuOn(READING, 'Delete section')
+check(
+  'deleting a section puts its note back under Notes',
+  !(await sections()).includes(READING) &&
+    (await notesNav
+      .locator('section[data-section-id="notes"]')
+      .getByRole('button', { name: TITLE })
+      .count()) === 1,
+  JSON.stringify(await sections()),
+)
+await sectionHeading('Folders').click()
+check(
+  'Folders opens again',
+  (await sectionHeading('Folders').getAttribute('aria-expanded')) === 'true',
 )
 
 // A folder is a Theorem collection: the plus folder button makes one, a note
@@ -355,11 +462,6 @@ const collections = async () => {
 const holding = async (name) =>
   (await collections()).find((collection) => collection.name === name)
     ?.documentIds ?? []
-const until = async (test) => {
-  const by = Date.now() + 30_000
-  while (!(await test()) && Date.now() < by) await page.waitForTimeout(500)
-  return test()
-}
 const FOLDER = `Field trips ${MARK}`
 await page.getByRole('button', { name: 'New folder' }).click()
 await page.getByLabel('Folder name').fill(FOLDER)
@@ -375,15 +477,7 @@ check(
   ),
 )
 const noteRow = notesNav.getByRole('button', { name: TITLE })
-const from = await noteRow.boundingBox()
-const to = await folderRow.boundingBox()
-await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
-await page.mouse.down()
-await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 12, {
-  steps: 4,
-})
-await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 })
-await page.mouse.up()
+await dragOnto(noteRow, folderRow)
 check(
   'a note dragged onto the folder moves into it',
   await until(async () => (await holding(FOLDER)).includes(documentId)),
