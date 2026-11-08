@@ -8,6 +8,8 @@
 import '../../src/browser/style/stone.css';
 
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
+import { Agent } from '@theia/ai-core/lib/common';
+import { ChatAgent } from '@theia/ai-chat/lib/common';
 import { FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
 import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
@@ -21,7 +23,9 @@ import { TerminalWidget } from '@theia/terminal/lib/browser/base/terminal-widget
 import { TerminalFrontendContribution } from '@theia/terminal/lib/browser/terminal-frontend-contribution';
 import { UserStorageContribution } from '@theia/userstorage/lib/browser/user-storage-contribution';
 import { WorkspaceServer } from '@theia/workspace/lib/common';
+import { TheoremChatAgent } from './theorem-chat';
 import { TheoremConnection } from './theorem-connection';
+import { TheoremDelegations } from './theorem-delegations';
 import { TheoremDiagnostics } from './theorem-diagnostics';
 import { TheoremEditorModelFactory } from './theorem-editor-model';
 import { TheoremIdeBridge } from './theorem-ide-bridge';
@@ -46,6 +50,9 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     bind(FileServiceContribution).toService(TheiaUserStorageProviderContribution);
     bindOrRebind(UserStorageContribution).to(TheoremUserStorageContribution).inSingletonScope();
 
+    bind(TheoremDelegations).toSelf().inSingletonScope();
+    bind(FileServiceContribution).toService(TheoremDelegations);
+
     bind(TheoremWorkspaceServer).toSelf().inSingletonScope();
     bindOrRebind(WorkspaceServer).toService(TheoremWorkspaceServer);
 
@@ -58,6 +65,11 @@ export default new ContainerModule((bind, _unbind, isBound, rebind) => {
     bind(TheoremIdeBridge).toSelf().inSingletonScope();
     for (const contribution of [FrontendApplicationContribution, CommandContribution, MenuContribution, KeybindingContribution]) {
         bind(contribution).toService(TheoremIdeBridge);
+    }
+
+    bind(TheoremChatAgent).toSelf().inSingletonScope();
+    for (const contribution of [Agent, ChatAgent, FrontendApplicationContribution]) {
+        bind(contribution).toService(TheoremChatAgent);
     }
 
     bind(TheoremLanguageFeatures).toSelf().inSingletonScope();

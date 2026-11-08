@@ -1,0 +1,21 @@
+the film bar
+  ok   full strength as the film starts
+  ok   it recedes by a transition
+  ok   receded, it stays on screen (0.50)
+  ok   receded, Skip still takes a click
+  ok   a pointer anywhere brings it back
+  ok   a key brings it back
+  ok   focus inside keeps it
+  ok   paused, it stays at full strength
+  ok   Back to scene is in the header while the film plays
+the header
+  ok   the bar takes the room's paper (rgb(224, 229, 236))
+  ok   "Experience" holds AA on it (11.85)
+  ok   "Possibilities" holds AA on it (4.59)
+  ok   "Join" holds AA on it (4.59)
+  ok   "Docs" holds AA on it (4.59)
+  ok   links not current are quieter than the current one
+  ok   "Your turn" holds AA on it (4.54)
+  ok   back to scene stays in the header
+  ok   expand stays in the header
+all passed

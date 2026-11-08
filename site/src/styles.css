@@ -1,0 +1,684 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/ibm-plex-sans';
+
+@custom-variant dark (&:is(.dark *));
+
+/* The title face. The file is licensed and stays out of git: see .gitignore. */
+@font-face {
+  font-family: 'Block Berthold Condensed';
+  src: url('/fonts/BlockBertholdCondensed.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* The site's palette, and the names the coss components read. The embedded app
+   keeps its own theme: nothing here reaches into the frame. */
+:root {
+  --paper: #f1f3f5;
+  --paper-raised: #f8f9fa;
+  --slate: #202733;
+  --slate-raised: #2c3544;
+  --muted-ink: #626b78;
+  /* Brass fills controls and marks on slate. On paper it is decoration only
+     (2.12:1); anything that means something on paper is dark brass (5.16:1). */
+  --brass: #c8a45d;
+  --brass-deep: #806126;
+  --rule: rgb(32 39 51 / 0.14);
+  /* The room's own paper: the wall in the window's light, read off the render. In the room the bar
+     takes it, so it reads as part of the room and not a strip laid over it. Links that are not the
+     current one drop to the AA floor on it (4.57:1), and dark brass still holds (4.53:1). */
+  --room-paper: #e0e5ec;
+  --room-ink: #5d6673;
+
+  --radius: 0.5rem;
+  --background: var(--paper);
+  --foreground: var(--slate);
+  --card: var(--paper-raised);
+  --card-foreground: var(--slate);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--slate);
+  --primary: var(--brass);
+  --primary-foreground: var(--slate);
+  --secondary: var(--slate);
+  --secondary-foreground: var(--paper);
+  --muted: #e3e6ea;
+  --muted-foreground: var(--muted-ink);
+  --accent: #e6e9ed;
+  --accent-foreground: var(--slate);
+  --destructive: #a33a2e;
+  --destructive-foreground: #8a2f25;
+  --border: var(--rule);
+  --input: rgb(32 39 51 / 0.24);
+  --ring: var(--brass-deep);
+}
+
+@theme inline {
+  --font-sans:
+    'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui,
+    sans-serif;
+  --font-title:
+    'Block Berthold Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-slate: var(--slate);
+  --color-slate-raised: var(--slate-raised);
+  --color-muted-ink: var(--muted-ink);
+  --color-brass: var(--brass);
+  --color-brass-deep: var(--brass-deep);
+  --color-rule: var(--rule);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 10px);
+}
+
+@layer base {
+  html {
+    background: var(--paper);
+    color: var(--slate);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    /* Anchors land clear of the bar that stays at the top. */
+    scroll-padding-top: 4rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+  body {
+    margin: 0;
+    min-height: 100svh;
+    overflow-x: clip;
+  }
+  ::selection {
+    background: var(--slate);
+    color: var(--paper-raised);
+  }
+  :focus-visible {
+    outline: 2px solid var(--brass-deep);
+    outline-offset: 2px;
+  }
+  /* On slate the mark that means something is plain brass. */
+  .on-slate :focus-visible,
+  .monitor :focus-visible {
+    outline-color: var(--brass);
+  }
+}
+
+@layer components {
+  /* A page of reading outside the scene: one measure, clear of the fixed nav. */
+  .reading {
+    position: relative;
+    margin-inline: auto;
+    max-width: 42rem;
+    padding: 7rem 1.25rem 5rem;
+  }
+  /* The same wash the intro stands on: Life runs around the words, never through them. */
+  .reading::before {
+    content: '';
+    position: absolute;
+    inset: 5rem -1rem 2rem;
+    z-index: -1;
+    border-radius: 3rem;
+    background: var(--paper);
+    filter: blur(18px);
+  }
+  /* Where the column fills the window, the wash stays inside it, so the page never scrolls sideways. */
+  @media (max-width: 44rem) {
+    .reading::before {
+      inset-inline: 0;
+    }
+  }
+
+  .wordmark {
+    font-family: var(--font-title);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    text-transform: uppercase;
+    /* Heavy condensed letters this small read as black in #202733. One step up, the slate shows. */
+    color: var(--slate-raised);
+  }
+
+  .signature {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--brass-deep);
+  }
+
+  /* A brass control with slate text is the page's one primary action shape. */
+  .brass-action {
+    --primary: var(--brass);
+    --primary-foreground: var(--slate);
+    border-color: color-mix(in srgb, var(--brass) 82%, var(--slate));
+    font-weight: 600;
+  }
+
+  /* The bar. It sits above the world and outside it. */
+  .site-nav {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 50;
+    display: flex;
+    height: 3.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+    padding-inline: 0.75rem;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  /* On a phone the bar has no room for the cue, so it hangs just under the bar. */
+  .nav-cue {
+    position: absolute;
+    top: 100%;
+    left: 0.75rem;
+    max-width: calc(100% - 1.5rem);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--brass-deep);
+  }
+  .nav-cue:not(:empty) {
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.375rem;
+    background: var(--paper);
+  }
+  .nav-link {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    padding-inline: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--nav-ink, var(--muted-ink));
+    box-shadow: inset 0 -2px 0 -2px transparent;
+    transition: color 120ms;
+  }
+  .nav-link:hover {
+    color: var(--slate);
+  }
+  .nav-link[aria-current] {
+    color: var(--slate);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: var(--brass-deep);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.375rem;
+  }
+  @media (min-width: 48rem) {
+    .site-nav {
+      gap: 0.75rem;
+      padding-inline: 1.5rem;
+    }
+    .nav-cue {
+      position: static;
+      flex: 1;
+      min-width: 0;
+      max-width: none;
+      overflow: hidden;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .nav-link {
+      padding-inline: 0.75rem;
+      font-size: 0.9375rem;
+    }
+  }
+
+  /* Flow, the default: three sections in reading order. The scene turns on from
+     script (scene/scene.tsx), so a phone, reduced motion and a failed script all
+     land on the same flat page. */
+  .scene {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    max-width: 76rem;
+    flex-direction: column;
+    gap: 1.75rem;
+    margin-inline: auto;
+    padding: 5rem 1rem 4rem;
+  }
+  .world {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+  .intro {
+    position: relative;
+    max-width: 42rem;
+    isolation: isolate;
+    scroll-margin-top: 5rem;
+  }
+  /* Clear paper under the words: the field's specks stop short of them, with a
+     feathered edge and no visible panel. */
+  .intro::before {
+    content: '';
+    position: absolute;
+    inset: -1.25rem -0.75rem;
+    z-index: -1;
+    border-radius: 3rem;
+    background: var(--paper);
+    filter: blur(18px);
+    pointer-events: none;
+  }
+  .intro-heading {
+    margin-top: 0.5rem;
+    font-size: clamp(2.25rem, 1.4rem + 3.8vw, 4.5rem);
+    font-weight: 600;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .intro-line {
+    margin-top: 1rem;
+    max-width: 32rem;
+    font-size: clamp(1.0625rem, 0.95rem + 0.5vw, 1.375rem);
+    line-height: 1.35;
+    color: var(--muted-ink);
+    text-wrap: pretty;
+  }
+  .sheet {
+    height: 100%;
+    border-radius: 0.875rem;
+  }
+  [data-surface] {
+    scroll-margin-top: 4.5rem;
+  }
+  .monitor {
+    position: relative;
+  }
+  .surface-paper {
+    background: var(--paper-raised);
+    box-shadow:
+      0 0 0 1px rgb(32 39 51 / 0.1),
+      0 1px 2px rgb(32 39 51 / 0.08),
+      0 28px 56px -28px rgb(32 39 51 / 0.32);
+  }
+
+  html[data-mode='scene'],
+  html[data-mode='scene'] body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  /* The bar clears the field under its words and fades out below them. */
+  html[data-mode='scene'] .site-nav {
+    height: 4.5rem;
+    align-items: flex-start;
+    padding-top: 0.75rem;
+    background: linear-gradient(var(--room-paper) 62%, transparent);
+    backdrop-filter: none;
+    pointer-events: none;
+    --nav-ink: var(--room-ink);
+  }
+  html[data-mode='scene'] .site-nav > * {
+    pointer-events: auto;
+  }
+  html[data-mode='scene'] .nav-cue {
+    margin-top: 0.75rem;
+    pointer-events: none;
+    background: none;
+  }
+  /* Off the wide view the bar crosses the desk, so it is a plain bar. */
+  html[data-mode='scene']:not([data-view='wide']) .site-nav {
+    height: 3.5rem;
+    align-items: center;
+    padding-top: 0;
+    background: var(--room-paper);
+    box-shadow: 0 1px 0 rgb(32 39 51 / 0.06);
+  }
+  html[data-mode='scene']:not([data-view='wide']) .nav-cue {
+    margin-top: 0;
+  }
+  html[data-mode='scene'] .scene {
+    position: fixed;
+    inset: 0;
+    display: block;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    overflow: clip;
+  }
+  /* In the room the objects are the ways in. For the keyboard the same three wait
+     in a row under the desk, out of sight until one of them has focus, like the
+     book notes' triggers. */
+  .room-bar {
+    position: fixed;
+    z-index: 3;
+    bottom: 1.25rem;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 1rem 0.375rem 0.375rem;
+    border-radius: 0.875rem;
+    background: rgb(241 243 245 / 0.92);
+    box-shadow:
+      0 0 0 1px rgb(32 39 51 / 0.08),
+      0 12px 32px -16px rgb(32 39 51 / 0.32);
+    white-space: nowrap;
+    translate: -50% 0;
+  }
+  .room-bar:not(:has(:focus-visible)) {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* The study: the canvas, then the sheets' print multiplied into their paper, then the tube's app. */
+  .room {
+    position: absolute;
+    inset: 0;
+  }
+  .room-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .room-layer-paper {
+    z-index: 1;
+    mix-blend-mode: multiply;
+  }
+  .room-layer-screen {
+    z-index: 2;
+  }
+  /* On the glass the app is screened over the tube, which then shows only the bowed
+     glass's reflections of the room: light on the glass adds to the picture, as on a
+     real tube, and moves over it as the camera does (src/study/tube.ts). */
+  .room[data-glass='on'] .room-layer-screen {
+    mix-blend-mode: screen;
+  }
+  .room-sheet {
+    width: 100%;
+    height: 100%;
+  }
+  .room-sheet[inert] {
+    pointer-events: none;
+  }
+  /* On the glass the app takes the raster's shape: its rounded corners, a picture that
+     dims toward its edges as a tube's does, and a soft edge where it runs under the
+     border. The glass's sheen is the room's own reflection, screened over it. The layer
+     over it takes no pointer. */
+  .room-tube {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: var(--tube-radius);
+    transition: opacity 220ms ease-out;
+  }
+  .room-tube::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    /* The tube's edge shading, the same numbers the tube's shader puts on the film (src/study/tube-edge.ts). */
+    background: radial-gradient(farthest-corner, transparent var(--tube-vignette-from), var(--tube-vignette));
+    box-shadow:
+      inset 0 0 0 1px var(--tube-line),
+      inset 0 0 var(--tube-blur) var(--tube-spread) var(--tube-shadow);
+    transition: opacity 360ms ease-out;
+  }
+  /* Expanded, the app grows off the glass about its centre and reads as lifted from it. */
+  .room-surface {
+    transition:
+      width 360ms cubic-bezier(0.22, 1, 0.36, 1),
+      height 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .room-tube[data-expanded='true'] {
+    border-radius: 0.75rem;
+    box-shadow:
+      0 0 0 1px rgb(32 39 51 / 0.24),
+      0 28px 64px -28px rgb(32 39 51 / 0.6);
+  }
+  /* Off the glass, it has no glass over it. */
+  .room-tube[data-expanded='true']::after {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .room-surface {
+      transition: none;
+    }
+  }
+  .room[data-tube='false'] .room-tube {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: none;
+  }
+  .room-label {
+    display: block;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: var(--slate);
+    color: var(--paper);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    translate: 0 -1.6rem;
+    box-shadow: 0 6px 16px -8px rgb(32 39 51 / 0.6);
+  }
+  /* The book notes' triggers are for the keyboard: out of sight until they have focus. */
+  .room-note-trigger {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .room-note-trigger:focus-visible {
+    width: auto;
+    height: auto;
+    clip-path: none;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: var(--slate);
+    color: var(--paper);
+    font-size: 0.8125rem;
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+    translate: -50% -50%;
+  }
+
+  /* In the room the film is on the tube; its controls and captions stay along the bottom of the window. */
+  .film-viewport {
+    position: fixed;
+    z-index: 5;
+    bottom: 1.25rem;
+    left: 50%;
+    width: min(46rem, calc(100vw - 3rem));
+    translate: -50% 0;
+  }
+  .film.film-in-viewport {
+    position: relative;
+    height: auto;
+    background: transparent;
+  }
+  .film-in-viewport .film-bar {
+    border-radius: 0.875rem;
+    background: rgb(32 39 51 / 0.9);
+    padding: 0.25rem 0.5rem;
+    box-shadow: 0 18px 40px -18px rgb(32 39 51 / 0.7);
+  }
+  .film-source {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .film-caption {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto 0.75rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 0.5rem;
+    background: rgb(32 39 51 / 0.86);
+    color: var(--paper);
+    font-size: clamp(1rem, 1.3vw, 1.25rem);
+    line-height: 1.35;
+    text-align: center;
+    text-wrap: balance;
+    /* A cue's own line break, from captions.vtt. */
+    white-space: pre-line;
+  }
+  .film-caption[data-empty='true'] {
+    visibility: hidden;
+  }
+
+  /* The monitor: a slate body, a raised bevel, a small brass light, a stand. */
+  .monitor-body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 0.625rem;
+    border-radius: 1rem;
+    background: var(--slate);
+    box-shadow:
+      inset 0 0 0 1px var(--slate-raised),
+      inset 0 1px 0 0 rgb(200 164 93 / 0.28),
+      0 30px 60px -24px rgb(32 39 51 / 0.5),
+      0 8px 18px -8px rgb(32 39 51 / 0.4);
+  }
+  .monitor-screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.375rem;
+    background: var(--slate);
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+  }
+  .monitor-chin {
+    display: none;
+  }
+  .monitor-stand {
+    display: none;
+  }
+  .monitor-light {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--brass);
+    box-shadow: 0 0 10px 1px rgb(200 164 93 / 0.5);
+  }
+
+  /* One rectangle: everything in the stage sits on it. */
+  .stage {
+    position: relative;
+    overflow: hidden;
+    background: var(--slate);
+    margin-inline: auto;
+  }
+  .stage-logical {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+  .stage-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: var(--slate);
+  }
+  .stage-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .stage-cover {
+    transition: opacity 260ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage-cover {
+      transition: none;
+    }
+  }
+
+  /* Media Chrome reads these from the controller. */
+  .film {
+    --media-primary-color: var(--paper);
+    --media-secondary-color: transparent;
+    --media-text-color: var(--paper);
+    --media-control-background: transparent;
+    --media-control-hover-background: rgb(248 249 250 / 0.12);
+    --media-range-bar-color: var(--brass);
+    --media-range-thumb-background: var(--brass);
+    --media-range-track-background: rgb(248 249 250 / 0.28);
+    --media-font-family: var(--font-sans);
+    --media-font-size: 13px;
+    --media-focus-box-shadow: inset 0 0 0 2px var(--brass);
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--slate);
+  }
+  .film-bar {
+    width: 100%;
+    align-items: center;
+    background: linear-gradient(transparent, rgb(32 39 51 / 0.88) 42%);
+    padding: 1.25rem 0.5rem 0.25rem;
+    /* Coming back is quick and lands with a little give. */
+    transition:
+      opacity 180ms ease-out,
+      translate 320ms cubic-bezier(0.34, 1.4, 0.64, 1),
+      background-color 180ms ease-out,
+      box-shadow 180ms ease-out;
+  }
+  /* While the film plays and no one moves, the bar recedes: still there, still reachable, half as
+     loud. A pointer anywhere, a key, a hover or focus inside it brings it straight back. */
+  .film-host[data-idle='true'] .film:not([mediapaused]) .film-bar:not(:hover, :focus-within) {
+    opacity: 0.5;
+    transition-duration: 900ms;
+    transition-timing-function: ease;
+  }
+  .film-host.film-viewport[data-idle='true'] .film:not([mediapaused]) .film-bar:not(:hover, :focus-within) {
+    translate: 0 0.25rem;
+    background: rgb(32 39 51 / 0.55);
+    box-shadow: none;
+  }
+  .film video::cue,
+  video::cue {
+    background: rgb(32 39 51 / 0.82);
+    color: var(--paper-raised);
+    font-family: var(--font-sans);
+  }
+}

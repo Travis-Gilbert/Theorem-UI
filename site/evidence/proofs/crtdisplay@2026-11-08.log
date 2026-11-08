@@ -1,0 +1,117 @@
+# node evidence/oracles/transition.mjs
+ambient
+  ok   opens ambient in the scene
+  ok   no frame and no app load on mount
+  ok   nothing has played
+computer
+  ok   a click on the computer plays the film, with sound (watching, playing, paused false)
+  ok   the app loads behind it
+    camera 1978 ms, then live 1 ms
+  ok   Theorem is on the screen when the film ends
+    camera 140 ms, then live 2078 ms
+  ok   a second click goes back to the app, with no replay (live, done, paused true)
+glass
+  ok   the glass goes off, dark, on, in that order (off dark on)
+  ok   the reveal never brightens past where it settles (from 43, peak 52, settled 52)
+  ok   on the glass the app is screened over the tube
+  ok   expanded, it lies over the room as it is
+  ok   back on the glass, it is screened again
+end
+  ok   watching with sound-allowed play (paused=false)
+  ok   the app loads behind the film
+  ok   app ready during the film does not reveal it (ready)
+    camera 1873 ms, then live 1 ms
+  ok   live after the film ends
+  ok   still is down
+  ok   child activated
+  ok   film end does not steal focus
+  ok   turn cue shown
+skip
+  ok   skip completes the film condition
+  ok   live with no wait for the end (t=1.132765)
+  ok   skip does not move focus into the app
+delay
+  ok   film over, app not ready: preparing (preparing)
+  ok   still holds the frame
+  ok   frame stays inert
+  ok   reveals on ready and not before
+slow
+  ok   silent app stays preparing
+  ok   slow state offers retry
+  ok   a timeout is a failure, never readiness (unavailable)
+mediaFailure
+  ok   film failure returns to ambient
+  ok   the visitor is told, where they can see it
+    camera 1975 ms, then live 2 ms
+  ok   direct entry still works
+  ok   explicit Try may focus the message box ({"focused":true,"asked":1})
+appFailure
+  ok   app failure leaves the film running
+  ok   then unavailable, over the still
+  ok   retry adds no history (2 -> 2)
+  ok   retry reused one frame
+returnNavigation
+    camera 250 ms, then live 444 ms
+  ok   leaving deactivates the app
+  ok   browser Back returns to the live app (live)
+  ok   it never replays
+  ok   the visitor draft survives
+  ok   same document, not reloaded
+  ok   app loads added no history beyond the hash moves (2 -> 4)
+  ok   Back to scene goes wide
+  ok   focus returns to the originating control (Try Theorem)
+replay
+  ok   replay covers and deactivates the app
+  ok   film is on top
+  ok   the app comes back as it was
+  ok   not reloaded
+  ok   replay does not steal focus
+controls
+  ok   controls stay visible with no pointer movement (1)
+  ok   labelled: /^skip/i
+  ok   labelled: /transcript/i
+  ok   Escape leaves the film, in the parent
+leaveDuringFilm
+  ok   navigation stops the film
+  ok   no replay on return (ambient)
+draft
+  ok   browsing examples loads no app
+  ok   explicit click sets the draft
+  ok   nothing submitted, frame URL unchanged
+  ok   never overwrites a visitor draft (mine)
+  ok   the site says so
+absent
+  ok   no app configured: unavailable with no frame
+  ok   offers Join
+mobile
+  ok   phone is flow
+  ok   no sideways scroll (375 > 375)
+  ok   Watch brings the phone monitor into view
+  ok   resizing to desktop keeps the film going (playing false)
+    camera 1934 ms, then live 2 ms
+  ok   resizing to phone keeps the app
+  ok   frame is not reloaded
+  ok   no sideways scroll when live (375 > 375)
+reduced
+  ok   reduced motion lands on flow
+  ok   layout stays desktop at this width
+  ok   nothing plays by itself
+  ok   film is still available on request
+  ok   reveal with no camera condition
+
+All passed.
+# node evidence/oracles/crt.mjs
+light and halo follow the picture
+  ok   a fresh load is clean
+  ok   a bright picture lights the desk (5.458)
+  ok   a dark picture lights it far less (0.394 against 5.458)
+  ok   the halo follows the picture (0.0075 against 0.1038)
+  ok   the light moves with a playing film
+the glass reflects the room whatever the picture
+  ok   the reflections show over the bright picture (1.24, noise 0.00)
+  ok   and over the dark one (6.47, noise 0.00)
+the film hands the tube to the app
+  ok   the film is still on the tube (off)
+  ok   the film's last frame and the app on the glass agree (ssim 0.9860)
+  ok   their edge shading agrees (ssim 0.9913)
+all passed

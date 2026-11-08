@@ -1,0 +1,46 @@
+{
+  "name": "theorem-join",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 3100 --strictPort",
+    "build": "vite build",
+    "preview": "vite build --mode preview && wrangler dev --config wrangler.jsonc",
+    "deploy": "bun run build && wrangler deploy --config wrangler.jsonc",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types --config wrangler.jsonc worker/worker-configuration.d.ts > /dev/null"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.9.0",
+    "@fontsource-variable/ibm-plex-sans": "^5.2.8",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@uidotdev/usehooks": "2.4.1",
+    "animejs": "4.5.0",
+    "camera-controls": "3.1.2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.66.0",
+    "media-chrome": "4.19.4",
+    "penpal": "8.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.7.0",
+    "textmode.js": "0.18.2",
+    "three": "0.187.0",
+    "wouter": "^3.7.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.187.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "playwright": "^1.64.1",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.0",
+    "wrangler": "4.152.0"
+  }
+}

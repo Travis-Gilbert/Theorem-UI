@@ -24,7 +24,8 @@ import Sun from '@/assets/icons/rail/lucide-sun-rail.svg?react'
 // The owned Noun set has no delete glyph yet; Lucide's trash stands in until one is licensed.
 // Nor a two-way chevron for switchers, a terminal, a bare close cross, the
 // panels mark (a top bar over a right-hand panel, drawn here as Lucide's
-// top-left panels mirrored), the settings marks (a star for a picked model, a key, a plugin, a model chip),
+// top-left panels mirrored), marks for a forked or continued thread, or the
+// settings marks (a star for a picked model, a key, a plugin, a model chip),
 // or the data-table controls (sort arrows and the sort list, a filter, column
 // options, hide and pin, a drag grip, one- and two-step chevrons for pages
 // and selects, a calendar), or the Life controls (play, pause, one step,
@@ -41,8 +42,10 @@ import {
   ChevronsLeft as First,
   ChevronsRight as Last,
   ChevronsUpDown as UpDown,
+  CornerDownRight as Continue,
   Cpu as Model,
   EyeOff as Hide,
+  GitFork as Fork,
   GripVertical as Grip,
   KeyRound as Key,
   Pause,
@@ -218,6 +221,7 @@ export const Icon = {
   Close,
   Code: Coding,
   Columns,
+  Continue,
   Copied,
   Copy,
   Delete,
@@ -232,6 +236,7 @@ export const Icon = {
   First,
   Folder,
   FolderOpen,
+  Fork,
   Grip,
   Hide,
   Ide: Shellfile,

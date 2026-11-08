@@ -1,0 +1,14 @@
+light and halo follow the picture
+  ok   a fresh load is clean
+  ok   a bright picture lights the desk (5.458)
+  ok   a dark picture lights it far less (0.394 against 5.458)
+  ok   the halo follows the picture (0.0075 against 0.1038)
+  ok   the light moves with a playing film
+the glass reflects the room whatever the picture
+  ok   the reflections show over the bright picture (1.24, noise 0.00)
+  ok   and over the dark one (6.47, noise 0.00)
+the film hands the tube to the app
+  ok   the film is still on the tube (off)
+  ok   the film's last frame and the app on the glass agree (ssim 0.9860)
+  ok   their edge shading agrees (ssim 0.9913)
+all passed

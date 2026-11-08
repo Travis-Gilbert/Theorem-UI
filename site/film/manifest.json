@@ -1,0 +1,89 @@
+{
+  "film": {
+    "composition": "film/src/film.tsx",
+    "inputs": "film/src/Root.tsx (defaultProps), film/src/timeline.ts",
+    "demoState": "film/state/thread.json",
+    "outputs": "public/film",
+    "lengthSeconds": 20,
+    "fps": 30,
+    "sizes": { "desktop": "1920x1080", "phone": "780x1440" }
+  },
+  "narration": {
+    "words": 40,
+    "current": {
+      "source": "macOS say, voice Reed (English (US)), rate 176, one clip per line",
+      "status": "SCRATCH. For timing only. Not for publishing.",
+      "files": ["film/public/narration/scratch-1.wav", "film/public/narration/scratch-2.wav", "film/public/narration/scratch-3.wav", "film/public/narration/scratch-4.wav"]
+    },
+    "needed": {
+      "source": "The founder's voice: 48 kHz WAV, two takes, one close to twenty seconds and one at a natural pace.",
+      "status": "not recorded",
+      "howToSwap": "Put the take at film/public/narration/founder.wav, set voice to { take: 'narration/founder.wav' } in film/src/Root.tsx, move the cues in film/src/timeline.ts to the take, and run bun run render."
+    }
+  },
+  "typefaces": [
+    { "name": "IBM Plex Sans", "license": "SIL Open Font License 1.1", "source": "@fontsource-variable/ibm-plex-sans" },
+    { "name": "Block Berthold Condensed", "license": "Commercial. The file is not committed.", "status": "Confirm that the licence covers video." }
+  ],
+  "plates": [
+    {
+      "scene": "0 to 3.5 s",
+      "what": "Original title treatment: J. C. R. Licklider, Man-Computer Symbiosis, 1960.",
+      "source": "Set in type by us. The citation is checked against the MIT-hosted transcription.",
+      "citation": "https://groups.csail.mit.edu/medg/people/psz/Licklider.html",
+      "status": "publishable: no third-party material"
+    },
+    {
+      "scene": "3.5 to 7.4 s",
+      "what": "Original illustration of two people writing on one display, labelled Illustration on screen. It is not a recording and the text on its display is ours.",
+      "source": "Drawn by us. Date, people and places are from the institute's index of the demonstration.",
+      "citation": "https://www.dougengelbart.org/mousesite/1968Demo.html",
+      "status": "publishable: no third-party material"
+    }
+  ],
+  "archival": {
+    "note": "Candidates only. Nothing here has been downloaded and none of it is in the film. The composition takes each through the archival prop once it is cleared, in a deliberate frame with its own label.",
+    "candidates": [
+      {
+        "what": "1968 NLS demonstration, clips 25 and 26 in the institute's index: shared text, the live connection to Bill Paxton, collaborative work on a course of action.",
+        "source": "https://www.dougengelbart.org/mousesite/1968Demo.html",
+        "attribution": "SRI International; Doug Engelbart Institute",
+        "permission": "not obtained. The archive says streaming availability does not grant redistribution. Its permissions page names SRI International as the owner.",
+        "permissionPage": "https://dougengelbart.org/content/view/210/",
+        "in": null,
+        "out": null,
+        "note": "Clip numbers are positions in the archive, not timecodes. Choose in and out points from the licensed master."
+      },
+      {
+        "what": "Licklider, Some Reflections on Early History, 1986 ACM Conference on the History of Personal Workstations.",
+        "source": "https://computerhistory.org/blog/the-1986-acm-conference-on-the-history-of-personal-workstations/",
+        "attribution": "Computer History Museum",
+        "permission": "not obtained. The museum's terms require permission for commercial use, and another rights holder may also need to clear it.",
+        "permissionPage": "https://computerhistory.org/terms/",
+        "in": null,
+        "out": null,
+        "label": "Licklider · 1986",
+        "note": "A later recollection digitized from VHS. It must carry the 1986 label, so that the paper's date cannot be taken for the recording's."
+      },
+      {
+        "what": "Portrait of Licklider, circa 1963.",
+        "source": "https://mitmuseum.mit.edu/collections/object/GCP-00014856",
+        "attribution": "MIT Museum",
+        "permission": "not verified. The catalogue record is a lead and not a licence.",
+        "in": null,
+        "out": null
+      }
+    ]
+  },
+  "product": {
+    "what": "Theorem itself, recorded with film/capture/capture.mjs against the local demo stack. Two real model turns, once, at capture. Nothing goes through a model when the page loads.",
+    "timeCompressed": true,
+    "note": "The film plays the recording faster than life to fit its length: the typing and both answers are sped up. Nothing on screen is staged or edited. The development overlay, which a production build does not have, is hidden in the capture.",
+    "appCommit": "see film/state/thread.json"
+  },
+  "motion": {
+    "reference": "A 15.1 s story ad by softriver.co for taap.it, supplied as a screen recording: one mark held dead centre while the picture cuts behind it, from 100 ms slowing to 400 ms and beyond, with a colourway change.",
+    "taken": "The idea of a registered mark over speed-ramped cuts. None of its assets.",
+    "safety": "The fast cuts stay on one side of the luminance range and the colourway changes only once they slow, which keeps the film under three flashes in any second. evidence/oracles/film.mjs measures it."
+  }
+}

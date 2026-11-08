@@ -1,0 +1,44 @@
+{
+  "threadId": "chatthread_sha256:384926a8790be57677d4f354a",
+  "question": "I've always wanted to start a small oral-history project in my neighborhood. Help me work out a first step.",
+  "followUp": "Say it's the old mill houses on my street, and just for the neighbors at first. What do I ask in the first conversation?",
+  "answer": "I've always wanted to start a small oral-history project in my neighborhood. Help me work out a first step.\nDone\n\nMy take: the first step isn't a project plan, and it isn't equipment. It's one complete interview, finished end to end — recorded, released, transcribed, backed up, and findable by someone who isn't you.\n\nThat sounds almost too small, but here's the reasoning. The classic failure in neighborhood oral-history projects isn't that nobody shows up; it's that people record twenty conversations, and then discover that nobody signed a release, nobody wrote transcripts, nobody backed up the hard drive, and nobody outside the family can find any of it. One finished item, done while the stakes are still low, tests your whole process. Scaling comes after.\n\nBefore the pilot, one decision drives everything else: what is this collection for?\n\nPreserving neighbors' stories for the neighborhood itself — a local archive, maybe a physical box and an index. You can do this solo, and you keep full control.\nA collection an institution holds — a library, local historical society, or university archive. These bring consent forms, metadata standards, and preservation for free. Worth checking what's already near you before reinventing it.\nA public-facing media project — a podcast or video series. This has the most legal and ethical exposure, and the least tolerance for sloppy releases.\n\nThose imply different archive, different consent document, different output format, and different amount of money. I'd rather know which one before going further.\n\nThen there's the part specific to a neighborhood, which I'd want settled before you turn the recorder on: your subjects will talk about other people. Decide the rule in advance, not per-interview. \"You may say what you like about others, and you'll see the transcript before publication\" and \"we blur the names of anyone not in the room\" are both defensible. They're very different contracts, and picking after you've recorded someone is a much worse conversation.\n\nOne practical note for when you get there: transcription, not recording, is usually the bottleneck. Decide early whether you're paying someone, using volunteer time, or accepting a rougher auto-transcription with human correction.\n\nSo: which of the three is closest to what you have in mind? And is there a library or historical society near you ��� if you name the neighborhood or city, I can look at what already exists there and what each one would actually require of you.\n\nSay it's the old mill houses on my street, and just for the neighbors at first. What do I ask in the first conversation?\nDid not finish\n7 tool calls\nPage source: Home - Oral History Association\n5 tool calls\nPage source: All Resources - Oral History Association\n1 tool call\nPage source: Oral History Best Practices - Oral History Association\n1 tool call\nPage source: oral history interview sample questions guide at DuckDuckGo\n\nThe agent reached its step limit before producing a final answer. Review the completed tool steps, then continue with a narrower request. Reference: chatreq_01M6SZGRP4A98YYPV7BRZCQ23R\n\nCopy\nRegenerate\nMore\nTheorem tools\nAdd Attachment\nDefault\nSend message",
+  "capturedAt": "2026-11-07T03:07:12.876Z",
+  "appCommit": "b95587aa8f69fd1f99ab3d6510955dc9482ae5ad",
+  "video": {
+    "file": "capture/turn-desktop.mp4",
+    "frames": 5077,
+    "seconds": 120.42,
+    "start": 1794020697.812164
+  },
+  "marks": {
+    "sent": 2.53,
+    "answered": 29.58,
+    "typing": 30.09,
+    "typed": 62.72,
+    "resent": 63.57,
+    "done": 120.44
+  },
+  "take": 1,
+  "rejected": [],
+  "typing": {
+    "file": "capture/typing-desktop.mp4",
+    "frames": 254,
+    "seconds": 19.31,
+    "start": 1794020835.928025
+  },
+  "phone": {
+    "typing": {
+      "file": "capture/typing-phone.mp4",
+      "frames": 260,
+      "seconds": 11.8,
+      "start": 1794020860.123455
+    },
+    "scroll": {
+      "file": "capture/thread-phone.mp4",
+      "frames": 166,
+      "seconds": 7.09,
+      "start": 1794020875.027598
+    }
+  }
+}

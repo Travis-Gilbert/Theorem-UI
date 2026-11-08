@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# Scratch narration from macOS say: for timing only, never published.
+public/narration/scratch-*
+
+# Block Berthold is a commercial typeface: copied here from ../public/fonts, never committed.
+public/fonts/BlockBertholdCondensed.ttf

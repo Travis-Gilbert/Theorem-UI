@@ -1,0 +1,11 @@
+node_modules
+dist
+.wrangler
+worker/worker-configuration.d.ts
+# Block Berthold is a commercial typeface: it is not committed to this public
+# repository. Place the licensed file here before running or deploying.
+public/fonts/BlockBertholdCondensed.ttf
+
+# Captures of other companies' pages (Mobbin screens, Tailark) are reference
+# material and not ours to publish. evidence/LEDGER.md records each link and hash.
+evidence/refs/external/

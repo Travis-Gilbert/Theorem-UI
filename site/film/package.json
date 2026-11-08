@@ -1,0 +1,42 @@
+{
+  "name": "film",
+  "version": "1.0.0",
+  "description": "The twenty second film on the marketing site.",
+  "repository": {},
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "private": true,
+  "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@remotion/cli": "4.0.540",
+    "@remotion/fonts": "4.0.540",
+    "@remotion/media": "4.0.540",
+    "@remotion/three": "4.0.540",
+    "@remotion/transitions": "4.0.540",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.540",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.540",
+    "@types/react": "19.3.0",
+    "@types/web": "0.0.166",
+    "eslint": "10.12.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio --no-open",
+    "lint": "tsc",
+    "captions": "bun capture/captions.ts",
+    "shots": "node capture/shots.mjs",
+    "render": "bash capture/render.sh"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}

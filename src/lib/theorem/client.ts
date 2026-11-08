@@ -14,6 +14,13 @@ export function theorem(): TheoremClient {
   return client
 }
 
+/** The events a run's event stream ends on. */
+export const TERMINAL_RUN_EVENTS: ReadonlySet<string> = new Set([
+  'RUN.CLOSED',
+  'RUN.FAILED',
+  'RUN.CANCELLED',
+])
+
 let bootstrapPromise: Promise<Theorem.Bootstrap> | undefined
 
 /** Session bootstrap carries the CSRF token. It lives in server memory, so refresh on 403. */

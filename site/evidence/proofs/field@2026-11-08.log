@@ -1,0 +1,20 @@
+alone
+  ok   it moves (0.140)
+  ok   cells are 7 to 9 px (8.0)
+  ok   a modest population (0.0466)
+  ok   what dies fades in gold (0.90)
+  ok   the pointer brings cells to life (40)
+  ok   they are alive in the simulation (44 new, 51 in all)
+  ok   they go on by the rule (51 to 60)
+  ok   injection stays bounded (0.0604)
+  ok   a hidden page does no work (0)
+on the page
+  ok   quiet over a control
+  ok   quiet over the monitor
+  ok   held at the monitor (0)
+  ok   each load is a new field (888 and 0 cells)
+reduced motion
+  ok   starts static (0)
+  ok   the motion control opts in (38)
+
+All passed.

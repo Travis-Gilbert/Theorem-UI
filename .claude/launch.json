@@ -9,6 +9,85 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "theorem-ui-3001",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "--bun",
+        "vite",
+        "dev",
+        "--port",
+        "3001",
+        "--strictPort"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "vault-workspace-view",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "--cwd",
+        "/Volumes/SSD Samsung/var-18/Theorem ui/vault-workspace-view",
+        "--bun",
+        "vite",
+        "dev",
+        "--port",
+        "3010"
+      ],
+      "port": 3010
+    },
+    {
+      "name": "vault-worktree-local-files-api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd '/Volumes/SSD Samsung/var-18/Theorem ui/vault-workspace-view' && THEOREM_API_URL=http://127.0.0.1:8380 THEOREM_API_TOKEN=local-dev exec bun --bun vite dev --port 3102 --strictPort"
+      ],
+      "port": 3102
+    },
+    {
+      "name": "canvas-verify",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-travisgilbert-Theorem-ui/68ec94ad-a0f6-437f-ad9a-9c99d4df8b2c/scratchpad/run-ui.sh"
+      ],
+      "port": 3102
+    },
+    {
+      "name": "canvas-stable",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-travisgilbert-Theorem-ui/68ec94ad-a0f6-437f-ad9a-9c99d4df8b2c/scratchpad/run-stable.sh"
+      ],
+      "port": 3103
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd site && exec bun run dev"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "film-studio",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd site/film && exec bunx remotion studio --no-open --port 3200"
+      ],
+      "port": 3200
+    },
+    {
+      "name": "site-preview",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd site && bun run build --mode preview && exec bunx wrangler dev --config wrangler.jsonc --port 8799"
+      ],
+      "port": 8799
     }
   ]
 }

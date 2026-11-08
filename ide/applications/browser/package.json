@@ -25,12 +25,17 @@
           "terminal.integrated.fontFamily": "'Zed Mono', Lilex, Menlo, monospace",
           "terminal.integrated.fontSize": 15,
           "terminal.integrated.lineHeight": 1.618,
-          "workbench.tree.indent": 20
+          "workbench.tree.indent": 20,
+          "ai-features.chat.defaultChatAgent": "Theorem",
+          "ai-features.chat.persistedSessionLimit": 0
         }
       }
     }
   },
   "dependencies": {
+    "@theia/ai-chat": "1.76.0",
+    "@theia/ai-chat-ui": "1.76.0",
+    "@theia/ai-core": "1.76.0",
     "@theia/bulk-edit": "1.76.0",
     "@theia/callhierarchy": "1.76.0",
     "@theia/console": "1.76.0",

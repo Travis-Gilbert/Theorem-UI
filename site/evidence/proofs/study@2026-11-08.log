@@ -1,0 +1,17 @@
+running
+  ok   a fresh load is clean
+  ok   the Life moves on the wall
+  ok   the Life moves on the canvas
+  ok   the film moves on the tube
+  ok   a stroke over the wall paints cells (50)
+  ok   a stroke over the canvas paints cells (142)
+  ok   a stroke over the computer paints nothing (0)
+held
+  ok   a held field is still
+  ok   held, the wall and the canvas are still
+titles
+  ok   the spine reads "This Is for Everyone"
+  ok   the spine reads "The Dream Machine"
+  ok   the spine reads "The Art of Doing Science"
+  ok   the spine reads "and Engineering"
+all passed
