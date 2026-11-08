@@ -47,6 +47,7 @@ export function ArtifactMessage({ artifact }: { artifact: TheoremArtifact }) {
         artifact={artifact}
         cardRef={cardRef}
         selected={selected}
+        latest={latest}
         wide={interacting || previewed}
         version={versions.length > 1 ? ` · v${position + 1}` : ''}
         show={show}
@@ -82,6 +83,7 @@ function ArtifactMessageCard({
   artifact,
   cardRef,
   selected,
+  latest,
   wide,
   version,
   show,
@@ -91,6 +93,7 @@ function ArtifactMessageCard({
   artifact: TheoremArtifact
   cardRef: React.RefObject<HTMLDivElement | null>
   selected: boolean
+  latest: boolean
   wide: boolean
   version: string
   show: () => void
@@ -155,7 +158,11 @@ function ArtifactMessageCard({
           >
             <Icon.Open className="size-4" />
           </Button>
-          <ArtifactActions key={artifact.revision} artifact={artifact} />
+          <ArtifactActions
+            key={artifact.revision}
+            artifact={artifact}
+            latest={latest}
+          />
         </div>
       </div>
       {children && <div className="border-t border-separator">{children}</div>}

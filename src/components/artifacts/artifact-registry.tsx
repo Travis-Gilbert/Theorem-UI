@@ -99,11 +99,22 @@ const MEDIA: Record<string, string> = {
   mermaid: 'text/vnd.mermaid',
 }
 
-/** The subject an artifact part presents to the contributions. */
-export function subjectOf(artifact: TheoremArtifact): ArtifactSubject {
+/**
+ * The subject an artifact part presents to the contributions. A kind some
+ * contribution names is the whole subject: its language says what its source
+ * is written in, not what it is. Only a kind nothing names is recognized by
+ * its language.
+ */
+export function subjectOf(
+  artifact: TheoremArtifact,
+  contributions: ReadonlyArray<ArtifactContribution> = UI_CONTRIBUTIONS,
+): ArtifactSubject {
+  const { kind } = artifact
+  if (contributions.some((c) => c.matches.objectKinds.includes(kind)))
+    return { kind }
   const language = artifact.language?.toLowerCase()
   return {
-    kind: artifact.kind,
+    kind,
     ...(language && MEDIA[language] && { mediaType: MEDIA[language] }),
   }
 }
@@ -129,10 +140,14 @@ export function representationOf(
   distance: Distance,
   contributions: ReadonlyArray<ArtifactContribution> = UI_CONTRIBUTIONS,
 ): Representation {
-  return resolve(subjectOf(artifact), distance, contributions, (renderer) =>
-    renderer in mounted
-      ? { mounted: true }
-      : { mounted: false, reason: `This build has no ${renderer} renderer` },
+  return resolve(
+    subjectOf(artifact, contributions),
+    distance,
+    contributions,
+    (renderer) =>
+      renderer in mounted
+        ? { mounted: true }
+        : { mounted: false, reason: `This build has no ${renderer} renderer` },
   )
 }
 

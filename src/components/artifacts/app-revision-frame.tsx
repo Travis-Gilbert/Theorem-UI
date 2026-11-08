@@ -61,12 +61,15 @@ function useSeed(artifact: TheoremArtifact) {
 
 const NO_SEED = { bytes: null }
 
-function usePage(html: string) {
+/** A preview nobody is operating reaches no network, whatever the App declares. */
+const PASSIVE = { net: [] }
+
+function usePage(html: string, interactive: boolean) {
   const [page, setPage] = useState<{ src?: string; error?: string }>({})
   useEffect(() => {
     let active = true
     let url: string | undefined
-    void hostedAppDocument(html).then(
+    void hostedAppDocument(html, undefined, interactive ? {} : PASSIVE).then(
       (document) => {
         if (!active) return
         url = URL.createObjectURL(new Blob([document], { type: 'text/html' }))
@@ -80,7 +83,7 @@ function usePage(html: string) {
       active = false
       if (url) URL.revokeObjectURL(url)
     }
-  }, [html])
+  }, [html, interactive])
   return page
 }
 
@@ -97,7 +100,7 @@ export function PinnedAppFrame({
   className?: string
 }) {
   const seed = useSeed(artifact)
-  const page = usePage(artifact.content)
+  const page = usePage(artifact.content, interactive)
   const [state, setState] = useState<ReturnType<typeof pinnedAppState>>()
   useEffect(() => {
     if (!seed) return

@@ -4,9 +4,12 @@ import * as esbuild from 'esbuild-wasm'
 import { EditorView } from '@codemirror/view'
 import {
   AssistantRuntimeProvider,
+  MessagePrimitive,
+  ThreadPrimitive,
   useExternalStoreRuntime,
 } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { BLOCK_SANDBOX } from '@/lib/blocks/executor'
 import * as hosted from '@/lib/blocks/hosted-app'
 import { appDocumentFixture } from '../../../test/blocks/app-documents'
@@ -73,10 +76,11 @@ function appArtifact() {
 // Opening an App in the workspace runs it; tests compile its page with the
 // Node build of esbuild instead of the browser's wasm one.
 const originalHosted = hosted.hostedAppDocument
-let compile: ReturnType<typeof spyOn<typeof hosted, "hostedAppDocument">> | undefined
+let compile:
+  ReturnType<typeof spyOn<typeof hosted, 'hostedAppDocument'>> | undefined
 beforeEach(() => {
-  compile = spyOn(hosted, 'hostedAppDocument').mockImplementation((html) =>
-    originalHosted(html, esbuild),
+  compile = spyOn(hosted, 'hostedAppDocument').mockImplementation(
+    (html, _esbuild, options) => originalHosted(html, esbuild, options),
   )
 })
 
@@ -464,3 +468,46 @@ test('source actions stay disabled until the fresh document read and clipboard w
     window.location.href = originalUrl
   }
 })
+
+function ThreadHarness({ messages }: { messages: ThreadMessageLike[] }) {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (item: ThreadMessageLike) => item,
+  })
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <ThreadPrimitive.Messages
+        components={{ Message: () => <MessagePrimitive.Parts /> }}
+      />
+    </AssistantRuntimeProvider>
+  )
+}
+
+test('an older revision card downloads the source its message pinned, not the current App', async () => {
+  const fetch = spyOn(window, 'fetch')
+  try {
+    const { container } = await render(
+      <ThreadHarness
+        messages={[
+          message(1, '<p>Original revision</p>'),
+          message(2, '<p>Current revision</p>'),
+        ]}
+      />,
+    )
+    const downloads = await waitFor(() => {
+      const found = container.querySelectorAll<HTMLButtonElement>(
+        '[data-slot="theorem-artifact-card"] [aria-label="Download App source"]',
+      )
+      return found.length === 2 ? found : undefined
+    })
+    expect(downloads[0]!.title).toStartWith("Download this revision's source")
+    expect(downloads[1]!.title).toStartWith('Download current saved source')
+    await click(downloads[0]!)
+    expect(fetch).not.toHaveBeenCalled()
+  } finally {
+    fetch.mockRestore()
+  }
+}, 20_000)
