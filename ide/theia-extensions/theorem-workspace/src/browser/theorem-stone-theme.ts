@@ -9,6 +9,7 @@
 
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { ThemeService } from '@theia/core/lib/browser/theming';
 import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
 import { ColorRegistry } from '@theia/core/lib/browser/color-registry';
 import { MonacoThemingService } from '@theia/monaco/lib/browser/monaco-theming-service';
@@ -16,8 +17,14 @@ import * as githubLight from './themes/github/github-light-default.json';
 import * as githubDark from './themes/github/github-dark-default.json';
 import * as stoneLight from './themes/stone/theorem-stone-light.json';
 import * as stoneDark from './themes/stone/theorem-stone-dark.json';
+import { ideThemeJson, type IdeTheme } from '../common/ide-theme';
 
 export const STONE_THEMES = { light: 'theorem-stone-light', dark: 'theorem-stone-dark' };
+/** The theme made from the Theorem UI's live tokens. */
+export const UI_THEME = 'theorem-ui';
+
+/** The terminal is the UI's terminal, dark in either mode, so its ANSI colours are GitHub Dark's. */
+const ANSI = Object.fromEntries(Object.entries(githubDark.colors).filter(([id]) => id.startsWith('terminal.ansi')));
 
 /**
  * The Theorem UI's Stone look (src/styles.css) as Theia colour themes. Chrome takes the UI's tokens and
@@ -28,6 +35,7 @@ export const STONE_THEMES = { light: 'theorem-stone-light', dark: 'theorem-stone
 export class TheoremStoneTheme implements FrontendApplicationContribution, ColorContribution {
 
     @inject(MonacoThemingService) protected readonly theming: MonacoThemingService;
+    @inject(ThemeService) protected readonly themes: ThemeService;
 
     initialize(): void {
         this.theming.registerParsedTheme({
@@ -38,6 +46,21 @@ export class TheoremStoneTheme implements FrontendApplicationContribution, Color
             id: STONE_THEMES.dark, label: stoneDark.name, uiTheme: 'vs-dark', json: stoneDark,
             includes: { [stoneDark.include]: githubDark }
         });
+    }
+
+    /**
+     * Take the Theorem UI's look: its palette and mode, as the tokens it resolves. Registered again under
+     * one id, and kept as the colour theme preference, so the next start restores the last look before
+     * the UI sends it again.
+     */
+    follow(theme: IdeTheme): void {
+        const json = ideThemeJson(theme);
+        json.colors = { ...ANSI, ...json.colors };
+        this.theming.registerParsedTheme({
+            id: UI_THEME, label: 'Theorem UI', uiTheme: theme.dark ? 'vs-dark' : 'vs', json,
+            includes: { [json.include]: theme.dark ? githubDark : githubLight }
+        });
+        this.themes.setCurrentTheme(UI_THEME, true);
     }
 
     /** Every other theme gets its editor background here, which leaves it looking as before. */

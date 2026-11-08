@@ -1,5 +1,5 @@
 // SOURCING: penpal (connect + WindowMessenger) links this frame to the Theorem UI around it;
-// @theia/editor EditorManager, @theia/core ThemeService, CommandService, ApplicationShell,
+// @theia/editor EditorManager, TheoremStoneTheme (the UI's look as a colour theme), CommandService, ApplicationShell,
 // StatusBar, OpenerService and MessageService do every action, @theia/ai-chat-ui's
 // AIChatContribution closes the chat view,
 // and @theoremharness/sdk converts character units and its WorkspaceLive stream names
@@ -16,25 +16,26 @@ import {
     ApplicationShell, FrontendApplicationContribution, KeybindingContribution, KeybindingRegistry, open, OpenerService, StatusBar,
     StatusBarAlignment
 } from '@theia/core/lib/browser';
-import { ThemeService } from '@theia/core/lib/browser/theming';
 import {
     Command, CommandContribution, CommandRegistry, CommandService, DisposableCollection, Emitter, MenuContribution, MenuModelRegistry,
     MessageService
 } from '@theia/core/lib/common';
+import { Deferred } from '@theia/core/lib/common/promise-util';
 import { Range, TextEditor, TextEditorDocument } from '@theia/editor/lib/browser/editor';
 import { EditorManager } from '@theia/editor/lib/browser/editor-manager';
 import { EditorContextMenu } from '@theia/editor/lib/browser/editor-menu';
 import { AIChatContribution } from '@theia/ai-chat-ui/lib/browser/ai-chat-ui-contribution';
 import { scalarToUtf16, utf8ToUtf16, type TheoremLocation, type TheoremRange, type WorkspaceLiveEvents } from '@theoremharness/sdk';
 import { connect, WindowMessenger, type RemoteProxy } from 'penpal';
-import type { ChatMessage, ChatThreadUpdate, DelegationChanges, IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
+import type { ChatMessage, ChatThreadUpdate, DelegationChanges, IdeConnection, IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
 import { TheoremConnection } from './theorem-connection';
 import { TheoremDelegations } from './theorem-delegations';
-import { STONE_THEMES } from './theorem-stone-theme';
+import { TheoremStoneTheme } from './theorem-stone-theme';
 
 export const ADD_TO_CHAT: Command = { id: 'theorem.addToChat', label: 'Add Selection to Chat', category: 'Theorem' };
 
 const FOLLOW_ENTRY = 'theorem.follow';
+const CONNECTION_ENTRY = 'theorem.connection';
 
 /** The conversation the Theorem UI shows, as its updates leave it. */
 export interface ChatThread {
@@ -55,7 +56,6 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
 
     @inject(TheoremConnection) protected readonly connection: TheoremConnection;
     @inject(EditorManager) protected readonly editors: EditorManager;
-    @inject(ThemeService) protected readonly themes: ThemeService;
     @inject(CommandService) protected readonly commands: CommandService;
     @inject(ApplicationShell) protected readonly shell: ApplicationShell;
     @inject(StatusBar) protected readonly statusBar: StatusBar;
@@ -63,6 +63,7 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     @inject(MessageService) protected readonly messages: MessageService;
     @inject(TheoremDelegations) protected readonly delegations: TheoremDelegations;
     @inject(AIChatContribution) protected readonly chatView: AIChatContribution;
+    @inject(TheoremStoneTheme) protected readonly look: TheoremStoneTheme;
 
     /** The Theorem UI, once linked. */
     host: RemoteProxy<IdeHostMethods> | undefined;
@@ -80,41 +81,56 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     protected readonly onDidUpdateThreadEmitter = new Emitter<ChatThread>();
     readonly onDidUpdateThread = this.onDidUpdateThreadEmitter.event;
 
-    // After the layout exists, so the UI's sidebar state is not undone by the
-    // layout Theia restores or creates.
-    onDidInitializeLayout(): void {
+    /** Resolves once the shell's layout exists, so the UI's sidebar state is not undone by the layout Theia restores or creates. */
+    protected readonly layout = new Deferred<void>();
+
+    /**
+     * Links to the Theorem UI as soon as the frame starts, before Theia's start-up, which waits for the
+     * workspace's files. So the UI hears at once when the workspace does not open, and its Retry reaches
+     * the connection while Theia is still waiting; once the workspace opens, Theia goes on starting with
+     * no reload. Whatever touches the shell or the editors waits for the layout.
+     */
+    initialize(): void {
         if (window.parent === window) {
             return;
         }
+        const afterLayout = <T>(run: () => T | Promise<T>) => this.layout.promise.then(run);
         const methods: IdeFrameMethods = {
-            reveal: (location, options) => this.reveal(location, options),
-            // Stored as the colour theme preference (browser storage), so Theia's own
-            // startup does not put the configured theme back over it.
-            setTheme: dark => this.themes.setCurrentTheme(dark ? STONE_THEMES.dark : STONE_THEMES.light, true),
-            executeCommand: (id, args = []) => this.commands.executeCommand(id, ...args),
-            setSidebar: open => this.setSidebar(open),
-            setFollowing: following => this.showFollowing(following),
+            reveal: (location, options) => afterLayout(() => this.reveal(location, options)),
+            setTheme: theme => this.look.follow(theme),
+            executeCommand: (id, args = []) => afterLayout(() => this.commands.executeCommand(id, ...args)),
+            setSidebar: open => afterLayout(() => this.setSidebar(open)),
+            setFollowing: following => afterLayout(() => this.showFollowing(following)),
             setFollowedRuns: runIds => {
                 this.followedActors = new Set(runIds.map(runId => `theorem:run:${runId}`));
             },
-            openChanges: target => this.openChanges(target),
+            openChanges: target => afterLayout(() => this.openChanges(target)),
             setThread: update => this.setThread(update),
-            closeChatView: async () => {
-                await this.chatView.closeView();
-            },
+            closeChatView: () => afterLayout(() => this.chatView.closeView()).then(() => undefined),
+            retryConnection: () => this.connection.retry(),
         };
         connect<IdeHostMethods>({ messenger: new WindowMessenger({ remoteWindow: window.parent }), methods: { ...methods } })
             .promise.then(host => {
                 this.host = host;
-                this.shell.leftPanelHandler.tabBar.currentChanged.connect(() => void host.sidebarChanged(this.sidebarOpen()));
-                this.editors.onCurrentEditorChanged(() => this.watchCurrentEditor());
-                this.watchCurrentEditor();
-                this.connection.live.on('document.changed', ({ data }) => {
-                    if (this.following && this.followedActors.has(data.actor)) {
-                        void this.showEdit(data);
-                    }
+                void host.connectionChanged(this.connection.status);
+                this.connection.onDidChangeStatus(status => void host.connectionChanged(status));
+                void afterLayout(() => {
+                    this.shell.leftPanelHandler.tabBar.currentChanged.connect(() => void host.sidebarChanged(this.sidebarOpen()));
+                    this.editors.onCurrentEditorChanged(() => this.watchCurrentEditor());
+                    this.watchCurrentEditor();
+                    this.connection.live.on('document.changed', ({ data }) => {
+                        if (this.following && this.followedActors.has(data.actor)) {
+                            void this.showEdit(data);
+                        }
+                    });
                 });
             }, error => console.warn('Theorem UI link not established', error));
+    }
+
+    onDidInitializeLayout(): void {
+        this.showConnection(this.connection.status);
+        this.connection.onDidChangeStatus(status => this.showConnection(status));
+        this.layout.resolve();
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -240,6 +256,28 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
         } else {
             void this.shell.collapsePanel('left');
         }
+    }
+
+    /** The attachment while it is not fully up, in the status bar; nothing once the workspace and its live stream are open. */
+    protected showConnection({ workspace, live, error }: IdeConnection): void {
+        const entry = workspace === 'failed'
+            ? { text: '$(error) Workspace unavailable, Retry', tooltip: error ? `${error}. Click to try again now.` : 'Click to try again now.' }
+            : workspace === 'opening'
+                ? { text: '$(sync~spin) Opening the workspace', tooltip: 'Opening the workspace on Theorem' }
+                : live === 'connecting' || live === 'reconnecting' || live === 'resyncing'
+                    ? { text: '$(sync~spin) Reconnecting live changes', tooltip: 'Edits made elsewhere show once the live stream is back' }
+                    : undefined;
+        if (!entry) {
+            this.statusBar.removeElement(CONNECTION_ENTRY);
+            return;
+        }
+        this.statusBar.setElement(CONNECTION_ENTRY, {
+            ...entry,
+            accessibilityInformation: { label: entry.text.replace(/\$\([^)]*\) /, ''), role: workspace === 'failed' ? 'button' : 'status' },
+            alignment: StatusBarAlignment.LEFT,
+            priority: 2,
+            onclick: workspace === 'failed' ? () => this.connection.retry() : undefined,
+        });
     }
 
     protected showFollowing(following: boolean): void {

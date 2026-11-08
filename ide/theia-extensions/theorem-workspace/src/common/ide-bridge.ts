@@ -8,6 +8,7 @@
 // *****************************************************************************
 
 import type { TheoremContextReference, TheoremLocation } from '@theoremharness/sdk';
+import type { IdeTheme } from './ide-theme';
 
 export interface RevealOptions {
     /** Leave keyboard focus where it is. */
@@ -85,11 +86,23 @@ export interface ApprovalDecision {
     allow: boolean;
 }
 
+/** How the frame's attachment to its Theorem workspace stands. */
+export interface IdeConnection {
+    /** Opening the workspace: trying, open, or failed and trying again in `retryInMs`. */
+    workspace: 'opening' | 'open' | 'failed';
+    /** The workspace's live stream of changes, which starts once the workspace is open. */
+    live: 'connecting' | 'open' | 'reconnecting' | 'resyncing' | 'closed';
+    /** Why the last attempt failed. */
+    error?: string;
+    retryInMs?: number;
+}
+
 /** What the IDE frame offers the Theorem UI around it. */
 export type IdeFrameMethods = {
     /** Show a location. Resolves false when the frame cannot show that resource. */
     reveal(location: TheoremLocation, options?: RevealOptions): Promise<boolean>;
-    setTheme(dark: boolean): void;
+    /** Take the UI's palette and mode. */
+    setTheme(theme: IdeTheme): void;
     executeCommand(id: string, args?: unknown[]): Promise<unknown>;
     /** Show or hide the left side panel; the rail's IDE button drives it. */
     setSidebar(open: boolean): void;
@@ -103,6 +116,8 @@ export type IdeFrameMethods = {
     setThread(update: ChatThreadUpdate): void;
     /** Close the frame's chat view: the UI's agent terminal beside the frame is the conversation. */
     closeChatView(): Promise<void>;
+    /** Try opening the workspace again now, instead of waiting out the delay. */
+    retryConnection(): void;
 };
 
 /** What the Theorem UI offers the IDE frame inside it. */
@@ -124,4 +139,6 @@ export type IdeHostMethods = {
     openThread(threadId: string | null): void;
     /** Leave the IDE for the conversation and show one of its artifacts there. */
     openArtifact(artifactId: string): void;
+    /** The frame's attachment to its workspace changed, or the link was just made. */
+    connectionChanged(connection: IdeConnection): void;
 };

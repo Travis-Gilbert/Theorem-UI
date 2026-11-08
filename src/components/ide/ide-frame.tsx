@@ -1,4 +1,4 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked), the UI's live tokens (ide-theme.ts: the palette and mode the frame follows), the shell's panel state (the rail drives Theia's sidebar)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
@@ -10,10 +10,10 @@
 // and Add to chat goes only where the page connects it (a terminal's Attach).
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
-import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
-import { useEffect, useEffectEvent, useRef } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { ErrorState } from '@/components/assistant-ui/elements/error-state'
 import {
   approvalChoice,
   sendApprovalDecision,
@@ -23,10 +23,12 @@ import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { useTerminalRuns } from '@/components/terminal/terminal-screen'
 import type {
+  IdeConnection,
   IdeFrameMethods,
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
+import { useIdeTheme } from './ide-theme'
 import {
   useChatRuns,
   useFollow,
@@ -42,6 +44,21 @@ function referenceText({ label, excerpt, location }: TheoremContextReference) {
   return excerpt ? `${name}\n\`\`\`\n${excerpt}\n\`\`\`` : `\`${name}\``
 }
 
+/** How long the frame may take to link before the IDE says it has not started. */
+const START_WAIT_MS = 45_000
+
+/** One load of the frame: whether it linked, is slow, and how its workspace attachment stands. */
+interface FrameLoad {
+  frame: string
+  linked?: boolean
+  slow?: boolean
+  connection?: IdeConnection
+}
+
+/** The record for this load, or a fresh one when the last record is another load's. */
+const forFrame = (load: FrameLoad | undefined, frame: string): FrameLoad =>
+  load?.frame === frame ? load : { frame }
+
 /**
  * The IDE. Add to chat reaches `onAddToChat` always and, unless `docked`,
  * Theia's chat composer too.
@@ -56,7 +73,7 @@ export function IdeFrame({
   const { project } = useActiveProject()
   const aui = useAui()
   const openMode = useOpenMode()
-  const { resolvedTheme } = useTheme()
+  const look = useIdeTheme()
   const frame = useRef<HTMLIFrameElement>(null)
   const ide = useFollow((s) => s.ide)
   const following = useFollow((s) => s.following)
@@ -71,10 +88,27 @@ export function IdeFrame({
   const src = workspaceId
     ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
     : undefined
+  /** Loads the frame again when it never linked. */
+  const [reloads, setReloads] = useState(0)
+  const frameKey = src && `${src}#${reloads}`
+  /** What this load of the frame has done; a new load starts from nothing. */
+  const [load, setLoad] = useState<FrameLoad>()
+  const thisLoad: Partial<FrameLoad> =
+    load && load.frame === frameKey ? load : {}
+  const { linked = false, slow = false, connection } = thisLoad
+
+  useEffect(() => {
+    if (!frameKey) return
+    const timer = setTimeout(
+      () => setLoad((current) => ({ ...forFrame(current, frameKey), slow: true })),
+      START_WAIT_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [frameKey])
 
   useEffect(() => {
     const remoteWindow = frame.current?.contentWindow
-    if (!src || !remoteWindow) return
+    if (!frameKey || !remoteWindow) return
     const methods: IdeHostMethods = {
       addToChat: (reference) => {
         added(reference)
@@ -112,28 +146,41 @@ export function IdeFrame({
         useArtifactView.getState().open(artifactId)
         void openMode('chat')
       },
+      // A failure's error stays while it tries again.
+      connectionChanged: (next) =>
+        setLoad((current) => {
+          const previous = forFrame(current, frameKey)
+          const error = previous.connection?.error
+          return {
+            ...previous,
+            connection:
+              next.workspace === 'opening' && error ? { ...next, error } : next,
+          }
+        }),
     }
-    const connection = connect<IdeFrameMethods>({
+    const link = connect<IdeFrameMethods>({
       messenger: new WindowMessenger({ remoteWindow }),
       methods: { ...methods },
     })
-    connection.promise.then(
+    link.promise.then(
       (remote) => {
+        setLoad((current) => ({ ...forFrame(current, frameKey), linked: true }))
         const { pending } = useFollow.getState()
         useFollow.setState({ ide: remote, pending: undefined })
         pending?.(remote)
       },
+      // Destroyed by the cleanup below; a frame that never links shows as not started.
       () => undefined,
     )
     return () => {
-      connection.destroy()
+      link.destroy()
       useFollow.setState({ ide: undefined })
     }
-  }, [src, aui, openMode, docked])
+  }, [frameKey, aui, openMode, docked])
 
   useEffect(() => {
-    void ide?.setTheme(resolvedTheme === 'dark')
-  }, [ide, resolvedTheme])
+    if (look) void ide?.setTheme(look)
+  }, [ide, look])
 
   useEffect(() => {
     void ide?.setSidebar(sidebarOpen)
@@ -159,13 +206,41 @@ export function IdeFrame({
         Loading the workspace…
       </div>
     )
+  /** Why the workspace did not open, while it has not. */
+  const failure =
+    connection?.workspace === 'open'
+      ? undefined
+      : connection?.error?.replace(/\.$/, '')
   return (
-    <iframe
-      key={src}
-      ref={frame}
-      src={src}
-      title="IDE"
-      className="block h-full w-full border-0 bg-background"
-    />
+    <div className="relative h-full w-full">
+      <iframe
+        key={frameKey}
+        ref={frame}
+        src={src}
+        title="IDE"
+        className="block h-full w-full border-0 bg-background"
+      />
+      {failure || (slow && !linked) ? (
+        <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center px-4">
+          {failure ? (
+            <ErrorState
+              className="shadow-sheet pointer-events-auto max-w-md"
+              title="The workspace did not open"
+              detail={`${failure}. Trying again${connection?.retryInMs ? ` in ${Math.round(connection.retryInMs / 1000)} s` : ''}.`}
+              retrying={connection?.workspace === 'opening'}
+              onRetry={() => ide?.retryConnection()}
+            />
+          ) : (
+            <ErrorState
+              className="shadow-sheet pointer-events-auto max-w-md"
+              title="The IDE has not started"
+              detail="It is taking longer than usual to load."
+              retrying={false}
+              onRetry={() => setReloads((count) => count + 1)}
+            />
+          )}
+        </div>
+      ) : null}
+    </div>
   )
 }

@@ -96,3 +96,63 @@ export function isolateResyncListeners<R>(
         }
     });
 }
+
+/** How opening the workspace stands: trying, open, or failed and waiting `retryInMs` to try again. */
+export type OpeningState =
+    | { state: 'opening' }
+    | { state: 'open' }
+    | { state: 'failed'; error: string; retryInMs: number };
+
+export interface Opening {
+    /** Resolves once an attempt succeeds; it never rejects, since every call needs the workspace open. */
+    readonly ready: Promise<void>;
+    /** Try again now instead of waiting out the delay. */
+    retryNow(): void;
+}
+
+/** The waits between failed attempts; the last repeats. */
+export const RETRY_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000];
+
+/**
+ * What went wrong, in words a person can read: a problem body's detail or title, as the Theorem UI
+ * describes its own errors, rather than the SDK's dump of the status and raw body.
+ */
+export function reason(error: unknown): string {
+    const body = error && typeof error === 'object' && 'body' in error ? error.body : undefined;
+    const field = (name: string) => {
+        const value = body && typeof body === 'object' ? (body as Record<string, unknown>)[name] : undefined;
+        return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+    };
+    return field('detail') ?? field('title') ?? (error instanceof Error ? error.message : String(error));
+}
+
+/**
+ * Opens the workspace, trying again after each failure, so a host that is still starting or briefly
+ * unreachable recovers without a reload. Every request waits on the same `ready`, and the person can
+ * cut a wait short.
+ */
+export function openUntilReady(attempt: () => Promise<void>, report: (state: OpeningState) => void, delays = RETRY_DELAYS): Opening {
+    let wake: (() => void) | undefined;
+    const ready = (async () => {
+        for (let failures = 0; ; failures += 1) {
+            report({ state: 'opening' });
+            try {
+                await attempt();
+                report({ state: 'open' });
+                return;
+            } catch (error) {
+                const retryInMs = delays[Math.min(failures, delays.length - 1)];
+                report({ state: 'failed', error: reason(error), retryInMs });
+                await new Promise<void>(resolve => {
+                    const timer = setTimeout(resolve, retryInMs);
+                    wake = () => {
+                        clearTimeout(timer);
+                        resolve();
+                    };
+                });
+                wake = undefined;
+            }
+        }
+    })();
+    return { ready, retryNow: () => wake?.() };
+}
