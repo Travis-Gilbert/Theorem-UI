@@ -79,7 +79,7 @@ src/
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
 
-`mobile/` holds the iOS app: Expo and React Native with native assistant-ui over the same SDK. It is its own Bun workspace, and the root typecheck, lint, format and tests leave it out; see `mobile/README.md`. `/.well-known/apple-app-site-association` names that app for its sign-in callback on theorem.rs once `THEOREM_IOS_APP_IDS` is set (`mobile/docs/sign-in.md`).
+`mobile/` holds the iOS app: Expo and React Native with native assistant-ui over the Theorem SDK. It is its own Bun workspace, and the root typecheck, lint, format and tests leave it out; see `mobile/README.md`. `/.well-known/apple-app-site-association` names that app for its sign-in callback on theorem.rs once `THEOREM_IOS_APP_IDS` is set (`mobile/docs/sign-in.md`).
 
 `ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The rail's IDE mode shows it in the sheet, served at `/theia`. Until `ide/` is built, `/theia` answers 503 with the build command. `patches/` carries nitro's merged dev fix (nitrojs/nitro#4159), which stops the dev server brotli-compressing Theia's bundle on every load. Drop it once a nitro release includes that fix.
 

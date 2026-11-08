@@ -3,7 +3,7 @@
 The app signs a person in to the Theorem authority (the OAuth issuer) as the public client `theorem-ios`:
 
 - authorization code with PKCE (S256) and no client secret;
-- scope `run:read run:write models:invoke`, the same as the web app;
+- scope `run:read run:write models:invoke`. That covers everything the app calls: the chat API, document reads (`run:read` stands in for `tenant:read`) and the environment API. The web app also asks for graph and agency scopes, for features the phone does not have;
 - `resource` set to `<authority>/mcp` (RFC 8707);
 - the callback's `iss` checked against the issuer (RFC 9207).
 

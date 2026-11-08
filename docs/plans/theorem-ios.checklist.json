@@ -35,13 +35,13 @@
       "id": "p0-sdk-audit",
       "item": "Phase 0: audit the headless SDK; validate platform globals, attachment uploads, native imports, view detach versus explicit stop",
       "status": "in_progress",
-      "evidence": "HeadlessConversation is reused unchanged. Theorem packages/theorem-sdk gains projectThreadView, a pure projection that never dispatches, so unmounting cannot stop a run (Theorem 422a212c). src/lib/polyfills.ts installs and asserts the globals the SDK needs; Stop is the only path to session.stop (src/features/chat/runtime.ts). Attachment uploads are not validated: the composer sends text only."
+      "evidence": "HeadlessConversation is reused unchanged. Theorem packages/theorem-sdk gains projectThreadView, a pure projection that never dispatches, so unmounting cannot stop a run (Theorem 5a18077c). src/lib/polyfills.ts installs and asserts the globals the SDK needs; Stop is the only path to session.stop (src/features/chat/runtime.ts). Attachment uploads are not validated: the composer sends text only."
     },
     {
       "id": "p0-sdk-versions",
       "item": "Phase 0: record the current web SDK version and the shared version selected for mobile",
       "status": "done",
-      "evidence": "Web: @theoremharness/sdk 0.5.0 (vendor/theoremharness-sdk-0.5.0.tgz). Mobile: 0.6.0-alpha.1 packed from Theorem 422a212c on claude/theorem-ios-app-knkszc (mobile/vendor, sha256 bb47692908b0db6494dfeee47af79e9f482a4bec9add37c3b9a82ab5ffc7abd0). The web app moves to it once the SDK change merges and is published."
+      "evidence": "Mobile: 0.6.0-alpha.1 packed from Theorem 5a18077c on claude/theorem-ios-app-knkszc (mobile/vendor, sha256 bb47692908b0db6494dfeee47af79e9f482a4bec9add37c3b9a82ab5ffc7abd0; repacking reproduces it). Web, on main: 0.6.0-alpha.5 with a local patch (vendor/, patches/), from another SDK line without projectThreadView. The two lines have to be merged into one release before the web and the phone can share a version."
     },
     {
       "id": "p0-binding",
