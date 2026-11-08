@@ -1,6 +1,12 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it, spyOn } from 'bun:test'
+import * as api from './api'
 import type { CatalogEntry, ProgramDefinition } from './contracts'
-import { insertNode, sameDocument, useProgramDoc } from './store'
+import {
+  insertNode,
+  sameDocument,
+  spliceExisting,
+  useProgramDoc,
+} from './store'
 
 const port = (id: string) => ({ id, shape_id: 'theorem.monitor.snapshot.v1' })
 const program = {
@@ -96,5 +102,41 @@ describe('program document', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toContain('filter')
     expect(ids).toContain('filter-2')
+  })
+
+  it('splices a node onto a wire once when it is dropped twice at once', async () => {
+    const check = spyOn(api, 'validateEdge').mockResolvedValue(compatible)
+    try {
+      useProgramDoc.getState().open(
+        {
+          node_id: 'graph-a',
+          content_id: 'graph-a-content',
+          program: {
+            ...program,
+            nodes: [
+              ...program.nodes,
+              {
+                id: 'pass',
+                inputs: [port('in')],
+                outputs: [port('out')],
+                kind: 'rule',
+              },
+            ],
+          } as unknown as ProgramDefinition,
+          layout: null,
+        },
+        {},
+      )
+      const results = await Promise.all([
+        spliceExisting('pass', 'a-sink'),
+        spliceExisting('pass', 'a-sink'),
+      ])
+      expect(results.filter((result) => result.spliced)).toHaveLength(1)
+      const edges = useProgramDoc.getState().program!.edges
+      expect(edges.filter((edge) => edge.to_node === 'pass')).toHaveLength(1)
+      expect(edges.filter((edge) => edge.to_node === 'sink')).toHaveLength(1)
+    } finally {
+      check.mockRestore()
+    }
   })
 })
