@@ -18,6 +18,12 @@
       "bun": "1.4.4",
       "distribution": "internal"
     },
+    "preview-simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
       "bun": "1.4.4",
       "autoIncrement": true
