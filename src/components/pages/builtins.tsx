@@ -21,6 +21,7 @@ import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { DocumentApp } from '@/components/blocks/document-app'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import type { Scope as IndexScope } from '@/components/index/contract'
 import { ViewColumn } from '@/components/index/index-surface'
 import { Inspector } from '@/components/index/inspector'
@@ -358,7 +359,9 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
   if (!mine) return <Elsewhere what="The conversation" onTake={take} />
   return (
     <div className="h-full min-h-[320px]">
-      <Thread autoFocus={false} />
+      <LifeBackdrop>
+        <Thread autoFocus={false} />
+      </LifeBackdrop>
     </div>
   )
 }
@@ -366,10 +369,12 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
 const useIdeOwner = create<Owner>(() => ({}))
 
 /**
- * Theia, for the active project. Add to chat is its Added event; with its
- * chat set to the page, Theia's own chat closes and Follow follows the agent
- * terminal's active tab, so a connection from Added to a terminal's Attach
- * makes the terminal the conversation.
+ * Theia, for the active project. Add to chat is its Added event. With its
+ * chat set to the page's conversation, Theia's own chat closes and Follow
+ * follows the conversation's runs, so a connection from Added to the
+ * conversation's Attach puts the selection in its composer. Set to the page,
+ * Follow follows the agent terminal's active tab instead, so a connection to
+ * a terminal's Attach makes the terminal the conversation.
  */
 function IdeModule({ settings, emit, arranging, path }: ModuleViewProps) {
   const { mine, take } = useOwner(useIdeOwner, path, !arranging)
@@ -379,7 +384,8 @@ function IdeModule({ settings, emit, arranging, path }: ModuleViewProps) {
   return (
     <div className="h-full">
       <IdeFrame
-        docked={settings.chat === 'page'}
+        docked={settings.chat === 'conversation' || settings.chat === 'page'}
+        follows={settings.chat === 'page' ? 'terminal' : 'chat'}
         onAddToChat={(reference) => emit('added', reference)}
       />
     </div>
@@ -562,7 +568,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
     id: 'theorem.conversation',
     label: 'Conversation',
     description:
-      'The conversation and its composer. Moving it keeps the draft.',
+      'The conversation and its composer, over the Life field. Moving it keeps the draft.',
     settings: [
       {
         name: 'conversation',
@@ -589,7 +595,8 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
         kind: 'select',
         options: [
           { label: "Theia's own", value: 'own' },
-          { label: 'On the page, through Added', value: 'page' },
+          { label: "The page's conversation, through Added", value: 'conversation' },
+          { label: 'An agent terminal on the page, through Added', value: 'page' },
         ],
         default: 'own',
       },

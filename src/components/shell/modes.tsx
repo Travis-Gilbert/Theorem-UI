@@ -43,11 +43,11 @@ export const modeLabel = (mode: ShellMode) =>
   MODES.find((entry) => entry.mode === mode)!.label
 
 /**
- * The mode whose panel beside the rail shows: Theia and the Vault cover the
- * sheet in their modes, so Chat's panel stays under them.
+ * The mode whose panel beside the rail shows: the Vault covers the sheet, so
+ * Chat's panel stays under it. The IDE has its own, its sessions.
  */
 export const navigatorMode = (mode: ShellMode): ShellMode =>
-  mode === 'ide' || mode === 'vault' ? 'chat' : mode
+  mode === 'vault' ? 'chat' : mode
 
 /**
  * The mode is the route: /index, /pages, /vault, /spaces, /canvas and /ide, and chat everywhere else. It reads
@@ -93,13 +93,13 @@ export function useOpenMode() {
 /**
  * The view for the current mode. The conversation stays mounted behind the
  * other modes, so its scroll position and composer draft survive a switch.
- * On the desktop Theia and the Vault cover the whole sheet, so the dock keeps
- * the conversation laid out beneath them; on a phone they take the screen.
+ * On the desktop the Vault covers the whole sheet, so the dock keeps the
+ * conversation laid out beneath it, and the IDE's page has its own
+ * conversation beside Theia; on a phone they take the screen.
  */
 export function ModeView({ docked = false }: { docked?: boolean }) {
   const mode = useShellMode()
-  const showThread =
-    mode === 'chat' || (docked && (mode === 'ide' || mode === 'vault'))
+  const showThread = mode === 'chat' || (docked && mode === 'vault')
   return (
     <>
       <div hidden={!showThread} className="h-full">

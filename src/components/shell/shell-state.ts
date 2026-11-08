@@ -43,6 +43,8 @@ type ShellState = {
   chatThreadId: string | undefined
   /** Whether the chat panel's file explorer is expanded. */
   explorerOpen: boolean
+  /** Whether Theia's own side panel (its explorer) is open in the IDE. */
+  ideFilesOpen: boolean
   /** Which quick views and projects a person opened or closed in the sidebar. */
   organizeOpen: Readonly<Record<string, boolean>>
   /** Whether the agent terminal drawer is up. Not persisted. */
@@ -69,6 +71,7 @@ type ShellState = {
   setFilesShown: (shown: boolean) => void
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
+  setIdeFilesOpen: (open: boolean) => void
   setOrganizeOpen: (key: string, open: boolean) => void
   setTerminalOpen: (open: boolean) => void
   setTerminalHeight: (height: number) => void
@@ -101,6 +104,7 @@ export const useShell = create<ShellState>()(
       filesShown: false,
       chatThreadId: undefined,
       explorerOpen: false,
+      ideFilesOpen: true,
       organizeOpen: {},
       terminalOpen: false,
       terminalHeight: 0.46,
@@ -127,6 +131,7 @@ export const useShell = create<ShellState>()(
       setFilesShown: (filesShown) => set({ filesShown }),
       setChatThreadId: (chatThreadId) => set({ chatThreadId }),
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
+      setIdeFilesOpen: (ideFilesOpen) => set({ ideFilesOpen }),
       setOrganizeOpen: (key, open) =>
         set((s) => ({ organizeOpen: { ...s.organizeOpen, [key]: open } })),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
@@ -213,14 +218,17 @@ export const useShell = create<ShellState>()(
       // Version 3 kept filesShown, which now lasts only for the visit. Version 4
       // (on main) dropped it; version 4 (on the canvas branch) widened the panel
       // for the project tree and folded the files away. Version 5 does both for
-      // whichever version 4 a layout was saved under.
-      version: 5,
+      // whichever version 4 a layout was saved under. Version 6 gave the IDE
+      // its own panel beside the rail: the IDE's collapsed flag had meant
+      // Theia's explorer, so it moves to ideFilesOpen and the panel opens.
+      version: 6,
       partialize: ({
         projectId,
         layouts,
         panelWidth,
         panelCollapsed,
         explorerOpen,
+        ideFilesOpen,
         organizeOpen,
         terminalHeight,
         sideWidth,
@@ -233,6 +241,7 @@ export const useShell = create<ShellState>()(
         panelWidth,
         panelCollapsed,
         explorerOpen,
+        ideFilesOpen,
         organizeOpen,
         terminalHeight,
         sideWidth,
@@ -242,10 +251,14 @@ export const useShell = create<ShellState>()(
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined
+        const { ide, ...collapsed } = state?.panelCollapsed ?? {}
+        const theia = { panelCollapsed: collapsed, ideFilesOpen: !ide }
+        if (version === 5) return { ...state, ...theia }
         if (version >= 2 && version <= 4) {
           const { filesShown: _, ...kept } = (state ?? {}) as ShellState
           return {
             ...kept,
+            ...theia,
             panelWidth: PANEL_WIDTH.default,
             explorerOpen: false,
           }

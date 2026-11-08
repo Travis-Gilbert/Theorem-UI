@@ -156,10 +156,35 @@ function PhoneShell() {
 type DockRoute = { projectId: string; threadId: string | undefined }
 const DockRouteContext = createContext<DockRoute | null>(null)
 
+/**
+ * The column beside the panel: the dock, and in IDE mode the IDE's page over
+ * it (by default the conversation with Theia beside it). The page loads on
+ * its first visit and then stays, hidden, so Theia's editors and layout
+ * survive a switch; the dock stays mounted under it for the same reason, and
+ * hides while the page shows so the sheet's gradient shows through the page.
+ */
 function DockView() {
   const route = useContext(DockRouteContext)
   if (!route) throw new Error('DockView renders inside the desktop sheet')
-  return <DockShell projectId={route.projectId} threadId={route.threadId} />
+  const ide = useShellMode() === 'ide'
+  const [ideLoaded, setIdeLoaded] = useState(ide)
+  if (ide && !ideLoaded) setIdeLoaded(true)
+  return (
+    <div className="relative h-full">
+      {/* Dockview layers its panels with z-index; isolate keeps them under the page. */}
+      <div inert={ide} className={cn('isolate h-full', ide && 'invisible')}>
+        <DockShell projectId={route.projectId} threadId={route.threadId} />
+      </div>
+      {ideLoaded && (
+        <div
+          inert={!ide}
+          className={cn('absolute inset-0', !ide && 'invisible')}
+        >
+          <ModePage mode="ide" />
+        </div>
+      )}
+    </div>
+  )
 }
 const PANEL = 'panel'
 
@@ -174,8 +199,8 @@ const splitComponents = {
  * closes per mode from the rail.
  */
 function SheetSplit(route: DockRoute) {
-  // Theia and the Vault cover the split, and the rail's button drives their
-  // own side panels, so the split underneath keeps Chat's panel.
+  // The Vault covers the split, and the rail's button drives its own side
+  // panel, so the split underneath keeps Chat's panel.
   const panelMode = navigatorMode(useShellMode())
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
@@ -234,18 +259,13 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode its page fills the sheet (by default Theia with the agent
- * terminal beside it), and in Vault mode the Vault does. Each
- * loads on its first visit and then stays, hidden, so its editors and layout
- * survive a switch; the panel and dock stay mounted under them for the same
- * reason.
+ * In IDE mode the IDE's page takes the dock's place beside the IDE's panel.
+ * In Vault mode the Vault fills the sheet; it loads on its first visit and
+ * then stays, hidden, so its editors and layout survive a switch, and the
+ * panel and dock stay mounted under it for the same reason.
  */
 function DesktopShell(route: DockRoute) {
-  const mode = useShellMode()
-  const ide = mode === 'ide'
-  const vault = mode === 'vault'
-  const [ideLoaded, setIdeLoaded] = useState(ide)
-  if (ide && !ideLoaded) setIdeLoaded(true)
+  const vault = useShellMode() === 'vault'
   const [vaultLoaded, setVaultLoaded] = useState(vault)
   if (vault && !vaultLoaded) setVaultLoaded(true)
   return (
@@ -254,18 +274,10 @@ function DesktopShell(route: DockRoute) {
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
         <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
-          {/* Dockview layers its panels with z-index; isolate keeps them under Theia and the Vault. */}
-          <div inert={ide || vault} className="isolate h-full">
+          {/* Dockview layers its panels with z-index; isolate keeps them under the Vault. */}
+          <div inert={vault} className="isolate h-full">
             <SheetSplit {...route} />
           </div>
-          {ideLoaded && (
-            <div
-              inert={!ide}
-              className={cn('absolute inset-0', !ide && 'invisible')}
-            >
-              <ModePage mode="ide" />
-            </div>
-          )}
           {vaultLoaded && (
             <div
               inert={!vault}
