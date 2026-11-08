@@ -50,6 +50,14 @@ export const hasOwnView = (mode: ShellMode) =>
   mode === 'spaces' ||
   mode === 'canvas'
 
+/**
+ * Whether the file tree sits under the mode's own list. Notes keeps its own
+ * folders and ends with its Trash; the rail's Files control still shows the
+ * files there.
+ */
+export const filesUnderPanel = (mode: ShellMode) =>
+  hasOwnView(mode) && mode !== 'notes'
+
 export const modeLabel = (mode: ShellMode) =>
   MODES.find((entry) => entry.mode === mode)!.label
 

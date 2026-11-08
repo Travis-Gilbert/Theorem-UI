@@ -18,7 +18,7 @@ import {
   SidebarGroupLabel,
   SidebarProvider,
 } from '@/components/coss/sidebar'
-import { hasOwnView, useShellMode } from './modes'
+import { filesUnderPanel, hasOwnView, useShellMode } from './modes'
 import { useActiveProject, useTenant } from './projects'
 import { useShell } from './shell-state'
 
@@ -189,7 +189,9 @@ export function ContextPanel() {
           </div>
         )}
         {/* Beside the threads the folders fold into the panel's one Files row. */}
-        {(filesShown || !threads) && <FoldersSection fill={filesShown} />}
+        {(filesShown || filesUnderPanel(mode)) && (
+          <FoldersSection fill={filesShown} />
+        )}
       </Sidebar>
     </SidebarProvider>
   )
