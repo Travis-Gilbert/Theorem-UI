@@ -149,6 +149,68 @@ check(
 )
 await page.getByLabel('Search notes').fill('')
 
+// A folder is a Theorem collection: the plus folder button makes one, a note
+// dragged onto it moves in, and Move to takes it back out.
+const collections = async () => {
+  const response = await context.request.get(
+    `${UI}/api/documents/v2/collections?schema=${SCHEMA}`,
+    READ,
+  )
+  return response.ok() ? (await response.json()).collections : []
+}
+const holding = async (name) =>
+  (await collections()).find((collection) => collection.name === name)
+    ?.documentIds ?? []
+const until = async (test) => {
+  const by = Date.now() + 30_000
+  while (!(await test()) && Date.now() < by) await page.waitForTimeout(500)
+  return test()
+}
+const FOLDER = `Field trips ${MARK}`
+await page.getByRole('button', { name: 'New folder' }).click()
+await page.getByLabel('Folder name').fill(FOLDER)
+await page.keyboard.press('Enter')
+const folderRow = notesNav.getByRole('button', { name: FOLDER })
+await folderRow.waitFor(READ)
+check(
+  'the plus folder button makes a folder in Theorem',
+  Boolean(
+    await until(async () =>
+      (await collections()).some((c) => c.name === FOLDER),
+    ),
+  ),
+)
+const noteRow = notesNav.getByRole('button', { name: TITLE })
+const from = await noteRow.boundingBox()
+const to = await folderRow.boundingBox()
+await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+await page.mouse.down()
+await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 12, {
+  steps: 4,
+})
+await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 })
+await page.mouse.up()
+check(
+  'a note dragged onto the folder moves into it',
+  await until(async () => (await holding(FOLDER)).includes(documentId)),
+)
+await noteRow.waitFor({ state: 'detached', ...READ })
+check('a closed folder hides its notes', true)
+await folderRow.click()
+await noteRow.waitFor(READ)
+check('the folder opens on the note', true)
+await page.waitForTimeout(600)
+await shot('folder')
+await page.getByRole('button', { name: 'Move to', exact: true }).click()
+await page.getByRole('menuitemradio', { name: 'No folder' }).click()
+check(
+  'Move to takes it back to the top level',
+  await until(async () => !(await holding(FOLDER)).includes(documentId)),
+)
+await folderRow.click()
+await noteRow.waitFor(READ)
+check('and the list shows it loose again', true)
+
 // The Trash takes it and gives it back.
 await page.getByRole('button', { name: 'Move to Trash' }).click()
 await page.waitForURL((url) => url.pathname === '/notes', READ)
