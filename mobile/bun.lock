@@ -379,7 +379,7 @@
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "@theoremharness/sdk": ["@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.1.tgz", { "dependencies": { "dequal": "2.0.3", "lossless-json": "4.3.3", "write-file-atomic": "6.0.0" }, "peerDependencies": { "@assistant-ui/core": ">=0.3.30 <0.4.0" }, "optionalPeers": ["@assistant-ui/core"] }, "sha512-rtXXCi1slBFhAipQRcJDg4tWmxtJoK0BWW+SHPVpVo79JnR9tTWdLX6sWsHKM+YFzQQtYgfur1TBtEUH/SKibQ=="],
+    "@theoremharness/sdk": ["@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.1.tgz", { "dependencies": { "dequal": "2.0.3", "lossless-json": "4.3.3", "write-file-atomic": "6.0.0" }, "peerDependencies": { "@assistant-ui/core": ">=0.3.30 <0.4.0" }, "optionalPeers": ["@assistant-ui/core"] }, "sha512-fbyZCGuBQdz+ygGlJNrmXgXPQsnNHvVvZxfcZsXt320alCKmRLeymkd2eIbnfCmiRZ3scFJc5Di7tPqia356Fg=="],
 
     "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
 
