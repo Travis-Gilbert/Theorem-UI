@@ -66,18 +66,25 @@ let toolsStatus = 200
 /** What GET /api/chat/v1/models answers; unset, the route is not served. */
 let modelsBody: unknown
 let client: QueryClient
+let requests: { origin: string; pathname: string; method: string }[]
 const realFetch = window.fetch
 beforeEach(() => {
   toolsStatus = 200
   modelsBody = undefined
+  requests = []
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  window.fetch = (async (input: RequestInfo | URL) => {
-    const url = input instanceof Request ? input.url : String(input)
-    if (new URL(url).pathname === '/api/environment/v1/tools')
+  window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    requests.push({
+      origin: url.origin,
+      pathname: url.pathname,
+      method: init?.method ?? (input instanceof Request ? input.method : 'GET'),
+    })
+    if (url.pathname === '/api/environment/v1/tools')
       return toolsStatus === 200
         ? Response.json(CATALOG)
         : Response.json({ title: 'Not found' }, { status: toolsStatus })
-    if (new URL(url).pathname === '/api/chat/v1/models' && modelsBody)
+    if (url.pathname === '/api/chat/v1/models' && modelsBody)
       return Response.json(modelsBody)
     return Response.json({}, { status: 404 })
   }) as typeof fetch
@@ -184,6 +191,16 @@ test('a slash lists the native tools, with their first sentence and what they ch
     'rememberwritesStore a memory for this person.',
     'rustyweb_searchSearch the web.',
   ])
+  expect(
+    requests.filter(({ pathname }) => pathname.includes('/environment/')),
+  ).toEqual([
+    {
+      origin: window.location.origin,
+      pathname: '/api/environment/v1/tools',
+      method: 'GET',
+    },
+  ])
+  expect(requests.some(({ pathname }) => pathname.startsWith('/mcp'))).toBe(false)
 })
 
 test('the tools heading shows only while the slash list is open', async () => {
