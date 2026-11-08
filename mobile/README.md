@@ -27,7 +27,7 @@ Requires Bun 1.4 or later. A native build also needs a Mac with Xcode for the iO
 
 ```bash
 bun install
-bun run ghosttykit    # downloads the pinned GhosttyKit and checks its sha256 (647 MB unpacked)
+bun run ghosttykit    # downloads the pinned GhosttyKit, checks its sha256, keeps the iOS slices (316 MB)
 bun run typecheck
 bun run test
 ```
@@ -35,7 +35,7 @@ bun run test
 The app is a development build, not Expo Go: it carries native code that Expo Go lacks. Use either:
 
 - `bun run ios` locally: prebuild, `pod install`, then run in a simulator or on a device.
-- EAS with `bunx eas-cli build --profile development --platform ios`. `eas.json` has the development, simulator, preview and production profiles. EAS runs `eas-build-pre-install`, which fetches GhosttyKit.
+- EAS with `bunx eas-cli build --profile development --platform ios`. `eas.json` has the development, simulator, preview, preview-simulator and production profiles. EAS runs `eas-build-pre-install`, which fetches GhosttyKit.
 
 Then `bun run start` serves the JavaScript.
 

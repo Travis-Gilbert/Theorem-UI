@@ -26,7 +26,9 @@ terminal shows only for someone who turns on **Show terminal** in Settings.
   the app says why.
 
 Before `pod install` (local builds and EAS), run `scripts/fetch-ghosttykit.sh`.
-The podspec refuses to install without it.
+The podspec refuses to install without it. The script keeps only the iOS
+slices: the release's macOS slice names its library differently, and
+CocoaPods refuses an xcframework whose libraries are named differently.
 
 ## How chat uses it
 
