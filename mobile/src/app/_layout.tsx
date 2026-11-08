@@ -44,6 +44,13 @@ function Navigation() {
     setWasSignedIn(signedIn)
   }, [auth.status, signedIn, wasSignedIn])
 
+  // A link that arrives while the sign-in screen is up opens after sign-in, as the launch link does.
+  useEffect(() => {
+    if (signedIn) return
+    const subscription = Linking.addEventListener('url', ({ url }) => rememberDestination(url))
+    return () => subscription.remove()
+  }, [signedIn])
+
   if (auth.status === 'loading') return null
   return (
     <>

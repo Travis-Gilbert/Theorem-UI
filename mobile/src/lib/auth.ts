@@ -12,6 +12,8 @@ import {
   authorizeUrl,
   base64url,
   codeGrant,
+  endsSession,
+  expired,
   keep,
   needsRefresh,
   pkceChallenge,
@@ -41,6 +43,8 @@ const keychain: SecureStore.SecureStoreOptions = {
 
 let state: AuthState = { status: 'loading' }
 let stored: Stored | undefined
+/** Counts sign-ins and sign-outs, so work started for an earlier session is discarded. */
+let session = 0
 const listeners = new Set<() => void>()
 
 function set(next: AuthState) {
@@ -62,6 +66,12 @@ async function persist(next: Stored | undefined) {
   stored = next
   if (next) await SecureStore.setItemAsync(KEY, JSON.stringify(next), keychain)
   else await SecureStore.deleteItemAsync(KEY, keychain)
+}
+
+/** A sign-in or sign-out: a renewal still in flight for the old session is not saved. */
+function replace(next: Stored | undefined) {
+  session += 1
+  return persist(next)
 }
 
 /** Reads the Keychain once at launch. A session for another authority is ignored. */
@@ -158,7 +168,7 @@ export async function signIn(): Promise<void> {
     ),
     Date.now(),
   )
-  await persist({ ...tokens, authority: config.authority, kind: 'oauth' })
+  await replace({ ...tokens, authority: config.authority, kind: 'oauth' })
   set({ status: 'signed-in', kind: 'oauth' })
 }
 
@@ -169,59 +179,67 @@ export async function signIn(): Promise<void> {
  */
 export async function signInWithDevelopmentToken(token: string): Promise<void> {
   if (!__DEV__) throw new Error('Development tokens are not accepted in release builds')
-  await persist({ accessToken: token.trim(), authority: config.authority, kind: 'token' })
+  await replace({ accessToken: token.trim(), authority: config.authority, kind: 'token' })
   set({ status: 'signed-in', kind: 'token' })
 }
 
 export async function signOut(reason?: string): Promise<void> {
-  await persist(undefined)
+  await replace(undefined)
   set({ status: 'signed-out', reason })
 }
 
-let refreshing: Promise<Stored | undefined> | undefined
+/** "ended": the server refused the refresh token. "unavailable": it could not be asked. */
+type Renewed = Stored | 'ended' | 'unavailable'
 
-async function refresh(current: Stored): Promise<Stored | undefined> {
-  if (!current.refreshToken) return undefined
-  const server = await authorizationServer()
+let renewing: { session: number; result: Promise<Renewed> } | undefined
+
+async function renew(current: Stored, started: number): Promise<Renewed> {
+  if (!current.refreshToken) return 'ended'
   try {
-    const tokens = keep(
-      current,
-      await tokenRequest(
-        server,
-        refreshGrant(server, {
-          clientId: config.oauthClientId,
-          refreshToken: current.refreshToken,
-        }),
-      ),
-      Date.now(),
+    const server = await authorizationServer()
+    const response = await tokenRequest(
+      server,
+      refreshGrant(server, { clientId: config.oauthClientId, refreshToken: current.refreshToken }),
     )
-    const next: Stored = { ...tokens, authority: current.authority, kind: current.kind }
+    // Signed out, or signed in again, while this was in flight: these tokens belong to no session.
+    if (session !== started) return 'unavailable'
+    const next: Stored = { ...keep(current, response, Date.now()), authority: current.authority, kind: current.kind }
     await persist(next)
     return next
   } catch (error) {
-    // A refused refresh token ends the session; an unreachable server keeps it
-    // for a later request to retry.
-    if (error instanceof SignInError) return undefined
-    return current
+    return endsSession(error) ? 'ended' : 'unavailable'
   }
 }
 
 /**
  * The bearer for the next request, refreshed shortly before it expires. One
- * refresh runs at a time: Theorem rotates refresh tokens, so a second use of
- * the same one would be refused.
+ * refresh runs at a time for a session: Theorem rotates refresh tokens, so a
+ * second use of the same one would be refused.
  */
 export async function bearer(): Promise<string | undefined> {
   const current = stored
   if (!current) return undefined
   if (current.kind === 'token' || !needsRefresh(current, Date.now())) return current.accessToken
-  refreshing ??= refresh(current).finally(() => {
-    refreshing = undefined
-  })
-  const next = await refreshing
-  if (!next) {
+  const started = session
+  if (renewing?.session !== started) {
+    const result = renew(current, started)
+    renewing = { session: started, result }
+    void result.finally(() => {
+      if (renewing?.result === result) renewing = undefined
+    })
+  }
+  const outcome = await renewing.result
+  // The session changed while renewing: answer for the session there is now.
+  if (session !== started) return bearer()
+  if (outcome === 'ended') {
     await signOut('Your Theorem session ended. Sign in again.')
     return undefined
   }
-  return next.accessToken
+  if (outcome === 'unavailable') {
+    // Inside the margin the token still works. Once it has expired, Theorem
+    // would refuse it, and that refusal would end the session.
+    if (expired(current, Date.now())) throw new Error('Theorem could not renew your sign-in. Try again shortly.')
+    return current.accessToken
+  }
+  return outcome.accessToken
 }

@@ -1,4 +1,4 @@
-// SOURCING: expo-linking (the URL that launched the app)
+// SOURCING: expo-linking (the URL that launched the app, and url events while signed out)
 //
 // A link that arrives while signed out is kept, not dropped, and opened after
 // sign-in. The destination route resolves the object itself and shows a

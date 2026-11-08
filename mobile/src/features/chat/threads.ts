@@ -14,9 +14,11 @@ export async function loadProjects(): Promise<Theorem.Project[]> {
   return [record]
 }
 
-export async function loadThreads(projectId: string): Promise<Theorem.Thread[]> {
-  const page = await theorem().chat.threads.list({ projectId, limit: 50 })
-  return page.items
+const THREAD_PAGE = 50
+
+/** One page of a project's threads, newest first; `nextCursor` asks for the page after it. */
+export function loadThreads(projectId: string, cursor?: string): Promise<Theorem.ThreadPage> {
+  return theorem().chat.threads.list({ projectId, cursor, limit: THREAD_PAGE })
 }
 
 /** The key is the caller's, so a repeated press after a lost response makes one thread. */

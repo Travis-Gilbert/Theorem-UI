@@ -155,3 +155,15 @@ export const REFRESH_MARGIN_SECONDS = 60
 
 export const needsRefresh = (tokens: Tokens, now: number) =>
   tokens.expiresAt !== undefined && tokens.expiresAt - REFRESH_MARGIN_SECONDS <= Math.floor(now / 1000)
+
+export const expired = (tokens: Tokens, now: number) =>
+  tokens.expiresAt !== undefined && tokens.expiresAt <= Math.floor(now / 1000)
+
+/**
+ * Whether a failed token request means the grant itself is refused, so the
+ * session is over (RFC 6749 section 5.2; Theorem answers invalid_grant or
+ * invalid_client). A server error, rate limiting or an answer that is not
+ * OAuth may pass, so the session is kept for a later try.
+ */
+export const endsSession = (error: unknown) =>
+  error instanceof SignInError && ['invalid_grant', 'invalid_client', 'unauthorized_client'].includes(error.code)

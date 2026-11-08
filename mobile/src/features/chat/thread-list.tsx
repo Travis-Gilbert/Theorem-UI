@@ -27,8 +27,21 @@ type Item =
   | { kind: 'thread'; key: string; thread: Theorem.Thread }
   | { kind: 'agent'; key: string; conversation: AgentConversation }
   | { kind: 'message'; key: string; text: string; tone: 'muted' | 'error'; action?: { label: string; onPress: () => void } }
+  | { kind: 'more'; key: string; busy: boolean; onPress: () => void }
 
 type Section = { key: string; title: string; checking?: boolean; data: Item[] }
+
+/** Pages past the first, loaded when asked for. `loaded` is false until one has been. */
+type Older = {
+  projectId?: string
+  threads: Theorem.Thread[]
+  cursor?: string
+  loaded: boolean
+  status: 'idle' | 'loading' | 'failed'
+  error?: unknown
+}
+
+const noOlder = (projectId?: string): Older => ({ projectId, threads: [], loaded: false, status: 'idle' })
 
 const when = (ms: number) => new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -54,10 +67,33 @@ export function ThreadList({
   const [projectId, setProjectId] = useState<string>()
   const project = projects.data?.find((item) => item.projectId === projectId) ?? projects.data?.[0]
   const threads = useRequest(
-    () => (project ? loadThreads(project.projectId) : Promise.resolve([])),
+    () => (project ? loadThreads(project.projectId) : Promise.resolve({ items: [] })),
     [project?.projectId],
   )
+  const [olderState, setOlder] = useState<Older>(noOlder)
+  const older = olderState.projectId === project?.projectId ? olderState : noOlder(project?.projectId)
+  const nextCursor = older.loaded ? older.cursor : threads.data?.nextCursor
+  // A reload of the first page keeps the older pages; a thread that moved up shows once.
+  const firstPage = threads.data?.items ?? []
+  const seen = new Set(firstPage.map((thread) => thread.threadId))
+  const allThreads = [...firstPage, ...older.threads.filter((thread) => !seen.has(thread.threadId))]
   const machines = useComputers()
+
+  const loadOlder = async () => {
+    if (!project || !nextCursor || older.status === 'loading') return
+    const projectId = project.projectId
+    setOlder({ ...older, status: 'loading', error: undefined })
+    try {
+      const page = await loadThreads(projectId, nextCursor)
+      setOlder((current) =>
+        current.projectId === projectId
+          ? { projectId, threads: [...current.threads, ...page.items], cursor: page.nextCursor, loaded: true, status: 'idle' }
+          : current,
+      )
+    } catch (error) {
+      setOlder((current) => (current.projectId === projectId ? { ...current, status: 'failed', error } : current))
+    }
+  }
 
   // Coming back from a conversation shows its new title and time.
   const reloadThreads = useRef(threads.reload)
@@ -75,10 +111,11 @@ export function ThreadList({
   const selectedThread = selected?.kind === 'theorem' ? selected.threadId : undefined
   useEffect(() => {
     if (!selectedThread || threads.status !== 'ready' || lookedFor.current === selectedThread) return
-    if (threads.data.some((thread) => thread.threadId === selectedThread)) return
+    const listed = (thread: Theorem.Thread) => thread.threadId === selectedThread
+    if (threads.data.items.some(listed) || olderState.threads.some(listed)) return
     lookedFor.current = selectedThread
     threads.reload()
-  }, [selectedThread, threads])
+  }, [selectedThread, threads, olderState.threads])
 
   const refresh = () => {
     projects.reload()
@@ -94,8 +131,8 @@ export function ThreadList({
       </View>
     )
 
-  const theoremItems: Item[] = threads.data?.length
-    ? threads.data.map((thread) => ({ kind: 'thread', key: thread.threadId, thread }))
+  const theoremItems: Item[] = allThreads.length
+    ? allThreads.map((thread) => ({ kind: 'thread', key: thread.threadId, thread }))
     : [
         threads.status === 'failed'
           ? {
@@ -115,6 +152,17 @@ export function ThreadList({
                   : `No conversations in ${project?.title ?? 'this project'} yet.`,
             },
       ]
+
+  if (older.status === 'failed')
+    theoremItems.push({
+      kind: 'message',
+      key: 'older-failed',
+      tone: 'error',
+      text: `Could not load older conversations: ${describeError(older.error)}`,
+      action: { label: 'Try again', onPress: () => void loadOlder() },
+    })
+  else if (nextCursor && allThreads.length)
+    theoremItems.push({ kind: 'more', key: 'older', busy: older.status === 'loading', onPress: () => void loadOlder() })
 
   const sections: Section[] = [
     {
@@ -278,6 +326,12 @@ export function ThreadList({
                   {item.text}
                 </Text>
                 {item.action ? <Button label={item.action.label} onPress={item.action.onPress} /> : null}
+              </View>
+            )
+          case 'more':
+            return (
+              <View style={styles.note}>
+                <Button label="Show older conversations" variant="quiet" busy={item.busy} onPress={item.onPress} />
               </View>
             )
         }
