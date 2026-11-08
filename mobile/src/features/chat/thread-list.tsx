@@ -73,27 +73,61 @@ export function ThreadList({
   const [olderState, setOlder] = useState<Older>(noOlder)
   const older = olderState.projectId === project?.projectId ? olderState : noOlder(project?.projectId)
   const nextCursor = older.loaded ? older.cursor : threads.data?.nextCursor
-  // A reload of the first page keeps the older pages; a thread that moved up shows once.
+  // While older pages are fetched again below, a thread that moved up shows once.
   const firstPage = threads.data?.items ?? []
   const seen = new Set(firstPage.map((thread) => thread.threadId))
   const allThreads = [...firstPage, ...older.threads.filter((thread) => !seen.has(thread.threadId))]
   const machines = useComputers()
+  /** Counts fetches of older pages; only the latest one's result is kept. */
+  const olderFetch = useRef(0)
 
   const loadOlder = async () => {
     if (!project || !nextCursor || older.status === 'loading') return
     const projectId = project.projectId
+    const attempt = ++olderFetch.current
     setOlder({ ...older, status: 'loading', error: undefined })
     try {
       const page = await loadThreads(projectId, nextCursor)
+      if (attempt !== olderFetch.current) return
       setOlder((current) =>
         current.projectId === projectId
           ? { projectId, threads: [...current.threads, ...page.items], cursor: page.nextCursor, loaded: true, status: 'idle' }
           : current,
       )
     } catch (error) {
+      if (attempt !== olderFetch.current) return
       setOlder((current) => (current.projectId === projectId ? { ...current, status: 'failed', error } : current))
     }
   }
+
+  // A new first page can push its last threads down, past where the older pages
+  // in hand begin. Fetch those pages again from the new cursor, to the same
+  // depth, and replace them together. If that fails, only the first page shows.
+  const olderNow = useRef(older)
+  olderNow.current = older
+  const firstData = threads.status === 'ready' ? threads.data : undefined
+  useEffect(() => {
+    const current = olderNow.current
+    const projectId = current.projectId
+    if (!firstData || !projectId || !current.loaded) return
+    const depth = current.threads.length
+    const attempt = ++olderFetch.current
+    setOlder({ ...current, status: 'loading', error: undefined })
+    void (async () => {
+      const again: Theorem.Thread[] = []
+      let cursor = firstData.nextCursor
+      try {
+        while (cursor && again.length < depth) {
+          const page = await loadThreads(projectId, cursor)
+          again.push(...page.items)
+          cursor = page.nextCursor
+        }
+        if (attempt === olderFetch.current) setOlder({ projectId, threads: again, cursor, loaded: true, status: 'idle' })
+      } catch (error) {
+        if (attempt === olderFetch.current) setOlder({ ...noOlder(projectId), status: 'failed', error })
+      }
+    })()
+  }, [firstData])
 
   // Coming back from a conversation shows its new title and time.
   const reloadThreads = useRef(threads.reload)
