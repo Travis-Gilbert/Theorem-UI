@@ -33,6 +33,13 @@ The podspec refuses to install without it. The script keeps only the iOS
 slices: the release's macOS slice names its library differently, and
 CocoaPods refuses an xcframework whose libraries are named differently.
 
+The podspec also gives the app target the module maps and include paths of the
+Swift packages' C modules. The app imports TheoremSession, and Xcode's explicit
+modules must resolve every C module behind Citadel, NIO and Crypto, but Xcode
+passes those maps only to the pod that depends on the packages. The package
+code itself is linked once, through `libTheoremSession.a`. The app builds no
+x86_64 simulator slice, since GhosttyKit and the pod have none.
+
 ## How chat uses it
 
 The scripts live in `src/features/agents/shell.ts` and are tested against
@@ -67,5 +74,5 @@ on the computer.
   credentials in the Keychain under Remux's service name).
 - Theorem pairing, a Theorem-carried transport and Herdr are later work
   (spec Phase 4).
-- None of the Swift has been compiled or run yet: it needs Xcode with the
-  iOS 18 SDK.
+- The Swift has compiled in an EAS simulator build (Release, iPhoneSimulator
+  27.1 SDK). It has not run yet, and no device build has been made.

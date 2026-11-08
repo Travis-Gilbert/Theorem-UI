@@ -44,6 +44,35 @@ Pod::Spec.new do |s|
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'x86_64',
   }
 
+  # The app imports TheoremSession (ExpoModulesProvider.swift), and with explicit
+  # modules Xcode must resolve every C module behind it: the package targets that
+  # Citadel, NIO and Crypto import. Xcode passes their module maps only to targets
+  # that depend on the packages, which is this pod, not the app. The package
+  # objects are already archived into libTheoremSession.a, so the app gets the
+  # same module maps and include paths the pod gets, and links nothing twice.
+  # Checkouts sit in <DerivedData>/SourcePackages; MODULE_CACHE_DIR is
+  # <DerivedData>/ModuleCache.noindex for both build and archive (BUILD_DIR moves
+  # under ArchiveIntermediates). Package-generated maps sit in GENERATED_MODULEMAP_DIR.
+  # GhosttyKit and this pod have no x86_64 simulator slice, so neither does the app.
+  package_maps = %w[
+    swift-atomics/Sources/_AtomicsShims
+    swift-nio/Sources/CNIOWindows
+    swift-crypto/Sources/CCryptoBoringSSLShims
+    swift-crypto/Sources/CCryptoBoringSSL
+    Citadel/Sources/CCitadelBcrypt
+  ]
+  generated_maps = %w[CNIOAtomics CNIODarwin CNIOLinux CNIOOpenBSD CNIOPosix CNIOWASI]
+  generated_includes = generated_maps.map { |name| "swift-nio/Sources/#{name}" }
+  checkouts = '$(MODULE_CACHE_DIR)/../SourcePackages/checkouts'
+  swift_flags = ['$(inherited)']
+  swift_flags += package_maps.map { |dir| %(-Xcc -fmodule-map-file="#{checkouts}/#{dir}/include/module.modulemap") }
+  swift_flags += generated_maps.map { |name| %(-Xcc -fmodule-map-file="$(GENERATED_MODULEMAP_DIR)/#{name}.modulemap") }
+  swift_flags += (package_maps + generated_includes).map { |dir| %(-Xcc -I"#{checkouts}/#{dir}/include") }
+  s.user_target_xcconfig = {
+    'OTHER_SWIFT_FLAGS' => swift_flags.join(' '),
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'x86_64',
+  }
+
   unless File.exist?(File.join(__dir__, 'Frameworks', 'GhosttyKit.xcframework'))
     raise 'TheoremSession: GhosttyKit.xcframework is missing. Run modules/theorem-session/scripts/fetch-ghosttykit.sh first.'
   end
