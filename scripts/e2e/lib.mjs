@@ -73,11 +73,17 @@ export async function open(path = '/') {
   const page = await context.newPage()
   page.setDefaultTimeout(30_000)
   page.on('pageerror', (error) => problems.push(String(error).slice(0, 300)))
-  page.on('response', (response) => {
-    if (response.status() >= 400 && response.url().includes('/api/'))
-      problems.push(
-        `${response.status()} ${response.request().method()} ${response.url().replace(UI, '').slice(0, 90)}`,
-      )
+  page.on('response', async (response) => {
+    if (response.status() < 400 || !response.url().includes('/api/')) return
+    const method = response.request().method()
+    // A refused write says why; a missing read needs no more than its address.
+    const why =
+      method === 'GET'
+        ? ''
+        : ` ${(await response.text().catch(() => '')).slice(0, 400)}`
+    problems.push(
+      `${response.status()} ${method} ${response.url().replace(UI, '').slice(0, 90)}${why}`,
+    )
   })
   // A cold Vite or a server replaying its journal can take a while to answer.
   const asked = await context.request
