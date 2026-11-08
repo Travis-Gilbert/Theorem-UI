@@ -25,12 +25,58 @@ export function selectionForSource(
   snapshot: AppSnapshot,
   selected?: AppSelectionContext,
 ) {
-  return selected?.source === snapshot.html &&
-    (selected.selection.text ||
-      selected.selection.rowId ||
-      selected.selection.field)
+  return selected?.source === snapshot.html && says(selected.selection)
     ? selected
     : undefined
+}
+
+/** Whether a selection names anything: text, a row, a field, or an entity. */
+const says = (selection: AppSelection) =>
+  Boolean(
+    selection.text || selection.rowId || selection.field || selection.entityId,
+  )
+
+/** The reference to one App revision, with the selection made in it. */
+function revisionReference(
+  app: { documentId: string; title: string },
+  position: number | string | bigint,
+  selection: AppSelection | undefined,
+  label: string,
+): TheoremContextReference {
+  const named = selection?.entityLabel || selection?.text.slice(0, 60)
+  return {
+    label: named ? `${label}: ${named}` : label,
+    location: {
+      resource: {
+        kind: 'graph-object',
+        objectId: app.documentId,
+        objectType: 'theorem.app',
+      },
+      revision: String(position),
+    },
+    excerpt: selection ? JSON.stringify({ selection }) : undefined,
+  }
+}
+
+/**
+ * A reference to a revision a message pinned, as shown outside its live
+ * document. It names that revision, so the next turn reads what the person
+ * saw rather than whatever the App holds now.
+ */
+export function pinnedAppReference(
+  app: {
+    documentId: string
+    title: string
+    position: number | string | bigint
+  },
+  selection?: AppSelection,
+): TheoremContextReference {
+  return revisionReference(
+    app,
+    app.position,
+    selection && says(selection) ? selection : undefined,
+    `${app.title} (revision ${String(app.position)})`,
+  )
 }
 
 export function appContextReference(
@@ -39,19 +85,10 @@ export function appContextReference(
 ): TheoremContextReference {
   if (snapshot.pendingState) throw new Error(APP_PENDING_CONTEXT_MESSAGE)
   const context = selectionForSource(snapshot, selected)
-  const text = context?.selection.text
-  return {
-    label: text ? `${snapshot.title}: ${text.slice(0, 60)}` : snapshot.title,
-    location: {
-      resource: {
-        kind: 'graph-object',
-        objectId: snapshot.documentId,
-        objectType: 'theorem.app',
-      },
-      revision: String((context?.revision ?? snapshot.revision).position),
-    },
-    excerpt: context
-      ? JSON.stringify({ selection: context.selection })
-      : undefined,
-  }
+  return revisionReference(
+    snapshot,
+    (context?.revision ?? snapshot.revision).position,
+    context?.selection,
+    snapshot.title,
+  )
 }
