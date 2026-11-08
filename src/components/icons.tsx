@@ -145,6 +145,7 @@ import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warnin
 
 import AstronomyConstellation from '@/assets/icons/streamline/streamline-astronomy-constellation.png'
 import AiRobotVariation from '@/assets/icons/streamline/streamline-ai-robot-generate-variation.png'
+import DescendingSort from '@/assets/icons/streamline/streamline-descending-sort-filter-2.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -259,6 +260,7 @@ const Delegate = masked(AiRouting)
 
 /** Theorem's own model choice, where the person has not picked one. */
 const Theorem = masked(AiRobotVariation)
+const Sort = masked(DescendingSort)
 const File = masked(CommonFileDouble)
 const Follow = masked(AgentCursor)
 const Mail = masked(PaginateMail)
@@ -428,6 +430,7 @@ export const Icon = {
   Route,
   Sink,
   Skill,
+  Sort,
   Theorem,
   TheoremVault,
   TreeFile,

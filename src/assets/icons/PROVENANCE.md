@@ -555,6 +555,14 @@ Penrose triangle stood in before.
 |---|---|---|---|
 | Theorem | `streamline/streamline-ai-robot-generate-variation.png` | Ai Robot Generate Variation (by shape) | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
 
+One more came on 2026-11-08 as a loose download in the same Light style,
+"Descending-Sort-Filter-2--Streamline-Ultimate.png" (48 x 48), copied byte for
+byte and renamed the same way. It opens the Notes panel's sort menu.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Sort | `streamline/streamline-descending-sort-filter-2.png` | Descending Sort Filter 2 | `a5097120a673269d387f8017df4a0a4dd70a6b52bbf7887a85fe76cd1dedab18` |
+
 The rest of those downloads is kept in `streamline/library/`. Nothing imports
 those files, so they do not ship; they are there to reach for. Dzone Logo and
 Tripit Logo draw real companies' marks, so check before using either as an
