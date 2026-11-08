@@ -18,6 +18,7 @@ import {
   noteLibraryKey,
   primeNote,
 } from './notes'
+import type { SaveStatus } from './notes'
 import { theoremJson } from './passthrough'
 
 const SCHEMA = 'theorem-document/2'
@@ -66,6 +67,19 @@ export function noteEntry(facts: NoteFacts): NoteEntry {
           contentAddress: origin.contentAddress,
         },
       }
+}
+
+/**
+ * What a row's icon says about its note: written and saved, being written,
+ * refused by Theorem, an agent's own, or an agent's made editable as a copy.
+ */
+export type NoteMark = 'written' | 'editing' | 'unsaved' | 'agent' | 'copied'
+
+export function noteMark(entry: NoteEntry, status?: SaveStatus): NoteMark {
+  if (entry.source === 'encoded') return entry.promotion ? 'agent' : 'copied'
+  if (status === 'pending' || status === 'saving') return 'editing'
+  if (status === 'conflict' || status === 'error') return 'unsaved'
+  return 'written'
 }
 
 export const nextPageParams = (page: Theorem.DocumentPage) =>

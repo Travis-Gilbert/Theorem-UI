@@ -4,6 +4,7 @@ import {
   lifecycleRequest,
   nextPageParams,
   noteEntry,
+  noteMark,
   onShelf,
   shelfRequest,
   summaryFacts,
@@ -158,5 +159,31 @@ describe('shelves', () => {
     expect(rows.filter((row) => onShelf(row, 'notes'))).toEqual([mine])
     expect(rows.filter((row) => onShelf(row, 'agent'))).toEqual([agents])
     expect(rows.filter((row) => onShelf(row, 'trash'))).toEqual([trashed])
+  })
+})
+
+describe('noteMark', () => {
+  const written = noteEntry(facts())
+
+  test('a saved note reads as a written page', () => {
+    expect(noteMark(written)).toBe('written')
+    expect(noteMark(written, 'saved')).toBe('written')
+  })
+
+  test('a note with changes on their way is being written', () => {
+    expect(noteMark(written, 'pending')).toBe('editing')
+    expect(noteMark(written, 'saving')).toBe('editing')
+  })
+
+  test('a note Theorem refused to save is marked unsaved', () => {
+    expect(noteMark(written, 'conflict')).toBe('unsaved')
+    expect(noteMark(written, 'error')).toBe('unsaved')
+  })
+
+  test("an agent's note is the agent's until it is copied", () => {
+    expect(noteMark(noteEntry(facts({ origin: encoded() })))).toBe('agent')
+    expect(noteMark(noteEntry(facts({ origin: encoded('doc:copy') })))).toBe(
+      'copied',
+    )
   })
 })

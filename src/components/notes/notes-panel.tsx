@@ -30,8 +30,13 @@ import {
   useNoteFolders,
 } from '@/lib/theorem/note-folders'
 import type { NoteFolder } from '@/lib/theorem/note-folders'
-import { useNewNote, useNoteLibrary } from '@/lib/theorem/note-library'
-import type { NoteEntry, NoteShelf } from '@/lib/theorem/note-library'
+import {
+  noteMark,
+  useNewNote,
+  useNoteLibrary,
+} from '@/lib/theorem/note-library'
+import type { NoteEntry, NoteMark, NoteShelf } from '@/lib/theorem/note-library'
+import { useNoteStatus } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 
 const row =
@@ -438,7 +443,7 @@ function NoteRow({
       <button
         type="button"
         {...drag?.props}
-        className={row}
+        className={cn(row, 'gap-1 ps-1')}
         data-active={active || undefined}
         aria-current={active ? 'page' : undefined}
         onClick={() =>
@@ -448,8 +453,47 @@ function NoteRow({
           })
         }
       >
-        <span className="min-w-0 flex-1 truncate">{entry.title}</span>
+        <FilesystemMarks
+          folder={false}
+          open={false}
+          icon={<NoteIcon entry={entry} />}
+        />
+        <NoteTitle entry={entry} />
       </button>
     </li>
+  )
+}
+
+/** Each state of a note, and what the row says of it beside the title, if anything. */
+const MARKS: Record<
+  NoteMark,
+  { Mark: typeof Icon.Article; tone: string; said?: string }
+> = {
+  written: { Mark: Icon.Article, tone: 'text-ink-faint' },
+  editing: { Mark: Icon.Draft, tone: 'text-ink-muted', said: 'saving' },
+  unsaved: { Mark: Icon.Draft, tone: 'text-error-ink', said: 'not saved' },
+  agent: { Mark: Icon.Agent, tone: 'text-ink-faint' },
+  copied: { Mark: Icon.Attachments, tone: 'text-ink-faint' },
+}
+
+const useMark = (entry: NoteEntry) =>
+  noteMark(
+    entry,
+    useNoteStatus((state) => state.status[entry.opens]),
+  )
+
+function NoteIcon({ entry }: { entry: NoteEntry }) {
+  const mark = useMark(entry)
+  const { Mark, tone } = MARKS[mark]
+  return <Mark data-mark={mark} className={cn('size-4 shrink-0', tone)} />
+}
+
+function NoteTitle({ entry }: { entry: NoteEntry }) {
+  const { said } = MARKS[useMark(entry)]
+  return (
+    <span className="min-w-0 flex-1 truncate">
+      {entry.title}
+      {said && <span className="sr-only"> ({said})</span>}
+    </span>
   )
 }

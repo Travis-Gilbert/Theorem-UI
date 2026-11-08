@@ -55,6 +55,10 @@ const documentId = documentIdOf()
 log('created', documentId)
 check('a new note opens at its own address', documentId.length > 0, documentId)
 await editor.waitFor(READ)
+const openMark = () =>
+  notesNav
+    .locator('button[aria-current="page"] [data-mark]')
+    .getAttribute('data-mark', READ)
 await editor.click()
 await page.keyboard.type(`# ${TITLE}`)
 await page.keyboard.press('Enter')
@@ -81,6 +85,50 @@ check(
 )
 await notesNav.getByRole('button', { name: TITLE }).waitFor(READ)
 check('the list shows it by its title', true)
+const settledBy = Date.now() + 30_000
+let settled = await openMark()
+while (settled !== 'written' && Date.now() < settledBy) {
+  await page.waitForTimeout(250)
+  settled = await openMark()
+}
+check('and, saved, as a written page', settled === 'written', settled)
+// Written into again, its row says so until Theorem has it. A local Theorem
+// saves fast, so every mark the row shows while typing is recorded.
+await notesNav.evaluate((nav) => {
+  const seen = new Set()
+  const record = () => {
+    const mark = nav
+      .querySelector('button[aria-current="page"] [data-mark]')
+      ?.getAttribute('data-mark')
+    if (mark) seen.add(mark)
+  }
+  new MutationObserver(record).observe(nav, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['data-mark', 'aria-current'],
+  })
+  record()
+  window.__noteMarks = seen
+})
+await editor.click()
+await page.keyboard.press('End')
+await page.keyboard.type(' It stayed.')
+// The editor reports its text a moment after the keys.
+await page
+  .waitForFunction(() => window.__noteMarks.has('editing'), null, {
+    timeout: 10_000,
+  })
+  .catch(() => undefined)
+const marks = await page.evaluate(() => [...window.__noteMarks])
+check(
+  'a note being written says so in the list',
+  marks.includes('editing'),
+  marks.join(', '),
+)
+const againBy = Date.now() + 30_000
+while ((await openMark()) !== 'written' && Date.now() < againBy)
+  await page.waitForTimeout(250)
 await shot('written')
 
 // What agents wrote waits in its own folder after the person's notes, in the
@@ -116,6 +164,18 @@ if (agentPage?.documents?.length) {
     .first()
     .waitFor(READ)
   check('the folder shows what agents wrote', true)
+  const agentMark = await notesNav
+    .getByRole('button', {
+      name: agentPage.documents[0].title || 'Untitled note',
+    })
+    .first()
+    .locator('[data-mark]')
+    .getAttribute('data-mark')
+  check(
+    "an agent's note carries the agent's mark",
+    agentMark === 'agent' || agentMark === 'copied',
+    agentMark,
+  )
 }
 const colours = await page.evaluate(() => {
   const fill = (selector) => {
