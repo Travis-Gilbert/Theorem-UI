@@ -78,9 +78,15 @@
   "devDependencies": {
     "@theia/cli": "1.76.0"
   },
+  "theiaPluginsDir": "plugins",
+  "theiaPlugins": {
+    "vscode.markdown": "https://github.com/eclipse-theia/vscode-builtin-extensions/releases/download/1.108.2/vscode.markdown.vsix",
+    "vscode.markdown-language-features": "https://github.com/eclipse-theia/vscode-builtin-extensions/releases/download/1.108.2/vscode.markdown-language-features.vsix"
+  },
   "scripts": {
-    "build": "theia build --app-target=browser-only --mode development",
-    "build:prod": "theia build --app-target=browser-only",
+    "download:plugins": "theia download:plugins --rate-limit=15 --parallel=false",
+    "build": "bun run download:plugins && theia build --app-target=browser-only --mode development",
+    "build:prod": "bun run download:plugins && theia build --app-target=browser-only",
     "start": "theia start"
   }
 }
