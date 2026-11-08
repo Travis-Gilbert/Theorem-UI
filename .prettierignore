@@ -9,3 +9,8 @@ src/lib/kit/contract
 
 # Generated: vendored esm.sh builds for live blocks
 src/lib/blocks/vendor
+
+# iOS app: vendored upstream sources and packed dependencies stay byte-for-byte
+mobile/modules/theorem-session/ios/vendor
+mobile/vendor
+mobile/dist

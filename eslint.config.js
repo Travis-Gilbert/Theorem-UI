@@ -40,6 +40,8 @@ export default [
       'prettier.config.js',
       'Theorem-UI/**',
       'ide/**',
+      // The iOS app: its own workspace, TypeScript project and React Native rules.
+      'mobile/**',
       'dist/**',
       '.delta/**',
       '.output/**',

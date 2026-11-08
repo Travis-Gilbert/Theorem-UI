@@ -11,7 +11,8 @@
     "dist",
     "Theorem-UI",
     "test/fixtures",
-    "ide"
+    "ide",
+    "mobile"
   ],
   "compilerOptions": {
     "target": "ES2022",
