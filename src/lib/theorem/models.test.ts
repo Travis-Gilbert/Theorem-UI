@@ -35,6 +35,8 @@ describe('parseModelEntry', () => {
       promptPrice: 3,
       completionPrice: 15,
       source: 'openrouter',
+      connection: 'openrouter',
+      kind: 'language',
       inputs: [],
       tools: false,
       reasoning: false,
@@ -73,9 +75,29 @@ describe('parseModelEntry', () => {
 
   test('keeps a ref that already names its provider', () => {
     expect(
-      parseModelEntry({ ref: 'openrouter/thinkingmachines/inkling', name: 'Inkling' })
+      parseModelEntry({ ref: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet 4.5' })
         ?.ref,
-    ).toBe('openrouter/thinkingmachines/inkling')
+    ).toBe('anthropic/claude-sonnet-4-5')
+  })
+
+  test('takes the connection Theorem names, else the ref\'s provider', () => {
+    expect(parseModelEntry({ ref: 'anthropic/claude-sonnet-4-5' })?.connection).toBe('anthropic')
+    expect(
+      parseModelEntry({ ref: 'custom:lab/qwen3-coder', connection: 'custom:lab' })?.connection,
+    ).toBe('custom:lab')
+  })
+
+  test('a decision model is marked by Theorem or by its output modality', () => {
+    expect(parseModelEntry({ ref: 'openrouter/typesafe/jev-1.14', kind: 'decision' })?.kind).toBe(
+      'decision',
+    )
+    expect(
+      parseModelEntry({
+        id: 'typesafe/jev-1.14',
+        architecture: { input_modalities: ['text'], output_modalities: ['decisions'] },
+      })?.kind,
+    ).toBe('decision')
+    expect(parseModelEntry({ id: 'a/b' })?.kind).toBe('language')
   })
 
   test('drops an entry without an id', () => {
@@ -88,19 +110,31 @@ describe('parseModelList', () => {
   test('reads the route body, keeping the default and the OpenRouter status', () => {
     expect(
       parseModelList({
-        defaultRef: 'openrouter/thinkingmachines/inkling',
+        defaultRef: 'openrouter/deepseek/deepseek-v4.1-flash-1017',
         models: [{ id: 'a/b', name: 'B' }, { name: 'no id' }],
         openrouter: { status: 'cached', fetchedAtMs: 5 },
       }),
     ).toEqual({
-      defaultRef: 'openrouter/thinkingmachines/inkling',
+      defaultRef: 'openrouter/deepseek/deepseek-v4.1-flash-1017',
       models: [expect.objectContaining({ ref: 'openrouter/a/b' })],
+      decisionModels: [],
       openrouter: 'cached',
     })
   })
 
+  test('decision models are kept apart from the ones a turn runs on', () => {
+    const list = parseModelList({
+      models: [
+        { id: 'a/b', name: 'B' },
+        { ref: 'openrouter/typesafe/jev-1.14', name: 'JEV 1.14', kind: 'decision' },
+      ],
+    })
+    expect(list.models.map((m) => m.ref)).toEqual(['openrouter/a/b'])
+    expect(list.decisionModels.map((m) => m.ref)).toEqual(['openrouter/typesafe/jev-1.14'])
+  })
+
   test('a body without models is an empty list Theorem could not fill', () => {
-    expect(parseModelList({})).toEqual({ models: [], openrouter: 'unavailable' })
+    expect(parseModelList({})).toEqual({ models: [], decisionModels: [], openrouter: 'unavailable' })
   })
 })
 

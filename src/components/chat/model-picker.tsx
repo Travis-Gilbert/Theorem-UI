@@ -22,7 +22,7 @@ import {
 } from '@/lib/theorem/models'
 import type { ModelOption } from '@/lib/theorem/models'
 
-/** Theorem's own choice, which is the front model (Inkling) unless the person picks another. */
+/** Theorem's own choice: the chat role's model, unless the person picks another. */
 const DEFAULT_ITEM: ModelOption = { ...modelStub('', 'Theorem default'), vendor: 'theorem' }
 
 type Group = { label: string; items: ModelOption[] }

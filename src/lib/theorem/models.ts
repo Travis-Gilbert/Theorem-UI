@@ -24,6 +24,10 @@ export type ModelOption = {
   completionPrice?: number
   /** A row of Theorem's own catalog, or a model from OpenRouter's live list. */
   source: 'catalog' | 'openrouter'
+  /** The connection Theorem reaches it through (`openrouter`, `anthropic`, `custom:...`). */
+  connection: string
+  /** A language model writes text; a decision model answers typed questions with probabilities. */
+  kind: 'language' | 'decision'
   /** What a turn can send it: text, image, file, audio. */
   inputs: readonly string[]
   /** It can call tools, which Theorem's turns lean on. */
@@ -67,7 +71,7 @@ export function parseModelEntry(raw: unknown): ModelOption | undefined {
         ? `openrouter/${entry.id}`
         : undefined
   if (!entry || !ref) return undefined
-  const model = resolvedModel(ref).model
+  const { provider, model } = resolvedModel(ref)
   const pricing = record(entry.pricing)
   const architecture = record(entry.architecture)
   const topProvider = record(entry.top_provider)
@@ -79,6 +83,12 @@ export function parseModelEntry(raw: unknown): ModelOption | undefined {
     name: name.replace(/^[^:]+:\s*/, ''),
     vendor: model.split('/')[0] ?? '',
     source: entry.source === 'catalog' ? 'catalog' : 'openrouter',
+    connection: typeof entry.connection === 'string' ? entry.connection : provider,
+    // OpenRouter marks decision models by their output modality.
+    kind:
+      entry.kind === 'decision' || strings(architecture?.output_modalities).includes('decisions')
+        ? 'decision'
+        : 'language',
     inputs: strings(architecture?.input_modalities),
     tools: parameters.includes('tools'),
     reasoning: parameters.includes('reasoning'),
@@ -98,12 +108,14 @@ export function parseModelEntry(raw: unknown): ModelOption | undefined {
 
 /** An option for a ref the list does not carry (yet): starred earlier, or Theorem's default. */
 export function modelStub(ref: string, name?: string): ModelOption {
-  const model = ref ? resolvedModel(ref).model : ''
+  const { provider, model } = ref ? resolvedModel(ref) : { provider: '', model: '' }
   return {
     ref,
     name: name ?? (model.split('/').at(-1) || ref),
     vendor: model.split('/')[0] ?? '',
     source: 'catalog',
+    connection: provider,
+    kind: 'language',
     inputs: [],
     tools: false,
     reasoning: false,
@@ -111,9 +123,12 @@ export function modelStub(ref: string, name?: string): ModelOption {
 }
 
 export type ModelList = {
-  /** What an unpinned turn runs on (the front role, Inkling); absent when Theorem does not say. */
+  /** What an unpinned turn runs on (the chat role's model); absent when Theorem does not say. */
   defaultRef?: string
+  /** Language models: the ones a turn, the picker and the agent can run on. */
   models: ModelOption[]
+  /** Decision models, which only the decision role binds. */
+  decisionModels: ModelOption[]
   /** Whether OpenRouter's list is fresh, served from Theorem's cache, or missing. */
   openrouter: 'live' | 'cached' | 'unavailable'
 }
@@ -122,11 +137,13 @@ export type ModelList = {
 export function parseModelList(raw: unknown): ModelList {
   const body = record(raw)
   const status = record(body?.openrouter)?.status
+  const all = (Array.isArray(body?.models) ? body.models : []).flatMap((entry) => {
+    const option = parseModelEntry(entry)
+    return option ? [option] : []
+  })
   const list: ModelList = {
-    models: (Array.isArray(body?.models) ? body.models : []).flatMap((entry) => {
-      const option = parseModelEntry(entry)
-      return option ? [option] : []
-    }),
+    models: all.filter((m) => m.kind === 'language'),
+    decisionModels: all.filter((m) => m.kind === 'decision'),
     openrouter: status === 'live' || status === 'cached' ? status : 'unavailable',
   }
   if (typeof body?.defaultRef === 'string') list.defaultRef = body.defaultRef
@@ -173,14 +190,20 @@ export function resolvedModel(ref: string): Theorem.ResolvedModel {
   return { provider: ref.slice(0, slash), model: ref.slice(slash + 1) }
 }
 
+/** The person's decision-model pick: a ref, `none` to turn the role off, or undefined for Theorem's default. */
+export type DecisionPick = string | undefined
+
 type PickedModelsState = {
   /** Models shown in the composer's picker, in the order they were starred. */
   starred: readonly string[]
   /** The model the next turn runs on; undefined leaves it to Theorem's default. */
   selected: string | undefined
+  /** The decision model the person picked; see {@link DecisionPick}. */
+  decision: DecisionPick
   setStarred: (refs: readonly string[]) => void
   toggleStar: (ref: string) => void
   select: (ref: string | undefined) => void
+  pickDecision: (pick: DecisionPick) => void
 }
 
 export const usePickedModels = create<PickedModelsState>()(
@@ -188,6 +211,7 @@ export const usePickedModels = create<PickedModelsState>()(
     (set) => ({
       starred: [],
       selected: undefined,
+      decision: undefined,
       setStarred: (starred) => set({ starred }),
       toggleStar: (ref) =>
         set(({ starred }) => ({
@@ -196,10 +220,11 @@ export const usePickedModels = create<PickedModelsState>()(
             : [...starred, ref],
         })),
       select: (selected) => set({ selected }),
+      pickDecision: (decision) => set({ decision }),
     }),
     {
       name: 'theorem-ui:models',
-      partialize: ({ starred, selected }) => ({ starred, selected }),
+      partialize: ({ starred, selected, decision }) => ({ starred, selected, decision }),
     },
   ),
 )
@@ -219,16 +244,18 @@ export const pickedModelTurnOptions = {
 type Preferences = {
   starredModels: string[]
   defaultModel: string | null
+  /** A decision-model ref, `none`, or null for Theorem's default. Absent from a Theorem that predates the role. */
+  decisionModel?: string | null
   revision: number
 }
 
 const preferencesKey = ['theorem', 'preferences'] as const
 
 /**
- * Keeps the starred and picked models in step with the person's Theorem
- * preferences, so they follow the person across browsers. Theorem's copy wins
- * when it loads; after that each local change is written back with If-Match.
- * Where Theorem does not serve preferences, the local store stands alone.
+ * Keeps the starred, picked and decision models in step with the person's
+ * Theorem preferences, so they follow the person across browsers. Theorem's
+ * copy wins when it loads; after that each local change is written back with
+ * If-Match. Where Theorem does not serve preferences, the local store stands alone.
  */
 export function usePreferencesSync() {
   const { data } = useQuery({
@@ -246,6 +273,7 @@ export function usePreferencesSync() {
     usePickedModels.setState({
       starred: data.starredModels,
       selected: data.defaultModel ?? undefined,
+      decision: data.decisionModel ?? undefined,
     })
   }, [data])
 
@@ -253,19 +281,30 @@ export function usePreferencesSync() {
     let timer: ReturnType<typeof setTimeout> | undefined
     const unsubscribe = usePickedModels.subscribe((state, previous) => {
       if (revision.current === undefined) return
-      if (state.starred === previous.starred && state.selected === previous.selected) return
+      if (
+        state.starred === previous.starred &&
+        state.selected === previous.selected &&
+        state.decision === previous.decision
+      )
+        return
       clearTimeout(timer)
       timer = setTimeout(() => {
-        const { starred, selected } = usePickedModels.getState()
+        const { starred, selected, decision } = usePickedModels.getState()
         void mutate((headers) =>
           theoremJson<Preferences>('/api/chat/v1/preferences', {
             method: 'PUT',
             headers: { ...headers, 'If-Match': String(revision.current) },
-            body: { starredModels: starred, defaultModel: selected ?? null },
+            body: {
+              starredModels: starred,
+              defaultModel: selected ?? null,
+              decisionModel: decision ?? null,
+            },
           }),
         ).then(
           (saved) => {
             revision.current = saved.revision
+            // The chat and decision roles follow these preferences.
+            void queryClient.invalidateQueries({ queryKey: ['theorem', 'roles'] })
           },
           // A stale revision means another browser wrote first: take its copy.
           () => void queryClient.invalidateQueries({ queryKey: preferencesKey }),
