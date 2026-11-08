@@ -13,12 +13,15 @@ const oauthClientId = process.env.THEOREM_OAUTH_CLIENT_ID ?? 'theorem-ios'
 // must be associated with this host: see docs/sign-in.md.
 const oauthRedirectUri = process.env.THEOREM_OAUTH_REDIRECT_URI ?? 'https://theorem.rs/auth/ios/callback'
 const bundleIdentifier = process.env.THEOREM_IOS_BUNDLE_ID ?? 'rs.theorem.app'
-const easProjectId = process.env.EAS_PROJECT_ID
+// The EAS project (@commonplaces/theorem). Override both for another Expo account.
+const easOwner = process.env.EAS_OWNER ?? 'commonplaces'
+const easProjectId = process.env.EAS_PROJECT_ID ?? '2e3a9e30-8c11-4b4d-8fdb-7802ffe23c92'
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Theorem',
   slug: 'theorem',
+  owner: easOwner,
   version: '0.1.0',
   scheme: 'theorem',
   orientation: 'default',
@@ -70,6 +73,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   experiments: { typedRoutes: true },
   extra: {
     theorem: { authority, oauthClientId, oauthRedirectUri },
-    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
+    eas: { projectId: easProjectId },
   },
 })
