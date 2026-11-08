@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router (a note is /notes/$documentId), the Pages panel's row and heading grammar, ui/input, TooltipIconButton, ui/filesystem-item (the file tree's folder row, for the folders and Agent notes), lucide Folder and FolderPlus, @dnd-kit/core (a note dragged onto a folder; already used by the data table), the note library and folders (Theorem Documents v2 and its collections, through note-library.ts and note-folders.ts)
+// SOURCING: @tanstack/react-router (a note is /notes/$documentId), the Pages panel's row and heading grammar, Base UI Toolbar (the panel's tools, with arrow keys between them) and Menu (the sort menu), ThreadListSearch (the search that springs open, as in the Index and the threads), TooltipIconButton, ui/filesystem-item (the file tree's folder row, for the folders and Agent notes), lucide Folder and FolderPlus, @dnd-kit/core (a note dragged onto a folder; already used by the data table), the note library and folders (Theorem Documents v2 and its collections, through note-library.ts and note-folders.ts)
 import {
   DndContext,
   PointerSensor,
@@ -9,10 +9,13 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { Menu } from '@base-ui/react/menu'
+import { Toolbar } from '@base-ui/react/toolbar'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Folder, FolderPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { ThreadListSearch } from '@/components/assistant-ui/elements/thread-list.aui'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -20,7 +23,8 @@ import {
   FilesystemItem,
   FilesystemMarks,
 } from '@/components/ui/filesystem-item'
-import { Input } from '@/components/ui/input'
+import { menuItem, menuPopup } from '@/components/shell/sidebar'
+import { useShell } from '@/components/shell/shell-state'
 import { describeError } from '@/lib/theorem/client'
 import {
   folderName,
@@ -36,7 +40,9 @@ import {
   useNoteLibrary,
 } from '@/lib/theorem/note-library'
 import type { NoteEntry, NoteMark, NoteShelf } from '@/lib/theorem/note-library'
-import { useNoteStatus } from '@/lib/theorem/notes'
+import { NOTE_ORDERS } from '@/lib/theorem/note-order'
+import type { NoteOrder } from '@/lib/theorem/note-order'
+import { useNote, useNoteStatus } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 
 const row =
@@ -47,14 +53,15 @@ const Hint = ({ children }: { children: ReactNode }) => (
 )
 
 /**
- * The navigator in Notes mode: the person's folders and notes, the ones agents
- * wrote, and the Trash.
+ * The navigator in Notes mode: the open note's name, the tools, the person's
+ * folders and notes, the ones agents wrote, and the Trash.
  */
 export function NotesPanel() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [shelf, setShelf] = useState<'notes' | 'trash'>('notes')
   const [naming, setNaming] = useState(false)
+  const order = useShell((state) => state.noteOrder)
   const create = useNewNote()
   const newNote = () =>
     create.mutate(undefined, {
@@ -68,37 +75,57 @@ export function NotesPanel() {
     })
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-1 px-3">
-        <p className="min-w-0 flex-1 font-heading text-[15px] font-medium">
-          {shelf === 'trash' ? 'Trash' : 'Notes'}
-        </p>
-        <TooltipIconButton
-          tooltip="New folder"
-          className="size-7 p-1.5"
-          onClick={() => {
-            setShelf('notes')
-            setNaming(true)
-          }}
-        >
-          <FolderPlus aria-hidden="true" className="size-4" />
-        </TooltipIconButton>
-        <TooltipIconButton
-          tooltip="New note"
-          className="size-7 p-1.5"
-          disabled={create.isPending}
-          onClick={newNote}
+      <div className="flex h-12 shrink-0 items-center px-3">
+        <PanelTitle shelf={shelf} />
+      </div>
+      <Toolbar.Root
+        aria-label="Notes tools"
+        className="flex shrink-0 items-center gap-0.5 px-2 pb-2"
+      >
+        <Toolbar.Button
+          render={
+            <TooltipIconButton
+              tooltip="New note"
+              className="size-7 p-1.5"
+              disabled={create.isPending}
+              onClick={newNote}
+            />
+          }
         >
           <Icon.Add className="size-4" />
-        </TooltipIconButton>
-      </div>
-      <div className="px-3 pb-2">
-        <Input
-          aria-label={shelf === 'trash' ? 'Search the Trash' : 'Search notes'}
-          placeholder="Search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </div>
+        </Toolbar.Button>
+        <Toolbar.Button
+          render={
+            <TooltipIconButton
+              tooltip="New folder"
+              className="size-7 p-1.5"
+              onClick={() => {
+                setShelf('notes')
+                setNaming(true)
+              }}
+            />
+          }
+        >
+          <FolderPlus aria-hidden="true" className="size-4" />
+        </Toolbar.Button>
+        <SortMenu order={order} />
+        <div className="min-w-0 flex-1">
+          <Toolbar.Input
+            render={
+              <ThreadListSearch
+                value={query}
+                onValueChange={setQuery}
+                aria-label={
+                  shelf === 'trash' ? 'Search the Trash' : 'Search notes'
+                }
+                placeholder={
+                  shelf === 'trash' ? 'Search the Trash' : 'Search notes'
+                }
+              />
+            }
+          />
+        </div>
+      </Toolbar.Root>
       {create.error && (
         <p role="alert" className="px-4 pb-2 text-xs text-error-ink">
           {describeError(create.error, 'document')}
@@ -111,11 +138,11 @@ export function NotesPanel() {
         {shelf === 'notes' ? (
           <>
             {naming && <NewFolder onDone={() => setNaming(false)} />}
-            <NotesTree query={query} />
-            <AgentNotes query={query} />
+            <NotesTree query={query} order={order} />
+            <AgentNotes query={query} order={order} />
           </>
         ) : (
-          <NoteList query={query} shelf="trash" />
+          <NoteList query={query} shelf="trash" order={order} />
         )}
       </nav>
       <div className="shrink-0 border-t border-separator px-2 py-2">
@@ -140,6 +167,92 @@ export function NotesPanel() {
   )
 }
 
+const titleClass =
+  'min-w-0 flex-1 truncate font-heading text-[15px] font-medium'
+
+/** The open note's name, or the shelf's when no note is open. */
+function PanelTitle({ shelf }: { shelf: 'notes' | 'trash' }) {
+  const { documentId } = useParams({ strict: false })
+  const fallback = shelf === 'trash' ? 'Trash' : 'Notes'
+  return documentId ? (
+    <OpenNoteTitle documentId={documentId} fallback={fallback} />
+  ) : (
+    <p className={titleClass}>{fallback}</p>
+  )
+}
+
+/** Follows the note as it is written: its title is its first line. */
+function OpenNoteTitle({
+  documentId,
+  fallback,
+}: {
+  documentId: string
+  fallback: string
+}) {
+  const title = useNote(documentId).data?.title ?? fallback
+  return (
+    <p className={titleClass} title={title} data-slot="notes-panel-title">
+      {title}
+    </p>
+  )
+}
+
+/** How the notes are listed; the choice is kept for the next visit. */
+function SortMenu({ order }: { order: NoteOrder }) {
+  const setOrder = useShell((state) => state.setNoteOrder)
+  return (
+    <Menu.Root>
+      <Toolbar.Button
+        render={
+          <Menu.Trigger
+            render={
+              <TooltipIconButton tooltip="Sort" className="size-7 p-1.5" />
+            }
+          />
+        }
+      >
+        <Icon.Sort className="size-4" />
+      </Toolbar.Button>
+      <Menu.Portal>
+        <Menu.Positioner
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          className="z-50"
+        >
+          <Menu.Popup className={`min-w-44 ${menuPopup}`}>
+            <Menu.Group>
+              <Menu.GroupLabel className="px-2 py-1 text-xs text-ink-faint">
+                Sort by
+              </Menu.GroupLabel>
+              <Menu.RadioGroup
+                value={order}
+                onValueChange={(value: NoteOrder) => setOrder(value)}
+              >
+                {NOTE_ORDERS.map((option) => (
+                  <Menu.RadioItem
+                    key={option.order}
+                    value={option.order}
+                    closeOnClick
+                    className={`${menuItem} data-checked:font-medium`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {option.label}
+                    </span>
+                    <Menu.RadioItemIndicator>
+                      <Icon.Check className="size-3.5" />
+                    </Menu.RadioItemIndicator>
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioGroup>
+            </Menu.Group>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  )
+}
+
 const emptyShelf: Record<NoteShelf, string> = {
   notes: 'No notes yet. Start one with the plus.',
   agent: 'No agent has written a note yet.',
@@ -153,8 +266,8 @@ const TOP_LEVEL = 'top-level'
  * The person's folders, then their loose notes. A note dragged onto a folder
  * moves into it, and dragged onto the loose notes moves out to the top level.
  */
-function NotesTree({ query }: { query: string }) {
-  const library = useNoteLibrary(query, 'notes')
+function NotesTree({ query, order }: { query: string; order: NoteOrder }) {
+  const library = useNoteLibrary(query, 'notes', order)
   const folders = useNoteFolders()
   const move = useMoveNote()
   const sensors = useSensors(
@@ -343,7 +456,7 @@ function NewFolder({ onDone }: { onDone: () => void }) {
  * The folder of what agents wrote to their memory, after the person's own
  * notes. Its colour is the complement of the person's folders.
  */
-function AgentNotes({ query }: { query: string }) {
+function AgentNotes({ query, order }: { query: string; order: NoteOrder }) {
   const [open, setOpen] = useState(false)
   return (
     <FilesystemItem
@@ -370,14 +483,22 @@ function AgentNotes({ query }: { query: string }) {
       }
     >
       <div className="ps-5">
-        <NoteList query={query} shelf="agent" />
+        <NoteList query={query} shelf="agent" order={order} />
       </div>
     </FilesystemItem>
   )
 }
 
-function NoteList({ query, shelf }: { query: string; shelf: NoteShelf }) {
-  const library = useNoteLibrary(query, shelf)
+function NoteList({
+  query,
+  shelf,
+  order,
+}: {
+  query: string
+  shelf: NoteShelf
+  order: NoteOrder
+}) {
+  const library = useNoteLibrary(query, shelf, order)
   if (library.isPending) return <Hint>Loading notes…</Hint>
   if (library.isError)
     return <Hint>{describeError(library.error, 'document')}</Hint>

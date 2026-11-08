@@ -85,6 +85,12 @@ check(
 )
 await notesNav.getByRole('button', { name: TITLE }).waitFor(READ)
 check('the list shows it by its title', true)
+const panelTitle = page.locator('[data-slot="notes-panel-title"]')
+check(
+  "the panel's heading is the open note's name",
+  (await panelTitle.textContent())?.trim() === TITLE,
+  await panelTitle.textContent(),
+)
 const settledBy = Date.now() + 30_000
 let settled = await openMark()
 while (settled !== 'written' && Date.now() < settledBy) {
@@ -200,6 +206,35 @@ await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
 await editor.getByText(BODY).waitFor(READ)
 check('a reload shows the saved text', true)
 
+// The tools sit in one row under the heading: New note, New folder, Sort,
+// and Search last, resting as its icon until it is used.
+const tools = page.getByRole('toolbar', { name: 'Notes tools' })
+const toolOrder = await tools.evaluate((bar) =>
+  [...bar.querySelectorAll('button, input')].map(
+    (el) =>
+      el.getAttribute('aria-label') ||
+      el.querySelector('[data-slot]')?.textContent ||
+      el.textContent?.trim() ||
+      el.tagName,
+  ),
+)
+check(
+  'the toolbar runs New note, New folder, Sort, Search',
+  JSON.stringify(toolOrder) ===
+    JSON.stringify(['New note', 'New folder', 'Sort', 'Search notes']),
+  JSON.stringify(toolOrder),
+)
+const searchBox = page.locator('[data-slot="aui_thread-list-search"]')
+const restWidth = (await searchBox.boundingBox())?.width ?? 0
+await page.getByLabel('Search notes').focus()
+await page.waitForTimeout(500)
+const openWidth = (await searchBox.boundingBox())?.width ?? 0
+check(
+  'search rests as its icon and springs open when used',
+  restWidth < 40 && openWidth > restWidth * 3,
+  `${restWidth} -> ${openWidth}`,
+)
+
 // Search finds it by what it says.
 await page.getByLabel('Search notes').fill(MARK)
 await notesNav.getByRole('button', { name: TITLE }).waitFor(READ)
@@ -208,6 +243,51 @@ check(
   (await notesNav.getByRole('button').count()) >= 1,
 )
 await page.getByLabel('Search notes').fill('')
+await page.getByLabel('Search notes').blur()
+
+// Sort lists the notes by last edit, creation or title, and keeps the choice.
+const looseTitles = () =>
+  notesNav.evaluate((nav) =>
+    [...nav.querySelectorAll(':scope > div > ul > li button')].map((b) =>
+      b.textContent.replace(/\s*\((saving|not saved)\)$/, '').trim(),
+    ),
+  )
+const sortBy = async (label) => {
+  await page.getByRole('button', { name: 'Sort', exact: true }).click()
+  await page.getByRole('menuitemradio', { name: label }).click()
+  await page.waitForTimeout(800)
+}
+await sortBy('A to Z')
+const byTitle = await looseTitles()
+const collator = new Intl.Collator(undefined, {
+  sensitivity: 'base',
+  numeric: true,
+})
+check(
+  'A to Z lists the notes by title',
+  byTitle.length > 1 &&
+    byTitle.every(
+      (t, i) => i === 0 || collator.compare(byTitle[i - 1], t) <= 0,
+    ),
+  byTitle.slice(0, 5).join(' | '),
+)
+await shot('sorted')
+await sortBy('Date created')
+check(
+  'date created puts the newest note first',
+  (await looseTitles())[0] === TITLE,
+  (await looseTitles())[0],
+)
+await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
+await notesNav.getByRole('button', { name: TITLE }).waitFor(READ)
+await page.getByRole('button', { name: 'Sort', exact: true }).click()
+check(
+  'the order chosen is kept after a reload',
+  (await page
+    .getByRole('menuitemradio', { name: 'Date created' })
+    .getAttribute('aria-checked')) === 'true',
+)
+await page.getByRole('menuitemradio', { name: 'Recently edited' }).click()
 
 // A folder is a Theorem collection: the plus folder button makes one, a note
 // dragged onto it moves in, and Move to takes it back out.
