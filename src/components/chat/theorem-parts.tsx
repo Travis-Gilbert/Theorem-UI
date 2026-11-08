@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, scene-part.tsx for the theorem-scene part
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -43,6 +43,8 @@ import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
+import { readScene, SCENE_PART } from '@/components/chat/scene-model'
+import { SceneCard } from '@/components/chat/scene-part'
 import { Icon } from '@/components/icons'
 import {
   describeError,
@@ -679,6 +681,15 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/* --------------------------------------------------------------------- scenes */
+
+/** A reply's interactive scene (scene-part.tsx), drawn above its text. */
+const ScenePart: DataMessagePartComponent = ({ data }) => {
+  const scene = readScene(data)
+  if (!scene) return <PartNotice name={SCENE_PART} />
+  return <SceneCard scene={scene} />
+}
+
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
@@ -723,6 +734,7 @@ const ReviewAnswerPart: DataMessagePartComponent = ({ data }) => {
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
+    [SCENE_PART, ScenePart],
     ['theorem-review_answer', ReviewAnswerPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
