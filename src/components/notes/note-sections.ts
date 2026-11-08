@@ -1,38 +1,166 @@
-// SOURCING: none upstream; the sections' names and the rule for renaming them are this panel's own
+// SOURCING: @dnd-kit/sortable arrayMove (a section dragged to another's place); the sections themselves are this panel's own, since Theorem's collections cannot nest, rename or delete
 //
-// The Notes panel lists its rows under three sections, each headed by a name
-// the person can change: their folders, their loose notes, and what agents
-// wrote. Only a name that differs from the section's own is kept.
+// The Notes panel lists its rows under sections the person makes, names,
+// orders, folds away and deletes. A row is a folder, a loose note, or the
+// folder of what agents wrote. A row the person never placed sits in its
+// kind's own section while that is there, and in the first section otherwise,
+// so deleting a section never loses a row. There is always one section.
+import { arrayMove } from '@dnd-kit/sortable'
 
-export type NoteSection = 'folders' | 'notes' | 'agents'
+export type SectionId = string
 
-export type SectionNames = Readonly<Partial<Record<NoteSection, string>>>
-
-const OWN_NAME: Record<NoteSection, string> = {
-  folders: 'Folders',
-  notes: 'Notes',
-  agents: 'Agents',
+export type Section = {
+  readonly id: SectionId
+  readonly name: string
+  readonly collapsed: boolean
 }
 
-/** The sections, in the panel's order. */
-export const NOTE_SECTIONS: readonly NoteSection[] = [
-  'folders',
-  'notes',
-  'agents',
-]
+/** What a section holds: a folder, a loose note, or the agents' folder. */
+export type SectionItem = `folder:${string}` | `note:${string}` | 'agents'
 
-export const sectionName = (section: NoteSection, names: SectionNames) =>
-  names[section] ?? OWN_NAME[section]
+export type SectionLayout = {
+  readonly sections: readonly [Section, ...Section[]]
+  /** Where the person put a row; a row not here sits in its own section. */
+  readonly placed: Readonly<Partial<Record<SectionItem, SectionId>>>
+}
 
-/** The names with one section renamed; an empty name, or its own, clears it. */
+export const folderItem = (collectionId: string): SectionItem =>
+  `folder:${collectionId}`
+export const noteItem = (documentId: string): SectionItem =>
+  `note:${documentId}`
+export const AGENTS_ITEM: SectionItem = 'agents'
+
+export const isSectionItem = (id: string): id is SectionItem =>
+  id === AGENTS_ITEM || id.startsWith('folder:') || id.startsWith('note:')
+
+const section = (id: SectionId, name: string): Section => ({
+  id,
+  name,
+  collapsed: false,
+})
+
+export const START_LAYOUT: SectionLayout = {
+  sections: [
+    section('folders', 'Folders'),
+    section('notes', 'Notes'),
+    section('agents', 'Agents'),
+  ],
+  placed: {},
+}
+
+/** Each kind of row's own section, one of the starting three. */
+const homeOf = (item: SectionItem): SectionId =>
+  item === AGENTS_ITEM
+    ? 'agents'
+    : item.startsWith('folder:')
+      ? 'folders'
+      : 'notes'
+
+const has = (
+  layout: SectionLayout,
+  id: SectionId | undefined,
+): id is SectionId =>
+  id !== undefined && layout.sections.some((s) => s.id === id)
+
+export function sectionOf(layout: SectionLayout, item: SectionItem): SectionId {
+  const placed = layout.placed[item]
+  if (has(layout, placed)) return placed
+  const home = homeOf(item)
+  return has(layout, home) ? home : layout.sections[0].id
+}
+
+const withSections = (
+  layout: SectionLayout,
+  sections: readonly Section[],
+): SectionLayout =>
+  sections.length
+    ? { ...layout, sections: sections as SectionLayout['sections'] }
+    : layout
+
+const editSection = (
+  layout: SectionLayout,
+  id: SectionId,
+  edit: (s: Section) => Section,
+) =>
+  withSections(
+    layout,
+    layout.sections.map((s) => (s.id === id ? edit(s) : s)),
+  )
+
+/** A new section after the one pointed at, or last; its id comes from the caller. */
+export function addSection(
+  layout: SectionLayout,
+  id: SectionId,
+  after?: SectionId,
+): SectionLayout {
+  if (has(layout, id)) return layout
+  const at = layout.sections.findIndex((s) => s.id === after)
+  const sections = [...layout.sections]
+  sections.splice(
+    at === -1 ? sections.length : at + 1,
+    0,
+    section(id, 'New section'),
+  )
+  return withSections(layout, sections)
+}
+
+/** The name the person typed, trimmed; an empty one keeps the name it had. */
 export function renameSection(
-  names: SectionNames,
-  section: NoteSection,
+  layout: SectionLayout,
+  id: SectionId,
   wanted: string,
-): SectionNames {
-  const { [section]: _previous, ...others } = names
+): SectionLayout {
   const name = wanted.trim()
-  return name && name !== OWN_NAME[section]
-    ? { ...others, [section]: name }
-    : others
+  return name ? editSection(layout, id, (s) => ({ ...s, name })) : layout
+}
+
+/** Removes a section, but never the last; its rows go back to their own. */
+export function deleteSection(
+  layout: SectionLayout,
+  id: SectionId,
+): SectionLayout {
+  if (layout.sections.length === 1 || !has(layout, id)) return layout
+  const placed = Object.fromEntries(
+    Object.entries(layout.placed).filter(([, to]) => to !== id),
+  )
+  return withSections(
+    { ...layout, placed },
+    layout.sections.filter((s) => s.id !== id),
+  )
+}
+
+/** Moves a section to where the one it was dropped on is. */
+export function moveSection(
+  layout: SectionLayout,
+  id: SectionId,
+  overId: SectionId,
+): SectionLayout {
+  const from = layout.sections.findIndex((s) => s.id === id)
+  const to = layout.sections.findIndex((s) => s.id === overId)
+  if (from === -1 || to === -1 || from === to) return layout
+  return withSections(layout, arrayMove([...layout.sections], from, to))
+}
+
+export function placeItem(
+  layout: SectionLayout,
+  item: SectionItem,
+  id: SectionId,
+): SectionLayout {
+  return has(layout, id)
+    ? { ...layout, placed: { ...layout.placed, [item]: id } }
+    : layout
+}
+
+export const toggleSection = (layout: SectionLayout, id: SectionId) =>
+  editSection(layout, id, (s) => ({ ...s, collapsed: !s.collapsed }))
+
+/** Each section's rows, kept in the order they came in. */
+export function groupBySection<T>(
+  layout: SectionLayout,
+  rows: readonly T[],
+  itemOf: (row: T) => SectionItem,
+): Map<SectionId, T[]> {
+  const grouped = new Map(layout.sections.map((s) => [s.id, [] as T[]]))
+  for (const row of rows) grouped.get(sectionOf(layout, itemOf(row)))?.push(row)
+  return grouped
 }
