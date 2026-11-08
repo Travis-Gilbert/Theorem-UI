@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import type { ThreadMessage } from '@assistant-ui/react'
+import { onlineManager } from '@tanstack/react-query'
 import type { Theorem } from '@theoremharness/sdk'
 import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { KitRefusal, setKitDriver } from './driver'
@@ -281,6 +282,28 @@ describe('answering the run', () => {
     await serveKitRequests(requests, post, () => 0)
     expect(attempts).toBe(3)
     expect(moves).toHaveLength(1)
+  })
+
+  test('a receipt held while the page is offline goes once it is back', async () => {
+    fakeDriver(() => Promise.resolve(true))
+    let attempts = 0
+    const post = async () => {
+      attempts += 1
+      if (attempts === 1) {
+        onlineManager.setOnline(false)
+        throw new Error('network down')
+      }
+    }
+    const served = serveKitRequests(
+      [request('a', 'kit.move', { to: 'rail' })],
+      post,
+      () => 0,
+    )
+    await Bun.sleep(20)
+    expect(attempts).toBe(1)
+    onlineManager.setOnline(true)
+    await served
+    expect(attempts).toBe(2)
   })
 
   test('an error on the page is a failed receipt, not a stuck run', async () => {

@@ -215,6 +215,8 @@ const RECEIPT_RETRIES = 6
 const receiptDelay = (failures: number) =>
   Math.min(1000 * 2 ** failures, 15_000)
 const receipts = new QueryClient()
+// Mounted for the page's life: only a mounted client resumes what it paused offline.
+receipts.mount()
 
 /** Requests answered, or being answered, by this page. */
 const served = new Set<string>()
