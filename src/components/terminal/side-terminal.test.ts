@@ -4,6 +4,7 @@ import { afterEach, expect, test } from 'bun:test'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useShell } from '@/components/shell/shell-state'
 import { attachToSideTerminal } from './side-terminal'
+import { nextTurnReferences } from './terminal-screen'
 
 const reference = {
   label: 'main.rs',
@@ -19,7 +20,9 @@ test('Add to chat opens the right-hand terminal, starting a tab when there is no
   const state = useShell.getState()
   expect(state.sideDrawer).toBe('terminal')
   expect(state.terminalTabs.p1?.tabs).toHaveLength(1)
-  expect(state.terminalTabs.p1?.active).toBe(state.terminalTabs.p1?.tabs[0]?.id)
+  const active = state.terminalTabs.p1?.active
+  expect(active).toBe(state.terminalTabs.p1?.tabs[0]?.id)
+  expect(nextTurnReferences(active!)).toEqual([reference])
 })
 
 test('Add to chat keeps to the active tab when the project has tabs', () => {
@@ -31,4 +34,7 @@ test('Add to chat keeps to the active tab when the project has tabs', () => {
   const after = useShell.getState().terminalTabs.p1
   expect(after).toEqual(before)
   expect(useShell.getState().sideDrawer).toBe('terminal')
+  expect(nextTurnReferences(after!.active)).toEqual([reference])
+  const other = after!.tabs.find((tab) => tab.id !== after!.active)
+  expect(nextTurnReferences(other!.id)).toEqual([])
 })
