@@ -1,11 +1,12 @@
 // SOURCING: none: the list /stories.json serves and the story route looks up, kept free of components so the server route can read it. Each story's lane and reference are the license ledger's, docs/plans/evidence/ledger.md.
+import { ARTIFACT_STORIES } from './fixtures/artifacts'
 
 export type StoryMeta = {
   id: string
   title: string
   lane: 'translation' | 'original'
-  /** Under docs/plans/evidence/refs/. */
-  reference: string
+  /** Under docs/plans/evidence/refs/; an original drawn to no reference has none, and the oracle skips it. */
+  reference?: string
   /** Width and height the reference's region is read at. */
   viewport: { width: number; height: number }
   /** The region of the reference this story answers: left, top, width, height. */
@@ -80,6 +81,14 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1479, height: 1064 },
     threadId: 'thread-app-gallery',
   },
+  ...ARTIFACT_STORIES.map(
+    ({ id, title }): StoryMeta => ({
+      id,
+      title: `Artifact: ${title}`,
+      lane: 'original',
+      viewport: { width: 760, height: 900 },
+    }),
+  ),
 ]
 
 export const findStory = (id: string) => STORIES.find((story) => story.id === id)

@@ -16,5 +16,6 @@ Reference hashes (sha256):
 | Compare pane, review card | translation, translated from Threadbear's review design | Threadbear at the pin | Mike Cann, MIT | `f9447269…` |
 | Organized sidebar, Librarian footer, shell | original, drawn to the mock | no upstream code | this repo | `f9447269…` |
 | Space canvas, typed notes, note kinds | original, drawn to the screenshot | no upstream code | this repo | `b435312b…` |
+| Artifact library (`theorem-artifacts`) and its stories | original, no upstream design | OpenUI (`@openuidev/react-lang`) for the language and renderer; shadcn and coss primitives | this repo; OpenUI MIT | none: drawn to no reference |
 
 Fidelity seals are made by a person who has opened the collage. None has been made yet.
