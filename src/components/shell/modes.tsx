@@ -1,7 +1,7 @@
 // SOURCING: @tanstack/react-router (each mode is a route), assistant-ui Thread element, the Spaces canvas (React Flow), the IDE frame (browser-only Theia), the Vault's file list on a phone (FoldersSection), the program canvas (React Flow), Index mode (its page, pages/mode-page.tsx), Pages (Puck over the vault's page files; a mode's page opens there to be arranged)
 import { Canvas } from '@/components/canvas/canvas'
 import { ProgramSurface } from '@/components/program/program-surface'
-import { Icon } from '@/components/icons'
+import { RailMark } from './rail-marks'
 import { IdeFrame } from '@/components/ide/ide-frame'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
@@ -18,25 +18,19 @@ import { isPageMode } from '@/lib/modules/templates'
 import { useShell } from './shell-state'
 
 export type ShellMode =
-  | 'chat'
-  | 'index'
-  | 'pages'
-  | 'vault'
-  | 'spaces'
-  | 'canvas'
-  | 'ide'
+  'chat' | 'index' | 'pages' | 'vault' | 'spaces' | 'canvas' | 'ide'
 
 /** The rail's destinations, in order. */
 export const MODES = [
-  { mode: 'chat', label: 'Chat', Mark: Icon.Chat },
-  { mode: 'index', label: 'Index', Mark: Icon.Index },
-  { mode: 'pages', label: 'Pages', Mark: Icon.Layout },
+  { mode: 'chat', label: 'Home', Mark: RailMark.Home },
+  { mode: 'index', label: 'Index', Mark: RailMark.Index },
+  { mode: 'pages', label: 'Pages', Mark: RailMark.Pages },
   // The Vault works on Home and the opened folders; the rail offers it while
   // there are any.
-  { mode: 'vault', label: 'Vault', Mark: Icon.Vault, folders: true },
-  { mode: 'spaces', label: 'Spaces', Mark: Icon.Spaces },
-  { mode: 'canvas', label: 'Canvas', Mark: Icon.Canvas },
-  { mode: 'ide', label: 'IDE', Mark: Icon.Ide },
+  { mode: 'vault', label: 'Vault', Mark: RailMark.Vault, folders: true },
+  { mode: 'spaces', label: 'Spaces', Mark: RailMark.Spaces },
+  { mode: 'canvas', label: 'Canvas', Mark: RailMark.Canvas },
+  { mode: 'ide', label: 'IDE', Mark: RailMark.Ide },
 ] as const
 
 export const modeLabel = (mode: ShellMode) =>
