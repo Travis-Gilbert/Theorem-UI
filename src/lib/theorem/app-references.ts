@@ -30,20 +30,34 @@ export function selectionForSource(
     : undefined
 }
 
-/** Whether a selection names anything: text, a row, a field, or an entity. */
+/** Whether a selection names anything: text, a row, a field, an entity or a notebook cell. */
 const says = (selection: AppSelection) =>
   Boolean(
-    selection.text || selection.rowId || selection.field || selection.entityId,
+    selection.text ||
+      selection.rowId ||
+      selection.field ||
+      selection.entityId ||
+      selection.cellId,
   )
+
+/**
+ * A precise position in a notebook revision, as theorem-surface-contracts'
+ * ArtifactLocator names one. The backend resolves an explicit locator
+ * strictly and refuses the turn when it names nothing in the revision.
+ */
+type NotebookCellLocator = { kind: 'notebook_cell'; cellId: string }
 
 /** The reference to one App revision, with the selection made in it. */
 function revisionReference(
   app: { documentId: string; title: string },
   position: number | string | bigint,
-  selection: AppSelection | undefined,
+  selection: (AppSelection & { locator?: NotebookCellLocator }) | undefined,
   label: string,
 ): TheoremContextReference {
-  const named = selection?.entityLabel || selection?.text.slice(0, 60)
+  const named =
+    selection?.entityLabel ||
+    selection?.text.slice(0, 60) ||
+    (selection?.cellId && `cell ${selection.cellId}`)
   return {
     label: named ? `${label}: ${named}` : label,
     location: {
@@ -90,5 +104,39 @@ export function appContextReference(
     (context?.revision ?? snapshot.revision).position,
     context?.selection,
     snapshot.title,
+  )
+}
+
+/**
+ * A reference to one revision of a notebook artifact, with the cell, plotted
+ * point or entity selected in it, so the next turn reads what the person
+ * pointed at in the revision they saw. A notebook is an App document, so the
+ * reference is the App's. The backend derives an entity or row locator from
+ * the selection itself; a bare cell gets an explicit `notebook_cell` locator,
+ * but only for a cell this revision is known to have (`cellIds`), since the
+ * backend refuses the turn over one it does not.
+ */
+export function notebookReference(
+  notebook: {
+    documentId: string
+    position: number | string | bigint
+    title: string
+    cellIds: ReadonlyArray<string>
+  },
+  selection?: AppSelection,
+): TheoremContextReference {
+  const selected = selection && says(selection) ? selection : undefined
+  const cell =
+    selected?.cellId &&
+    !selected.entityId &&
+    !selected.rowId &&
+    notebook.cellIds.includes(selected.cellId)
+      ? selected.cellId
+      : undefined
+  return revisionReference(
+    notebook,
+    notebook.position,
+    cell ? { ...selected!, locator: { kind: 'notebook_cell', cellId: cell } } : selected,
+    notebook.title,
   )
 }

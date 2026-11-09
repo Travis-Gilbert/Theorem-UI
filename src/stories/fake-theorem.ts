@@ -14,9 +14,18 @@ const json = (status: number, body: unknown) =>
     headers: { 'content-type': 'application/json' },
   })
 
-/** Answers `/api/` from the map and leaves the dev server's own requests alone. */
+/** Where a fake keeps the fetch it stands in for. */
+const PAGE_FETCH = Symbol('page fetch')
+type Fetch = typeof window.fetch & { [PAGE_FETCH]?: typeof window.fetch }
+
+/**
+ * Answers `/api/` from the map and leaves the dev server's own requests alone.
+ * A second install replaces the first instead of wrapping it, so restoring
+ * either one gives the page its own fetch back.
+ */
 export function installFakeTheorem(routes: FakeRoutes) {
-  const real = window.fetch
+  const current: Fetch = window.fetch
+  const real = current[PAGE_FETCH] ?? current
   const table = Object.entries(routes).map(([key, answer]) => {
     const [method = 'GET', pathname = ''] = key.split(' ')
     return { method, pattern: new URLPattern({ pathname }), answer }
@@ -35,7 +44,10 @@ export function installFakeTheorem(routes: FakeRoutes) {
     }
     return json(404, { title: 'Not in this story', path: url.pathname })
   }
-  window.fetch = Object.assign(fake, { preconnect: real.preconnect })
+  window.fetch = Object.assign(fake, {
+    preconnect: real.preconnect,
+    [PAGE_FETCH]: real,
+  })
   return () => {
     window.fetch = real
   }

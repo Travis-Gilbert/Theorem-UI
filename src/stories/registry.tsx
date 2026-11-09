@@ -3,6 +3,8 @@ import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useState } from 'react'
 import type { ComponentType } from 'react'
+import { readArtifact } from '@/components/artifacts/artifact-model'
+import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { Canvas } from '@/components/canvas/canvas'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
@@ -18,6 +20,7 @@ import type { NoteFlowNode } from '@/lib/program/flow'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 import { useReview } from '@/lib/theorem/reviews'
 import { documentFixtures } from './fixtures/notes'
+import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
 
 function WithRuntime({ children }: { children: React.ReactNode }) {
   const [threadId, setThreadId] = useState<string | undefined>('thread-app-gallery')
@@ -138,6 +141,21 @@ function ProgramNoteStory() {
   )
 }
 
+/**
+ * A notebook artifact as a thread shows it, read from the part Theorem stores
+ * for it; the fake Theorem answers its outputs and host routes.
+ */
+function NotebookStory({ id }: { id: string }) {
+  const { notebook, sourceRevision } = NOTEBOOK_DOCUMENTS[id]!
+  const artifact = readArtifact(notebookPart(id, notebook, { sourceRevision }))
+  if (!artifact) return null
+  return (
+    <div className="mx-auto w-full max-w-[880px] p-6">
+      <ArtifactView artifact={artifact} distance="thing" latest />
+    </div>
+  )
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
@@ -147,4 +165,8 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
   'program-note': ProgramNoteStory,
+  'cpu-gpu-tradeoff': () => <NotebookStory id="cpu-gpu-tradeoff" />,
+  'cpu-gpu-measured': () => <NotebookStory id="cpu-gpu-measured" />,
+  'cpu-gpu-awaiting-gpu': () => <NotebookStory id="cpu-gpu-awaiting-gpu" />,
+  'cpu-gpu-model': () => <NotebookStory id="cpu-gpu-model" />,
 }
