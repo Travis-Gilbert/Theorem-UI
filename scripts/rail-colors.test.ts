@@ -22,8 +22,9 @@ const displayable = inGamut('rgb')
 const css = await Bun.file(new URL('../src/styles.css', import.meta.url)).text()
 const rule = css.slice(css.indexOf('.rail-mark {'))
 
+// A tunable's default is the fallback where it is read: var(--name, 0.17).
 function constant(name: string) {
-  const value = rule.match(new RegExp(`--${name}: ([\\d.]+)%?;`))?.[1]
+  const value = rule.match(new RegExp(`var\\(--${name}, ([\\d.]+)%?\\)`))?.[1]
   if (value === undefined) throw new Error(`styles.css has no --${name}`)
   return Number(value)
 }
@@ -85,6 +86,23 @@ function nearestPair(colors: Array<Oklch>) {
 }
 
 describe('the rail follows the theme', () => {
+  test('a theme can tune the rail from above: tunables are read with fallbacks, never declared on the icon', () => {
+    // A declaration on .rail-mark beats the value the icon inherits.
+    for (const name of [
+      'rail-ground',
+      'rail-shift',
+      'rail-chroma-slope',
+      'rail-chroma-top',
+      'rail-tint-mix',
+      'rail-tint-boost',
+      'rail-paper-mix',
+      'rail-paper-boost',
+    ]) {
+      expect(rule).not.toMatch(new RegExp(`--${name}\\s*:`))
+      expect(rule).toContain(`var(--${name},`)
+    }
+  })
+
   test('the chroma cap is below what sRGB shows in every hue, at every accent lightness', () => {
     for (let l = 0.35; l <= 0.9; l += 0.05) {
       let least = Infinity

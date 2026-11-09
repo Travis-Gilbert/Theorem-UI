@@ -605,30 +605,56 @@
      then given back a share of the accent's chroma. A plain mix loses chroma
      with lightness and leaves a grey ground with grey fills. */
 @layer components {
+  /* The tunables are read with fallbacks and never declared here, so a value a
+     theme sets on the root or on any element above the rail reaches the icons:
+     a declaration on .rail-mark itself would beat what it inherits.
+       --rail-ground          what the fills are taken toward (--surface-rail)
+       --rail-chroma-slope    chroma cap per unit of lightness
+       --rail-chroma-top      chroma cap per unit of (1 - lightness)
+       --rail-tint-mix        share of the icon colour in the tint
+       --rail-tint-boost      chroma given back to the tint
+       --rail-paper-mix, --rail-paper-boost   the same for the paper
+     --rail-shift is each icon's own turn of the wheel, set on the element.
+     --rail-base, --rail-tint and --rail-paper are derived here, on the element,
+     so what they read is what the element inherits. Do not set them. */
   .rail-mark {
     position: relative;
     display: inline-block;
     flex-shrink: 0;
     transition: opacity 100ms;
 
-    --rail-ground: var(--surface-rail);
-    --rail-shift: 0;
-    --rail-chroma-slope: 0.17;
-    --rail-chroma-top: 0.48;
-    --rail-tint-mix: 45%;
-    --rail-tint-boost: 1.25;
-    --rail-paper-mix: 12%;
-    --rail-paper-boost: 1.7;
     /* Without relative colours every icon is the accent itself. */
     --rail-base: var(--redwood);
+    --rail-tint-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-tint-mix, 45%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-paper-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-paper-mix, 12%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-tint: var(--rail-tint-mixed);
+    --rail-paper: var(--rail-paper-mixed);
   }
 
   @supports (color: oklch(from red l c h)) {
     .rail-mark {
       --rail-base: oklch(
         from var(--redwood) l
-          min(c, var(--rail-chroma-slope) * l, var(--rail-chroma-top) * (1 - l))
-          calc(h + var(--rail-shift))
+          min(
+            c,
+            var(--rail-chroma-slope, 0.17) * l,
+            var(--rail-chroma-top, 0.48) * (1 - l)
+          )
+          calc(h + var(--rail-shift, 0))
+      );
+      --rail-tint: oklch(
+        from var(--rail-tint-mixed) l calc(c * var(--rail-tint-boost, 1.25)) h
+      );
+      --rail-paper: oklch(
+        from var(--rail-paper-mixed) l calc(c * var(--rail-paper-boost, 1.7)) h
       );
     }
   }
@@ -647,45 +673,11 @@
   }
 
   .rail-mark > [data-layer='tint'] {
-    background-color: color-mix(
-      in oklab,
-      var(--rail-base) var(--rail-tint-mix),
-      var(--rail-ground)
-    );
+    background-color: var(--rail-tint);
   }
 
   .rail-mark > [data-layer='paper'] {
-    background-color: color-mix(
-      in oklab,
-      var(--rail-base) var(--rail-paper-mix),
-      var(--rail-ground)
-    );
-  }
-
-  @supports (color: oklch(from red l c h)) {
-    .rail-mark > [data-layer='tint'] {
-      background-color: oklch(
-        from
-          color-mix(
-            in oklab,
-            var(--rail-base) var(--rail-tint-mix),
-            var(--rail-ground)
-          )
-          l calc(c * var(--rail-tint-boost)) h
-      );
-    }
-
-    .rail-mark > [data-layer='paper'] {
-      background-color: oklch(
-        from
-          color-mix(
-            in oklab,
-            var(--rail-base) var(--rail-paper-mix),
-            var(--rail-ground)
-          )
-          l calc(c * var(--rail-paper-boost)) h
-      );
-    }
+    background-color: var(--rail-paper);
   }
 
   /* Without CSS masks (Servo 0.7) each layer's colour would fill its whole box.
