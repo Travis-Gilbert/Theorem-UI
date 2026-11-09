@@ -538,17 +538,19 @@ const within = (value: Cell, region: Region) =>
   value <= Math.max(region.from, region.to)
 
 export function LinkedTableView({
+  id,
   columns,
   rows,
   region,
   by,
 }: {
+  id: string
   columns: Column[]
   rows: Row[]
   region?: Region | null
   by?: string | null
 }) {
-  const { selected, select } = useSelection()
+  const { selected, owner, select } = useSelection()
   const linked = region && by ? region : undefined
   const cell = (row: Row, column: Column) => {
     const value = row[column.key]
@@ -579,19 +581,20 @@ export function LinkedTableView({
             const inside = linked && by ? within(row[by] ?? null, linked) : false
             const [first, ...rest] = columns
             const label = first ? `${first.label} ${cell(row, first)}` : rowId
-            // No entityId: the host reads a selection with only a rowId as table rows.
-            const isSelected =
-              selected?.rowId === rowId &&
-              selected.entityId === undefined &&
-              selected.entityLabel === label
+            const isSelected = owner === id && selected?.rowId === rowId
+            // No entityId: the host reads a selection with only a rowId as table
+            // rows. Which table it came from stays local, as the owner.
             const choose = () =>
-              select({
-                text: [label, ...rest.map((c) => `${c.label} ${cell(row, c)}`)].join(
-                  ', ',
-                ),
-                rowId,
-                entityLabel: label,
-              })
+              select(
+                {
+                  text: [label, ...rest.map((c) => `${c.label} ${cell(row, c)}`)].join(
+                    ', ',
+                  ),
+                  rowId,
+                  entityLabel: label,
+                },
+                id,
+              )
             return (
               <TableRow
                 key={rowId}

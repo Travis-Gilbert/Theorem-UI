@@ -331,6 +331,24 @@ describe('selection reaches the next turn', () => {
     ).toBe('true')
   })
 
+  test('a row selected in one table leaves a matching row in another unselected', async () => {
+    const table = (cpu: number) =>
+      `LinkedTable([Column("year", "Year"), Column("cpu", "CPU", "ms", "CPU")], [{id: 1, year: 2024, cpu: ${cpu}}, {id: 2, year: 2025, cpu: ${cpu * 2}}])`
+    const container = await show(`root = Stack([before, after])
+before = ${table(5)}
+after = ${table(3)}`)
+    await click(container.querySelector('tr[data-row-id="1"]')!)
+    expect(container.querySelectorAll('tr[aria-selected="true"]').length).toBe(1)
+    await click(button(container, 'Ask about selection')!)
+    const [reference] = useComposerReferences.getState().references
+    const { selection } = JSON.parse(reference?.excerpt ?? '{}')
+    expect(selection).toEqual({
+      text: 'Year 2024, CPU 5 ms',
+      rowId: '1',
+      entityLabel: 'Year 2024',
+    })
+  })
+
   test('a plot point selected from the keyboard is an entity with its values', async () => {
     const container = await show(EXAMPLES.Plot)
     const plot = container.querySelector<SVGElement>('[data-component="Plot"] svg')!

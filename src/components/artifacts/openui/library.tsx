@@ -329,10 +329,11 @@ const LinkedTable = defineComponent({
     region: reactive(region.nullable().optional()),
     by: z.string().nullable().optional(),
   }),
-  component: function LinkedTableBlock({ props: p }) {
+  component: function LinkedTableBlock({ props: p, statementId }) {
     const field = useStateField('region', p.region)
     return (
       <LinkedTableView
+        id={statementOf(statementId, 'LinkedTable')}
         columns={props(p.columns)}
         rows={p.rows}
         region={field.value}

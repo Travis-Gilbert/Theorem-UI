@@ -130,11 +130,20 @@ function ArtifactProgram({ artifact }: RendererProps) {
   const refused = libraryProblem(artifact.library)
   const [parsed, setParsed] = useState<ParseResult | null>(null)
   const [errors, setErrors] = useState<OpenUIError[]>([])
-  const [selected, setSelected] = useState<AppSelection>()
+  const [selection, setSelection] = useState<{
+    selected: AppSelection
+    owner?: string
+  }>()
+  const selected = selection?.selected
   const subjects = useMemo(() => subjectsOf(parsed?.root ?? null), [parsed])
-  const selection = useMemo(
-    () => ({ selected, select: setSelected }),
-    [selected],
+  const selectionState = useMemo(
+    () => ({
+      selected,
+      owner: selection?.owner,
+      select: (next: AppSelection | undefined, owner?: string) =>
+        setSelection(next && { selected: next, owner }),
+    }),
+    [selection, selected],
   )
 
   if (refused)
@@ -174,7 +183,7 @@ function ArtifactProgram({ artifact }: RendererProps) {
       className={cn(ARTIFACT_SURFACE, 'flex flex-col gap-4 p-4 text-ink')}
     >
       <SubjectsContext value={subjects}>
-        <SelectionContext value={selection}>
+        <SelectionContext value={selectionState}>
           <Renderer.Root
             response={artifact.content}
             library={artifactLibrary}
@@ -210,7 +219,7 @@ function ArtifactProgram({ artifact }: RendererProps) {
               {selected.entityLabel || selected.text}
             </span>
           </span>
-          <Button size="xs" variant="ghost" onClick={() => setSelected(undefined)}>
+          <Button size="xs" variant="ghost" onClick={() => setSelection(undefined)}>
             Clear
           </Button>
           {askAboutSelection && (

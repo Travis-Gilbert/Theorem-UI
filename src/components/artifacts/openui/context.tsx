@@ -13,11 +13,17 @@ export function useTone(subject?: string | null) {
 
 export type SelectionState = {
   selected: AppSelection | undefined
-  select: (selection: AppSelection | undefined) => void
+  /**
+   * The block that made the selection, when the selection alone can't say:
+   * rows of two tables can share an id. It stays here; the host never sees it.
+   */
+  owner: string | undefined
+  select: (selection: AppSelection | undefined, owner?: string) => void
 }
 
 export const SelectionContext = createContext<SelectionState>({
   selected: undefined,
+  owner: undefined,
   select: () => undefined,
 })
 

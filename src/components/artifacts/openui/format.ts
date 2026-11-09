@@ -2,15 +2,26 @@
 // rescaling is a table of four units, which no installed library offers for a
 // value that arrives with its unit as a string.
 
-const plain = new Intl.NumberFormat('en', { maximumSignificantDigits: 3 })
+// "min2" leaves four-digit numbers ungrouped, so a year reads 2024, not 2,024.
+const whole = new Intl.NumberFormat('en', { useGrouping: 'min2' })
+const plain = new Intl.NumberFormat('en', {
+  maximumSignificantDigits: 3,
+  useGrouping: 'min2',
+})
 const compact = new Intl.NumberFormat('en', {
   notation: 'compact',
   maximumSignificantDigits: 3,
 })
 
-/** A number as people read it: three significant digits, compact past ten thousand. */
-export const formatNumber = (value: number) =>
-  Math.abs(value) >= 1e4 ? compact.format(value) : plain.format(value)
+/**
+ * A number as people read it: a whole number under ten thousand (a year, a
+ * count) exactly, any other value to three significant digits, compact past
+ * ten thousand.
+ */
+export function formatNumber(value: number) {
+  if (Math.abs(value) >= 1e4) return compact.format(value)
+  return Number.isInteger(value) ? whole.format(value) : plain.format(value)
+}
 
 /** Seconds per unit, for the time units an artifact may state its values in. */
 const SECONDS: Record<string, number> = {
