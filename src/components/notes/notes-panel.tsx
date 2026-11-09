@@ -569,9 +569,10 @@ function NoteFolderItem({
   const drop = useDroppable({ id: INTO + folder.collectionId })
   const drag = useDraggable({ id: folderItem(folder.collectionId) })
   const naming = tree.namingIn === folder.collectionId
-  // A search opens the folders it found something in, and a new folder opens
-  // the folder it is being named in.
-  const shown = open || tree.searching || naming
+  // A new folder opens the folder it is named in, which stays open to show it.
+  if (naming && !open) setOpen(true)
+  // A search opens the folders it found something in.
+  const shown = open || naming || tree.searching
   const inside = subfolders(tree.folders, folder.collectionId).filter(
     (f) => !tree.searching || tree.filled(f.collectionId),
   )
