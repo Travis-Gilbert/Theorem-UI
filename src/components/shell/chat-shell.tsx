@@ -157,6 +157,13 @@ type DockRoute = { projectId: string; threadId: string | undefined }
 const DockRouteContext = createContext<DockRoute | null>(null)
 
 /**
+ * A layer kept mounted while another shows. Dockview's views set visibility:
+ * visible on themselves, which shows through a hidden parent, so the layer is
+ * transparent as well as hidden.
+ */
+const HIDDEN_LAYER = 'invisible opacity-0'
+
+/**
  * The column beside the panel: the dock, and in IDE mode the IDE's page over
  * it (by default the conversation with Theia beside it). The page loads on
  * its first visit and then stays, hidden, so Theia's editors and layout
@@ -172,13 +179,13 @@ function DockView() {
   return (
     <div className="relative h-full">
       {/* Dockview layers its panels with z-index; isolate keeps them under the page. */}
-      <div inert={ide} className={cn('isolate h-full', ide && 'invisible')}>
+      <div inert={ide} className={cn('isolate h-full', ide && HIDDEN_LAYER)}>
         <DockShell projectId={route.projectId} threadId={route.threadId} />
       </div>
       {ideLoaded && (
         <div
           inert={!ide}
-          className={cn('absolute inset-0', !ide && 'invisible')}
+          className={cn('absolute inset-0', !ide && HIDDEN_LAYER)}
         >
           <ModePage mode="ide" />
         </div>
@@ -283,7 +290,7 @@ function DesktopShell(route: DockRoute) {
               inert={!vault}
               className={cn(
                 'absolute inset-0 isolate bg-sheet',
-                !vault && 'invisible',
+                !vault && HIDDEN_LAYER,
               )}
             >
               <Suspense>
