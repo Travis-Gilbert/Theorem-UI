@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test'
-import { observeHeight } from './display'
+import { markSelectedCell, observeHeight } from './display'
 
 const root = document.documentElement
 const original = globalThis.ResizeObserver
@@ -42,4 +42,21 @@ test('a frame grows to its content and shrinks back when the content does', () =
   layout(1700, 7962)
   resized()
   expect(reports).toEqual([7962, 1700])
+})
+
+test('only the cell a selection names is marked, and a selection outside every cell marks none', () => {
+  document.body.innerHTML =
+    '<main><div class="cell" data-cell-id="a"></div><div class="cell" data-cell-id="b"></div></main>'
+  const [a, b] = document.querySelectorAll('.cell')
+  const marked = () =>
+    [...document.querySelectorAll('[data-selected]')].map((cell) =>
+      cell.getAttribute('data-cell-id'),
+    )
+  markSelectedCell(a)
+  expect(marked()).toEqual(['a'])
+  markSelectedCell(b)
+  expect(marked()).toEqual(['b'])
+  markSelectedCell(null)
+  expect(marked()).toEqual([])
+  document.body.innerHTML = ''
 })

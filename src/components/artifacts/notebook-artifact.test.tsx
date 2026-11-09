@@ -1,10 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, spyOn, test } from 'bun:test'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as esbuild from 'esbuild-wasm'
+import { act } from 'react'
 import type { ReactNode } from 'react'
 import * as bundles from '@/lib/blocks/export'
 import { BLOCK_SANDBOX } from '@/lib/blocks/executor'
 import * as hosted from '@/lib/blocks/hosted-app'
+import { call } from '@/lib/blocks/sandbox/protocol'
+import type { PageMethods } from '@/lib/blocks/sandbox/protocol'
 import type { NotebookForm, RetainedOutputs } from '@/lib/notebooks/forms'
 import { BROWSER_RUN_HOSTS } from '@/lib/notebooks/marimo'
 import type { ExecuteEnvironment } from '@/lib/theorem/artifact-host'
@@ -14,6 +17,7 @@ import {
   notebookPart,
   outputsAnswer,
 } from '@/stories/fixtures/notebook-parts'
+import { connectAppFrame } from '../../../test/blocks/app-frame'
 import {
   buttonNamed,
   cleanup,
@@ -22,6 +26,7 @@ import {
   waitFor,
 } from '../../../test/blocks/render'
 import { readArtifact } from './artifact-model'
+import type { TheoremArtifact } from './artifact-model'
 import {
   fileNameOf,
   isLive,
@@ -118,16 +123,22 @@ const render = (node: ReactNode) =>
 const part = (documentId: string, notebook: NotebookForm, sourceRevision?: string) =>
   readArtifact(notebookPart(documentId, notebook, { position: 3, sourceRevision }))!
 
-const observable = () =>
-  part('crossover', {
-    form: 'observable',
-    title: 'GPU crossover',
-    cells: [
-      { id: 'title', kind: 'md', source: '# Crossover' },
-      { id: 'half', kind: 'js', source: 'data.n / 2' },
-    ],
-    data: { n: 8 },
-  })
+const observable = (position = 3) =>
+  readArtifact(
+    notebookPart(
+      'crossover',
+      {
+        form: 'observable',
+        title: 'GPU crossover',
+        cells: [
+          { id: 'title', kind: 'md', source: '# Crossover' },
+          { id: 'half', kind: 'js', source: 'data.n / 2' },
+        ],
+        data: { n: 8 },
+      },
+      { position },
+    ),
+  )!
 
 /** A stored marimo part: it names where its outputs are and carries none. */
 const marimo = (extra: Partial<Extract<NotebookForm, { form: 'marimo' }>> = {}) =>
@@ -206,6 +217,7 @@ test('Download hands over a Notebook Kit file and a marimo .py', async () => {
   const kit = await sourceOf(observable(), true).load()
   expect(kit).toContain('<notebook')
   expect(kit).toContain('const data =')
+  expect(kit).toContain('const theme =')
   expect(kit).toContain('data.n / 2')
   expect(fileNameOf(marimo(), true)).toBe('gpu-timings.py')
   expect(await sourceOf(marimo(), true).load()).toBe(MARIMO_SOURCE)
@@ -222,6 +234,35 @@ test('an Observable notebook runs in the App sandbox with no network', async () 
     expect(capture.documents[0]).toContain("connect-src 'none'")
     expect(buttonNamed(container, 'Ask about this')).toBeDefined()
   } finally {
+    capture.restore()
+  }
+}, 20_000)
+
+test('a selection belongs to the revision it was made in', async () => {
+  const capture = captureDocuments()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const view = (artifact: TheoremArtifact) => (
+    <QueryClientProvider client={client}>
+      <ArtifactView artifact={artifact} distance="thing" latest />
+    </QueryClientProvider>
+  )
+  let close = () => {}
+  try {
+    const { container, rerender } = await mount(view(observable(3)))
+    const frame = await connectAppFrame(container)
+    close = frame.close
+    await act(() =>
+      call<PageMethods, 'frame.selection'>(frame.rpc, 'frame.selection', {
+        text: '4',
+        cellId: 'half',
+      }),
+    )
+    expect(buttonNamed(container, 'Ask about selection')).toBeDefined()
+    await rerender(view(observable(4)))
+    expect(buttonNamed(container, 'Ask about selection')).toBeUndefined()
+    expect(buttonNamed(container, 'Ask about this')).toBeDefined()
+  } finally {
+    close()
     capture.restore()
   }
 }, 20_000)

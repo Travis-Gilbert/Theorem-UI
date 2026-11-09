@@ -14,11 +14,15 @@ let bridgeScript: Promise<string> | undefined
  * styles and fonts, and the WebAssembly they compile. Only a runtime the
  * person started asks for it (a marimo notebook's Pyodide); every other
  * hosted page runs only what it carries.
+ *
+ * `evaluates` lets the page's own code build functions from strings, as
+ * d3-dsv builds its row readers. The frame's sandbox and network policy are
+ * the boundary; code it carries could run the same function inline.
  */
 export async function hostedAppDocument(
   html: string,
   esbuild?: Pick<typeof Esbuild, 'build'>,
-  options: { net?: Array<string>; loads?: Array<string> } = {},
+  options: { net?: Array<string>; loads?: Array<string>; evaluates?: boolean } = {},
 ): Promise<string> {
   const page = new DOMParser().parseFromString(html, 'text/html')
   const net = options.net ?? declaredNet(page)
@@ -31,7 +35,9 @@ export async function hostedAppDocument(
     'default-src': "'none'",
     'script-src': loads.length
       ? from("'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", 'blob:')
-      : "'unsafe-inline'",
+      : options.evaluates
+        ? "'unsafe-inline' 'unsafe-eval'"
+        : "'unsafe-inline'",
     ...(loads.length && { 'worker-src': from('blob:') }),
     'style-src': from("'unsafe-inline'"),
     'img-src': 'data: blob:',

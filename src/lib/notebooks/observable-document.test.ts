@@ -6,7 +6,11 @@ import { THEME_EVENT, applyTheme } from '@/lib/blocks/sandbox/theme'
 import { importMap } from '@/lib/blocks/vendor/manifest'
 import { waitFor } from '../../../test/blocks/render'
 import type { ObservableNotebook } from './forms'
-import { notebookCellsScript, observableDocument } from './observable-document'
+import {
+  notebookCellsScript,
+  observableDocument,
+  observableSource,
+} from './observable-document'
 
 declare global {
   interface Window {
@@ -119,4 +123,32 @@ test('the document loads nothing: no network, its theme baked in for the first p
   expect(html).toContain('--redwood:rgb(10, 20, 30)')
   expect(html).toContain('__theoremNotebook.start')
   expect(html).not.toMatch(/cdn\.jsdelivr\.net\/npm\/d3/)
+})
+
+test("the frame lets d3 build its row readers, which d3.csvParse does from a string, and still reaches nothing", async () => {
+  const html = await observableDocument(
+    { form: 'observable', title: 'Rows', cells: [] },
+    LIGHT,
+    esbuild,
+  )
+  const policy = /Content-Security-Policy" content="([^"]+)"/.exec(html)![1]!
+  expect(policy).toMatch(/script-src [^;]*'unsafe-eval'/)
+  expect(policy).toContain("connect-src 'none'")
+  expect(policy).not.toMatch(/script-src [^;]*https:/)
+})
+
+test('a downloaded notebook carries its data and the theme it was drawn in, so it runs on its own', () => {
+  const kit = observableSource(
+    {
+      form: 'observable',
+      title: 'Theme',
+      cells: [{ id: 'ink', kind: 'js', source: 'theme.series[0]' }],
+      data: { n: 1 },
+    },
+    LIGHT,
+  )
+  expect(kit).toContain('const data =')
+  expect(kit).toContain('const theme =')
+  expect(kit).toContain('rgb(10, 20, 30)')
+  expect(kit.indexOf('const theme =')).toBeLessThan(kit.indexOf('theme.series[0]'))
 })

@@ -125,3 +125,13 @@ export function observeHeight(report: (height: number) => void): void {
   new ResizeObserver(measure).observe(document.documentElement)
   measure()
 }
+
+/**
+ * Marks the cell a selection names, and only that one, so the highlight shows
+ * what the page will refer to. A selection outside every cell marks none.
+ */
+export function markSelectedCell(cell: Element | null | undefined): void {
+  for (const marked of document.querySelectorAll('[data-cell-id][data-selected]'))
+    if (marked !== cell) marked.removeAttribute('data-selected')
+  cell?.setAttribute('data-selected', '')
+}

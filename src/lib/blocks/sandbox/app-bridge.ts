@@ -6,7 +6,7 @@
 // declared.
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
-import { observeHeight, observeSnapshots } from './display'
+import { markSelectedCell, observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
 import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
 import { THEME_EVENT, applyTheme } from './theme'
@@ -67,13 +67,9 @@ const context = connectToPage().then((port) => {
     const entityLabel = entity?.getAttribute('data-entity-label') ?? entity?.getAttribute('aria-label') ?? undefined
     const rowId = target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
     const field = target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
-    // A notebook's cells are sections with an id; the one used is marked selected.
+    // A notebook's cells are sections with an id; the one a selection names is marked.
     const cell = target?.closest('[data-cell-id]')
-    if (cell && event?.type === 'pointerup') {
-      for (const other of document.querySelectorAll('[data-cell-id][data-selected]'))
-        if (other !== cell) other.removeAttribute('data-selected')
-      cell.setAttribute('data-selected', '')
-    }
+    markSelectedCell(cell)
     const cellId = cell?.getAttribute('data-cell-id') ?? undefined
     void call<PageMethods,'frame.selection'>(rpc,'frame.selection',{
       text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),

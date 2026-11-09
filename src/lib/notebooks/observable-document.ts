@@ -16,6 +16,7 @@ import MagicString from 'magic-string'
 import type * as Esbuild from 'esbuild-wasm'
 import { bundleNotebookRuntime } from '@/lib/blocks/export'
 import { hostedAppDocument } from '@/lib/blocks/hosted-app'
+import { chartTheme } from '@/lib/blocks/sandbox/theme'
 import type { ThemeState } from '@/lib/blocks/sandbox/theme'
 import type { ObservableCell, ObservableNotebook } from './forms'
 import { inlineCode, notebookPage, scriptJson } from './page'
@@ -100,19 +101,27 @@ export async function observableDocument(
     main: '',
     scripts: `<script>${script}</script>\n<script>${notebookCellsScript(notebook)}</script>`,
   })
-  return hostedAppDocument(html, esbuild, { net: [] })
+  // d3's delimited-text parsers build their row readers from strings.
+  return hostedAppDocument(html, esbuild, { net: [], evaluates: true })
 }
 
 /**
  * The notebook as a Notebook Kit file, which Observable Desktop and
- * `notebooks preview` open. Its data, a builtin in the frame, becomes the
- * first cell so the file runs on its own.
+ * `notebooks preview` open. Its data and the theme it was drawn in, builtins
+ * in the frame, become its first cells so the file runs on its own; the theme
+ * is the page's at export, as fixed values.
  */
-export function observableSource(notebook: ObservableNotebook): string {
+export function observableSource(
+  notebook: ObservableNotebook,
+  theme: ThemeState,
+): string {
+  const constant = (name: string, value: unknown) => ({
+    kind: 'js' as const,
+    source: `const ${name} = ${JSON.stringify(value, null, 2)}`,
+  })
   const sources = [
-    ...(notebook.data
-      ? [{ kind: 'js' as const, source: `const data = ${JSON.stringify(notebook.data, null, 2)}` }]
-      : []),
+    ...(notebook.data ? [constant('data', notebook.data)] : []),
+    constant('theme', chartTheme(theme)),
     ...notebook.cells,
   ]
   return serialize(

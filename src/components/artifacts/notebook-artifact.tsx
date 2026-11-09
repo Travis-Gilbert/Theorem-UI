@@ -12,7 +12,7 @@
 // frame with the vendored modules and nothing from the network. A marimo
 // notebook shows its recorded outputs with code hidden; it runs in the browser
 // only when the person starts it, and never claims a run it did not make.
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { SyntaxHighlighter } from '@/components/assistant-ui/elements/shiki-highlighter'
 import { BlockFrame } from '@/components/blocks/block-frame'
@@ -82,14 +82,13 @@ export function notebookHost(
 
 /** Pushes the page's theme into a connected frame now and whenever it changes. */
 function followTheme(connection: FrameConnection): () => void {
+  // A frame that closed or never connected has no theme to follow.
   const push = () =>
-    void connection.connected.then((rpc) =>
-      call<SandboxMethods, 'theme.changed'>(
-        rpc,
-        'theme.changed',
-        resolvedTheme(),
-      ),
-    )
+    void connection.connected
+      .then((rpc) =>
+        call<SandboxMethods, 'theme.changed'>(rpc, 'theme.changed', resolvedTheme()),
+      )
+      .catch(() => {})
   push()
   const observer = new MutationObserver(push)
   observer.observe(document.documentElement, {
@@ -157,6 +156,21 @@ function NotebookFrame({
       onConnection={followTheme}
     />
   )
+}
+
+/**
+ * The person's selection in one page of a notebook's frame. A new revision,
+ * or a switch between the recorded and the running notebook, builds a new
+ * page, which starts with nothing selected, so a reference never carries one
+ * revision's selection to another.
+ */
+function usePageSelection(page: unknown) {
+  const [held, setHeld] = useState<{ page: unknown; selection: AppSelection }>()
+  const select = useCallback(
+    (selection: AppSelection) => setHeld({ page, selection }),
+    [page],
+  )
+  return [held && held.page === page ? held.selection : undefined, select] as const
 }
 
 /** Whether the person pointed at something in the notebook. */
@@ -247,7 +261,7 @@ export function ObservableNotebookView({
   artifact: TheoremArtifact
   notebook: ObservableNotebook
 }) {
-  const [selection, setSelection] = useState<AppSelection>()
+  const [selection, setSelection] = usePageSelection(notebook)
   const cellIds = useMemo(() => notebook.cells.map((cell) => cell.id), [notebook])
   return (
     <NotebookSurface
@@ -321,7 +335,6 @@ export function MarimoNotebookView({
   artifact: TheoremArtifact
   notebook: MarimoNotebook
 }) {
-  const [selection, setSelection] = useState<AppSelection>()
   const [running, setRunning] = useState(false)
   const [source, setSource] = useState(false)
   const host = useArtifactHost()
@@ -349,6 +362,7 @@ export function MarimoNotebookView({
     () => (run && !run.stale ? run.outputs.cells.map((cell) => cell.id) : []),
     [run],
   )
+  const [selection, setSelection] = usePageSelection(running ? fresh : shown)
   const execute = host.data?.availability.marimo.execute
   const connected = host.isPending
     ? undefined

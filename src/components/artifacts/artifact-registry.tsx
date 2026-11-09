@@ -17,6 +17,7 @@ import type {
   Distance,
   Representation,
 } from '@/lib/artifacts/contributions'
+import { resolvedTheme } from '@/lib/blocks/sandbox/theme'
 import { observableSource } from '@/lib/notebooks/observable-document'
 import { appDocumentFor } from '@/lib/theorem/apps'
 import { fileNameFor } from './artifact-model'
@@ -217,7 +218,7 @@ const SOURCES: Record<
       ? {
           noun: 'Notebook',
           mediaType: 'text/html',
-          load: async () => observableSource(notebook),
+          load: async () => observableSource(notebook, resolvedTheme()),
         }
       : { noun: 'Notebook', mediaType: 'application/json', load: inline(artifact) }
   },
