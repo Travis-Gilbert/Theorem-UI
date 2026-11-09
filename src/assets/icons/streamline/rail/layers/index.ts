@@ -21,7 +21,8 @@ import ideAccent from './ide-accent.png'
 import ideTint from './ide-tint.png'
 import idePaper from './ide-paper.png'
 import vaultLine from './vault-line.png'
-import vaultTint from './vault-tint.png'
+import vaultAccent from './vault-accent.png'
+import vaultPaper from './vault-paper.png'
 import filesLine from './files-line.png'
 import filesAccent from './files-accent.png'
 import filesTint from './files-tint.png'
@@ -35,7 +36,7 @@ export const RAIL_LAYERS = {
   spaces: { line: spacesLine, accent: spacesAccent },
   canvas: { line: canvasLine, accent: canvasAccent, tint: canvasTint, paper: canvasPaper },
   ide: { line: ideLine, accent: ideAccent, tint: ideTint, paper: idePaper },
-  vault: { line: vaultLine, tint: vaultTint },
+  vault: { line: vaultLine, accent: vaultAccent, paper: vaultPaper },
   files: { line: filesLine, accent: filesAccent, tint: filesTint, paper: filesPaper },
 } as const
 

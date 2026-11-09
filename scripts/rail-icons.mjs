@@ -27,7 +27,7 @@ export const ICONS = [
   { name: 'spaces', source: 'rail/source/streamline-dzone-logo.png' },
   { name: 'canvas', source: 'rail/source/streamline-design-file-vector.png' },
   { name: 'ide', source: 'rail/source/streamline-file-code.png' },
-  { name: 'vault', source: 'streamline-folder-file-1.png', autofill: true },
+  { name: 'vault', source: 'rail/source/streamline-folder-zip.png' },
   { name: 'files', source: 'rail/source/streamline-hierarchy-files-1.png' },
 ]
 
@@ -184,11 +184,14 @@ export type RailIcon = keyof typeof RAIL_LAYERS
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  // Read and decode every input first, so a missing or damaged PNG fails
+  // before any committed output is removed.
+  const files = await railFiles()
   await mkdir(LAYERS_DIR, { recursive: true })
   for (const stale of await readdir(LAYERS_DIR)) {
     await rm(new URL(stale, LAYERS_DIR))
   }
-  for (const [file, bytes] of await railFiles()) {
+  for (const [file, bytes] of files) {
     await writeFile(new URL(file, LAYERS_DIR), bytes)
   }
   console.log(`wrote ${(await readdir(LAYERS_DIR)).length} files`)

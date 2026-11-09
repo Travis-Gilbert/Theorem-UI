@@ -583,7 +583,8 @@ The files they replace in the registry are listed under Retired.
 
 The outer rail's marks are Streamline Ultimate colored icons, from the owner's
 downloads "replace chat.zip", "new index.zip", "canvas.zip" and "IDE and file
-folder.zip". Each was copied byte for byte and renamed in lowercase with a
+folder.zip", plus the Vault's zipped folder (an image the owner sent in chat).
+Each was copied byte for byte and renamed in lowercase with a
 `streamline-` prefix, into `streamline/rail/source/`. The license is whatever
 covers the owner's Streamline plan. Dzone Logo draws a real company's mark;
 the owner chose it for Spaces.
@@ -595,11 +596,11 @@ the owner chose it for Spaces.
 | Canvas | `streamline/rail/source/streamline-design-file-vector.png` | Design File Vector | `6dd5a2f2cdf27dd744d1061019f101448aa8994823e3a34d47ce3ff8933f1e42` |
 | Spaces | `streamline/rail/source/streamline-dzone-logo.png` | Dzone Logo | `34ebf6a16486df7d10d222ef39e9168178e6babe0540263838dc57b51556097c` |
 | IDE | `streamline/rail/source/streamline-file-code.png` | File Code | `504bc7985dc8207cdbabf266ac008edf3b5470f890d7931c43499d822032ddb8` |
+| Vault | `streamline/rail/source/streamline-folder-zip.png` | Folder Zip (colored; name inferred from the image) | `09a2592d12b09cceb6a241a673c8a1b361b792331931848a5d6973f8fc97eeb7` |
 | Files control at the rail's foot | `streamline/rail/source/streamline-hierarchy-files-1.png` | Hierarchy Files 1 | `88dd557e71a8a6eca831706aa9cd5105a9415eb93d53db20cf636690fab0aad1` |
 
-Pages and Vault reuse the Light-style PNGs above (Browser Page Layout and
-Folder File 1). Those are black ink on transparent, so the generator fills each
-enclosed region itself.
+Pages reuses the Light-style Browser Page Layout PNG. It is black ink on
+transparent, so the generator fills each enclosed region itself.
 
 The colour comes from `scripts/rail-icons.mjs`, which splits every source into
 up to four alpha masks by luma and chroma (line, accent, tint, paper) and writes

@@ -626,6 +626,19 @@
       var(--surface-raised)
     );
   }
+
+  /* Without CSS masks (Servo 0.7) each layer's colour would fill its whole box.
+     Drop the colour fills and show the outline layer alone, as the plain
+     .icon-mask fallback does. */
+  @supports not (mask-image: none) {
+    .rail-mark > .icon-mask {
+      background-color: transparent;
+    }
+
+    .rail-mark > .icon-mask:not([data-layer='line']) {
+      display: none;
+    }
+  }
 }
 
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
