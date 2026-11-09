@@ -36,10 +36,12 @@ import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ChatNotesDocumentIdRouteImport } from './routes/_chat/notes.$documentId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
+import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
+import { Route as ApiArtifactsV1SplatRouteImport } from './routes/api/artifacts/v1/$'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
@@ -202,6 +204,11 @@ const ChatPagesPageIdRoute = ChatPagesPageIdRouteImport.update({
   path: '/$pageId',
   getParentRoute: () => ChatPagesRoute,
 } as any)
+const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
+  id: '/api/artifacts/$',
+  path: '/api/artifacts/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
   id: '/api/index/$',
   path: '/api/index/$',
@@ -220,6 +227,11 @@ const DesktopBlocksAppTokenRoute = DesktopBlocksAppTokenRouteImport.update({
 const DesktopWorkspaceIndexRoute = DesktopWorkspaceIndexRouteImport.update({
   id: '/desktop/workspace/',
   path: '/desktop/workspace/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiArtifactsV1SplatRoute = ApiArtifactsV1SplatRouteImport.update({
+  id: '/api/artifacts/v1/$',
+  path: '/api/artifacts/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCapabilitiesV1SplatRoute = ApiCapabilitiesV1SplatRouteImport.update({
@@ -405,10 +417,12 @@ export interface FileRoutesByFullPath {
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -463,10 +477,12 @@ export interface FileRoutesByTo {
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -524,10 +540,12 @@ export interface FileRoutesById {
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/_chat/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -585,10 +603,12 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/notes/$documentId'
     | '/pages/$pageId'
+    | '/api/artifacts/$'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -643,10 +663,12 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/notes/$documentId'
     | '/pages/$pageId'
+    | '/api/artifacts/$'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -703,10 +725,12 @@ export interface FileRouteTypes {
     | '/_chat/c/$threadId'
     | '/_chat/notes/$documentId'
     | '/_chat/pages/$pageId'
+    | '/api/artifacts/$'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -748,10 +772,12 @@ export interface RootRouteChildren {
   AuthSignOutRoute: typeof AuthSignOutRoute
   StoryIdRoute: typeof StoryIdRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
+  ApiArtifactsSplatRoute: typeof ApiArtifactsSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
+  ApiArtifactsV1SplatRoute: typeof ApiArtifactsV1SplatRoute
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
@@ -972,6 +998,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatPagesPageIdRouteImport
       parentRoute: typeof ChatPagesRoute
     }
+    '/api/artifacts/$': {
+      id: '/api/artifacts/$'
+      path: '/api/artifacts/$'
+      fullPath: '/api/artifacts/$'
+      preLoaderRoute: typeof ApiArtifactsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/index/$': {
       id: '/api/index/$'
       path: '/api/index/$'
@@ -998,6 +1031,13 @@ declare module '@tanstack/react-router' {
       path: '/desktop/workspace'
       fullPath: '/desktop/workspace/'
       preLoaderRoute: typeof DesktopWorkspaceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/artifacts/v1/$': {
+      id: '/api/artifacts/v1/$'
+      path: '/api/artifacts/v1/$'
+      fullPath: '/api/artifacts/v1/$'
+      preLoaderRoute: typeof ApiArtifactsV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/capabilities/v1/$': {
@@ -1274,10 +1314,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignOutRoute: AuthSignOutRoute,
   StoryIdRoute: StoryIdRoute,
   TheiaSplatRoute: TheiaSplatRoute,
+  ApiArtifactsSplatRoute: ApiArtifactsSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
+  ApiArtifactsV1SplatRoute: ApiArtifactsV1SplatRoute,
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
@@ -1319,3 +1361,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

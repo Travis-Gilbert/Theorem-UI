@@ -2,10 +2,27 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-/** Colour palettes (styles.css). Each has a light and a dark side; next-themes picks which. */
+/**
+ * Colour palettes (styles.css). Each has a light and a dark side; next-themes
+ * picks which. `code` names the Shiki themes its code is highlighted in.
+ */
 export const PALETTES = [
-  { value: 'github-sharp', label: 'GitHub Sharp' },
-  { value: 'stone', label: 'Stone' },
+  {
+    value: 'github-sharp',
+    label: 'GitHub Sharp',
+    code: { light: 'github-light-default', dark: 'github-dark-default' },
+  },
+  {
+    value: 'stone',
+    label: 'Stone',
+    code: { light: 'github-light-default', dark: 'github-dark-default' },
+  },
+  // Anthony Fu's Vitesse; its dark side is franmc01's JetBrains Vitesse Dark.
+  {
+    value: 'vitesse',
+    label: 'Vitesse',
+    code: { light: 'vitesse-light', dark: 'vitesse-dark' },
+  },
 ] as const
 
 export type Palette = (typeof PALETTES)[number]['value']
@@ -26,6 +43,13 @@ export const usePalette = create<PaletteState>()(
     { name: STORAGE_KEY, partialize: ({ palette }) => ({ palette }) },
   ),
 )
+
+/** The light and dark Shiki themes of the current palette, for code blocks and diffs. */
+export const useCodeThemes = () =>
+  usePalette(
+    ({ palette }) =>
+      (PALETTES.find(({ value }) => value === palette) ?? PALETTES[0]).code,
+  )
 
 if (typeof window !== 'undefined') {
   const apply = ({ palette }: PaletteState) =>

@@ -30,7 +30,7 @@ import { connect, WindowMessenger, type RemoteProxy } from 'penpal';
 import type { ChatMessage, ChatThreadUpdate, DelegationChanges, IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
 import { TheoremConnection } from './theorem-connection';
 import { TheoremDelegations } from './theorem-delegations';
-import { STONE_THEMES } from './theorem-stone-theme';
+import { themesForPalette } from './theorem-stone-theme';
 
 export const ADD_TO_CHAT: Command = { id: 'theorem.addToChat', label: 'Add Selection to Chat', category: 'Theorem' };
 
@@ -90,7 +90,7 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             reveal: (location, options) => this.reveal(location, options),
             // Stored as the colour theme preference (browser storage), so Theia's own
             // startup does not put the configured theme back over it.
-            setTheme: dark => this.themes.setCurrentTheme(dark ? STONE_THEMES.dark : STONE_THEMES.light, true),
+            setTheme: (dark, palette) => this.themes.setCurrentTheme(themesForPalette(palette)[dark ? 'dark' : 'light'], true),
             executeCommand: (id, args = []) => this.commands.executeCommand(id, ...args),
             setSidebar: open => this.setSidebar(open),
             setFollowing: following => this.showFollowing(following),

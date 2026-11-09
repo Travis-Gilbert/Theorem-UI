@@ -46,14 +46,14 @@ const templateSource = (mode: PageMode): ModePageSource => ({
  * from this window shows at once, one from elsewhere waits behind Show it.
  */
 export function ModePage({ mode }: { mode: PageMode }) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   if (client) return <VaultModePage client={client} mode={mode} />
   if (isPending) return <PageSkeleton />
   return (
     <PageRuntimeProvider>
       <ModeSurface
         source={templateSource(mode)}
-        notice="The vault is not open, so this is the built-in arrangement."
+        notice={`This is the built-in arrangement: the Theorem vault, which keeps a mode's arrangement, is not available. ${missing}`}
       />
     </PageRuntimeProvider>
   )

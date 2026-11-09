@@ -104,3 +104,14 @@ test('a store problem without a detail does not invent capacity exhaustion', () 
     code: 'chat_store_error', title: 'Unspecified store failure', correlationId: storageReference,
   } }))).toBe(`Unspecified store failure Reference: ${storageReference}`)
 })
+
+
+test('tenant memory admission failure explains the data budget and retains its reference', () => {
+  const message = describeError(new TheoremError({ statusCode: 500, body: {
+    code: 'chat_store_error', title: 'The chat graph could not satisfy the request',
+    detail: 'tenant_memory_quota_exceeded: tenant memory quota exceeded: projected 805853256 > quota 805306368',
+    correlationId: 'chatreq-capacity',
+  } }))
+  expect(message).toBe('The chat store reached its configured memory budget. The server operator must restore capacity before this request can succeed. Reference: chatreq-capacity')
+  expect(message).not.toMatch(/model|upstream|disk|message was (?:not )?saved/)
+})

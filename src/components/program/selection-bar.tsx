@@ -42,10 +42,13 @@ function PublishDialog({
   onClose: () => void
 }) {
   const program = useProgramDoc((doc) => doc.program)!
+  const graph = useProgramDoc((doc) => doc.nodeId)
+  const revision = useProgramDoc((doc) => doc.definitionRevision)
   const client = useQueryClient()
   const [name, setName] = useState(`${program.name} block`)
+  // Keyed by the definition it was cut from: after an edit, an older answer is never what Publish sends.
   const extract = useQuery({
-    queryKey: [...programKeys.all, 'subgraph', nodeIds, name],
+    queryKey: [...programKeys.all, 'subgraph', graph, revision, nodeIds, name],
     queryFn: () => extractSubgraph(program, nodeIds, name),
     enabled: name.trim().length > 0,
     retry: false,

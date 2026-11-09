@@ -111,9 +111,27 @@ export function observeSnapshots(report: (html: string) => void): void {
 export function observeHeight(report: (height: number) => void): void {
   let last = -1
   const measure = () => {
-    const height = Math.ceil(document.documentElement.scrollHeight)
+    // scrollHeight is never less than the frame itself, so a frame that was
+    // once tall could never shrink. Content that fits is measured by the root's
+    // own box instead, which follows the content down.
+    const root = document.documentElement
+    const height = Math.ceil(
+      root.scrollHeight > window.innerHeight
+        ? root.scrollHeight
+        : root.getBoundingClientRect().height,
+    )
     if (height !== last) report((last = height))
   }
   new ResizeObserver(measure).observe(document.documentElement)
   measure()
+}
+
+/**
+ * Marks the cell a selection names, and only that one, so the highlight shows
+ * what the page will refer to. A selection outside every cell marks none.
+ */
+export function markSelectedCell(cell: Element | null | undefined): void {
+  for (const marked of document.querySelectorAll('[data-cell-id][data-selected]'))
+    if (marked !== cell) marked.removeAttribute('data-selected')
+  cell?.setAttribute('data-selected', '')
 }

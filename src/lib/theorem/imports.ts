@@ -1,11 +1,29 @@
 // SOURCING: @tanstack/react-query (a project's imports at /api/chat/v1/projects/:id/imports, through lib/theorem/passthrough; refetch while any import is still running), TheoremClient.fetch for the existing project uploads route that files go through
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { TheoremError } from '@theoremharness/sdk'
 import { mutate, theorem } from './client'
 import { isNotServed, theoremJson } from './passthrough'
 
-export type ImportStatus = 'queued' | 'extracting' | 'indexing' | 'ready' | 'failed'
+export type ImportStatus =
+  'queued' | 'extracting' | 'indexing' | 'ready' | 'failed'
 
+/**
+ * What the import's statements did to the person's UserModel. Theorem's policy
+ * decides: `applied` values were written, `held` ones are kept as evidence
+ * without changing the model (dated, tentative, scoped, or set elsewhere),
+ * and `rejected` ones were not the person's own explicit statements.
+ */
+export type ImportUserModel = {
+  state: 'pending' | 'applied' | 'skipped' | 'failed'
+  applied: number
+  held: number
+  rejected: number
+}
 export type ImportRecord = {
   importId: string
   projectId: string
@@ -17,6 +35,8 @@ export type ImportRecord = {
   documentId?: string
   chunks?: number
   characters?: number
+  provider?: string
+  userModel?: ImportUserModel
   createdAtMs: number
   updatedAtMs: number
 }
@@ -26,11 +46,19 @@ export type ImportSource =
   | { kind: 'text'; title: string; text: string }
   | { kind: 'upload'; uploadId: string }
 
-const RUNNING: ReadonlySet<ImportStatus> = new Set(['queued', 'extracting', 'indexing'])
+const RUNNING: ReadonlySet<ImportStatus> = new Set([
+  'queued',
+  'extracting',
+  'indexing',
+])
 
 export const isRunning = (record: ImportRecord) => RUNNING.has(record.status)
 
-const importsKey = (projectId: string) => ['theorem', 'imports', projectId] as const
+/** Retrievable, but Theorem is still reading it for the UserModel. */
+export const isLearning = (record: ImportRecord) =>
+  record.status === 'ready' && record.userModel?.state === 'pending'
+const importsKey = (projectId: string) =>
+  ['theorem', 'imports', projectId] as const
 const importsPath = (projectId: string) =>
   `/api/chat/v1/projects/${encodeURIComponent(projectId)}/imports`
 
@@ -38,11 +66,16 @@ export const importsQuery = (projectId: string) =>
   queryOptions({
     queryKey: importsKey(projectId),
     queryFn: async () =>
-      (await theoremJson<{ items: ImportRecord[] }>(importsPath(projectId))).items,
+      (await theoremJson<{ items: ImportRecord[] }>(importsPath(projectId)))
+        .items,
     retry: (count, error) => !isNotServed(error) && count < 2,
-    // Poll while Theorem is still extracting or indexing something.
+    // Poll while Theorem is still extracting, indexing or reading something.
     refetchInterval: (query) =>
-      query.state.data?.some(isRunning) ? 2000 : false,
+      query.state.data?.some(
+        (record) => isRunning(record) || isLearning(record),
+      )
+        ? 2000
+        : false,
   })
 
 export function useImports(projectId: string | undefined) {
@@ -50,7 +83,9 @@ export function useImports(projectId: string | undefined) {
 }
 
 const hex = (bytes: ArrayBuffer) =>
-  Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('')
+  Array.from(new Uint8Array(bytes), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
 
 const base64Url = (text: string) =>
   btoa(String.fromCharCode(...new TextEncoder().encode(text)))
@@ -66,7 +101,9 @@ export async function uploadFile(
   projectId: string,
   file: File,
 ): Promise<{ uploadId: string; sha256: string }> {
-  const digest = hex(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))
+  const digest = hex(
+    await crypto.subtle.digest('SHA-256', await file.arrayBuffer()),
+  )
   return mutate(async (headers) => {
     const response = await theorem().fetch(
       `/api/chat/v1/projects/${encodeURIComponent(projectId)}/uploads`,
@@ -82,9 +119,9 @@ export async function uploadFile(
         body: file,
       },
     )
+    // The uploads route answers `{ record: ChatUpload }`.
     const body = (await response.json().catch(() => undefined)) as
-      | { record?: { uploadId?: string } }
-      | undefined
+      { record?: { uploadId?: string } } | undefined
     const uploadId = body?.record?.uploadId
     if (!response.ok || !uploadId)
       throw new TheoremError({
@@ -99,7 +136,8 @@ export async function uploadFile(
 export function useImportMutations(projectId: string | undefined) {
   const queryClient = useQueryClient()
   const settle = () =>
-    projectId && queryClient.invalidateQueries({ queryKey: importsKey(projectId) })
+    projectId &&
+    queryClient.invalidateQueries({ queryKey: importsKey(projectId) })
   const start = useMutation({
     mutationFn: (source: ImportSource) =>
       mutate((headers) =>
@@ -120,10 +158,13 @@ export function useImportMutations(projectId: string | undefined) {
   const remove = useMutation({
     mutationFn: (importId: string) =>
       mutate((headers) =>
-        theoremJson<void>(`${importsPath(projectId!)}/${encodeURIComponent(importId)}`, {
-          method: 'DELETE',
-          headers,
-        }),
+        theoremJson<void>(
+          `${importsPath(projectId!)}/${encodeURIComponent(importId)}`,
+          {
+            method: 'DELETE',
+            headers,
+          },
+        ),
       ),
     onSettled: settle,
   })

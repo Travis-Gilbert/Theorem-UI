@@ -157,6 +157,9 @@ export function hasStatus(error: unknown, ...codes: number[]): boolean {
 }
 /** This public store error identifies capacity exhaustion, not commit status. */
 function explainStorageCapacity(code: unknown, detail: string | undefined): string | undefined {
+  if (code === 'chat_store_error' && detail?.startsWith('tenant_memory_quota_exceeded:')) {
+    return 'The chat store reached its configured memory budget. The server operator must restore capacity before this request can succeed.'
+  }
   if (
     code === 'chat_store_error' &&
     detail?.startsWith('chunk_store_journal_io:') &&

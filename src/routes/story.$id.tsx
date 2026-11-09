@@ -68,7 +68,11 @@ export const Route = createFileRoute('/story/$id')({
 function Story() {
   const story = Route.useLoaderData()
   return story.kind === 'terminal' ? (
-    <TerminalStory id={story.id} title={story.title} snapshot={story.snapshot} />
+    <TerminalStory
+      id={story.id}
+      title={story.title}
+      snapshot={story.snapshot}
+    />
   ) : (
     <ComponentStory id={story.id} />
   )
@@ -104,10 +108,16 @@ function TerminalStory({
 }
 
 function ComponentStory({ id }: { id: string }) {
-  // Installed before the story's first query runs, and left in place for its life.
-  useState(() => {
-    installFakeTheorem(storyRoutes(Date.now()))
+  // Installed during the first render, before the story's first query runs.
+  // The effect installs it again, since React's development remount runs the
+  // effect's cleanup, and takes it out when the story closes, so the app it
+  // links into reaches Theorem again.
+  const [routes] = useState(() => {
+    const answers = storyRoutes(Date.now())
+    installFakeTheorem(answers)
+    return answers
   })
+  useEffect(() => installFakeTheorem(routes), [routes])
   return (
     <div data-story={id} className="min-h-dvh bg-background text-ink">
       <Suspense>

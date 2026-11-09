@@ -139,6 +139,10 @@ function sendInput(key: string, text: string) {
   flushOutbox(key)
 }
 
+/** What the session's next turn carries, added from the IDE. */
+export const nextTurnReferences = (key: string) =>
+  useTerminalSessions.getState()[key]?.references ?? []
+
 /** A selection from the IDE for the session's next turn; the same place twice is kept once. */
 export function addReference(key: string, reference: TheoremContextReference) {
   const references = useTerminalSessions.getState()[key]?.references ?? []

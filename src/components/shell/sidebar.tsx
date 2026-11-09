@@ -1,7 +1,7 @@
 // SOURCING: the organized thread tree (components/organize), the shell's Explorer (headless-tree), Base UI Menu (project switcher), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel, the Notes panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
 import { IndexPanel } from '@/components/index/index-panel'
@@ -9,7 +9,6 @@ import { NewProjectDialog } from '@/components/organize/new-project-dialog'
 import { OrganizedPanel } from '@/components/organize/organized-panel'
 import { Button } from '@/components/ui/button'
 import { FoldersSection } from '@/components/workspace/folders'
-import { ProgramsPanel } from '@/components/program/programs-panel'
 import {
   Sidebar,
   SidebarContent,
@@ -27,12 +26,18 @@ import { Explorer } from './explorer'
 import { PagesPanel } from '@/components/pages/pages-panel'
 import { NotesPanel } from '@/components/notes/notes-panel'
 
+// Canvas's graph list loads with the canvas, not with every panel that imports this file.
+const ProgramsPanel = lazy(() =>
+  import('@/components/program/programs-panel').then((module) => ({
+    default: module.ProgramsPanel,
+  })),
+)
+
 export const menuItem =
   'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
 
 export const menuPopup =
   'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-(--duration-snap) ease-snap data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
-
 
 function ProjectSwitcher() {
   const { projects, project } = useActiveProject()
@@ -185,7 +190,9 @@ export function ContextPanel() {
         )}
         {mode === 'canvas' && (
           <div hidden={filesShown} className="min-h-0 flex-1">
-            <ProgramsPanel />
+            <Suspense>
+              <ProgramsPanel />
+            </Suspense>
           </div>
         )}
         {/* Beside the threads the folders fold into the panel's one Files row. */}

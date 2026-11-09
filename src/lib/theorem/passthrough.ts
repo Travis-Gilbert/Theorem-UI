@@ -3,13 +3,6 @@ import { TheoremError } from '@theoremharness/sdk'
 import { theorem } from './client'
 
 /**
- * The route as a URL on this origin. The SDK's passthrough escapes a ? when it
- * joins a relative path to its base URL, and leaves a whole URL as it is.
- */
-export const routeUrl = (path: string, origin: string) =>
-  new URL(path, origin).href
-
-/**
  * One JSON request to a Theorem route the vendored SDK has no client for yet
  * (models, credentials, preferences, skills, imports; see Theorem's
  * SPEC-THEOREM-UI-MODELS-KEYS-IMPORTS-1.0). Failures throw TheoremError with
@@ -29,17 +22,18 @@ export async function theoremJson<T>(
     method: init.method ?? 'GET',
     headers: {
       Accept: 'application/json',
-      ...(init.body === undefined
-        ? {}
-        : { 'Content-Type': 'application/json' }),
+      ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...init.headers,
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   }
+  // The SDK joins a relative path onto its base URL as path segments, which
+  // percent-encodes a query's `?` into the path; an absolute URL it sends as is.
+  const url = new URL(path, window.location.origin).toString()
   // The SDK's passthrough forwards method, headers and body and drops keepalive.
   const response = init.keepalive
-    ? await window.fetch(path, { ...request, keepalive: true })
-    : await theorem().fetch(routeUrl(path, window.location.origin), request)
+    ? await window.fetch(url, { ...request, keepalive: true })
+    : await theorem().fetch(url, request)
   const text = await response.text()
   const body: unknown = text ? JSON.parse(text) : undefined
   if (!response.ok)

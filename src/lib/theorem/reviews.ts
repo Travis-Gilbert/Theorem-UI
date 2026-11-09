@@ -123,11 +123,29 @@ export function useReview(reviewId: string) {
   })
 }
 
+/**
+ * The review to cache when Theorem answers with `incoming`. Answers can land out
+ * of order, so one older than the cached revision is passed over. While the
+ * review is open, the draft typed here stays, since a saved draft lags it.
+ */
+export function newerReview(
+  cached: Review | undefined,
+  incoming: Review,
+): Review {
+  if (!cached) return incoming
+  if (cached.revision > incoming.revision) return cached
+  return incoming.status === 'open' && cached.draft
+    ? { ...incoming, draft: cached.draft }
+    : incoming
+}
+
 function usePutReview() {
   const client = useQueryClient()
   return useCallback(
     (review: Review) => {
-      client.setQueryData(reviewKey(review.reviewId), review)
+      client.setQueryData<Review>(reviewKey(review.reviewId), (cached) =>
+        newerReview(cached, review),
+      )
       void client.invalidateQueries({
         queryKey: threadReviewsKey(review.threadId),
       })

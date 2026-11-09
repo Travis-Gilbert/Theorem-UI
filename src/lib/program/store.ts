@@ -908,31 +908,41 @@ export function wireEnds(
   }
 }
 
+/** The node and wire for a splice, while the node is free to take the wire. */
+function spliceable(
+  program: ProgramDefinition | undefined,
+  nodeId: string,
+  edgeId: string,
+) {
+  const node = program?.nodes.find((candidate) => candidate.id === nodeId)
+  const wire = program?.edges.find((candidate) => candidate.id === edgeId)
+  const input = node?.inputs[0]
+  const output = node?.outputs[0]
+  if (!program || !node || !wire || !input || !output) return undefined
+  if (wire.from_node === nodeId || wire.to_node === nodeId) return undefined
+  const taken = program.edges.some(
+    (edge) =>
+      (edge.to_node === nodeId && edge.to_port === input.id) ||
+      (edge.from_node === nodeId && edge.from_port === output.id),
+  )
+  return taken ? undefined : { node, wire }
+}
+
 /** A node already on the canvas, dropped onto a wire. It must be free to take one. */
 export async function spliceExisting(
   nodeId: string,
   edgeId: string,
 ): Promise<{ refused?: EdgeVerdict; spliced?: boolean }> {
   const before = useProgramDoc.getState().program
-  const node = before?.nodes.find((candidate) => candidate.id === nodeId)
-  const wire = before?.edges.find((candidate) => candidate.id === edgeId)
-  if (!before || !node || !wire || !node.inputs[0] || !node.outputs[0])
-    return {}
-  if (wire.from_node === nodeId || wire.to_node === nodeId) return {}
-  const inputFree = !before.edges.some(
-    (edge) => edge.to_node === nodeId && edge.to_port === node.inputs[0]!.id,
-  )
-  const outputFree = !before.edges.some(
-    (edge) =>
-      edge.from_node === nodeId && edge.from_port === node.outputs[0]!.id,
-  )
-  if (!inputFree || !outputFree) return {}
+  const found = spliceable(before, nodeId, edgeId)
+  if (!before || !found) return {}
   const still = sameDocument()
-  const judged = await judgeEdges(node, wireEnds(before, wire))
+  const judged = await judgeEdges(found.node, wireEnds(before, found.wire))
   if (!still()) return {}
   if ('refused' in judged) return { refused: judged.refused.message }
   const doc = useProgramDoc.getState()
-  if (!doc.program) return {}
+  // Another drop, or an edit, may have wired the node or moved the wire meanwhile.
+  if (!doc.program || !spliceable(doc.program, nodeId, edgeId)) return {}
   useProgramDoc.setState({
     program: {
       ...doc.program,

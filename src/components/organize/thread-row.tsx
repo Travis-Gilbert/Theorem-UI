@@ -28,7 +28,8 @@ import { useSeen } from '@/hooks/use-seen'
 import {
   attentionLabel,
   primaryProjectId,
-  useThreadEdits, useMarkSeen 
+  useThreadEdits,
+  useMarkSeen,
 } from '@/lib/theorem/organization'
 import type {
   Later,
@@ -60,7 +61,8 @@ export const OrganizeTree = createContext<TreeContext | null>(null)
 
 const useTree = () => {
   const tree = useContext(OrganizeTree)
-  if (!tree) throw new Error('A thread row renders inside the organized sidebar')
+  if (!tree)
+    throw new Error('A thread row renders inside the organized sidebar')
   return tree
 }
 
@@ -101,9 +103,7 @@ function StatusMark({
     )
   if (reason)
     return (
-      <Badge
-        className="bg-attention/18 text-sm text-attention-ink group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
-      >
+      <Badge className="bg-attention/18 text-sm text-attention-ink group-hover/thread:invisible group-has-data-popup-open/thread:invisible">
         {attentionLabel(reason)}
       </Badge>
     )
@@ -169,12 +169,15 @@ export function ThreadRow({
   thread,
   place,
   childThreads = [],
+  childrenOf,
   hint,
 }: {
   thread: ThreadEntry
   /** The project this occurrence is listed under, or a quick view. */
   place: string
   childThreads?: readonly ThreadEntry[]
+  /** Every thread's forks and continuations in this list, so a fork of a fork nests too. */
+  childrenOf?: ReadonlyMap<string, readonly ThreadEntry[]>
   hint?: 'reason' | 'later'
 }) {
   const { projects, views, served } = useTree()
@@ -319,11 +322,7 @@ export function ThreadRow({
                     </span>
                   )}
                 </span>
-                <StatusMark
-                  thread={thread}
-                  running={running}
-                  hint={hintText}
-                />
+                <StatusMark thread={thread} running={running} hint={hintText} />
               </SidebarMenuSubButton>
             )}
             {!renaming && (
@@ -350,7 +349,12 @@ export function ThreadRow({
               </span>
             )}
           </ContextMenu.Trigger>
-          <MenuPopup anchor={undefined} className="min-w-48" side="bottom" align="start">
+          <MenuPopup
+            anchor={undefined}
+            className="min-w-48"
+            side="bottom"
+            align="start"
+          >
             {items}
           </MenuPopup>
         </ContextMenu.Root>
@@ -362,9 +366,7 @@ export function ThreadRow({
                 threadId={thread.threadId}
                 branch={branch}
                 ordinal={index + 2}
-                isLast={
-                  index === forks.length - 1 && childThreads.length === 0
-                }
+                isLast={index === forks.length - 1 && childThreads.length === 0}
                 isCurrent={isOpen && tree?.selectedBranchId === branch.branchId}
                 disabled={running}
                 onOpen={() => void openBranch(branch.branchId)}
@@ -374,7 +376,12 @@ export function ThreadRow({
               <div key={child.threadId} className="relative ps-6">
                 <TreeGuide isLast={position === childThreads.length - 1} />
                 <ul>
-                  <ThreadRow thread={child} place={place} />
+                  <ThreadRow
+                    thread={child}
+                    place={place}
+                    childThreads={childrenOf?.get(child.threadId)}
+                    childrenOf={childrenOf}
+                  />
                 </ul>
               </div>
             ))}

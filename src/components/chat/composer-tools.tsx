@@ -1,4 +1,4 @@
-// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web and Plan toggle state the composer and the runtime share), Base UI Toggle (the Web and Plan chips), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's capabilityScope turn option carries Web to the server, which restricts the turn's tools to the named native operations and keeps draft_plan on a planning turn, so Web and Plan combine, and its planning turn option makes the turn a planning turn that writes a Theorem plan through draft_plan
+// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web and Plan toggle state the composer and the runtime share), Base UI Toggle (the Web and Plan chips), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's webResearch option requests research without narrowing the turn's tools; planning independently requests a durable plan through draft_plan
 import type {
   TriggerAdapter,
   TriggerItem,
@@ -23,12 +23,6 @@ import type { NativeTool, ToolCatalogState } from '@/lib/theorem/tools'
 /** The composer's buttons are passed on the way to typing, so their tooltips wait for a resting pointer. */
 export const COMPOSER_TOOLTIP_DELAY = 700
 
-/**
- * The native operations RustyRed web answers through: `web_search` finds
- * pages and `web_read` reads one.
- */
-export const WEB_SCOPE: readonly string[] = ['web_search', 'web_read']
-
 type WebSearchState = { on: boolean; toggle: () => void }
 
 /**
@@ -42,13 +36,11 @@ export const useWebSearch = create<WebSearchState>()((set) => ({
 }))
 
 /**
- * The turn option Web adds, read at send time. A turn it is on for is scoped
- * to the RustyRed web operations, so the model answers from the web rather
- * than being asked to in the message; the server keeps only the named tools
- * (and the person's workspace tool), so such a turn has no other tools.
+ * Request research at send time while retaining the turn's other admitted
+ * tools. Explicit capability scopes remain an independent server restriction.
  */
-export const webTurnOptions = (): { capabilityScope?: string[] } =>
-  useWebSearch.getState().on ? { capabilityScope: [...WEB_SCOPE] } : {}
+export const webTurnOptions = (): { webResearch?: true } =>
+  useWebSearch.getState().on ? { webResearch: true } : {}
 
 type PlanningState = { on: boolean; set: (on: boolean) => void }
 
@@ -80,7 +72,7 @@ function WebMark(props: ComponentProps<'svg'>) {
   return <Icon.Web ref={ref} {...props} />
 }
 
-/** The Web chip beside the attachment button: pressed, it scopes each turn to RustyRed web. */
+/** The Web chip asks Theorem to research while keeping its other tools. */
 export function ComposerWebToggle() {
   const on = useWebSearch((state) => state.on)
   const toggle = useWebSearch((state) => state.toggle)
@@ -103,8 +95,8 @@ export function ComposerWebToggle() {
         </TooltipTrigger>
         <TooltipContent side="bottom">
           {on
-            ? 'Answering from the web with RustyRed, without other tools. Click to turn off.'
-            : 'Answer from the web with RustyRed'}
+            ? 'Web research is on. Theorem can still plan and build. Click to turn off.'
+            : 'Use web research with Theorem'}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

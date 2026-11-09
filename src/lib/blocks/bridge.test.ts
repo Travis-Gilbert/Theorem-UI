@@ -235,6 +235,8 @@ test('App selection stays bounded and is delivered as context without executing 
     const refused = await call<PageMethods,'frame.selection'>(frame,'frame.selection',{text:'x'.repeat(4097)}).then(()=>false,()=>true)
     expect(refused).toBe(true)
     expect(selections).toHaveLength(1)
+    await call<PageMethods,'frame.selection'>(frame,'frame.selection',{text:'',entityId:'gpu-lane-7',entityLabel:'GPU lane 7'})
+    expect(selections[1]).toEqual({text:'',entityId:'gpu-lane-7',entityLabel:'GPU lane 7'})
   } finally { stop();channel.port1.close();channel.port2.close() }
 })
 

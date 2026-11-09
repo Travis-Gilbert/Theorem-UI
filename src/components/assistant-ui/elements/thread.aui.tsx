@@ -77,6 +77,7 @@ import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, Compos
 import { EffortPicker } from "@/components/chat/effort-picker";
 import { DirectiveText } from "./directive-text.aui";
 import { attendKit } from "@/lib/kit/store";
+import { messageLabel, messageSurface } from "@/lib/kit/stage";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -230,6 +231,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         data-slot="aui_thread-viewport"
+        data-kit-clip
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div
@@ -495,7 +497,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
       {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
       <AttachmentRefusals />
-      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" className="border-separator focus-within:border-control data-[dragging=true]:border-focus shadow-sheet relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
+      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" data-kit-perch="composer" className="border-separator focus-within:border-control data-[dragging=true]:border-focus surface-paper flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem, / for tools"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-72 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-2 text-[1rem] leading-6 outline-none focus-visible:outline-none"
                       rows={1}
@@ -735,8 +737,23 @@ export const AssistantMessageContent: FC = () => {
 const MESSAGE_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2";
 const MESSAGE_SPEAKER = "flex min-h-6 items-center gap-2 px-2 font-medium text-ink";
 
+/** The attributes that make a message a surface Kit can stand on, named and labelled for the agent. */
+function useKitSurface() {
+  const id = useAuiState((s) => s.message.id);
+  const label = useAuiState((s) =>
+    messageLabel(
+      s.message.role,
+      s.message.parts
+        .flatMap((part) => (part.type === "text" ? [part.text] : []))
+        .join(" "),
+    ),
+  );
+  return { "data-kit-perch": messageSurface(id), "data-kit-label": label };
+}
+
 const AssistantMessage: FC = () => {
   const live = useArrivedLive();
+  const surface = useKitSurface();
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
@@ -744,6 +761,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
+      {...surface}
       data-role="assistant"
       data-live={live || undefined}
       className={cn(
@@ -861,6 +879,7 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 
 const UserMessage: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const surface = useKitSurface();
   const tenant = useTenant();
   // A message just sent from the composer flies up from where it was typed.
   useLayoutEffect(() => {
@@ -884,6 +903,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
+      {...surface}
       className={cn(
         MESSAGE_GRID,
         "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
@@ -963,7 +983,7 @@ const EditComposer: FC = () => {
       <div className="relative ms-auto w-full max-w-[70%]">
         <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
         <ComposerPrimitive.TriggerPopoverRoot>
-        <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control shadow-sheet relative flex w-full cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color] duration-100">
+        <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control surface-paper flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100">
           <ComposerToolTrigger />
           <ComposerPrimitive.Input
             className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"

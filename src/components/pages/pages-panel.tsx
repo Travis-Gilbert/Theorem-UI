@@ -81,7 +81,7 @@ const pageOrder = (a: PageListing, b: PageListing) =>
 
 /** The navigator in Pages mode: the vault's pages, then its modules. */
 export function PagesPanel() {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center px-3">
@@ -97,7 +97,7 @@ export function PagesPanel() {
           <Note>
             {isPending
               ? 'Opening the vault…'
-              : 'Pages and modules are files in the Theorem vault, which is not open.'}
+              : `Pages and modules are files in the Theorem vault. ${missing}`}
           </Note>
         )}
       </nav>

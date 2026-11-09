@@ -66,14 +66,14 @@ export function PageStatus({
 
 /** The page whose vault entry is `entryId`, in use or being arranged. */
 export function PageView({ entryId }: { entryId: string }) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   if (!client)
     return isPending ? (
       <PageSkeleton />
     ) : (
       <PageStatus
-        title="The vault is not open"
-        detail="Pages are files in the Theorem vault. Sign in, or open the vault, to see them."
+        title="The vault is not available"
+        detail={`Pages are files in the Theorem vault. ${missing}`}
       />
     )
   return <VaultPage client={client} entryId={entryId} />
@@ -135,14 +135,14 @@ export function VaultPage({
  * template until one is saved. Reset to the default removes the file.
  */
 export function ModePageView({ mode }: { mode: PageMode }) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   if (!client)
     return isPending ? (
       <PageSkeleton />
     ) : (
       <PageStatus
-        title="The vault is not open"
-        detail="A mode's arrangement is a file in the Theorem vault. Until the vault opens, the mode shows its built-in arrangement."
+        title="The vault is not available"
+        detail={`A mode's arrangement is a file in the Theorem vault. ${missing} Until it is available, the mode shows its built-in arrangement.`}
       />
     )
   return <VaultModePage client={client} mode={mode} />

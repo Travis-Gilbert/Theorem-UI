@@ -35,8 +35,8 @@ function ImportSettings() {
       title="Import context"
       description={
         project
-          ? `Bring pages, files and notes into ${project.title}. Theorem extracts the text, indexes it, and chats in this project read the parts that matter without you attaching anything.`
-          : 'Bring pages, files and notes into a project, where its chats can read them.'
+          ? `Bring pages, files, notes and chat exports into ${project.title}. Theorem extracts and indexes them as your context, your chats recall the parts that matter without you attaching anything, and your own statements in them can update your UserModel.`
+          : 'Bring pages, files, notes and chat exports into a project, where your chats can recall them.'
       }
     >
       {project ? (
@@ -76,7 +76,7 @@ function AddImport({ projectId }: { projectId: string }) {
   }
 
   return (
-    <SettingsSection title="Add" description="A link, a file or pasted text.">
+    <SettingsSection title="Add" description="A link, a file (a ChatGPT or Claude export's conversations.json works too) or pasted text.">
       <Tabs defaultValue="url" className="gap-3">
         <TabsList className="self-start">
           <TabsTab value="url" className="gap-1.5">
@@ -189,10 +189,26 @@ const STATUS: Record<ImportStatus, { label: string; variant: 'secondary' | 'info
 
 const KIND_MARK = { url: Icon.Link, upload: Icon.Attachment, text: Icon.Article } as const
 
+function describeUserModel(record: ImportRecord) {
+  const model = record.userModel
+  if (!model) return undefined
+  if (model.state === 'pending') return 'Reading for your UserModel...'
+  if (model.state === 'failed') return 'Your UserModel was not updated'
+  if (model.state !== 'applied') return undefined
+  if (!model.applied && !model.held) return 'Nothing about you to note'
+  return [
+    model.applied && `${model.applied} added to your UserModel`,
+    model.held && `${model.held} kept as evidence`,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
 function describe(record: ImportRecord) {
   if (record.status === 'failed') return record.error?.detail ?? record.error?.code
   const parts = [record.origin]
   if (record.status === 'ready' && record.chunks) parts.push(`${record.chunks} passages`)
+  parts.push(describeUserModel(record))
   return parts.filter(Boolean).join(' · ')
 }
 
@@ -201,7 +217,7 @@ function ImportList({ projectId }: { projectId: string }) {
   const { remove } = useImportMutations(projectId)
 
   return (
-    <SettingsSection title="Imported" description="What chats in this project can draw on.">
+    <SettingsSection title="Imported" description="What your chats can draw on.">
       {error ? (
         <Empty className="rounded-lg border border-separator">
           <EmptyTitle>

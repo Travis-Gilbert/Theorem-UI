@@ -1,14 +1,14 @@
-// SOURCING: @uiw/react-codemirror (CodeMirror 6 as a React component with its
-// light and dark themes, as the code handler uses it), @codemirror/lang-javascript,
-// lang-yaml and lang-html (a block's or an app's language), next-themes (the
-// app's theme). A live block's source, with its last-run values in the margin.
+// SOURCING: @uiw/react-codemirror (CodeMirror 6 as a React component, in
+// lib/codemirror-theme's theme for the palette and mode, as the code handler uses
+// it), @codemirror/lang-javascript, lang-yaml and lang-html (a block's or an
+// app's language). A live block's source, with its last-run values in the margin.
 import { html } from '@codemirror/lang-html'
 import { javascript } from '@codemirror/lang-javascript'
 import { yaml } from '@codemirror/lang-yaml'
 import CodeMirror from '@uiw/react-codemirror'
-import { useTheme } from 'next-themes'
 import { useMemo } from 'react'
 import type { WorkspaceId } from '@/lib/workspace/types'
+import { useCodeMirrorTheme } from '@/lib/codemirror-theme'
 import { lastRunMargin } from './last-run-margin'
 
 const TYPESCRIPT = new Set(['ts', 'tsx', 'typescript'])
@@ -44,7 +44,7 @@ export function SourceEditor({
   readOnly?: boolean
   label: string
 }) {
-  const { resolvedTheme } = useTheme()
+  const codeMirrorTheme = useCodeMirrorTheme()
   const extensions = useMemo(
     () => [
       languageOf(lang),
@@ -60,7 +60,7 @@ export function SourceEditor({
       readOnly={readOnly}
       editable={!readOnly}
       basicSetup={SETUP}
-      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      theme={codeMirrorTheme}
       aria-label={label}
       className="text-xs"
     />

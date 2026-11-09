@@ -163,3 +163,58 @@ index 0000000000000000000000000000000000000000..e598bb648c194d86cc79b6286a905e8a
 +}
 +
 +module.exports = sendWithBackgroundRetry;
+diff --git a/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts b/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts
+index b8e368db844979a458f242a66796e974c7f850d4..36a02a00e61f1a900ce4b5488457b556fb380e60 100644
+--- a/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts
++++ b/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts
+@@ -22,6 +22,9 @@ export interface EditMessage {
+     spaceContext?: unknown;
+     regime?: Theorem.RunRegime;
+     capabilityScope?: string[];
++    /** Request research without replacing the other admitted tools. */
++    webResearch?: boolean;
++    planning?: boolean;
+     startingGeneration?: number;
+     plan?: Theorem.PlanBinding;
+     contextReferences?: Theorem.ChatContextReference[];
+diff --git a/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts b/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts
+index ef1187c3a32255e0b6941ccb4c2ed28e39c0188c..15b26d0af0452abfff7c5343e31971ce9191af0d 100644
+--- a/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts
++++ b/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts
+@@ -20,6 +20,9 @@ export interface RetryMessage {
+     spaceContext?: unknown;
+     regime?: Theorem.RunRegime;
+     capabilityScope?: string[];
++    /** Request research without replacing the other admitted tools. */
++    webResearch?: boolean;
++    planning?: boolean;
+     startingGeneration?: number;
+     plan?: Theorem.PlanBinding;
+     contextReferences?: Theorem.ChatContextReference[];
+diff --git a/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts b/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts
+index a37042e8ca577f545dc3ff97d52d25e3cfb601a2..8fdb1f650b8a8d67fd0263f57974e485f427cb01 100644
+--- a/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts
++++ b/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts
+@@ -25,6 +25,9 @@ export interface SendMessage {
+     spaceContext?: unknown;
+     regime?: Theorem.RunRegime;
+     capabilityScope?: string[];
++    /** Request research without replacing the other admitted tools. */
++    webResearch?: boolean;
++    planning?: boolean;
+     startingGeneration?: number;
+     plan?: Theorem.PlanBinding;
+     contextReferences?: Theorem.ChatContextReference[];
+diff --git a/dist/types/src/assistant-ui.d.ts b/dist/types/src/assistant-ui.d.ts
+index 200ab967295e082535fe4699e77f859b427d3bc9..0a863c58ef90746666b496776adab3be4f549c61 100644
+--- a/dist/types/src/assistant-ui.d.ts
++++ b/dist/types/src/assistant-ui.d.ts
+@@ -5,7 +5,7 @@ export interface TheoremChatAdapterOptions {
+     client: TheoremClient;
+     /** Bind one adapter instance to one durable Theorem thread. */
+     threadId: string;
+-    turnOptions?: Pick<Theorem.chat.SendMessage, "model" | "executionMode" | "regime" | "workspaceId" | "capabilityScope" | "leaseId" | "startingGeneration" | "plan" | "contextReferences" | "spaceContext" | "acpBinding">;
++    turnOptions?: Pick<Theorem.chat.SendMessage, "model" | "executionMode" | "regime" | "workspaceId" | "capabilityScope" | "webResearch" | "planning" | "leaseId" | "startingGeneration" | "plan" | "contextReferences" | "spaceContext" | "acpBinding">;
+     /** Receives every native event, including artifacts and approval requests. */
+     onEvent?: (event: Theorem.RunEvent) => void;
+ }

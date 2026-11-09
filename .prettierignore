@@ -5,6 +5,8 @@ Theorem-UI
 ide
 src/routeTree.gen.ts
 src/lib/desktop/bindings
+src/lib/kit/contract
+src/lib/kit/client_operation
 
 # Generated: vendored esm.sh builds for live blocks
 src/lib/blocks/vendor

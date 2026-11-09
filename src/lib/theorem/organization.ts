@@ -25,8 +25,20 @@ export type Membership = {
 }
 
 export type AttentionReason =
-  | { kind: 'review'; reviewId: string; title: string; optionCount: number; atMs: number }
-  | { kind: 'approval'; runId: string; approvalId: string; toolName: string; atMs: number }
+  | {
+      kind: 'review'
+      reviewId: string
+      title: string
+      optionCount: number
+      atMs: number
+    }
+  | {
+      kind: 'approval'
+      runId: string
+      approvalId: string
+      toolName: string
+      atMs: number
+    }
   | { kind: 'failed'; runId: string; atMs: number }
   | { kind: 'pending_turn'; messageId: string; atMs: number }
 
@@ -110,7 +122,13 @@ export type OrganizeEvent = {
   projectTitle?: string
   text: string
   why: string
-  trigger?: 'first_message' | 'turn_completed' | 'moved' | 'new_repo' | 'catch_up' | 'placement'
+  trigger?:
+    | 'first_message'
+    | 'turn_completed'
+    | 'moved'
+    | 'new_repo'
+    | 'catch_up'
+    | 'placement'
   evidence?: { messageIds: string[]; inputChars: number; model?: string }
   reversible: boolean
   undoneByEventId?: string
@@ -221,19 +239,17 @@ export function organizationFromThreads(
     schema: 'theorem-organization/1',
     served: false,
     projects: projects
-      .map(
-        (project): ProjectEntry => ({
-          projectId: project.projectId,
-          title: project.title,
-          isInbox: project.projectId === inbox?.projectId,
-          createdBy: 'user',
-          threadCount: entries.filter((entry) =>
-            entry.memberships.some((m) => m.projectId === project.projectId),
-          ).length,
-          outputCount: 0,
-          brief: Boolean(project.instructions.trim()),
-        }),
-      )
+      .map((project): ProjectEntry => ({
+        projectId: project.projectId,
+        title: project.title,
+        isInbox: project.projectId === inbox?.projectId,
+        createdBy: 'user',
+        threadCount: entries.filter((entry) =>
+          entry.memberships.some((m) => m.projectId === project.projectId),
+        ).length,
+        outputCount: 0,
+        brief: Boolean(project.instructions.trim()),
+      }))
       .sort(byTitle),
     threads: entries,
     librarian: {
@@ -361,6 +377,20 @@ export function nestByOrigin(threads: readonly ThreadEntry[]) {
   return { roots, children } as const
 }
 
+/** The root a thread nests under in this list, by following its origins up. */
+export function rootOf(threads: readonly ThreadEntry[], threadId: string) {
+  const byId = new Map(threads.map((thread) => [thread.threadId, thread]))
+  const seen = new Set<string>()
+  let at = threadId
+  while (!seen.has(at)) {
+    seen.add(at)
+    const source = byId.get(at)?.origin?.threadId
+    if (!source || !byId.has(source)) break
+    at = source
+  }
+  return at
+}
+
 /** The one phrase a row's badge says about why this thread wants a person. */
 export function attentionLabel(reason: AttentionReason) {
   switch (reason.kind) {
@@ -410,15 +440,13 @@ export function applyPlacement(
   const kept = memberships.filter((m) => !removed.has(m.projectId))
   const added = (change.add ?? [])
     .filter((id) => !kept.some((m) => m.projectId === id))
-    .map(
-      (projectId): Membership => ({
-        projectId,
-        by: 'user',
-        pinned: true,
-        why: change.why ?? '',
-        atMs,
-      }),
-    )
+    .map((projectId): Membership => ({
+      projectId,
+      by: 'user',
+      pinned: true,
+      why: change.why ?? '',
+      atMs,
+    }))
   return [...kept, ...added].map((m) =>
     change.pin?.includes(m.projectId)
       ? { ...m, pinned: true }
@@ -432,7 +460,13 @@ export function applyPlacement(
 export function usePlacement() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: ({ threadId, change }: { threadId: string; change: PlacementChange }) =>
+    mutationFn: ({
+      threadId,
+      change,
+    }: {
+      threadId: string
+      change: PlacementChange
+    }) =>
       sendJson<{ thread: ThreadEntry; event: OrganizeEvent }>(
         `${threadPath(threadId)}/placement`,
         'POST',
@@ -447,7 +481,10 @@ export function usePlacement() {
           ...previous,
           threads: previous.threads.map((thread) =>
             thread.threadId === threadId
-              ? { ...thread, memberships: applyPlacement(thread.memberships, change, atMs) }
+              ? {
+                  ...thread,
+                  memberships: applyPlacement(thread.memberships, change, atMs),
+                }
               : thread,
           ),
         })
@@ -474,7 +511,9 @@ export function useUndoOrganize() {
     onSettled: () =>
       Promise.all([
         invalidate(client),
-        client.invalidateQueries({ queryKey: ['theorem', 'librarian-history'] }),
+        client.invalidateQueries({
+          queryKey: ['theorem', 'librarian-history'],
+        }),
       ]),
   })
 }
@@ -552,7 +591,13 @@ export function useProjectOutputs(projectId: string | undefined) {
 export function useProjectState() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: ({ projectId, text }: { projectId: string; text: string | null }) =>
+    mutationFn: ({
+      projectId,
+      text,
+    }: {
+      projectId: string
+      text: string | null
+    }) =>
       sendJson(
         `${BASE}/projects/${encodeURIComponent(projectId)}/state`,
         'PATCH',
@@ -577,7 +622,11 @@ export function useThreadEdits() {
     archive: useMutation({
       mutationFn: (threadId: string) =>
         mutateThread(threadId, (headers) =>
-          theorem().chat.threads.update({ threadId, archived: true, ...headers }),
+          theorem().chat.threads.update({
+            threadId,
+            archived: true,
+            ...headers,
+          }),
         ),
       onSettled: settled,
     }),

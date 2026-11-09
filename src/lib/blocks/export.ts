@@ -213,6 +213,28 @@ export async function bundleAppBridge(esbuild?: Bundler): Promise<string> {
   return bundleScript("import './app-bridge'", '', esbuild ?? await browserEsbuild(), 'iife')
 }
 
+/**
+ * The Observable notebook runtime for a hosted notebook's frame, with every
+ * module in the import map bundled in: a cell's `import("d3")` reaches the
+ * same vendored build a block's would, and nothing else.
+ */
+export async function bundleNotebookRuntime(esbuild?: Bundler): Promise<string> {
+  const modules = Object.keys(importMap.imports)
+    .map((specifier) => {
+      const name = JSON.stringify(specifier)
+      return `${name}: () => import(${name})`
+    })
+    .join(',\n')
+  const entry = [
+    `import { start } from './notebook'`,
+    `const modules = {\n${modules}\n}`,
+    `window.__theoremNotebook = {`,
+    `  start: (cells, options) => start(cells, options, modules),`,
+    `}`,
+  ].join('\n')
+  return bundleScript(entry, '', esbuild ?? (await browserEsbuild()), 'iife')
+}
+
 async function bundleScript(
   entry: string,
   cell: string,

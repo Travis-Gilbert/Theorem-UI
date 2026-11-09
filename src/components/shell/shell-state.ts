@@ -32,7 +32,8 @@ type ShellState = {
   panelCollapsed: Readonly<Partial<Record<ShellMode, boolean>>>
   /**
    * Whether the navigator shows the files in full, over the mode's own list.
-   * The rail's Files control reveals them; nothing navigates away.
+   * The rail's Files control reveals them; nothing navigates away. Kept for
+   * the visit only, so a reload opens each mode on its own list.
    */
   filesShown: boolean
   /**
@@ -215,14 +216,16 @@ export const useShell = create<ShellState>()(
       // sits beside the dock, so older layouts are dropped rather than restored
       // with a panel the dock no longer has. Version 3 narrowed the panel's
       // range, so widths saved against the wider one start over at the default.
-      // Version 4 widened it for the project tree and folded the files away.
-      version: 4,
+      // Version 3 kept filesShown, which now lasts only for the visit. Version 4
+      // (on main) dropped it; version 4 (on the canvas branch) widened the panel
+      // for the project tree and folded the files away. Version 5 does both for
+      // whichever version 4 a layout was saved under.
+      version: 5,
       partialize: ({
         projectId,
         layouts,
         panelWidth,
         panelCollapsed,
-        filesShown,
         explorerOpen,
         organizeOpen,
         terminalHeight,
@@ -236,7 +239,6 @@ export const useShell = create<ShellState>()(
         layouts,
         panelWidth,
         panelCollapsed,
-        filesShown,
         explorerOpen,
         organizeOpen,
         terminalHeight,
@@ -248,12 +250,14 @@ export const useShell = create<ShellState>()(
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined
-        if (version === 2 || version === 3)
+        if (version >= 2 && version <= 4) {
+          const { filesShown: _, ...kept } = (state ?? {}) as ShellState
           return {
-            ...state,
+            ...kept,
             panelWidth: PANEL_WIDTH.default,
             explorerOpen: false,
           }
+        }
         return { projectId: state?.projectId, layouts: {} }
       },
     },

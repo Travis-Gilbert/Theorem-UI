@@ -234,8 +234,9 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode its page fills the sheet (by default Theia with the agent
- * terminal beside it), and in Vault mode the Vault does. Each
+ * In IDE mode its page fills the sheet, opaque over the dock (by default
+ * Theia alone; the terminal is the shell's drawer), and in Vault mode the
+ * Vault does. Each
  * loads on its first visit and then stays, hidden, so its editors and layout
  * survive a switch; the panel and dock stay mounted under them for the same
  * reason.
@@ -261,7 +262,10 @@ function DesktopShell(route: DockRoute) {
           {ideLoaded && (
             <div
               inert={!ide}
-              className={cn('absolute inset-0', !ide && 'invisible')}
+              className={cn(
+                'absolute inset-0 isolate bg-sheet',
+                !ide && 'invisible',
+              )}
             >
               <ModePage mode="ide" />
             </div>

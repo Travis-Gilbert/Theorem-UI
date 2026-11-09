@@ -286,9 +286,13 @@ function PageRoot({
   children?: ReactNode
 }) {
   const presentation = useMemo(() => ({ fill, flush }), [fill, flush])
+  // On a page that fills the window, a module placed straight on the page
+  // fills its share of it, as one in a split's side does.
   return (
     <PagePresentationContext.Provider value={presentation}>
-      <div className={rootClass(presentation)}>{children}</div>
+      <FillContext.Provider value={fill}>
+        <div className={rootClass(presentation)}>{children}</div>
+      </FillContext.Provider>
     </PagePresentationContext.Provider>
   )
 }

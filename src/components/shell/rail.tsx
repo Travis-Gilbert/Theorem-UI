@@ -1,10 +1,10 @@
-// SOURCING: Base UI Menu (account menu), Kit (the agent's figure), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), Kit's home slot (the stage stands the fox in it), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Icon } from '@/components/icons'
-import { Kit } from '@/components/kit/kit'
+import { KitPerch } from '@/components/kit/kit-stage'
 import { PALETTES, usePalette } from '@/lib/palette'
 import type { Palette } from '@/lib/palette'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
@@ -321,7 +321,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
         <FilesControl collapsible={collapsible} />
       </TooltipProvider>
       <div className="flex-1" />
-      <Kit className="mb-1" />
+      <KitPerch name="rail" className="mb-1" />
       <TerminalToggle />
       <AccountMenu />
     </div>

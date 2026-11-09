@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link, the ⌘K palette and the model preferences sync mounted with the shell, lib/theorem/organization for the project a thread belongs to
+// SOURCING: @tanstack/react-router file routes (a pathless layout owns the assistant runtime; child routes only carry the thread id or the mode), ui/button's variants for the sign-in link, the ⌘K palette, the model preferences sync and the artifact library publication mounted with the shell, lib/theorem/organization for the project a thread belongs to
 import {
   createFileRoute,
   Outlet,
@@ -6,6 +6,7 @@ import {
   useParams,
 } from '@tanstack/react-router'
 import { useCallback, useEffect } from 'react'
+import { ArtifactLibraryPublication } from '@/components/artifacts/openui/publication'
 import { ChatShell, ShellStatus } from '@/components/shell/chat-shell'
 import { CommandPalette } from '@/components/shell/command-palette'
 import { useShellMode } from '@/components/shell/modes'
@@ -86,6 +87,7 @@ function ChatLayout() {
       <ChatShell projectId={project.projectId} threadId={openThreadId} />
       <CommandPalette />
       <PreferencesSync />
+      <ArtifactLibraryPublication />
       <Outlet />
     </TheoremRuntimeProvider>
   )

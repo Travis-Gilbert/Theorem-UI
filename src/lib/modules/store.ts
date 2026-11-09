@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { isTheoremWorkspace } from '@/lib/workspace/theorem-client'
+import type { VaultAbsence } from '@/lib/workspace/theorem-client'
 import type { WorkspaceClient, WorkspaceEntry } from '@/lib/workspace/types'
 import {
   useWorkspaceTree,
@@ -84,14 +85,32 @@ export function freePath(
   }
 }
 
-/** The Theorem vault's client, once the vault is known. */
+/** Why there is no vault, in a sentence a view can show. */
+const MISSING: Record<VaultAbsence | 'failed', string> = {
+  'signed-out': 'Sign in to open it.',
+  forbidden: 'This account may not open it.',
+  unsupported:
+    'The Theorem server does not serve it yet: it has no Files API (/api/files/v1).',
+  unconfigured: 'This deployment has no Theorem server configured.',
+  failed: 'The Theorem server did not answer for it.',
+}
+
+/**
+ * The Theorem vault's client, once the vault is known; without one, `missing`
+ * says why, as a sentence about the vault ("it").
+ */
 export function useVaultClient(): {
   client: WorkspaceClient | undefined
   isPending: boolean
+  missing: string
 } {
-  const { workspaces, isPending } = useWorkspaces()
+  const { workspaces, isPending, vaultAbsence } = useWorkspaces()
   const vault = workspaces.find(isTheoremWorkspace)
-  return { client: vault && workspaceClient(vault), isPending }
+  return {
+    client: vault && workspaceClient(vault),
+    isPending,
+    missing: vaultAbsence ? MISSING[vaultAbsence] : 'It is not open.',
+  }
 }
 
 const pageKey = (workspaceId: string, path: string) =>

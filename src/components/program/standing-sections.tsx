@@ -137,7 +137,12 @@ export function ScheduleStatus() {
     // failed activation leaves it running.
     mutationFn: async () => {
       const activated = await activateProgram(program)
-      await pauseEarlierVersions(program.name, contentId, triggers.data ?? [])
+      // What Theorem activated may be newer than the last save, so it is the one kept.
+      await pauseEarlierVersions(
+        program.name,
+        activated.program_id,
+        triggers.data ?? [],
+      )
       return activated
     },
     onSettled: () => {
@@ -148,8 +153,15 @@ export function ScheduleStatus() {
       })
     },
   })
+  // Pause and Resume act on the version shown running, not on edits not saved yet.
   const pause = useMutation({
-    mutationFn: (paused: boolean) => setTriggerPaused(program, paused),
+    mutationFn: async ({
+      programId,
+      paused,
+    }: {
+      programId: string
+      paused: boolean
+    }) => setTriggerPaused((await loadProgram(programId)).program, paused),
     onSettled: refresh,
   })
   // Editing an active graph leaves the earlier version firing until it is stopped.
@@ -188,7 +200,12 @@ export function ScheduleStatus() {
               size="sm"
               variant="outline"
               disabled={pause.isPending}
-              onClick={() => pause.mutate(!state.paused)}
+              onClick={() =>
+                pause.mutate({
+                  programId: state.program_id,
+                  paused: !state.paused,
+                })
+              }
             >
               {state.paused ? 'Resume' : 'Pause'}
             </Button>

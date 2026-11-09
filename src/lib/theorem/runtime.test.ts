@@ -11,6 +11,8 @@ import {
   test,
 } from 'bun:test'
 import { useAui, useAuiState } from '@assistant-ui/react'
+import { toastManager } from '@/components/coss/toast'
+import { TheoremError } from '@theoremharness/sdk'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
 import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
@@ -33,6 +35,7 @@ type Send = {
   key: string
   text: string
   capabilityScope?: string[]
+  webResearch?: boolean
   planning?: boolean
   model?: { provider: string; model: string }
   executionMode?: string
@@ -93,12 +96,13 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, capabilityScope, planning, model, executionMode } =
+    const { text, capabilityScope, webResearch, planning, model, executionMode } =
       (await request.json()) as Omit<Send, 'key'>
     sends.push({
       key: request.headers.get('Idempotency-Key') ?? '',
       text,
       ...(capabilityScope ? { capabilityScope } : {}),
+      ...(webResearch !== undefined ? { webResearch } : {}),
       ...(planning !== undefined ? { planning } : {}),
       ...(model ? { model } : {}),
       ...(executionMode ? { executionMode } : {}),
@@ -386,12 +390,12 @@ test('a send refused after its chat was left waits for that chat', async () => {
 })
 
 
-test.each<[boolean, boolean, string[] | undefined]>([
-  [true, true, ['web_search', 'web_read', 'draft_plan']],
-  [true, false, ['web_search', 'web_read']],
-  [false, true, undefined],
-  [false, false, undefined],
-])('a send with Web %p and Plan %p asks Theorem for scope %p', async (on, planning, scope) => {
+test.each<[boolean, boolean]>([
+  [true, true],
+  [true, false],
+  [false, true],
+  [false, false],
+])('a send with Web %p and Plan %p keeps research additive', async (on, planning) => {
   useWebSearch.setState({ on })
   usePlanning.setState({ on: planning })
   const threadId = `thread-${crypto.randomUUID()}`
@@ -415,7 +419,7 @@ test.each<[boolean, boolean, string[] | undefined]>([
   expect(sends[0]).toEqual({
     key: expect.any(String),
     text: 'Latest Rust release',
-    ...(scope ? { capabilityScope: scope } : {}),
+    ...(on ? { webResearch: true } : {}),
     ...(planning ? { planning: true } : {}),
   })
 })
@@ -538,4 +542,40 @@ test('each surface sends its current model and mode on a shared durable thread',
   expect(sends[1]?.executionMode).toBeUndefined()
   await drain(runTurn(threadId, options('Default third')))
   expect(sends[2]?.model).toBeUndefined()
+})
+
+test('research and planning retain an explicit caller capability scope', async () => {
+  const request = {
+    ...options('Research within my allowed tools'),
+    runConfig: { custom: { theoremTurnOptions: { capabilityScope: ['web_read'], webResearch: true, planning: true } } },
+  }
+  await drain(runTurn(`scoped-research-${crypto.randomUUID()}`, request))
+  expect(sends[0]?.webResearch).toBe(true)
+  expect(sends[0]?.planning).toBe(true)
+  expect(sends[0]?.capabilityScope).toEqual(['web_read'])
+})
+
+
+test('new chat creation failures are visible and still reject admission', async () => {
+  const failure = new TheoremError({ statusCode: 500, body: {
+    code: 'chat_store_error', detail: 'tenant_memory_quota_exceeded: tenant memory quota exceeded: projected 805853256 > quota 805306368', correlationId: 'chatreq-capacity',
+  } })
+  const createThread = spyOn(theorem().chat.threads, 'create').mockRejectedValue(failure)
+  const notify = spyOn(toastManager, 'add').mockReturnValue('capacity-toast')
+  try {
+    await expect(createThreadListAdapter(() => 'project').initialize('local-chat')).rejects.toBe(failure)
+    expect(notify).toHaveBeenCalledWith({ type: 'error', title: 'Could not confirm chat creation', description: 'The chat store reached its configured memory budget. The server operator must restore capacity before this request can succeed. Reference: chatreq-capacity' })
+    expect(sends).toHaveLength(0)
+  } finally { createThread.mockRestore(); notify.mockRestore() }
+})
+
+
+test('a lost thread-creation reply does not claim that the thread was not saved', async () => {
+  const failure = new TypeError('Network disconnected')
+  const createThread = spyOn(theorem().chat.threads, 'create').mockRejectedValue(failure)
+  const notify = spyOn(toastManager, 'add').mockReturnValue('transport-toast')
+  try {
+    await expect(createThreadListAdapter(() => 'project').initialize('local-chat')).rejects.toBe(failure)
+    expect(notify).toHaveBeenCalledWith({ type: 'error', title: 'Could not confirm chat creation', description: 'Network disconnected' })
+  } finally { createThread.mockRestore(); notify.mockRestore() }
 })

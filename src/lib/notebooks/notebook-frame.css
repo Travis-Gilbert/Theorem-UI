@@ -1,0 +1,236 @@
+/*
+ * The notebook surface inside a hosted frame. The page sets Theorem's tokens
+ * on :root (sandbox/theme.ts) and replaces them when the theme changes; every
+ * colour here is one of those tokens, never a literal. notebook-kit's
+ * inspector and highlight styles and Inputs' stylesheet read the variables
+ * mapped below.
+ */
+:root {
+  --theme-foreground: var(--ink);
+  --theme-foreground-muted: var(--ink-muted);
+  --theme-foreground-faint: var(--ink-faint);
+  --theme-foreground-fainter: var(--line-control);
+  --theme-foreground-faintest: var(--line-separator);
+  --theme-background: var(--surface-artifact);
+  --theme-background-alt: var(--surface-hover);
+  --theme-error: var(--error-ink);
+  --sans-serif: var(--font-sans, system-ui, sans-serif);
+  --monospace: var(--font-mono, ui-monospace, monospace);
+  --monospace-font: 12.5px/1.5 var(--monospace);
+  --syntax-keyword: var(--redwood-ink);
+  --syntax-definition: var(--teal-ink);
+  --syntax-string: var(--ochre-ink);
+  --syntax-literal: var(--graph-agent);
+  --syntax-atom: var(--graph-plan);
+  --syntax-comment: var(--ink-faint);
+  --syntax-meta: var(--ink-muted);
+  --syntax-variable: var(--ink);
+  --syntax-link: var(--link);
+  --syntax-invalid: var(--error-ink);
+}
+
+html {
+  background: var(--surface-artifact);
+  color: var(--ink);
+  font: 14px/1.55 var(--sans-serif);
+  accent-color: var(--redwood);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  padding: 16px 20px 20px;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cell {
+  min-width: 0;
+  border-radius: 6px;
+  outline-offset: 6px;
+}
+
+.cell:empty {
+  display: none;
+}
+
+.cell[data-selected] {
+  outline: 1px solid var(--line-control);
+}
+
+.cell h1,
+.cell h2,
+.cell h3 {
+  margin: 0.4em 0 0.3em;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.cell h1 {
+  font-size: 1.35rem;
+}
+
+.cell h2 {
+  font-size: 1.12rem;
+}
+
+.cell h3 {
+  font-size: 1rem;
+}
+
+.cell h1 a,
+.cell h2 a,
+.cell h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cell p,
+.cell ul,
+.cell ol {
+  margin: 0.45em 0;
+}
+
+.cell ul,
+.cell ol {
+  padding-left: 1.3em;
+}
+
+.cell a {
+  color: var(--link);
+}
+
+.cell small,
+.cell figcaption,
+.muted {
+  color: var(--ink-muted);
+}
+
+.cell code,
+.cell pre,
+.cell kbd {
+  font: var(--monospace-font);
+}
+
+.cell :not(pre) > code {
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--surface-hover);
+}
+
+.cell pre {
+  margin: 0.5em 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border: 1px solid var(--line-separator);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+
+.cell table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell th,
+.cell td {
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--line-separator);
+  text-align: left;
+}
+
+.cell th {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+.cell hr {
+  border: 0;
+  border-top: 1px solid var(--line-separator);
+}
+
+.cell img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* d3-axis draws with currentColor, so axes take the muted ink. */
+svg {
+  overflow: visible;
+  color: var(--ink-muted);
+  font: 11px var(--sans-serif);
+}
+
+[data-entity-id] {
+  cursor: pointer;
+}
+
+[data-entity-id]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 4px 10px;
+  border: 1px solid var(--line-control);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--surface-hover);
+}
+
+form[class^='inputs-'] {
+  --label-width: 150px;
+}
+
+.observablehq--error {
+  color: var(--error-ink);
+}
+
+/* Retained marimo outputs: one section per cell, outputs as they were recorded. */
+.output + .output {
+  margin-top: 8px;
+}
+
+.output-text {
+  white-space: pre-wrap;
+}
+
+.output-error {
+  padding: 8px 10px;
+  border-left: 2px solid var(--error-ink);
+  color: var(--error-ink);
+  white-space: pre-wrap;
+  font: var(--monospace-font);
+}
+
+.output-unshown {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* marimo's own output markup, in retained and live outputs alike. */
+.markdown,
+.prose {
+  line-height: 1.55;
+}
+
+marimo-island {
+  display: block;
+}

@@ -40,7 +40,7 @@ const modalityLabel = (value: string) =>
   MODALITY_LABELS[value] ?? value.charAt(0).toUpperCase() + value.slice(1)
 
 const SOURCE_LABELS: Record<ModelOption['source'], string> = {
-  catalog: 'Theorem catalog',
+  catalog: 'Configured catalog',
   openrouter: 'OpenRouter',
 }
 

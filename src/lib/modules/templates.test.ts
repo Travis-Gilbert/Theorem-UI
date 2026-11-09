@@ -4,6 +4,7 @@ import { PAGE_SCHEMA, pageText, parsePage } from './contract'
 import { findCycle } from './connections'
 import {
   BUILTIN_TEMPLATES,
+  CODING_TEMPLATE,
   INDEX_TEMPLATE,
   MODE_PAGES,
   isPageMode,
@@ -49,4 +50,21 @@ test('templates are page files directly in Templates; modes are pages in Modes',
   expect(isPageMode('constructor')).toBe(false)
   for (const mode of Object.keys(MODE_PAGES) as Array<keyof typeof MODE_PAGES>)
     expect(modeTemplatePage(mode).title).toBe(MODE_PAGES[mode].title)
+})
+
+// IDE mode once held an agent terminal that could not be closed. The terminal
+// is the shell's now, opened and closed as everywhere else; Theia's Add to
+// chat opens it on the right.
+test("IDE mode's built-in arrangement is Theia alone, sending Add to chat to the terminal", () => {
+  expect(MODE_PAGES.ide.template).toBe(CODING_TEMPLATE)
+  expect(CODING_TEMPLATE.layout.root.props).toMatchObject({ fill: true })
+  expect(CODING_TEMPLATE.layout.content).toEqual([
+    {
+      type: 'theorem.ide',
+      props: { id: 'ide', title: 'IDE', v: 1, chat: 'terminal' },
+    },
+  ])
+  expect(JSON.stringify(CODING_TEMPLATE.layout)).not.toContain(
+    'theorem.terminal',
+  )
 })

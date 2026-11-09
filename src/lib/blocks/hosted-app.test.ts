@@ -14,6 +14,7 @@ test('a hosted App carries the real bridge under a restrictive policy without a 
   expect(policy).toContain("connect-src 'none'")
   expect(policy).toContain("form-action 'none'")
   expect(policy).toContain("base-uri 'none'")
+  expect(policy).not.toContain("'unsafe-eval'")
   expect(page.querySelector('td')?.textContent).toBe('Category')
   expect(page.querySelector('td')?.hasAttribute('contenteditable')).toBe(true)
   const bridge = page.querySelector(

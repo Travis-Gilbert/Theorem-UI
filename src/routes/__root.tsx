@@ -69,6 +69,10 @@ function RootDocument({ children }: { children: ReactNode }) {
   useEffect(() => {
     void import('@/components/terminal/live-terminal-theme')
   }, [])
+  // The paper surfaces' grain, baked once and shared (lib/paper-texture.ts).
+  useEffect(() => {
+    void import('@/lib/paper-texture').then(({ applyPaperTexture }) => applyPaperTexture())
+  }, [])
   return (
     // next-themes sets the .dark class and paletteScript sets data-palette before paint, so the server markup differs by design.
     // data-theorem-desktop is DESKTOP_DOCUMENT_ATTRIBUTE: getDesktopHost() reads it.

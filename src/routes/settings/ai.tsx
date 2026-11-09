@@ -32,7 +32,7 @@ function AiSettings() {
   return (
     <SettingsPage
       title="AI"
-      description="The models Theorem can run, and the plugins and skills it brings to a conversation."
+      description="Every model powers Theorem with its tools and conversation context. Provider labels identify who supplies the model."
     >
       <Tabs defaultValue="models" className="gap-6">
         <TabsList
@@ -72,11 +72,11 @@ function DefaultModel({
   const model = catalog.find((m) => m.ref === selected)
   const fallback = defaultModelDescription(catalog, defaultRef)
   return (
-    <SettingsSection title="Default" description="The model a new turn runs on until you pick another in the composer.">
+    <SettingsSection title="Default model" description="The model a new turn runs on until you pick another in the composer.">
       <SettingsBox>
         <SettingsRow
-          Mark={selected ? Icon.Chat : Icon.Theorem}
-          title={selected ? (model?.name ?? selected) : 'Theorem'}
+          Mark={Icon.Model}
+          title={selected ? (model?.name ?? selected) : 'Default model'}
           description={selected ? selected : fallback}
         >
           {selected && (

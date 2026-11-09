@@ -35,6 +35,7 @@ import { useContext, useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
+import { toastManager } from '@/components/coss/toast'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
 import { DRAFT_PLAN } from './plans'
@@ -62,6 +63,9 @@ import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
+
+import { KitStage } from '@/components/kit/kit-stage'
+import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -615,8 +619,7 @@ function useTheoremThreadRuntime() {
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions()}
-          if (added.capabilityScope && added.planning) added.capabilityScope.push(DRAFT_PLAN)
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
@@ -642,6 +645,7 @@ function useTheoremThreadRuntime() {
   )
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)
+  useKitRequests(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()
@@ -703,10 +707,19 @@ export function createThreadListAdapter(
       }
     },
     async initialize() {
-      const created = await mutate((headers) =>
-        client.chat.threads.create({ projectId: activeProject(), ...headers }),
-      )
-      return { remoteId: created.record.threadId }
+      try {
+        const created = await mutate((headers) =>
+          client.chat.threads.create({ projectId: activeProject(), ...headers }),
+        )
+        return { remoteId: created.record.threadId }
+      } catch (error) {
+        toastManager.add({
+          type: 'error',
+          title: 'Could not confirm chat creation',
+          description: describeError(error),
+        })
+        throw error
+      }
     },
     async rename(remoteId, title) {
       await mutateThread(remoteId, (headers) =>
@@ -784,6 +797,7 @@ export function TheoremRuntimeProvider({
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
       {children}
+      <KitStage />
     </AssistantRuntimeProvider>
   )
 }
