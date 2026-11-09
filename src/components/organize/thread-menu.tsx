@@ -3,13 +3,20 @@ import { addDays, addHours, nextMonday, setHours, startOfHour } from 'date-fns'
 import {
   MenuCheckboxItem,
   MenuItem,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
   MenuSub,
   MenuSubPopup,
   MenuSubTrigger,
 } from '@/components/coss/menu'
 import { Icon } from '@/components/icons'
-import { primaryProjectId, useLater, usePlacement } from '@/lib/theorem/organization'
+import {
+  primaryProjectId,
+  useLater,
+  useMoveThread,
+  usePlacement,
+} from '@/lib/theorem/organization'
 import type {
   LaterCondition,
   ProjectEntry,
@@ -52,7 +59,9 @@ export function ThreadMenuItems({
   onDelete: () => void
 }) {
   const placement = usePlacement()
+  const mover = useMoveThread()
   const later = useLater()
+  const filed = projects.filter((project) => !project.isInbox)
   const members = new Set(thread.memberships.map((m) => m.projectId))
   const primary = primaryProjectId(thread)
   const primaryMembership = thread.memberships.find(
@@ -74,35 +83,62 @@ export function ThreadMenuItems({
         Continue in new thread
       </MenuItem>
       <MenuSeparator />
+      {served ? (
+        <MenuSub>
+          <MenuSubTrigger>
+            <Icon.Folder className="size-4" />
+            Projects
+          </MenuSubTrigger>
+          <MenuSubPopup className="min-w-44">
+            {filed.map((project) => (
+              <MenuCheckboxItem
+                key={project.projectId}
+                closeOnClick={false}
+                checked={members.has(project.projectId)}
+                onCheckedChange={(checked) =>
+                  placement.mutate({
+                    threadId: thread.threadId,
+                    change: checked
+                      ? { add: [project.projectId] }
+                      : { remove: [project.projectId] },
+                  })
+                }
+              >
+                {project.title}
+              </MenuCheckboxItem>
+            ))}
+          </MenuSubPopup>
+        </MenuSub>
+      ) : (
+        // Without placement a thread lives in one project: moving it changes its home.
+        <MenuSub>
+          <MenuSubTrigger>
+            <Icon.Folder className="size-4" />
+            Move to
+          </MenuSubTrigger>
+          <MenuSubPopup className="min-w-44">
+            <MenuRadioGroup
+              value={members.size ? thread.homeProjectId : 'unsorted'}
+              onValueChange={(value: string) =>
+                mover.move(
+                  thread,
+                  thread.homeProjectId,
+                  value === 'unsorted' ? null : value,
+                )
+              }
+            >
+              {filed.map((project) => (
+                <MenuRadioItem key={project.projectId} value={project.projectId}>
+                  {project.title}
+                </MenuRadioItem>
+              ))}
+              <MenuRadioItem value="unsorted">Unsorted</MenuRadioItem>
+            </MenuRadioGroup>
+          </MenuSubPopup>
+        </MenuSub>
+      )}
       {served && (
         <>
-          <MenuSub>
-            <MenuSubTrigger>
-              <Icon.Project className="size-4" />
-              Projects
-            </MenuSubTrigger>
-            <MenuSubPopup className="min-w-44">
-              {projects
-                .filter((project) => !project.isInbox)
-                .map((project) => (
-                  <MenuCheckboxItem
-                    key={project.projectId}
-                    closeOnClick={false}
-                    checked={members.has(project.projectId)}
-                    onCheckedChange={(checked) =>
-                      placement.mutate({
-                        threadId: thread.threadId,
-                        change: checked
-                          ? { add: [project.projectId] }
-                          : { remove: [project.projectId] },
-                      })
-                    }
-                  >
-                    {project.title}
-                  </MenuCheckboxItem>
-                ))}
-            </MenuSubPopup>
-          </MenuSub>
           {primaryMembership && (
             <MenuItem
               onClick={() =>
@@ -163,9 +199,9 @@ export function ThreadMenuItems({
               ))}
             </MenuSubPopup>
           </MenuSub>
-          <MenuSeparator />
         </>
       )}
+      <MenuSeparator />
       <MenuItem onClick={onRename}>
         <Icon.Edit className="size-4" />
         Rename

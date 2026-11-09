@@ -499,6 +499,117 @@ export function usePlacement() {
   })
 }
 
+/** What moving a thread to `projectId` makes of it on a Theorem without placement: a new home. */
+export function rehome(
+  thread: ThreadEntry,
+  projectId: string,
+  inboxId: string | undefined,
+): ThreadEntry {
+  return {
+    ...thread,
+    homeProjectId: projectId,
+    memberships:
+      projectId === inboxId
+        ? []
+        : [
+            {
+              projectId,
+              by: 'user',
+              pinned: false,
+              why: '',
+              atMs: thread.createdAtMs,
+              implicit: true,
+            },
+          ],
+  }
+}
+
+export type MovePlan =
+  | { kind: 'placement'; change: PlacementChange }
+  | { kind: 'home'; projectId: string }
+
+/**
+ * What moving a thread from where it is listed (`from`) to a project, or out
+ * of every project (`to` null), asks of Theorem; nothing when it is already
+ * there. Where placement is served it is a placement a person made, which the
+ * Librarian keeps; elsewhere it changes the thread's home.
+ */
+export function planMove(
+  organization: OrganizationRead,
+  thread: ThreadEntry,
+  from: string | undefined,
+  to: string | null,
+): MovePlan | undefined {
+  const members = thread.memberships.map((m) => m.projectId)
+  if (organization.served) {
+    if (to === null)
+      return members.length
+        ? { kind: 'placement', change: { remove: members } }
+        : undefined
+    const leaving = from && from !== to && members.includes(from) ? [from] : []
+    if (members.includes(to) && !leaving.length) return undefined
+    return { kind: 'placement', change: { add: [to], remove: leaving } }
+  }
+  const projectId =
+    to ?? organization.projects.find((p) => p.isInbox)?.projectId
+  if (!projectId || projectId === thread.homeProjectId) return undefined
+  return { kind: 'home', projectId }
+}
+
+/** Moves a thread as {@link planMove} says, showing the move before Theorem answers. */
+export function useMoveThread() {
+  const client = useQueryClient()
+  const placement = usePlacement()
+  const home = useMutation({
+    mutationFn: ({
+      threadId,
+      projectId,
+    }: {
+      threadId: string
+      projectId: string
+    }) =>
+      mutateThread(threadId, (headers) =>
+        theorem().chat.threads.update({ threadId, projectId, ...headers }),
+      ),
+    onMutate: async ({ threadId, projectId }) => {
+      await client.cancelQueries({ queryKey: organizationKey })
+      const previous = client.getQueryData<OrganizationRead>(organizationKey)
+      if (previous) {
+        const inboxId = previous.projects.find((p) => p.isInbox)?.projectId
+        client.setQueryData<OrganizationRead>(organizationKey, {
+          ...previous,
+          threads: previous.threads.map((thread) =>
+            thread.threadId === threadId
+              ? rehome(thread, projectId, inboxId)
+              : thread,
+          ),
+        })
+      }
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous)
+        client.setQueryData(organizationKey, context.previous)
+    },
+    onSettled: () => invalidate(client),
+  })
+
+  const move = (
+    thread: ThreadEntry,
+    from: string | undefined,
+    to: string | null,
+  ) => {
+    const organization = client.getQueryData<OrganizationRead>(organizationKey)
+    const plan = organization && planMove(organization, thread, from, to)
+    if (plan?.kind === 'placement')
+      placement.mutate({ threadId: thread.threadId, change: plan.change })
+    if (plan?.kind === 'home')
+      home.mutate({ threadId: thread.threadId, projectId: plan.projectId })
+  }
+
+  return { move, error: placement.error ?? home.error }
+}
+
 /** Reverses one Librarian decision; Theorem records the correction so it holds. */
 export function useUndoOrganize() {
   const client = useQueryClient()
