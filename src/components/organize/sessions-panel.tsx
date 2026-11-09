@@ -556,14 +556,20 @@ function SessionsSplit({ sessions }: { sessions: ReactNode }) {
     }
   }, [split, project, filesOpen])
 
-  // The height a drag leaves Files at, while it is open, is the one it reopens with.
+  // The height a drag leaves Files at, while it is open, is the one it reopens
+  // with. The split reports a layout change only when a drag of its line ends,
+  // so the panel resizing with the window never overwrites it.
   useEffect(() => {
-    const files = split?.getPanel('files')
-    if (!files) return
-    const listener = files.api.onDidDimensionsChange(({ height }) => {
+    if (!split) return
+    const listener = split.onDidLayoutChange(() => {
+      const files = split.getPanel('files')
       const shell = useShell.getState()
-      if ((shell.organizeOpen['ide:files'] ?? true) && height > FILES_HEADING)
-        shell.setIdeFilesHeight(height)
+      if (
+        files?.api.isVisible &&
+        (shell.organizeOpen['ide:files'] ?? true) &&
+        files.api.height > FILES_HEADING
+      )
+        shell.setIdeFilesHeight(Math.round(files.api.height))
     })
     return () => listener.dispose()
   }, [split])
