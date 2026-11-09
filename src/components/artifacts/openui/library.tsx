@@ -16,7 +16,7 @@ import {
 } from '@openuidev/react-lang'
 import { z } from 'zod/v4'
 import { PlotView, TimelineView } from './charts'
-import { GPU_WORKLOAD } from './examples'
+import { EXAMPLES, GPU_WORKLOAD } from './examples'
 import {
   CalloutView,
   ComparisonView,
@@ -329,11 +329,10 @@ const LinkedTable = defineComponent({
     region: reactive(region.nullable().optional()),
     by: z.string().nullable().optional(),
   }),
-  component: function LinkedTableBlock({ props: p, statementId }) {
+  component: function LinkedTableBlock({ props: p }) {
     const field = useStateField('region', p.region)
     return (
       <LinkedTableView
-        id={statementOf(statementId, 'LinkedTable')}
         columns={props(p.columns)}
         rows={p.rows}
         region={field.value}
@@ -521,20 +520,28 @@ async function sha256(text: string) {
   return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-/** What Theorem keeps about this library: the instructions, names, signatures and version. */
+/**
+ * What Theorem keeps about this library: the instructions, names, signatures
+ * and version, and a short program known to render, which the host lints and
+ * shows the model beside the prompt (the prompt already carries the GPU composite).
+ */
 export async function libraryRecord() {
   const prompt = libraryPrompt()
   const components = libraryComponents()
   const callables = libraryCallables()
   const signatures = librarySignatures()
+  const example = EXAMPLES.Experiment
   return {
     libraryId: LIBRARY_ID,
     version: LIBRARY_VERSION,
-    digest: await sha256(JSON.stringify({ prompt, components, callables, signatures })),
+    digest: await sha256(
+      JSON.stringify({ prompt, components, callables, signatures, example }),
+    ),
     prompt,
     components,
     callables,
     signatures,
+    example,
   }
 }
 

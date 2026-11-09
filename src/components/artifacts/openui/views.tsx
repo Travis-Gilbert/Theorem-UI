@@ -538,13 +538,11 @@ const within = (value: Cell, region: Region) =>
   value <= Math.max(region.from, region.to)
 
 export function LinkedTableView({
-  id,
   columns,
   rows,
   region,
   by,
 }: {
-  id: string
   columns: Column[]
   rows: Row[]
   region?: Region | null
@@ -579,21 +577,21 @@ export function LinkedTableView({
           {rows.map((row, i) => {
             const rowId = String(row.id ?? i)
             const inside = linked && by ? within(row[by] ?? null, linked) : false
+            const [first, ...rest] = columns
+            const label = first ? `${first.label} ${cell(row, first)}` : rowId
+            // No entityId: the host reads a selection with only a rowId as table rows.
             const isSelected =
               selected?.rowId === rowId &&
-              selected.entityId === `table:${id}/row:${rowId}`
-            const choose = () => {
-              const [first, ...rest] = columns
-              const label = first ? `${first.label} ${cell(row, first)}` : rowId
+              selected.entityId === undefined &&
+              selected.entityLabel === label
+            const choose = () =>
               select({
                 text: [label, ...rest.map((c) => `${c.label} ${cell(row, c)}`)].join(
                   ', ',
                 ),
                 rowId,
-                entityId: `table:${id}/row:${rowId}`,
                 entityLabel: label,
               })
-            }
             return (
               <TableRow
                 key={rowId}

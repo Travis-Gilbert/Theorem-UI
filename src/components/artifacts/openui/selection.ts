@@ -1,27 +1,32 @@
-// SOURCING: @theoremharness/sdk TheoremContextReference (an artifact resource
-// pinned to its revision) and the sandbox protocol's AppSelection, so a
-// selection here reaches the next turn in the shape the HTML App path sends.
+// SOURCING: @theoremharness/sdk TheoremContextReference (a graph-object
+// resource pinned to its revision) and the sandbox protocol's AppSelection, so a
+// selection here reaches the next turn in the shape the HTML App path sends
+// (lib/theorem/app-references).
 import type { OpenUIError } from '@openuidev/react-lang'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
 
-export type ArtifactRef = { artifactId: string; revision: string; title: string }
-
-/** What a selection points at, in the contribution's locator kinds. */
-export type Locator =
-  | { kind: 'entity'; entityId: string }
-  | { kind: 'table_rows'; rowIds: string[] }
-
-export function locatorOf(selection: AppSelection): Locator | undefined {
-  if (selection.rowId) return { kind: 'table_rows', rowIds: [selection.rowId] }
-  if (selection.entityId)
-    return { kind: 'entity', entityId: selection.entityId }
-  return undefined
+/**
+ * The stored document revision a reference names: the part's
+ * payload.documentId and payload.revision.position, not its chat artifact id.
+ */
+export type ArtifactRef = {
+  documentId: string
+  position: number | string
+  title: string
 }
 
-const location = ({ artifactId, revision }: ArtifactRef) => ({
-  resource: { kind: 'artifact' as const, artifactId, revision },
-  revision,
+/**
+ * The host reads the selection itself as the locator: entityId (with
+ * entityLabel) as an entity, otherwise rowId (with field) as table rows.
+ */
+const location = ({ documentId, position }: ArtifactRef) => ({
+  resource: {
+    kind: 'graph-object' as const,
+    objectId: documentId,
+    objectType: 'theorem.app',
+  },
+  revision: String(position),
 })
 
 /** "Ask about selection": the revision the person saw, and what they picked in it. */

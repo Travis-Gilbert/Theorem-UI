@@ -14,8 +14,8 @@ import type { LibraryRecord } from './library'
 
 export const LIBRARY_PATH = `/api/artifacts/v1/libraries/${LIBRARY_ID}`
 
-/** What Theorem answers with; it may leave the prompt out. */
-type PublishedLibrary = Omit<LibraryRecord, 'prompt'>
+/** What Theorem answers with: the record without its prompt and example. */
+type PublishedLibrary = Omit<LibraryRecord, 'prompt' | 'example'>
 
 /** The record Theorem holds, or undefined before anything was published. */
 export async function readPublished(): Promise<PublishedLibrary | undefined> {

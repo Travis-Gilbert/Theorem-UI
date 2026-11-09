@@ -178,9 +178,15 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
             lifecycle: 'ready',
             patchSequence: 1,
             fallbackText: title,
+            // The stored publication's fields (#978 payload plus the openui form's own).
             payload: {
-              form: 'openui',
+              documentId: `doc_${id}`,
+              revision: { position: 1 },
               title,
+              content: program,
+              language: 'openui',
+              form: 'openui',
+              formVersion: 1,
               library: { id: LIBRARY_ID, version: version ?? LIBRARY_VERSION },
               program,
             },

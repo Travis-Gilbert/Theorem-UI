@@ -9,6 +9,7 @@ import { isElementNode } from '@openuidev/lang-core'
 import type { ElementNode } from '@openuidev/lang-core'
 import { Renderer } from '@openuidev/react-lang'
 import type { OpenUIError, ParseResult } from '@openuidev/react-lang'
+import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useMemo, useState } from 'react'
 import { askAbout } from '@/components/chat/composer-references'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,7 @@ import type { RendererProps } from '../artifact-registry'
 import { SelectionContext, SubjectsContext } from './context'
 import { LIBRARY_ID, LIBRARY_VERSION, artifactLibrary } from './library'
 import { repairReference, selectionReference } from './selection'
-import type { RepairHint, RepairProblem } from './selection'
+import type { ArtifactRef, RepairHint, RepairProblem } from './selection'
 
 /**
  * The one hook for the surface an artifact's content sits on. When the paper
@@ -115,11 +116,16 @@ export function OpenUIArtifact(props: RendererProps) {
 }
 
 function ArtifactProgram({ artifact }: RendererProps) {
-  const ref = {
-    artifactId: artifact.artifactId,
-    revision: artifact.revision,
-    title: artifact.title,
-  }
+  const { documentId, documentPosition: position, title } = artifact
+  // Asking needs the stored document revision; a part without one can still be read.
+  const ref =
+    documentId !== undefined && position !== undefined
+      ? { documentId, position, title }
+      : undefined
+  const ask = <T,>(make: (ref: ArtifactRef, value: T) => TheoremContextReference) =>
+    ref && ((value: T) => askAbout(make(ref, value)))
+  const askToFix = ask(repairReference)
+  const askAboutSelection = ask(selectionReference)
   const library = { id: LIBRARY_ID, version: LIBRARY_VERSION }
   const refused = libraryProblem(artifact.library)
   const [parsed, setParsed] = useState<ParseResult | null>(null)
@@ -136,7 +142,7 @@ function ArtifactProgram({ artifact }: RendererProps) {
       <ProgramProblem
         title="This artifact can't be shown here."
         hint={{ library, problems: [refused] }}
-        onFix={(hint) => askAbout(repairReference(ref, hint))}
+        onFix={askToFix}
       />
     )
 
@@ -183,13 +189,13 @@ function ArtifactProgram({ artifact }: RendererProps) {
         <ProgramProblem
           title="This artifact's program couldn't be read."
           hint={hint}
-          onFix={(h) => askAbout(repairReference(ref, h))}
+          onFix={askToFix}
         />
       ) : (
         problems.length > 0 && (
           <ProblemsNote
             problems={problems}
-            onFix={() => askAbout(repairReference(ref, hint))}
+            onFix={askToFix && (() => askToFix(hint))}
           />
         )
       )}
@@ -207,13 +213,15 @@ function ArtifactProgram({ artifact }: RendererProps) {
           <Button size="xs" variant="ghost" onClick={() => setSelected(undefined)}>
             Clear
           </Button>
-          <Button
-            size="xs"
-            variant="secondary"
-            onClick={() => askAbout(selectionReference(ref, selected))}
-          >
-            Ask about selection
-          </Button>
+          {askAboutSelection && (
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={() => askAboutSelection(selected)}
+            >
+              Ask about selection
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -227,7 +235,7 @@ function ProgramProblem({
 }: {
   title: string
   hint: RepairHint
-  onFix: (hint: RepairHint) => void
+  onFix?: (hint: RepairHint) => void
 }) {
   return (
     <div
@@ -247,11 +255,13 @@ function ProgramProblem({
           </li>
         ))}
       </ul>
-      <div>
-        <Button size="xs" variant="secondary" onClick={() => onFix(hint)}>
-          Ask to fix
-        </Button>
-      </div>
+      {onFix && (
+        <div>
+          <Button size="xs" variant="secondary" onClick={() => onFix(hint)}>
+            Ask to fix
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -262,7 +272,7 @@ function ProblemsNote({
   onFix,
 }: {
   problems: RepairProblem[]
-  onFix: () => void
+  onFix?: () => void
 }) {
   return (
     <div
@@ -283,9 +293,11 @@ function ProblemsNote({
           </span>
         ))}
       </p>
-      <Button size="xs" variant="ghost" onClick={onFix}>
-        Ask to fix
-      </Button>
+      {onFix && (
+        <Button size="xs" variant="ghost" onClick={onFix}>
+          Ask to fix
+        </Button>
+      )}
     </div>
   )
 }

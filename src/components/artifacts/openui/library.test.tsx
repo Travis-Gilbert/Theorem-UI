@@ -16,7 +16,7 @@ import {
   artifactLibrary,
   libraryRecord,
 } from './library'
-import { locatorOf, selectionReference } from './selection'
+import { selectionReference } from './selection'
 
 afterEach(() => {
   cleanup()
@@ -31,16 +31,25 @@ function artifact(
     id: LIBRARY_ID,
     version: LIBRARY_VERSION,
   },
-  revision = 'rev_1',
+  position = 1,
+  documentId: string | null = 'doc_gpu',
 ): TheoremArtifact {
   const read = readArtifact({
     artifactId: 'art_gpu',
-    artifactRevision: revision,
+    artifactRevision: `rev_${position}`,
     artifactKind: 'openui',
     rendererId: 'theorem-openui',
     contractVersion: 'theorem-artifact-v1',
     fallbackText: 'CPU or GPU',
-    payload: { form: 'openui', title: 'CPU or GPU', library, program },
+    payload: {
+      documentId,
+      revision: { position },
+      form: 'openui',
+      formVersion: 1,
+      title: 'CPU or GPU',
+      library,
+      program,
+    },
   })
   if (!read) throw new Error('the fixture part did not read')
   return read
@@ -52,6 +61,12 @@ async function show(program: string, library?: { id: string; version: string }) 
   )
   return container
 }
+
+/** Where a reference to the fixture's first revision points: its document, not the chat artifact id. */
+const DOCUMENT_REVISION_1 = {
+  resource: { kind: 'graph-object', objectId: 'doc_gpu', objectType: 'theorem.app' },
+  revision: '1',
+} as const
 
 const button = (root: ParentNode, name: string | RegExp) =>
   [...root.querySelectorAll('button')].find((b) =>
@@ -162,14 +177,25 @@ describe('problems come back as repair hints', () => {
     expect(hint.problems.length).toBeGreaterThan(0)
     await click(button(problem, 'Ask to fix')!)
     const [reference] = useComposerReferences.getState().references
-    expect(reference?.location.resource).toEqual({
-      kind: 'artifact',
-      artifactId: 'art_gpu',
-      revision: 'rev_1',
-    })
+    expect(reference?.location).toEqual(DOCUMENT_REVISION_1)
     expect(JSON.parse(reference?.excerpt ?? '{}').repair.problems).toEqual(
       hint.problems,
     )
+  })
+
+  test('a part with no document to point at shows its problem without an ask', async () => {
+    const { container } = await render(
+      <ArtifactView
+        artifact={artifact('root = Stack([a\na = Stat("Speed", ', undefined, 1, null)}
+        distance="preview"
+        latest
+      />,
+    )
+    const problem = await waitFor(() =>
+      container.querySelector('[data-slot="openui-problem"]'),
+    )
+    expect(problem.textContent).toContain("couldn't be read")
+    expect(button(problem, 'Ask to fix')).toBeUndefined()
   })
 
   test('a library version this build does not render is named, with a hint', async () => {
@@ -262,33 +288,28 @@ describe('selection reaches the next turn', () => {
     await click(button(container, 'Ask about selection')!)
     const [reference] = useComposerReferences.getState().references
     expect(reference?.label).toBe('CPU or GPU: GPU · Transfer in')
-    expect(reference?.location).toEqual({
-      resource: { kind: 'artifact', artifactId: 'art_gpu', revision: 'rev_1' },
-      revision: 'rev_1',
-    })
+    expect(reference?.location).toEqual(DOCUMENT_REVISION_1)
+    // The host reads entityId, with entityLabel, as an entity locator.
     const { selection } = JSON.parse(reference?.excerpt ?? '{}')
     expect(selection.entityId).toBe('timeline:timeline/lane:GPU/stage:Transfer in')
+    expect(selection.entityLabel).toBe('GPU · Transfer in')
     expect(selection.text).toContain('500 µs')
-    expect(locatorOf(selection)).toEqual({
-      kind: 'entity',
-      entityId: 'timeline:timeline/lane:GPU/stage:Transfer in',
-    })
   })
 
   test('a new revision lets go of the selection made on the one before', async () => {
-    const view = (revision: string) => (
+    const view = (position: number) => (
       <ArtifactView
-        artifact={artifact(EXAMPLES.Timeline, undefined, revision)}
+        artifact={artifact(EXAMPLES.Timeline, undefined, position)}
         distance="preview"
         latest
       />
     )
-    const { container, root, queryClient } = await render(view('rev_1'))
+    const { container, root, queryClient } = await render(view(1))
     await click(container.querySelector('[data-entity-label="GPU · Transfer in"]')!)
     expect(container.querySelector('[data-slot="openui-selection"]')).not.toBeNull()
     act(() =>
       root.render(
-        <QueryClientProvider client={queryClient}>{view('rev_2')}</QueryClientProvider>,
+        <QueryClientProvider client={queryClient}>{view(2)}</QueryClientProvider>,
       ),
     )
     await settle()
@@ -300,10 +321,14 @@ describe('selection reaches the next turn', () => {
     await click(container.querySelector('tr[data-row-id="3"]')!)
     await click(button(container, 'Ask about selection')!)
     const [reference] = useComposerReferences.getState().references
+    // With no entityId, the host reads rowId as a table_rows locator.
     const { selection } = JSON.parse(reference?.excerpt ?? '{}')
     expect(selection.rowId).toBe('3')
+    expect(selection.entityId).toBeUndefined()
     expect(selection.text).toContain('5.01 ms')
-    expect(locatorOf(selection)).toEqual({ kind: 'table_rows', rowIds: ['3'] })
+    expect(
+      container.querySelector('tr[data-row-id="3"]')?.getAttribute('aria-selected'),
+    ).toBe('true')
   })
 
   test('a plot point selected from the keyboard is an entity with its values', async () => {
@@ -320,16 +345,16 @@ describe('selection reaches the next turn', () => {
     expect(selection.text).toMatch(/CPU .+ GPU /)
   })
 
-  test('the reference names the artifact revision the person saw', () => {
+  test('the reference names the document revision the person saw, as the App path does', () => {
     const reference = selectionReference(
-      { artifactId: 'a', revision: 'r2', title: 'T' },
+      { documentId: 'doc_a', position: 2, title: 'T' },
       { text: 'GPU at 1M items', entityId: 'plot:p/x:1000000', entityLabel: '1M items' },
     )
     expect(reference).toEqual({
       label: 'T: 1M items',
       location: {
-        resource: { kind: 'artifact', artifactId: 'a', revision: 'r2' },
-        revision: 'r2',
+        resource: { kind: 'graph-object', objectId: 'doc_a', objectType: 'theorem.app' },
+        revision: '2',
       },
       excerpt: JSON.stringify({
         selection: {
@@ -354,6 +379,17 @@ describe('the published record', () => {
     expect(record.prompt).toContain('theorem-artifacts')
     expect(record.digest).toMatch(/^[0-9a-f]{64}$/)
     expect((await libraryRecord()).digest).toBe(record.digest)
+  })
+
+  test('offers a short example the host can lint, one the prompt does not already hold', async () => {
+    const { example, prompt } = await libraryRecord()
+    const parsed = parser.parse(example)
+    expect(parsed.meta.errors).toEqual([])
+    expect(parsed.meta.unresolved).toEqual([])
+    expect(example.split('\n').length).toBeLessThanOrEqual(10)
+    expect(prompt).not.toContain(example)
+    const container = await show(example)
+    expect(container.querySelector('[data-component="Experiment"]')).not.toBeNull()
   })
 })
 
