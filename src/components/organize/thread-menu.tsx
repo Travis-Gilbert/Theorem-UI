@@ -1,4 +1,4 @@
-// SOURCING: coss ui menu over Base UI Menu (the same parts serve the More button and the right-click ContextMenu), date-fns for the Later presets, lib/theorem/organization for placement and Later, thread-tree for forks. Placement rules are Theorem's; this only asks.
+// SOURCING: coss ui menu over Base UI Menu (the same parts serve the More button and the right-click ContextMenu), coss ui toast (a refused change, said after the menu has closed), date-fns for the Later presets, lib/theorem/organization for placement and Later, thread-tree for forks. Placement rules are Theorem's; this only asks.
 import { addDays, addHours, nextMonday, setHours, startOfHour } from 'date-fns'
 import {
   MenuCheckboxItem,
@@ -11,6 +11,8 @@ import {
   MenuSubTrigger,
 } from '@/components/coss/menu'
 import { Icon } from '@/components/icons'
+import { toastManager } from '@/components/coss/toast'
+import { describeError } from '@/lib/theorem/client'
 import {
   primaryProjectId,
   useLater,
@@ -31,6 +33,10 @@ const LATER_PRESETS: Array<{ label: string; at: () => Date }> = [
   { label: 'Tomorrow morning', at: () => morning(addDays(new Date(), 1)) },
   { label: 'Next week', at: () => morning(nextMonday(new Date())) },
 ]
+
+/** The menu has closed by the time Theorem answers, so a refusal is said in a toast. */
+const refused = (title: string) => (error: Error) =>
+  toastManager.add({ type: 'error', title, description: describeError(error) })
 
 /** The menu both a row's More button and its right-click open. */
 export function ThreadMenuItems({
@@ -58,9 +64,13 @@ export function ThreadMenuItems({
   onArchive: () => void
   onDelete: () => void
 }) {
-  const placement = usePlacement()
-  const mover = useMoveThread()
-  const later = useLater()
+  const placement = usePlacement({
+    onError: refused('Could not change where this thread is filed'),
+  })
+  const mover = useMoveThread({
+    onError: refused('Could not move this thread'),
+  })
+  const later = useLater({ onError: refused('Could not set Later') })
   const filed = projects.filter((project) => !project.isInbox)
   const members = new Set(thread.memberships.map((m) => m.projectId))
   const primary = primaryProjectId(thread)
@@ -128,7 +138,10 @@ export function ThreadMenuItems({
               }
             >
               {filed.map((project) => (
-                <MenuRadioItem key={project.projectId} value={project.projectId}>
+                <MenuRadioItem
+                  key={project.projectId}
+                  value={project.projectId}
+                >
                   {project.title}
                 </MenuRadioItem>
               ))}
@@ -155,7 +168,8 @@ export function ThreadMenuItems({
               ) : (
                 <Icon.Pin className="size-4" />
               )}
-              {primaryMembership.pinned ? 'Unpin from' : 'Pin to'} {primaryTitle}
+              {primaryMembership.pinned ? 'Unpin from' : 'Pin to'}{' '}
+              {primaryTitle}
             </MenuItem>
           )}
           <MenuSub>
@@ -173,9 +187,7 @@ export function ThreadMenuItems({
               {LATER_PRESETS.map(({ label, at }) => (
                 <MenuItem
                   key={label}
-                  onClick={() =>
-                    place({ kind: 'time', atMs: at().getTime() })
-                  }
+                  onClick={() => place({ kind: 'time', atMs: at().getTime() })}
                 >
                   {label}
                 </MenuItem>

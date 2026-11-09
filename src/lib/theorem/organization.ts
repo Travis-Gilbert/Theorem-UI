@@ -457,7 +457,13 @@ export function applyPlacement(
 }
 
 /** Places a thread in projects, removes it, pins it. Theorem keeps the correction. */
-export function usePlacement() {
+/**
+ * Told when Theorem refuses a change. It runs even after the caller unmounts,
+ * so a menu that closed on the click can still say why nothing moved.
+ */
+type Refusal = { onError?: (error: Error) => void }
+
+export function usePlacement({ onError }: Refusal = {}) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -491,9 +497,10 @@ export function usePlacement() {
       }
       return { previous }
     },
-    onError: (_error, _input, context) => {
+    onError: (error, _input, context) => {
       if (context?.previous)
         client.setQueryData(organizationKey, context.previous)
+      onError?.(error)
     },
     onSettled: () => invalidate(client),
   })
@@ -557,9 +564,9 @@ export function planMove(
 }
 
 /** Moves a thread as {@link planMove} says, showing the move before Theorem answers. */
-export function useMoveThread() {
+export function useMoveThread({ onError }: Refusal = {}) {
   const client = useQueryClient()
-  const placement = usePlacement()
+  const placement = usePlacement({ onError })
   const home = useMutation({
     mutationFn: ({
       threadId,
@@ -587,9 +594,10 @@ export function useMoveThread() {
       }
       return { previous }
     },
-    onError: (_error, _input, context) => {
+    onError: (error, _input, context) => {
       if (context?.previous)
         client.setQueryData(organizationKey, context.previous)
+      onError?.(error)
     },
     onSettled: () => invalidate(client),
   })
@@ -629,7 +637,7 @@ export function useUndoOrganize() {
   })
 }
 
-export function useLater() {
+export function useLater({ onError }: Refusal = {}) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -644,6 +652,7 @@ export function useLater() {
       condition
         ? sendJson(`${threadPath(threadId)}/later`, 'PUT', { condition, note })
         : sendJson(`${threadPath(threadId)}/later`, 'DELETE'),
+    onError,
     onSettled: () => invalidate(client),
   })
 }

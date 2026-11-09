@@ -135,4 +135,8 @@ test('Alt and an arrow move a destination without opening it', async () => {
       (button) => button.getAttribute('aria-label'),
     )
   await waitFor(() => labels().indexOf('IDE') === labels().length - 3)
+  // A screen reader hears where it went.
+  expect(container.querySelector('#rail-modes-moved')?.textContent).toBe(
+    `IDE moved to position ${labels().length - 2} of ${labels().length}.`,
+  )
 })

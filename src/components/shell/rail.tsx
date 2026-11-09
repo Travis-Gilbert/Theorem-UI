@@ -1,5 +1,6 @@
-// SOURCING: Base UI Menu (account menu), @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/modifiers (reordering the destinations), Kit's home slot (the stage stands the fox in it), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/modifiers (reordering the destinations), @dnd-kit/accessibility (saying a keyboard move aloud), Kit's home slot (the stage stands the fox in it), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
+import { LiveRegion, useAnnouncement } from '@dnd-kit/accessibility'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { Announcements, DragEndEvent } from '@dnd-kit/core'
 import {
@@ -398,10 +399,20 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
     const to = all.indexOf(target)
     if (from !== to) setRailOrder(arrayMove(all, from, to))
   }
+  // A drag is announced by dnd-kit; a keyboard move is said here.
+  const { announce, announcement } = useAnnouncement()
   const move = (moved: ShellMode, by: -1 | 1) => {
     const shown = modes.map((entry) => entry.mode)
-    const target = shown[shown.indexOf(moved) + by]
-    if (target) place(moved, target)
+    const at = shown.indexOf(moved) + by
+    const target = shown[at]
+    if (!target) {
+      announce(`${modeLabel(moved)} is already ${by < 0 ? 'first' : 'last'}.`)
+      return
+    }
+    place(moved, target)
+    announce(
+      `${modeLabel(moved)} moved to position ${at + 1} of ${shown.length}.`,
+    )
   }
 
   const sensors = useSensors(
@@ -420,6 +431,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-(--sheet-inset) pb-3"
     >
       {junction && <Junction {...junction} />}
+      <LiveRegion id="rail-modes-moved" announcement={announcement} />
       <TooltipProvider>
         <DndContext
           id="rail-modes"
