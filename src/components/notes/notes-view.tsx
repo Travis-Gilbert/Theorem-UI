@@ -69,7 +69,11 @@ function OpenNote({ documentId }: { documentId: string }) {
     <NotePanel
       documentId={documentId}
       actions={note.data && <NoteActions note={note.data} />}
-      readOnlyNotice={note.data && <ReadOnlyNotice note={note.data} />}
+      readOnlyNotice={
+        note.data && hasOwnNotice(note.data) ? (
+          <ReadOnlyNotice note={note.data} />
+        ) : undefined
+      }
     />
   )
 }
@@ -192,12 +196,19 @@ function MoveToFolder({ documentId }: { documentId: string }) {
   )
 }
 
+/**
+ * Whether Notes mode says more than the editor's own read-only notice: the
+ * note is in the Trash, or an agent wrote it and it can be made editable.
+ */
+const hasOwnNotice = (note: Note) =>
+  note.retired || Boolean(noteEntry(note).promotion)
+
 function ReadOnlyNotice({ note }: { note: Note }) {
   const navigate = useNavigate()
   const promote = usePromoteNote()
   const { promotion } = noteEntry(note)
-  if (note.retired) return <span>In the Trash. Restore it to edit it.</span>
-  if (!promotion) return undefined
+  if (note.retired || !promotion)
+    return <span>In the Trash. Restore it to edit it.</span>
   return (
     <>
       <span className="me-auto">
