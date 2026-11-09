@@ -34,6 +34,68 @@ const readDocument = async (documentId) => {
   }
 }
 
+// Each run starts where a new account would: the three starting sections,
+// and none of the folders earlier runs of this script made, which would grow
+// the list past the panel where a drag cannot reach the headings. Notes in
+// those folders move up to the top level.
+const bootstrap = await context.request.get(`${UI}/api/chat/v1/bootstrap`, READ)
+const { csrfToken } = await bootstrap.json()
+// Theorem refuses a write whose body names a different key from its header.
+const writing = (init, key = crypto.randomUUID()) => ({
+  ...READ,
+  ...init,
+  headers: {
+    'X-CSRF-Token': csrfToken,
+    'Idempotency-Key': key,
+    ...init.headers,
+  },
+})
+const LAYOUT = `${UI}/api/documents/v2/layouts/notes?schema=${SCHEMA}`
+const stored = await (await context.request.get(LAYOUT, READ)).json()
+if (stored.layout) {
+  const key = crypto.randomUUID()
+  const reset = await context.request.put(
+    LAYOUT,
+    writing(
+      {
+        headers: { 'If-Match': String(stored.revision) },
+        data: {
+          schema: SCHEMA,
+          idempotencyKey: key,
+          layout: {
+            sections: [
+              { id: 'folders', name: 'Folders', collapsed: false },
+              { id: 'notes', name: 'Notes', collapsed: false },
+              { id: 'agents', name: 'Agents', collapsed: false },
+            ],
+            placed: {},
+          },
+        },
+      },
+      key,
+    ),
+  )
+  if (!reset.ok())
+    throw new Error(
+      `layout reset refused: ${reset.status()} ${await reset.text()}`,
+    )
+  log('layout reset to the starting sections')
+}
+const listed = await context.request.get(
+  `${UI}/api/documents/v2/collections?schema=${SCHEMA}`,
+  READ,
+)
+const leftovers = ((await listed.json()).collections ?? []).filter((c) =>
+  /^(Field trips|Herons|Egrets) heron-/.test(c.name),
+)
+for (const leftover of leftovers.reverse())
+  await context.request.delete(
+    `${UI}/api/documents/v2/collections/${encodeURIComponent(leftover.collectionId)}`,
+    writing({}),
+  )
+log(`deleted ${leftovers.length} folders left by earlier runs`)
+await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
+
 // The mode is on the rail and opens with a way to start a note.
 await page
   .getByRole('heading', { name: 'Notes' })
@@ -281,6 +343,24 @@ check(
   'search finds the note',
   (await notesNav.getByRole('button').count()) >= 1,
 )
+// A search that finds only what an agent wrote opens the agents' folder on it.
+const agentTitle = agentPage?.documents?.find((row) => row.title)?.title
+if (agentTitle) {
+  await page.getByLabel('Search notes').fill(agentTitle)
+  await notesNav
+    .getByRole('button', { name: agentTitle, exact: true })
+    .first()
+    .waitFor(READ)
+    .catch(() => undefined)
+  check(
+    "a search for an agent's note shows it in the open Agent notes folder",
+    (await agentFolder.getAttribute('aria-expanded')) === 'true' &&
+      (await notesNav
+        .getByRole('button', { name: agentTitle, exact: true })
+        .count()) > 0 &&
+      (await notesNav.getByText('Nothing matches.').count()) === 0,
+  )
+}
 await page.getByLabel('Search notes').fill('')
 await page.getByLabel('Search notes').blur()
 
@@ -331,6 +411,26 @@ check(
     .getAttribute('aria-checked')) === 'true',
 )
 await page.getByRole('menuitemradio', { name: 'Recently edited' }).click()
+// A note edited without a new title moves to the top of Recently edited.
+await page.waitForTimeout(800)
+const [, second] = await looseTitles()
+await notesNav
+  .getByRole('button', { name: second, exact: true })
+  .first()
+  .click()
+await editor.click()
+await page.keyboard.press('ControlOrMeta+End')
+await page.keyboard.type(' Seen again.')
+const movedBy = Date.now() + 30_000
+while ((await looseTitles())[0] !== second && Date.now() < movedBy)
+  await page.waitForTimeout(500)
+check(
+  'a note edited in its body moves to the top of Recently edited',
+  (await looseTitles())[0] === second,
+  JSON.stringify((await looseTitles()).slice(0, 3)),
+)
+await notesNav.getByRole('button', { name: TITLE, exact: true }).click()
+await editor.getByText(BODY).waitFor(READ)
 check(
   'and so is the name given to a heading',
   (await sections()).includes(RENAMED),
@@ -370,6 +470,9 @@ const until = async (test) => {
   return test()
 }
 const dragOnto = async (what, where) => {
+  // Earlier runs leave long lists; a drag that starts at the panel's edge
+  // scrolls it, so the row starts in the middle.
+  await what.evaluate((node) => node.scrollIntoView({ block: 'center' }))
   const from = await what.boundingBox()
   const to = await where.boundingBox()
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
@@ -420,6 +523,21 @@ check(
       (await reading.getByRole('button', { name: TITLE }).count()) === 0 &&
       (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
   ),
+)
+// The fold is saved to Theorem a moment later; reload once it is there.
+const storedFold = async () => {
+  const response = await context.request.get(
+    `${UI}/api/documents/v2/layouts/notes?schema=${SCHEMA}`,
+    READ,
+  )
+  return response.ok()
+    ? (await response.json()).layout?.sections.find((s) => s.name === READING)
+        ?.collapsed
+    : undefined
+}
+check(
+  'Theorem saves the folding',
+  await until(async () => (await storedFold()) === true),
 )
 await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
 await sectionHeading(READING).waitFor(READ)
