@@ -186,7 +186,7 @@ function ArtifactProgram({ artifact }: RendererProps) {
         <SelectionContext value={selectionState}>
           <Renderer.Root
             response={artifact.content}
-            library={artifactLibrary}
+            library={artifactLibrary()}
             onParseResult={setParsed}
             onError={setErrors}
             // A selection carries the values shown when it was made; once a

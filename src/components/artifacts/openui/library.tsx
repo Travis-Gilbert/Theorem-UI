@@ -14,6 +14,7 @@ import {
   reactive,
   useStateField,
 } from '@openuidev/react-lang'
+import { once } from 'lodash-es'
 import { z } from 'zod/v4'
 import { PlotView, TimelineView } from './charts'
 import { EXAMPLES, GPU_WORKLOAD } from './examples'
@@ -428,57 +429,64 @@ const Range = defineFunction({
   },
 })
 
-export const artifactLibrary = createLibrary({
-  id: LIBRARY_ID,
-  root: 'Stack',
-  components: [
-    Stack,
-    Section,
-    Text,
-    Callout,
-    Stat,
-    Slider,
-    Toggle,
-    Comparison,
-    Measure,
-    Timeline,
-    Lane,
-    Stage,
-    Plot,
-    Axis,
-    Series,
-    Mark,
-    LinkedTable,
-    Column,
-    Sequence,
-    Step,
-    Experiment,
-  ],
-  componentGroups: [
-    {
-      name: 'Layout and prose',
-      components: ['Stack', 'Section', 'Text', 'Callout'],
-      notes: [
-        'The conversation shows the artifact\'s title; start with the content, not a heading.',
-      ],
-    },
-    { name: 'Values', components: ['Stat', 'Comparison', 'Measure'] },
-    {
-      name: 'Controls',
-      components: ['Slider', 'Toggle'],
-      notes: [
-        'A control binds a $variable; declare it with its initial value, e.g. `$items = 1000000`.',
-      ],
-    },
-    {
-      name: 'Charts',
-      components: ['Timeline', 'Lane', 'Stage', 'Plot', 'Axis', 'Series', 'Mark'],
-    },
-    { name: 'Tables', components: ['LinkedTable', 'Column'] },
-    { name: 'Explanations', components: ['Experiment', 'Sequence', 'Step'] },
-  ],
-  functions: [Range],
-})
+/**
+ * Built on first use, not at import: createLibrary draws a random id, and a
+ * Cloudflare Worker refuses random values in module scope, so building it at
+ * import failed every server request once the shell imported it.
+ */
+export const artifactLibrary = once(() =>
+  createLibrary({
+    id: LIBRARY_ID,
+    root: 'Stack',
+    components: [
+      Stack,
+      Section,
+      Text,
+      Callout,
+      Stat,
+      Slider,
+      Toggle,
+      Comparison,
+      Measure,
+      Timeline,
+      Lane,
+      Stage,
+      Plot,
+      Axis,
+      Series,
+      Mark,
+      LinkedTable,
+      Column,
+      Sequence,
+      Step,
+      Experiment,
+    ],
+    componentGroups: [
+      {
+        name: 'Layout and prose',
+        components: ['Stack', 'Section', 'Text', 'Callout'],
+        notes: [
+          'The conversation shows the artifact\'s title; start with the content, not a heading.',
+        ],
+      },
+      { name: 'Values', components: ['Stat', 'Comparison', 'Measure'] },
+      {
+        name: 'Controls',
+        components: ['Slider', 'Toggle'],
+        notes: [
+          'A control binds a $variable; declare it with its initial value, e.g. `$items = 1000000`.',
+        ],
+      },
+      {
+        name: 'Charts',
+        components: ['Timeline', 'Lane', 'Stage', 'Plot', 'Axis', 'Series', 'Mark'],
+      },
+      { name: 'Tables', components: ['LinkedTable', 'Column'] },
+      { name: 'Explanations', components: ['Experiment', 'Sequence', 'Step'] },
+    ],
+    functions: [Range],
+  }),
+)
 
 const PREAMBLE = `You are writing a Theorem artifact: an OpenUI Lang program against the ${LIBRARY_ID} library, version ${LIBRARY_VERSION}. It renders inline in the conversation, and its controls work there directly.
 Components take meaning only: the subjects compared, values and their units, a parameter's range and initial value, which series is which subject, the current step, a warning or an annotation. Theorem owns every type size, spacing, material, control appearance and color; there is no prop for any of them.`
@@ -492,7 +500,7 @@ const RULES = [
 ]
 
 export function libraryPrompt() {
-  return artifactLibrary.prompt({
+  return artifactLibrary().prompt({
     preamble: PREAMBLE,
     additionalRules: RULES,
     examples: [GPU_WORKLOAD],
@@ -502,13 +510,13 @@ export function libraryPrompt() {
   })
 }
 
-export const libraryComponents = () => Object.keys(artifactLibrary.components)
+export const libraryComponents = () => Object.keys(artifactLibrary().components)
 
-export const libraryCallables = () => Object.keys(artifactLibrary.functions)
+export const libraryCallables = () => Object.keys(artifactLibrary().functions)
 
 /** Each component's and function's positional signature, as the prompt states it. */
 export function librarySignatures(): Record<string, string> {
-  const spec = artifactLibrary.toSpec()
+  const spec = artifactLibrary().toSpec()
   return Object.fromEntries(
     [...Object.entries(spec.components), ...Object.entries(spec.functions ?? {})].map(
       ([name, { signature }]) => [name, signature],
