@@ -1,5 +1,6 @@
 // SOURCING: Base UI Drawer (swipeDirection right) is the right-hand drawer; anime.js createDraggable drags its edge (1:1 tracking, resistance past the width range, spring back on release) and Base UI useMediaQuery keeps that to desktop; the tabbed terminal and each tab's agent are terminal-screen's (Ratzilla with ratatui Tabs over assistant-ui runtimes); zustand shell state keeps the tabs per project
 import { Drawer } from '@base-ui/react/drawer'
+import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { createDraggable } from 'animejs'
 import { useEffect, useRef } from 'react'
@@ -9,6 +10,7 @@ import { useShell } from '@/components/shell/shell-state'
 import {
   TerminalAgent,
   TerminalScreen,
+  addReference,
   restartSession,
   stopSession,
   useCloseOnOutsideDoubleClick,
@@ -111,6 +113,22 @@ export function useTerminalTabs(shown: boolean, close: () => void) {
     active: entry?.active ?? '',
     onAction,
   }
+}
+
+/**
+ * Opens the right-hand terminal with `reference` on its active tab's next
+ * turn, starting a tab when the project has none.
+ */
+export function attachToSideTerminal(
+  projectId: string,
+  reference: TheoremContextReference,
+) {
+  const shell = useShell.getState()
+  if (!shell.terminalTabs[projectId]?.tabs.length)
+    shell.openTerminalTab(projectId)
+  const tab = useShell.getState().terminalTabs[projectId]?.active
+  if (tab) addReference(tab, reference)
+  shell.setSideDrawer('terminal')
 }
 
 /**

@@ -141,27 +141,40 @@ const sleep = (ms: number, signal: AbortSignal) =>
   })
 
 /**
- * Whether a refusal means there is no vault to show: nobody is signed in, the
- * backend is unconfigured, or it does not serve the Files API. An outage is
- * not one of these, so a vault already shown stays while Theorem is down.
+ * Why there is no Theorem vault to show: nobody is signed in, the account may
+ * not open it, the backend does not serve the Files API, or the backend is
+ * unconfigured.
  */
-function noVault(error: TheoremError): boolean {
+export type VaultAbsence =
+  'signed-out' | 'forbidden' | 'unsupported' | 'unconfigured'
+
+/**
+ * The absence a refusal means, if it means one. An outage is not one, so a
+ * vault already shown stays while Theorem is down.
+ */
+function absence(error: TheoremError): VaultAbsence | undefined {
   const { code } = (error.body ?? {}) as Partial<Theorem.FilesProblem>
   switch (error.statusCode) {
     case 401:
+      return 'signed-out'
     case 403:
+      return 'forbidden'
     case 404:
     case 501:
-      return true
+      return 'unsupported'
     case 503:
       return String(code) === 'theorem_unconfigured'
+        ? 'unconfigured'
+        : undefined
     default:
-      return false
+      return undefined
   }
 }
 
-/** The person's Theorem vault, or null when there is none to show. */
-export async function getTheoremVault(): Promise<WorkspaceSummary | null> {
+/** The person's Theorem vault, or why there is none to show. */
+export async function getTheoremVault(): Promise<
+  WorkspaceSummary | VaultAbsence
+> {
   try {
     const vault = await theorem().files.vault({ schema: SCHEMA })
     return {
@@ -172,7 +185,8 @@ export async function getTheoremVault(): Promise<WorkspaceSummary | null> {
       policy: 'ConnectedLive',
     }
   } catch (error) {
-    if (error instanceof TheoremError && noVault(error)) return null
+    const why = error instanceof TheoremError ? absence(error) : undefined
+    if (why) return why
     throw error
   }
 }

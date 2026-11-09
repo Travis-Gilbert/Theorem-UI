@@ -41,7 +41,10 @@ import { RecordInspector } from '@/components/records/record-inspector'
 import { RecordTable } from '@/components/records/record-table'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
-import { useTerminalTabs } from '@/components/terminal/side-terminal'
+import {
+  attachToSideTerminal,
+  useTerminalTabs,
+} from '@/components/terminal/side-terminal'
 import {
   TerminalScreen,
   addReference,
@@ -373,14 +376,19 @@ const useIdeOwner = create<Owner>(() => ({}))
  */
 function IdeModule({ settings, emit, arranging, path }: ModuleViewProps) {
   const { mine, take } = useOwner(useIdeOwner, path, !arranging)
+  const { project } = useActiveProject()
   if (arranging)
     return <Empty>Theia opens here while the page is in use.</Empty>
   if (!mine) return <Elsewhere what="The IDE" onTake={take} />
   return (
     <div className="h-full">
       <IdeFrame
-        docked={settings.chat === 'page'}
-        onAddToChat={(reference) => emit('added', reference)}
+        docked={settings.chat !== 'own'}
+        onAddToChat={(reference) => {
+          emit('added', reference)
+          if (settings.chat === 'terminal' && project)
+            attachToSideTerminal(project.projectId, reference)
+        }}
       />
     </div>
   )
@@ -432,7 +440,7 @@ function PageTerminal({ hostId }: { hostId: string }) {
 }
 
 function FileModule({ settings }: ModuleViewProps) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   const path = text(settings.path)
   const [moved, setMoved] = useState<{ from: string; to: string }>()
   const shownPath = moved?.from === path ? moved.to : path
@@ -441,7 +449,9 @@ function FileModule({ settings }: ModuleViewProps) {
   if (!client)
     return (
       <Empty>
-        {isPending ? 'Opening the vault…' : 'The vault is not open.'}
+        {isPending
+          ? 'Opening the vault…'
+          : `The Theorem vault is not available. ${missing}`}
       </Empty>
     )
   return (
@@ -589,6 +599,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
         kind: 'select',
         options: [
           { label: "Theia's own", value: 'own' },
+          { label: 'The agent terminal on the right', value: 'terminal' },
           { label: 'On the page, through Added', value: 'page' },
         ],
         default: 'own',

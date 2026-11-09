@@ -203,7 +203,7 @@
         "Tests: templates.test.ts; page.test.tsx (templates' connections valid, Split folds while only an empty inspector is in it); store.test.tsx (template then file then problem, create-only save, vault templates, a mode's page through its first save and a file coming and going); navigation.test.tsx",
         "Browser, 2026-11-06, Playwright against the dev server and a stub Theorem (not live Home, not theorem.rs): Modes list, arrange and save Index mode, /index rendering the saved page with the inspector folded, Reset to the default, /ide rendering the Coding page, New page from Index and from Coding, Save as template offered by New page",
         "Not exercised: Index modules against real data (the stub's Index has no items); Theia and the terminal (absent from the stub), so Add to chat reaching the terminal rests on source only",
-        "Limits: IDE mode's terminal width is the Split's saved size, not the right drawer's; Reset removes the file without a revision check",
+        "Limits: Reset removes the file without a revision check. IDE mode no longer embeds a terminal (2026-11-09): the Coding template is Theia alone and Add to chat opens the right-hand terminal drawer",
         "Review (Greptile, PR #34) found two views from one template both took Theia, since they share instance ids. builtins.tsx useOwner names an instance by its page view and path; bun test 'one surface shows in one view, whichever views share its instance id' fails without it"
       ]
     },
