@@ -8,6 +8,7 @@ import {
   useStateField,
   useTriggerAction,
 } from '@openuidev/react-lang'
+import { once } from 'lodash-es'
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
@@ -896,55 +897,58 @@ const SetPreference = defineAction({
   }),
 })
 
-export const indexLibrary = createLibrary({
-  id: 'theorem.index',
-  root: 'Stack',
-  components: [
-    Stack,
-    Columns,
-    Section,
-    Heading,
-    Text,
-    Callout,
-    Metric,
-    SearchField,
-    Choice,
-    ItemList,
-    Comparison,
-    IndexItems,
-    IndexComparison,
-    Timeline,
-    CollectionGrid,
-    FilingList,
-    Atlas,
-    RecordTable,
-    DataModel,
-    ActionButton,
-  ],
-  componentGroups: [
-    { name: 'Layout', components: ['Stack', 'Columns', 'Section'] },
-    { name: 'Text', components: ['Heading', 'Text', 'Callout', 'Metric'] },
-    { name: 'Inputs', components: ['SearchField', 'Choice'] },
-    {
-      name: 'Material',
-      components: [
-        'ItemList',
-        'Comparison',
-        'IndexItems',
-        'IndexComparison',
-        'Timeline',
-        'CollectionGrid',
-        'FilingList',
-        'Atlas',
-      ],
-    },
-    { name: 'Records', components: ['RecordTable', 'DataModel'] },
-    { name: 'Actions', components: ['ActionButton'] },
-  ],
-  actions: [OpenItem, AskTheorem, PinView, SetPreference],
-})
+/** Built on first use, for the reason artifactLibrary is (see artifacts/openui/library). */
+export const indexLibrary = once(() =>
+  createLibrary({
+    id: 'theorem.index',
+    root: 'Stack',
+    components: [
+      Stack,
+      Columns,
+      Section,
+      Heading,
+      Text,
+      Callout,
+      Metric,
+      SearchField,
+      Choice,
+      ItemList,
+      Comparison,
+      IndexItems,
+      IndexComparison,
+      Timeline,
+      CollectionGrid,
+      FilingList,
+      Atlas,
+      RecordTable,
+      DataModel,
+      ActionButton,
+    ],
+    componentGroups: [
+      { name: 'Layout', components: ['Stack', 'Columns', 'Section'] },
+      { name: 'Text', components: ['Heading', 'Text', 'Callout', 'Metric'] },
+      { name: 'Inputs', components: ['SearchField', 'Choice'] },
+      {
+        name: 'Material',
+        components: [
+          'ItemList',
+          'Comparison',
+          'IndexItems',
+          'IndexComparison',
+          'Timeline',
+          'CollectionGrid',
+          'FilingList',
+          'Atlas',
+        ],
+      },
+      { name: 'Records', components: ['RecordTable', 'DataModel'] },
+      { name: 'Actions', components: ['ActionButton'] },
+    ],
+    actions: [OpenItem, AskTheorem, PinView, SetPreference],
+  }),
+)
 
-export type IndexLibrary = typeof indexLibrary
+export type IndexLibrary = ReturnType<typeof indexLibrary>
 
 /**
  * OpenUI's own calls, which its package does not export by name: the
@@ -991,7 +995,7 @@ results = ItemList(found.items, "list", "collection", "Nothing matches yet.")`
 
 /** The prompt Theorem composes candidates with, and the names the server lints against. */
 export function libraryPrompt() {
-  return indexLibrary.prompt({
+  return indexLibrary().prompt({
     preamble:
       "You compose views of a person's filed material in Theorem's Index. Answer with OpenUI Lang only.",
     additionalRules: PROMPT_RULES,
@@ -1002,13 +1006,13 @@ export function libraryPrompt() {
 }
 
 export const libraryComponents = () => [
-  ...Object.keys(indexLibrary.components),
+  ...Object.keys(indexLibrary().components),
   ...OPENUI_COMPONENTS,
 ]
 
 export const libraryCallables = () => [
   ...OPENUI_CALLABLES,
-  ...Object.keys(indexLibrary.actions),
+  ...Object.keys(indexLibrary().actions),
 ]
 
 async function sha256(text: string) {

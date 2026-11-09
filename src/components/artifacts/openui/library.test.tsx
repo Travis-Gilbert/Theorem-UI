@@ -23,7 +23,7 @@ afterEach(() => {
   useComposerReferences.setState({ references: [] })
 })
 
-const parser = createParser(artifactLibrary.toJSONSchema(), 'Stack')
+const parser = createParser(artifactLibrary().toJSONSchema(), 'Stack')
 
 function artifact(
   program: string,
@@ -83,13 +83,13 @@ async function click(element: Element) {
 
 describe('theorem-artifacts library', () => {
   test('names itself and carries a version', () => {
-    expect(artifactLibrary.id).toBe('theorem-artifacts')
+    expect(artifactLibrary().id).toBe('theorem-artifacts')
     expect(LIBRARY_VERSION).toMatch(/^\d+$/)
-    expect(artifactLibrary.root).toBe('Stack')
+    expect(artifactLibrary().root).toBe('Stack')
   })
 
   test('has an example program for every component it offers at the top level', () => {
-    const offered = Object.keys(artifactLibrary.components).filter(
+    const offered = Object.keys(artifactLibrary().components).filter(
       (name) => !SUB_COMPONENTS.has(name),
     )
     expect(Object.keys(EXAMPLES).sort()).toEqual(offered.sort())
@@ -136,7 +136,7 @@ const STYLING = /^(color|colour|colors|palette|fill|stroke|background|bg|size|wi
 
 describe('styling stays with the implementation', () => {
   test('no component or function takes a styling prop', () => {
-    const schema = artifactLibrary.toJSONSchema()
+    const schema = artifactLibrary().toJSONSchema()
     const names = [
       ...Object.values(schema.$defs ?? {}).flatMap((def) =>
         Object.keys((def as { properties?: object }).properties ?? {}),
@@ -426,7 +426,7 @@ describe('the published record', () => {
     const record = await libraryRecord()
     expect(record.libraryId).toBe('theorem-artifacts')
     expect(record.version).toBe(LIBRARY_VERSION)
-    expect(record.components).toEqual(Object.keys(artifactLibrary.components))
+    expect(record.components).toEqual(Object.keys(artifactLibrary().components))
     expect(record.callables).toContain('Range')
     expect(record.signatures.Stat).toMatch(/^Stat\(label/)
     expect(record.signatures.Range).toMatch(/^Range\(from/)

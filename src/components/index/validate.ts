@@ -16,7 +16,7 @@ export function checkProgram(
   program: string,
   bindings: Record<string, Binding>,
 ): ProgramCheck {
-  parser ??= createParser(indexLibrary.toJSONSchema())
+  parser ??= createParser(indexLibrary().toJSONSchema())
   const result = parser.parse(program)
   const problems = result.meta.errors.map((error) =>
     error.statementId

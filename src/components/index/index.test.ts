@@ -232,8 +232,8 @@ b = ActionButton("Go", Action([@Set($n, 2), @Reset($n), @Run(q), @ToAssistant("h
   })
 
   test('the library names its own components and actions', () => {
-    expect(Object.keys(indexLibrary.components)).toContain('ItemList')
-    expect(Object.keys(indexLibrary.actions)).toEqual([
+    expect(Object.keys(indexLibrary().components)).toContain('ItemList')
+    expect(Object.keys(indexLibrary().actions)).toEqual([
       'OpenItem',
       'AskTheorem',
       'PinView',
