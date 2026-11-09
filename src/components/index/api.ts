@@ -30,7 +30,7 @@ const DOCUMENTS = '/api/documents/v2'
  * Errors keep the SDK's shape, so describeError and isSignedOut read the
  * problem body the same way for these routes as for the SDK's own.
  */
-async function read<T>(response: Response): Promise<T> {
+export async function read<T>(response: Response): Promise<T> {
   const text = await response.text()
   const body = text ? (JSON.parse(text) as unknown) : undefined
   if (!response.ok)

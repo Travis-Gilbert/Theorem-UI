@@ -34,6 +34,7 @@ import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
+import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
@@ -189,6 +190,11 @@ const ChatPagesPageIdRoute = ChatPagesPageIdRouteImport.update({
   id: '/$pageId',
   path: '/$pageId',
   getParentRoute: () => ChatPagesRoute,
+} as any)
+const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
+  id: '/api/artifacts/$',
+  path: '/api/artifacts/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
   id: '/api/index/$',
@@ -391,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
@@ -447,6 +454,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
@@ -506,6 +514,7 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
@@ -565,6 +574,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/c/$threadId'
     | '/pages/$pageId'
+    | '/api/artifacts/$'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
@@ -621,6 +631,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/c/$threadId'
     | '/pages/$pageId'
+    | '/api/artifacts/$'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
@@ -679,6 +690,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/_chat/c/$threadId'
     | '/_chat/pages/$pageId'
+    | '/api/artifacts/$'
     | '/api/index/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
@@ -724,6 +736,7 @@ export interface RootRouteChildren {
   AuthSignOutRoute: typeof AuthSignOutRoute
   StoryIdRoute: typeof StoryIdRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
+  ApiArtifactsSplatRoute: typeof ApiArtifactsSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
@@ -933,6 +946,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/pages/$pageId'
       preLoaderRoute: typeof ChatPagesPageIdRouteImport
       parentRoute: typeof ChatPagesRoute
+    }
+    '/api/artifacts/$': {
+      id: '/api/artifacts/$'
+      path: '/api/artifacts/$'
+      fullPath: '/api/artifacts/$'
+      preLoaderRoute: typeof ApiArtifactsSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/index/$': {
       id: '/api/index/$'
@@ -1222,6 +1242,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignOutRoute: AuthSignOutRoute,
   StoryIdRoute: StoryIdRoute,
   TheiaSplatRoute: TheiaSplatRoute,
+  ApiArtifactsSplatRoute: ApiArtifactsSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
@@ -1267,3 +1288,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
