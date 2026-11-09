@@ -1,8 +1,26 @@
-// SOURCING: Base UI Menu (account menu), Kit's home slot (the stage stands the fox in it), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
+// SOURCING: Base UI Menu (account menu), @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/modifiers (reordering the destinations), Kit's home slot (the stage stands the fox in it), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the opened folders (whether the Vault is offered), the sign-in helpers (sign out)
 import { Menu } from '@base-ui/react/menu'
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import type { Announcements, DragEndEvent } from '@dnd-kit/core'
+import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from '@dnd-kit/modifiers'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type {
+  ComponentProps,
+  CSSProperties,
+  KeyboardEvent,
+  ReactNode,
+} from 'react'
 import { Icon } from '@/components/icons'
 import { KitPerch } from '@/components/kit/kit-stage'
 import { PALETTES, usePalette } from '@/lib/palette'
@@ -16,7 +34,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { RailMark } from './rail-marks'
-import { MODES, navigatorMode, useOpenMode, useShellMode } from './modes'
+import {
+  MODES,
+  modeLabel,
+  navigatorMode,
+  useOpenMode,
+  useShellMode,
+} from './modes'
 import type { ShellMode } from './modes'
 import { useTenant } from './projects'
 import { useShell } from './shell-state'
@@ -238,8 +262,91 @@ function FilesControl({ collapsible }: { collapsible: boolean }) {
 }
 
 /**
+ * The rail's destinations in the order the person dragged them into. Modes the
+ * saved order does not name, such as one added since, follow in their default
+ * order.
+ */
+export function orderModes(order: readonly ShellMode[]) {
+  const rank = (mode: ShellMode) => {
+    const saved = order.indexOf(mode)
+    return saved < 0
+      ? order.length + MODES.findIndex((entry) => entry.mode === mode)
+      : saved
+  }
+  return [...MODES].sort((a, b) => rank(a.mode) - rank(b.mode))
+}
+
+/** What a screen reader hears while a destination is dragged. */
+const announcements: Announcements = {
+  onDragStart: ({ active }) =>
+    `Picked up ${modeLabel(active.id as ShellMode)}.`,
+  onDragOver: ({ active, over }) =>
+    over && active.id !== over.id
+      ? `${modeLabel(active.id as ShellMode)} is over ${modeLabel(over.id as ShellMode)}.`
+      : undefined,
+  onDragEnd: ({ active, over }) =>
+    over && active.id !== over.id
+      ? `${modeLabel(active.id as ShellMode)} moved to ${modeLabel(over.id as ShellMode)}'s place.`
+      : `${modeLabel(active.id as ShellMode)} stayed in place.`,
+  onDragCancel: ({ active }) =>
+    `${modeLabel(active.id as ShellMode)} stayed in place.`,
+}
+
+/**
+ * One destination, which drags to a new place on the rail. The press still
+ * opens it: a drag starts only after the pointer travels, and the click that
+ * ends a drag is dropped by the rail.
+ */
+function Destination({
+  mode,
+  register,
+  onMove,
+  className,
+  children,
+  ...button
+}: Omit<ComponentProps<'button'>, 'onKeyDown'> & {
+  mode: ShellMode
+  register: (mode: ShellMode, node: HTMLButtonElement | null) => void
+  onMove: (mode: ShellMode, by: -1 | 1) => void
+  children: ReactNode
+}) {
+  const {
+    setNodeRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: mode })
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!event.altKey) return
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+    event.preventDefault()
+    onMove(mode, event.key === 'ArrowUp' ? -1 : 1)
+  }
+  return (
+    <button
+      {...button}
+      {...attributes}
+      {...listeners}
+      ref={(node) => {
+        setNodeRef(node)
+        register(mode, node)
+      }}
+      type="button"
+      onKeyDown={onKeyDown}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`${className} touch-none ${isDragging ? 'z-10 cursor-grabbing' : ''}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
  * The global rail: one destination per mode, and Kit, the terminal and the
- * account at the foot.
+ * account at the foot. Destinations drag into the order the person wants, and
+ * keep their colours as they move.
  * It is the base the sheet sits on, and stacks above the sheet's shadow and
  * glow so the junction's tab stays level with the panel it joins. The first
  * destination is flush with the sheet's top, so its tab continues the sheet's
@@ -251,14 +358,22 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   const openMode = useOpenMode()
   const panelOpen = useShell((s) => !s.panelCollapsed[mode])
   const togglePanel = useShell((s) => s.togglePanel)
+  const railOrder = useShell((s) => s.railOrder)
+  const setRailOrder = useShell((s) => s.setRailOrder)
   // The Vault works on opened folders, so it is offered where they can be.
   const folders = useWorkspaces().available
-  const modes = MODES.filter(
+  const ordered = orderModes(railOrder)
+  const modes = ordered.filter(
     (entry) => folders || !('folders' in entry) || entry.mode === mode,
   )
+  const order = modes.map((entry) => entry.mode).join()
 
   const railRef = useRef<HTMLDivElement>(null)
   const destinations = useRef(new Map<ShellMode, HTMLButtonElement>())
+  const register = (value: ShellMode, node: HTMLButtonElement | null) => {
+    if (node) destinations.current.set(value, node)
+    else destinations.current.delete(value)
+  }
   const [junction, setJunction] = useState<Junction>()
   useLayoutEffect(() => {
     const rail = railRef.current
@@ -272,9 +387,32 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       y,
       h: height,
       t: box.height ? y / box.height : 0,
-      flush: mode === MODES[0].mode,
+      flush: mode === order.split(',')[0],
     })
-  }, [mode, modes.length])
+  }, [mode, order])
+
+  /** Puts `moved` where `target` is, among every mode, hidden ones included. */
+  const place = (moved: ShellMode, target: ShellMode) => {
+    const all = ordered.map((entry) => entry.mode)
+    const from = all.indexOf(moved)
+    const to = all.indexOf(target)
+    if (from !== to) setRailOrder(arrayMove(all, from, to))
+  }
+  const move = (moved: ShellMode, by: -1 | 1) => {
+    const shown = modes.map((entry) => entry.mode)
+    const target = shown[shown.indexOf(moved) + by]
+    if (target) place(moved, target)
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  )
+  // The release that ends a drag also clicks the destination under it.
+  const dragged = useRef(false)
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setTimeout(() => (dragged.current = false))
+    if (over) place(active.id as ShellMode, over.id as ShellMode)
+  }
 
   return (
     <div
@@ -283,41 +421,61 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
     >
       {junction && <Junction {...junction} />}
       <TooltipProvider>
-        <nav aria-label="Modes" className="flex flex-col gap-1">
-          {modes.map(({ mode: value, label, Mark }) => {
-            const active = value === mode
-            const toggles = active && collapsible
-            const tooltip = toggles
-              ? `${panelOpen ? 'Hide' : 'Show'} ${label} panel`
-              : label
-            return (
-              <Tooltip key={value}>
-                <TooltipTrigger
-                  render={
-                    <button
-                      ref={(node) => {
-                        if (node) destinations.current.set(value, node)
-                        else destinations.current.delete(value)
-                      }}
-                      type="button"
-                      aria-label={label}
-                      aria-current={active ? 'page' : undefined}
-                      aria-expanded={toggles ? panelOpen : undefined}
-                      onClick={() => {
-                        if (!active) void openMode(value)
-                        else if (collapsible) togglePanel(value)
-                      }}
-                      className={`${railButton} h-12 aria-[current=page]:text-ink aria-[current=page]:hover:bg-transparent`}
+        <DndContext
+          id="rail-modes"
+          sensors={sensors}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          accessibility={{
+            announcements,
+            screenReaderInstructions: {
+              draggable:
+                'Drag to reorder, or press Alt with the up or down arrow to move this destination.',
+            },
+          }}
+          onDragStart={() => (dragged.current = true)}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setTimeout(() => (dragged.current = false))}
+        >
+          <SortableContext
+            items={modes.map((entry) => entry.mode)}
+            strategy={verticalListSortingStrategy}
+          >
+            <nav aria-label="Modes" className="flex flex-col gap-1">
+              {modes.map(({ mode: value, label, Mark }) => {
+                const active = value === mode
+                const toggles = active && collapsible
+                const tooltip = toggles
+                  ? `${panelOpen ? 'Hide' : 'Show'} ${label} panel`
+                  : label
+                return (
+                  <Tooltip key={value}>
+                    <TooltipTrigger
+                      render={
+                        <Destination
+                          mode={value}
+                          register={register}
+                          onMove={move}
+                          aria-label={label}
+                          aria-current={active ? 'page' : undefined}
+                          aria-expanded={toggles ? panelOpen : undefined}
+                          onClick={() => {
+                            if (dragged.current) return
+                            if (!active) void openMode(value)
+                            else if (collapsible) togglePanel(value)
+                          }}
+                          className={`${railButton} h-12 aria-[current=page]:text-ink aria-[current=page]:hover:bg-transparent`}
+                        >
+                          <Mark className="size-5" />
+                        </Destination>
+                      }
                     />
-                  }
-                >
-                  <Mark className="size-5" />
-                </TooltipTrigger>
-                <TooltipContent side="right">{tooltip}</TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </nav>
+                    <TooltipContent side="right">{tooltip}</TooltipContent>
+                  </Tooltip>
+                )
+              })}
+            </nav>
+          </SortableContext>
+        </DndContext>
         <div aria-hidden="true" className="my-2 h-px w-5 bg-separator" />
         <FilesControl collapsible={collapsible} />
       </TooltipProvider>
