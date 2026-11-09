@@ -106,6 +106,30 @@
   --shadow-tint: 0 0 0;
 }
 
+/* Vitesse (Anthony Fu's, MIT): Vitesse Light's white and its ink #393a34
+   for the shadow. */
+[data-palette='vitesse'] {
+  --surface-pill: var(--surface-rail);
+  --glow-opacity: 0;
+  --glow-from: transparent;
+  --glow-to: transparent;
+
+  --shadow-tint: 57 58 52;
+}
+
+/* Vitesse Dark, after franmc01's JetBrains theme: the #121212 rail takes a
+   glow in the theme's green accent (#4d9375) at the top and its blue
+   (#6394bf) at the bottom. */
+.dark[data-palette='vitesse'] {
+  --surface-pill: var(--surface-rail);
+  --shadow-sheet: 0 0 #0000;
+  --glow-opacity: 1;
+  --glow-from: rgb(77 147 117 / 0.34);
+  --glow-to: rgb(99 148 191 / 0.3);
+
+  --shadow-tint: 0 0 0;
+}
+
 /* Dock theme. Structure follows dockview's light theme; colours map to the
    palette tokens above, so the one class serves every palette and mode. */
 .dockview-theme-theorem {

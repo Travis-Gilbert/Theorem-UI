@@ -94,6 +94,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
     "codemirror": "6.0.2",
+    "codemirror-theme-vitesse": "0.3.0",
     "culori": "4.0.2",
     "d3-array": "3.2.4",
     "d3-dsv": "3.0.1",
