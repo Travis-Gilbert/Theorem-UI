@@ -1,24 +1,9 @@
-// SOURCING: the rail's Streamline PNGs split into outline, accent, tint and paper masks by scripts/rail-icons.mjs, painted as CSS masks (.icon-mask) in palette tokens (.rail-mark in styles.css)
+// SOURCING: the rail's Streamline PNGs split into outline, accent, tint and paper masks by scripts/rail-icons.mjs, painted as CSS masks (.icon-mask) in colours the theme around them derives (.rail-mark in styles.css: CSS relative colors over the accent, no script)
 import type { CSSProperties, FC } from 'react'
 import { RAIL_LAYERS } from '@/assets/icons/streamline/rail/layers'
 import type { RailIcon } from '@/assets/icons/streamline/rail/layers'
 import { cn } from '@/lib/utils'
-
-/**
- * The palette token each rail icon takes its colour from. They are the hues
- * every palette already defines, so a palette that recolours them recolours
- * the rail, in light and in dark.
- */
-const HUE = {
-  home: 'var(--redwood)',
-  index: 'var(--ochre)',
-  pages: 'var(--graph-agent)',
-  spaces: 'var(--teal)',
-  canvas: 'var(--graph-plan)',
-  ide: 'var(--error-ink)',
-  vault: 'var(--attention)',
-  files: 'var(--redwood)',
-} as const satisfies Record<RailIcon, string>
+import { RAIL_SHIFT } from './rail-wheel'
 
 /** Paint order: the fills first, the outline over them. */
 const ORDER = ['tint', 'paper', 'accent', 'line'] as const
@@ -26,9 +11,9 @@ const ORDER = ['tint', 'paper', 'accent', 'line'] as const
 type Props = { className?: string }
 
 /**
- * A rail icon as stacked masks, each in its own palette colour: the outline in
- * ink, the accent in the icon's hue, and the tint and paper as that hue washed
- * into the raised surface. It rests a little quieter and comes up to full
+ * A rail icon as stacked masks: the outline in ink, the accent in the icon's
+ * turn of the theme's accent, and the tint and paper as that colour taken
+ * toward the rail's ground. It rests a little quieter and comes up to full
  * colour under the enclosing `group/rail` button's hover, current page or
  * pressed state.
  */
@@ -44,7 +29,7 @@ function railMark(name: RailIcon): FC<Props> {
           'rail-mark opacity-75 group-hover/rail:opacity-100 group-aria-[current=page]/rail:opacity-100 group-aria-pressed/rail:opacity-100',
           className,
         )}
-        style={{ '--rail-hue': HUE[name] } as CSSProperties}
+        style={{ '--rail-shift': RAIL_SHIFT[name] } as CSSProperties}
       >
         {ORDER.map((layer) => {
           const src = layers[layer]

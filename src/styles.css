@@ -586,16 +586,51 @@
   }
 }
 
-/* Rail icons (rail-marks.tsx): stacked masks, each painted in a palette token.
-   The hue is the icon's own (--rail-hue); the tint and the paper are that hue
-   washed into the raised surface, so light and dark each get fills that sit on
-   their own ground. */
+/* Rail icons (rail-marks.tsx): stacked masks painted from the theme around
+   them. A theme gives the rail two facts it already has, its accent (--redwood)
+   and the ground the rail sits on (--surface-rail). Nothing here names a
+   palette or a mode, so a palette, a mode, or a person's own colours set on the
+   root, or on any element above the rail, move the icons with them, with no
+   script.
+
+   - Hue: each icon is the accent turned its own equal share of the OKLCH wheel
+     (--rail-shift, set per icon), so no two coincide in any theme. Home is the
+     accent's own hue.
+   - Lightness: the accent's. The theme chose it for its ground, so every icon
+     holds the contrast the accent does.
+   - Chroma: the accent's, up to what sRGB shows at that lightness in every hue
+     (min(0.17 L, 0.48 (1 - L)); rail-colors.test.ts checks it against the
+     gamut). No icon is louder than another, and turning the hue never clips.
+   - Fills: the icon's colour taken toward the rail's ground for lightness,
+     then given back a share of the accent's chroma. A plain mix loses chroma
+     with lightness and leaves a grey ground with grey fills. */
 @layer components {
   .rail-mark {
     position: relative;
     display: inline-block;
     flex-shrink: 0;
     transition: opacity 100ms;
+
+    --rail-ground: var(--surface-rail);
+    --rail-shift: 0;
+    --rail-chroma-slope: 0.17;
+    --rail-chroma-top: 0.48;
+    --rail-tint-mix: 45%;
+    --rail-tint-boost: 1.25;
+    --rail-paper-mix: 12%;
+    --rail-paper-boost: 1.7;
+    /* Without relative colours every icon is the accent itself. */
+    --rail-base: var(--redwood);
+  }
+
+  @supports (color: oklch(from red l c h)) {
+    .rail-mark {
+      --rail-base: oklch(
+        from var(--redwood) l
+          min(c, var(--rail-chroma-slope) * l, var(--rail-chroma-top) * (1 - l))
+          calc(h + var(--rail-shift))
+      );
+    }
   }
 
   .rail-mark > .icon-mask {
@@ -608,23 +643,49 @@
   }
 
   .rail-mark > [data-layer='accent'] {
-    background-color: var(--rail-hue);
+    background-color: var(--rail-base);
   }
 
   .rail-mark > [data-layer='tint'] {
     background-color: color-mix(
       in oklab,
-      var(--rail-hue) 42%,
-      var(--surface-raised)
+      var(--rail-base) var(--rail-tint-mix),
+      var(--rail-ground)
     );
   }
 
   .rail-mark > [data-layer='paper'] {
     background-color: color-mix(
       in oklab,
-      var(--rail-hue) 10%,
-      var(--surface-raised)
+      var(--rail-base) var(--rail-paper-mix),
+      var(--rail-ground)
     );
+  }
+
+  @supports (color: oklch(from red l c h)) {
+    .rail-mark > [data-layer='tint'] {
+      background-color: oklch(
+        from
+          color-mix(
+            in oklab,
+            var(--rail-base) var(--rail-tint-mix),
+            var(--rail-ground)
+          )
+          l calc(c * var(--rail-tint-boost)) h
+      );
+    }
+
+    .rail-mark > [data-layer='paper'] {
+      background-color: oklch(
+        from
+          color-mix(
+            in oklab,
+            var(--rail-base) var(--rail-paper-mix),
+            var(--rail-ground)
+          )
+          l calc(c * var(--rail-paper-boost)) h
+      );
+    }
   }
 
   /* Without CSS masks (Servo 0.7) each layer's colour would fill its whole box.
