@@ -586,6 +586,96 @@
   background-repeat: no-repeat;
 }
 
+/* Paper: a flat sheet with fine grain. surface-paper is the composer's, at full
+   strength; surface-paper-subtle is for panels that open in the conversation
+   (an opened activity disclosure, an artifact frame, a review candidate). The
+   grain is Paper Design's PaperTexture baked once per page into
+   --paper-texture (lib/paper-texture.ts) and painted through it in the
+   palette's ink, under the content, so text stays crisp and no surface holds
+   a WebGL context. Each sits a step off its surroundings with a soft shadow
+   and a lit top edge. surface-paper keeps the element's own border (the
+   composer's follows focus); surface-paper-subtle draws a hairline, so add
+   none. Plain bg-*, shadow-* and position utilities override either. */
+:root {
+  /* Masks the grain out until the bake lands. */
+  --paper-texture: linear-gradient(transparent, transparent);
+  --paper-texture-size: 512px;
+  --paper-grain-opacity: 0.1;
+  --paper-depth: 1;
+  --paper-highlight: rgb(255 255 255 / 0.7);
+  --paper-edge: color-mix(in oklab, var(--line-separator) 80%, transparent);
+}
+
+/* The grain varies the light sheet by about 4 sRGB levels; the dark sheet's
+   ink sits closer to its ground, so it takes more opacity for the same. Black
+   shadows need more weight to read on a dark sheet, and the lit edge is the
+   ink's. */
+.dark {
+  --paper-grain-opacity: 0.12;
+  --paper-depth: 2.5;
+  --paper-highlight: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+@utility surface-paper {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--surface-composer);
+  box-shadow:
+    inset 0 1px 0 var(--paper-highlight),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.07 * var(--paper-depth))),
+    0 8px 24px -8px rgb(var(--shadow-tint) / calc(0.16 * var(--paper-depth)));
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--ink);
+    opacity: var(--paper-grain-opacity);
+    mask-image: var(--paper-texture);
+    mask-size: var(--paper-texture-size);
+  }
+
+  /* Without CSS masks (Servo 0.7) the grain would be a solid wash. */
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+@utility surface-paper-subtle {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--paper-highlight),
+    0 0 0 1px var(--paper-edge),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.05 * var(--paper-depth))),
+    0 4px 14px -6px rgb(var(--shadow-tint) / calc(0.1 * var(--paper-depth)));
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--ink);
+    opacity: calc(0.55 * var(--paper-grain-opacity));
+    mask-image: var(--paper-texture);
+    mask-size: var(--paper-texture-size);
+  }
+
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
 /* Streamline marks (icons.tsx): the ink is painted through the PNG's alpha,
    so the mark follows currentColor. Sizing comes from the caller. */
 @layer components {

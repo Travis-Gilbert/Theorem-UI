@@ -63,6 +63,7 @@
     "@observablehq/notebook-kit": "2.7.1",
     "@observablehq/runtime": "6.0.1",
     "@openuidev/react-lang": "1.0.1",
+    "@paper-design/shaders": "0.0.82",
     "@parcel/watcher": "2.6.0",
     "@pierre/diffs": "1.6.1",
     "@prosemirror-adapter/react": "0.5.5",
