@@ -22,13 +22,14 @@
     { "id": "w7-marimo-install", "item": "marimo 0.25.2 via uv on Python 3.13 locally and in the server image; OSS pin updated", "status": "open", "evidence": "" },
     { "id": "w7-marimo-pinned-output", "item": "marimo check and export html on publication; preview shows saved output without compute", "status": "open", "evidence": "" },
     { "id": "w7-marimo-live", "item": "Live session per the decided profile; AR-012 flow passes", "status": "open", "evidence": "" },
-    { "id": "w8-scene-mount", "item": "Mount for scene-os-web luma cells decided and recorded", "status": "open", "evidence": "" },
-    { "id": "w8-immersive-artifact", "item": "scene_behavior form renders full width with poster preview and pick-to-reference", "status": "open", "evidence": "" },
+    { "id": "w8-remove-gate", "item": "scene-behavior-v1 validation, the built-in model gate, catalog routing and pinned golden output removed; every caller checked", "status": "open", "evidence": "" },
+    { "id": "w8-immersive-artifact", "item": "immersive form: an agent-written module on luma.gl and the cell library in the sandbox; full width, poster preview, pick-to-reference; a CPU question asked twice gets two agent-written artifacts", "status": "open", "evidence": "" },
     { "id": "w9-cpu-gpu", "item": "CPU vs GPU experiment: tradeoff view plus measured marimo notebook, design accepted by the owner from screenshots", "status": "open", "evidence": "" },
     { "id": "w10-material", "item": "Paper composer and surfaces, glass for small floating controls, texture cached", "status": "open", "evidence": "" },
     { "id": "decide-marimo-profile", "item": "Owner decision: marimo live profile (recommend browser default plus native for measurement)", "status": "open", "evidence": "" },
     { "id": "decide-material", "item": "Owner decision: paper versus glass for the composer (recommend paper)", "status": "open", "evidence": "" },
     { "id": "decide-blockquote", "item": "Owner decision: blockquote rail replacement", "status": "open", "evidence": "" },
-    { "id": "decide-draft-shape", "item": "Owner decision: one Builder kind with a typed form (recommended) or new WorkKinds", "status": "open", "evidence": "" }
+    { "id": "decide-draft-shape", "item": "Owner decision: one Builder kind with a typed form (recommended) or new WorkKinds", "status": "open", "evidence": "" },
+    { "id": "decide-pr-976", "item": "Owner decision: how draft Theorem#976 lands relative to the gate removal (recommend: drop its catalog hint, merge, then remove the rest on top)", "status": "open", "evidence": "" }
   ]
 }

@@ -42,6 +42,14 @@ What is wrong, concretely:
 - **Left-edge rails.** Coloured stripes on the left edge are out of this
   direction. Selection is a quiet background change. Keyboard focus is a
   complete outline.
+- **The agent cannot write immersive scenes.** SceneOS's cell explanations
+  (Theorem 8074066106 and 3cbe7f58f3, 2026-11-08) let the agent only name a
+  simulation from a list built into the viewer (today one RISC-V CPU), and
+  they refuse any package that carries code. A question the router
+  recognises is answered from that catalog scene with no model call at all.
+  The owner rejected this on 2026-11-08: writing the code is the agent's
+  job. A coding agent wrote the RV32I model; the product's agent must be
+  able to write the next one. W8 removes the gate.
 
 Evidence, if the local e2e stack is running: thread
 `http://localhost:3112/c/chatthread_sha256%3A303a2cda3c781609ef29b8812`
@@ -179,7 +187,7 @@ component draws it.
 | **Theorem components through OpenUI** (default) | Comparisons, explanations, tables, forms, parameter controls, common interactive compositions | Rendered natively in the message from OpenUI Lang; no iframe |
 | **Observable notebook** with D3 and Plot | Reactive JavaScript explanations and custom data visualizations | notebook-kit runtime in the block sandbox |
 | **marimo notebook** | Reproducible Python experiments and scientific analysis | Pinned output from a server export; live session in a browser or native profile (section 6) |
-| **Immersive** (luma.gl cells) | Spatial explanations; subjects where motion or many graphical elements help | SceneOS `scene-behavior-v1` packages on scene-os-web's luma.gl cell renderer |
+| **Immersive** (luma.gl cells) | Spatial explanations; subjects where motion or many graphical elements help | Code the agent writes on luma.gl and Theorem's cell drawing library, in the artifact sandbox |
 | **Custom HTML App** (today's path) | Bespoke interactions beyond the component catalogue | Block sandbox, as now, but under the presentation contract (W3) |
 
 D3 supplies visualization tools; it is not a notebook runtime. Observable
@@ -195,6 +203,16 @@ call them easily.** Extend the existing contract (`ArtifactContribution`,
 renderer availability, `NotebookCell` locators, caption policy, theme-following
 metadata). Do not build a parallel artifact system.
 
+**The sandbox is the boundary, not the content.** The agent writes code;
+that is its job. Safety comes from where the code runs: a sandboxed frame
+with no network unless granted, as HTML Apps already run. No form may
+forbid code, screen it for markup, limit the agent to pre-made models,
+answer a question with a pre-made artifact without a model call, or hold a
+new answer to an earlier one. Validation exists only to help the model
+repair what it wrote: parse and load errors, runtime exceptions, a first
+frame that never draws, size limits. Saved revisions are a different thing
+and stay: an old message still shows the revision it showed.
+
 1. **Typed publication format.**
    - Today `complete_work` accepts `app = {title, html}`
      (`agent/src/operations/work.rs`, `AppDraft`).
@@ -202,7 +220,7 @@ metadata). Do not build a parallel artifact system.
      - `form: "openui_view"` with `{title, program}`;
      - `form: "observable_notebook"` with `{title, notebook}` (notebook-kit HTML);
      - `form: "marimo_notebook"` with `{title, source}` (a `.py` file with a PEP 723 header);
-     - `form: "scene_behavior"` with `{title, package}` (scene-behavior-v1);
+     - `form: "immersive"` with `{title, module}` (an ES module the agent writes against luma.gl and the cell library);
      - `form: "html_app"` with `{title, html}`.
    - Each form's source and runtime requirements live in the schema, not
      inside an HTML string.
@@ -286,18 +304,36 @@ metadata). Do not build a parallel artifact system.
   pins marimo 0.23.16 as a SELECT-only pgwire client. The current version is
   0.25.2. ARD P4 (`docs/ARD-THEOREM-2026-08-04.md`) says integrate over the
   network against versioned wire contracts, never by vendoring.
-- **Immersive renderer.** `form-scene/scene/scene-os-web/web/src/explain/`:
-  - `cells/luma.ts` is a WebGL2 instanced-quad cell renderer on luma.gl 9.4.2
-    (core, engine, shadertools, webgl), with GPU picking through a pick
-    framebuffer and frame backpressure. Its uniforms use the luma 9 path that
-    carries over to WebGPU.
-  - `contract.ts` mirrors `scene-behavior-v1`, owned by
-    `scene-contract/src/behavior.rs`. A package is declarative: components,
-    ports, connections, state, inputs, operations, checks, presentation
-    steps. `rejectExecutableOrRemote` refuses code and remote references, and
-    the browser validates before it runs anything.
-  - The only built-in model is RV32I, a RISC-V CPU (`explain/model/rv32i.ts`).
-  - Active on main; the last commits are dated 2026-11-08.
+- **Immersive renderer.** `form-scene/scene/scene-os-web/web/src/explain/`.
+  The drawing layer is worth keeping; the contract around it is not.
+  - Keep: `cells/luma.ts`, a WebGL2 instanced-quad cell renderer on luma.gl
+    9.4.2 (core, engine, shadertools, webgl) with a Canvas2D fallback, GPU
+    picking through a pick framebuffer, and frame backpressure. Its uniforms
+    use the luma 9 path that carries over to WebGPU. Also `cells/motion.ts`,
+    `cells/pick.ts`, and the D3-based `cells/paths.ts` and `camera.ts` from
+    draft Theorem#976.
+  - Remove (W8): the `scene-behavior-v1` binding. It is declarative only
+    (components, ports, connections, state, operations, checks, narration
+    steps). `model.id` must name a simulation in the viewer's built-in list
+    (`explain/models.ts`, which holds only RV32I). `rejectExecutableOrRemote`
+    refuses keys such as `script` or `react` and any string containing
+    `<script`. Rust owns it in `scene-contract/src/behavior.rs`, the browser
+    mirror is `explain/contract.ts`, and both run
+    `scene-contract/tests/fixtures/scene-behavior-v1-invalid-cases.json`.
+  - Remove (W8): catalog routing. `scene-os-core/src/route.rs`
+    `route_question` sends questions such as "How does a CPU work?" to the
+    RV32I catalog scene with no model call (gateway `sceneForInput`).
+    Golden fixtures pin that output
+    (`scene-os-web/tests/explanation_golden.rs`,
+    `web/test/fixtures/rv32i-explanation.json`).
+  - **Draft Theorem#976** (branch `claude/determined-hamilton-1o8okz`,
+    another session, updated 2026-11-08) builds on both. Its `show_scene`
+    tool compiles and validates through the same contract, and its
+    system-prompt hint (`agent/src/scene.md`) points CPU questions at the
+    RV32I catalog. Its inline scene host page is useful as it is:
+    `GET /api/scene/v1/host`, served with `sandbox allow-scripts`, inline
+    scripts, a blob worker and `connect-src 'none'`. Theorem-UI#43 renders
+    its `scene` part.
 - **Adding a kind.** The ordered list of touch points is in the W5 notes
   below.
 
@@ -464,7 +500,7 @@ cargo, so run it here with
 3. **One publisher per form**, each writing its document kind through
    `DocumentProduct` with source guards like `conversation_apps.rs`: for
    example `theorem.openui-view`, `theorem.observable-notebook`,
-   `theorem.marimo-notebook`, `theorem.scene-behavior`. Exact names are this
+   `theorem.marimo-notebook`, `theorem.immersive`. Exact names are this
    workstream's call; record them in the module docs.
 4. **Availability projection** (section 3, item 2) into the `start_work`
    description and the builder prompt. **Descriptions** (item 3) for each
@@ -473,7 +509,9 @@ cargo, so run it here with
    - OpenUI: the program against the library record;
    - Observable: `deserialize` round trip and cell modes allowed;
    - marimo: `marimo check --select MW` for the browser profile;
-   - scene: `scene-contract` `validate`.
+   - immersive: no content checks. Load errors, runtime exceptions and a
+     first frame that never draws come back from the sandbox as repair
+     input.
 
    Errors read as repair instructions.
 
@@ -520,25 +558,59 @@ cargo, so run it here with
 6. **Acceptance.** AR-012: open a notebook, use a real widget, identify a
    cell, stop the host, and reopen the saved view.
 
-### W8. Immersive artifacts: luma.gl cells (Theorem SceneOS, UI)
+### W8. Immersive artifacts: code the agent writes on luma.gl (Theorem SceneOS, UI)
 
-1. **Discovery first.** Read `form-scene/scene/CRATE.md`, `README.md` and
-   `scene-os-web/web` to learn how scene-os-web is built and served. Decide
-   the mount: a sandboxed frame serving the scene-os-web bundle, or importing
-   its cell renderer as a package. Record the decision.
-2. **The model emits a `scene-behavior-v1` package** through the
-   `scene_behavior` form. It is declarative and validated by
-   `scene-contract/src/behavior.rs`; the browser mirror refuses the same
-   packages.
-3. **Presentation.**
+The agent writes the immersive artifact's code, as it writes an HTML App.
+Do not route through the `scene-behavior-v1` contract, the built-in model
+list or the catalog router. This workstream removes them.
+
+1. **Settle Theorem#976 first** (section 6, decision 5). It is another
+   session's open draft on the same files. One writer at a time.
+2. **Remove the gate** (Theorem; Rust to Codex):
+   - binding validation in `scene-contract/src/behavior.rs`, its browser
+     mirror `explain/contract.ts`, and the shared invalid-case fixture;
+   - `reject_executable_or_remote` on the immersive path;
+   - the built-in model list as a gate: `explain/models.ts`, and
+     `BehaviorRuntime`, whose doc says only registry models run;
+   - catalog routing: `scene-os-core/src/route.rs`, the gateway's
+     `sceneForInput` routing that answers without a model call, and any
+     prompt hint that steers the model to a catalog scene
+     (`agent/src/scene.md` in #976);
+   - output held to earlier output: catalog ids in `ExplanationRequest`, the
+     deterministic explanation director path, and the golden fixtures that
+     pin the RV32I scene;
+   - RV32I loses its privileged place. Its source may stay as a worked
+     example in the builder prompt if it helps.
+
+   Check every caller before deleting: `agent/src/scene.rs`
+   (`render_scene`), the `scene-os-core` compile and explanation modules,
+   the gateway scene schema, and #976's `show_scene` once it has merged.
+   Other scene kinds (force graphs and the like) are out of scope unless
+   they share the same code path.
+3. **Keep the drawing layer as a library** the agent's code imports:
+   `cells/luma.ts`, `motion.ts`, `pick.ts`, and #976's D3 helpers
+   (`paths.ts`, `camera.ts`). Vendor it with luma.gl 9.4.2 into the sandbox
+   import map, as W6 does for D3 and Plot. Its exported API, with
+   descriptions written for the model, goes into the builder prompt.
+4. **Form.** `immersive` with `{title, module}`. The module exports one mount
+   function that receives the canvas, the W3 theme tokens, the size, the
+   reduced-motion flag and a selection callback.
+5. **Runtime.** The artifact sandbox, the same boundary as HTML Apps:
+   `allow-scripts`, no network unless granted, workers allowed. #976's scene
+   host page already has this policy. Load errors, exceptions and a first
+   frame that never draws go back to the model for repair.
+6. **Presentation.**
    - Immersive artifacts take the full artifact width.
    - The preview is a poster frame; the animation loop starts only on screen
      and on request.
    - Respect reduced motion.
-   - Picks (`cells/pick.ts` regions) become entity references for "ask about
-     this".
-4. **Use it where it helps.** The RV32I model is a natural companion view for
-   CPU execution in W9.
+   - Picks become entity references for "ask about this".
+7. **Acceptance.**
+   - Ask "How does a CPU work?" in two threads. Both answers come from a
+     model call, the agent wrote both artifacts' code, and neither is the
+     catalog scene.
+   - Ask about a subject nobody has modelled, such as a GPU warp scheduler,
+     and get a working immersive artifact.
 
 ### W9. Acceptance: the CPU vs GPU experiment
 
@@ -568,7 +640,8 @@ a GPU become worthwhile?**
      run the model and saved output, not a GPU benchmark.
    - A Python loop against vectorized NumPy is a fine experiment, but it must
      not be labelled CPU versus GPU.
-3. **Optional immersive companion.** RV32I executing a kernel's inner loop.
+3. **Optional immersive companion.** A CPU datapath executing the kernel's
+   inner loop, written by the agent (W8), not the RV32I catalog scene.
 4. **The pass bar is design, not only function.**
    - It answers a useful question, with restrained colours and direct
      interaction.
@@ -602,6 +675,10 @@ Ask one at a time, with the recommendation:
    consistent with "no left-edge rails".
 4. **Draft shape.** Recommendation: one `Builder` kind with a typed `form`,
    not five new `WorkKind`s.
+5. **Theorem#976.** Another session's draft builds `show_scene` on the gate
+   and adds the catalog hint to the system prompt. Recommendation: that
+   session drops the catalog hint before #976 merges and keeps its inline
+   host page and D3 work. W8 then removes the rest in one branch on top.
 
 ## 7. Working rules for the session
 
