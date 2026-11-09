@@ -352,6 +352,61 @@ export function organizedViews(
   }
 }
 
+/** When a session last moved: its last message, else when it began. */
+export const lastMoved = (thread: ThreadEntry) =>
+  thread.lastMessageAtMs ?? thread.createdAtMs
+
+export type SessionLists = {
+  /** Projects the user made, each with its sessions, in the organization's order. */
+  sections: Array<{ project: ProjectEntry; threads: ThreadEntry[] }>
+  /** Every session in none of those sections, newest first. */
+  recent: ThreadEntry[]
+  /** Sessions waiting on a person's review or approval, newest first. */
+  review: ThreadEntry[]
+  /** Where each session's highlight sits: its primary section if the user made it, its first such section, else `recent`. */
+  home: ReadonlyMap<string, string>
+}
+
+/**
+ * The IDE's sidebar over the same views: the sections the user made, and the
+ * rest as Recent. Sections keep the tree's stable order; Recent is by when a
+ * session last moved, since that is what it lists.
+ */
+export function sessionLists(views: OrganizedViews): SessionLists {
+  const sections = views.projects.filter(
+    ({ project }) => project.createdBy === 'user',
+  )
+  const inSection = new Set(sections.map(({ project }) => project.projectId))
+  const threads = [...views.byId.values()]
+  const home = new Map<string, string>()
+  for (const thread of threads) {
+    const placed = thread.memberships
+      .map((m) => m.projectId)
+      .filter((projectId) => inSection.has(projectId))
+    const primary = primaryProjectId(thread)
+    home.set(
+      thread.threadId,
+      placed.includes(primary) ? primary : (placed[0] ?? 'recent'),
+    )
+  }
+  const newestFirst = (a: ThreadEntry, b: ThreadEntry) =>
+    lastMoved(b) - lastMoved(a)
+  return {
+    sections,
+    recent: threads
+      .filter((thread) => home.get(thread.threadId) === 'recent')
+      .sort(newestFirst),
+    review: threads
+      .filter((thread) =>
+        thread.attention.reasons.some(
+          (reason) => reason.kind === 'review' || reason.kind === 'approval',
+        ),
+      )
+      .sort(newestFirst),
+    home,
+  }
+}
+
 /**
  * The project a thread is shown as belonging to: one a person or agent placed
  * it in first, then the oldest membership, then its home.

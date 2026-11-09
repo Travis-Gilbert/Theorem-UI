@@ -1,4 +1,4 @@
-// SOURCING: the organized thread tree (components/organize), the shell's Explorer (headless-tree), Base UI Menu (project switcher), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel
+// SOURCING: the organized thread tree and the IDE's sessions panel (components/organize), the shell's Explorer (headless-tree), Base UI Menu (project switcher), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { Suspense, lazy, useState } from 'react'
@@ -7,6 +7,7 @@ import { Icon } from '@/components/icons'
 import { IndexPanel } from '@/components/index/index-panel'
 import { NewProjectDialog } from '@/components/organize/new-project-dialog'
 import { OrganizedPanel } from '@/components/organize/organized-panel'
+import { SessionsPanel } from '@/components/organize/sessions-panel'
 import { Button } from '@/components/ui/button'
 import { FoldersSection } from '@/components/workspace/folders'
 import {
@@ -38,17 +39,23 @@ export const menuItem =
 export const menuPopup =
   'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-(--duration-snap) ease-snap data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
 
-function ProjectSwitcher() {
+/**
+ * The project menu. Threads belong to a project, so switching starts a new
+ * chat in the new one: in chat at /, and with `stay` beside the page it is on.
+ */
+function ProjectSwitcher({ stay = false }: { stay?: boolean }) {
   const { projects, project } = useActiveProject()
   const tenant = useTenant()
-  const setProjectId = useShell((s) => s.setProjectId)
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
-  // Threads belong to a project, so switching starts a new chat in the new one.
+  const open = (projectId: string) => {
+    const shell = useShell.getState()
+    shell.setProjectId(projectId)
+    if (stay) shell.setChatThreadId(undefined)
+    else void navigate({ to: '/' })
+  }
   const switchTo = (projectId: string) => {
-    if (projectId === project?.projectId) return
-    setProjectId(projectId)
-    void navigate({ to: '/' })
+    if (projectId !== project?.projectId) open(projectId)
   }
 
   return (
@@ -115,10 +122,7 @@ function ProjectSwitcher() {
       <NewProjectDialog
         open={creating}
         onOpenChange={setCreating}
-        onCreated={(projectId) => {
-          setProjectId(projectId)
-          void navigate({ to: '/' })
-        }}
+        onCreated={open}
       />
     </>
   )
@@ -151,11 +155,11 @@ function SpacesPanel() {
 }
 
 /**
- * The navigator beside the rail: the active mode's list above the files.
- * Theia covers it in IDE mode, so Chat's panel stays under it. Chat's panel
- * stays mounted behind the Index, Pages, Spaces, Canvas and the revealed files, so its
- * search, scroll and open branches survive a switch. The rail's Files
- * control reveals the files over the mode's list.
+ * The navigator beside the rail: the active mode's list above the files. The
+ * IDE has its sessions, and Theia its own explorer, so the folders show there
+ * only when the rail's Files control reveals them. Chat's panel stays mounted
+ * behind the IDE, Index, Pages, Spaces, Canvas and the revealed files, so its
+ * search, scroll and open branches survive a switch.
  */
 export function ContextPanel() {
   const mode = useShellMode()
@@ -164,13 +168,19 @@ export function ContextPanel() {
     mode !== 'spaces' &&
     mode !== 'canvas' &&
     mode !== 'index' &&
-    mode !== 'pages'
+    mode !== 'pages' &&
+    mode !== 'ide'
   return (
     <SidebarProvider className="on-sheet h-full min-h-0">
       <Sidebar collapsible="none" className="w-full bg-transparent">
         <div hidden={filesShown || !threads} className="min-h-0 flex-1">
           <OrganizedPanel footer={<Explorer />} />
         </div>
+        {mode === 'ide' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <SessionsPanel switcher={<ProjectSwitcher stay />} />
+          </div>
+        )}
         {mode === 'index' && (
           <div hidden={filesShown} className="min-h-0 flex-1">
             <IndexPanel />
@@ -194,7 +204,9 @@ export function ContextPanel() {
           </div>
         )}
         {/* Beside the threads the folders fold into the panel's one Files row. */}
-        {(filesShown || !threads) && <FoldersSection fill={filesShown} />}
+        {(filesShown || (!threads && mode !== 'ide')) && (
+          <FoldersSection fill={filesShown} />
+        )}
       </Sidebar>
     </SidebarProvider>
   )

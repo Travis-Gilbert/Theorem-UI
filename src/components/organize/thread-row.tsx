@@ -120,7 +120,7 @@ function StatusMark({
   return null
 }
 
-function RenameField({
+export function RenameField({
   title,
   onDone,
   onCommit,
