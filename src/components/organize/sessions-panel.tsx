@@ -1,4 +1,4 @@
-// SOURCING: coss ui sidebar, collapsible, menu, input and alert dialog over Base UI, lucide-react (the Files heading's new file, new folder and collapse), Base UI ContextMenu (a row's right-click), @tanstack/react-router, @tanstack/react-query (the organization's freshness), assistant-ui (the open session's run state), useGlideHighlight from components/motion, lib/theorem/organization (sessions are Theorem's threads; the user's sections are the projects the user made), date-fns formatDistanceToNowStrict for when a session last moved, thread-menu's ThreadMenuItems and thread-row's RenameField (sessions and sections both rename in place), the IDE's file tree (ide-file-tree.tsx) under the sessions. The structure (a workspace row with search and collapse; Sessions, Automations, Review and Wiki; a bold Sessions heading with search, add and more; the user's own sections; Recent) is Devin's sidebar from the user's screens, docs/plans/ide-agent-workspace.md.
+// SOURCING: coss ui sidebar, collapsible, menu, input and alert dialog over Base UI, lucide-react (the Files heading's new file, new folder and collapse), Base UI ContextMenu (a row's right-click), @tanstack/react-router, @tanstack/react-query (the organization's freshness), assistant-ui (the open session's run state), useGlideHighlight from components/motion, lib/theorem/organization (sessions are Theorem's threads; the user's sections are the projects the user made), date-fns formatDistanceToNowStrict for when a session last moved, thread-menu's ThreadMenuItems and thread-row's RenameField (sessions and sections both rename in place), the IDE's file tree (ide-file-tree.tsx) under the sessions, in a dockview-react SplitviewReact whose line between them drags. The structure (a workspace row with search and collapse; Sessions, Automations, Review and Wiki; a bold Sessions heading with search, add and more; the user's own sections; Recent) is Devin's sidebar from the user's screens, docs/plans/ide-agent-workspace.md.
 //
 // The IDE's panel. A session opens beside the IDE rather than in chat, so a
 // click sets the conversation the IDE page shows and Theia stays where it is.
@@ -7,9 +7,12 @@ import { ContextMenu } from '@base-ui/react/context-menu'
 import { useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNowStrict } from 'date-fns'
+import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
+import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { ChevronsDownUp, FilePlus, FolderPlus } from 'lucide-react'
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -85,7 +88,8 @@ const RECENT_SHOWN = 8
 function useSectionOpen(key: string, fallback: boolean) {
   const open = useShell((s) => s.organizeOpen[key] ?? fallback)
   const set = useShell((s) => s.setOrganizeOpen)
-  return [open, (next: boolean) => set(key, next)] as const
+  const setOpen = useCallback((next: boolean) => set(key, next), [set, key])
+  return [open, setOpen] as const
 }
 
 type SessionsContext = {
@@ -404,23 +408,24 @@ function Section({
 
 /**
  * The open project's files under the sessions, drawn by the page while Theia
- * shows only its editors. Open, it shares the panel's height with the
- * sessions; folded, it is its heading.
+ * shows only its editors. It fills its side of SessionsSplit, whose
+ * separator draws the line above it; folded, it is its heading.
  */
-function FilesSection() {
-  const { project } = useActiveProject()
-  const [open, setOpen] = useSectionOpen('ide:files', true)
+function FilesSection({
+  workspaceId,
+  open,
+  onOpenChange,
+}: {
+  workspaceId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const tree = useRef<IdeFileTreeHandle>(null)
-  if (!project) return null
-  const workspaceId = workspaceIdOf(project.projectId)
   return (
     <Collapsible
       open={open}
-      onOpenChange={setOpen}
-      className={cn(
-        'flex flex-col border-t border-separator',
-        open && 'min-h-0 flex-1',
-      )}
+      onOpenChange={onOpenChange}
+      className="flex h-full min-h-0 flex-col"
     >
       <div className="flex h-11 shrink-0 items-center gap-0.5 px-1.5 ps-2">
         <CollapsibleTrigger className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-start text-md font-semibold text-ink outline-none focus-visible:outline-2 focus-visible:outline-focus">
@@ -473,6 +478,123 @@ function FilesSection() {
         />
       </CollapsiblePanel>
     </Collapsible>
+  )
+}
+
+/** The Files heading's height (its h-11); folded, Files is only its heading. */
+const FILES_HEADING = 44
+/** The least Files keeps open while the line above it is dragged: its heading and a few rows. */
+const FILES_MIN = FILES_HEADING + 72
+/** The least the sessions keep above it. */
+const SESSIONS_MIN = 96
+
+type SplitPanes = { sessions: ReactNode; files: ReactNode }
+const SplitPanesContext = createContext<SplitPanes | null>(null)
+
+function SessionsPane() {
+  return (
+    <div className="flex h-full flex-col">
+      {useContext(SplitPanesContext)?.sessions}
+    </div>
+  )
+}
+
+function FilesPane() {
+  return useContext(SplitPanesContext)?.files ?? null
+}
+
+const splitPanes = { sessions: SessionsPane, files: FilesPane }
+
+/**
+ * The sessions over the open project's files. The line between them drags,
+ * and the height Files is left at is the height it reopens with. Folded,
+ * Files keeps only its heading; with no project open it is not there.
+ */
+function SessionsSplit({ sessions }: { sessions: ReactNode }) {
+  const { project } = useActiveProject()
+  const [filesOpen, setFilesOpen] = useSectionOpen('ide:files', true)
+  const [split, setSplit] = useState<SplitviewApi>()
+
+  const onReady = ({ api }: SplitviewReadyEvent) => {
+    const files = useShell.getState().ideFilesHeight ?? Math.round(api.height / 2)
+    // Sized together, so adding the second does not redistribute the first.
+    api.addPanel({
+      id: 'sessions',
+      component: 'sessions',
+      size: api.height - files,
+      minimumSize: SESSIONS_MIN,
+      priority: LayoutPriority.High,
+    })
+    api.addPanel({
+      id: 'files',
+      component: 'files',
+      size: files,
+      minimumSize: FILES_HEADING,
+      priority: LayoutPriority.Low,
+    })
+    setSplit(api)
+  }
+
+  useEffect(() => {
+    const files = split?.getPanel('files')
+    if (!split || !files) return
+    files.api.setVisible(Boolean(project))
+    if (filesOpen) {
+      files.api.setConstraints({
+        minimumSize: FILES_MIN,
+        maximumSize: Number.POSITIVE_INFINITY,
+      })
+      files.api.setSize({
+        size: useShell.getState().ideFilesHeight ?? Math.round(split.height / 2),
+      })
+    } else {
+      files.api.setConstraints({
+        minimumSize: FILES_HEADING,
+        maximumSize: FILES_HEADING,
+      })
+      files.api.setSize({ size: FILES_HEADING })
+    }
+  }, [split, project, filesOpen])
+
+  // The height a drag leaves Files at, while it is open, is the one it reopens with.
+  useEffect(() => {
+    const files = split?.getPanel('files')
+    if (!files) return
+    const listener = files.api.onDidDimensionsChange(({ height }) => {
+      const shell = useShell.getState()
+      if ((shell.organizeOpen['ide:files'] ?? true) && height > FILES_HEADING)
+        shell.setIdeFilesHeight(height)
+    })
+    return () => listener.dispose()
+  }, [split])
+
+  const panes = useMemo(
+    () => ({
+      sessions,
+      files: project && (
+        <FilesSection
+          key={project.projectId}
+          workspaceId={workspaceIdOf(project.projectId)}
+          open={filesOpen}
+          onOpenChange={setFilesOpen}
+        />
+      ),
+    }),
+    [sessions, project, filesOpen, setFilesOpen],
+  )
+
+  return (
+    <SplitPanesContext.Provider value={panes}>
+      <div className="min-h-0 flex-1">
+        <SplitviewReact
+          className="dockview-theme-theorem h-full w-full"
+          orientation={Orientation.VERTICAL}
+          proportionalLayout={false}
+          components={splitPanes}
+          onReady={onReady}
+        />
+      </div>
+    </SplitPanesContext.Provider>
   )
 }
 
@@ -726,6 +848,9 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
           />
         </div>
       )}
+      <SessionsSplit
+        sessions={
+          <>
       <SidebarContent
         role="navigation"
         aria-label={view === 'sessions' ? 'Sessions' : 'Waiting for review'}
@@ -815,7 +940,9 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
         </Sessions.Provider>
       </SidebarContent>
       <ThreadFromFailure />
-      <FilesSection />
+          </>
+        }
+      />
       <AlertDialog
         open={doomed !== undefined}
         onOpenChange={(open) => {

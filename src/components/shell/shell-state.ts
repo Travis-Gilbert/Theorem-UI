@@ -47,6 +47,8 @@ type ShellState = {
   ideFilesOpen: boolean
   /** Which quick views and projects a person opened or closed in the sidebar. */
   organizeOpen: Readonly<Record<string, boolean>>
+  /** The IDE panel's Files height in px, set by dragging the line above it. Unset, Files takes half. */
+  ideFilesHeight?: number
   /** Whether the agent terminal drawer is up. Not persisted. */
   terminalOpen: boolean
   /** The bottom drawer's snap point: its height as a share of the window. */
@@ -73,6 +75,7 @@ type ShellState = {
   toggleExplorer: () => void
   setIdeFilesOpen: (open: boolean) => void
   setOrganizeOpen: (key: string, open: boolean) => void
+  setIdeFilesHeight: (height: number) => void
   setTerminalOpen: (open: boolean) => void
   setTerminalHeight: (height: number) => void
   setTerminalThread: (projectId: string, threadId: string | undefined) => void
@@ -134,6 +137,7 @@ export const useShell = create<ShellState>()(
       setIdeFilesOpen: (ideFilesOpen) => set({ ideFilesOpen }),
       setOrganizeOpen: (key, open) =>
         set((s) => ({ organizeOpen: { ...s.organizeOpen, [key]: open } })),
+      setIdeFilesHeight: (ideFilesHeight) => set({ ideFilesHeight }),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
       setTerminalHeight: (terminalHeight) => set({ terminalHeight }),
       setTerminalThread: (projectId, threadId) =>
@@ -230,6 +234,7 @@ export const useShell = create<ShellState>()(
         explorerOpen,
         ideFilesOpen,
         organizeOpen,
+        ideFilesHeight,
         terminalHeight,
         sideWidth,
         terminalThreads,
@@ -243,6 +248,7 @@ export const useShell = create<ShellState>()(
         explorerOpen,
         ideFilesOpen,
         organizeOpen,
+        ideFilesHeight,
         terminalHeight,
         sideWidth,
         terminalThreads,
