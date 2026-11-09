@@ -365,6 +365,9 @@ function NoteSections({
   onRenamedFolder,
 }: SectionsProps) {
   const library = useNoteLibrary(query, 'notes', order)
+  // The agents' folder lists the same search; the panel reads it to say
+  // whether anything matched, and to open that folder on a match.
+  const agentNotes = useNoteLibrary(query, 'agent', order)
   const folders = useNoteFolders()
   const move = useMoveNote()
   const update = useUpdateFolder()
@@ -436,6 +439,7 @@ function NoteSections({
     noteItem(entry.opens),
   )
   const agentsIn = sectionOf(layout, AGENTS_ITEM)
+  const agentsFound = searching && Boolean(agentNotes.data?.length)
   const nothing = !library.data.length && !filed.folders.length
   const run = (step: DropStep) => {
     switch (step.kind) {
@@ -486,7 +490,7 @@ function NoteSections({
           {describeError(move.error ?? update.error, 'document')}
         </p>
       )}
-      {searching && !shown.length && !loose.length && (
+      {searching && !shown.length && !loose.length && !agentsFound && (
         <Hint>Nothing matches.</Hint>
       )}
       <SortableContext
@@ -497,7 +501,9 @@ function NoteSections({
           {layout.sections.map((section) => {
             const sectionFolders = foldersIn.get(section.id) ?? []
             const sectionNotes = notesIn.get(section.id) ?? []
-            const agents = agentsIn === section.id
+            // A search shows the agents' folder only when it found a note there.
+            const agents =
+              agentsIn === section.id && (!searching || agentsFound)
             const empty =
               !sectionFolders.length &&
               !sectionNotes.length &&
@@ -531,7 +537,9 @@ function NoteSections({
                     tree={tree}
                   />
                 ))}
-                {agents && <AgentNotes query={query} order={order} />}
+                {agents && (
+                  <AgentNotes query={query} order={order} found={agentsFound} />
+                )}
                 {sectionNotes.length > 0 && (
                   <ul className="flex flex-col">
                     {sectionNotes.map((entry) => (
@@ -967,8 +975,18 @@ function NewFolder({
  * The folder of what agents wrote to their memory. Its colour is the
  * complement of the person's folders, and it moves between sections whole.
  */
-function AgentNotes({ query, order }: { query: string; order: NoteOrder }) {
-  const [open, setOpen] = useState(false)
+function AgentNotes({
+  query,
+  order,
+  found,
+}: {
+  query: string
+  order: NoteOrder
+  /** A search found notes here, so the folder opens on them. */
+  found: boolean
+}) {
+  const [chosen, setOpen] = useState(false)
+  const open = chosen || found
   const { setNodeRef, attributes, listeners, transform, isDragging } =
     useDraggable({ id: AGENTS_ITEM })
   return (
@@ -983,7 +1001,7 @@ function AgentNotes({ query, order }: { query: string; order: NoteOrder }) {
           style={dragStyle({ transform, isDragging })}
           className={`${row} gap-1 ps-1`}
           aria-expanded={open}
-          onClick={() => setOpen(!open)}
+          onClick={() => setOpen(!chosen)}
         >
           <FilesystemMarks
             folder
