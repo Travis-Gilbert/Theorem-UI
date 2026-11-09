@@ -2,12 +2,16 @@ import { describe, expect, test } from 'bun:test'
 import type { NoteEntry } from './note-library'
 import {
   HOME_COLLECTION,
+  canNest,
   correctionRequest,
+  deleteRequest,
   fileRequest,
   folderName,
   folderRequest,
   noteFolders,
   placeNotes,
+  subfolders,
+  updateRequest,
 } from './note-folders'
 import type { Collection } from './note-folders'
 
@@ -170,6 +174,102 @@ describe('requests', () => {
           destinationCollectionId: 'coll:a',
         },
       },
+    })
+  })
+})
+
+describe('nested folders', () => {
+  const trips = collection({ collectionId: 'coll:trips', name: 'Trips' })
+  const rome = collection({
+    collectionId: 'coll:rome',
+    name: 'Rome',
+    parentId: 'coll:trips',
+  })
+  const food = collection({
+    collectionId: 'coll:food',
+    name: 'Food',
+    parentId: 'coll:rome',
+  })
+  const { folders } = noteFolders([food, rome, trips])
+
+  test('a folder keeps the folder it sits in', () => {
+    expect(folders.find((f) => f.collectionId === 'coll:rome')?.parentId).toBe(
+      'coll:trips',
+    )
+  })
+
+  test('a folder whose parent is not listed sits at the top level', () => {
+    const { folders: orphaned } = noteFolders([rome])
+    expect(orphaned[0]?.parentId).toBeNull()
+  })
+
+  test('a folder from a Theorem that does not nest sits at the top level', () => {
+    const { parentId: _, ...flat } = trips
+    expect(noteFolders([flat as Collection]).folders[0]?.parentId).toBeNull()
+  })
+
+  test('subfolders lists the folders inside one, or the top level', () => {
+    expect(subfolders(folders, null).map((f) => f.name)).toEqual(['Trips'])
+    expect(subfolders(folders, 'coll:trips').map((f) => f.name)).toEqual([
+      'Rome',
+    ])
+  })
+
+  test('a folder cannot go inside itself or anything inside it', () => {
+    expect(canNest(folders, 'coll:trips', 'coll:trips')).toBe(false)
+    expect(canNest(folders, 'coll:trips', 'coll:food')).toBe(false)
+    expect(canNest(folders, 'coll:food', 'coll:trips')).toBe(true)
+    expect(canNest(folders, 'coll:food', null)).toBe(true)
+  })
+
+  test('a folder already there is not moved there again', () => {
+    expect(canNest(folders, 'coll:rome', 'coll:trips')).toBe(false)
+    expect(canNest(folders, 'coll:trips', null)).toBe(false)
+  })
+})
+
+describe('folder edits', () => {
+  test('a new folder inside another names its parent', () => {
+    expect(
+      folderRequest('Rome', 'manual', headers, 'coll:trips').init.body,
+    ).toEqual({
+      schema: 'theorem-document/2',
+      idempotencyKey: 'key-1',
+      name: 'Rome',
+      kind: 'manual',
+      parentId: 'coll:trips',
+    })
+  })
+
+  test('a rename sends only the name', () => {
+    expect(updateRequest('coll:1', { name: 'Garden' }, headers)).toEqual({
+      path: '/api/documents/v2/collections/coll%3A1',
+      init: {
+        method: 'PATCH',
+        headers,
+        body: {
+          schema: 'theorem-document/2',
+          idempotencyKey: 'key-1',
+          name: 'Garden',
+        },
+      },
+    })
+  })
+
+  test('a move to the top level sends a null parent', () => {
+    expect(
+      updateRequest('coll:1', { parentId: null }, headers).init.body,
+    ).toEqual({
+      schema: 'theorem-document/2',
+      idempotencyKey: 'key-1',
+      parentId: null,
+    })
+  })
+
+  test('a delete has no body', () => {
+    expect(deleteRequest('coll:1', headers)).toEqual({
+      path: '/api/documents/v2/collections/coll%3A1',
+      init: { method: 'DELETE', headers },
     })
   })
 })

@@ -22,13 +22,18 @@ export type Collection = {
   name: string
   kind: 'manual' | 'auto'
   documentIds: string[]
+  /** The folder this one sits in; a Theorem that does not nest leaves it out. */
+  parentId?: string | null
 }
 
 type CollectionPage = { collections: Collection[] }
 
 type FilingReceipt = { receiptId: string; destinationCollectionId: string }
 
-export type NoteFolder = Pick<Collection, 'collectionId' | 'name'>
+export type NoteFolder = Pick<Collection, 'collectionId' | 'name'> & {
+  /** The folder this one sits in, or null at the top level. */
+  parentId: string | null
+}
 
 export type NoteFolders = {
   folders: NoteFolder[]
@@ -45,8 +50,14 @@ const isHome = (collection: Collection) =>
 export function noteFolders(collections: Collection[]): NoteFolders {
   const home = collections.find(isHome)
   const kept = collections.filter((collection) => collection !== home)
+  const listed = new Set(kept.map((collection) => collection.collectionId))
   return {
-    folders: kept.map(({ collectionId, name }) => ({ collectionId, name })),
+    folders: kept.map(({ collectionId, name, parentId }) => ({
+      collectionId,
+      name,
+      // A parent that is not listed (gone, or the top level's) leaves it on top.
+      parentId: parentId && listed.has(parentId) ? parentId : null,
+    })),
     homeId: home?.collectionId,
     folderOf: new Map(
       kept.flatMap((collection) =>
@@ -56,6 +67,26 @@ export function noteFolders(collections: Collection[]): NoteFolders {
       ),
     ),
   }
+}
+
+/** The folders inside one, or at the top level with null, in Theorem's order. */
+export const subfolders = (folders: NoteFolder[], parentId: string | null) =>
+  folders.filter((folder) => folder.parentId === parentId)
+
+/**
+ * Whether a folder can move into `into` (null: the top level). Not where it
+ * already is, and never into itself or a folder inside it.
+ */
+export function canNest(
+  folders: NoteFolder[],
+  folderId: string,
+  into: string | null,
+): boolean {
+  const parentOf = new Map(folders.map((f) => [f.collectionId, f.parentId]))
+  if (parentOf.get(folderId) === into) return false
+  for (let at = into; at !== null; at = parentOf.get(at) ?? null)
+    if (at === folderId) return false
+  return true
 }
 
 /** The loose notes, and the notes of each folder, by the document each row opens. */
@@ -89,6 +120,7 @@ export function folderRequest(
   name: string,
   kind: Collection['kind'],
   headers: MutationHeaders,
+  parentId: string | null = null,
 ) {
   return {
     path: COLLECTIONS,
@@ -100,8 +132,42 @@ export function folderRequest(
         idempotencyKey: headers['Idempotency-Key'],
         name,
         kind,
+        ...(parentId === null ? {} : { parentId }),
       },
     },
+  }
+}
+
+const collectionPath = (collectionId: string) =>
+  `${COLLECTIONS}/${encodeURIComponent(collectionId)}`
+
+/** A rename, a move (parentId null: to the top level), or both. */
+export type FolderChange = { name?: string; parentId?: string | null }
+
+export function updateRequest(
+  collectionId: string,
+  change: FolderChange,
+  headers: MutationHeaders,
+) {
+  return {
+    path: collectionPath(collectionId),
+    init: {
+      method: 'PATCH',
+      headers,
+      body: {
+        schema: SCHEMA,
+        idempotencyKey: headers['Idempotency-Key'],
+        ...change,
+      },
+    },
+  }
+}
+
+/** Deleting a folder moves what was in it up to the folder it sat in. */
+export function deleteRequest(collectionId: string, headers: MutationHeaders) {
+  return {
+    path: collectionPath(collectionId),
+    init: { method: 'DELETE', headers },
   }
 }
 
@@ -151,9 +217,13 @@ export const noteFoldersKey = ['theorem', 'notes', 'folders'] as const
 const listCollections = () =>
   theoremJson<CollectionPage>(`${COLLECTIONS}?schema=${SCHEMA}`)
 
-const createCollection = (name: string, kind: Collection['kind']) =>
+const createCollection = (
+  name: string,
+  kind: Collection['kind'],
+  parentId: string | null = null,
+) =>
   mutate((headers) => {
-    const { path, init } = folderRequest(name, kind, headers)
+    const { path, init } = folderRequest(name, kind, headers, parentId)
     return theoremJson<Collection>(path, init)
   })
 
@@ -166,12 +236,70 @@ export function useNoteFolders() {
   })
 }
 
-/** Make a folder; `name` is already free (see folderName). */
+/** Make a folder, at the top level or inside another; `name` is already free among its siblings (see folderName). */
 export function useNewFolder() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (name: string) => createCollection(name, 'manual'),
+    mutationFn: ({
+      name,
+      parentId,
+    }: {
+      name: string
+      parentId: string | null
+    }) => createCollection(name, 'manual', parentId),
     onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: noteFoldersKey }),
+  })
+}
+
+/** Rename a folder or move it into another (parentId null: the top level), shown before Theorem answers. */
+export function useUpdateFolder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      collectionId,
+      change,
+    }: {
+      collectionId: string
+      change: FolderChange
+    }) =>
+      mutate((headers) => {
+        const { path, init } = updateRequest(collectionId, change, headers)
+        return theoremJson<Collection>(path, init)
+      }),
+    onMutate: async ({ collectionId, change }) => {
+      await queryClient.cancelQueries({ queryKey: noteFoldersKey })
+      const before = queryClient.getQueryData<CollectionPage>(noteFoldersKey)
+      if (before)
+        queryClient.setQueryData(noteFoldersKey, {
+          ...before,
+          collections: before.collections.map((collection) =>
+            collection.collectionId === collectionId
+              ? { ...collection, ...change }
+              : collection,
+          ),
+        })
+      return { before }
+    },
+    onError: (_error, _edit, context) => {
+      if (context?.before)
+        queryClient.setQueryData(noteFoldersKey, context.before)
+    },
+    onSettled: () =>
+      void queryClient.invalidateQueries({ queryKey: noteFoldersKey }),
+  })
+}
+
+/** Delete a folder; Theorem moves its notes and folders up to the one it sat in. */
+export function useDeleteFolder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (collectionId: string) =>
+      mutate((headers) => {
+        const { path, init } = deleteRequest(collectionId, headers)
+        return theoremJson<unknown>(path, init)
+      }),
+    onSettled: () =>
       void queryClient.invalidateQueries({ queryKey: noteFoldersKey }),
   })
 }
