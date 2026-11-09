@@ -43,8 +43,14 @@ import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
-import { readScene, SCENE_PART } from '@/components/chat/scene-model'
+import { askAbout } from '@/components/chat/composer-references'
+import {
+  readScene,
+  repairRequest,
+  SCENE_PART,
+} from '@/components/chat/scene-model'
 import { SceneCard } from '@/components/chat/scene-part'
+import { useSceneTheme } from '@/components/chat/scene-theme'
 import { Icon } from '@/components/icons'
 import {
   describeError,
@@ -683,11 +689,40 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
 
 /* --------------------------------------------------------------------- scenes */
 
-/** A reply's interactive scene (scene-part.tsx), drawn above its text. */
+/**
+ * A reply's interactive scene (scene-part.tsx), drawn above its text. Fix
+ * sends the failure to the agent as the next turn; a pick becomes a
+ * reference to this reply, with what was picked as its excerpt.
+ */
 const ScenePart: DataMessagePartComponent = ({ data }) => {
+  const aui = useAui()
+  const theme = useSceneTheme()
+  const threadId = useAuiState((s) => s.threadListItem.remoteId)
+  const messageId = useAuiState((s) => s.message.id)
   const scene = readScene(data)
   if (!scene) return <PartNotice name={SCENE_PART} />
-  return <SceneCard scene={scene} />
+  return (
+    <SceneCard
+      scene={scene}
+      theme={theme}
+      onRepair={(error) => aui.thread.append(repairRequest(scene.title, error))}
+      onAsk={
+        threadId
+          ? (entity) =>
+              askAbout({
+                label: `${scene.title ?? 'Scene'}: ${entity.label ?? entity.id}`,
+                excerpt: JSON.stringify({
+                  scene: { sceneId: scene.sceneId, title: scene.title },
+                  entity,
+                }),
+                location: {
+                  resource: { kind: 'message', threadId, messageId },
+                },
+              })
+          : undefined
+      }
+    />
+  )
 }
 
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */

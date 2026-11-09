@@ -336,6 +336,8 @@
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
   --spacing-reading: 720px;
+  /* An immersive artifact in a reply: wider than the reading column, centred on it. */
+  --spacing-artifact: 1040px;
 
   @keyframes collapsible-down {
     from {
