@@ -717,6 +717,114 @@
   }
 }
 
+/* Rail icons (rail-marks.tsx): stacked masks painted from the theme around
+   them. A theme gives the rail two facts it already has, its accent (--redwood)
+   and the ground the rail sits on (--surface-rail). Nothing here names a
+   palette or a mode, so a palette, a mode, or a person's own colours set on the
+   root, or on any element above the rail, move the icons with them, with no
+   script.
+
+   - Hue: each icon is the accent turned its own equal share of the OKLCH wheel
+     (--rail-shift, set per icon), so no two coincide in any theme. Home is the
+     accent's own hue.
+   - Lightness: the accent's. The theme chose it for its ground, so every icon
+     holds the contrast the accent does.
+   - Chroma: the accent's, up to what sRGB shows at that lightness in every hue
+     (min(0.17 L, 0.48 (1 - L)); rail-colors.test.ts checks it against the
+     gamut). No icon is louder than another, and turning the hue never clips.
+   - Fills: the icon's colour taken toward the rail's ground for lightness,
+     then given back a share of the accent's chroma. A plain mix loses chroma
+     with lightness and leaves a grey ground with grey fills. */
+@layer components {
+  /* The tunables are read with fallbacks and never declared here, so a value a
+     theme sets on the root or on any element above the rail reaches the icons:
+     a declaration on .rail-mark itself would beat what it inherits.
+       --rail-ground          what the fills are taken toward (--surface-rail)
+       --rail-chroma-slope    chroma cap per unit of lightness
+       --rail-chroma-top      chroma cap per unit of (1 - lightness)
+       --rail-tint-mix        share of the icon colour in the tint
+       --rail-tint-boost      chroma given back to the tint
+       --rail-paper-mix, --rail-paper-boost   the same for the paper
+     --rail-shift is each icon's own turn of the wheel, set on the element.
+     --rail-base, --rail-tint and --rail-paper are derived here, on the element,
+     so what they read is what the element inherits. Do not set them. */
+  .rail-mark {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    transition: opacity 100ms;
+
+    /* Without relative colours every icon is the accent itself. */
+    --rail-base: var(--redwood);
+    --rail-tint-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-tint-mix, 45%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-paper-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-paper-mix, 12%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-tint: var(--rail-tint-mixed);
+    --rail-paper: var(--rail-paper-mixed);
+  }
+
+  @supports (color: oklch(from red l c h)) {
+    .rail-mark {
+      --rail-base: oklch(
+        from var(--redwood) l
+          min(
+            c,
+            var(--rail-chroma-slope, 0.17) * l,
+            var(--rail-chroma-top, 0.48) * (1 - l)
+          )
+          calc(h + var(--rail-shift, 0))
+      );
+      --rail-tint: oklch(
+        from var(--rail-tint-mixed) l calc(c * var(--rail-tint-boost, 1.25)) h
+      );
+      --rail-paper: oklch(
+        from var(--rail-paper-mixed) l calc(c * var(--rail-paper-boost, 1.7)) h
+      );
+    }
+  }
+
+  .rail-mark > .icon-mask {
+    position: absolute;
+    inset: 0;
+  }
+
+  .rail-mark > [data-layer='line'] {
+    background-color: var(--ink);
+  }
+
+  .rail-mark > [data-layer='accent'] {
+    background-color: var(--rail-base);
+  }
+
+  .rail-mark > [data-layer='tint'] {
+    background-color: var(--rail-tint);
+  }
+
+  .rail-mark > [data-layer='paper'] {
+    background-color: var(--rail-paper);
+  }
+
+  /* Without CSS masks (Servo 0.7) each layer's colour would fill its whole box.
+     Drop the colour fills and show the outline layer alone, as the plain
+     .icon-mask fallback does. */
+  @supports not (mask-image: none) {
+    .rail-mark > .icon-mask {
+      background-color: transparent;
+    }
+
+    .rail-mark > .icon-mask:not([data-layer='line']) {
+      display: none;
+    }
+  }
+}
+
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
    clipped to the glyphs, running against the sheet's own, so a label recolours
    as it scrolls and keeps at least 4.5:1 over whatever stretch of the sheet is

@@ -597,3 +597,38 @@ trash does for Delete and Lucide's BellOff for muting a link suggestion. File
 reuses Common File Double.
 
 The files they replace in the registry are listed under Retired.
+
+## Rail marks in colour (Streamline Ultimate, colored style)
+
+The outer rail's marks are Streamline Ultimate colored icons, from the owner's
+downloads "replace chat.zip", "new index.zip", "canvas.zip" and "IDE and file
+folder.zip", plus the Vault's zipped folder (an image the owner sent in chat).
+Each was copied byte for byte and renamed in lowercase with a
+`streamline-` prefix, into `streamline/rail/source/`. The license is whatever
+covers the owner's Streamline plan. Dzone Logo draws a real company's mark;
+the owner chose it for Spaces.
+
+| Rail role | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Home (the chat mode) | `streamline/rail/source/streamline-house-1.png` | House 1 | `bd37c1ab27ccbd703475a1f44ca9412f7bfc2964d271eb5120562b7766709c4e` |
+| Index | `streamline/rail/source/streamline-drawer-file.png` | Drawer File (colored) | `f479a5a678b58c4bf83200e2bd1eacdaab92ee6158fbd7e82408caf679ac4f34` |
+| Canvas | `streamline/rail/source/streamline-design-file-vector.png` | Design File Vector | `6dd5a2f2cdf27dd744d1061019f101448aa8994823e3a34d47ce3ff8933f1e42` |
+| Spaces | `streamline/rail/source/streamline-dzone-logo.png` | Dzone Logo | `34ebf6a16486df7d10d222ef39e9168178e6babe0540263838dc57b51556097c` |
+| IDE | `streamline/rail/source/streamline-file-code.png` | File Code | `504bc7985dc8207cdbabf266ac008edf3b5470f890d7931c43499d822032ddb8` |
+| Vault | `streamline/rail/source/streamline-folder-zip.png` | Folder Zip (colored; name inferred from the image) | `09a2592d12b09cceb6a241a673c8a1b361b792331931848a5d6973f8fc97eeb7` |
+| Files control at the rail's foot | `streamline/rail/source/streamline-hierarchy-files-1.png` | Hierarchy Files 1 | `88dd557e71a8a6eca831706aa9cd5105a9415eb93d53db20cf636690fab0aad1` |
+
+Pages reuses the Light-style Browser Page Layout PNG, and Notes the Light-style
+Common File Stack PNG listed above. Both are black ink on transparent, so the
+generator fills each enclosed region itself.
+
+The colour comes from `scripts/rail-icons.mjs`, which splits every source into
+up to four alpha masks by luma and chroma (line, accent, tint, paper) and writes
+them to `streamline/rail/layers/`. `.rail-mark` in `styles.css` paints each mask
+from a palette token, so the rail follows the palette and light or dark mode with
+no script at run time. `scripts/rail-icons.test.ts` fails when the committed
+layers differ from what the generator writes.
+
+The monochrome rail marks `Icon.Chat`, `Archive`, `Layout`, `Vault`, `Spaces`,
+`Canvas` and `Ide`, and the folder `Icon.Files` at the rail's foot, no longer
+draw the rail. They stay in the registry for the surfaces that still use them.
