@@ -41,7 +41,8 @@ import {
 
 const CLIENT_ID = 'theorem-ui-e2e'
 const IDENTITY_CLIENT_ID = 'theorem-e2e'
-const READY_ATTEMPTS = 240
+// A store whose journal has grown replays for minutes before Theorem answers.
+const READY_ATTEMPTS = 600
 const READY_INTERVAL_MS = 1_000
 const STANDIN_MODELS = [
   'deepseek/deepseek-v4-flash-0731',
@@ -199,6 +200,8 @@ start('ui', process.execPath, [
   THEOREM_API_URL: API,
   THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
   THEOREM_SESSION_SECRET: secret.uiSessionSecret,
+  // Another stack on another port would otherwise overwrite this sign-in.
+  THEOREM_SESSION_COOKIE: `theorem_session_${UI_PORT}`,
 })
 await ready('ui', `${UI}/login`)
 
