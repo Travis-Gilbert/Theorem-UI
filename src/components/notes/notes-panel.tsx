@@ -368,7 +368,7 @@ function NoteSections({
   const folders = useNoteFolders()
   const move = useMoveNote()
   const update = useUpdateFolder()
-  const { layout, edit } = useNotesLayout()
+  const { layout, edit, trouble } = useNotesLayout()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   )
@@ -379,14 +379,27 @@ function NoteSections({
     !!folderOf &&
     !!notes &&
     [...folderOf.keys()].some((id) => !notes.some((note) => note.opens === id))
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = library
+  const { hasNextPage, isFetchingNextPage, isError, fetchNextPage } = library
   useEffect(() => {
-    if (unread && hasNextPage && !isFetchingNextPage) void fetchNextPage()
-  }, [unread, hasNextPage, isFetchingNextPage, fetchNextPage])
+    if (unread && hasNextPage && !isFetchingNextPage && !isError)
+      void fetchNextPage()
+  }, [unread, hasNextPage, isFetchingNextPage, isError, fetchNextPage])
 
   if (library.isPending || folders.isPending) return <Hint>Loading notes…</Hint>
   if (library.isError)
-    return <Hint>{describeError(library.error, 'document')}</Hint>
+    return (
+      <Hint>
+        {describeError(library.error, 'document')}{' '}
+        <Button
+          variant="ghost"
+          size="xs"
+          disabled={library.isFetching}
+          onClick={() => void library.refetch()}
+        >
+          Try again
+        </Button>
+      </Hint>
+    )
   // Without its folders the list still shows every note, loose.
   const filed = folders.data ?? {
     folders: [],
@@ -450,6 +463,22 @@ function NoteSections({
       {folders.isError && (
         <p role="alert" className="px-2 pb-1 text-xs text-error-ink">
           {describeError(folders.error, 'document')}
+        </p>
+      )}
+      {trouble && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 px-2 pb-1 text-xs text-error-ink"
+        >
+          <span className="min-w-0 flex-1">
+            {trouble.kind === 'read'
+              ? 'Your sections could not be read from Theorem.'
+              : 'Your last change to the sections was not saved.'}{' '}
+            {describeError(trouble.error, 'document')}
+          </span>
+          <Button variant="ghost" size="xs" onClick={trouble.retry}>
+            Try again
+          </Button>
         </p>
       )}
       {(move.error ?? update.error) && (

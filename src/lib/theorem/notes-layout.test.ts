@@ -6,12 +6,13 @@ import {
   renameSection,
 } from '@/components/notes/note-sections'
 import {
+  failedLast,
   layoutOf,
   layoutWrite,
   parseStoredLayout,
   saveLayout,
 } from './notes-layout'
-import type { StoredLayout } from './notes-layout'
+import type { LayoutAttempt, StoredLayout } from './notes-layout'
 
 const stored = (revision: number, layout = START_LAYOUT): StoredLayout => ({
   layout,
@@ -49,7 +50,10 @@ describe('parseStoredLayout', () => {
 
   test('drops a placement whose key is no row', () => {
     const read = parseStoredLayout({
-      layout: { ...START_LAYOUT, placed: { 'note:doc:1': 'notes', x: 'notes' } },
+      layout: {
+        ...START_LAYOUT,
+        placed: { 'note:doc:1': 'notes', x: 'notes' },
+      },
       revision: 1,
     })
     expect(read.layout?.placed).toEqual({ 'note:doc:1': 'notes' })
@@ -135,5 +139,32 @@ describe('saveLayout', () => {
     expect(attempt).rejects.toThrow('offline')
     await attempt.catch(() => undefined)
     expect(tries).toBe(1)
+  })
+})
+
+describe('failedLast', () => {
+  const change = (l: typeof START_LAYOUT) => l
+  const attempt = (
+    status: LayoutAttempt['status'],
+    submittedAt: number,
+  ): LayoutAttempt => ({ status, submittedAt, change, error: status })
+
+  test('nothing to show when no edit was made', () => {
+    expect(failedLast([])).toBeUndefined()
+  })
+
+  test('the latest edit failing is shown, with the change to try again', () => {
+    const failed = failedLast([attempt('success', 1), attempt('error', 2)])
+    expect(failed?.error).toBe('error')
+    expect(failed?.change).toBe(change)
+  })
+
+  test('a later edit, still saving or saved, puts the failure behind it', () => {
+    expect(
+      failedLast([attempt('error', 1), attempt('pending', 2)]),
+    ).toBeUndefined()
+    expect(
+      failedLast([attempt('success', 3), attempt('error', 1)]),
+    ).toBeUndefined()
   })
 })

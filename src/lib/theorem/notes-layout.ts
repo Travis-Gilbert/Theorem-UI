@@ -114,6 +114,33 @@ export async function saveLayout(
   }
 }
 
+/** A layout edit made on this page, as React Query keeps it. */
+export type LayoutAttempt = {
+  readonly status: 'idle' | 'pending' | 'success' | 'error'
+  readonly submittedAt: number
+  readonly change: LayoutChange
+  readonly error: unknown
+}
+
+/** The edit that failed, while it is the latest one: a later edit or its retry puts it behind. */
+export function failedLast(
+  attempts: readonly LayoutAttempt[],
+): LayoutAttempt | undefined {
+  const last = attempts.reduce<LayoutAttempt | undefined>(
+    (latest, attempt) =>
+      !latest || attempt.submittedAt >= latest.submittedAt ? attempt : latest,
+    undefined,
+  )
+  return last?.status === 'error' ? last : undefined
+}
+
+/** Why the layout shown may not be the one in Theorem, and how to try again. */
+export type LayoutTrouble = {
+  readonly kind: 'read' | 'save'
+  readonly error: unknown
+  readonly retry: () => void
+}
+
 export const notesLayoutKey = ['theorem', 'notes', 'layout'] as const
 const NEVER_SAVED: StoredLayout = { layout: null, revision: 0 }
 
@@ -128,19 +155,30 @@ const putLayout = (layout: SectionLayout, revision: number) =>
 
 /**
  * The layout as the person arranged it, with edits still saving already in
- * place, and `edit` to change it. Edits save one at a time, in order.
+ * place, and `edit` to change it. Edits save one at a time, in order. When
+ * the layout could not be read, or the latest edit was not saved, `trouble`
+ * says so.
  */
 export function useNotesLayout() {
   const queryClient = useQueryClient()
-  const { data = NEVER_SAVED } = useQuery({
+  const read = useQuery({
     queryKey: notesLayoutKey,
     queryFn: readLayout,
     staleTime: 10_000,
   })
-  const saving = useMutationState({
-    filters: { mutationKey: notesLayoutKey, status: 'pending' },
-    select: (mutation) => mutation.state.variables as LayoutChange,
+  const data = read.data ?? NEVER_SAVED
+  const attempts = useMutationState({
+    filters: { mutationKey: notesLayoutKey },
+    select: (mutation): LayoutAttempt => ({
+      status: mutation.state.status,
+      submittedAt: mutation.state.submittedAt,
+      change: mutation.state.variables as LayoutChange,
+      error: mutation.state.error,
+    }),
   })
+  const saving = attempts
+    .filter((attempt) => attempt.status === 'pending')
+    .map((attempt) => attempt.change)
   const { mutate: edit } = useMutation({
     mutationKey: notesLayoutKey,
     scope: { id: 'notes-layout' },
@@ -152,8 +190,18 @@ export function useNotesLayout() {
       ),
     onSuccess: (saved) => queryClient.setQueryData(notesLayoutKey, saved),
   })
+  const failed = failedLast(attempts)
+  const trouble: LayoutTrouble | undefined =
+    read.isError && !read.data
+      ? { kind: 'read', error: read.error, retry: () => void read.refetch() }
+      : failed && {
+          kind: 'save',
+          error: failed.error,
+          retry: () => edit(failed.change),
+        }
   return {
     layout: saving.reduce((layout, change) => change(layout), layoutOf(data)),
     edit,
+    trouble,
   }
 }
