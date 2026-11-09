@@ -67,6 +67,7 @@
     "@pierre/diffs": "1.6.1",
     "@prosemirror-adapter/react": "0.5.5",
     "@puckeditor/core": "0.24.0",
+    "@radix-ui/react-use-size": "1.1.5",
     "@rustyreddb/node": "0.1.0-beta.2",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.1.18",

@@ -1,6 +1,8 @@
 // SOURCING: d3-scale (linear and log scales, ticks), d3-array (leastIndex for the nearest point, cumsum for where each stage starts), d3-shape (line), d3-brush
 // with d3-selection (dragging out an x range, pointer position), the d3 modules
-// the brief names for Plot; Timeline lays stages on one d3 linear scale in HTML.
+// the brief names for Plot; @radix-ui/react-use-size follows the plot's width;
+// Timeline lays stages on one d3 linear scale in HTML.
+import { useSize } from '@radix-ui/react-use-size'
 import { cumsum, leastIndex } from 'd3-array'
 import { brushX } from 'd3-brush'
 import type { BrushBehavior, D3BrushEvent } from 'd3-brush'
@@ -24,22 +26,6 @@ export type Mark = { at: number; label: string }
 
 const HEIGHT = 260
 const MARGIN = { top: 20, right: 16, bottom: 28, left: 48 }
-
-/** The element's width, followed as it resizes. */
-function useWidth<T extends HTMLElement>(fallback: number) {
-  const ref = useRef<T>(null)
-  const [width, setWidth] = useState(0)
-  useEffect(() => {
-    const element = ref.current
-    if (!element || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry?.contentRect.width ?? 0),
-    )
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-  return [ref, width || fallback] as const
-}
 
 function scaleFor(axis: Axis, values: number[], range: [number, number]) {
   const log = axis.scale === 'log'
@@ -83,9 +69,12 @@ export function PlotView({
   region?: Region | null
   setRegion: (region: Region | null) => void
 }) {
-  const [frame, width] = useWidth<HTMLDivElement>(640)
+  // The frame and the brush layer are state, not refs: a plot that starts with
+  // nothing to draw mounts them later, and the effects below follow them then.
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null)
+  const width = useSize(frame)?.width || 640
   const svgRef = useRef<SVGSVGElement>(null)
-  const brushRef = useRef<SVGGElement>(null)
+  const [brushLayer, setBrushLayer] = useState<SVGGElement | null>(null)
   const brush = useRef<BrushBehavior<unknown>>(null)
   const readoutId = useId()
   const { selected, select: choose } = useSelection()
@@ -172,7 +161,7 @@ export function PlotView({
   })
 
   useEffect(() => {
-    const g = brushRef.current
+    const g = brushLayer
     if (!g) return
     const behavior = brushX<unknown>()
       .extent([
@@ -186,18 +175,18 @@ export function PlotView({
       behavior.on('end', null)
       select(g).on('.brush', null)
     }
-  }, [width])
+  }, [brushLayer, width])
 
   const from = region?.from
   const to = region?.to
   useEffect(() => {
-    const g = brushRef.current
+    const g = brushLayer
     if (!g || !brush.current || !xScale) return
     select(g).call(
       brush.current.move,
       from !== undefined && to !== undefined ? [xScale(from), xScale(to)] : null,
     )
-  }, [from, to, xScale])
+  }, [brushLayer, from, to, xScale])
 
   if (!xScale || !yScale)
     return (
@@ -233,7 +222,7 @@ export function PlotView({
           ))}
         </span>
       </div>
-      <div ref={frame} className="relative w-full">
+      <div ref={setFrame} className="relative w-full">
         <svg
           ref={svgRef}
           width={width}
@@ -314,7 +303,7 @@ export function PlotView({
           ))}
           {/* d3-brush paints its selection #777 at 30%; the theme's ink, faint, replaces it. */}
           <g
-            ref={brushRef}
+            ref={setBrushLayer}
             className="[&_.selection]:fill-ink [&_.selection]:[fill-opacity:0.08] [&_.selection]:stroke-ink-faint"
           />
           {selectedX !== undefined && usable(x, selectedX) && (

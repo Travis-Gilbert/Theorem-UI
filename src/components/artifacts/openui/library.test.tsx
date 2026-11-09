@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { createParser } from '@openuidev/lang-core'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
-import { cleanup, render, waitFor } from '../../../../test/workspace'
+import { cleanup, render, settle, waitFor } from '../../../../test/workspace'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { readArtifact } from '../artifact-model'
 import type { TheoremArtifact } from '../artifact-model'
@@ -11,6 +12,7 @@ import { EXAMPLES, GPU_WORKLOAD } from './examples'
 import {
   LIBRARY_ID,
   LIBRARY_VERSION,
+  RANGE_LIMIT,
   artifactLibrary,
   libraryRecord,
 } from './library'
@@ -29,10 +31,11 @@ function artifact(
     id: LIBRARY_ID,
     version: LIBRARY_VERSION,
   },
+  revision = 'rev_1',
 ): TheoremArtifact {
   const read = readArtifact({
     artifactId: 'art_gpu',
-    artifactRevision: 'rev_1',
+    artifactRevision: revision,
     artifactKind: 'openui',
     rendererId: 'theorem-openui',
     contractVersion: 'theorem-artifact-v1',
@@ -219,6 +222,25 @@ describe('local interaction', () => {
     expect(inside).toEqual(['1', '2', '3'])
   })
 
+  test('a plot that starts with nothing to draw can be brushed once values arrive', async () => {
+    const container = await show(`root = Stack([measured, plot])
+$measured = false
+measured = Toggle("Measured", $measured)
+plot = Plot(Axis("Size", "items", "log"), Axis("Time", "ms", "log"), [Series("CPU", [1, 10, 100], $measured ? [1, 2, 3] : [0, 0, 0])])`)
+    expect(container.textContent).toContain('No values to plot.')
+    await click(container.querySelector('[role="switch"]')!)
+    await waitFor(() =>
+      container.querySelector('[data-component="Plot"] svg .overlay'),
+    )
+  })
+
+  test('Range refuses a count no chart needs and says how many it makes', async () => {
+    const container = await show(`root = Stack([plot])
+sizes = @Range(1, 100, 5000)
+plot = Plot(Axis("Size", "items"), Axis("Time", "ms"), [Series("CPU", sizes, sizes)])`)
+    expect(container.textContent).toContain(`at most ${RANGE_LIMIT}`)
+  })
+
   test('the contribution renders inline with no live session', () => {
     const representation = representationOf(artifact(EXAMPLES.Stat), 'preview')
     expect(representation.renderer).toBe('theorem-openui')
@@ -251,6 +273,26 @@ describe('selection reaches the next turn', () => {
       kind: 'entity',
       entityId: 'timeline:timeline/lane:GPU/stage:Transfer in',
     })
+  })
+
+  test('a new revision lets go of the selection made on the one before', async () => {
+    const view = (revision: string) => (
+      <ArtifactView
+        artifact={artifact(EXAMPLES.Timeline, undefined, revision)}
+        distance="preview"
+        latest
+      />
+    )
+    const { container, root, queryClient } = await render(view('rev_1'))
+    await click(container.querySelector('[data-entity-label="GPU · Transfer in"]')!)
+    expect(container.querySelector('[data-slot="openui-selection"]')).not.toBeNull()
+    act(() =>
+      root.render(
+        <QueryClientProvider client={queryClient}>{view('rev_2')}</QueryClientProvider>,
+      ),
+    )
+    await settle()
+    expect(container.querySelector('[data-slot="openui-selection"]')).toBeNull()
   })
 
   test('clicking a table row selects rows, a table_rows locator', async () => {

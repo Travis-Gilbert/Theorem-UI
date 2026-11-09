@@ -105,7 +105,16 @@ function storedProblems(parsed: ParseResult | null): RepairProblem[] {
   ]
 }
 
-export function OpenUIArtifact({ artifact }: RendererProps) {
+/**
+ * A program's parse, problems, $variables and selection belong to one revision;
+ * keying by it lets them all go when a new revision replaces the one shown.
+ */
+export function OpenUIArtifact(props: RendererProps) {
+  const { artifactId, revision } = props.artifact
+  return <ArtifactProgram key={`${artifactId}@${revision}`} {...props} />
+}
+
+function ArtifactProgram({ artifact }: RendererProps) {
   const ref = {
     artifactId: artifact.artifactId,
     revision: artifact.revision,

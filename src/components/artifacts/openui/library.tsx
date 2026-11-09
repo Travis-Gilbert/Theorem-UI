@@ -400,10 +400,12 @@ const Experiment = defineComponent({
   ),
 })
 
+/** The most numbers one Range makes; a chart or table never needs more. */
+export const RANGE_LIMIT = 1000
+
 const Range = defineFunction({
   name: 'Range',
-  description:
-    'count numbers from `from` to `to`, evenly spaced, or evenly spaced in orders of magnitude with "log".',
+  description: `count numbers (at most ${RANGE_LIMIT}) from \`from\` to \`to\`, evenly spaced, or evenly spaced in orders of magnitude with "log".`,
   params: z.object({
     from: z.number(),
     to: z.number(),
@@ -413,6 +415,11 @@ const Range = defineFunction({
   returns: z.array(z.number()),
   fn: ({ from, to, count, scale }) => {
     const n = Math.max(2, Math.round(count))
+    // OpenUI reports a throw against the statement, so it comes back as a repair hint.
+    if (n > RANGE_LIMIT)
+      throw new Error(
+        `count ${n} is more than Range makes (at most ${RANGE_LIMIT}); a chart or table reads well with far fewer.`,
+      )
     const log = scale === 'log' && from > 0 && to > 0
     return Array.from({ length: n }, (_, i) => {
       const t = i / (n - 1)
