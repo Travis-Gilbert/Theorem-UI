@@ -415,8 +415,11 @@ check(
 await sectionHeading(READING).click()
 check(
   'clicking a heading folds its rows away',
-  (await reading.getByRole('button', { name: TITLE }).count()) === 0 &&
-    (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
+  await until(
+    async () =>
+      (await reading.getByRole('button', { name: TITLE }).count()) === 0 &&
+      (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
+  ),
 )
 await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
 await sectionHeading(READING).waitFor(READ)
@@ -424,6 +427,47 @@ check(
   'the section, its note and its folding are kept after a reload',
   (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
 )
+// The arrangement is kept in Theorem, not in this browser: it is there with
+// the page's own storage cleared, and in another browser signed in to the
+// account.
+const layout = await context.request.get(
+  `${UI}/api/documents/v2/layouts/notes?schema=${SCHEMA}`,
+  READ,
+)
+check(
+  'Theorem holds the section in the account layout',
+  layout.ok() &&
+    (await layout.json()).layout?.sections.some((s) => s.name === READING),
+  String(layout.status()),
+)
+await page.evaluate(() => window.localStorage.clear())
+await page.reload({ waitUntil: 'domcontentloaded', timeout: 120_000 })
+await sectionHeading(READING).waitFor(READ)
+check(
+  'with this browser storage cleared the section is still there, folded',
+  (await sectionHeading(READING).getAttribute('aria-expanded')) === 'false',
+)
+const { cookies } = await context.storageState()
+const elsewhere = await session.browser.newContext({
+  viewport: { width: 1440, height: 900 },
+  colorScheme: 'dark',
+  storageState: { cookies, origins: [] },
+})
+const there = await elsewhere.newPage()
+await there.goto(`${UI}/notes`, {
+  waitUntil: 'domcontentloaded',
+  timeout: 120_000,
+})
+const thereHeading = there
+  .getByRole('navigation', { name: 'Notes' })
+  .locator('[data-slot="notes-section"]')
+  .getByRole('button', { name: READING, exact: true })
+await thereHeading.waitFor(READ)
+check(
+  'another browser signed in to the account shows the same section, folded',
+  (await thereHeading.getAttribute('aria-expanded')) === 'false',
+)
+await elsewhere.close()
 await sectionHeading(READING).click()
 await reading.getByRole('button', { name: TITLE }).waitFor(READ)
 check('clicking it again opens it on the note', true)
@@ -437,17 +481,24 @@ await shot('sections')
 await menuOn(READING, 'Delete section')
 check(
   'deleting a section puts its note back under Notes',
-  !(await sections()).includes(READING) &&
-    (await notesNav
-      .locator('section[data-section-id="notes"]')
-      .getByRole('button', { name: TITLE })
-      .count()) === 1,
+  await until(
+    async () =>
+      !(await sections()).includes(READING) &&
+      (await notesNav
+        .locator('section[data-section-id="notes"]')
+        .getByRole('button', { name: TITLE })
+        .count()) === 1,
+  ),
   JSON.stringify(await sections()),
 )
 await sectionHeading('Folders').click()
 check(
   'Folders opens again',
-  (await sectionHeading('Folders').getAttribute('aria-expanded')) === 'true',
+  await until(
+    async () =>
+      (await sectionHeading('Folders').getAttribute('aria-expanded')) ===
+      'true',
+  ),
 )
 
 // A folder is a Theorem collection: the plus folder button makes one, a note
@@ -498,6 +549,77 @@ check(
 await folderRow.click()
 await noteRow.waitFor(READ)
 check('and the list shows it loose again', true)
+
+// Folders nest. New folder inside makes one under the folder right-clicked, a
+// folder dragged onto a section comes out to the top and dragged onto another
+// folder goes in, Rename folder renames it, and deleting a folder moves what
+// it held up into the folder around it.
+const folderNamed = async (name) =>
+  (await collections()).find((collection) => collection.name === name)
+const INNER = `Herons ${MARK}`
+const outerId = (await folderNamed(FOLDER))?.collectionId
+await folderRow.click({ button: 'right' })
+await page
+  .getByRole('menuitem', { name: 'New folder inside', exact: true })
+  .click()
+await page.getByLabel('Folder name').fill(INNER)
+await page.keyboard.press('Enter')
+const innerRow = notesNav.getByRole('button', { name: INNER })
+await innerRow.waitFor(READ)
+check(
+  'New folder inside makes a folder in Theorem inside the one right-clicked',
+  await until(async () => (await folderNamed(INNER))?.parentId === outerId),
+  JSON.stringify(await folderNamed(INNER)),
+)
+await dragOnto(innerRow, sectionHeading('Folders'))
+check(
+  'a folder dragged onto a section comes out to the top level',
+  await until(async () => (await folderNamed(INNER))?.parentId === null),
+)
+await dragOnto(innerRow, folderRow)
+check(
+  'a folder dragged onto another folder goes inside it',
+  await until(async () => (await folderNamed(INNER))?.parentId === outerId),
+)
+const RENAMED_FOLDER = `Egrets ${MARK}`
+await innerRow.click({ button: 'right' })
+await page.getByRole('menuitem', { name: 'Rename folder', exact: true }).click()
+await page.getByLabel('Folder name').fill(RENAMED_FOLDER)
+await page.keyboard.press('Enter')
+const renamedRow = notesNav.getByRole('button', { name: RENAMED_FOLDER })
+await renamedRow.waitFor(READ)
+check(
+  'Rename folder renames the collection in Theorem',
+  await until(async () => Boolean(await folderNamed(RENAMED_FOLDER))),
+)
+await dragOnto(notesNav.getByRole('button', { name: TITLE }), renamedRow)
+check(
+  'a note dragged onto the inner folder moves into it',
+  await until(async () =>
+    ((await folderNamed(RENAMED_FOLDER))?.documentIds ?? []).includes(
+      documentId,
+    ),
+  ),
+)
+await shot('nested-folders')
+await renamedRow.click({ button: 'right' })
+await page.getByRole('menuitem', { name: 'Delete folder', exact: true }).click()
+check(
+  'deleting the inner folder moves its note up into the folder around it',
+  await until(
+    async () =>
+      !(await folderNamed(RENAMED_FOLDER)) &&
+      (await holding(FOLDER)).includes(documentId),
+  ),
+)
+await renamedRow.waitFor({ state: 'detached', ...READ })
+check('and its row leaves the list', true)
+await page.getByRole('button', { name: 'Move to', exact: true }).click()
+await page.getByRole('menuitemradio', { name: 'No folder' }).click()
+check(
+  'Move to takes the note back to the top level',
+  await until(async () => !(await holding(FOLDER)).includes(documentId)),
+)
 
 // The Trash takes it and gives it back.
 await page.getByRole('button', { name: 'Move to Trash' }).click()
