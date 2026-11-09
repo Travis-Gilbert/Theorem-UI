@@ -209,9 +209,9 @@ async function save(queryClient: QueryClient, documentId: string) {
             }
           : current,
       )
-      // A save can rename the note, so the lists that show its title refetch.
-      if (summary.title !== note.title)
-        void queryClient.invalidateQueries({ queryKey: noteLibraryKey })
+      // A save can rename the note and moves it up Recently edited, so the
+      // lists that show it refetch.
+      void queryClient.invalidateQueries({ queryKey: noteLibraryKey })
       const after = queryClient.getQueryData<Note>(key)
       setStatus(
         documentId,
