@@ -1,5 +1,5 @@
-// SOURCING: @uiw/react-codemirror (CodeMirror 6 as a React component, with
-// its light and dark themes) and @codemirror/language-data (the language for
+// SOURCING: @uiw/react-codemirror (CodeMirror 6 as a React component, in
+// lib/codemirror-theme's theme) and @codemirror/language-data (the language for
 // a file name, loaded on demand), each language loaded once through
 // @tanstack/react-query. useTextFile saves; the desktop host opens the native
 // editor. Running code is Phase 4's: it arrives as a CodeExtension, whose
@@ -7,7 +7,6 @@
 // panel's toolbar and the card's last-run slot.
 import { useQuery } from '@tanstack/react-query'
 import CodeMirror from '@uiw/react-codemirror'
-import { useTheme } from 'next-themes'
 import { basename } from 'pathe'
 import { useMemo } from 'react'
 import { Icon } from '@/components/icons'
@@ -16,6 +15,7 @@ import { hostActions } from '@/lib/handlers/actions'
 import { useTextFile } from '@/lib/handlers/file-sync'
 import { useHandlerRegistry } from '@/lib/handlers/registry'
 import type { FileCardProps, FileViewProps } from '@/lib/handlers/types'
+import { useCodeMirrorTheme } from '@/lib/codemirror-theme'
 import {
   FileMessage,
   FileStatusBar,
@@ -46,7 +46,7 @@ export function CodePanel(file: FileViewProps) {
   const { client, path, entry } = file
   const text = useTextFile(file)
   const language = useLanguage(path)
-  const { resolvedTheme } = useTheme()
+  const codeMirrorTheme = useCodeMirrorTheme()
   const codeExtensions = useHandlerRegistry((s) => s.codeExtensions)
   const extensions = useMemo(() => {
     const view = { client, path, entry }
@@ -84,7 +84,7 @@ export function CodePanel(file: FileViewProps) {
         onChange={text.setText}
         readOnly={text.readOnly}
         extensions={extensions}
-        theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        theme={codeMirrorTheme}
         height="100%"
         className="min-h-0 flex-1 overflow-hidden text-[13px]"
         aria-label={`${basename(path)}, ${language.name ?? 'text'}`}

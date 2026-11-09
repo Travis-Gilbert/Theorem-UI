@@ -20,6 +20,7 @@ import type { HighlighterCore, LanguageInput, ThemeInput } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { bundledLanguages } from "shiki/langs";
 import { bundledThemes } from "shiki/themes";
+import { useCodeThemes } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 
 /**
@@ -264,7 +265,7 @@ const HighlightedCode: FC<CodeProps> = (props) => {
 export const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
   code,
   language,
-  theme = { dark: "github-dark-default", light: "github-light-default" },
+  theme: themeProp,
   className,
   style,
   // Inert: useShikiHighlighter output has no default styles or language label.
@@ -275,6 +276,9 @@ export const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
   highlightLines,
   ...options
 }) => {
+  // The palette's own code themes, unless the caller names some.
+  const codeThemes = useCodeThemes();
+  const theme = themeProp ?? codeThemes;
   const trimmed = code.trim();
   const highlightKey = highlightLines?.join(",") ?? "";
   const callerTransformers = options.transformers;

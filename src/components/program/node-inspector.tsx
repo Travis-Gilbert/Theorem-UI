@@ -2,7 +2,8 @@
 // fold_semiring answer the derivation questions, programmable_graph interior and
 // advance_pin carry compound nodes, and the run receipt supplies each output. Controls are
 // the vendored coss kit (Textarea, Checkbox, Label, Badge, Alert, Empty) and
-// JSON entry is @uiw/react-codemirror, as blocks/source-editor uses it.
+// JSON entry is @uiw/react-codemirror in lib/codemirror-theme's theme, as
+// blocks/source-editor uses it.
 import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import {
@@ -14,7 +15,6 @@ import {
 import { useNavigate } from '@tanstack/react-router'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import type { Extension } from '@uiw/react-codemirror'
-import { useTheme } from 'next-themes'
 import { Fragment, useMemo, useState } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import { Alert, AlertDescription } from '@/components/coss/alert'
@@ -47,6 +47,7 @@ import { useProgramDoc } from '@/lib/program/store'
 import { affectedNeighborhood } from '@/lib/program/compute'
 import { describeError } from '@/lib/theorem/client'
 import { callTool, fetchSpill } from '@/lib/theorem/native'
+import { useCodeMirrorTheme } from '@/lib/codemirror-theme'
 import { Affordances, Attachments, NodeDiagnostics } from './node-compute'
 import { Choice, Json, Labeled, Section, ToolError } from './section'
 import { AuthorityChoice } from './standing-sections'
@@ -85,7 +86,7 @@ function JsonEntry({
   language?: Extension
   placeholder?: string
 }) {
-  const { resolvedTheme } = useTheme()
+  const codeMirrorTheme = useCodeMirrorTheme()
   const extensions = useMemo(
     () => [
       language,
@@ -103,7 +104,7 @@ function JsonEntry({
       onChange={onChange}
       onBlur={onBlur}
       extensions={extensions}
-      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      theme={codeMirrorTheme}
       basicSetup={{
         lineNumbers: false,
         foldGutter: false,

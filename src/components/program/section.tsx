@@ -1,9 +1,9 @@
 // SOURCING: coss ui Sidebar groups, Collapsible, Field, Select and Alert, the project's vendored Base UI
-// kit, and CodeMirror (already the code surface in blocks) for values. The rail's panels
-// are built from these and the coss controls they wrap, so none of them styles a raw one.
+// kit, and CodeMirror (already the code surface in blocks, in lib/codemirror-theme's theme)
+// for values. The rail's panels are built from these and the coss controls they wrap, so
+// none of them styles a raw one.
 import { json } from '@codemirror/lang-json'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
-import { useTheme } from 'next-themes'
 import type { ReactNode } from 'react'
 import { Alert, AlertDescription } from '@/components/coss/alert'
 import {
@@ -27,6 +27,7 @@ import {
 import { Icon } from '@/components/icons'
 import type { IconName } from '@/components/icons'
 import { describeError } from '@/lib/theorem/client'
+import { useCodeMirrorTheme } from '@/lib/codemirror-theme'
 
 /** One titled part of a panel. It folds, so a long panel stays navigable. */
 export function Section({
@@ -153,13 +154,13 @@ const VALUE_EXTENSIONS = [json(), EditorView.lineWrapping, VALUE_THEME]
 
 /** A value Theorem returned: folds, scrolls, and selects like code. */
 export function Json({ value }: { value: unknown }) {
-  const { resolvedTheme } = useTheme()
+  const codeMirrorTheme = useCodeMirrorTheme()
   return (
     <CodeMirror
       className="overflow-hidden rounded-md border border-separator"
       value={typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
       extensions={VALUE_EXTENSIONS}
-      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      theme={codeMirrorTheme}
       editable={false}
       basicSetup={{
         lineNumbers: false,

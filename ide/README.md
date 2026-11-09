@@ -86,7 +86,7 @@ tooling is removed.
 | `@theia/terminal` | Not Bun-specific: with the bottom panel collapsed, Toggle Terminal expands it on its last tab rather than the terminal. | Activates the terminal through the shell. |
 | `drivelist` | Not Bun-specific: the native build breaks when the checkout path contains a space. | Uses `node-addon-api`'s unquoted `include_dir`. |
 
-## Stone themes (`theia-extensions/theorem-workspace`)
+## Stone and Vitesse themes (`theia-extensions/theorem-workspace`)
 
 - Theorem Stone Light and Dark (`theorem-stone-light`, `theorem-stone-dark`) are the default, following
   the OS, and the themes the IDE bridge sets when the Theorem UI switches between light and dark. They
@@ -98,6 +98,12 @@ tooling is removed.
   sheet around it, rail junction included, read as one surface. Monaco keeps `editor.background` opaque,
   so editors read `theoremSheet.editorBackground` instead. Other themes default all three to their
   editor background and look as before.
+- Theorem Vitesse Light and Dark (`theorem-vitesse-light`, `theorem-vitesse-dark`) are what the bridge
+  sets while the UI's palette is Vitesse (`setTheme`'s second argument; any other palette gets Stone).
+  They `include` Anthony Fu's Vitesse Light and Vitesse Dark Soft VS Code themes
+  (`src/browser/themes/vitesse/`, MIT, copied unchanged) and clear the same chrome as Stone. Vitesse
+  Dark Soft is the `#222` variant that the UI's Vitesse Dark, franmc01's JetBrains theme, follows; the
+  dark theme takes that scheme's selection and caret.
 
 ## Zed look (`theia-extensions/zed-look`)
 
