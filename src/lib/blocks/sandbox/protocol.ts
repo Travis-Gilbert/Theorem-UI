@@ -10,6 +10,7 @@ import {
   JSONRPCServer,
   JSONRPCServerAndClient,
 } from 'json-rpc-2.0'
+import type { AppTheme } from './theme'
 
 /** How a file is read: its text, parsed JSON, CSV rows, or its bytes. */
 export type FileFormat = 'text' | 'json' | 'csv' | 'bytes'
@@ -107,6 +108,8 @@ export interface SandboxMethods {
   'module.inputs': { params: ModuleValues; result: null }
   /** A route reached one of a page module's declared actions. */
   'module.action': { params: { name: string; payload: unknown }; result: null }
+  /** The page's look changed: its palette, its mode or a person's own colours. */
+  'theme.changed': { params: AppTheme; result: null }
 }
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */

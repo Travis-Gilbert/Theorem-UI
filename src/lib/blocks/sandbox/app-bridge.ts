@@ -3,12 +3,14 @@
 // `window.theorem`: the same declared files, state and run calls a cell has.
 // On a page, an app placed as a module also gets `theorem.module`: the values
 // it is handed, the actions routes reach, and the outputs and events it
-// declared.
+// declared. The host stylesheet ahead of the app's content follows the page's
+// look as the page sends it (theme.ts).
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
 import { observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
 import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
+import { applyTheme } from './theme'
 
 type ModuleListener = (values: ModuleValues) => void
 let moduleValues: ModuleValues | undefined
@@ -33,8 +35,17 @@ const context = connectToPage().then((port) => {
     for (const listener of moduleListeners) listener(values)
     return null
   })
-  serve<SandboxMethods, 'module.action'>(rpc, 'module.action', ({ name, payload }) => {
-    for (const listener of actionListeners.get(name) ?? []) listener(payload)
+  serve<SandboxMethods, 'module.action'>(
+    rpc,
+    'module.action',
+    ({ name, payload }) => {
+      for (const listener of actionListeners.get(name) ?? []) listener(payload)
+      return null
+    },
+  )
+  // The page's look follows into the host stylesheet, under the App's own.
+  serve<SandboxMethods, 'theme.changed'>(rpc, 'theme.changed', (theme) => {
+    applyTheme(theme)
     return null
   })
   observeHeight((height) => {
@@ -48,27 +59,41 @@ const context = connectToPage().then((port) => {
     const node = selected?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
     const active = document.activeElement
-    const input = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? active : null
-    const text = input && input.selectionStart !== null
-      ? input.value.slice(input.selectionStart,input.selectionEnd ?? input.selectionStart)
-      : selected?.toString() ?? ''
+    const input =
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement
+        ? active
+        : null
+    const text =
+      input && input.selectionStart !== null
+        ? input.value.slice(
+            input.selectionStart,
+            input.selectionEnd ?? input.selectionStart,
+          )
+        : (selected?.toString() ?? '')
     const target = input ?? element
-    const rowId = target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
-    const field = target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
-    void call<PageMethods,'frame.selection'>(rpc,'frame.selection',{
-      text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),
+    const rowId =
+      target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
+    const field =
+      target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
+    void call<PageMethods, 'frame.selection'>(rpc, 'frame.selection', {
+      text: text.slice(0, 4096),
+      rowId: rowId?.slice(0, 200),
+      field: field?.slice(0, 200),
     }).catch(() => {})
   }
   // A person's input inside the frame never reaches the page; say so, so a
   // module's next event starts its own chain.
   const used = () => {
-    void call<PageMethods, 'module.used'>(rpc, 'module.used', {}).catch(() => {})
+    void call<PageMethods, 'module.used'>(rpc, 'module.used', {}).catch(
+      () => {},
+    )
   }
   document.addEventListener('pointerdown', used, true)
   document.addEventListener('keydown', used, true)
-  document.addEventListener('selectionchange',selection)
-  document.addEventListener('pointerup',selection)
-  document.addEventListener('keyup',selection)
+  document.addEventListener('selectionchange', selection)
+  document.addEventListener('pointerup', selection)
+  document.addEventListener('keyup', selection)
   return cells
 })
 

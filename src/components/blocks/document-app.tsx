@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { askAbout } from '@/components/chat/composer-references'
 import { Button } from '@/components/ui/button'
 import { documentAppHost, documentAppState } from '@/lib/blocks/document-app'
-import { hostedAppDocument } from '@/lib/blocks/hosted-app'
+import { followTheme, hostedAppDocument } from '@/lib/blocks/hosted-app'
 import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
 import { describeError } from '@/lib/theorem/client'
 import { appDocumentFor } from '@/lib/theorem/apps'
@@ -109,7 +109,12 @@ function AppPreview({
   if (error || stateError)
     return <BlockMessage tone="error">{error || stateError}</BlockMessage>
   return src && host ? (
-    <BlockFrame src={src} host={host} title={snapshot.title} />
+    <BlockFrame
+      src={src}
+      host={host}
+      title={snapshot.title}
+      onConnection={followTheme}
+    />
   ) : (
     <p role="status">Loading App…</p>
   )
@@ -210,21 +215,21 @@ function AppToolbar({
   return (
     <div
       data-revision={String(snapshot.revision.position)}
-      className="flex flex-wrap items-center gap-2 text-xs text-ink-muted"
+      className="flex flex-wrap items-center gap-1 text-xs text-ink-muted"
     >
       {pinnedPosition !== undefined &&
         String(pinnedPosition) !== String(snapshot.revision.position) && (
           <span>Changed since this result</span>
         )}
-      <Button size="xs" variant="outline" onClick={toggle}>
+      <Button size="xs" variant="ghost" onClick={toggle}>
         {running ? 'Stop App' : 'Run App'}
       </Button>
-      <Button size="xs" variant="outline" onClick={edit}>
+      <Button size="xs" variant="ghost" onClick={edit}>
         Edit source
       </Button>
       <Button
         size="xs"
-        variant="outline"
+        variant="ghost"
         onClick={about}
         disabled={snapshot.pendingState}
       >
