@@ -18,6 +18,7 @@ import {
   noteKey,
   noteLibraryKey,
   primeNote,
+  settleNote,
 } from './notes'
 import type { SaveStatus } from './notes'
 import { needsEveryPage, sortNotes } from './note-order'
@@ -221,6 +222,8 @@ export function useNoteLifecycle() {
       action: Lifecycle
       documentId: string
     }) => {
+      // The Trash keeps the revision it retires, so it is the latest text.
+      if (action === 'retire') await settleNote(queryClient, documentId)
       const { summary } = await theorem().documents.get({
         documentId,
         schema: SCHEMA,

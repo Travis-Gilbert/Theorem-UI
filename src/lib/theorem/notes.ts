@@ -306,6 +306,30 @@ export function leavePage(event?: Event) {
   if (unsaved && event?.type === 'beforeunload') event.preventDefault()
 }
 
+/**
+ * Saves what the open editors hold for this note and resolves once Theorem
+ * has it, so a step that acts on the saved revision (the Trash) acts on the
+ * latest text. Throws when the text could not be saved.
+ */
+export async function settleNote(queryClient: QueryClient, documentId: string) {
+  for (const handover of handovers) handover()
+  const unsaved = () => {
+    const note = queryClient.getQueryData<Note>(noteKey(documentId))
+    return Boolean(note && note.markdown !== note.savedMarkdown)
+  }
+  // Text typed during a save queues another; let those finish too.
+  for (let round = 0; round <= MERGE_ATTEMPTS && unsaved(); round++) {
+    const queue = queues.get(documentId)
+    if (!queue) break
+    if (queue.timer !== undefined) queue.start()
+    await queue.chain
+    const status = useNoteStatus.getState().status[documentId]
+    if (status === 'conflict' || status === 'error') break
+  }
+  if (unsaved())
+    throw new Error('The latest text is not saved yet, so the note stays.')
+}
+
 let watching = false
 
 /** Open editors, and edits saved after their editor closed, need leavePage. */

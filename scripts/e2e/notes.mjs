@@ -621,7 +621,11 @@ check(
   await until(async () => !(await holding(FOLDER)).includes(documentId)),
 )
 
-// The Trash takes it and gives it back.
+// The Trash takes it and gives it back, with what was typed just before.
+const LAST = ' It flew off at dusk.'
+await editor.click()
+await page.keyboard.press('End')
+await page.keyboard.type(LAST)
 await page.getByRole('button', { name: 'Move to Trash' }).click()
 await page.waitForURL((url) => url.pathname === '/notes', READ)
 await notesNav
@@ -633,6 +637,10 @@ check(
   'Theorem reports it retired',
   retired.body?.summary?.retired === true,
   JSON.stringify(retired.body?.summary?.retired),
+)
+check(
+  'what was typed just before Move to Trash is saved with it',
+  Boolean(retired.body?.markdownProjection?.includes(LAST.trim())),
 )
 await page.getByRole('button', { name: 'Trash', exact: true }).click()
 await trashNav.getByRole('button', { name: TITLE }).click(READ)
