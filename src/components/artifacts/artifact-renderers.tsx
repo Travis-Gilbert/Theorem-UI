@@ -1,4 +1,4 @@
-// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams)
+// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams), OpenUI's Renderer over theorem-artifacts (openui/renderer)
 //
 // The renderers this build mounts. Which one shows an artifact at a distance
 // is the registry's answer (artifact-registry: contributions + resolve); a
@@ -17,6 +17,7 @@ import type { Distance } from '@/lib/artifacts/contributions'
 import type { TheoremArtifact } from './artifact-model'
 import { AppPreview } from './app-revision-frame'
 import { AppRevision } from './app-history'
+import { OpenUIArtifact } from './openui/renderer'
 import {
   mountRenderers,
   rendererFor,
@@ -134,6 +135,7 @@ mountRenderers({
   'theorem-diagram': DiagramArtifact,
   'theorem-app.preview': AppPreviewArtifact,
   'theorem-app': AppArtifact,
+  'theorem-openui': OpenUIArtifact,
 })
 
 /** The Theorem card: what the artifact is, its summary, and why no renderer showed it. */
