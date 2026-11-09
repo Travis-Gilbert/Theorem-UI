@@ -89,7 +89,8 @@ export interface ApprovalDecision {
 export type IdeFrameMethods = {
     /** Show a location. Resolves false when the frame cannot show that resource. */
     reveal(location: TheoremLocation, options?: RevealOptions): Promise<boolean>;
-    setTheme(dark: boolean): void;
+    /** Light or dark, in the frame's themes for the Theorem UI's palette (lib/palette's value). */
+    setTheme(dark: boolean, palette?: string): void;
     executeCommand(id: string, args?: unknown[]): Promise<unknown>;
     /** Show or hide the left side panel; the rail's IDE button drives it. */
     setSidebar(open: boolean): void;

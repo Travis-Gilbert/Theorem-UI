@@ -1,4 +1,4 @@
-// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams), OpenUI's Renderer over theorem-artifacts (openui/renderer)
+// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams), notebook-artifact (Observable and marimo notebooks in the hosted frame), OpenUI's Renderer over theorem-artifacts (openui/renderer)
 //
 // The renderers this build mounts. Which one shows an artifact at a distance
 // is the registry's answer (artifact-registry: contributions + resolve); a
@@ -17,6 +17,11 @@ import type { Distance } from '@/lib/artifacts/contributions'
 import type { TheoremArtifact } from './artifact-model'
 import { AppPreview } from './app-revision-frame'
 import { AppRevision } from './app-history'
+import {
+  MarimoNotebookView,
+  ObservableNotebookView,
+  UnreadableNotebook,
+} from './notebook-artifact'
 import { OpenUIArtifact } from './openui/renderer'
 import {
   mountRenderers,
@@ -127,6 +132,20 @@ const AppPreviewArtifact: FC<RendererProps> = ({ artifact }) => (
   <AppPreview artifact={artifact} />
 )
 
+const ObservableArtifact: FC<RendererProps> = ({ artifact }) =>
+  artifact.notebook?.form === 'observable' ? (
+    <ObservableNotebookView artifact={artifact} notebook={artifact.notebook} />
+  ) : (
+    <UnreadableNotebook artifact={artifact} />
+  )
+
+const MarimoArtifact: FC<RendererProps> = ({ artifact }) =>
+  artifact.notebook?.form === 'marimo' ? (
+    <MarimoNotebookView artifact={artifact} notebook={artifact.notebook} />
+  ) : (
+    <UnreadableNotebook artifact={artifact} />
+  )
+
 mountRenderers({
   'theorem-document.excerpt': DocumentExcerpt,
   'theorem-document': DocumentArtifact,
@@ -135,6 +154,8 @@ mountRenderers({
   'theorem-diagram': DiagramArtifact,
   'theorem-app.preview': AppPreviewArtifact,
   'theorem-app': AppArtifact,
+  'theorem-observable': ObservableArtifact,
+  'theorem-marimo': MarimoArtifact,
   'theorem-openui': OpenUIArtifact,
 })
 

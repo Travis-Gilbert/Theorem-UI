@@ -391,10 +391,21 @@ modules from the app itself, so nothing in a block reaches a CDN:
 - `react` and `react/jsx-runtime` 19.3.1;
 - `react-dom/client` 19.3.1;
 - `json-rpc-2.0` 1.8.1;
-- `object-inspect` 1.13.4.
+- `object-inspect` 1.13.4;
+- for notebooks ([notebooks.md](notebooks.md)):
+  - `d3` 7.9.0 and `d3-dsv` 3.0.2;
+  - `htl` 1.0.0;
+  - `@observablehq/plot` 0.6.19, built against that `d3`;
+  - `@observablehq/inputs` 0.12.0;
+  - `@observablehq/runtime` 6.1.0;
+  - `@observablehq/notebook-kit/runtime` 2.7.1.
 
 They are exact-version esm.sh builds vendored by
-`scripts/vendor-block-modules.ts`. That script writes:
+`scripts/vendor-block-modules.ts`. Notebook Kit's library imports d3, Plot,
+htl and Inputs from jsDelivr URLs. The script's `ALIASES` send those URLs to
+the vendored build of the same package. A dynamic import of anything else
+outside esm.sh becomes a rejected promise that names the URL, so nothing
+reaches the network. That script writes:
 
 - `src/lib/blocks/vendor/files/**`;
 - the import map with each file's `integrity`;

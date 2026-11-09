@@ -1,4 +1,4 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked), next-themes and lib/palette (the mode and palette the frame follows), the shell's panel state (the rail drives Theia's sidebar)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
@@ -22,6 +22,7 @@ import { useOpenMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { useTerminalRuns } from '@/components/terminal/terminal-screen'
+import { usePalette } from '@/lib/palette'
 import type {
   IdeFrameMethods,
   IdeHostMethods,
@@ -57,6 +58,7 @@ export function IdeFrame({
   const aui = useAui()
   const openMode = useOpenMode()
   const { resolvedTheme } = useTheme()
+  const palette = usePalette((state) => state.palette)
   const frame = useRef<HTMLIFrameElement>(null)
   const ide = useFollow((s) => s.ide)
   const following = useFollow((s) => s.following)
@@ -132,8 +134,8 @@ export function IdeFrame({
   }, [src, aui, openMode, docked])
 
   useEffect(() => {
-    void ide?.setTheme(resolvedTheme === 'dark')
-  }, [ide, resolvedTheme])
+    void ide?.setTheme(resolvedTheme === 'dark', palette)
+  }, [ide, resolvedTheme, palette])
 
   useEffect(() => {
     void ide?.setSidebar(sidebarOpen)

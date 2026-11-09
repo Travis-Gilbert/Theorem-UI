@@ -81,6 +81,30 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1479, height: 1064 },
     threadId: 'thread-app-gallery',
   },
+  {
+    id: 'cpu-gpu-tradeoff',
+    title: 'CPU or GPU: the tradeoff notebook',
+    lane: 'original',
+    viewport: { width: 960, height: 1500 },
+  },
+  {
+    id: 'cpu-gpu-measured',
+    title: 'CPU or GPU: measured timings, CPU-only run',
+    lane: 'original',
+    viewport: { width: 960, height: 1400 },
+  },
+  {
+    id: 'cpu-gpu-awaiting-gpu',
+    title: 'CPU or GPU: timings awaiting a GPU host',
+    lane: 'original',
+    viewport: { width: 960, height: 400 },
+  },
+  {
+    id: 'cpu-gpu-model',
+    title: 'CPU or GPU: the cost model in Python, runnable in the browser',
+    lane: 'original',
+    viewport: { width: 960, height: 900 },
+  },
   ...ARTIFACT_STORIES.map(
     ({ id, title }): StoryMeta => ({
       id,

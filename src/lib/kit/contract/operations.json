@@ -1,7 +1,7 @@
 [
   {
     "name": "kit.move",
-    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Moves Kit. It can stand on the composer (the box the person types messages in; Kit stands on its top edge), in the rail (its home, a slot at the foot of the left rail), or on the floor (the bottom edge of the window). `at` is where along it, from 0 at the left end to 1 at the right. Along the place it already stands Kit walks or runs; to another place it jumps. The person can pick Kit up and drop it anywhere too, so read where it is from the receipt.",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Moves Kit to a surface. Surfaces are named by id: `composer` (the box the person types in; Kit stands on its top edge), `rail` (its home, a slot at the foot of the left rail), `floor` (the bottom edge of the window), and `message:<id>` for a message in view; `kit.look` and every receipt list the ids on screen with labels. `at` is where along it, from 0 at the left end to 1 at the right. Along the surface it stands on Kit walks or runs; to another it jumps. Something can block it and the person can pick it up or throw it, so read where it ended up from the receipt.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -19,11 +19,7 @@
           "type": "string"
         },
         "to": {
-          "enum": [
-            "composer",
-            "rail",
-            "floor"
-          ],
+          "pattern": "^(composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
           "type": "string"
         }
       },
@@ -35,8 +31,302 @@
     "effect": "presentation"
   },
   {
+    "name": "kit.jump",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Kit jumps to a surface (an id from the scene) at `at`, in a real arc: `hop` is small and quick, `arc` an ordinary jump, `leap` high and long. A jump can hit something on the way and land elsewhere; the receipt says where it landed.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "style": {
+          "enum": [
+            "hop",
+            "arc",
+            "leap"
+          ],
+          "type": "string"
+        },
+        "to": {
+          "pattern": "^(composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.fling",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Kit throws itself `left`, `right`, `up`, `up_left` or `up_right` with `strength` from 0 to 1, bounces, and lands wherever it lands. For delight, such as a celebration, or to cross the screen fast. The receipt says where it landed.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "enum": [
+            "left",
+            "right",
+            "up",
+            "up_left",
+            "up_right"
+          ],
+          "type": "string"
+        },
+        "strength": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "direction"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.point_at",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Kit goes within reach of a surface (an id from the scene, such as a message or the composer) and points at it, to show the person what you mean. It points; it does not change what it points at.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "pattern": "^(composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.follow",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Kit follows a target for `seconds` (1 to 15, default 8): `cursor` (the person's pointer) or a surface id, such as the newest message while it streams. The receipt arrives when following starts. It stops when the time is up, your turn ends, the person picks Kit up, or another request moves Kit.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "seconds": {
+          "maximum": 15,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "target": {
+          "pattern": "^(cursor|composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
+    "name": "kit.choreograph",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Plays up to 8 steps as one piece with exact timing between them, instead of one call per step. Each step is {\"op\": \"move\" | \"jump\" | \"fling\" | \"gesture\" | \"say\" | \"point_at\", ...that operation's arguments} or {\"op\": \"wait\", \"ms\": 0 to 3000}. For a small scene: walk to a message, point at it, say why. The receipt lists each step's outcome in `steps`; a step that fails ends the piece there.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "items": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "at": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "gait": {
+                    "enum": [
+                      "walk",
+                      "run",
+                      "jump"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "const": "move"
+                  },
+                  "to": {
+                    "pattern": "^(composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "op",
+                  "to"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "at": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "op": {
+                    "const": "jump"
+                  },
+                  "style": {
+                    "enum": [
+                      "hop",
+                      "arc",
+                      "leap"
+                    ],
+                    "type": "string"
+                  },
+                  "to": {
+                    "pattern": "^(composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "op",
+                  "to"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "direction": {
+                    "enum": [
+                      "left",
+                      "right",
+                      "up",
+                      "up_left",
+                      "up_right"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "const": "fling"
+                  },
+                  "strength": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "op",
+                  "direction"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "gesture": {
+                    "enum": [
+                      "wave",
+                      "nod",
+                      "celebrate",
+                      "pounce",
+                      "stretch",
+                      "shrug",
+                      "tilt",
+                      "think",
+                      "point",
+                      "peek",
+                      "sit"
+                    ],
+                    "type": "string"
+                  },
+                  "op": {
+                    "const": "gesture"
+                  }
+                },
+                "required": [
+                  "op",
+                  "gesture"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "op": {
+                    "const": "say"
+                  },
+                  "text": {
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "op",
+                  "text"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "op": {
+                    "const": "point_at"
+                  },
+                  "target": {
+                    "pattern": "^(composer|rail|floor|message:[A-Za-z0-9_.:-]{1,120})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "op",
+                  "target"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "ms": {
+                    "maximum": 3000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "op": {
+                    "const": "wait"
+                  }
+                },
+                "required": [
+                  "op",
+                  "ms"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "type": "object"
+    },
+    "effect": "presentation"
+  },
+  {
     "name": "kit.gesture",
-    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Kit makes one gesture and then goes back to showing what your run is doing (working, waiting on the person, done), which you do not set. Use it when a moment means something: a wave hello, a celebration when something worked, a shrug when you don't know.",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Kit makes one gesture and then goes back to showing what your run is doing (working, waiting on the person, done), which you do not set. Use it when a moment means something: a wave hello, a celebration when something worked, a shrug when you don't know.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -66,7 +356,7 @@
   },
   {
     "name": "kit.say",
-    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Kit says a short line in a speech bubble for a few seconds. It is an aside, not your answer: anything the person needs to read still goes in your reply.",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Kit says a short line in a speech bubble for a few seconds. It is an aside, not your answer: anything the person needs to read still goes in your reply.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -85,7 +375,7 @@
   },
   {
     "name": "kit.look",
-    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you. Says where Kit is now, what it is doing, and which places it can go.",
+    "description": "Kit is the small pixel fox on the person's screen in Theorem. It is your figure: the person sees it as you, and it has a body that falls, bounces and can be picked up. Says where Kit is now, what it is doing, the surfaces on screen it can go to (ids and labels), and, in `touched`, what the person last did with Kit (tapped it, moved it, threw it) since a receipt last told you.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {},

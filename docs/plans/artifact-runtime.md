@@ -39,6 +39,7 @@ Status: **implemented** (observed in source and tests), **adapter** (exists, nee
 | Post-commit failure (step 10, AR-I6) | implemented in delivery (artifact parts appended even when synthesis fails) | delivery.rs | verified with tests (B3, Codex) |
 | Text artifacts (create_artifact) | uncommitted Theorem worktree only, last-writer-wins | artifact_tools.rs (unmerged) | out of slice |
 | Lazy payload / preview refs (§5.4) | absent | Theorem | out of slice; previews cached in the browser by revision + renderer build |
-| Notebook (marimo), SceneOS, image, chart providers | absent | their owners | Phase 3 |
+| Notebook (Observable, marimo) | absent | UI | implemented: `theorem.notebook.observable` and `theorem.notebook.marimo` contributions, claiming the publication contract's `observable` and `marimo` parts. The page compiles Observable cells, which run offline in the sandboxed frame with the vendored D3. marimo reads its recorded outputs from the part's `retainedOutputs.href` and its offers from `GET /api/artifacts/v1/host`; it runs on Pyodide in the browser on request. A GPU or native run waits on an execution host and a route to start a run on it. See `docs/blocks/notebooks.md` |
+| SceneOS, image, chart providers | absent | their owners | Phase 3 |
 | Promote to App | absent (Apps lifecycle exists separately) | theorem-apps | Phase 4 |
 | Platinum / cross-surface parity | not inspected here | AGPUI host | Phase 5 |

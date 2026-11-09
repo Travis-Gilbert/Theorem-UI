@@ -1,0 +1,3 @@
+/* esm.sh - isoformat@0.2.1 */
+function f(t,n){if(t instanceof Date||(t=new Date(+t)),isNaN(t))return typeof n=="function"?n(t):n;let s=t.getUTCHours(),u=t.getUTCMinutes(),r=t.getUTCSeconds(),e=t.getUTCMilliseconds();return`${$(t.getUTCFullYear(),4)}-${o(t.getUTCMonth()+1,2)}-${o(t.getUTCDate(),2)}${s||u||r||e?`T${o(s,2)}:${o(u,2)}${r||e?`:${o(r,2)}${e?`.${o(e,3)}`:""}`:""}Z`:""}`}function $(t){return t<0?`-${o(-t,6)}`:t>9999?`+${o(t,6)}`:o(t,4)}function o(t,n){return`${t}`.padStart(n,"0")}var c=/^(?:[-+]\d{2})?\d{4}(?:-\d{2}(?:-\d{2})?)?(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?(?:Z|[-+]\d{2}:?\d{2})?)?$/;function i(t,n){return c.test(t+="")?new Date(t):typeof n=="function"?n(t):n}export{f as format,i as parse};
+//# sourceMappingURL=isoformat.mjs.map

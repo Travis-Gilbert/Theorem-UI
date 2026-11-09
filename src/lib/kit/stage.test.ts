@@ -6,6 +6,8 @@ import {
   atOf,
   changeStage,
   landingLine,
+  perchLine,
+  perchLines,
   resetKitStage,
   shownTag,
   standPoint,
@@ -105,5 +107,41 @@ describe('what the sprite shows', () => {
     const state = useKitStage.getState()
     expect(state.revision).toBe(before + 3)
     expect(state.motionSince).toBe(100)
+  })
+})
+
+describe('which messages are on screen', () => {
+  /** A marked element measured where the test puts it. */
+  function marked(top: number, height: number, parent: HTMLElement) {
+    const element = document.createElement('div')
+    element.getBoundingClientRect = () => ({
+      left: 400,
+      right: 1000,
+      top,
+      bottom: top + height,
+      width: 600,
+      height,
+      x: 400,
+      y: top,
+      toJSON: () => ({}),
+    })
+    parent.append(element)
+    return element
+  }
+
+  test('the first message, just under the scroller top, counts; one scrolled above does not', () => {
+    const scroller = marked(94, 670, document.body)
+    scroller.dataset.kitClip = ''
+    marked(110, 48, scroller).dataset.kitPerch = 'message:first'
+    marked(60, 30, scroller).dataset.kitPerch = 'message:gone'
+    try {
+      expect(perchLines().map((line) => line.name)).toEqual([
+        'message:first',
+        'floor',
+      ])
+      expect(perchLine('message:first')?.y).toBe(111)
+    } finally {
+      document.body.replaceChildren()
+    }
   })
 })

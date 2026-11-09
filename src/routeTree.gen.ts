@@ -8,50 +8,38 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as ChatRouteImport } from './routes/_chat'
-import { Route as GraphqlRouteImport } from './routes/graphql'
-import { Route as InstallRouteImport } from './routes/install'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as StoriesDotjsonRouteImport } from './routes/stories[.]json'
-import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
-import { Route as ChatIndexRouteImport } from './routes/_chat/index'
-import { Route as ChatCanvasRouteImport } from './routes/_chat/canvas'
-import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
-import { Route as ChatPagesRouteImport } from './routes/_chat/pages'
-import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
-import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
-import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as SettingsAiRouteImport } from './routes/settings/ai'
-import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
-import { Route as SettingsImportRouteImport } from './routes/settings/import'
-import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
-import { Route as StoryIdRouteImport } from './routes/story.$id'
-import { Route as TheiaSplatRouteImport } from './routes/theia/$'
-import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
-import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
 import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
-import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
-import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
-import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
-import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
+import { Route as ApiArtifactsV1SplatRouteImport } from './routes/api/artifacts/v1/$'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
 import { Route as ApiEnvironmentV1SplatRouteImport } from './routes/api/environment/v1/$'
 import { Route as ApiFilesV1SplatRouteImport } from './routes/api/files/v1/$'
+import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
 import { Route as ApiProjectFilesV1SplatRouteImport } from './routes/api/project-files/v1/$'
 import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
-import { Route as DesktopWorkspaceWorkspaceIdIndexRouteImport } from './routes/desktop/workspace/$workspaceId/index'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
+import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
+import { Route as ChatCanvasRouteImport } from './routes/_chat/canvas'
+import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
+import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
+import { Route as ChatIndexRouteImport } from './routes/_chat/index'
+import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
+import { Route as ChatPagesRouteImport } from './routes/_chat/pages'
+import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
+import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
+import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
+import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
+import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
 import { Route as DesktopWorkspaceWorkspaceIdBacklinksRouteImport } from './routes/desktop/workspace/$workspaceId/backlinks'
 import { Route as DesktopWorkspaceWorkspaceIdCompiledRouteImport } from './routes/desktop/workspace/$workspaceId/compiled'
 import { Route as DesktopWorkspaceWorkspaceIdEventsRouteImport } from './routes/desktop/workspace/$workspaceId/events'
 import { Route as DesktopWorkspaceWorkspaceIdFileRouteImport } from './routes/desktop/workspace/$workspaceId/file'
 import { Route as DesktopWorkspaceWorkspaceIdGraphRouteImport } from './routes/desktop/workspace/$workspaceId/graph'
+import { Route as DesktopWorkspaceWorkspaceIdIndexRouteImport } from './routes/desktop/workspace/$workspaceId/index'
 import { Route as DesktopWorkspaceWorkspaceIdLastRunRouteImport } from './routes/desktop/workspace/$workspaceId/last-run'
 import { Route as DesktopWorkspaceWorkspaceIdLinksRouteImport } from './routes/desktop/workspace/$workspaceId/links'
 import { Route as DesktopWorkspaceWorkspaceIdMkdirRouteImport } from './routes/desktop/workspace/$workspaceId/mkdir'
@@ -60,12 +48,25 @@ import { Route as DesktopWorkspaceWorkspaceIdRenameRouteImport } from './routes/
 import { Route as DesktopWorkspaceWorkspaceIdResolveRouteImport } from './routes/desktop/workspace/$workspaceId/resolve'
 import { Route as DesktopWorkspaceWorkspaceIdSearchRouteImport } from './routes/desktop/workspace/$workspaceId/search'
 import { Route as DesktopWorkspaceWorkspaceIdSettingsRouteImport } from './routes/desktop/workspace/$workspaceId/settings'
-import { Route as DesktopWorkspaceWorkspaceIdStateRouteImport } from './routes/desktop/workspace/$workspaceId/state'
 import { Route as DesktopWorkspaceWorkspaceIdStateEventsRouteImport } from './routes/desktop/workspace/$workspaceId/state-events'
+import { Route as DesktopWorkspaceWorkspaceIdStateRouteImport } from './routes/desktop/workspace/$workspaceId/state'
 import { Route as DesktopWorkspaceWorkspaceIdTagsRouteImport } from './routes/desktop/workspace/$workspaceId/tags'
 import { Route as DesktopWorkspaceWorkspaceIdTreeRouteImport } from './routes/desktop/workspace/$workspaceId/tree'
 import { Route as DesktopWorkspaceWorkspaceIdTrustRouteImport } from './routes/desktop/workspace/$workspaceId/trust'
+import { Route as GraphqlRouteImport } from './routes/graphql'
+import { Route as InstallRouteImport } from './routes/install'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SettingsAiRouteImport } from './routes/settings/ai'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsImportRouteImport } from './routes/settings/import'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StoriesDotjsonRouteImport } from './routes/stories[.]json'
+import { Route as StoryIdRouteImport } from './routes/story.$id'
+import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
+import { Route as rootRouteImport } from './routes/__root'
 
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
@@ -214,6 +215,12 @@ const DesktopBlocksAppTokenRoute = DesktopBlocksAppTokenRouteImport.update({
 const DesktopWorkspaceIndexRoute = DesktopWorkspaceIndexRouteImport.update({
   id: '/desktop/workspace/',
   path: '/desktop/workspace/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const ApiArtifactsV1SplatRoute = ApiArtifactsV1SplatRouteImport.update({
+  id: '/api/artifacts/v1/$',
+  path: '/api/artifacts/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCapabilitiesV1SplatRoute = ApiCapabilitiesV1SplatRouteImport.update({
@@ -402,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -459,6 +467,7 @@ export interface FileRoutesByTo {
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -519,6 +528,7 @@ export interface FileRoutesById {
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -579,6 +589,7 @@ export interface FileRouteTypes {
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -636,6 +647,7 @@ export interface FileRouteTypes {
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -695,6 +707,7 @@ export interface FileRouteTypes {
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -741,6 +754,7 @@ export interface RootRouteChildren {
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
+  ApiArtifactsV1SplatRoute: typeof ApiArtifactsV1SplatRoute
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
@@ -980,6 +994,13 @@ declare module '@tanstack/react-router' {
       path: '/desktop/workspace'
       fullPath: '/desktop/workspace/'
       preLoaderRoute: typeof DesktopWorkspaceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/artifacts/v1/$': {
+      id: '/api/artifacts/v1/$'
+      path: '/api/artifacts/v1/$'
+      fullPath: '/api/artifacts/v1/$'
+      preLoaderRoute: typeof ApiArtifactsV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/capabilities/v1/$': {
@@ -1247,6 +1268,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
+  ApiArtifactsV1SplatRoute: ApiArtifactsV1SplatRoute,
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,

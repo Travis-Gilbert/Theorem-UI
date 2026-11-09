@@ -31,7 +31,7 @@ describe('palettes', () => {
     const names = Object.values(modes).map((tokens) =>
       Object.keys(tokens).sort(),
     )
-    expect(names).toHaveLength(4)
+    expect(names).toHaveLength(6)
     for (const set of names) expect(set).toEqual(names[0]!)
   })
 
