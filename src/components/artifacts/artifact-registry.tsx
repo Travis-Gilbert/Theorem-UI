@@ -118,6 +118,22 @@ export const UI_CONTRIBUTIONS: ReadonlyArray<ArtifactContribution> = [
     ],
     locators: ['entity', 'table_rows'],
   }),
+  // A program in OpenUI Lang against theorem-artifacts: rendered in place at
+  // every distance, its controls local, so there is no live session to open.
+  contribution('theorem.openui', 'Artifact', {
+    provider: 'theorem-ui',
+    kinds: ['openui'],
+    schemas: ['theorem-artifacts'],
+    presentations: [
+      presentation('artifact_native', 'theorem-openui', [
+        'preview',
+        'thing',
+        'interactive',
+      ]),
+    ],
+    locators: ['entity', 'table_rows'],
+    followsTheme: true,
+  }),
 ]
 
 const invalid = validateAll(UI_CONTRIBUTIONS)
@@ -134,22 +150,29 @@ const MEDIA: Record<string, string> = {
 
 /**
  * The subject an artifact part presents to the contributions. A notebook is
- * known by its form. Otherwise a kind some contribution names is the whole
- * subject: its language says what its source is written in, not what it is.
- * Only a kind nothing names is recognized by its language.
+ * known by its form. A part that states another form ("openui") is that form,
+ * whatever its kind, and the library its program was written against is its
+ * schema. A kind some contribution names is the whole subject: its language
+ * says what its source is written in, not what it is. Only a kind nothing
+ * names is recognized by its language.
  */
 export function subjectOf(
   artifact: TheoremArtifact,
   contributions: ReadonlyArray<ArtifactContribution> = UI_CONTRIBUTIONS,
 ): ArtifactSubject {
-  const { kind } = artifact
   if (artifact.notebook)
-    return { kind, schema: `theorem.notebook.${artifact.notebook.form}` }
+    return {
+      kind: artifact.kind,
+      schema: `theorem.notebook.${artifact.notebook.form}`,
+    }
+  const kind = artifact.form ?? artifact.kind
+  const schema = artifact.library && { schema: artifact.library.id }
   if (contributions.some((c) => c.matches.objectKinds.includes(kind)))
-    return { kind }
+    return { kind, ...schema }
   const language = artifact.language?.toLowerCase()
   return {
     kind,
+    ...schema,
     ...(language && MEDIA[language] && { mediaType: MEDIA[language] }),
   }
 }
@@ -203,6 +226,11 @@ const SOURCES: Record<
   'theorem.document': (artifact) => ({
     noun: '',
     mediaType: 'text/markdown',
+    load: inline(artifact),
+  }),
+  'theorem.openui': (artifact) => ({
+    noun: 'program',
+    mediaType: 'text/plain',
     load: inline(artifact),
   }),
   'theorem.diagram': (artifact) => ({

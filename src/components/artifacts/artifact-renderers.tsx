@@ -1,4 +1,4 @@
-// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams), notebook-artifact (Observable and marimo notebooks in the hosted frame)
+// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams), notebook-artifact (Observable and marimo notebooks in the hosted frame), OpenUI's Renderer over theorem-artifacts (openui/renderer)
 //
 // The renderers this build mounts. Which one shows an artifact at a distance
 // is the registry's answer (artifact-registry: contributions + resolve); a
@@ -22,6 +22,7 @@ import {
   ObservableNotebookView,
   UnreadableNotebook,
 } from './notebook-artifact'
+import { OpenUIArtifact } from './openui/renderer'
 import {
   mountRenderers,
   rendererFor,
@@ -155,6 +156,7 @@ mountRenderers({
   'theorem-app': AppArtifact,
   'theorem-observable': ObservableArtifact,
   'theorem-marimo': MarimoArtifact,
+  'theorem-openui': OpenUIArtifact,
 })
 
 /** The Theorem card: what the artifact is, its summary, and why no renderer showed it. */

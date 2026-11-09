@@ -24,6 +24,10 @@ export type TheoremArtifact = {
   sourceTool: string | undefined
   documentId?: string
   documentPosition?: string | number
+  /** How the content is written, when the part says: "openui" for a program. */
+  form?: string
+  /** The component library an "openui" program was written against. */
+  library?: { id: string; version: string }
   /** An Observable or marimo notebook, when the payload is one of the notebook forms. */
   notebook?: NotebookForm
   /** The version of its form the payload was written in, when it names one. */
@@ -54,20 +58,28 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
   const artifactId = text(part.artifactId)
   if (!artifactId) return undefined
   const payload = object(part.payload)
+  const form = text(payload.form) ?? text(part.form)
+  const library = object(payload.library ?? part.library)
+  const version =
+    typeof library.version === 'number'
+      ? String(library.version)
+      : text(library.version)
   const title =
     text(payload.title) ?? text(part.fallbackText) ?? 'Untitled artifact'
   return {
     partId: text(part.partId) ?? artifactId,
     artifactId,
     revision: text(part.artifactRevision) ?? artifactId,
-    kind: text(part.artifactKind) ?? 'unknown',
+    kind: text(part.artifactKind) ?? form ?? 'unknown',
     rendererId: text(part.rendererId) ?? 'unknown',
     contractVersion: text(part.contractVersion) ?? 'unknown',
     lifecycle: text(part.lifecycle) ?? 'ready',
     patchSequence:
       typeof part.patchSequence === 'number' ? part.patchSequence : 0,
     title,
-    content: text(payload.content) ?? '',
+    // An "openui" part carries its program where other parts carry content.
+    content:
+      text(payload.content) ?? text(payload.program) ?? text(part.program) ?? '',
     language: text(payload.language),
     fallbackText: text(part.fallbackText) ?? title,
     payloadRef: text(part.payloadRef),
@@ -78,6 +90,9 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
       typeof object(payload.revision).position === 'number'
         ? (object(payload.revision).position as number)
         : text(object(payload.revision).position),
+    ...(form && { form }),
+    ...(text(library.id) &&
+      version && { library: { id: text(library.id) as string, version } }),
     notebook: parseNotebookForm(payload),
     formVersion:
       typeof payload.formVersion === 'number' ? payload.formVersion : undefined,
