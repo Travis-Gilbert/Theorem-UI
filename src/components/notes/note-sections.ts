@@ -1,4 +1,4 @@
-// SOURCING: @dnd-kit/sortable arrayMove (a section dragged to another's place); the sections themselves are this panel's own, since Theorem's collections cannot nest, rename or delete
+// SOURCING: @dnd-kit/sortable arrayMove (a section dragged to another's place); sections are the panel's own arrangement, kept in Theorem by notes-layout.ts, while Theorem's collections are the folders inside them
 //
 // The Notes panel lists its rows under sections the person makes, names,
 // orders, folds away and deletes. A row is a folder, a loose note, or the

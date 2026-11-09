@@ -10,6 +10,7 @@ import {
   folderRequest,
   noteFolders,
   placeNotes,
+  renamed,
   subfolders,
   updateRequest,
 } from './note-folders'
@@ -271,5 +272,31 @@ describe('folder edits', () => {
       path: '/api/documents/v2/collections/coll%3A1',
       init: { method: 'DELETE', headers },
     })
+  })
+})
+
+describe('renamed', () => {
+  const recipes = { collectionId: 'coll:r', name: 'Recipes', parentId: null }
+  const folders = [
+    recipes,
+    { collectionId: 'coll:g', name: 'Garden', parentId: null },
+    { collectionId: 'coll:s', name: 'Soups', parentId: 'coll:r' },
+  ]
+
+  test('a new name is kept as typed, trimmed', () => {
+    expect(renamed(folders, recipes, '  Cooking ')).toBe('Cooking')
+  })
+
+  test('the same name, or none, changes nothing', () => {
+    expect(renamed(folders, recipes, 'Recipes')).toBeUndefined()
+    expect(renamed(folders, recipes, '   ')).toBeUndefined()
+  })
+
+  test("a name taken beside it gets the next number", () => {
+    expect(renamed(folders, recipes, 'Garden')).toBe('Garden 2')
+  })
+
+  test('a name taken only inside another folder is free', () => {
+    expect(renamed(folders, recipes, 'Soups')).toBe('Soups')
   })
 })

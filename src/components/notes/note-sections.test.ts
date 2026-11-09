@@ -81,6 +81,13 @@ describe('deleteSection', () => {
     )
   })
 
+  test('what was put in the other sections stays there', () => {
+    const filed = placeItem(START_LAYOUT, noteItem('doc:1'), 'agents')
+    expect(sectionOf(deleteSection(filed, 'folders'), noteItem('doc:1'))).toBe(
+      'agents',
+    )
+  })
+
   test('with its own section gone, a row goes to the first section', () => {
     const layout = deleteSection(START_LAYOUT, 'notes')
     expect(sectionOf(layout, noteItem('doc:1'))).toBe('folders')
@@ -109,6 +116,10 @@ describe('moveSection', () => {
   test('a section dropped on itself, or on nothing known, stays put', () => {
     expect(moveSection(START_LAYOUT, 'notes', 'notes')).toBe(START_LAYOUT)
     expect(moveSection(START_LAYOUT, 'notes', 'sec:gone')).toBe(START_LAYOUT)
+  })
+
+  test('a section that is no longer there moves nothing', () => {
+    expect(moveSection(START_LAYOUT, 'sec:gone', 'notes')).toBe(START_LAYOUT)
   })
 })
 

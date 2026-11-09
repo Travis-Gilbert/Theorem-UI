@@ -88,7 +88,7 @@ export function layoutWrite(
 
 /** The layout another device saved first, when that is why the write was refused. */
 function savedFirst(error: unknown): StoredLayout | undefined {
-  if (!(error instanceof TheoremError) || error.statusCode !== 409) return
+  if (!(error instanceof TheoremError)) return
   const body = error.body as { code?: unknown } | undefined
   return body?.code === 'stale_layout' ? parseStoredLayout(body) : undefined
 }

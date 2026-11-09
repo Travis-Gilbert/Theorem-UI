@@ -113,6 +113,19 @@ describe('saveLayout', () => {
     expect(tries).toBe(3)
   })
 
+  test('a refusal that says nothing more is not retried', async () => {
+    let tries = 0
+    const attempt = saveLayout(rename, stored(1), () => {
+      tries += 1
+      return Promise.reject(
+        new TheoremError({ message: 'PUT answered 503', statusCode: 503 }),
+      )
+    })
+    expect(attempt).rejects.toBeInstanceOf(TheoremError)
+    await attempt.catch(() => undefined)
+    expect(tries).toBe(1)
+  })
+
   test('any other failure is not retried', async () => {
     let tries = 0
     const attempt = saveLayout(rename, stored(1), () => {

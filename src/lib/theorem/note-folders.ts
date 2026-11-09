@@ -116,6 +116,23 @@ export function folderName(wanted: string, taken: string[]): string {
   return `${base} ${n}`
 }
 
+/**
+ * The name a folder is renamed to, or undefined when the rename changes
+ * nothing. A name another folder beside it has gets the next number.
+ */
+export function renamed(
+  folders: NoteFolder[],
+  folder: NoteFolder,
+  wanted: string,
+): string | undefined {
+  const name = wanted.trim()
+  if (!name || name === folder.name) return
+  const siblings = subfolders(folders, folder.parentId)
+    .filter((f) => f.collectionId !== folder.collectionId)
+    .map((f) => f.name)
+  return folderName(name, siblings)
+}
+
 export function folderRequest(
   name: string,
   kind: Collection['kind'],

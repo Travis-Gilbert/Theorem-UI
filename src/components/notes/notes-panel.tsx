@@ -2,19 +2,12 @@
 import {
   DndContext,
   PointerSensor,
-  closestCenter,
-  pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type {
-  Collision,
-  CollisionDetection,
-  DragEndEvent,
-  UniqueIdentifier,
-} from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   useSortable,
@@ -41,9 +34,9 @@ import { useShell } from '@/components/shell/shell-state'
 import { useNotesLayout } from '@/lib/theorem/notes-layout'
 import { describeError } from '@/lib/theorem/client'
 import {
-  canNest,
   folderName,
   placeNotes,
+  renamed,
   subfolders,
   useDeleteFolder,
   useMoveNote,
@@ -66,7 +59,6 @@ import {
   deleteSection,
   folderItem,
   groupBySection,
-  isSectionItem,
   moveSection,
   noteItem,
   placeItem,
@@ -75,6 +67,8 @@ import {
   toggleSection,
 } from './note-sections'
 import type { Section, SectionId } from './note-sections'
+import { INTO, SECTION, after, collide, dropSteps } from './note-drop'
+import type { DropStep } from './note-drop'
 import { useNote, useNoteStatus } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 
@@ -336,37 +330,6 @@ const emptyShelf: Record<NoteShelf, string> = {
   trash: 'The Trash is empty.',
 }
 
-/** A section's id as a drop target and as something dragged to a new place. */
-const SECTION = 'section:'
-/** A folder's id as the place a note is dropped into. */
-const INTO = 'into:'
-
-const after = (id: UniqueIdentifier, prefix: string) => {
-  const text = String(id)
-  return text.startsWith(prefix) ? text.slice(prefix.length) : undefined
-}
-
-/**
- * A section goes to the section nearest its middle. A note goes into the
- * folder under the pointer, else into the section; a folder only ever goes
- * into a section.
- */
-const collide: CollisionDetection = (args) => {
-  const among = (keep: (id: string) => boolean) => ({
-    ...args,
-    droppableContainers: args.droppableContainers.filter((c) =>
-      keep(String(c.id)),
-    ),
-  })
-  const sections = among((id) => id.startsWith(SECTION))
-  if (after(args.active.id, SECTION)) return closestCenter(sections)
-  const filing =
-    after(args.active.id, 'note:') || after(args.active.id, 'folder:')
-  const hits = pointerWithin(filing ? args : sections)
-  const folderFirst = (hit: Collision) => (after(hit.id, INTO) ? 0 : 1)
-  return [...hits].sort((a, b) => folderFirst(a) - folderFirst(b))
-}
-
 type SectionsProps = {
   query: string
   order: NoteOrder
@@ -451,51 +414,33 @@ function NoteSections({
     renaming: renamingFolder,
     rename: (folder, wanted) => {
       onRenamedFolder()
-      const name = wanted.trim()
-      if (!name || name === folder.name) return
-      const siblings = subfolders(filed.folders, folder.parentId)
-        .filter((f) => f.collectionId !== folder.collectionId)
-        .map((f) => f.name)
-      update.mutate({
-        collectionId: folder.collectionId,
-        change: { name: folderName(name, siblings) },
-      })
+      const name = renamed(filed.folders, folder, wanted)
+      if (name)
+        update.mutate({ collectionId: folder.collectionId, change: { name } })
     },
-  }
-  const nest = (folderId: string, into: string | null) => {
-    if (canNest(filed.folders, folderId, into))
-      update.mutate({ collectionId: folderId, change: { parentId: into } })
   }
   const notesIn = groupBySection(layout, loose, (entry) =>
     noteItem(entry.opens),
   )
   const agentsIn = sectionOf(layout, AGENTS_ITEM)
   const nothing = !library.data.length && !filed.folders.length
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over) return
-    const section = after(over.id, SECTION)
-    const moving = after(active.id, SECTION)
-    if (moving) {
-      if (section) edit((l) => moveSection(l, moving, section))
-      return
+  const run = (step: DropStep) => {
+    switch (step.kind) {
+      case 'move-section':
+        return edit((l) => moveSection(l, step.section, step.to))
+      case 'file':
+        return move.mutate({ documentId: step.documentId, to: step.to })
+      case 'nest':
+        return update.mutate({
+          collectionId: step.folderId,
+          change: { parentId: step.into },
+        })
+      case 'place':
+        return edit((l) => placeItem(l, step.item, step.section))
     }
-    const documentId = after(active.id, 'note:')
-    const folderId = after(active.id, 'folder:')
-    const folder = after(over.id, INTO)
-    if (folder) {
-      if (documentId && filed.folderOf.get(documentId) !== folder)
-        move.mutate({ documentId, to: folder })
-      if (folderId) nest(folderId, folder)
-      return
-    }
-    const item = String(active.id)
-    if (!section || !isSectionItem(item)) return
-    // A note or folder dropped on a section comes out of its folder to sit there.
-    if (documentId && filed.folderOf.has(documentId))
-      move.mutate({ documentId, to: null })
-    if (folderId) nest(folderId, null)
-    edit((l) => placeItem(l, item, section))
   }
+  const onDragEnd = ({ active, over }: DragEndEvent) =>
+    dropSteps(active.id, over?.id ?? null, filed).forEach(run)
   return (
     <DndContext
       sensors={sensors}
