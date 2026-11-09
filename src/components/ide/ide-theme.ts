@@ -45,7 +45,11 @@ function refresh(): boolean {
   return true
 }
 
+// How many frames watch the root. With none, a theme change goes unseen.
+let observers = 0
+
 function subscribe(changed: () => void) {
+  observers++
   const observer = new MutationObserver(() => {
     if (refresh()) changed()
   })
@@ -53,11 +57,17 @@ function subscribe(changed: () => void) {
     attributes: true,
     attributeFilter: ['class', 'data-palette', 'style'],
   })
-  return () => observer.disconnect()
+  if (refresh()) changed()
+  return () => {
+    observers--
+    observer.disconnect()
+  }
 }
 
 function snapshot() {
-  if (!look) refresh()
+  // While nothing watches the root, the cached look may be stale: an IDE
+  // frame opened again after a theme change must render the new one.
+  if (!observers) refresh()
   return look
 }
 

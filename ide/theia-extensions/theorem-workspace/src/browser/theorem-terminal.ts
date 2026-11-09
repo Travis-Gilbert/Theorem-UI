@@ -97,18 +97,34 @@ export class TheoremTerminalWidget extends TerminalWidgetImpl {
         this.toDisposeOnConnect.push(this.term.onBinary(send));
     }
 
-    /** Start a new shell in this tab in place of one the host lost. */
+    /**
+     * Start a new shell in this tab in place of one the host lost. The lost
+     * shell stays until the new one attaches, so a failed start leaves Enter
+     * able to try again.
+     */
     protected async replaceLostShell(): Promise<void> {
         const lost = this.channel;
         this.lostShell = false;
         this.restoredSession = undefined;
+        let next: TerminalChannel | undefined;
+        try {
+            const options = await this.connection.channelOptions();
+            const { cols, rows } = this.term;
+            next = await TerminalChannel.open({ ...options, cols, rows });
+            this.channel = next;
+            this.exitStatus = undefined;
+            this.connectTerminalProcess();
+            await next.attach();
+        } catch (error) {
+            void next?.close();
+            this.channel = lost;
+            this.connectTerminalProcess();
+            this.lostShell = true;
+            const reason = error instanceof Error ? error.message : String(error);
+            this.write(`\r\n\x1b[2mA new shell could not start (${reason}). Press Enter to try again.\x1b[0m\r\n`);
+            return;
+        }
         void lost?.close();
-        const options = await this.connection.channelOptions();
-        const { cols, rows } = this.term;
-        this.channel = await TerminalChannel.open({ ...options, cols, rows });
-        this.exitStatus = undefined;
-        this.connectTerminalProcess();
-        await this.channel.attach();
         this.resizeTerminalProcess();
     }
 
