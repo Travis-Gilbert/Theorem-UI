@@ -516,7 +516,8 @@ function SessionsSplit({ sessions }: { sessions: ReactNode }) {
   const [split, setSplit] = useState<SplitviewApi>()
 
   const onReady = ({ api }: SplitviewReadyEvent) => {
-    const files = useShell.getState().ideFilesHeight ?? Math.round(api.height / 2)
+    const files =
+      useShell.getState().ideFilesHeight ?? Math.round(api.height / 2)
     // Sized together, so adding the second does not redistribute the first.
     api.addPanel({
       id: 'sessions',
@@ -545,7 +546,8 @@ function SessionsSplit({ sessions }: { sessions: ReactNode }) {
         maximumSize: Number.POSITIVE_INFINITY,
       })
       files.api.setSize({
-        size: useShell.getState().ideFilesHeight ?? Math.round(split.height / 2),
+        size:
+          useShell.getState().ideFilesHeight ?? Math.round(split.height / 2),
       })
     } else {
       files.api.setConstraints({
@@ -857,95 +859,100 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
       <SessionsSplit
         sessions={
           <>
-      <SidebarContent
-        role="navigation"
-        aria-label={view === 'sessions' ? 'Sessions' : 'Waiting for review'}
-        className="relative gap-0 px-2 pb-3"
-      >
-        <div
-          ref={rowPill}
-          aria-hidden
-          style={{ opacity: 0 }}
-          className="pointer-events-none absolute rounded-lg bg-selected"
-        />
-        <Sessions.Provider value={context}>
-          <div
-            ref={listRef}
-            onKeyDown={onKeyDown}
-            className="flex flex-col gap-3"
-          >
-            {isPending && (
-              <SidebarMenu>
-                {Array.from({ length: 5 }, (_, index) => (
-                  <SidebarMenuSkeleton key={index} />
-                ))}
-              </SidebarMenu>
-            )}
-            {view === 'review' ? (
-              lists.review.length > 0 ? (
-                <SessionList
-                  threads={lists.review}
-                  place="review"
-                  shown={lists.review.length}
-                />
-              ) : (
-                !isPending && (
-                  <p className="px-2 py-1 text-sm text-ink-muted">
-                    Nothing is waiting on you.
-                  </p>
-                )
-              )
-            ) : (
-              <>
-                {sections.map(({ project, threads }) => (
-                  <Section
-                    key={project.projectId}
-                    id={project.projectId}
-                    title={project.title}
-                    glyph={
-                      <ProjectGlyph
-                        glyph={project.glyph}
-                        aria-hidden
-                        className="size-3.5 shrink-0"
+            <SidebarContent
+              role="navigation"
+              aria-label={
+                view === 'sessions' ? 'Sessions' : 'Waiting for review'
+              }
+              className="relative gap-0 px-2 pb-3"
+            >
+              <div
+                ref={rowPill}
+                aria-hidden
+                style={{ opacity: 0 }}
+                className="pointer-events-none absolute rounded-lg bg-selected"
+              />
+              <Sessions.Provider value={context}>
+                <div
+                  ref={listRef}
+                  onKeyDown={onKeyDown}
+                  className="flex flex-col gap-3"
+                >
+                  {isPending && (
+                    <SidebarMenu>
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <SidebarMenuSkeleton key={index} />
+                      ))}
+                    </SidebarMenu>
+                  )}
+                  {view === 'review' ? (
+                    lists.review.length > 0 ? (
+                      <SessionList
+                        threads={lists.review}
+                        place="review"
+                        shown={lists.review.length}
                       />
-                    }
-                    threads={threads}
-                    shown={query ? threads.length : SECTION_SHOWN}
-                    onNew={() => newSession(project.projectId)}
-                    edits={{
-                      onRename: (title) =>
-                        projectEdits.rename.mutate({
-                          projectId: project.projectId,
-                          title,
-                        }),
-                      onDelete: () => setDoomed(project),
-                    }}
-                  />
-                ))}
-                {(recent.length > 0 || !query) && !isPending && (
-                  <Section
-                    id="recent"
-                    title="Recent"
-                    threads={recent}
-                    shown={query ? recent.length : RECENT_SHOWN}
-                  />
-                )}
-                {nothingFound && (
-                  <p className="px-2 py-1 text-sm text-ink-muted">
-                    No session matches “{filter.trim()}”.
-                  </p>
-                )}
-              </>
-            )}
-            {error && (
-              <p role="alert" className="px-2 py-1 text-xs text-error-ink">
-                {describeError(error)}
-              </p>
-            )}
-          </div>
-        </Sessions.Provider>
-      </SidebarContent>
-      <ThreadFromFailure />
+                    ) : (
+                      !isPending && (
+                        <p className="px-2 py-1 text-sm text-ink-muted">
+                          Nothing is waiting on you.
+                        </p>
+                      )
+                    )
+                  ) : (
+                    <>
+                      {sections.map(({ project, threads }) => (
+                        <Section
+                          key={project.projectId}
+                          id={project.projectId}
+                          title={project.title}
+                          glyph={
+                            <ProjectGlyph
+                              glyph={project.glyph}
+                              aria-hidden
+                              className="size-3.5 shrink-0"
+                            />
+                          }
+                          threads={threads}
+                          shown={query ? threads.length : SECTION_SHOWN}
+                          onNew={() => newSession(project.projectId)}
+                          edits={{
+                            onRename: (title) =>
+                              projectEdits.rename.mutate({
+                                projectId: project.projectId,
+                                title,
+                              }),
+                            onDelete: () => setDoomed(project),
+                          }}
+                        />
+                      ))}
+                      {(recent.length > 0 || !query) && !isPending && (
+                        <Section
+                          id="recent"
+                          title="Recent"
+                          threads={recent}
+                          shown={query ? recent.length : RECENT_SHOWN}
+                        />
+                      )}
+                      {nothingFound && (
+                        <p className="px-2 py-1 text-sm text-ink-muted">
+                          No session matches “{filter.trim()}”.
+                        </p>
+                      )}
+                    </>
+                  )}
+                  {error && (
+                    <p
+                      role="alert"
+                      className="px-2 py-1 text-xs text-error-ink"
+                    >
+                      {describeError(error)}
+                    </p>
+                  )}
+                </div>
+              </Sessions.Provider>
+            </SidebarContent>
+            <ThreadFromFailure />
           </>
         }
       />

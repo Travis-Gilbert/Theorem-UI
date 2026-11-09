@@ -149,7 +149,11 @@ if (process.env.E2E_KEY_STANDIN) {
   writeFileSync(
     serverEnv.THEOREM_MODELS_JSON,
     JSON.stringify({
-      models: { openrouter: Object.fromEntries(STANDIN_MODELS.map((model) => [model, endpoint])) },
+      models: {
+        openrouter: Object.fromEntries(
+          STANDIN_MODELS.map((model) => [model, endpoint]),
+        ),
+      },
     }),
   )
   delete serverEnv.OPENROUTER_API_KEY
@@ -189,20 +193,21 @@ start('server', server, [], {
 await ready('server', `${API}/.well-known/oauth-authorization-server`)
 
 const { THEOREM_API_TOKEN: _deploymentToken, ...uiEnv } = process.env
-start('ui', process.execPath, [
-  'node_modules/.bin/vite',
-  'dev',
-  '--port',
-  String(UI_PORT),
-  '--strictPort',
-], {
-  ...uiEnv,
-  THEOREM_API_URL: API,
-  THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
-  THEOREM_SESSION_SECRET: secret.uiSessionSecret,
-  // Another stack on another port would otherwise overwrite this sign-in.
-  THEOREM_SESSION_COOKIE: `theorem_session_${UI_PORT}`,
-})
+start(
+  'ui',
+  process.execPath,
+  ['node_modules/.bin/vite', 'dev', '--port', String(UI_PORT), '--strictPort'],
+  {
+    ...uiEnv,
+    THEOREM_API_URL: API,
+    THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
+    THEOREM_SESSION_SECRET: secret.uiSessionSecret,
+    // Another stack on another port would otherwise overwrite this sign-in.
+    THEOREM_SESSION_COOKIE: `theorem_session_${UI_PORT}`,
+  },
+)
 await ready('ui', `${UI}/login`)
 
-console.log(`Stack is up. Sign in at ${UI} as ${ACCOUNT}. Logs: ${DATA_DIR}/logs`)
+console.log(
+  `Stack is up. Sign in at ${UI} as ${ACCOUNT}. Logs: ${DATA_DIR}/logs`,
+)
