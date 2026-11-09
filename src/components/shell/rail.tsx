@@ -15,6 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { RailMark } from './rail-marks'
 import { MODES, navigatorMode, useOpenMode, useShellMode } from './modes'
 import type { ShellMode } from './modes'
 import { useTenant } from './projects'
@@ -26,7 +27,7 @@ import { useCommandPalette } from './command-palette'
 
 /** The rail's square controls: destinations and the account. */
 const railButton =
-  'relative flex size-8 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
+  'group/rail relative flex size-8 items-center justify-center rounded-[10px] text-ink-faint transition-colors duration-100 outline-none hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus'
 
 const THEMES = [
   { value: 'light', label: 'Light' },
@@ -227,7 +228,7 @@ function FilesControl({ collapsible }: { collapsible: boolean }) {
           />
         }
       >
-        <Icon.Files className="size-5" />
+        <RailMark.Files className="size-5" />
       </TooltipTrigger>
       <TooltipContent side="right">
         {showing ? 'Hide files' : 'Show files'}
