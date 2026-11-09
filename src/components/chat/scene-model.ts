@@ -63,14 +63,96 @@ export function readScene(data: unknown): Scene | undefined {
 
 export type SceneLayout = 'inline' | 'full'
 
+/**
+ * The conversation's colours and type, which an immersive artifact draws
+ * with so it matches the reply around it (scene-os-web's `immersive/theme.ts`).
+ * A token the browser could not resolve is left out; the page fills it in.
+ */
+export type SceneTheme = Partial<{
+  colorScheme: 'light' | 'dark'
+  background: string
+  surface: string
+  foreground: string
+  muted: string
+  border: string
+  accent: string
+  accentForeground: string
+  success: string
+  warning: string
+  danger: string
+  fontFamily: string
+  monoFamily: string
+}>
+
+/** Where the agent's code failed, as the page reports it, for the model to fix. */
+export type ModuleError = {
+  stage: 'load' | 'mount' | 'first-frame' | 'runtime'
+  message: string
+  line?: number
+  column?: number
+}
+
+/** What the reader picked in a scene. */
+export type SceneEntity = {
+  id: string
+  label?: string
+  kind?: string
+  detail?: string
+}
+
 export type HostMessage =
-  | { type: 'sceneos:mount'; package: Record<string, unknown> }
+  | { type: 'sceneos:mount'; package: Record<string, unknown>; theme: SceneTheme }
   | { type: 'sceneos:layout'; layout: SceneLayout }
 
 export type FrameMessage =
   | { type: 'sceneos:host-ready' }
-  | { type: 'sceneos:mounted'; ok: boolean }
+  | { type: 'sceneos:mounted'; ok: boolean; error?: ModuleError }
+  | { type: 'sceneos:error'; error: ModuleError }
+  | { type: 'sceneos:select'; entity: SceneEntity | null }
   | { type: 'sceneos:dismiss' }
+
+const STAGES: readonly ModuleError['stage'][] = [
+  'load',
+  'mount',
+  'first-frame',
+  'runtime',
+]
+
+function place(value: unknown): number | undefined {
+  return Number.isInteger(value) && (value as number) > 0
+    ? (value as number)
+    : undefined
+}
+
+function readError(value: unknown): ModuleError | undefined {
+  const error = object(value)
+  const stage = STAGES.find((s) => s === error?.stage)
+  const message = text(error?.message)
+  if (!error || !stage || !message) return undefined
+  const line = place(error.line)
+  const column = place(error.column)
+  return {
+    stage,
+    message,
+    ...(line !== undefined && { line }),
+    ...(column !== undefined && { column }),
+  }
+}
+
+function readEntity(value: unknown): SceneEntity | undefined {
+  const entity = object(value)
+  const id = text(entity?.id)
+  if (!entity || !id) return undefined
+  const label = text(entity.label)
+  const kind = text(entity.kind)
+  const detail = text(entity.detail)
+  return {
+    id,
+    ...(label && { label }),
+    ...(kind && { kind }),
+    ...(detail && { detail }),
+  }
+}
 
 /** A message from the scene page, or undefined for anything else. */
 export function readFrameMessage(data: unknown): FrameMessage | undefined {
@@ -80,9 +162,39 @@ export function readFrameMessage(data: unknown): FrameMessage | undefined {
     case 'sceneos:host-ready':
     case 'sceneos:dismiss':
       return { type: message.type }
-    case 'sceneos:mounted':
-      return { type: 'sceneos:mounted', ok: message.ok === true }
+    case 'sceneos:mounted': {
+      const ok = message.ok === true
+      const error = ok ? undefined : readError(message.error)
+      return { type: 'sceneos:mounted', ok, ...(error && { error }) }
+    }
+    case 'sceneos:error': {
+      const error = readError(message.error)
+      return error && { type: 'sceneos:error', error }
+    }
+    case 'sceneos:select': {
+      if (message.entity === null) return { type: 'sceneos:select', entity: null }
+      const entity = readEntity(message.entity)
+      return entity && { type: 'sceneos:select', entity }
+    }
     default:
       return undefined
   }
+}
+
+/** One line: stage, place, message, as the page shows it. */
+export function errorLine(error: ModuleError): string {
+  const where =
+    error.line === undefined
+      ? ''
+      : ` at line ${error.line}${error.column === undefined ? '' : `, column ${error.column}`}`
+  return `${error.stage}${where}: ${error.message}`
+}
+
+/** The message Fix sends: the agent wrote the code, so it is asked to mend it. */
+export function repairRequest(
+  title: string | undefined,
+  error: ModuleError,
+): string {
+  const name = title ? ` "${title}"` : ''
+  return `The immersive artifact${name} failed: ${errorLine(error)}. Fix its code and show it again.`
 }
