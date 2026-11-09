@@ -14,6 +14,12 @@
 //
 // To add a module, add its specifier and exact esm.sh URL to ENTRIES and run
 // the script again. docs/blocks/live-blocks.md has the details.
+//
+// Some builds load further modules from jsdelivr (notebook-kit's library does,
+// for d3, Plot, htl and Inputs). ALIASES sends those URLs to the vendored build of
+// the same package. A dynamic import of anything else outside esm.sh becomes a
+// rejected promise that names the URL, so a frame that needs it fails there
+// instead of reaching the network; a static one still stops the script.
 import { createHash } from 'node:crypto'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -28,7 +34,34 @@ const ENTRIES: Record<string, string> = {
   'react-dom/client': 'https://esm.sh/react-dom@19.3.1/client?target=es2022',
   'json-rpc-2.0': 'https://esm.sh/json-rpc-2.0@1.8.1?target=es2022',
   'object-inspect': 'https://esm.sh/object-inspect@1.13.4?target=es2022',
+  // Observable notebooks: the reactive runtime, notebook-kit's display and
+  // library, and the drawing modules cells import.
+  d3: 'https://esm.sh/d3@7.9.0?target=es2022',
+  'd3-dsv': 'https://esm.sh/d3-dsv@3.0.2?target=es2022',
+  htl: 'https://esm.sh/htl@1.0.0?target=es2022',
+  '@observablehq/plot':
+    'https://esm.sh/@observablehq/plot@0.6.19?target=es2022&deps=d3@7.9.0',
+  '@observablehq/inputs':
+    'https://esm.sh/@observablehq/inputs@0.12.0?target=es2022',
+  '@observablehq/runtime':
+    'https://esm.sh/@observablehq/runtime@6.1.0?target=es2022',
+  '@observablehq/notebook-kit/runtime':
+    'https://esm.sh/@observablehq/notebook-kit@2.7.1/runtime?target=es2022',
 }
+
+/** CDN URLs builds import, answered by the vendored build of the same package. */
+const ALIASES: Record<string, string> = {
+  'https://cdn.jsdelivr.net/npm/d3/+esm': ENTRIES.d3!,
+  'https://cdn.jsdelivr.net/npm/d3-dsv/+esm': ENTRIES['d3-dsv']!,
+  'https://cdn.jsdelivr.net/npm/htl/+esm': ENTRIES.htl!,
+  'https://cdn.jsdelivr.net/npm/@observablehq/plot/+esm':
+    ENTRIES['@observablehq/plot']!,
+  'https://cdn.jsdelivr.net/npm/@observablehq/inputs/+esm':
+    ENTRIES['@observablehq/inputs']!,
+}
+
+/** A static import from outside esm.sh, which no frame could load offline. */
+class OutsideEsm extends Error {}
 
 const OUT = path.join(import.meta.dir, '../src/lib/blocks/vendor')
 const ESM = 'https://esm.sh'
@@ -65,31 +98,58 @@ async function vendor(url: string): Promise<string> {
   served.set(at, { url: build, text: '', upstream: '' })
   const text = await get(build)
   const program = parse(text, { ecmaVersion: 'latest', sourceType: 'module' })
-  const sources: Array<AcornNode & { value: string }> = []
+  type Literal = AcornNode & { value: string }
+  const sources: Array<{ literal: Literal; dynamic?: AcornNode }> = []
+  const literal = (node: AcornNode | null | undefined) =>
+    node?.type === 'Literal' && typeof (node as Literal).value === 'string'
+      ? (node as Literal)
+      : undefined
   const collect = (node: { source?: AcornNode | null }) => {
-    const source = node.source as (AcornNode & { value?: unknown }) | null
-    if (source?.type === 'Literal' && typeof source.value === 'string')
-      sources.push(source as AcornNode & { value: string })
+    const found = literal(node.source)
+    if (found) sources.push({ literal: found })
   }
   simple(program, {
     ImportDeclaration: collect,
     ExportAllDeclaration: collect,
     ExportNamedDeclaration: collect,
-    ImportExpression: collect,
+    ImportExpression(node) {
+      const found = literal(node.source)
+      if (found) sources.push({ literal: found, dynamic: node })
+    },
   })
   const out = new MagicString(text)
-  for (const source of sources) {
-    const target = new URL(
+  for (const { literal: source, dynamic } of sources) {
+    const resolved = new URL(
       source.value,
       source.value.startsWith('/') ? ESM : build,
-    )
-    if (target.origin !== ESM)
-      throw new Error(`${build} imports ${source.value} from outside esm.sh`)
-    out.overwrite(
-      source.start,
-      source.end,
-      JSON.stringify(await vendor(target.href)),
-    )
+    ).href
+    const target = new URL(ALIASES[resolved] ?? resolved)
+    try {
+      if (target.origin !== ESM)
+        throw new OutsideEsm(
+          `${build} imports ${source.value} from outside esm.sh`,
+        )
+      const before = new Set(served.keys())
+      try {
+        out.overwrite(
+          source.start,
+          source.end,
+          JSON.stringify(await vendor(target.href)),
+        )
+      } catch (error) {
+        // Nothing of a graph that cannot be vendored stays half-written.
+        for (const key of served.keys()) if (!before.has(key)) served.delete(key)
+        throw error
+      }
+    } catch (error) {
+      if (!(error instanceof OutsideEsm) || !dynamic) throw error
+      const message = `${resolved} is not vendored; a block frame loads nothing from the network`
+      out.overwrite(
+        dynamic.start,
+        dynamic.end,
+        `Promise.reject(new Error(${JSON.stringify(message)}))`,
+      )
+    }
   }
   served.set(at, { url: build, text: out.toString(), upstream: sri(text) })
   return at

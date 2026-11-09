@@ -17,6 +17,7 @@ import type {
   Distance,
   Representation,
 } from '@/lib/artifacts/contributions'
+import { observableSource } from '@/lib/notebooks/observable-document'
 import { appDocumentFor } from '@/lib/theorem/apps'
 import { fileNameFor } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
@@ -29,6 +30,37 @@ export type RendererProps = {
 
 /** What this build of the UI contributes, in the manifest's wire shape. */
 export const UI_CONTRIBUTIONS: ReadonlyArray<ArtifactContribution> = [
+  // Notebooks are claimed by their form, ahead of any kind their part also
+  // names, and by the contract's kind, so a payload this build cannot read
+  // still reaches the renderer that says why.
+  contribution('theorem.notebook.observable', 'Observable notebook', {
+    provider: 'theorem-ui',
+    kinds: ['observable'],
+    schemas: ['theorem.notebook.observable'],
+    presentations: [
+      presentation('artifact_native', 'theorem-observable', [
+        'preview',
+        'thing',
+        'interactive',
+      ]),
+    ],
+    locators: ['notebook_cell', 'entity'],
+    followsTheme: true,
+  }),
+  contribution('theorem.notebook.marimo', 'marimo notebook', {
+    provider: 'theorem-ui',
+    kinds: ['marimo'],
+    schemas: ['theorem.notebook.marimo'],
+    presentations: [
+      presentation('artifact_native', 'theorem-marimo', [
+        'preview',
+        'thing',
+        'interactive',
+      ]),
+    ],
+    locators: ['notebook_cell', 'entity'],
+    followsTheme: true,
+  }),
   contribution('theorem.document', 'Document', {
     provider: 'theorem-ui',
     kinds: ['document'],
@@ -100,16 +132,18 @@ const MEDIA: Record<string, string> = {
 }
 
 /**
- * The subject an artifact part presents to the contributions. A kind some
- * contribution names is the whole subject: its language says what its source
- * is written in, not what it is. Only a kind nothing names is recognized by
- * its language.
+ * The subject an artifact part presents to the contributions. A notebook is
+ * known by its form. Otherwise a kind some contribution names is the whole
+ * subject: its language says what its source is written in, not what it is.
+ * Only a kind nothing names is recognized by its language.
  */
 export function subjectOf(
   artifact: TheoremArtifact,
   contributions: ReadonlyArray<ArtifactContribution> = UI_CONTRIBUTIONS,
 ): ArtifactSubject {
   const { kind } = artifact
+  if (artifact.notebook)
+    return { kind, schema: `theorem.notebook.${artifact.notebook.form}` }
   if (contributions.some((c) => c.matches.objectKinds.includes(kind)))
     return { kind }
   const language = artifact.language?.toLowerCase()
@@ -174,6 +208,26 @@ const SOURCES: Record<
     noun: '',
     mediaType: 'text/vnd.mermaid',
     load: inline(artifact),
+  }),
+  // A payload this build cannot read still hands over its content: the
+  // publication as canonical JSON.
+  'theorem.notebook.observable': (artifact) => {
+    const { notebook } = artifact
+    return notebook?.form === 'observable'
+      ? {
+          noun: 'Notebook',
+          mediaType: 'text/html',
+          load: async () => observableSource(notebook),
+        }
+      : { noun: 'Notebook', mediaType: 'application/json', load: inline(artifact) }
+  },
+  'theorem.notebook.marimo': (artifact) => ({
+    noun: 'Notebook source',
+    mediaType: 'text/x-python',
+    load: async () =>
+      artifact.notebook?.form === 'marimo'
+        ? artifact.notebook.source
+        : artifact.content,
   }),
   'theorem.app': (artifact, latest) => ({
     noun: 'App source',

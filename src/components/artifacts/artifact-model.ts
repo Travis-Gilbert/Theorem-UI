@@ -1,6 +1,8 @@
 // SOURCING: none — a typed reader for the theorem-artifact-v1 part contract (apps/theoremweb/contracts/theorem-chat-v1.json); no library models Theorem's artifact parts
 import { useAuiState } from '@assistant-ui/react'
 import { useMemo } from 'react'
+import { parseNotebookForm } from '@/lib/notebooks/forms'
+import type { NotebookForm } from '@/lib/notebooks/forms'
 import { humanize } from '@/lib/utils'
 
 /** One revision of an agent-produced artifact, read from a `theorem-artifact` data part. */
@@ -22,6 +24,10 @@ export type TheoremArtifact = {
   sourceTool: string | undefined
   documentId?: string
   documentPosition?: string | number
+  /** An Observable or marimo notebook, when the payload is one of the notebook forms. */
+  notebook?: NotebookForm
+  /** The version of its form the payload was written in, when it names one. */
+  formVersion?: number
 }
 
 export const ARTIFACT_PART = 'theorem-artifact'
@@ -72,6 +78,9 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
       typeof object(payload.revision).position === 'number'
         ? (object(payload.revision).position as number)
         : text(object(payload.revision).position),
+    notebook: parseNotebookForm(payload),
+    formVersion:
+      typeof payload.formVersion === 'number' ? payload.formVersion : undefined,
   }
 }
 
@@ -135,6 +144,10 @@ export function kindLabel(artifact: TheoremArtifact): string {
       return artifact.language ? `Code · ${artifact.language}` : 'Code'
     case 'diagram':
       return 'Diagram'
+    case 'observable':
+      return 'Notebook · Observable'
+    case 'marimo':
+      return 'Notebook · marimo'
     default:
       return humanize(artifact.kind)
   }
@@ -144,6 +157,8 @@ const MEDIA_EXTENSIONS: Record<string, string> = {
   'text/html': 'html',
   'text/markdown': 'md',
   'text/vnd.mermaid': 'mmd',
+  'text/x-python': 'py',
+  'application/json': 'json',
 }
 
 /** Download file name for an artifact revision whose source has `mediaType`. */

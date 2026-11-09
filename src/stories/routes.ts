@@ -1,4 +1,4 @@
-// SOURCING: src/stories/fake-theorem's route map, answered from the committed fixtures. Reviews keep their state in memory so the pane's draft and submit can be scripted.
+// SOURCING: src/stories/fake-theorem's route map, answered from the committed fixtures (the artifact host and notebook outputs from fixtures/notebook-parts). Reviews keep their state in memory so the pane's draft and submit can be scripted.
 import type { Theorem } from '@/lib/theorem/client'
 import type { Review, ReviewResponse } from '@/lib/theorem/reviews'
 import type { FakeRoutes } from './fake-theorem'
@@ -9,6 +9,11 @@ import {
   nestedSpaceFixture,
   uploadFixtures,
 } from './fixtures/notes'
+import {
+  NOTEBOOK_DOCUMENTS,
+  artifactHost,
+  outputsAnswer,
+} from './fixtures/notebook-parts'
 import { organizationFixture } from './fixtures/organization'
 import { reviewFixture, reviewShots } from './fixtures/review'
 import { threadMessages } from './fixtures/thread'
@@ -175,5 +180,13 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
       new Response(reviewShots[shotId], {
         headers: { 'content-type': 'image/svg+xml' },
       }),
+    // No execution host is registered: marimo runs in the browser or waits.
+    'GET /api/artifacts/v1/host': () => artifactHost('browser'),
+    'GET /api/artifacts/v1/documents/:documentId/outputs': ({ documentId = '' }, request) => {
+      const document = NOTEBOOK_DOCUMENTS[documentId]
+      return document?.sourceRevision
+        ? outputsAnswer(document.sourceRevision, document.runs, request)
+        : missing()
+    },
   }
 }

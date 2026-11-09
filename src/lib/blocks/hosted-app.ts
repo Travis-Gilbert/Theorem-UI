@@ -9,22 +9,33 @@ let bridgeScript: Promise<string> | undefined
 /**
  * `net` replaces the document's own `theorem:uses` declarations: a page
  * module reaches the hosts the person allowed it, whatever its page says.
+ *
+ * `loads` names hosts the page may run code from: their scripts, workers,
+ * styles and fonts, and the WebAssembly they compile. Only a runtime the
+ * person started asks for it (a marimo notebook's Pyodide); every other
+ * hosted page runs only what it carries.
  */
 export async function hostedAppDocument(
   html: string,
   esbuild?: Pick<typeof Esbuild, 'build'>,
-  options: { net?: Array<string> } = {},
+  options: { net?: Array<string>; loads?: Array<string> } = {},
 ): Promise<string> {
   const page = new DOMParser().parseFromString(html, 'text/html')
   const net = options.net ?? declaredNet(page)
+  const loads = (options.loads ?? []).map((host) => `https://${host}`)
+  const from = (...sources: Array<string>) =>
+    [...sources, ...loads].join(' ')
   const policy = page.createElement('meta')
   policy.httpEquiv = 'Content-Security-Policy'
   policy.content = contentSecurityPolicy({
     'default-src': "'none'",
-    'script-src': "'unsafe-inline'",
-    'style-src': "'unsafe-inline'",
+    'script-src': loads.length
+      ? from("'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", 'blob:')
+      : "'unsafe-inline'",
+    ...(loads.length && { 'worker-src': from('blob:') }),
+    'style-src': from("'unsafe-inline'"),
     'img-src': 'data: blob:',
-    'font-src': 'data:',
+    'font-src': from('data:'),
     'media-src': 'data: blob:',
     'connect-src': connectSources(net),
     'form-action': "'none'",

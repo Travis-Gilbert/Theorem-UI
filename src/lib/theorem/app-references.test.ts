@@ -4,6 +4,7 @@ import { AppDocument } from './apps'
 import {
   appContextReference,
   captureAppSelection,
+  notebookReference,
   pinnedAppReference,
 } from './app-references'
 
@@ -102,4 +103,43 @@ test('a pinned revision is referenced at that revision, never the current one', 
   expect(
     pinnedAppReference({ documentId: 'd', title: 'T', position: 3 }).excerpt,
   ).toBeUndefined()
+})
+
+test('a notebook selection names the App revision and the cell, point or entity selected', () => {
+  const notebook = {
+    documentId: 'doc-crossover',
+    position: 3,
+    title: 'GPU crossover',
+    cellIds: ['chart', 'timings'],
+  }
+  const point = notebookReference(notebook, {
+    text: '',
+    cellId: 'chart',
+    entityId: 'gpu-total-1e6',
+    entityLabel: 'GPU at 1,000,000 items',
+  })
+  // The backend refuses `kind: 'artifact'`; a notebook is an App document.
+  expect(point.location).toEqual({
+    resource: { kind: 'graph-object', objectId: 'doc-crossover', objectType: 'theorem.app' },
+    revision: '3',
+  })
+  expect(point.label).toBe('GPU crossover: GPU at 1,000,000 items')
+  // The backend derives the entity locator; an explicit one would replace it.
+  const pointed = JSON.parse(point.excerpt!).selection
+  expect(pointed.entityId).toBe('gpu-total-1e6')
+  expect(pointed.locator).toBeUndefined()
+
+  const cell = notebookReference(notebook, { text: '', cellId: 'timings' })
+  expect(cell.label).toBe('GPU crossover: cell timings')
+  expect(JSON.parse(cell.excerpt!).selection.locator).toEqual({
+    kind: 'notebook_cell',
+    cellId: 'timings',
+  })
+  // A cell the revision is not known to have would refuse the turn, so it gets no locator.
+  const unknown = notebookReference(notebook, { text: '', cellId: 'cell-4' })
+  expect(JSON.parse(unknown.excerpt!).selection).toEqual({ text: '', cellId: 'cell-4' })
+
+  const whole = notebookReference(notebook, { text: '' })
+  expect(whole.label).toBe('GPU crossover')
+  expect(whole.excerpt).toBeUndefined()
 })
