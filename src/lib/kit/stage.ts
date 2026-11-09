@@ -1,22 +1,46 @@
-// SOURCING: zustand, as lib/kit/store; perches are DOM elements the shell marks with data-kit-perch, measured with getBoundingClientRect; the sheet's `feet` slice (row 27 of 32) is where Kit stands. Hand-rolled: where a figure stands on an element's edge and which edge catches it when it falls is this app's own geometry, which no library models.
+// SOURCING: zustand, as lib/kit/store; surfaces are DOM elements the shell marks with data-kit-perch (and data-kit-label), measured with getBoundingClientRect, a message's only while its top shows inside the scroller marked data-kit-clip; the sheet's `feet` slice (row 27 of 32) is where Kit stands; Theorem's KitScene, KitSurface and KitTouch for what the scene reports. Hand-rolled: where a figure stands on an element's edge and which edge catches it when it falls is this app's own geometry, which no library models (the physics in lib/kit/physics works from these lines).
 import { create } from 'zustand'
 import type { KitGait } from './contract/KitGait'
-import type { KitPerch } from './contract/KitPerch'
 import type { KitScene } from './contract/KitScene'
+import type { KitStepOutcome } from './contract/KitStepOutcome'
+import type { KitSurface } from './contract/KitSurface'
+import type { KitSurfaceKind } from './contract/KitSurfaceKind'
+import type { KitTouchKind } from './contract/KitTouchKind'
 import type { Act } from './director'
 import type { KitTag } from './sheet'
 
 /**
- * Where Kit can stand. Each is an element in the shell marked
+ * Where Kit can stand, by surface id. Each is an element in the shell marked
  * `data-kit-perch`: the composer's box (Kit stands on its top edge), the
- * rail's slot at its foot, and the floor of the window, which is always there.
+ * rail's slot at its foot, each message showing in the conversation
+ * (`message:<id>`, on its top edge), and the floor of the window, which is
+ * always there.
  */
-export const PERCHES = [
-  'composer',
-  'rail',
-  'floor',
-] as const satisfies readonly KitPerch[]
-export type PerchName = KitPerch
+export const FIXED_SURFACES = ['composer', 'rail', 'floor'] as const
+export type PerchName = string
+
+/** The most messages offered as surfaces at once, nearest the bottom first kept. */
+const MAX_MESSAGE_SURFACES = 16
+/** The longest label a surface carries in the scene. */
+const MAX_LABEL = 80
+
+/** The surface id of a message, as Theorem's contract admits it. */
+export const messageSurface = (id: string) =>
+  `message:${id.replace(/[^A-Za-z0-9_.:-]/g, '-').slice(0, 120)}`
+
+/** What kind of surface an id names. */
+export const surfaceKind = (id: PerchName): KitSurfaceKind =>
+  id.startsWith('message:') ? 'message' : (id as KitSurfaceKind)
+
+/** A short label for a message surface: whose it is and its first words. */
+export function messageLabel(role: string, text: string): string {
+  const who = role === 'assistant' ? 'your reply' : 'their message'
+  const words = text.replace(/\s+/g, ' ').trim()
+  const room = MAX_LABEL - who.length - 2
+  const shown =
+    words.length > room ? `${words.slice(0, room - 1).trimEnd()}…` : words
+  return shown ? `${who}: ${shown}` : who
+}
 
 /** How Kit moves when it goes somewhere. */
 export type Gait = KitGait
@@ -37,6 +61,13 @@ export interface PerchLine {
   readonly right: number
   /** The y Kit's feet rest at. */
   readonly y: number
+}
+
+/** The person's last touch: a tap, a carry, or a throw, and where Kit came to rest. */
+export interface Touch {
+  readonly kind: KitTouchKind
+  readonly onto: PerchName
+  readonly at: number
 }
 
 /** A momentary gesture someone asked for: the agent, or the person's tap. */
@@ -66,6 +97,8 @@ export interface StageState {
   readonly speech: Speech | undefined
   /** Whether the stage is mounted and Kit is on screen. */
   readonly mounted: boolean
+  /** The person's last touch, until a receipt reports it to the run. */
+  readonly touched: Touch | undefined
   /**
    * Counts every change to where Kit is or what it shows, by the agent or the
    * person, so a run's client operations can name the scene they acted on.
@@ -82,6 +115,7 @@ const initial: StageState = {
   gesture: undefined,
   speech: undefined,
   mounted: false,
+  touched: undefined,
   revision: 0,
 }
 
@@ -136,16 +170,42 @@ export function resetKitStage() {
   useKitStage.setState(initial, true)
 }
 
-/** The element the shell marked as this perch, when one is showing. */
+/**
+ * Whether a marked element shows now: it has a size and, inside a scroller
+ * marked `data-kit-clip`, its top edge is within the scroller's view.
+ */
+function showing(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return false
+  const clip = element.closest<HTMLElement>('[data-kit-clip]')
+  if (!clip) return true
+  const view = clip.getBoundingClientRect()
+  // Kit draws above the page, so its head may cross the scroller's top edge.
+  return rect.top >= view.top && rect.top <= view.bottom - 4
+}
+
+const surfaceSelector = (name: PerchName) =>
+  `[data-kit-perch="${name.replace(/["\\]/g, '')}"]`
+
+/** The element the shell marked as this surface, when one is showing. */
 export function perchElement(name: PerchName): HTMLElement | undefined {
   if (typeof document === 'undefined') return undefined
   for (const element of document.querySelectorAll<HTMLElement>(
-    `[data-kit-perch="${name}"]`,
-  )) {
-    const rect = element.getBoundingClientRect()
-    if (rect.width > 0 && rect.height > 0) return element
-  }
+    surfaceSelector(name),
+  ))
+    if (showing(element)) return element
   return undefined
+}
+
+/** The ids of the message surfaces showing now, in the conversation's order. */
+function messageSurfaces(): PerchName[] {
+  if (typeof document === 'undefined') return []
+  const ids = [
+    ...document.querySelectorAll<HTMLElement>('[data-kit-perch^="message:"]'),
+  ]
+    .filter(showing)
+    .map((element) => element.dataset.kitPerch as PerchName)
+  return [...new Set(ids)].slice(-MAX_MESSAGE_SURFACES)
 }
 
 /**
@@ -171,11 +231,19 @@ export function perchLine(name: PerchName): PerchLine | undefined {
   }
 }
 
-/** Every perch showing now, the floor last. */
+/** Every surface showing now: the composer, the rail, the messages, and the floor last. */
 export function perchLines(): PerchLine[] {
-  return PERCHES.map(perchLine).filter(
-    (line): line is PerchLine => line !== undefined,
-  )
+  return ['composer', 'rail', ...messageSurfaces(), 'floor']
+    .map(perchLine)
+    .filter((line): line is PerchLine => line !== undefined)
+}
+
+/** The surfaces on screen as the scene names them, with their labels. */
+export function surfacesOf(lines: readonly PerchLine[]): KitSurface[] {
+  return lines.map(({ name }) => {
+    const label = perchElement(name)?.dataset.kitLabel?.slice(0, MAX_LABEL)
+    return { id: name, kind: surfaceKind(name), ...(label && { label }) }
+  })
 }
 
 /**
@@ -225,16 +293,26 @@ export function sceneOf(
   state: StageState,
   doing: string,
   now = Date.now(),
+  steps?: readonly KitStepOutcome[],
 ): Scene {
   const saying =
     state.speech && state.speech.until > now ? state.speech.text : undefined
+  const { touched } = state
   return {
     perch: state.perch,
     at: Math.round(state.at * 100) / 100,
     facing: state.facing === 1 ? 'right' : 'left',
     doing,
     ...(saying && { saying }),
-    perches: perchLines().map((line) => line.name),
+    surfaces: surfacesOf(perchLines()),
+    ...(touched && {
+      touched: {
+        kind: touched.kind,
+        onto: touched.onto,
+        agoMs: Math.max(0, now - touched.at),
+      },
+    }),
+    ...(steps && { steps: [...steps] }),
     revision: state.revision,
   }
 }

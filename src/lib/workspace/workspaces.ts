@@ -38,6 +38,7 @@ import {
   getTheoremVault,
   isTheoremWorkspace,
 } from './theorem-client'
+import type { VaultAbsence } from './theorem-client'
 import type {
   FolderSettings,
   WorkspaceClient,
@@ -104,14 +105,29 @@ export function useWorkspaces() {
     [queryClient],
   )
 
+  const theoremVault = typeof vault.data === 'object' ? vault.data : undefined
   return {
     ...query,
     isPending: query.isPending || vault.isPending,
-    available: Boolean(query.data ?? vault.data),
+    available: Boolean(query.data ?? theoremVault),
     /** The desktop app's workspace routes answer, so folders can be opened. */
     folders: Boolean(query.data),
-    workspaces: [...(vault.data ? [vault.data] : []), ...(query.data ?? [])],
+    workspaces: [
+      ...(theoremVault ? [theoremVault] : []),
+      ...(query.data ?? []),
+    ],
+    /** Why there is no Theorem vault, once that is known. */
+    vaultAbsence: vaultAbsence(vault.data, vault.isError),
   }
+}
+
+/** Why the vault query found no vault: its answer, or `failed` on an error. */
+function vaultAbsence(
+  data: WorkspaceSummary | VaultAbsence | undefined,
+  failed: boolean,
+): VaultAbsence | 'failed' | undefined {
+  if (typeof data === 'string') return data
+  return !data && failed ? 'failed' : undefined
 }
 
 export function useWorkspaceClient(

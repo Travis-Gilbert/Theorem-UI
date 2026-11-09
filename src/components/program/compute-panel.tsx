@@ -1,10 +1,10 @@
 // SOURCING: @tanstack/react-query over Theorem's graph_compute, graph_lisp, graph_lint and
 // reactive_derive tools; the rail's Section, Labeled, Choice, ToolError and Json; coss ui
-// Input, Textarea, NumberField, Badge and Alert; and @uiw/react-codemirror for Graph Lisp.
+// Input, Textarea, NumberField, Badge and Alert; and @uiw/react-codemirror for Graph Lisp,
+// in lib/codemirror-theme's theme.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@tanstack/react-pacer'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
-import { useTheme } from 'next-themes'
 import { useState } from 'react'
 import type { JsonValue } from '@/lib/program/contracts'
 import {
@@ -36,6 +36,7 @@ import {
 import { Switch } from '@/components/coss/switch'
 import { Textarea } from '@/components/coss/textarea'
 import { Button } from '@/components/ui/button'
+import { useCodeMirrorTheme } from '@/lib/codemirror-theme'
 import { Choice, Json, Labeled, Section, ToolError } from './section'
 
 const HERE = 'here'
@@ -260,14 +261,14 @@ function LispEditor({
   value: string
   onChange: (next: string) => void
 }) {
-  const { resolvedTheme } = useTheme()
+  const codeMirrorTheme = useCodeMirrorTheme()
   return (
     <CodeMirror
       className="overflow-hidden rounded-md border border-separator focus-within:border-focus"
       value={value}
       onChange={(next) => onChange(next)}
       extensions={LISP_EXTENSIONS}
-      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+      theme={codeMirrorTheme}
       indentWithTab={false}
       basicSetup={{
         lineNumbers: false,

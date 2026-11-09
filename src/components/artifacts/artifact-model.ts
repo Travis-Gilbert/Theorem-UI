@@ -1,6 +1,8 @@
 // SOURCING: none — a typed reader for the theorem-artifact-v1 part contract (apps/theoremweb/contracts/theorem-chat-v1.json); no library models Theorem's artifact parts
 import { useAuiState } from '@assistant-ui/react'
 import { useMemo } from 'react'
+import { parseNotebookForm } from '@/lib/notebooks/forms'
+import type { NotebookForm } from '@/lib/notebooks/forms'
 import { humanize } from '@/lib/utils'
 
 /** One revision of an agent-produced artifact, read from a `theorem-artifact` data part. */
@@ -22,6 +24,14 @@ export type TheoremArtifact = {
   sourceTool: string | undefined
   documentId?: string
   documentPosition?: string | number
+  /** How the content is written, when the part says: "openui" for a program. */
+  form?: string
+  /** The component library an "openui" program was written against. */
+  library?: { id: string; version: string }
+  /** An Observable or marimo notebook, when the payload is one of the notebook forms. */
+  notebook?: NotebookForm
+  /** The version of its form the payload was written in, when it names one. */
+  formVersion?: number
 }
 
 export const ARTIFACT_PART = 'theorem-artifact'
@@ -48,27 +58,44 @@ export function readArtifact(data: unknown): TheoremArtifact | undefined {
   const artifactId = text(part.artifactId)
   if (!artifactId) return undefined
   const payload = object(part.payload)
+  const form = text(payload.form) ?? text(part.form)
+  const library = object(payload.library ?? part.library)
+  const version =
+    typeof library.version === 'number'
+      ? String(library.version)
+      : text(library.version)
   const title =
     text(payload.title) ?? text(part.fallbackText) ?? 'Untitled artifact'
   return {
     partId: text(part.partId) ?? artifactId,
     artifactId,
     revision: text(part.artifactRevision) ?? artifactId,
-    kind: text(part.artifactKind) ?? 'unknown',
+    kind: text(part.artifactKind) ?? form ?? 'unknown',
     rendererId: text(part.rendererId) ?? 'unknown',
     contractVersion: text(part.contractVersion) ?? 'unknown',
     lifecycle: text(part.lifecycle) ?? 'ready',
     patchSequence:
       typeof part.patchSequence === 'number' ? part.patchSequence : 0,
     title,
-    content: text(payload.content) ?? '',
+    // An "openui" part carries its program where other parts carry content.
+    content:
+      text(payload.content) ?? text(payload.program) ?? text(part.program) ?? '',
     language: text(payload.language),
     fallbackText: text(part.fallbackText) ?? title,
     payloadRef: text(part.payloadRef),
     runId: text(part.runId),
     sourceTool: text(part.sourceTool),
-    documentId:text(payload.documentId),
-    documentPosition:typeof object(payload.revision).position === 'number' ? object(payload.revision).position as number : text(object(payload.revision).position),
+    documentId: text(payload.documentId),
+    documentPosition:
+      typeof object(payload.revision).position === 'number'
+        ? (object(payload.revision).position as number)
+        : text(object(payload.revision).position),
+    ...(form && { form }),
+    ...(text(library.id) &&
+      version && { library: { id: text(library.id) as string, version } }),
+    notebook: parseNotebookForm(payload),
+    formVersion:
+      typeof payload.formVersion === 'number' ? payload.formVersion : undefined,
   }
 }
 
@@ -132,23 +159,37 @@ export function kindLabel(artifact: TheoremArtifact): string {
       return artifact.language ? `Code · ${artifact.language}` : 'Code'
     case 'diagram':
       return 'Diagram'
+    case 'observable':
+      return 'Notebook · Observable'
+    case 'marimo':
+      return 'Notebook · marimo'
     default:
       return humanize(artifact.kind)
   }
 }
 
-/** Download file name for an artifact revision. */
-export function fileNameFor(artifact: TheoremArtifact): string {
+const MEDIA_EXTENSIONS: Record<string, string> = {
+  'text/html': 'html',
+  'text/markdown': 'md',
+  'text/vnd.mermaid': 'mmd',
+  'text/x-python': 'py',
+  'application/json': 'json',
+}
+
+/** Download file name for an artifact revision whose source has `mediaType`. */
+export function fileNameFor(
+  artifact: TheoremArtifact,
+  mediaType: string,
+): string {
   const base =
     artifact.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') || 'artifact'
-  if (artifact.kind === 'app') return `${base}.html`
-  if (artifact.kind === 'document') return `${base}.md`
-  if (artifact.kind === 'diagram') return `${base}.mmd`
-  const ext = artifact.language
-    ? EXTENSIONS[artifact.language.toLowerCase()]
-    : undefined
-  return `${base}.${ext ?? artifact.language ?? 'txt'}`
+  const ext =
+    MEDIA_EXTENSIONS[mediaType] ??
+    (artifact.language
+      ? (EXTENSIONS[artifact.language.toLowerCase()] ?? artifact.language)
+      : 'txt')
+  return `${base}.${ext}`
 }

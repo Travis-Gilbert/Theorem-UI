@@ -4,7 +4,7 @@ import type { FrameConnection } from './executor'
 import { followTheme, hostedAppDocument } from './hosted-app'
 import { rpcOver, serve } from './sandbox/protocol'
 import type { SandboxMethods } from './sandbox/protocol'
-import { applyTheme } from './sandbox/theme'
+import { applyAppTheme } from './sandbox/theme'
 import type { AppTheme } from './sandbox/theme'
 
 test('a hosted App carries the real bridge under a restrictive policy without a desktop listener', async () => {
@@ -19,6 +19,7 @@ test('a hosted App carries the real bridge under a restrictive policy without a 
   expect(policy).toContain("connect-src 'none'")
   expect(policy).toContain("form-action 'none'")
   expect(policy).toContain("base-uri 'none'")
+  expect(policy).not.toContain("'unsafe-eval'")
   expect(page.querySelector('td')?.textContent).toBe('Category')
   expect(page.querySelector('td')?.hasAttribute('contenteditable')).toBe(true)
   const bridge = page.querySelector(
@@ -118,7 +119,7 @@ describe('in a live document', () => {
 
   test('plain elements take the theme and the App’s own rules win over it, wherever they stand', () => {
     style('button.own { background-color: #fafaf9; border-radius: 0 }')
-    applyTheme(STONE)
+    applyAppTheme(STONE)
     style('body { color: #292524 }')
     document.body.innerHTML =
       '<button class="plain">Plain</button><button class="own">Own</button><input>'
@@ -153,7 +154,7 @@ describe('in a live document', () => {
       rpcOver(channel.port2),
       'theme.changed',
       (theme) => {
-        applyTheme(theme, frame)
+        if ('scheme' in theme) applyAppTheme(theme, frame)
         return null
       },
     )

@@ -55,7 +55,7 @@ export function SandboxedModule({
   definition: ModuleDefinition
   view: ModuleViewProps
 }) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   if (definition.implementation.kind !== 'sandboxed-html') return null
   // Nothing runs while the page is arranged: a frame would take the
   // pointer from the editor, and its code has no business running then.
@@ -65,7 +65,7 @@ export function SandboxedModule({
       <BlockMessage>
         {isPending
           ? 'Opening the vault…'
-          : 'This module lives in the Theorem vault, which is not open.'}
+          : `This module lives in the Theorem vault. ${missing}`}
       </BlockMessage>
     )
   const { folder, entry } = definition.implementation

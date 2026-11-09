@@ -7,10 +7,10 @@
 // look as the page sends it (theme.ts).
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
-import { observeHeight, observeSnapshots } from './display'
+import { markSelectedCell, observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
 import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
-import { applyTheme } from './theme'
+import { THEME_EVENT, applyAppTheme, applyTheme } from './theme'
 
 type ModuleListener = (values: ModuleValues) => void
 let moduleValues: ModuleValues | undefined
@@ -43,9 +43,15 @@ const context = connectToPage().then((port) => {
       return null
     },
   )
-  // The page's look follows into the host stylesheet, under the App's own.
   serve<SandboxMethods, 'theme.changed'>(rpc, 'theme.changed', (theme) => {
-    applyTheme(theme)
+    if ('scheme' in theme) {
+      // A hosted App's look follows into the host stylesheet, under the App's own.
+      applyAppTheme(theme)
+    } else {
+      // The page's tokens on this document's root; CSS and cells that read them follow.
+      applyTheme(theme)
+      window.dispatchEvent(new Event(THEME_EVENT))
+    }
     return null
   })
   observeHeight((height) => {
@@ -54,7 +60,7 @@ const context = connectToPage().then((port) => {
   observeSnapshots((html) => {
     void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', { html })
   })
-  const selection = () => {
+  const selection = (event?: Event) => {
     const selected = window.getSelection()
     const node = selected?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
@@ -71,15 +77,33 @@ const context = connectToPage().then((port) => {
             input.selectionEnd ?? input.selectionStart,
           )
         : (selected?.toString() ?? '')
-    const target = input ?? element
+    // A click on a lane or a bar selects it even when no text is selected.
+    const pointed =
+      event?.type === 'pointerup' && event.target instanceof Element
+        ? event.target
+        : null
+    const target = input ?? pointed ?? element
+    const entity = target?.closest('[data-entity-id]')
+    const entityId = entity?.getAttribute('data-entity-id') ?? undefined
+    const entityLabel =
+      entity?.getAttribute('data-entity-label') ??
+      entity?.getAttribute('aria-label') ??
+      undefined
     const rowId =
       target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
     const field =
       target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
+    // A notebook's cells are sections with an id; the one a selection names is marked.
+    const cell = target?.closest('[data-cell-id]')
+    markSelectedCell(cell)
+    const cellId = cell?.getAttribute('data-cell-id') ?? undefined
     void call<PageMethods, 'frame.selection'>(rpc, 'frame.selection', {
       text: text.slice(0, 4096),
       rowId: rowId?.slice(0, 200),
       field: field?.slice(0, 200),
+      entityId: entityId?.slice(0, 200),
+      entityLabel: entityLabel?.slice(0, 200),
+      cellId: cellId?.slice(0, 200),
     }).catch(() => {})
   }
   // A person's input inside the frame never reaches the page; say so, so a
@@ -91,7 +115,11 @@ const context = connectToPage().then((port) => {
   }
   document.addEventListener('pointerdown', used, true)
   document.addEventListener('keydown', used, true)
-  document.addEventListener('selectionchange', selection)
+  // A click collapses the text selection after pointerup has reported what it
+  // pointed at; only a selection with text in it is news.
+  document.addEventListener('selectionchange', () => {
+    if (window.getSelection()?.isCollapsed === false) selection()
+  })
   document.addEventListener('pointerup', selection)
   document.addEventListener('keyup', selection)
   return cells

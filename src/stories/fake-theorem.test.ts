@@ -18,6 +18,8 @@ afterEach(() => {
   window.fetch = platform
 })
 
+const routes = { 'GET /api/ping': () => ({ ok: true }) }
+
 test('answers /api/ from its routes and passes other requests to the platform', async () => {
   const restore = installFakeTheorem({
     'GET /api/thing/:id': ({ id }) => ({ id }),
@@ -31,16 +33,27 @@ test('answers /api/ from its routes and passes other requests to the platform', 
   restore()
 })
 
-test('a story mounted again keeps its fake when the last mount cleans up after it renders', async () => {
+// React runs a story's first render twice in development, and its effects
+// again after a simulated remount, so the fake is installed more than once.
+test('a second install replaces the first, and restoring either gives the page its fetch back', () => {
+  const own = window.fetch
+  const restoreFirst = installFakeTheorem(routes)
+  const restoreSecond = installFakeTheorem(routes)
+  expect(window.fetch).not.toBe(own)
+  restoreSecond()
+  expect(window.fetch).toBe(own)
+  installFakeTheorem(routes)
+  restoreFirst()
+  expect(window.fetch).toBe(own)
+})
+
+test('a second install answers over the platform, not over the first fake', async () => {
   const before = window.fetch
-  const first = installFakeTheorem({ 'GET /api/who': () => 'first' })
-  // React renders the new mount, installing its fake, then runs the old mount's cleanup.
+  installFakeTheorem({ 'GET /api/who': () => 'first' })
   const second = installFakeTheorem({ 'GET /api/who': () => 'second' })
-  first()
   expect(await (await window.fetch('http://localhost/api/who')).json()).toBe(
     'second',
   )
-  // The second fake still reaches the platform, not the first fake.
   await window.fetch('http://localhost/assets/app.js')
   expect(calls).toEqual(['platform'])
   second()

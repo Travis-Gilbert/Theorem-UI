@@ -1,52 +1,93 @@
-import { afterEach, expect, spyOn, test } from 'bun:test'
-import type { Mock } from 'bun:test'
-import { observeHeight } from './display'
+import { afterEach, expect, test } from 'bun:test'
+import { markSelectedCell, observeHeight } from './display'
 
-const page = document.documentElement
-let box: Mock<() => DOMRect> | undefined
+const root = document.documentElement
+const original = globalThis.ResizeObserver
 
-/** The page as a frame of `frame` px sees it, with content `height` px tall. */
-function measured({
-  scroll,
-  frame,
-  height,
-}: {
-  scroll: number
-  frame: number
-  height: number
-}) {
-  Object.defineProperty(page, 'scrollHeight', {
+afterEach(() => {
+  globalThis.ResizeObserver = original
+  for (const key of ['scrollHeight', 'getBoundingClientRect'] as const)
+    Reflect.deleteProperty(root, key)
+  Reflect.deleteProperty(window, 'innerHeight')
+})
+
+/** Lays the frame out: how tall its content is, and how tall the frame is. */
+function layout(content: number, frame: number) {
+  Object.defineProperty(root, 'scrollHeight', {
     configurable: true,
-    value: scroll,
+    get: () => Math.max(content, frame),
   })
-  Object.defineProperty(page, 'clientHeight', {
+  Object.defineProperty(root, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ height: content }) as DOMRect,
+  })
+  Object.defineProperty(window, 'innerHeight', {
     configurable: true,
     value: frame,
   })
-  box = spyOn(page, 'getBoundingClientRect').mockReturnValue({
-    height,
-  } as DOMRect)
-  const heights: Array<number> = []
-  observeHeight((reported) => heights.push(reported))
+}
+
+test('a frame grows to its content and shrinks back when the content does', () => {
+  let resized = () => {}
+  globalThis.ResizeObserver = class {
+    constructor(callback: () => void) {
+      resized = callback
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver
+  const reports: number[] = []
+  // A first layout at a narrow width wraps every line, so the content is tall.
+  layout(7962, 150)
+  observeHeight((height) => reports.push(height))
+  // The frame is now that tall, and the content settles at its real height.
+  layout(1700, 7962)
+  resized()
+  expect(reports).toEqual([7962, 1700])
+})
+
+test('only the cell a selection names is marked, and a selection outside every cell marks none', () => {
+  document.body.innerHTML =
+    '<main><div class="cell" data-cell-id="a"></div><div class="cell" data-cell-id="b"></div></main>'
+  const [a, b] = document.querySelectorAll('.cell')
+  const marked = () =>
+    [...document.querySelectorAll('[data-selected]')].map((cell) =>
+      cell.getAttribute('data-cell-id'),
+    )
+  markSelectedCell(a)
+  expect(marked()).toEqual(['a'])
+  markSelectedCell(b)
+  expect(marked()).toEqual(['b'])
+  markSelectedCell(null)
+  expect(marked()).toEqual([])
+  document.body.innerHTML = ''
+})
+
+/** Reports what observeHeight measures with this scrollHeight, frame height and root box. */
+function measured(scroll: number, frame: number, box: number) {
+  Object.defineProperty(root, 'scrollHeight', {
+    configurable: true,
+    value: scroll,
+  })
+  Object.defineProperty(root, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ height: box }) as DOMRect,
+  })
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: frame,
+  })
+  const heights: number[] = []
+  observeHeight((height) => heights.push(height))
   return heights
 }
 
-afterEach(() => {
-  delete (page as { scrollHeight?: number }).scrollHeight
-  delete (page as { clientHeight?: number }).clientHeight
-  box?.mockRestore()
-})
-
 test('a page with a fractional height gets the whole pixel above it', () => {
   // scrollHeight rounds 186.375 down; the frame would scroll for the rest.
-  expect(measured({ scroll: 186, frame: 186, height: 186.375 })).toEqual([187])
-})
-
-test('a page that got shorter than its frame lets the frame shrink', () => {
-  // scrollHeight reads the frame's 187 however short the page is.
-  expect(measured({ scroll: 187, frame: 187, height: 153.2 })).toEqual([154])
+  expect(measured(186, 186, 186.375)).toEqual([187])
 })
 
 test('content overflowing the page box still counts', () => {
-  expect(measured({ scroll: 400, frame: 186, height: 186 })).toEqual([400])
+  expect(measured(400, 186, 186)).toEqual([400])
 })

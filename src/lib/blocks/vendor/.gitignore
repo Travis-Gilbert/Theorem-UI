@@ -1,0 +1,3 @@
+# The root ignores build output named dist, but some packages publish their
+# modules under a dist directory; the vendored copies must be tracked.
+!dist

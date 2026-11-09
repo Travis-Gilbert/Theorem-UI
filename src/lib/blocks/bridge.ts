@@ -79,7 +79,7 @@ const params = {
   remove: z.object({ name, key: z.string().min(1) }),
   run: z.object({ target: z.string() }),
   resize: z.object({ height: z.number().finite().nonnegative() }),
-  selection: z.object({text:z.string().max(4096),rowId:z.string().max(200).optional(),field:z.string().max(200).optional()}),
+  selection: z.object({text:z.string().max(4096),rowId:z.string().max(200).optional(),field:z.string().max(200).optional(),entityId:z.string().max(200).optional(),entityLabel:z.string().max(200).optional(),cellId:z.string().max(200).optional()}),
   snapshot: z.object({ html: z.string().max(MAX_SNAPSHOT) }),
 }
 

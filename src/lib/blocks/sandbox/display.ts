@@ -117,14 +117,26 @@ export function observeSnapshots(report: (html: string) => void): void {
 export function observeHeight(report: (height: number) => void): void {
   let last = -1
   const measure = () => {
-    const page = document.documentElement
-    const box = Math.ceil(page.getBoundingClientRect().height)
-    const height =
-      page.scrollHeight > page.clientHeight
-        ? Math.max(page.scrollHeight, box)
-        : box
+    const root = document.documentElement
+    const height = Math.ceil(
+      root.scrollHeight > window.innerHeight
+        ? root.scrollHeight
+        : root.getBoundingClientRect().height,
+    )
     if (height !== last) report((last = height))
   }
   new ResizeObserver(measure).observe(document.documentElement)
   measure()
+}
+
+/**
+ * Marks the cell a selection names, and only that one, so the highlight shows
+ * what the page will refer to. A selection outside every cell marks none.
+ */
+export function markSelectedCell(cell: Element | null | undefined): void {
+  for (const marked of document.querySelectorAll(
+    '[data-cell-id][data-selected]',
+  ))
+    if (marked !== cell) marked.removeAttribute('data-selected')
+  cell?.setAttribute('data-selected', '')
 }

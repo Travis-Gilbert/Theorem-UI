@@ -1,6 +1,10 @@
-// SOURCING: culori (Okhsl, OKLCH, sRGB gamut tests and hex output). The rules
-// that place each colour are the palettes' own; each mode's terminal colours
-// come from src/components/terminal/terminal-theme.ts.
+// SOURCING: culori (Okhsl, OKLCH, sRGB gamut tests, alpha blending and hex
+// output). The rules that place each colour are the palettes' own; each mode's
+// terminal colours come from src/components/terminal/terminal-theme.ts.
+// Vitesse's neutrals and accent hues are Anthony Fu's Vitesse (MIT): the dark
+// side as franmc01's JetBrains theme "Vitesse Dark Theme" 0.0.1 gives them
+// (vitesse.dark.theme.json and the vitesse.dark.xml editor scheme), the light
+// side as Fu's own Vitesse Light (shiki's bundled vitesse-light).
 //
 // Writes src/palettes.css: the colours of every palette, placed by a few rules
 // so that their tints and chromas agree. Edit the spec below, then run
@@ -17,7 +21,11 @@
 // every family in it. The chroma is the most all of the tier's hues reach in
 // sRGB, up to the tier's ceiling, so no family is brighter or louder than
 // another in the same role.
-import { displayable, formatHex } from 'culori'
+//
+// A palette translated from a theme can take a neutral as that theme gives it,
+// written as its hex, in place of a lightness; a translucent one is seen over
+// the mode's ground, as it is in the theme.
+import { blend, displayable, formatHex } from 'culori'
 import type { Okhsl, Oklch } from 'culori'
 import {
   terminalCss,
@@ -59,8 +67,10 @@ interface Mode {
   dark: boolean
   /** Okhsl saturation of every neutral. */
   saturation: number
-  /** Okhsl lightness of each neutral token. */
-  neutrals: Record<string, number>
+  /** Okhsl lightness of each neutral token, or the hex a source theme gives it. */
+  neutrals: Record<string, number | string>
+  /** What a translucent source colour is seen over: the source theme's background. */
+  ground?: string
   /** A selected row is tinted with redwood's hue at this saturation, where the palette says so. */
   selected?: number
   hues: Record<Family, number>
@@ -254,6 +264,109 @@ const modes: Array<Mode & { hue: number }> = [
     link: 'teal',
     attention: { strong: { l: 0.8, c: 0.13 }, ink: { l: 0.86, c: 0.1 } },
   },
+  // Vitesse Light: Fu's white editor, #f7f7f7 rows and #393a34 ink. Its greys
+  // are untinted, so the greys it does not name are too.
+  {
+    selector: "[data-palette='vitesse']",
+    dark: false,
+    hue: 0,
+    saturation: 0,
+    ground: '#ffffff',
+    neutrals: {
+      'surface-neutral': '#f7f7f7',
+      'surface-sidebar': '#f7f7f7',
+      'surface-frame': githubNeutrals.light['surface-frame'],
+      'surface-raised': '#ffffff',
+      'surface-hover': '#f0f0f0',
+      'surface-selected': githubNeutrals.light['surface-selected'],
+      'surface-composer': '#ffffff',
+      'surface-artifact': '#f7f7f7',
+      'surface-rail': githubNeutrals.light['surface-rail'],
+      'sheet-from': '#ffffff',
+      'sheet-to': '#f7f7f7',
+      'ink-faint-top': '#6a737d',
+      'ink-faint-bottom': githubNeutrals.light['ink-faint-bottom'],
+      ink: '#393a34',
+      'ink-muted': '#4e4f47',
+      // Vitesse's preformatted text: its breadcrumbs' #6a737d falls short of
+      // 4.5:1 on the hovered row.
+      'ink-faint': '#586069',
+      'line-control': '#d1d5da',
+      'line-separator': '#e1e4e8',
+      'on-redwood': '#ffffff',
+      'graph-note': githubNeutrals.light['graph-note'],
+      'graph-unresolved': githubNeutrals.light['graph-unresolved'],
+      'graph-link': githubNeutrals.light['graph-link'],
+    },
+    selected: 0.4,
+    // Its accent and links #1c6b48, functions #59873a, warnings #bda437,
+    // errors #ab5959.
+    hues: { redwood: 160, teal: 134, ochre: 96, error: 21, focus: 160 },
+    tiers: {
+      strong: { l: 0.471, c: 0.095 },
+      ink: { l: 0.44, c: 0.09 },
+      container: { l: 0.94, c: 0.03 },
+      graph: { l: 0.534, c: 0.12 },
+      focus: { l: 0.471, c: 0.095 },
+    },
+    link: 'redwood',
+    attention: { strong: { l: 0.62, c: 0.145 }, ink: { l: 0.47, c: 0.105 } },
+  },
+  // Vitesse Dark, as franmc01's JetBrains theme has it: the #222222 charcoal,
+  // #292929 for what is raised or hovered, warm #dbd7caee ink. The rail is the
+  // #121212 of Fu's own Vitesse Dark, so the sheet lifts off it as elsewhere.
+  {
+    selector: ".dark[data-palette='vitesse']",
+    dark: true,
+    hue: 0,
+    saturation: 0,
+    ground: '#222222',
+    neutrals: {
+      'surface-neutral': '#222222',
+      'surface-sidebar': '#222222',
+      'surface-frame': '#121212',
+      'surface-raised': '#292929',
+      'surface-hover': '#292929',
+      'surface-selected': 0.215,
+      'surface-composer': '#292929',
+      'surface-artifact': '#252525',
+      'surface-rail': '#121212',
+      'sheet-from': 0.163,
+      'sheet-to': 0.136,
+      'ink-faint-top': 0.64,
+      'ink-faint-bottom': 0.6,
+      ink: '#dbd7caee',
+      // The editor's caret-row line number: Vitesse's quieter warm ink.
+      'ink-muted': '#bfbaaa',
+      // Vitesse's secondary text, #dedcd590 over #222222 (#8c8b87), lit to
+      // keep 4.5:1 on the raised #292929.
+      'ink-faint': '#9a9893',
+      // Vitesse's component border divides; a control's outline is the grey
+      // GitHub Sharp's dark draws, as Vitesse names none brighter.
+      'line-control': githubNeutrals.dark['line-control'],
+      'line-separator': '#2f363d',
+      // Fu's Vitesse Dark background: Vitesse's own #222222 falls short of
+      // 4.5:1 on its accent.
+      'on-redwood': '#121212',
+      'graph-note': githubNeutrals.dark['graph-note'],
+      'graph-unresolved': githubNeutrals.dark['graph-unresolved'],
+      'graph-link': githubNeutrals.dark['graph-link'],
+      'graph-label': githubNeutrals.dark['graph-label'],
+    },
+    selected: 0.12,
+    // Its accent, links and focus #4d9375, functions #80a665, warnings
+    // #e6cc77, errors #cb7676.
+    hues: { redwood: 164, teal: 133, ochre: 93, error: 20, focus: 164 },
+    tiers: {
+      strong: { l: 0.609, c: 0.085 },
+      ink: { l: 0.77, c: 0.095 },
+      container: { l: 0.32, c: 0.03 },
+      graph: { l: 0.745, c: 0.125 },
+      focus: { l: 0.609, c: 0.085 },
+    },
+    link: 'redwood',
+    attention: { strong: { l: 0.8, c: 0.13 }, ink: { l: 0.86, c: 0.1 } },
+  },
 ]
 
 /** The most chroma sRGB shows at this OKLCH lightness and hue. */
@@ -279,9 +392,12 @@ const hex = (color: Okhsl | Oklch) => formatHex(color)
 export function modeTokens(mode: Mode & { hue: number }) {
   const tokens: Record<string, string> = {}
   for (const [name, l] of Object.entries(mode.neutrals))
-    tokens[name] = hex({ mode: 'okhsl', h: mode.hue, s: mode.saturation, l })
+    tokens[name] =
+      typeof l === 'string'
+        ? formatHex(blend([mode.ground ?? '#000000', l]))
+        : hex({ mode: 'okhsl', h: mode.hue, s: mode.saturation, l })
   const selected = mode.neutrals['surface-selected']
-  if (mode.selected !== undefined && selected !== undefined)
+  if (mode.selected !== undefined && typeof selected === 'number')
     tokens['surface-selected'] = hex({
       mode: 'okhsl',
       h: mode.hues.redwood,

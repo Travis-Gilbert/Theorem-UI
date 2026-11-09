@@ -6,6 +6,7 @@ import cell from './sandbox/cell.ts?raw'
 import cellRuntime from './sandbox/cell-runtime.ts?raw'
 import connect from './sandbox/connect.ts?raw'
 import display from './sandbox/display.ts?raw'
+import notebook from './sandbox/notebook.ts?raw'
 import protocol from './sandbox/protocol.ts?raw'
 import standalone from './sandbox/standalone.ts?raw'
 import theme from './sandbox/theme.ts?raw'
@@ -18,6 +19,7 @@ export const runtimeSources: Record<string, string> = {
   'cell-runtime': cellRuntime,
   connect,
   display,
+  notebook,
   protocol,
   standalone,
   theme,

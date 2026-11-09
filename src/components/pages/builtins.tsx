@@ -43,7 +43,10 @@ import { RecordInspector } from '@/components/records/record-inspector'
 import { RecordTable } from '@/components/records/record-table'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
-import { useTerminalTabs } from '@/components/terminal/side-terminal'
+import {
+  attachToSideTerminal,
+  useTerminalTabs,
+} from '@/components/terminal/side-terminal'
 import {
   TerminalScreen,
   addReference,
@@ -375,21 +378,32 @@ const useIdeOwner = create<Owner>(() => ({}))
  * Theia, for the active project. Add to chat is its Added event. With its
  * chat set to the page's conversation, Theia's own chat closes and Follow
  * follows the conversation's runs, so a connection from Added to the
- * conversation's Attach puts the selection in its composer. Set to the page,
- * Follow follows the agent terminal's active tab instead, so a connection to
- * a terminal's Attach makes the terminal the conversation.
+ * conversation's Attach puts the selection in its composer. Set to the
+ * agent terminal on the right, Added also puts the selection on the right
+ * drawer's active tab for its next turn, and Follow follows that tab. Set to
+ * the page, Follow follows the agent terminal's active tab too, so a
+ * connection to a terminal's Attach makes the terminal the conversation.
  */
 function IdeModule({ settings, emit, arranging, path }: ModuleViewProps) {
   const { mine, take } = useOwner(useIdeOwner, path, !arranging)
+  const { project } = useActiveProject()
   if (arranging)
     return <Empty>Theia opens here while the page is in use.</Empty>
   if (!mine) return <Elsewhere what="The IDE" onTake={take} />
   return (
     <div className="h-full">
       <IdeFrame
-        docked={settings.chat === 'conversation' || settings.chat === 'page'}
-        follows={settings.chat === 'page' ? 'terminal' : 'chat'}
-        onAddToChat={(reference) => emit('added', reference)}
+        docked={settings.chat !== 'own'}
+        follows={
+          settings.chat === 'page' || settings.chat === 'terminal'
+            ? 'terminal'
+            : 'chat'
+        }
+        onAddToChat={(reference) => {
+          emit('added', reference)
+          if (settings.chat === 'terminal' && project)
+            attachToSideTerminal(project.projectId, reference)
+        }}
       />
     </div>
   )
@@ -441,7 +455,7 @@ function PageTerminal({ hostId }: { hostId: string }) {
 }
 
 function FileModule({ settings }: ModuleViewProps) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   const path = text(settings.path)
   const [moved, setMoved] = useState<{ from: string; to: string }>()
   const shownPath = moved?.from === path ? moved.to : path
@@ -450,7 +464,9 @@ function FileModule({ settings }: ModuleViewProps) {
   if (!client)
     return (
       <Empty>
-        {isPending ? 'Opening the vault…' : 'The vault is not open.'}
+        {isPending
+          ? 'Opening the vault…'
+          : `The Theorem vault is not available. ${missing}`}
       </Empty>
     )
   return (
@@ -602,6 +618,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
             label: "The page's conversation, through Added",
             value: 'conversation',
           },
+          { label: 'The agent terminal on the right', value: 'terminal' },
           {
             label: 'An agent terminal on the page, through Added',
             value: 'page',

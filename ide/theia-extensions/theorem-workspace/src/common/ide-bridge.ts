@@ -137,7 +137,7 @@ export interface IdeFileEntry {
 export type IdeFrameMethods = {
     /** Show a location. Resolves false when the frame cannot show that resource. */
     reveal(location: TheoremLocation, options?: RevealOptions): Promise<boolean>;
-    /** Take the UI's palette and mode. */
+    /** Take the UI's palette and mode: its live tokens, and the palette that picks the code colours. */
     setTheme(theme: IdeTheme): void;
     executeCommand(id: string, args?: unknown[]): Promise<unknown>;
     /** Show or hide the left side panel; the rail's IDE button drives it. */

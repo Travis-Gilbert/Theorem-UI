@@ -19,22 +19,43 @@ let bridgeScript: Promise<string> | undefined
  * `net` replaces the document's own `theorem:uses` declarations: a page
  * module reaches the hosts the person allowed it, whatever its page says.
  * `theme` is the look the frame starts with; the page's own by default.
+ *
+ * `loads` names hosts the page may run code from: their scripts, workers,
+ * styles and fonts, and the WebAssembly they compile. Only a runtime the
+ * person started asks for it (a marimo notebook's Pyodide); every other
+ * hosted page runs only what it carries.
+ *
+ * `evaluates` lets the page's own code build functions from strings, as
+ * d3-dsv builds its row readers. The frame's sandbox and network policy are
+ * the boundary; code it carries could run the same function inline.
  */
 export async function hostedAppDocument(
   html: string,
   esbuild?: Pick<typeof Esbuild, 'build'>,
-  options: { net?: Array<string>; theme?: AppTheme } = {},
+  options: {
+    net?: Array<string>
+    loads?: Array<string>
+    evaluates?: boolean
+    theme?: AppTheme
+  } = {},
 ): Promise<string> {
   const page = new DOMParser().parseFromString(html, 'text/html')
   const net = options.net ?? declaredNet(page)
+  const loads = (options.loads ?? []).map((host) => `https://${host}`)
+  const from = (...sources: Array<string>) => [...sources, ...loads].join(' ')
   const policy = page.createElement('meta')
   policy.httpEquiv = 'Content-Security-Policy'
   policy.content = contentSecurityPolicy({
     'default-src': "'none'",
-    'script-src': "'unsafe-inline'",
-    'style-src': "'unsafe-inline'",
+    'script-src': loads.length
+      ? from("'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", 'blob:')
+      : options.evaluates
+        ? "'unsafe-inline' 'unsafe-eval'"
+        : "'unsafe-inline'",
+    ...(loads.length && { 'worker-src': from('blob:') }),
+    'style-src': from("'unsafe-inline'"),
     'img-src': 'data: blob:',
-    'font-src': 'data:',
+    'font-src': from('data:'),
     'media-src': 'data: blob:',
     'connect-src': connectSources(net),
     'form-action': "'none'",

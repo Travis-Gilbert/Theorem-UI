@@ -81,7 +81,7 @@ afterEach(async () => {
   useArtifactView.getState().reset()
 })
 
-test('an App card starts its saved App inline only after a click, stops, and can open the larger view', async () => {
+test('an App shows a passive preview of its pinned revision, runs live only on Interact, and opens the workspace', async () => {
   const originalUrl = window.location.href
   window.location.href = 'https://theorem.test/'
   const store = await appDocumentFixture()
@@ -95,22 +95,27 @@ test('an App card starts its saved App inline only after a click, stops, and can
   )
   try {
     const { container } = await render(<Harness />)
-    const card = await waitFor(() =>
-      container.querySelector('[aria-label="Open Browser shortlist"]'),
+    const preview = await waitFor(() =>
+      container.querySelector('[data-slot="app-preview"]'),
     )
+    expect(preview.getAttribute('role')).toBe('img')
+    expect(preview.getAttribute('aria-label')).toContain('Browser shortlist')
+    // Off screen (happy-dom never intersects) the preview holds no live frame.
     expect(container.querySelector('iframe')).toBeNull()
-    expect(compile).not.toHaveBeenCalled()
-    await click(card)
+    expect(buttonNamed(container, 'Run App')).toBeUndefined()
+    await click(buttonNamed(container, 'Interact')!)
     const frame = await waitFor(() => container.querySelector('iframe'), 10_000)
     expect(frame.getAttribute('sandbox')).toBe(BLOCK_SANDBOX)
     expect(useArtifactView.getState().openId).toBeUndefined()
     await click(buttonNamed(container, 'Stop App')!)
     expect(container.querySelector('iframe')).toBeNull()
-    await click(buttonNamed(container, 'Run App')!)
-    await waitFor(() => container.querySelector('iframe'), 10_000)
-    await click(container.querySelector('[aria-label="Open in larger view"]')!)
+    await click(buttonNamed(container, 'Done')!)
+    expect(container.querySelector('[data-slot="inline-app"]')).toBeNull()
+    expect(container.querySelector('[data-slot="app-preview"]')).not.toBeNull()
+    await click(
+      container.querySelector('[aria-label="Open Browser shortlist"]')!,
+    )
     expect(useArtifactView.getState().openId).toBe('inline-result')
-    expect(container.querySelector('iframe')).toBeNull()
   } finally {
     compile.mockRestore()
     fetch.mockRestore()
@@ -144,11 +149,7 @@ for (const kind of ['app', 'document']) {
 
 test('an App without a saved document reports the missing reference inline', async () => {
   const { container } = await render(<Harness documentId="" />)
-  await click(
-    await waitFor(() =>
-      container.querySelector('[aria-label="Open Browser shortlist"]'),
-    ),
-  )
+  await click(await waitFor(() => buttonNamed(container, 'Interact')))
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
     "This App couldn't be opened.",
   )
@@ -170,11 +171,7 @@ test('a failed App load shows the actual failure inline and never starts a frame
     const { container } = await render(
       <Harness documentId="inline-app-unavailable" />,
     )
-    await click(
-      await waitFor(() =>
-        container.querySelector('[aria-label="Open Browser shortlist"]'),
-      ),
-    )
+    await click(await waitFor(() => buttonNamed(container, 'Interact')))
     await waitFor(() => container.querySelector('[role="alert"]'))
     expect(container.textContent).toContain('App source unavailable')
     expect(container.querySelector('iframe')).toBeNull()
@@ -187,13 +184,29 @@ test('a failed App load shows the actual failure inline and never starts a frame
 
 test('replacing a card with another saved App requires a new click', async () => {
   const { container, rerender } = await render(<Harness documentId="" />)
+  await click(await waitFor(() => buttonNamed(container, 'Interact')))
+  expect(container.querySelector('[data-slot="inline-app"]')).not.toBeNull()
+  await rerender(<Harness documentId="replacement-app" />)
+  expect(container.querySelector('[data-slot="inline-app"]')).toBeNull()
+  expect(buttonNamed(container, 'Interact')?.getAttribute('aria-pressed')).toBe(
+    'false',
+  )
+})
+
+test('a document shows its excerpt inline and offers no live session', async () => {
+  const { container } = await render(<Harness kind="document" />)
+  await waitFor(() => container.querySelector('h1'))
+  expect(container.querySelector('h1')?.textContent).toBe('Document')
+  expect(buttonNamed(container, 'Interact')).toBeUndefined()
+})
+
+test('a kind this build has no renderer for shows the Theorem card, not a guess', async () => {
+  const { container } = await render(<Harness kind="notebook" />)
   await click(
     await waitFor(() =>
       container.querySelector('[aria-label="Open Browser shortlist"]'),
     ),
   )
-  expect(container.querySelector('[data-slot="inline-app"]')).not.toBeNull()
-  await rerender(<Harness documentId="replacement-app" />)
-  expect(container.querySelector('[data-slot="inline-app"]')).toBeNull()
-  expect(container.querySelector('[aria-expanded="false"]')).not.toBeNull()
+  expect(buttonNamed(container, 'Interact')).toBeUndefined()
+  expect(container.querySelector('[data-slot="app-preview"]')).toBeNull()
 })

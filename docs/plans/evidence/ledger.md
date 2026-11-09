@@ -20,6 +20,10 @@ Reference hashes (sha256):
 | Space canvas, typed notes, note kinds | original, drawn to the screenshot | no upstream code | this repo | `b435312b…` |
 | Conversation column and composer, terminal on Stone, Theia theme from the UI's tokens | original, drawn to the mockup's colour relationship | no upstream code | this repo | `b69c6876…` |
 | IDE sessions sidebar (`src/components/organize/sessions-panel.tsx`), conversation beside Theia, open-in-IDE chip on tool cards | original, drawn to the Devin screens | no upstream code | this repo | `cdbaa442…` and the four other Devin refs |
+| Vitesse palette (`src/palettes.css`), its glow, CodeMirror editor chrome | translation, the themes' hexes placed on Theorem's tokens | antfu/vscode-theme-vitesse at `2862595c3d5d05fabfd5aeb50bcbb79ea2f8d85f`; franmc01's JetBrains port 0.0.1 for the dark UI | Anthony Fu, MIT | none: see `docs/themes/PROVENANCE.md` |
+| Theia Vitesse themes (`ide/.../themes/vitesse/vitesse-*.json`) | verbatim, with the license beside them | antfu/vscode-theme-vitesse at the pin above | Anthony Fu, MIT | none |
+| Paper grain (`src/lib/paper-texture.ts`) | library, its shader rendered once | `@paper-design/shaders` 0.0.82 | Paper, Apache-2.0 | `ui-materials/grain-tile-3x.jpg` |
+| Artifact library (`theorem-artifacts`) and its stories | original, no upstream design | OpenUI (`@openuidev/react-lang`) for the language and renderer; shadcn and coss primitives | this repo; OpenUI MIT | none: drawn to no reference |
 
 ## Collages
 

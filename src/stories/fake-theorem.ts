@@ -14,19 +14,18 @@ const json = (status: number, body: unknown) =>
     headers: { 'content-type': 'application/json' },
   })
 
-/** The platform's fetch, kept on every fake so a second install answers over it, not over the first. */
-const REAL = Symbol('real fetch')
-type Fetch = typeof window.fetch & { [REAL]?: typeof window.fetch }
+/** Where a fake keeps the fetch it stands in for. */
+const PAGE_FETCH = Symbol('page fetch')
+type Fetch = typeof window.fetch & { [PAGE_FETCH]?: typeof window.fetch }
 
 /**
  * Answers `/api/` from the map and leaves the dev server's own requests alone.
- * Restoring takes out only this install: a story mounted again renders its
- * install before the last one's cleanup runs, and that cleanup must not put
- * the platform's fetch back under the new one.
+ * A second install replaces the first instead of wrapping it, so restoring
+ * either one gives the page its own fetch back.
  */
 export function installFakeTheorem(routes: FakeRoutes) {
   const current: Fetch = window.fetch
-  const real = current[REAL] ?? current
+  const real = current[PAGE_FETCH] ?? current
   const table = Object.entries(routes).map(([key, answer]) => {
     const [method = 'GET', pathname = ''] = key.split(' ')
     return { method, pattern: new URLPattern({ pathname }), answer }
@@ -45,12 +44,11 @@ export function installFakeTheorem(routes: FakeRoutes) {
     }
     return json(404, { title: 'Not in this story', path: url.pathname })
   }
-  const installed: Fetch = Object.assign(fake, {
+  window.fetch = Object.assign(fake, {
     preconnect: real.preconnect,
-    [REAL]: real,
+    [PAGE_FETCH]: real,
   })
-  window.fetch = installed
   return () => {
-    if (window.fetch === installed) window.fetch = real
+    window.fetch = real
   }
 }

@@ -1,4 +1,4 @@
-// SOURCING: @pierre/diffs/react PatchDiff and MultiFileDiff (Shiki-highlighted diffs, the code blocks' GitHub themes), @assistant-ui/react data parts, the installed CollapsibleRoot over Base UI Collapsible, next-themes for the diff theme, ui/button
+// SOURCING: @pierre/diffs/react PatchDiff and MultiFileDiff (Shiki-highlighted diffs, in the code blocks' themes from lib/palette), @assistant-ui/react data parts, the installed CollapsibleRoot over Base UI Collapsible, next-themes for the diff theme, ui/button
 //
 // Delegated work in the conversation (D20: the transcript shows one agent).
 // The front role delegates a work contract to a specialist; its card follows
@@ -25,6 +25,7 @@ import { askAbout } from '@/components/chat/composer-references'
 import { useOpenChanges } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { useCodeThemes } from '@/lib/palette'
 import { withoutCode } from '@/lib/theorem/client'
 import {
   LIVE_DELEGATION_STATES,
@@ -117,11 +118,6 @@ const Section: FC<{ title: string; children: ReactNode }> = ({
 
 /* ---------------------------------------------------------------- the diff */
 
-const DIFF_THEME = {
-  dark: 'github-dark-default',
-  light: 'github-light-default',
-}
-
 /**
  * A git-style patch, which Pierre's parser reads as an add, a modify or a
  * delete of one path. Theorem stores a plain unified diff.
@@ -145,6 +141,7 @@ const ChangeDiff: FC<{
   change: ChangeSetEntry
 }> = ({ delegation, change }) => {
   const { resolvedTheme } = useTheme()
+  const codeThemes = useCodeThemes()
   const { parentRunId: runId, delegationId } = delegation
   const patch = useDelegationContent(runId, delegationId, change.diffRef)
   // Without a stored diff, Pierre diffs the two sides itself.
@@ -178,7 +175,7 @@ const ChangeDiff: FC<{
       </ShimmerLabel>
     )
   const options = {
-    theme: DIFF_THEME,
+    theme: codeThemes,
     themeType:
       resolvedTheme === 'dark' ? ('dark' as const) : ('light' as const),
     diffStyle: 'unified' as const,

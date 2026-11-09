@@ -25,6 +25,8 @@ export type IdeToken = (typeof IDE_TOKENS)[number];
 /** The UI's look as the frame takes it: whether it is dark, and each token as `#rrggbb`. */
 export interface IdeTheme {
     dark: boolean;
+    /** The UI's palette (lib/palette's value), which picks the code colours: Vitesse's for Vitesse, GitHub's otherwise. */
+    palette?: string;
     tokens: Partial<Record<IdeToken, string>>;
 }
 
@@ -286,11 +288,11 @@ function mix(a: string, b: string): string {
 }
 
 /**
- * The frame's colour theme for the UI's look, as VS Code theme JSON over GitHub's theme of the same
- * mode, which keeps the code colours the UI highlights chat code with. A colour whose token did not
- * arrive as `#rrggbb` is left to GitHub's theme.
+ * The frame's colour theme for the UI's look, as VS Code theme JSON over the code theme of the same
+ * mode the UI highlights chat code with: Vitesse's for the Vitesse palette, GitHub's otherwise. A
+ * colour whose token did not arrive as `#rrggbb` is left to that theme.
  */
-export function ideThemeJson({ dark, tokens }: IdeTheme): { name: string; type: 'light' | 'dark'; include: string; colors: Record<string, string> } {
+export function ideThemeJson({ dark, palette, tokens }: IdeTheme): { name: string; type: 'light' | 'dark'; include: string; colors: Record<string, string> } {
     const value = (role: Role): string | undefined => {
         switch (role) {
             case 'transparent':
@@ -315,5 +317,13 @@ export function ideThemeJson({ dark, tokens }: IdeTheme): { name: string; type: 
             colors[id] = role === 'transparent' ? colour : colour + alpha;
         }
     }
-    return { name: 'Theorem UI', type: dark ? 'dark' : 'light', include: dark ? 'github-dark-default' : 'github-light-default', colors };
+    return { name: 'Theorem UI', type: dark ? 'dark' : 'light', include: codeTheme(dark, palette), colors };
+}
+
+/** The code theme the UI highlights chat code with in a palette and mode (lib/palette's `code`; Vitesse's dark side is the soft one Theia ships). */
+function codeTheme(dark: boolean, palette?: string): string {
+    if (palette === 'vitesse') {
+        return dark ? 'vitesse-dark-soft' : 'vitesse-light';
+    }
+    return dark ? 'github-dark-default' : 'github-light-default';
 }

@@ -25,7 +25,11 @@ function read(): IdeTheme {
         return hex ? [[name, hex] as const] : []
       }),
     )
-    return { dark: root.classList.contains('dark'), tokens }
+    return {
+      dark: root.classList.contains('dark'),
+      palette: root.dataset.palette,
+      tokens,
+    }
   } finally {
     probe.remove()
   }

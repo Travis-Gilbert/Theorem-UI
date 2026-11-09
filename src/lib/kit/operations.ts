@@ -1,23 +1,28 @@
-// SOURCING: Theorem's Kit contract (theorem-surface-contracts kit: the declarations in contract/operations.json and the ts-rs types beside it, copied from rustyredcore_THG/bindings/theorem-surface-contracts/kit); Theorem's client operations (theorem-surface-contracts client_operation: a page declares operations in `clientOperations` beside `clientSurface` on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, and the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); assistant-ui ThreadMessage content as the SDK adapter maps that part (`theorem-client_operation` data); @tanstack/react-query's MutationObserver retries a receipt that failed to post, with backoff, pausing while offline
+// SOURCING: Theorem's Kit contract (theorem-surface-contracts kit: the declarations in contract/operations.json and the ts-rs types beside it, copied from rustyredcore_THG/bindings/theorem-surface-contracts/kit), each declaration's input schema turned into a validator by zod's fromJSONSchema, so the page admits exactly what Theorem declares; Theorem's client operations (theorem-surface-contracts client_operation: a page declares operations in `clientOperations` beside `clientSurface` on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, and the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); assistant-ui ThreadMessage content as the SDK adapter maps that part (`theorem-client_operation` data); @tanstack/react-query's MutationObserver retries a receipt that failed to post, with backoff, pausing while offline
 import type { ThreadMessage } from '@assistant-ui/react'
 import type { Theorem } from '@theoremharness/sdk'
 import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { z } from 'zod'
 import { hasStatus, mutate, theorem } from '@/lib/theorem/client'
+import type { KitChoreographArgs } from './contract/KitChoreographArgs'
+import type { KitFlingArgs } from './contract/KitFlingArgs'
+import type { KitFollowArgs } from './contract/KitFollowArgs'
 import type { KitGesture } from './contract/KitGesture'
+import type { KitGestureArgs } from './contract/KitGestureArgs'
+import type { KitJumpArgs } from './contract/KitJumpArgs'
+import type { KitMoveArgs } from './contract/KitMoveArgs'
+import type { KitPointAtArgs } from './contract/KitPointAtArgs'
+import type { KitSayArgs } from './contract/KitSayArgs'
+import type { KitStep } from './contract/KitStep'
+import type { KitStepOutcome } from './contract/KitStepOutcome'
 import operations from './contract/operations.json'
 import { KitRefusal, kitDriver } from './driver'
+import type { KitDriver } from './driver'
 import { KIT_SHEET, tagLength } from './sheet'
 import type { KitTag } from './sheet'
-import {
-  PERCHES,
-  changeStage,
-  clamp01,
-  sceneOf,
-  shownTag,
-  useKitStage,
-} from './stage'
-import type { Gait, PerchName, Scene } from './stage'
+import { changeStage, perchLine, sceneOf, shownTag, useKitStage } from './stage'
+import type { Gait, Scene } from './stage'
 import { useKit } from './store'
 import { describeKit } from './words'
 
@@ -42,6 +47,11 @@ export const GAITS = ['walk', 'run', 'jump'] as const satisfies readonly Gait[]
 /** Longest line Kit says, and how long a loop gesture holds. */
 export const MAX_SAYING = 120
 const LOOP_GESTURE_MS = 2400
+/**
+ * How long a choreography may play before its remaining steps are cut: a
+ * visitor's run waits 20 seconds for a receipt, and the receipt must make it.
+ */
+export const CHOREOGRAPHY_MS = 15_000
 
 /**
  * The operations a turn declares, as Theorem's `kit_operations()` writes them:
@@ -49,6 +59,34 @@ const LOOP_GESTURE_MS = 2400
  */
 export const KIT_OPERATIONS =
   operations as readonly Theorem.ClientOperationDeclaration[]
+
+/** Each operation's arguments as its declaration admits them. */
+const VALIDATORS = new Map(
+  KIT_OPERATIONS.map((operation) => [
+    operation.name,
+    z.fromJSONSchema(
+      operation.inputSchema as Parameters<typeof z.fromJSONSchema>[0],
+    ),
+  ]),
+)
+
+/** Reads a request's arguments by its declaration, or says what is wrong with them. */
+function parse<T>(
+  operation: string,
+  args: unknown,
+): { ok: true; args: T } | { ok: false; reason: string } {
+  const validator = VALIDATORS.get(operation)
+  if (!validator)
+    return { ok: false, reason: `Kit has no operation ${operation}` }
+  const parsed = validator.safeParse(args)
+  if (parsed.success) return { ok: true, args: parsed.data as T }
+  const [issue] = parsed.error.issues
+  const where = issue?.path.length ? `${issue.path.join('.')}: ` : ''
+  return {
+    ok: false,
+    reason: `${where}${issue?.message ?? 'invalid arguments'}`,
+  }
+}
 
 /**
  * What a send carries so the turn can reach Kit: the operations and the
@@ -114,77 +152,228 @@ type Outcome = 'applied' | 'rejected' | 'interrupted' | 'failed'
 interface Answer {
   readonly outcome: Outcome
   readonly reason?: string
+  /** A choreography's steps, each as it ended. */
+  readonly steps?: readonly KitStepOutcome[]
 }
 
 /** What Kit is doing, in the words its status uses. */
-export function kitScene(now = Date.now()): Scene {
+export function kitScene(
+  now = Date.now(),
+  steps?: readonly KitStepOutcome[],
+): Scene {
   const stage = useKitStage.getState()
   const { act, liveness } = useKit.getState()
   return sceneOf(
     stage,
     describeKit(liveness, shownTag(stage, act, now).tag),
     now,
+    steps,
   )
 }
 
-const isPerch = (value: unknown): value is PerchName =>
-  PERCHES.includes(value as PerchName)
+const STOPPED =
+  'Kit was stopped on the way: the person picked it up, or another move began'
 
-/** Carries out one request on the stage. Validation repeats the schema: the page is the last word on its own scene. */
+/** Runs one of Kit's body's moves, a refusal answered as rejected. */
+async function body(
+  move: (driver: KitDriver) => Promise<Answer>,
+): Promise<Answer> {
+  const driver = kitDriver()
+  if (!driver) return { outcome: 'rejected', reason: 'Kit is not on screen' }
+  try {
+    return await move(driver)
+  } catch (error) {
+    if (error instanceof KitRefusal)
+      return { outcome: 'rejected', reason: error.message }
+    throw error
+  }
+}
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)))
+
+/** Waits until the gesture playing now has played out. */
+const gestureEnds = () => {
+  const { gesture } = useKitStage.getState()
+  return gesture ? sleep(gesture.until - Date.now()) : Promise.resolve()
+}
+
+function moveKit({ to, at = 0.5, gait = 'walk' }: KitMoveArgs) {
+  return body(async (driver) =>
+    (await driver.moveTo(to, at, gait))
+      ? { outcome: 'applied' }
+      : { outcome: 'interrupted', reason: STOPPED },
+  )
+}
+
+function jumpKit({ to, at = 0.5, style = 'arc' }: KitJumpArgs) {
+  return body(async (driver) => {
+    if (await driver.jumpTo(to, at, style)) return { outcome: 'applied' }
+    const { perch } = useKitStage.getState()
+    return {
+      outcome: 'interrupted',
+      reason:
+        perch === to
+          ? STOPPED
+          : `Kit came down on ${perch} instead: ${to} moved, or Kit was stopped`,
+    }
+  })
+}
+
+function flingKit({ direction, strength = 0.6 }: KitFlingArgs) {
+  return body(async (driver) =>
+    (await driver.fling(direction, strength)) === undefined
+      ? { outcome: 'interrupted', reason: STOPPED }
+      : { outcome: 'applied' },
+  )
+}
+
+function pointKit({ target }: KitPointAtArgs, now = Date.now()) {
+  return body(async (driver) => {
+    if (!(await driver.pointAt(target)))
+      return { outcome: 'interrupted', reason: STOPPED }
+    playGesture('point', now)
+    return { outcome: 'applied' }
+  })
+}
+
+/** One step of a choreography, carried out as its operation would be. */
+async function playStep(step: KitStep): Promise<Answer> {
+  switch (step.op) {
+    case 'move':
+      return moveKit(step)
+    case 'jump':
+      return jumpKit(step)
+    case 'fling':
+      return flingKit(step)
+    case 'point_at': {
+      const answer = await pointKit(step)
+      await gestureEnds()
+      return answer
+    }
+    case 'gesture':
+      playGesture(step.gesture)
+      await gestureEnds()
+      return { outcome: 'applied' }
+    case 'say': {
+      const text = step.text.trim()
+      if (!text) return { outcome: 'rejected', reason: 'text is only spaces' }
+      say(text)
+      return { outcome: 'applied' }
+    }
+    case 'wait':
+      await sleep(step.ms)
+      return { outcome: 'applied' }
+  }
+}
+
+/**
+ * Plays steps in order. A step that does not finish ends the piece, and the
+ * steps after it are reported as interrupted, as are any the time runs out on.
+ */
+async function choreograph({ steps }: KitChoreographArgs): Promise<Answer> {
+  const started = Date.now()
+  const outcomes: KitStepOutcome[] = []
+  let ended: string | undefined
+  for (const step of steps) {
+    if (ended) {
+      outcomes.push({ op: step.op, outcome: 'interrupted', reason: ended })
+      continue
+    }
+    const left = CHOREOGRAPHY_MS - (Date.now() - started)
+    if (left <= 0) {
+      ended = 'the piece ran out of time'
+      outcomes.push({ op: step.op, outcome: 'interrupted', reason: ended })
+      continue
+    }
+    let answer: Answer
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      answer = await Promise.race([
+        playStep(step),
+        new Promise<Answer>((resolve) => {
+          timer = setTimeout(() => {
+            kitDriver()?.interrupt()
+            resolve({
+              outcome: 'interrupted',
+              reason: 'the piece ran out of time',
+            })
+          }, left)
+        }),
+      ])
+    } catch (error) {
+      answer = {
+        outcome: 'failed',
+        reason: error instanceof Error ? error.message : String(error),
+      }
+    } finally {
+      // A step that finished must not stop whatever Kit does next.
+      clearTimeout(timer)
+    }
+    outcomes.push({
+      op: step.op,
+      outcome: answer.outcome,
+      ...(answer.reason && { reason: answer.reason }),
+    })
+    if (answer.outcome !== 'applied')
+      ended = `step ${outcomes.length} (${step.op}) did not finish`
+  }
+  const applied = outcomes.filter((step) => step.outcome === 'applied').length
+  if (applied === outcomes.length)
+    return { outcome: 'applied', steps: outcomes }
+  const first = outcomes.find((step) => step.outcome !== 'applied')
+  return {
+    outcome: applied > 0 ? 'interrupted' : (first?.outcome ?? 'interrupted'),
+    reason: first?.reason,
+    steps: outcomes,
+  }
+}
+
+/** Carries out one request on the stage, its arguments read by the operation's own declaration. */
 export async function applyKitRequest(
   request: Pick<KitRequest, 'operation' | 'args'>,
   now = Date.now(),
 ): Promise<Answer> {
-  const { operation, args } = request
+  const { operation } = request
+  const parsed = parse<unknown>(operation, request.args)
+  if (!parsed.ok) return { outcome: 'rejected', reason: parsed.reason }
   if (operation === 'kit.look') return { outcome: 'applied' }
   if (!useKitStage.getState().mounted)
     return { outcome: 'rejected', reason: 'Kit is not on screen' }
-  if (operation === 'kit.move') {
-    if (!isPerch(args.to))
-      return {
-        outcome: 'rejected',
-        reason: `to must be one of ${PERCHES.join(', ')}`,
-      }
-    const at = typeof args.at === 'number' ? clamp01(args.at) : 0.5
-    const gait = GAITS.includes(args.gait as Gait)
-      ? (args.gait as Gait)
-      : 'walk'
-    const driver = kitDriver()
-    if (!driver) return { outcome: 'rejected', reason: 'Kit is not on screen' }
-    try {
-      const arrived = await driver.moveTo(args.to, at, gait)
-      return arrived
-        ? { outcome: 'applied' }
-        : {
-            outcome: 'interrupted',
-            reason:
-              'Kit was stopped on the way: the person picked it up, or another move began',
-          }
-    } catch (error) {
-      if (error instanceof KitRefusal)
-        return { outcome: 'rejected', reason: error.message }
-      throw error
+  const args = parsed.args
+  switch (operation) {
+    case 'kit.move':
+      return moveKit(args as KitMoveArgs)
+    case 'kit.jump':
+      return jumpKit(args as KitJumpArgs)
+    case 'kit.fling':
+      return flingKit(args as KitFlingArgs)
+    case 'kit.point_at':
+      return pointKit(args as KitPointAtArgs, now)
+    case 'kit.follow': {
+      const { target, seconds = 8 } = args as KitFollowArgs
+      if (target !== 'cursor' && !perchLine(target))
+        return {
+          outcome: 'rejected',
+          reason: `there is no ${target} on screen now`,
+        }
+      // It answers as it starts: the run need not wait out the follow.
+      return body(async (driver) => {
+        driver.follow(target, seconds)
+        return { outcome: 'applied' }
+      })
     }
-  }
-  if (operation === 'kit.gesture') {
-    const tag = args.gesture
-    if (!GESTURES.includes(tag as Gesture))
-      return {
-        outcome: 'rejected',
-        reason: `gesture must be one of ${GESTURES.join(', ')}`,
-      }
-    playGesture(tag as Gesture, now)
-    return { outcome: 'applied' }
-  }
-  if (operation === 'kit.say') {
-    const text = typeof args.text === 'string' ? args.text.trim() : ''
-    if (!text || text.length > MAX_SAYING)
-      return {
-        outcome: 'rejected',
-        reason: `text must be 1 to ${MAX_SAYING} characters`,
-      }
-    say(text, now)
-    return { outcome: 'applied' }
+    case 'kit.choreograph':
+      return choreograph(args as KitChoreographArgs)
+    case 'kit.gesture':
+      playGesture((args as KitGestureArgs).gesture, now)
+      return { outcome: 'applied' }
+    case 'kit.say': {
+      const text = (args as KitSayArgs).text.trim()
+      if (!text) return { outcome: 'rejected', reason: 'text is only spaces' }
+      say(text, now)
+      return { outcome: 'applied' }
+    }
   }
   return { outcome: 'rejected', reason: `Kit has no operation ${operation}` }
 }
@@ -223,10 +412,33 @@ const served = new Set<string>()
 /** The request being carried out; the next waits for it, so "walk there, then nod" plays in that order. */
 let queue: Promise<void> = Promise.resolve()
 
+/** The run whose `kit.follow` Kit is carrying out; the follow ends with that run's turn. */
+let followRun: string | undefined
+
 /** For tests: forget which requests were served. */
 export function resetKitRequests() {
   served.clear()
   queue = Promise.resolve()
+  followRun = undefined
+}
+
+/**
+ * Ends a follow once a conversation shows the run that asked for it has
+ * stopped: its message is there and the turn is no longer running it. A
+ * conversation without that run says nothing about it.
+ */
+export function endFollowWhenDone(
+  messages: readonly ThreadMessage[],
+  running: boolean,
+) {
+  if (!followRun) return
+  const asked = messages.findIndex(
+    (message) => record(message.metadata.custom).theoremRunId === followRun,
+  )
+  if (asked === -1) return
+  if (running && asked === messages.length - 1) return
+  followRun = undefined
+  kitDriver()?.endFollow()
 }
 
 /**
@@ -248,6 +460,7 @@ export function serveKitRequests(
     queue = queue.then(async () => {
       let answer: Answer
       try {
+        if (request.operation === 'kit.follow') followRun = request.runId
         answer = await applyKitRequest(request)
       } catch (error) {
         answer = {
@@ -255,7 +468,9 @@ export function serveKitRequests(
           reason: error instanceof Error ? error.message : String(error),
         }
       }
-      const scene = kitScene()
+      const scene = kitScene(Date.now(), answer.steps)
+      // The run has now read the person's last touch; the next scene starts without it.
+      useKitStage.setState({ touched: undefined })
       // Kit has already acted, so only the receipt is sent again.
       await new MutationObserver(receipts, {
         mutationFn: (receipt: Receipt) => post(request, receipt),
@@ -273,11 +488,11 @@ export function serveKitRequests(
           console.warn('Kit could not answer its run', error)
         })
       // A gesture plays out before the next request takes Kit's body.
-      const { gesture } = useKitStage.getState()
-      if (request.operation === 'kit.gesture' && gesture)
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.max(0, gesture.until - Date.now())),
-        )
+      if (
+        request.operation === 'kit.gesture' ||
+        request.operation === 'kit.point_at'
+      )
+        await gestureEnds()
     })
   }
   return queue
@@ -318,6 +533,7 @@ export function useKitRequests(runtime: ThreadSource) {
   useEffect(() => {
     const serve = () => {
       const { messages, isRunning } = runtime.thread.getState()
+      endFollowWhenDone(messages, isRunning)
       void serveKitRequests(kitRequestsOf(messages, isRunning))
     }
     serve()
