@@ -85,49 +85,22 @@ export const INDEX_TEMPLATE: PageTemplate = {
 }
 
 /**
- * Coding: Theia with the agent terminal beside it. Theia's Add to chat goes
- * to the terminal's next turn, so the terminal is the conversation here.
+ * Coding: Theia, filling the page. The agent terminal is the shell's, opened
+ * and closed as everywhere else; Theia's Add to chat opens the right-hand
+ * terminal with the selection on its active tab's next turn.
  */
 export const CODING_TEMPLATE: PageTemplate = {
   id: 'theorem.coding',
   title: 'Coding',
   description:
-    "Theia with the agent terminal beside it; Add to chat goes to the terminal's next turn.",
+    'Theia, filling the page; Add to chat opens the agent terminal on the right with the selection on its next turn.',
   origin: 'builtin',
   layout: {
     root: { props: { fill: true, frames: 'flush' } },
     content: [
       {
-        type: 'theorem.split',
-        props: {
-          id: 'coding-split',
-          direction: 'row',
-          ratio: 50,
-          fixed: 'second',
-          size: 420,
-          fold: false,
-          height: 560,
-          first: [
-            {
-              type: 'theorem.ide',
-              props: {
-                id: 'ide',
-                title: 'IDE',
-                v: 1,
-                chat: 'page',
-                on: {
-                  added: [{ to: { instance: 'terminal', action: 'attach' } }],
-                },
-              },
-            },
-          ],
-          second: [
-            {
-              type: 'theorem.terminal',
-              props: { id: 'terminal', title: 'Agent terminal', v: 1 },
-            },
-          ],
-        },
+        type: 'theorem.ide',
+        props: { id: 'ide', title: 'IDE', v: 1, chat: 'terminal' },
       },
     ],
   },

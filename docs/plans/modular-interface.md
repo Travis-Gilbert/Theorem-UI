@@ -210,14 +210,19 @@ able to stand in for a mode:
   What a Split or Tabs nested in that side holds counts towards it.
 - A saved module draws its parts as the page around it is presented
   (filling, flush).
+- On a page that fills the window, a module placed straight on the page
+  fills its share of it, as one in a split's side does.
 
 ## Templates
 
 - **Built in.** Index: an Index view that follows the panel, with an
   inspector beside it that folds while nothing is open. Its routes send
   closing, opening a linked item and Edit fields back to the view. Coding:
-  Theia with the agent terminal beside it, and Theia's Add to chat routed to
-  the terminal's next turn.
+  Theia, filling the page. The agent terminal is the shell's, opened and
+  closed as everywhere else (the rail's terminal, Ctrl+backtick, the dock's
+  menu). Theia's Add to chat opens the terminal on the right with the
+  selection on its active tab's next turn (the IDE's **Its chat** setting,
+  "The agent terminal on the right").
 - **In the vault.** Any `Templates/<name>.page.json` that parses as a page is
   offered. **Save as template** writes the page as it is on screen there,
   under a free name, never over another file.
@@ -239,7 +244,10 @@ able to stand in for a mode:
   A save replaces that revision of the file, and only that one.
 - **Held arrangement.** The mode holds the arrangement it showed. One saved
   from this window shows at once. One saved elsewhere waits behind **Show it**.
-- **The vault is not open.** The mode shows its template and says so.
+- **No vault.** The mode shows its template and says why there is no vault:
+  nobody is signed in, the account may not open it, the Theorem server has
+  no Files API (`/api/files/v1` answers 404 or 501), or no server is
+  configured. Pages, the Pages panel and vault modules say the same.
 - **Phones.** Below the desktop width, Index mode keeps the Index's own
   overlay inspector rather than its page.
 
@@ -254,9 +262,6 @@ able to stand in for a mode:
 
 Known limits of what is here:
 
-- **Terminal width.** In IDE mode, the terminal's width is the Coding Split's
-  saved size. It no longer follows the right drawer's width, and its minimum
-  is the Split's 120 px rather than the old workbench's 380 px.
 - **Reset is not revision-checked.** It removes the mode's file whatever
   revision is there.
 - **Theia in two places.** With Theia placed in two open views (an IDE in a
