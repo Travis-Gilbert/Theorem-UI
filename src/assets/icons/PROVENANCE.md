@@ -578,3 +578,13 @@ trash does for Delete and Lucide's BellOff for muting a link suggestion. File
 reuses Common File Double.
 
 The files they replace in the registry are listed under Retired.
+
+Two more came as owner attachments on 2026-11-08, "App-Window-Code--Streamline-Ultimate.png"
+and "List-Edit--Streamline-Ultimate.png" (48 x 48, the same set), copied and
+renamed the same way. App Window Code replaces the Shellfile rendition as the
+IDE's rail mark; `rail/noun-shellfile-1517619.svg` stays in the tree, unused.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Ide | `streamline/streamline-app-window-code.png` | App Window Code | `fac43b13b5cad8cb4c84a43a1f0b7f63190d156fb13d95dd74741f664a1f3f8b` |
+| Todo (the `todo` section glyph) | `streamline/streamline-list-edit.png` | List Edit | `1ffaf8ff236e8e122027931d17ae736e8d3b8c45aad90912b8c4d28162fe8a9c` |
