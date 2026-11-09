@@ -12,6 +12,7 @@ import {
   KIT_OPERATIONS,
   MAX_SAYING,
   applyKitRequest,
+  endFollowWhenDone,
   kitRequestsOf,
   kitTurnOptions,
   resetKitRequests,
@@ -85,7 +86,7 @@ const recordingDriver = (answers: Record<string, () => unknown> = {}) => {
           const answer = answers[name]
           return answer
             ? answer()
-            : name === 'follow' || name === 'interrupt'
+            : name === 'follow' || name === 'interrupt' || name === 'endFollow'
               ? undefined
               : Promise.resolve(name === 'fling' ? 'floor' : true)
         },
@@ -348,6 +349,41 @@ describe('carrying out a request', () => {
   })
 })
 
+describe('a follow and the turn that asked for it', () => {
+  const asked: KitRequest = {
+    runId: 'run_1',
+    requestRef: 'req_follow',
+    operation: 'kit.follow',
+    args: { target: 'cursor', seconds: 10 },
+  }
+  const stopping = (calls: Array<[string, ...unknown[]]>) =>
+    calls.filter(([name]) => name === 'endFollow').length
+
+  test('ends when that run stops, not while it runs or in another conversation', async () => {
+    const calls = recordingDriver()
+    await serveKitRequests([asked], async () => {})
+    const live = liveMessage([], 'run_1')
+    endFollowWhenDone([live], true)
+    endFollowWhenDone([liveMessage([], 'run_other')], false)
+    expect(stopping(calls)).toBe(0)
+    endFollowWhenDone([live], false)
+    expect(stopping(calls)).toBe(1)
+    // Once ended, it is not ended again.
+    endFollowWhenDone([live], false)
+    expect(stopping(calls)).toBe(1)
+  })
+
+  test('ends when a newer turn has taken over the conversation', async () => {
+    const calls = recordingDriver()
+    await serveKitRequests([asked], async () => {})
+    endFollowWhenDone(
+      [liveMessage([], 'run_1'), liveMessage([], 'run_2')],
+      true,
+    )
+    expect(stopping(calls)).toBe(1)
+  })
+})
+
 describe('a choreography', () => {
   test('plays its steps in order and reports each', async () => {
     const calls = recordingDriver()
@@ -400,6 +436,39 @@ describe('a choreography', () => {
     ])
     expect(answer.steps?.[2]?.reason).toBe('step 2 (move) did not finish')
     expect(calls.map(([name]) => name)).toEqual(['moveTo'])
+  })
+
+  test('a piece that finished leaves no timer to stop Kit later', async () => {
+    const calls = recordingDriver()
+    const started = new Set<unknown>()
+    const realSet = globalThis.setTimeout
+    const realClear = globalThis.clearTimeout
+    globalThis.setTimeout = ((handler: () => void, ms?: number) => {
+      const timer = realSet(handler, ms)
+      if (ms !== undefined && ms > 10_000) started.add(timer)
+      return timer
+    }) as typeof setTimeout
+    globalThis.clearTimeout = ((timer?: Parameters<typeof clearTimeout>[0]) => {
+      started.delete(timer)
+      realClear(timer)
+    }) as typeof clearTimeout
+    try {
+      const answer = await applyKitRequest({
+        operation: 'kit.choreograph',
+        args: {
+          steps: [
+            { op: 'jump', to: 'floor' },
+            { op: 'say', text: 'hi' },
+          ],
+        },
+      })
+      expect(answer.outcome).toBe('applied')
+    } finally {
+      globalThis.setTimeout = realSet
+      globalThis.clearTimeout = realClear
+    }
+    expect(started.size).toBe(0)
+    expect(calls.map(([name]) => name)).not.toContain('interrupt')
   })
 
   test('it never outlasts what a visitor waits for a receipt', () => {

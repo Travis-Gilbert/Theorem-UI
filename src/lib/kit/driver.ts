@@ -114,6 +114,8 @@ export class KitDriver {
   }
   private cursor: [number, number] | undefined
   private following = 0
+  /** Ends the running follow: its time is up, or the turn that asked for it ended. */
+  private followEnd: (() => void) | undefined
   private readonly element: HTMLElement
   /** When Kit came on screen; its perch may still be mounting for a moment. */
   private readonly born = Date.now()
@@ -134,7 +136,7 @@ export class KitDriver {
       cursor: { onHover: 'grab', onGrab: 'grabbing' },
       onGrab: () => {
         this.dragged = false
-        this.interrupt()
+        this.halt()
       },
       onDrag: (draggable) => {
         if (!this.dragged) {
@@ -187,7 +189,7 @@ export class KitDriver {
 
   destroy() {
     this.destroyed = true
-    this.interrupt()
+    this.halt()
     clearInterval(this.timer)
     this.observer?.disconnect()
     window.removeEventListener('resize', this.onWindowResize)
@@ -240,8 +242,18 @@ export class KitDriver {
     changeStage({ touched: { kind, onto, at: Date.now() } })
   }
 
-  /** Stops whatever Kit is doing, a follow included: the person grabbed it, or the agent asked for something else. */
+  /**
+   * Stops whatever Kit is doing, a follow included, and lets it fall to
+   * whatever is below when that left it in the air or mid-crouch.
+   */
   interrupt() {
+    this.halt()
+    if (this.busy() && !this.draggable.grabbed) void this.drop()
+  }
+
+  /** Stops the running move and any follow, leaving Kit where it is: the person grabbed it, or another move takes over. */
+  private halt() {
+    this.followEnd = undefined
     this.following++
     this.stop()
   }
@@ -339,8 +351,11 @@ export class KitDriver {
     const generation = this.generation
     this.setMotion('crouch')
     await new Promise((resolve) => setTimeout(resolve, CROUCH_MS))
-    if (generation === this.generation) this.setMotion('still')
-    this.physics?.sleep()
+    // A newer move (a grab and throw during the crouch) keeps its body awake.
+    if (generation === this.generation) {
+      this.setMotion('still')
+      this.physics?.sleep()
+    }
   }
 
   /** Sets Kit down on whatever is below it at once: there is no physics, or a flight ran too long. */
@@ -457,7 +472,7 @@ export class KitDriver {
   private claim() {
     if (this.draggable.grabbed)
       throw new KitRefusal('the person is holding Kit')
-    this.interrupt()
+    this.halt()
     return this.generation
   }
 
@@ -663,17 +678,27 @@ export class KitDriver {
 
   /**
    * Follows `target` for `seconds`: the person's pointer, going to the
-   * surface under it, or a surface, staying on it as it moves. It ends early
-   * when the person picks Kit up or another move begins.
+   * surface under it, or a surface, staying on it as it moves. It ends when
+   * the time is up or `endFollow` is called (the turn that asked for it
+   * ended), stopping the step it is taking, and early when the person picks
+   * Kit up or another move begins.
    */
   follow(target: PerchName | 'cursor', seconds: number) {
     this.claim()
+    // A move cut off in the air would hold the follow up: Kit lands first.
+    if (this.busy()) void this.drop()
     const token = this.following
-    const until = performance.now() + seconds * 1000
+    /** The generation of the step the follow is taking, while it takes one. */
+    let stepping: number | undefined
+    const end = () => {
+      if (token !== this.following) return
+      if (stepping === this.generation) this.interrupt()
+      else this.halt()
+    }
+    this.followEnd = end
+    const deadline = setTimeout(end, seconds * 1000)
     const going = () =>
-      token === this.following &&
-      performance.now() < until &&
-      document.visibilityState === 'visible'
+      token === this.following && document.visibilityState === 'visible'
     void (async () => {
       while (going()) {
         const state = useKitStage.getState()
@@ -687,18 +712,27 @@ export class KitDriver {
             const far = Math.abs(gx - this.x)
             if (!same || far > 20) {
               this.stop()
+              stepping = this.generation
               await this.go(
-                this.generation,
+                stepping,
                 goal.line.name,
                 goal.at,
                 same ? (far > 220 ? 'run' : 'walk') : 'jump',
               ).catch(() => false)
+              stepping = undefined
             }
           }
         }
         await new Promise((resolve) => setTimeout(resolve, FOLLOW_MS))
       }
+      clearTimeout(deadline)
+      if (this.followEnd === end) this.followEnd = undefined
     })()
+  }
+
+  /** Ends the running follow, and the step it is taking: the turn that asked for it ended. */
+  endFollow() {
+    this.followEnd?.()
   }
 
   /** The surface under the pointer and where along it, or nothing yet. */
@@ -726,7 +760,7 @@ export class KitDriver {
   async hop() {
     const state = useKitStage.getState()
     if (this.busy() || this.draggable.grabbed || prefersReducedMotion()) return
-    this.interrupt()
+    this.halt()
     const generation = this.generation
     const world = await this.ready()
     if (!world || generation !== this.generation) return

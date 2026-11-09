@@ -151,3 +151,76 @@ describe('Kit in its world', () => {
     expect(useKitStage.getState().motion).not.toBe('fall')
   })
 })
+
+describe('a follow that ends, and moves cut off', () => {
+  test('a follow stops at its time even in the middle of a step', async () => {
+    changeStage({ perch: 'floor', at: 0.02 })
+    driver!.track()
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: window.innerWidth - 10,
+        clientY: window.innerHeight - 5,
+      }),
+    )
+    driver!.follow('cursor', 1)
+    await Bun.sleep(1500)
+    const [x] = driver!.position()
+    expect(x).toBeLessThan(window.innerWidth - 120)
+    await Bun.sleep(700)
+    expect(driver!.position()[0]).toBe(x)
+    expect(useKitStage.getState().motion).toBe('still')
+  }, 10_000)
+
+  test('the turn ending ends the follow', async () => {
+    perch('composer', { left: 300, top: 400, width: 400, height: 80 })
+    driver!.track()
+    driver!.follow('composer', 10)
+    driver!.endFollow()
+    await Bun.sleep(900)
+    expect(useKitStage.getState().perch).toBe('floor')
+  })
+
+  test('a follow begun while Kit is in the air still follows once it lands', async () => {
+    perch('composer', { left: 300, top: 400, width: 400, height: 80 })
+    driver!.track()
+    const release = (
+      driver as unknown as {
+        release: (v: { x: number; y: number }, kind: string) => Promise<void>
+      }
+    ).release.bind(driver)
+    void release({ x: 0, y: -14 }, 'thrown')
+    await Bun.sleep(80)
+    expect(['air', 'fall']).toContain(useKitStage.getState().motion)
+    driver!.follow('composer', 8)
+    const until = Date.now() + 6000
+    while (useKitStage.getState().perch !== 'composer' && Date.now() < until)
+      await Bun.sleep(50)
+    expect(useKitStage.getState().perch).toBe('composer')
+  }, 10_000)
+
+  test('a throw during the landing crouch is not put to sleep by that landing', async () => {
+    perch('composer', { left: 300, top: 400, width: 400, height: 80 })
+    driver!.track()
+    void driver!.jumpTo('composer', 0.5, 'hop')
+    const until = Date.now() + 4000
+    while (
+      !(
+        useKitStage.getState().perch === 'composer' &&
+        useKitStage.getState().motion === 'crouch'
+      ) &&
+      Date.now() < until
+    )
+      await Bun.sleep(5)
+    expect(useKitStage.getState().motion).toBe('crouch')
+    const release = (
+      driver as unknown as {
+        release: (v: { x: number; y: number }, kind: string) => Promise<void>
+      }
+    ).release.bind(driver)
+    const started = Date.now()
+    await release({ x: 6, y: -16 }, 'thrown')
+    // Frozen in mid-air, the flight would run out its eight seconds.
+    expect(Date.now() - started).toBeLessThan(4000)
+    expect(useKitStage.getState().touched?.kind).toBe('thrown')
+  }, 10_000)
+})

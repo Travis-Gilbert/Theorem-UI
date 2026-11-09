@@ -287,12 +287,18 @@ async function choreograph({ steps }: KitChoreographArgs): Promise<Answer> {
       continue
     }
     let answer: Answer
+    let timer: ReturnType<typeof setTimeout> | undefined
     try {
       answer = await Promise.race([
         playStep(step),
-        sleep(left).then((): Answer => {
-          kitDriver()?.interrupt()
-          return { outcome: 'interrupted', reason: 'the piece ran out of time' }
+        new Promise<Answer>((resolve) => {
+          timer = setTimeout(() => {
+            kitDriver()?.interrupt()
+            resolve({
+              outcome: 'interrupted',
+              reason: 'the piece ran out of time',
+            })
+          }, left)
         }),
       ])
     } catch (error) {
@@ -300,6 +306,9 @@ async function choreograph({ steps }: KitChoreographArgs): Promise<Answer> {
         outcome: 'failed',
         reason: error instanceof Error ? error.message : String(error),
       }
+    } finally {
+      // A step that finished must not stop whatever Kit does next.
+      clearTimeout(timer)
     }
     outcomes.push({
       op: step.op,
@@ -403,10 +412,33 @@ const served = new Set<string>()
 /** The request being carried out; the next waits for it, so "walk there, then nod" plays in that order. */
 let queue: Promise<void> = Promise.resolve()
 
+/** The run whose `kit.follow` Kit is carrying out; the follow ends with that run's turn. */
+let followRun: string | undefined
+
 /** For tests: forget which requests were served. */
 export function resetKitRequests() {
   served.clear()
   queue = Promise.resolve()
+  followRun = undefined
+}
+
+/**
+ * Ends a follow once a conversation shows the run that asked for it has
+ * stopped: its message is there and the turn is no longer running it. A
+ * conversation without that run says nothing about it.
+ */
+export function endFollowWhenDone(
+  messages: readonly ThreadMessage[],
+  running: boolean,
+) {
+  if (!followRun) return
+  const asked = messages.findIndex(
+    (message) => record(message.metadata.custom).theoremRunId === followRun,
+  )
+  if (asked === -1) return
+  if (running && asked === messages.length - 1) return
+  followRun = undefined
+  kitDriver()?.endFollow()
 }
 
 /**
@@ -428,6 +460,7 @@ export function serveKitRequests(
     queue = queue.then(async () => {
       let answer: Answer
       try {
+        if (request.operation === 'kit.follow') followRun = request.runId
         answer = await applyKitRequest(request)
       } catch (error) {
         answer = {
@@ -500,6 +533,7 @@ export function useKitRequests(runtime: ThreadSource) {
   useEffect(() => {
     const serve = () => {
       const { messages, isRunning } = runtime.thread.getState()
+      endFollowWhenDone(messages, isRunning)
       void serveKitRequests(kitRequestsOf(messages, isRunning))
     }
     serve()
