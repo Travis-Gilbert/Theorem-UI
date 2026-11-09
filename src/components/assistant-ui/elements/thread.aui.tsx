@@ -77,6 +77,7 @@ import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, Compos
 import { EffortPicker } from "@/components/chat/effort-picker";
 import { DirectiveText } from "./directive-text.aui";
 import { attendKit } from "@/lib/kit/store";
+import { messageLabel, messageSurface } from "@/lib/kit/stage";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -230,6 +231,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         data-slot="aui_thread-viewport"
+        data-kit-clip
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div
@@ -735,8 +737,23 @@ export const AssistantMessageContent: FC = () => {
 const MESSAGE_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2";
 const MESSAGE_SPEAKER = "flex min-h-6 items-center gap-2 px-2 font-medium text-ink";
 
+/** The attributes that make a message a surface Kit can stand on, named and labelled for the agent. */
+function useKitSurface() {
+  const id = useAuiState((s) => s.message.id);
+  const label = useAuiState((s) =>
+    messageLabel(
+      s.message.role,
+      s.message.parts
+        .flatMap((part) => (part.type === "text" ? [part.text] : []))
+        .join(" "),
+    ),
+  );
+  return { "data-kit-perch": messageSurface(id), "data-kit-label": label };
+}
+
 const AssistantMessage: FC = () => {
   const live = useArrivedLive();
+  const surface = useKitSurface();
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
@@ -744,6 +761,7 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
+      {...surface}
       data-role="assistant"
       data-live={live || undefined}
       className={cn(
@@ -861,6 +879,7 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 
 const UserMessage: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const surface = useKitSurface();
   const tenant = useTenant();
   // A message just sent from the composer flies up from where it was typed.
   useLayoutEffect(() => {
@@ -884,6 +903,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
+      {...surface}
       className={cn(
         MESSAGE_GRID,
         "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
