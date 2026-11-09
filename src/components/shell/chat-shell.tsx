@@ -32,6 +32,7 @@ import { useReviewDock } from '@/lib/theorem/reviews'
 import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
+import { useParams } from '@tanstack/react-router'
 
 import { ModePage } from '@/components/pages/mode-page'
 
@@ -82,12 +83,13 @@ function PhoneShell() {
   const threadId = useAuiState((s) => s.threadListItem.id)
   useEffect(() => useArtifactView.getState().reset(), [threadId])
 
-  // The drawer belongs to the thread, mode, open note and canvas focus it was
-  // opened from, so picking a chat, a mode or a note in it closes it without
-  // an effect.
+  // The drawer belongs to the thread, mode, open note (beside a chat, or the
+  // route's in Notes mode) and canvas focus it was opened from, so picking a
+  // chat, a mode or a note in it closes it without an effect.
   const mode = useShellMode()
   const focusCount = useCanvasView((s) => s.focusCount)
-  const view = `${mode}:${threadId}:${noteId}:${focusCount}`
+  const { documentId } = useParams({ strict: false })
+  const view = `${mode}:${threadId}:${noteId}:${documentId}:${focusCount}`
   const [drawerView, setDrawerView] = useState<string | null>(null)
   const drawerOpen = drawerView === view
   const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
