@@ -1173,7 +1173,13 @@ function ToolFallbackApprovalImpl({
   );
 }
 
-const ToolFallbackImpl: ToolCallMessagePartComponent = ({
+type ToolFallbackProps = React.ComponentProps<ToolCallMessagePartComponent> & {
+  /** Drawn beside the trigger, outside it: a control of the card's own. */
+  aside?: React.ReactNode;
+};
+
+const ToolFallbackImpl = ({
+  aside,
   toolName,
   argsText,
   result,
@@ -1184,7 +1190,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   interrupt,
   approval,
   respondToApproval,
-}) => {
+}: ToolFallbackProps) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
@@ -1227,11 +1233,15 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
-      <ToolFallbackTrigger
-        toolName={toolName}
-        status={status}
-        responseDeliveryStatus={responseDeliveryStatus}
-      />
+      {/* Wraps, so in a narrow column the aside moves under the trigger instead of squeezing its label. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2">
+        <ToolFallbackTrigger
+          toolName={toolName}
+          status={status}
+          responseDeliveryStatus={responseDeliveryStatus}
+        />
+        {aside}
+      </div>
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs
@@ -1276,7 +1286,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
 const ToolFallback = memo(
   ToolFallbackImpl,
-) as unknown as ToolCallMessagePartComponent & {
+) as unknown as React.FC<ToolFallbackProps> & {
   Root: typeof ToolFallbackRoot;
   Trigger: typeof ToolFallbackTrigger;
   Content: typeof ToolFallbackContent;
