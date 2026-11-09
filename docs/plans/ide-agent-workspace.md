@@ -33,19 +33,24 @@ Session sidebar, conversation in the middle, the work on the right: the user's D
 
 | Move | Problem | Roll call | Adds | Removes |
 | --- | --- | --- | --- | --- |
-| Sessions sidebar: workspace row with search and collapse; Sessions, Automations, Review, Wiki rows; a bold Sessions heading with search, add and more; Pinned, the user's own sections, Recent; a toolbar at the foot | 1 | Devin [c05b1f2c](https://mobbin.com/screens/c05b1f2c-f227-41f0-94d1-4c7070049611), Devin [92e0222c](https://mobbin.com/screens/92e0222c-8ba8-4abe-bc18-3ddef5b2e357), Cursor [e6d8892b](https://mobbin.com/screens/e6d8892b-3827-4f6f-a5e3-29df4c382f61), Claude [c66b5013](https://mobbin.com/screens/c66b5013-2e69-4210-995a-77c6dadbea95); foot toolbar Adaline [316d7ed7](https://mobbin.com/screens/316d7ed7-fd9c-42dd-8088-8ab6ca3581ab) | the IDE mode's own panel in the shell sidebar | the IDE page covering the sheet |
-| Conversation in the middle, Theia on the right, each open file Theia's own top-level tab | 2 | v0 [3b277566](https://mobbin.com/screens/3b277566-69d7-4d63-9ae3-df982e896119), Google Gemini [7245c1f5](https://mobbin.com/screens/7245c1f5-8c31-4c14-979e-3ec03bc53af2), Google AI Studio [7b4e8430](https://mobbin.com/screens/7b4e8430-808c-4720-a543-2a5a528b940c); file as top-level tab Snowflake [84a91712](https://mobbin.com/screens/84a91712-3c2d-4eec-a1ab-ed4570b8135a) | the coding page's conversation module | the agent terminal from the page (still behind the rail's terminal toggle) |
-| A file path in a tool call opens that file in Theia | 3 | Emergent [17d5580f](https://mobbin.com/screens/17d5580f-8268-4fec-a024-64e87a056e65) ("Created /app/auth_testing.md" row); the user's Devin screen 5 (test-report.md card in the chat, open as a tab on the right) | an open-in-IDE chip on tool cards | nothing |
+| Sessions sidebar: workspace row with search and collapse; Sessions, Automations, Review, Wiki rows; a bold Sessions heading with search, add and more; the user's own sections, then Recent; a toolbar at the foot | 1 | Devin [c05b1f2c](https://mobbin.com/screens/c05b1f2c-f227-41f0-94d1-4c7070049611), Devin [92e0222c](https://mobbin.com/screens/92e0222c-8ba8-4abe-bc18-3ddef5b2e357), Cursor [e6d8892b](https://mobbin.com/screens/e6d8892b-3827-4f6f-a5e3-29df4c382f61), Claude [c66b5013](https://mobbin.com/screens/c66b5013-2e69-4210-995a-77c6dadbea95); foot toolbar Adaline [316d7ed7](https://mobbin.com/screens/316d7ed7-fd9c-42dd-8088-8ab6ca3581ab) | the IDE mode's own panel in the shell sidebar | the IDE page covering the sheet |
+| Conversation in the middle, Theia on the right, each open file Theia's own top-level tab | 2 | v0 [3b277566](https://mobbin.com/screens/3b277566-69d7-4d63-9ae3-df982e896119), Google Gemini [7245c1f5](https://mobbin.com/screens/7245c1f5-8c31-4c14-979e-3ec03bc53af2), Google AI Studio [7b4e8430](https://mobbin.com/screens/7b4e8430-808c-4720-a543-2a5a528b940c); file as top-level tab Snowflake [84a91712](https://mobbin.com/screens/84a91712-3c2d-4eec-a1ab-ed4570b8135a) | the coding page's conversation module, with inline Apps running in it | the agent terminal from the page (still behind the rail's terminal toggle and the sidebar foot) |
+| A file path in a tool call opens that file in Theia | 3 | Emergent [17d5580f](https://mobbin.com/screens/17d5580f-8268-4fec-a024-64e87a056e65) ("Created /app/auth_testing.md" row); the user's Devin screen 5 (test-report.md card in the chat, open as a tab on the right) | a chip on a tool card naming the file and its lines (`lesson-runner.ts:1-12`); a click opens the file in Theia with those lines selected | nothing |
 
-Data: Pinned is threads with a pinned membership in the active project; the user's sections are projects the user made; Recent is every other thread by last message. Review lists threads waiting on a review or an approval. Automations opens programs (`/canvas`), Wiki opens the index (`/index`). Clicking a session keeps the IDE open and switches the conversation to it.
+Data (`sessionLists` in `src/lib/theorem/organization.ts`): the user's sections are projects the user made, in the organization's order; Recent is every other thread, newest first by its last message or, without one, when it began. Review lists threads waiting on a review or an approval. Automations opens programs (`/canvas`), Wiki opens the index (`/index`). Clicking a session keeps the IDE open and switches the conversation to it.
+
+## After
+
+`evidence/renders/ide-workspace-after@2026-11-08.png`: the rail, the sessions sidebar, the conversation with an inline App (Lesson progress bar, at Step 2 of 4) and a Read file card whose chip opened `lesson-runner.ts`, then Theia with `lesson-runner.ts` and `Preview README.md` as its own top-level tabs. Captured against the stub Theorem, which seeds the Lesson player project, the To-do section, six Recent threads, two threads waiting on review, the lesson-player workspace and the App. The before and after board is `evidence/renders/ide-workspace-board.html`, captured as `ide-workspace-board.png`.
 
 ## Oracle classes
 
 - static: the IDE screen at 1600x1000 against the stub Theorem, captured in the built-in browser at 2x in quadrants, beside the before image and Devin screen 5 (`evidence/renders/`).
-- interaction: the sidebar's Sessions and Review views, and a session click that switches the conversation while the IDE stays, each captured as a state.
+- interaction: the sidebar's Sessions and Review views, a session click that switches the conversation while the IDE stays, the App's Next step and Start over, and the file chip opening its lines in Theia, each checked as a state.
 
-## Deferred
+## Since the plan
 
-- Artifacts as Theia tabs: Theia's `reveal` takes file locations, not artifacts, so an artifact still opens in the chat's artifact panel.
-- Rendered markdown in a Theia tab: needs `@theia/preview` in the browser app and a Theia rebuild.
-- The agent terminal on the IDE page: the conversation takes its place; the terminal stays one toggle away on the rail.
+- Artifacts show in the conversation, not as Theia tabs (5bebf83).
+- Markdown opens rendered in its own Theia tab through VS Code's Markdown extension (34573ea).
+- The agent terminal stays one toggle away, on the rail and at the sidebar foot.
+- An App frame now takes its page's fractional height, so it no longer scrolls by a pixel, and shrinks when the page gets shorter. Both were there before this work.
