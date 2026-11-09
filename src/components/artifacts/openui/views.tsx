@@ -202,14 +202,15 @@ export function SliderView({
   step?: number | null
 }) {
   // A log slider moves through orders of magnitude evenly; the bound value
-  // keeps three significant digits so a model reads round numbers.
+  // keeps three significant digits so a model reads round numbers, and stays
+  // in range where rounding would carry it past an end (9999 to 10000).
   const log = scale === 'log' && min > 0 && max > min
-  const clamped = Math.min(max, Math.max(min, value))
+  const clamp = (v: number) => Math.min(max, Math.max(min, v))
   const position = log
-    ? Math.round((Math.log(clamped / min) / Math.log(max / min)) * STEPS)
-    : clamped
+    ? Math.round((Math.log(clamp(value) / min) / Math.log(max / min)) * STEPS)
+    : clamp(value)
   const valueAt = (p: number) =>
-    log ? Number((min * (max / min) ** (p / STEPS)).toPrecision(3)) : p
+    log ? clamp(Number((min * (max / min) ** (p / STEPS)).toPrecision(3))) : p
   // The filled range stays neutral: in an artifact, color marks subjects.
   return (
     <div data-component="Slider">

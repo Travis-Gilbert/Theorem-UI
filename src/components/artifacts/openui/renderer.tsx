@@ -189,6 +189,10 @@ function ArtifactProgram({ artifact }: RendererProps) {
             library={artifactLibrary}
             onParseResult={setParsed}
             onError={setErrors}
+            // A selection carries the values shown when it was made; once a
+            // control changes them it lets go. A component that writes state
+            // and then selects (a brushed range) keeps its own selection.
+            onStateUpdate={() => setSelection(undefined)}
           >
             <Renderer.Content hidden={unreadable} />
           </Renderer.Root>

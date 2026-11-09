@@ -240,6 +240,31 @@ describe('local interaction', () => {
     await waitFor(() => copy() === '50 ms')
   })
 
+  test('a log slider stays inside its range after rounding to three digits', async () => {
+    const container = await show(`root = Stack([n, scaled])
+$n = 100
+n = Slider("Count", $n, 1.234, 9999, "items", "log")
+scaled = Stat("Count in thousandths", $n * 1000)`)
+    const thumb = container.querySelector<HTMLInputElement>(
+      '[data-component="Slider"] input[type="range"]',
+    )!
+    const press = (key: string) =>
+      act(async () => {
+        thumb.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+      })
+    const shown = () =>
+      container.querySelector('[data-component="Slider"] output')?.textContent
+    const scaled = () =>
+      container.querySelector('[data-component="Stat"] [data-slot="value"]')
+        ?.textContent
+    // 9999 rounds to 10000 at three digits; the bound value stops at the top.
+    await press('End')
+    await waitFor(() => shown() === '9999 items')
+    // 1.234 rounds to 1.23 at three digits; the bound value stops at the bottom.
+    await press('Home')
+    await waitFor(() => scaled() === '1234')
+  })
+
   test('a declared region marks the table rows inside it', async () => {
     const container = await show(EXAMPLES.LinkedTable)
     const inside = [
@@ -314,6 +339,17 @@ describe('selection reaches the next turn', () => {
     )
     await settle()
     expect(container.querySelector('[data-slot="openui-selection"]')).toBeNull()
+  })
+
+  test('changing a control lets go of a selection that named the values before it', async () => {
+    const container = await show(GPU_WORKLOAD)
+    const selection = () =>
+      container.querySelector('[data-slot="openui-selection"]')
+    await click(container.querySelector('[data-entity-label="GPU · Transfer in"]')!)
+    expect(selection()?.textContent).toContain('GPU · Transfer in')
+    // Data already on the GPU: the transfer the selection named is now zero.
+    await click(container.querySelector('[role="switch"]')!)
+    await waitFor(() => selection() === null)
   })
 
   test('clicking a table row selects rows, a table_rows locator', async () => {
