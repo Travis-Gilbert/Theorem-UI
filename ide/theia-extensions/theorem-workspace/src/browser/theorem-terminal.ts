@@ -30,6 +30,8 @@ export class TheoremTerminalWidget extends TerminalWidgetImpl {
     protected channel: TerminalChannel | undefined;
     /** The host session to reach again after a reload, from `restoreState`. */
     protected restoredSession: string | undefined;
+    /** The host no longer has this tab's shell, for example after it restarted. */
+    protected lostShell = false;
     protected readonly decoder = new TextDecoder();
 
     override async start(id?: number): Promise<number> {
@@ -62,6 +64,13 @@ export class TheoremTerminalWidget extends TerminalWidgetImpl {
         this.toDisposeOnConnect.dispose();
         this.toDispose.push(this.toDisposeOnConnect);
         const send = (data: string) => {
+            if (channel.hasExited) {
+                // A shell lost with its host is never resumed; Enter opens a new one in this tab.
+                if (this.lostShell && data === '\r') {
+                    void this.replaceLostShell();
+                }
+                return;
+            }
             if (data && !this.deviceStatusCodes.has(data)) {
                 void channel.input(data);
             }
@@ -72,8 +81,15 @@ export class TheoremTerminalWidget extends TerminalWidgetImpl {
                 this.term.reset();
                 this.write(screen);
             }),
-            channel.onExit(code => {
-                this.exitStatus = { code: code ?? undefined, reason: TerminalExitReason.Process };
+            channel.onExit((code, reason?: 'exited' | 'lost') => {
+                this.lostShell = reason === 'lost';
+                this.exitStatus = {
+                    code: code ?? undefined,
+                    reason: this.lostShell ? TerminalExitReason.Unknown : TerminalExitReason.Process,
+                };
+                if (this.lostShell) {
+                    this.write('\r\n\x1b[2mThis shell ended when the workspace host restarted. Press Enter for a new shell.\x1b[0m\r\n');
+                }
             }),
         ];
         this.toDisposeOnConnect.push({ dispose: () => stops.forEach(stop => stop()) });
@@ -81,8 +97,25 @@ export class TheoremTerminalWidget extends TerminalWidgetImpl {
         this.toDisposeOnConnect.push(this.term.onBinary(send));
     }
 
+    /** Start a new shell in this tab in place of one the host lost. */
+    protected async replaceLostShell(): Promise<void> {
+        const lost = this.channel;
+        this.lostShell = false;
+        this.restoredSession = undefined;
+        void lost?.close();
+        const options = await this.connection.channelOptions();
+        const { cols, rows } = this.term;
+        this.channel = await TerminalChannel.open({ ...options, cols, rows });
+        this.exitStatus = undefined;
+        this.connectTerminalProcess();
+        await this.channel.attach();
+        this.resizeTerminalProcess();
+    }
+
     override sendText(text: string): void {
-        void this.channel?.input(text);
+        if (!this.channel?.hasExited) {
+            void this.channel?.input(text);
+        }
     }
 
     protected override resizeTerminalProcess(): void {
