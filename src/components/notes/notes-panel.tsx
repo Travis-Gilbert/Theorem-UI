@@ -38,13 +38,18 @@ import {
 } from '@/components/ui/filesystem-item'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
 import { useShell } from '@/components/shell/shell-state'
+import { useNotesLayout } from '@/lib/theorem/notes-layout'
 import { describeError } from '@/lib/theorem/client'
 import {
+  canNest,
   folderName,
   placeNotes,
+  subfolders,
+  useDeleteFolder,
   useMoveNote,
   useNewFolder,
   useNoteFolders,
+  useUpdateFolder,
 } from '@/lib/theorem/note-folders'
 import type { NoteFolder } from '@/lib/theorem/note-folders'
 import {
@@ -93,9 +98,14 @@ export function NotesPanel() {
   const [renaming, setRenaming] = useState<SectionId | null>(null)
   // The section the person right-clicked in, if they did it in one.
   const [target, setTarget] = useState<SectionId | null>(null)
+  // The folder right-clicked, the one a new folder is being named inside,
+  // and the one being renamed.
+  const [folderTarget, setFolderTarget] = useState<string | null>(null)
+  const [namingIn, setNamingIn] = useState<string | null>(null)
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null)
+  const removeFolder = useDeleteFolder()
   const order = useShell((state) => state.noteOrder)
-  const layout = useShell((state) => state.noteLayout)
-  const edit = useShell((state) => state.editNoteLayout)
+  const { layout, edit } = useNotesLayout()
   const create = useNewNote()
   const newNote = (into: SectionId | null = null) =>
     create.mutate(undefined, {
@@ -162,24 +172,24 @@ export function NotesPanel() {
           />
         </div>
       </Toolbar.Root>
-      {create.error && (
+      {(create.error ?? removeFolder.error) && (
         <p role="alert" className="px-4 pb-2 text-xs text-error-ink">
-          {describeError(create.error, 'document')}
+          {describeError(create.error ?? removeFolder.error, 'document')}
         </p>
       )}
       {shelf === 'notes' ? (
         <ContextMenu.Root>
           <ContextMenu.Trigger
             render={<nav aria-label="Notes" className={navClass} />}
-            // The section the click was in names itself as the event goes by.
-            onContextMenuCapture={(event) =>
-              setTarget(
+            // The section and folder the click was in name themselves as the event goes by.
+            onContextMenuCapture={(event) => {
+              const at = (key: 'sectionId' | 'folderId', selector: string) =>
                 (event.target instanceof Element &&
-                  event.target.closest<HTMLElement>('[data-section-id]')
-                    ?.dataset.sectionId) ||
-                  null,
-              )
-            }
+                  event.target.closest<HTMLElement>(selector)?.dataset[key]) ||
+                null
+              setTarget(at('sectionId', '[data-section-id]'))
+              setFolderTarget(at('folderId', '[data-folder-id]'))
+            }}
           >
             <NoteSections
               query={query}
@@ -188,13 +198,21 @@ export function NotesPanel() {
               onNamed={() => setNaming(null)}
               renaming={renaming}
               onRename={setRenaming}
+              namingIn={namingIn}
+              onNamedIn={() => setNamingIn(null)}
+              renamingFolder={renamingFolder}
+              onRenamedFolder={() => setRenamingFolder(null)}
             />
           </ContextMenu.Trigger>
           <SectionsMenu
             target={target}
+            folder={folderTarget}
             onNewNote={newNote}
             onNewFolder={newFolder}
+            onNewFolderIn={setNamingIn}
             onRename={setRenaming}
+            onRenameFolder={setRenamingFolder}
+            onDeleteFolder={(id) => removeFolder.mutate(id)}
           />
         </ContextMenu.Root>
       ) : (
@@ -342,7 +360,9 @@ const collide: CollisionDetection = (args) => {
   })
   const sections = among((id) => id.startsWith(SECTION))
   if (after(args.active.id, SECTION)) return closestCenter(sections)
-  const hits = pointerWithin(after(args.active.id, 'note:') ? args : sections)
+  const filing =
+    after(args.active.id, 'note:') || after(args.active.id, 'folder:')
+  const hits = pointerWithin(filing ? args : sections)
   const folderFirst = (hit: Collision) => (after(hit.id, INTO) ? 0 : 1)
   return [...hits].sort((a, b) => folderFirst(a) - folderFirst(b))
 }
@@ -356,6 +376,12 @@ type SectionsProps = {
   /** The section whose name is being changed, while there is one. */
   renaming: SectionId | null
   onRename: (section: SectionId | null) => void
+  /** The folder a new folder is being named inside, while there is one. */
+  namingIn: string | null
+  onNamedIn: () => void
+  /** The folder whose name is being changed, while there is one. */
+  renamingFolder: string | null
+  onRenamedFolder: () => void
 }
 
 /**
@@ -370,12 +396,16 @@ function NoteSections({
   onNamed,
   renaming,
   onRename,
+  namingIn,
+  onNamedIn,
+  renamingFolder,
+  onRenamedFolder,
 }: SectionsProps) {
   const library = useNoteLibrary(query, 'notes', order)
   const folders = useNoteFolders()
   const move = useMoveNote()
-  const layout = useShell((state) => state.noteLayout)
-  const edit = useShell((state) => state.editNoteLayout)
+  const update = useUpdateFolder()
+  const { layout, edit } = useNotesLayout()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   )
@@ -401,12 +431,41 @@ function NoteSections({
   }
   const { loose, inFolder } = placeNotes(library.data, filed.folderOf)
   const searching = Boolean(query.trim())
-  const shown = filed.folders.filter(
-    (folder) => !searching || inFolder(folder.collectionId).length > 0,
+  // A search shows the folders it found a note in, and the folders around them.
+  const filled = (id: string): boolean =>
+    inFolder(id).length > 0 ||
+    subfolders(filed.folders, id).some((f) => filled(f.collectionId))
+  const shown = subfolders(filed.folders, null).filter(
+    (folder) => !searching || filled(folder.collectionId),
   )
   const foldersIn = groupBySection(layout, shown, (folder) =>
     folderItem(folder.collectionId),
   )
+  const tree: FolderTree = {
+    folders: filed.folders,
+    inFolder,
+    filled,
+    searching,
+    namingIn,
+    onNamedIn,
+    renaming: renamingFolder,
+    rename: (folder, wanted) => {
+      onRenamedFolder()
+      const name = wanted.trim()
+      if (!name || name === folder.name) return
+      const siblings = subfolders(filed.folders, folder.parentId)
+        .filter((f) => f.collectionId !== folder.collectionId)
+        .map((f) => f.name)
+      update.mutate({
+        collectionId: folder.collectionId,
+        change: { name: folderName(name, siblings) },
+      })
+    },
+  }
+  const nest = (folderId: string, into: string | null) => {
+    if (canNest(filed.folders, folderId, into))
+      update.mutate({ collectionId: folderId, change: { parentId: into } })
+  }
   const notesIn = groupBySection(layout, loose, (entry) =>
     noteItem(entry.opens),
   )
@@ -421,17 +480,20 @@ function NoteSections({
       return
     }
     const documentId = after(active.id, 'note:')
+    const folderId = after(active.id, 'folder:')
     const folder = after(over.id, INTO)
-    if (documentId && folder) {
-      if (filed.folderOf.get(documentId) !== folder)
+    if (folder) {
+      if (documentId && filed.folderOf.get(documentId) !== folder)
         move.mutate({ documentId, to: folder })
+      if (folderId) nest(folderId, folder)
       return
     }
     const item = String(active.id)
     if (!section || !isSectionItem(item)) return
-    // A note dropped on a section comes out of its folder to sit there.
+    // A note or folder dropped on a section comes out of its folder to sit there.
     if (documentId && filed.folderOf.has(documentId))
       move.mutate({ documentId, to: null })
+    if (folderId) nest(folderId, null)
     edit((l) => placeItem(l, item, section))
   }
   return (
@@ -445,9 +507,9 @@ function NoteSections({
           {describeError(folders.error, 'document')}
         </p>
       )}
-      {move.error && (
+      {(move.error ?? update.error) && (
         <p role="alert" className="px-2 pb-1 text-xs text-error-ink">
-          {describeError(move.error, 'document')}
+          {describeError(move.error ?? update.error, 'document')}
         </p>
       )}
       {searching && !shown.length && !loose.length && (
@@ -480,6 +542,7 @@ function NoteSections({
               >
                 {naming === section.id && (
                   <NewFolder
+                    parentId={null}
                     onDone={(made) => {
                       if (made)
                         edit((l) => placeItem(l, folderItem(made), section.id))
@@ -491,8 +554,7 @@ function NoteSections({
                   <NoteFolderItem
                     key={folder.collectionId}
                     folder={folder}
-                    notes={inFolder(folder.collectionId)}
-                    searching={searching}
+                    tree={tree}
                   />
                 ))}
                 {agents && <AgentNotes query={query} order={order} />}
@@ -533,53 +595,105 @@ function NoteSections({
 /** A row not made yet, which lands in its kind's own section. */
 const NEW = ''
 
+/** Every folder, and what the folder rows need to show and edit them. */
+type FolderTree = {
+  folders: NoteFolder[]
+  inFolder: (collectionId: string) => NoteEntry[]
+  /** Whether a search found a note in the folder or a folder inside it. */
+  filled: (collectionId: string) => boolean
+  searching: boolean
+  namingIn: string | null
+  onNamedIn: () => void
+  renaming: string | null
+  rename: (folder: NoteFolder, wanted: string) => void
+}
+
+/**
+ * A folder: its row, then the folders inside it and its notes. A note or a
+ * folder dragged onto the row goes inside; the row drags to another folder or
+ * a section.
+ */
 function NoteFolderItem({
   folder,
-  notes,
-  searching,
+  tree,
 }: {
   folder: NoteFolder
-  notes: NoteEntry[]
-  searching: boolean
+  tree: FolderTree
 }) {
   const [open, setOpen] = useState(false)
   const drop = useDroppable({ id: INTO + folder.collectionId })
   const drag = useDraggable({ id: folderItem(folder.collectionId) })
-  // A search opens the folders it found something in.
-  const shown = open || searching
+  const naming = tree.namingIn === folder.collectionId
+  // A search opens the folders it found something in, and a new folder opens
+  // the folder it is being named in.
+  const shown = open || tree.searching || naming
+  const inside = subfolders(tree.folders, folder.collectionId).filter(
+    (f) => !tree.searching || tree.filled(f.collectionId),
+  )
+  const notes = tree.inFolder(folder.collectionId)
   return (
     <FilesystemItem
       open={shown}
       row={
-        <button
-          ref={(node) => {
-            drop.setNodeRef(node)
-            drag.setNodeRef(node)
-          }}
-          type="button"
-          {...drag.attributes}
-          {...drag.listeners}
-          style={dragStyle({
-            transform: drag.transform,
-            isDragging: drag.isDragging,
-          })}
-          className={cn(row, 'gap-1 ps-1', drop.isOver && 'bg-hover')}
-          aria-expanded={shown}
-          onClick={() => setOpen(!open)}
-        >
-          <FilesystemMarks folder open={shown} />
-          <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-        </button>
+        tree.renaming === folder.collectionId ? (
+          <div
+            data-folder-id={folder.collectionId}
+            className={cn(row, 'gap-1 ps-1 hover:bg-transparent')}
+          >
+            <FilesystemMarks folder open={shown} />
+            <input
+              // The person asked to rename this folder a moment ago.
+              autoFocus
+              aria-label="Folder name"
+              defaultValue={folder.name}
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+              onFocus={(event) => event.currentTarget.select()}
+              onBlur={(event) => tree.rename(folder, event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur()
+                if (event.key === 'Escape') tree.rename(folder, folder.name)
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            ref={(node) => {
+              drop.setNodeRef(node)
+              drag.setNodeRef(node)
+            }}
+            type="button"
+            data-folder-id={folder.collectionId}
+            {...drag.attributes}
+            {...drag.listeners}
+            style={dragStyle({
+              transform: drag.transform,
+              isDragging: drag.isDragging,
+            })}
+            className={cn(row, 'gap-1 ps-1', drop.isOver && 'bg-hover')}
+            aria-expanded={shown}
+            onClick={() => setOpen(!open)}
+          >
+            <FilesystemMarks folder open={shown} />
+            <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+          </button>
+        )
       }
     >
       <div className="ps-5">
-        {notes.length ? (
+        {naming && (
+          <NewFolder parentId={folder.collectionId} onDone={tree.onNamedIn} />
+        )}
+        {inside.map((child) => (
+          <NoteFolderItem key={child.collectionId} folder={child} tree={tree} />
+        ))}
+        {notes.length > 0 && (
           <ul className="flex flex-col">
             {notes.map((entry) => (
               <DraggableNoteRow key={entry.documentId} entry={entry} />
             ))}
           </ul>
-        ) : (
+        )}
+        {!naming && !inside.length && !notes.length && (
           <Hint>Empty. Drag a note here.</Hint>
         )}
       </div>
@@ -622,7 +736,7 @@ function NoteSectionBlock({
   onRename: (section: SectionId | null) => void
   children: ReactNode
 }) {
-  const edit = useShell((state) => state.editNoteLayout)
+  const { edit } = useNotesLayout()
   const {
     setNodeRef,
     setActivatorNodeRef,
@@ -712,17 +826,26 @@ function NoteSectionBlock({
  */
 function SectionsMenu({
   target,
+  folder,
   onNewNote,
   onNewFolder,
+  onNewFolderIn,
   onRename,
+  onRenameFolder,
+  onDeleteFolder,
 }: {
   target: SectionId | null
+  /** The folder right-clicked, if the click was on one. */
+  folder: string | null
   onNewNote: (into: SectionId | null) => void
   onNewFolder: (into: SectionId | null) => void
+  onNewFolderIn: (folder: string) => void
   onRename: (section: SectionId | null) => void
+  onRenameFolder: (folder: string) => void
+  onDeleteFolder: (folder: string) => void
 }) {
-  const count = useShell((state) => state.noteLayout.sections.length)
-  const edit = useShell((state) => state.editNoteLayout)
+  const { layout, edit } = useNotesLayout()
+  const count = layout.sections.length
   return (
     <ContextMenu.Portal>
       <ContextMenu.Positioner className="z-50">
@@ -731,6 +854,32 @@ function SectionsMenu({
           finalFocus={false}
           className={`min-w-44 ${menuPopup}`}
         >
+          {folder && (
+            <>
+              <ContextMenu.Item
+                className={menuItem}
+                onClick={() => onNewFolderIn(folder)}
+              >
+                <FolderPlus aria-hidden="true" className="size-4" />
+                New folder inside
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                className={menuItem}
+                onClick={() => onRenameFolder(folder)}
+              >
+                <Icon.Edit className="size-4" />
+                Rename folder
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                className={menuItem}
+                onClick={() => onDeleteFolder(folder)}
+              >
+                <Icon.Delete className="size-4" />
+                Delete folder
+              </ContextMenu.Item>
+              <ContextMenu.Separator className="my-1 h-px bg-separator" />
+            </>
+          )}
           <ContextMenu.Item
             className={menuItem}
             onClick={() => onNewNote(target)}
@@ -783,19 +932,32 @@ function SectionsMenu({
 }
 
 /** Name a new folder in place; Enter makes it, Escape or leaving it empty does not. */
-function NewFolder({ onDone }: { onDone: (made?: string) => void }) {
+function NewFolder({
+  parentId,
+  onDone,
+}: {
+  /** The folder it goes inside, or null at the top level. */
+  parentId: string | null
+  onDone: (made?: string) => void
+}) {
   const folders = useNoteFolders()
   const create = useNewFolder()
   const [name, setName] = useState('')
-  const taken = folders.data?.folders.map((folder) => folder.name) ?? []
+  // Theorem keeps names apart among the folders side by side, not across all.
+  const taken = subfolders(folders.data?.folders ?? [], parentId).map(
+    (folder) => folder.name,
+  )
   return (
     <form
       className="flex flex-col"
       onSubmit={(event) => {
         event.preventDefault()
-        create.mutate(folderName(name, taken), {
-          onSuccess: (made) => onDone(made.collectionId),
-        })
+        create.mutate(
+          { name: folderName(name, taken), parentId },
+          {
+            onSuccess: (made) => onDone(made.collectionId),
+          },
+        )
       }}
     >
       <div className={cn(row, 'gap-1 ps-1 hover:bg-transparent')}>
