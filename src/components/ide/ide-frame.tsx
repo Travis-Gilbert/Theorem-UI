@@ -12,6 +12,7 @@
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { connect, WindowMessenger } from 'penpal'
+import type { RemoteProxy } from 'penpal'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { ErrorState } from '@/components/assistant-ui/elements/error-state'
@@ -43,6 +44,28 @@ function referenceText({ label, excerpt, location }: TheoremContextReference) {
     label ??
     (location.resource.kind === 'file' ? location.resource.path : 'Reference')
   return excerpt ? `${name}\n\`\`\`\n${excerpt}\n\`\`\`` : `\`${name}\``
+}
+
+/**
+ * The frame's methods, rejecting instead of throwing once their link is
+ * destroyed, as penpal already rejects the calls in flight when it is. A
+ * project switch loads a new frame, and an effect of the commit that destroyed
+ * the old link can still hold it; a throw there would stop the IDE page.
+ */
+function rejectWhenDestroyed(remote: RemoteProxy<IdeFrameMethods>) {
+  return new Proxy(remote, {
+    get(target, key, receiver) {
+      const member: unknown = Reflect.get(target, key, receiver)
+      if (typeof member !== 'function') return member
+      return (...args: unknown[]) => {
+        try {
+          return (member as (...args: unknown[]) => unknown)(...args)
+        } catch (error) {
+          return Promise.reject(error)
+        }
+      }
+    },
+  })
 }
 
 /** How long the frame may take to link before the IDE says it has not started. */
@@ -164,7 +187,8 @@ export function IdeFrame({
       methods: { ...methods },
     })
     link.promise.then(
-      (remote) => {
+      (proxy) => {
+        const remote = rejectWhenDestroyed(proxy)
         setLoad((current) => ({ ...forFrame(current, frameKey), linked: true }))
         const { pending } = useFollow.getState()
         useFollow.setState({ ide: remote, pending: undefined })
