@@ -97,6 +97,42 @@ export interface IdeConnection {
     retryInMs?: number;
 }
 
+/**
+ * The query parameter the Theorem UI adds when it docks the frame in its own page, which then has the
+ * title, the file tree and the status bar: the frame shows its editors and bottom panel alone, its
+ * status bar travels to the page as `statusBarChanged`, and its files are listed for the page's tree.
+ */
+export const EMBEDDED_LAYOUT = { param: 'layout', value: 'embedded' } as const;
+
+/** One status bar entry as the frame's status bar would draw it. */
+export interface StatusBarItem {
+    id: string;
+    /** Its text, with each codicon as `{ icon }` (the codicon name without `codicon-`). */
+    label: (string | { icon: string; spin?: boolean })[];
+    tooltip?: string;
+    /** What a screen reader says for it. */
+    name?: string;
+    /** It runs something when clicked, through `runStatusBarItem`. */
+    clickable: boolean;
+    /** A dock button whose panel is open. */
+    active?: boolean;
+    /** It is coloured to stand out: an error, a warning, or prominent. */
+    tone?: 'error' | 'warning' | 'prominent';
+}
+
+/** The status bar's entries, in the order the frame would draw them. */
+export interface StatusBarItems {
+    left: StatusBarItem[];
+    right: StatusBarItem[];
+}
+
+/** One child of a workspace folder; paths are relative to the workspace, '' its top. */
+export interface IdeFileEntry {
+    name: string;
+    path: string;
+    folder: boolean;
+}
+
 /** What the IDE frame offers the Theorem UI around it. */
 export type IdeFrameMethods = {
     /** Show a location. Resolves false when the frame cannot show that resource. */
@@ -118,6 +154,16 @@ export type IdeFrameMethods = {
     closeChatView(): Promise<void>;
     /** Try opening the workspace again now, instead of waiting out the delay. */
     retryConnection(): void;
+    /** Do what clicking this status bar entry does. */
+    runStatusBarItem(id: string): Promise<void>;
+    /** The children of a folder of the workspace, folders first. Waits for the workspace to open. */
+    listFiles(path: string): Promise<IdeFileEntry[]>;
+    /** Create an empty file, or a folder; a file then opens in the editor. Rejects when the path is taken. */
+    createFile(path: string, folder?: boolean): Promise<void>;
+    /** Rename or move a file or folder; open editors follow it. */
+    moveFile(from: string, to: string): Promise<void>;
+    /** Delete files and folders, folders with what is in them. */
+    deleteFiles(paths: string[]): Promise<void>;
 };
 
 /** What the Theorem UI offers the IDE frame inside it. */
@@ -141,4 +187,8 @@ export type IdeHostMethods = {
     openArtifact(artifactId: string): void;
     /** The frame's attachment to its workspace changed, or the link was just made. */
     connectionChanged(connection: IdeConnection): void;
+    /** Embedded: the frame's status bar changed, or the link was just made. */
+    statusBarChanged(items: StatusBarItems): void;
+    /** Files changed in these folders ('' the top), by the person, the agent or anyone else. */
+    filesChanged(folders: string[]): void;
 };

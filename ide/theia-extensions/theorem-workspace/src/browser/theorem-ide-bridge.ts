@@ -1,7 +1,9 @@
 // SOURCING: penpal (connect + WindowMessenger) links this frame to the Theorem UI around it;
 // @theia/editor EditorManager, TheoremStoneTheme (the UI's look as a colour theme), CommandService, ApplicationShell,
 // StatusBar, OpenerService and MessageService do every action, @theia/ai-chat-ui's
-// AIChatContribution closes the chat view,
+// AIChatContribution closes the chat view, Theia's StatusBarViewModel and LabelParser give the
+// status bar's entries as its own widget draws them, @theia/filesystem's FileService lists, makes,
+// moves and deletes the files the UI's tree shows and reports their changes,
 // and @theoremharness/sdk converts character units and its WorkspaceLive stream names
 // the run behind each edit. Only the mapping between Theia's editors and Theorem
 // locations is written here.
@@ -21,13 +23,20 @@ import {
     MessageService
 } from '@theia/core/lib/common';
 import { Deferred } from '@theia/core/lib/common/promise-util';
+import { LabelParser } from '@theia/core/lib/browser/label-parser';
+import { StatusBarViewModel, type StatusBarViewEntry } from '@theia/core/lib/browser/status-bar';
+import { MarkdownString } from '@theia/core/lib/common/markdown-rendering';
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { Range, TextEditor, TextEditorDocument } from '@theia/editor/lib/browser/editor';
 import { EditorManager } from '@theia/editor/lib/browser/editor-manager';
 import { EditorContextMenu } from '@theia/editor/lib/browser/editor-menu';
 import { AIChatContribution } from '@theia/ai-chat-ui/lib/browser/ai-chat-ui-contribution';
 import { scalarToUtf16, utf8ToUtf16, type TheoremLocation, type TheoremRange, type WorkspaceLiveEvents } from '@theoremharness/sdk';
 import { connect, WindowMessenger, type RemoteProxy } from 'penpal';
-import type { ChatMessage, ChatThreadUpdate, DelegationChanges, IdeConnection, IdeFrameMethods, IdeHostMethods, RevealOptions } from '../common/ide-bridge';
+import {
+    EMBEDDED_LAYOUT, type ChatMessage, type ChatThreadUpdate, type DelegationChanges, type IdeConnection, type IdeFileEntry, type IdeFrameMethods,
+    type IdeHostMethods, type RevealOptions, type StatusBarItem, type StatusBarItems
+} from '../common/ide-bridge';
 import { TheoremConnection } from './theorem-connection';
 import { TheoremDelegations } from './theorem-delegations';
 import { TheoremStoneTheme } from './theorem-stone-theme';
@@ -36,6 +45,12 @@ export const ADD_TO_CHAT: Command = { id: 'theorem.addToChat', label: 'Add Selec
 
 const FOLLOW_ENTRY = 'theorem.follow';
 const CONNECTION_ENTRY = 'theorem.connection';
+
+/** Docked in the Theorem UI's page, which draws the status bar and the file tree; see `EMBEDDED_LAYOUT`. */
+const EMBEDDED = new URLSearchParams(window.location.search).get(EMBEDDED_LAYOUT.param) === EMBEDDED_LAYOUT.value;
+
+/** How long the status bar settles before its entries travel, as Theia's own widget debounces its renders. */
+const STATUS_BAR_SETTLE_MS = 50;
 
 /** The conversation the Theorem UI shows, as its updates leave it. */
 export interface ChatThread {
@@ -64,6 +79,9 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     @inject(TheoremDelegations) protected readonly delegations: TheoremDelegations;
     @inject(AIChatContribution) protected readonly chatView: AIChatContribution;
     @inject(TheoremStoneTheme) protected readonly look: TheoremStoneTheme;
+    @inject(StatusBarViewModel) protected readonly statusBarModel: StatusBarViewModel;
+    @inject(LabelParser) protected readonly labels: LabelParser;
+    @inject(FileService) protected readonly files: FileService;
 
     /** The Theorem UI, once linked. */
     host: RemoteProxy<IdeHostMethods> | undefined;
@@ -108,13 +126,30 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
             setThread: update => this.setThread(update),
             closeChatView: () => afterLayout(() => this.chatView.closeView()).then(() => undefined),
             retryConnection: () => this.connection.retry(),
+            runStatusBarItem: id => afterLayout(() => this.runStatusBarItem(id)),
+            listFiles: path => this.connection.ready.then(() => this.listFiles(path)),
+            createFile: (path, folder) => afterLayout(() => this.createFile(path, folder)),
+            moveFile: (from, to) => afterLayout(() => this.files.move(this.connection.toUri(from), this.connection.toUri(to))).then(() => undefined),
+            deleteFiles: paths => afterLayout(() => this.deleteFiles(paths)),
         };
         connect<IdeHostMethods>({ messenger: new WindowMessenger({ remoteWindow: window.parent }), methods: { ...methods } })
             .promise.then(host => {
                 this.host = host;
                 void host.connectionChanged(this.connection.status);
                 this.connection.onDidChangeStatus(status => void host.connectionChanged(status));
+                this.files.onDidFilesChange(event => {
+                    const folders = new Set(event.changes.flatMap(({ resource }) => {
+                        const path = this.connection.toPath(resource);
+                        return path === undefined ? [] : [path.slice(0, Math.max(path.lastIndexOf('/'), 0))];
+                    }));
+                    if (folders.size) {
+                        void host.filesChanged([...folders]);
+                    }
+                });
                 void afterLayout(() => {
+                    if (EMBEDDED) {
+                        this.mirrorStatusBar(host);
+                    }
                     this.shell.leftPanelHandler.tabBar.currentChanged.connect(() => void host.sidebarChanged(this.sidebarOpen()));
                     this.editors.onCurrentEditorChanged(() => this.watchCurrentEditor());
                     this.watchCurrentEditor();
@@ -245,6 +280,81 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
     /** Read from the side bar, which changes before the panel it shows. */
     protected sidebarOpen(): boolean {
         return this.shell.leftPanelHandler.tabBar.currentTitle !== null;
+    }
+
+    /** Embedded, the page draws the status bar: its entries travel there whenever they change. */
+    protected mirrorStatusBar(host: RemoteProxy<IdeHostMethods>): void {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const send = () => void host.statusBarChanged(this.statusBarItems());
+        this.statusBarModel.onDidChange(() => {
+            clearTimeout(timer);
+            timer = setTimeout(send, STATUS_BAR_SETTLE_MS);
+        });
+        send();
+    }
+
+    protected statusBarItems(): StatusBarItems {
+        const item = ({ id, entry }: StatusBarViewEntry): StatusBarItem[] => {
+            const label = this.labels.parse(entry.text).flatMap((part): StatusBarItem['label'] => typeof part === 'string'
+                ? (part ? [part] : [])
+                : [{ icon: part.name.replace(/^codicon-/, ''), spin: part.animation === 'spin' || undefined }]);
+            // An entry drawn only by an icon class has nothing the page can draw.
+            if (!label.length) {
+                return [];
+            }
+            const tooltip = typeof entry.tooltip === 'string' ? entry.tooltip : MarkdownString.is(entry.tooltip) ? entry.tooltip.value : undefined;
+            const colour = `${entry.backgroundColor ?? ''} ${entry.className ?? ''}`;
+            return [{
+                id,
+                label,
+                tooltip,
+                name: entry.accessibilityInformation?.label ?? entry.name,
+                clickable: Boolean(entry.command || entry.onclick),
+                active: /\bzed-dock-button-active\b/.test(entry.className ?? '') || undefined,
+                tone: /error/i.test(colour) ? 'error' : /warning/i.test(colour) ? 'warning' : /prominent|remote/i.test(colour) ? 'prominent' : undefined,
+            }];
+        };
+        return { left: [...this.statusBarModel.getLeft()].flatMap(item), right: [...this.statusBarModel.getRight()].flatMap(item) };
+    }
+
+    /** What a click on the entry does in Theia's own status bar. */
+    protected async runStatusBarItem(id: string): Promise<void> {
+        const view = [...this.statusBarModel.getLeft(), ...this.statusBarModel.getRight()].find(candidate => candidate.id === id);
+        if (!view) {
+            return;
+        }
+        // A command's quick pick or dialog opens in this frame, so the keyboard comes here with it.
+        window.focus();
+        const { command, arguments: args = [], onclick } = view.entry;
+        if (command) {
+            await this.commands.executeCommand(command, ...args);
+        } else {
+            onclick?.(new MouseEvent('click'));
+        }
+    }
+
+    protected async listFiles(path: string): Promise<IdeFileEntry[]> {
+        const { children = [] } = await this.files.resolve(this.connection.toUri(path));
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+        return children
+            .map(child => ({ name: child.name, path: path ? `${path}/${child.name}` : child.name, folder: child.isDirectory }))
+            .sort((a, b) => Number(b.folder) - Number(a.folder) || collator.compare(a.name, b.name));
+    }
+
+    protected async createFile(path: string, folder = false): Promise<void> {
+        const uri = this.connection.toUri(path);
+        if (folder) {
+            await this.files.createFolder(uri);
+            return;
+        }
+        await this.files.createFile(uri);
+        await this.editors.open(uri, { mode: 'activate' });
+    }
+
+    protected async deleteFiles(paths: string[]): Promise<void> {
+        for (const path of paths) {
+            await this.files.delete(this.connection.toUri(path), { recursive: true, useTrash: false });
+        }
     }
 
     protected setSidebar(open: boolean): void {

@@ -1,12 +1,13 @@
-// SOURCING: coss ui sidebar, collapsible, menu and input over Base UI, Base UI ContextMenu (a row's right-click), @tanstack/react-router, @tanstack/react-query (the organization's freshness), assistant-ui (the open session's run state), useGlideHighlight from components/motion, lib/theorem/organization (sessions are Theorem's threads; the user's sections are the projects the user made), date-fns formatDistanceToNowStrict for when a session last moved, thread-menu's ThreadMenuItems and thread-row's RenameField. The structure (a workspace row with search and collapse; Sessions, Automations, Review and Wiki; a bold Sessions heading with search, add and more; the user's own sections; Recent; a toolbar at the foot) is Devin's sidebar from the user's screens, docs/plans/ide-agent-workspace.md.
+// SOURCING: coss ui sidebar, collapsible, menu, input and alert dialog over Base UI, lucide-react (the Files heading's new file, new folder and collapse), Base UI ContextMenu (a row's right-click), @tanstack/react-router, @tanstack/react-query (the organization's freshness), assistant-ui (the open session's run state), useGlideHighlight from components/motion, lib/theorem/organization (sessions are Theorem's threads; the user's sections are the projects the user made), date-fns formatDistanceToNowStrict for when a session last moved, thread-menu's ThreadMenuItems and thread-row's RenameField (sessions and sections both rename in place), the IDE's file tree (ide-file-tree.tsx) under the sessions. The structure (a workspace row with search and collapse; Sessions, Automations, Review and Wiki; a bold Sessions heading with search, add and more; the user's own sections; Recent) is Devin's sidebar from the user's screens, docs/plans/ide-agent-workspace.md.
 //
 // The IDE's panel. A session opens beside the IDE rather than in chat, so a
 // click sets the conversation the IDE page shows and Theia stays where it is.
 import { useAuiState } from '@assistant-ui/react'
 import { ContextMenu } from '@base-ui/react/context-menu'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNowStrict } from 'date-fns'
+import { ChevronsDownUp, FilePlus, FolderPlus } from 'lucide-react'
 import {
   createContext,
   useContext,
@@ -17,6 +18,15 @@ import {
 } from 'react'
 import type { ComponentType, KeyboardEvent, ReactNode, SVGProps } from 'react'
 import { ThreadFromFailure } from '@/components/assistant-ui/elements/thread-list.aui'
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from '@/components/coss/alert-dialog'
 import {
   Collapsible,
   CollapsiblePanel,
@@ -33,9 +43,14 @@ import {
   SidebarMenuSkeleton,
 } from '@/components/coss/sidebar'
 import { Icon } from '@/components/icons'
+import { workspaceIdOf } from '@/components/ide/follow'
+import { IdeFileTree } from '@/components/ide/ide-file-tree'
+import type { IdeFileTreeHandle } from '@/components/ide/ide-file-tree'
 import { useGlideHighlight } from '@/components/motion'
 import { useCommandPalette } from '@/components/shell/command-palette'
+import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
+import { Button } from '@/components/ui/button'
 import { describeError } from '@/lib/theorem/client'
 import { neighbour } from '@/lib/theorem/highlight-finders'
 import {
@@ -45,6 +60,7 @@ import {
   sessionLists,
   useOrganization,
   useOrganizedViews,
+  useProjectEdits,
   useThreadEdits,
 } from '@/lib/theorem/organization'
 import type { ProjectEntry, ThreadEntry } from '@/lib/theorem/organization'
@@ -278,7 +294,17 @@ function SessionList({
   )
 }
 
-/** A heading that folds its list away, with the session count and an add button. */
+/** What a section the user made offers on its heading: a new name, or going. */
+type SectionEdits = {
+  onRename: (title: string) => void
+  onDelete: () => void
+}
+
+/**
+ * A heading that folds its list away, with the session count and an add
+ * button. A section the user made renames on a double-click or from its
+ * right-click menu, which also deletes it.
+ */
 function Section({
   id,
   title,
@@ -286,6 +312,7 @@ function Section({
   threads,
   shown,
   onNew,
+  edits,
 }: {
   id: string
   title: string
@@ -293,44 +320,157 @@ function Section({
   threads: readonly ThreadEntry[]
   shown: number
   onNew?: () => void
+  edits?: SectionEdits
 }) {
   const [open, setOpen] = useSectionOpen(`ide:${id}`, true)
+  const [renaming, setRenaming] = useState(false)
+  const heading = renaming ? (
+    <div className="flex h-8 items-center gap-2 px-1">
+      {glyph}
+      <RenameField
+        title={title}
+        label="Rename section"
+        onDone={() => setRenaming(false)}
+        onCommit={(next) => edits?.onRename(next)}
+      />
+    </div>
+  ) : (
+    <div className="group/section relative flex items-center">
+      <CollapsibleTrigger
+        onDoubleClick={edits ? () => setRenaming(true) : undefined}
+        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 pe-2.5 text-start text-sm text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-focus"
+      >
+        {glyph}
+        <span className="min-w-0 truncate font-medium">{title}</span>
+        <Icon.ChevronRight
+          aria-hidden
+          className={cn(
+            'size-3 shrink-0 transition-transform duration-(--duration-snap) ease-snap',
+            open && 'rotate-90',
+          )}
+        />
+        <span
+          className={cn(
+            'ms-auto tabular-nums',
+            onNew && 'group-hover/section:invisible',
+          )}
+        >
+          {threads.length || ''}
+        </span>
+      </CollapsibleTrigger>
+      {onNew && (
+        <button
+          type="button"
+          aria-label={`New session in ${title}`}
+          title={`New session in ${title}`}
+          onClick={onNew}
+          className="absolute end-1 flex size-6 items-center justify-center rounded-md text-ink-muted opacity-0 outline-none group-hover/section:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-focus"
+        >
+          <Icon.Add className="size-3.5" />
+        </button>
+      )}
+    </div>
+  )
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="group/section relative flex items-center">
-        <CollapsibleTrigger className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 pe-2.5 text-start text-sm text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-focus">
-          {glyph}
-          <span className="min-w-0 truncate font-medium">{title}</span>
+      {edits ? (
+        <ContextMenu.Root>
+          <ContextMenu.Trigger render={<div />}>{heading}</ContextMenu.Trigger>
+          <MenuPopup
+            anchor={undefined}
+            className="min-w-44"
+            side="bottom"
+            align="start"
+          >
+            <MenuItem onClick={() => setRenaming(true)}>
+              <Icon.Edit className="size-4" />
+              Rename section
+            </MenuItem>
+            <MenuItem variant="destructive" onClick={edits.onDelete}>
+              <Icon.Delete className="size-4" />
+              Delete section
+            </MenuItem>
+          </MenuPopup>
+        </ContextMenu.Root>
+      ) : (
+        heading
+      )}
+      <CollapsiblePanel className={panelMotion}>
+        <SessionList threads={threads} place={id} shown={shown} />
+      </CollapsiblePanel>
+    </Collapsible>
+  )
+}
+
+/**
+ * The open project's files under the sessions, drawn by the page while Theia
+ * shows only its editors. Open, it shares the panel's height with the
+ * sessions; folded, it is its heading.
+ */
+function FilesSection() {
+  const { project } = useActiveProject()
+  const [open, setOpen] = useSectionOpen('ide:files', true)
+  const tree = useRef<IdeFileTreeHandle>(null)
+  if (!project) return null
+  const workspaceId = workspaceIdOf(project.projectId)
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className={cn(
+        'flex flex-col border-t border-separator',
+        open && 'min-h-0 flex-1',
+      )}
+    >
+      <div className="flex h-11 shrink-0 items-center gap-0.5 px-1.5 ps-2">
+        <CollapsibleTrigger className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-start text-md font-semibold text-ink outline-none focus-visible:outline-2 focus-visible:outline-focus">
+          <span className="min-w-0 truncate">Files</span>
           <Icon.ChevronRight
             aria-hidden
             className={cn(
-              'size-3 shrink-0 transition-transform duration-(--duration-snap) ease-snap',
+              'size-3 shrink-0 text-ink-muted transition-transform duration-(--duration-snap) ease-snap',
               open && 'rotate-90',
             )}
           />
-          <span
-            className={cn(
-              'ms-auto tabular-nums',
-              onNew && 'group-hover/section:invisible',
-            )}
-          >
-            {threads.length || ''}
-          </span>
         </CollapsibleTrigger>
-        {onNew && (
-          <button
-            type="button"
-            aria-label={`New session in ${title}`}
-            title={`New session in ${title}`}
-            onClick={onNew}
-            className="absolute end-1 flex size-6 items-center justify-center rounded-md text-ink-muted opacity-0 outline-none group-hover/section:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-focus"
-          >
-            <Icon.Add className="size-3.5" />
-          </button>
+        {open && (
+          <>
+            <button
+              type="button"
+              aria-label="New file"
+              title="New file"
+              onClick={() => tree.current?.create('file')}
+              className={ICON_BUTTON}
+            >
+              <FilePlus aria-hidden className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="New folder"
+              title="New folder"
+              onClick={() => tree.current?.create('folder')}
+              className={ICON_BUTTON}
+            >
+              <FolderPlus aria-hidden className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Collapse folders"
+              title="Collapse folders"
+              onClick={() => tree.current?.collapseAll()}
+              className={ICON_BUTTON}
+            >
+              <ChevronsDownUp aria-hidden className="size-4" />
+            </button>
+          </>
         )}
       </div>
-      <CollapsiblePanel className={panelMotion}>
-        <SessionList threads={threads} place={id} shown={shown} />
+      <CollapsiblePanel className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        <IdeFileTree
+          key={workspaceId}
+          workspaceId={workspaceId}
+          handle={tree}
+        />
       </CollapsiblePanel>
     </Collapsible>
   )
@@ -389,7 +529,8 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
   const views = useOrganizedViews()
   const navigate = useNavigate()
   const openId = useShell((s) => s.chatThreadId)
-  const terminalOpen = useShell((s) => s.terminalOpen)
+  const projectEdits = useProjectEdits()
+  const [doomed, setDoomed] = useState<ProjectEntry>()
   const [view, setView] = useState<'sessions' | 'review'>('sessions')
   const [filtering, setFiltering] = useState(false)
   const [filter, setFilter] = useState('')
@@ -640,6 +781,14 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
                     threads={threads}
                     shown={query ? threads.length : SECTION_SHOWN}
                     onNew={() => newSession(project.projectId)}
+                    edits={{
+                      onRename: (title) =>
+                        projectEdits.rename.mutate({
+                          projectId: project.projectId,
+                          title,
+                        }),
+                      onDelete: () => setDoomed(project),
+                    }}
                   />
                 ))}
                 {(recent.length > 0 || !query) && !isPending && (
@@ -666,39 +815,36 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
         </Sessions.Provider>
       </SidebarContent>
       <ThreadFromFailure />
-      <div className="flex h-12 shrink-0 items-center gap-0.5 border-t border-separator px-1.5">
-        <button
-          type="button"
-          aria-label="Agent terminal"
-          aria-pressed={terminalOpen}
-          title="Agent terminal (ctrl+`)"
-          onClick={() => useShell.getState().setTerminalOpen(!terminalOpen)}
-          className={ICON_BUTTON}
-        >
-          <Icon.Terminal className="size-[18px]" strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          aria-label="Open this session in chat"
-          title="Open this session in chat"
-          onClick={() =>
-            void (openId
-              ? navigate({ to: '/c/$threadId', params: { threadId: openId } })
-              : navigate({ to: '/' }))
-          }
-          className={ICON_BUTTON}
-        >
-          <Icon.Conversation className="size-[18px]" />
-        </button>
-        <Link
-          to="/settings"
-          aria-label="Settings"
-          title="Settings"
-          className={cn(ICON_BUTTON, 'ms-auto')}
-        >
-          <Icon.Settings className="size-[18px]" />
-        </Link>
-      </div>
+      <FilesSection />
+      <AlertDialog
+        open={doomed !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setDoomed(undefined)
+        }}
+      >
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{doomed?.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its sessions stay, and any that were only here show in Recent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" />}>
+              Keep
+            </AlertDialogClose>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (doomed) projectEdits.archive.mutate(doomed.projectId)
+                setDoomed(undefined)
+              }}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
       <NewProjectDialog
         open={creating}
         onOpenChange={setCreating}

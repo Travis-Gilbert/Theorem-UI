@@ -34,6 +34,8 @@ import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
 
 import { ModePage } from '@/components/pages/mode-page'
+import { OnIdePage } from '@/components/ide/ide-page'
+import { IdeStatusBar } from '@/components/ide/ide-status-bar'
 
 const VaultWorkspace = lazy(() =>
   import('@/components/vault/vault-workspace').then((module) => ({
@@ -187,7 +189,9 @@ function DockView() {
           inert={!ide}
           className={cn('absolute inset-0', !ide && HIDDEN_LAYER)}
         >
-          <ModePage mode="ide" />
+          <OnIdePage value>
+            <ModePage mode="ide" />
+          </OnIdePage>
         </div>
       )}
     </div>
@@ -266,13 +270,16 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode the IDE's page takes the dock's place beside the IDE's panel.
+ * In IDE mode the IDE's page takes the dock's place beside the IDE's panel,
+ * and Theia's status bar runs along the bottom of the whole sheet.
  * In Vault mode the Vault fills the sheet; it loads on its first visit and
  * then stays, hidden, so its editors and layout survive a switch, and the
  * panel and dock stay mounted under it for the same reason.
  */
 function DesktopShell(route: DockRoute) {
-  const vault = useShellMode() === 'vault'
+  const mode = useShellMode()
+  const vault = mode === 'vault'
+  const ide = mode === 'ide'
   const [vaultLoaded, setVaultLoaded] = useState(vault)
   if (vault && !vaultLoaded) setVaultLoaded(true)
   return (
@@ -282,8 +289,11 @@ function DesktopShell(route: DockRoute) {
         <div aria-hidden="true" className="lift-glow" />
         <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
           {/* Dockview layers its panels with z-index; isolate keeps them under the Vault. */}
-          <div inert={vault} className="isolate h-full">
-            <SheetSplit {...route} />
+          <div inert={vault} className="isolate flex h-full flex-col">
+            <div className="min-h-0 flex-1">
+              <SheetSplit {...route} />
+            </div>
+            {ide && <IdeStatusBar />}
           </div>
           {vaultLoaded && (
             <div

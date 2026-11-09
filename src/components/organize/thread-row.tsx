@@ -122,10 +122,12 @@ function StatusMark({
 
 export function RenameField({
   title,
+  label = 'Rename thread',
   onDone,
   onCommit,
 }: {
   title: string
+  label?: string
   onDone: () => void
   onCommit: (title: string) => void
 }) {
@@ -142,7 +144,7 @@ export function RenameField({
     <Input
       autoFocus
       size="sm"
-      aria-label="Rename thread"
+      aria-label={label}
       value={value}
       className="h-7"
       onFocus={(event) => event.target.select()}

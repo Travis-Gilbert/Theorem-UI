@@ -8,7 +8,7 @@ import {
 import { useMemo } from 'react'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
-import { mutate, mutateThread, theorem } from './client'
+import { mutate, mutateProject, mutateThread, theorem } from './client'
 import type { MutationHeaders, Theorem } from './client'
 import { isNotServed, theoremJson } from './passthrough'
 
@@ -75,6 +75,7 @@ export type Glyph =
   | 'research'
   | 'map'
   | 'chat'
+  | 'todo'
 
 export type ThreadEntry = {
   threadId: string
@@ -660,6 +661,43 @@ export function useProjectState() {
       ),
     onSettled: () => invalidate(client),
   })
+}
+
+/**
+ * A section's edits: a new title, or archiving its project, which takes the
+ * section away and sends its sessions back to Recent. Theorem has no way to
+ * delete a project, and archiving keeps it to restore.
+ */
+export function useProjectEdits() {
+  const client = useQueryClient()
+  const settled = () =>
+    Promise.all([
+      invalidate(client),
+      client.invalidateQueries({ queryKey: ['theorem', 'projects'] }),
+    ])
+  const update = (
+    projectId: string,
+    change: { title?: string; archived?: boolean },
+  ) =>
+    mutateProject(projectId, (headers) =>
+      theorem().chat.projects.update({ projectId, ...change, ...headers }),
+    )
+  return {
+    rename: useMutation({
+      mutationFn: ({
+        projectId,
+        title,
+      }: {
+        projectId: string
+        title: string
+      }) => update(projectId, { title }),
+      onSettled: settled,
+    }),
+    archive: useMutation({
+      mutationFn: (projectId: string) => update(projectId, { archived: true }),
+      onSettled: settled,
+    }),
+  }
 }
 
 /** The thread edits the sidebar's rows make, each followed by a fresh tree. */

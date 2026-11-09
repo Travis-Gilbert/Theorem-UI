@@ -1,4 +1,4 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked beside the terminal), the UI's live tokens (ide-theme.ts: the palette and mode the frame follows), the shell's ideFilesOpen (Theia's own side panel, kept across reloads)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked beside the terminal), the UI's live tokens (ide-theme.ts: the palette and mode the frame follows), the shell's ideFilesOpen (Theia's own side panel, kept across reloads), ide-page's store (a docked frame's status bar and file changes, which the page draws)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
@@ -9,11 +9,14 @@
 // the agent terminal beside it, Theia's chat closes, Follow follows that
 // conversation's runs or the terminal's active tab, and Add to chat goes only
 // where the page connects it (the conversation's or a terminal's Attach).
+// Docked on the IDE mode's page, Theia also leaves its title, file tree and
+// status bar to the page (EMBEDDED_LAYOUT): its status bar entries and file
+// changes come here.
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
 import { connect, WindowMessenger } from 'penpal'
 import type { RemoteProxy } from 'penpal'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useContext, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { ErrorState } from '@/components/assistant-ui/elements/error-state'
 import {
@@ -24,12 +27,14 @@ import { useOpenMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { useTerminalRuns } from '@/components/terminal/terminal-screen'
+import { EMBEDDED_LAYOUT } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import type {
   IdeConnection,
   IdeFrameMethods,
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
+import { OnIdePage, useIdePage } from './ide-page'
 import { useIdeTheme } from './ide-theme'
 import {
   useChatRuns,
@@ -111,9 +116,14 @@ export function IdeFrame({
   const added = useEffectEvent((reference: TheoremContextReference) =>
     onAddToChat?.(reference),
   )
+  const embedded = useContext(OnIdePage) && docked
   const workspaceId = project && workspaceIdOf(project.projectId)
   const src = workspaceId
-    ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
+    ? `/theia/?${new URLSearchParams({
+        workspace: workspaceId,
+        name: project.title,
+        ...(embedded && { [EMBEDDED_LAYOUT.param]: EMBEDDED_LAYOUT.value }),
+      })}`
     : undefined
   /** Loads the frame again when it never linked. */
   const [reloads, setReloads] = useState(0)
@@ -145,7 +155,10 @@ export function IdeFrame({
         aui.composer.setText(draft ? `${draft}\n\n${text}\n` : `${text}\n`)
       },
       navigated: () => useFollow.getState().pause(),
-      sidebarChanged: (open) => useShell.getState().setIdeFilesOpen(open),
+      // Embedded, the page's sidebar has the files and Theia's side panel is its own.
+      sidebarChanged: (open) => {
+        if (!embedded) useShell.getState().setIdeFilesOpen(open)
+      },
       setFollowing: (next) =>
         next ? useFollow.getState().resume() : useFollow.getState().pause(),
       send: async (text) => {
@@ -181,6 +194,8 @@ export function IdeFrame({
               next.workspace === 'opening' && error ? { ...next, error } : next,
           }
         }),
+      statusBarChanged: (statusBar) => useIdePage.setState({ statusBar }),
+      filesChanged: (changedFolders) => useIdePage.setState({ changedFolders }),
     }
     const link = connect<IdeFrameMethods>({
       messenger: new WindowMessenger({ remoteWindow }),
@@ -200,16 +215,17 @@ export function IdeFrame({
     return () => {
       link.destroy()
       useFollow.setState({ ide: undefined })
+      useIdePage.setState({ statusBar: undefined })
     }
-  }, [frameKey, aui, openMode, docked])
+  }, [frameKey, aui, openMode, docked, embedded])
 
   useEffect(() => {
     if (look) void ide?.setTheme(look)
   }, [ide, look])
 
   useEffect(() => {
-    void ide?.setSidebar(sidebarOpen)
-  }, [ide, sidebarOpen])
+    if (!embedded) void ide?.setSidebar(sidebarOpen)
+  }, [ide, sidebarOpen, embedded])
 
   useEffect(() => {
     void ide?.setFollowing(following)

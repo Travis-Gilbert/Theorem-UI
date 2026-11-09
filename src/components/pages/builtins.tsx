@@ -362,7 +362,7 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
     <div className="h-full min-h-[320px]">
       <ArtifactPlacement.Provider value="inline">
         <LifeBackdrop>
-          <Thread autoFocus={false} />
+          <Thread autoFocus={false} composerDocked />
         </LifeBackdrop>
       </ArtifactPlacement.Provider>
     </div>
@@ -598,8 +598,14 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
         kind: 'select',
         options: [
           { label: "Theia's own", value: 'own' },
-          { label: "The page's conversation, through Added", value: 'conversation' },
-          { label: 'An agent terminal on the page, through Added', value: 'page' },
+          {
+            label: "The page's conversation, through Added",
+            value: 'conversation',
+          },
+          {
+            label: 'An agent terminal on the page, through Added',
+            value: 'page',
+          },
         ],
         default: 'own',
       },
