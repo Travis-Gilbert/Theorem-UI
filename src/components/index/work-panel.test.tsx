@@ -51,6 +51,9 @@ beforeEach(() => {
     const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
     requests.push(`${method} ${url.pathname}`)
     switch (url.pathname) {
+      // A query is a POST, and every write asks for the session's token first.
+      case '/api/chat/v1/bootstrap':
+        return Response.json({ schema: 'theorem.chat.bootstrap.v1', csrfToken: 'csrf' })
       case '/api/work/v1/settings':
         return Response.json({
           ...SETTINGS,
