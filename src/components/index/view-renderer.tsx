@@ -91,7 +91,7 @@ export function ViewRenderer({
         // A changed program is a different view; its $variables start over.
         key={program}
         response={program}
-        library={indexLibrary}
+        library={indexLibrary()}
         toolProvider={tools}
         onAction={onAction}
         onError={onErrors}

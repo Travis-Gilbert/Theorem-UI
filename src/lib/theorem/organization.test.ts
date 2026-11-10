@@ -6,7 +6,9 @@ import {
   rootOf,
   organizationFromThreads,
   organizedViews,
+  planMove,
   primaryProjectId,
+  rehome,
   sessionLists,
 } from './organization'
 import type { Membership, ProjectEntry, ThreadEntry } from './organization'
@@ -161,13 +163,22 @@ describe('sessionLists', () => {
         thread('notes', {
           memberships: [member('release'), member('player', { atMs: 4 })],
         }),
-        thread('drafted', { memberships: [member('release')], createdAtMs: 30 }),
+        thread('drafted', {
+          memberships: [member('release')],
+          createdAtMs: 30,
+        }),
         thread('loose', { lastMessageAtMs: 40 }),
         thread('quiz', {
           lastMessageAtMs: 20,
           attention: {
             reasons: [
-              { kind: 'review', reviewId: 'r', title: 'Pick one', optionCount: 2, atMs: 20 },
+              {
+                kind: 'review',
+                reviewId: 'r',
+                title: 'Pick one',
+                optionCount: 2,
+                atMs: 20,
+              },
             ],
             running: false,
           },
@@ -177,7 +188,13 @@ describe('sessionLists', () => {
           lastMessageAtMs: 60,
           attention: {
             reasons: [
-              { kind: 'approval', runId: 'run', approvalId: 'a', toolName: 'shell', atMs: 60 },
+              {
+                kind: 'approval',
+                runId: 'run',
+                approvalId: 'a',
+                toolName: 'shell',
+                atMs: 60,
+              },
             ],
             running: false,
           },
@@ -192,7 +209,8 @@ describe('sessionLists', () => {
       ],
     }),
   )
-  const ids = (threads: readonly ThreadEntry[]) => threads.map((t) => t.threadId)
+  const ids = (threads: readonly ThreadEntry[]) =>
+    threads.map((t) => t.threadId)
 
   test('sections are the projects the user made', () => {
     expect(lists.sections.map((s) => s.project.projectId)).toEqual([
@@ -346,5 +364,72 @@ describe('organizationFromThreads', () => {
     const views = organizedViews(read)
     expect(views.running.map((t) => t.threadId)).toEqual(['live'])
     expect(views.attention.map((t) => t.threadId)).toEqual(['bad'])
+  })
+})
+
+describe('planMove', () => {
+  const unserved = organizationFromThreads(
+    ['inbox', 'a', 'b'].map(
+      (projectId, index) =>
+        ({
+          projectId,
+          title: projectId,
+          instructions: '',
+          status: 'regular',
+          createdAtMs: index,
+        }) as Theorem.Project,
+    ),
+    [],
+  )
+  const served = { ...unserved, served: true }
+
+  test('served: a drag from one project to another leaves the first and joins the second', () => {
+    const t = thread('t', { memberships: [member('a'), member('c')] })
+    expect(planMove(served, t, 'a', 'b')).toEqual({
+      kind: 'placement',
+      change: { add: ['b'], remove: ['a'] },
+    })
+  })
+
+  test('served: a drag from an attention view only adds, and a member is left alone', () => {
+    const t = thread('t', { memberships: [member('a')] })
+    expect(planMove(served, t, 'view:running', 'b')).toEqual({
+      kind: 'placement',
+      change: { add: ['b'], remove: [] },
+    })
+    expect(planMove(served, t, 'view:running', 'a')).toBeUndefined()
+  })
+
+  test('served: Unsorted drops every membership, and an unsorted thread needs nothing', () => {
+    const t = thread('t', { memberships: [member('a'), member('b')] })
+    expect(planMove(served, t, 'a', null)).toEqual({
+      kind: 'placement',
+      change: { remove: ['a', 'b'] },
+    })
+    expect(planMove(served, thread('u'), 'unsorted', null)).toBeUndefined()
+  })
+
+  test('unserved: a move changes home, and Unsorted is the inbox', () => {
+    const t = thread('t', { homeProjectId: 'a' })
+    expect(planMove(unserved, t, 'a', 'b')).toEqual({
+      kind: 'home',
+      projectId: 'b',
+    })
+    expect(planMove(unserved, t, 'a', null)).toEqual({
+      kind: 'home',
+      projectId: 'inbox',
+    })
+    expect(planMove(unserved, t, 'a', 'a')).toBeUndefined()
+  })
+})
+
+describe('rehome', () => {
+  test('a filed home is one implicit membership and the inbox is none', () => {
+    const t = thread('t', { homeProjectId: 'a', createdAtMs: 4 })
+    expect(rehome(t, 'b', 'inbox')).toMatchObject({
+      homeProjectId: 'b',
+      memberships: [{ projectId: 'b', by: 'user', implicit: true, atMs: 4 }],
+    })
+    expect(rehome(t, 'inbox', 'inbox').memberships).toEqual([])
   })
 })
