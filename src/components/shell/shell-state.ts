@@ -51,6 +51,11 @@ type ShellState = {
   explorerOpen: boolean
   /** Which quick views and projects a person opened or closed in the sidebar. */
   organizeOpen: Readonly<Record<string, boolean>>
+  /**
+   * The sidebar's projects in the order the person dragged them into. Empty
+   * until they move one; projects it does not name follow, as Theorem lists them.
+   */
+  projectOrder: readonly string[]
   /** Whether the agent terminal drawer is up. Not persisted. */
   terminalOpen: boolean
   /** The bottom drawer's snap point: its height as a share of the window. */
@@ -80,6 +85,7 @@ type ShellState = {
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
   setOrganizeOpen: (key: string, open: boolean) => void
+  setProjectOrder: (order: readonly string[]) => void
   setTerminalOpen: (open: boolean) => void
   setTerminalHeight: (height: number) => void
   setTerminalThread: (projectId: string, threadId: string | undefined) => void
@@ -114,6 +120,7 @@ export const useShell = create<ShellState>()(
       chatThreadId: undefined,
       explorerOpen: false,
       organizeOpen: {},
+      projectOrder: [],
       terminalOpen: false,
       terminalHeight: 0.46,
       terminalThreads: {},
@@ -143,6 +150,7 @@ export const useShell = create<ShellState>()(
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
       setOrganizeOpen: (key, open) =>
         set((s) => ({ organizeOpen: { ...s.organizeOpen, [key]: open } })),
+      setProjectOrder: (projectOrder) => set({ projectOrder }),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
       setTerminalHeight: (terminalHeight) => set({ terminalHeight }),
       setTerminalThread: (projectId, threadId) =>
@@ -237,6 +245,7 @@ export const useShell = create<ShellState>()(
         railOrder,
         explorerOpen,
         organizeOpen,
+        projectOrder,
         terminalHeight,
         sideWidth,
         terminalThreads,
@@ -251,6 +260,7 @@ export const useShell = create<ShellState>()(
         railOrder,
         explorerOpen,
         organizeOpen,
+        projectOrder,
         terminalHeight,
         sideWidth,
         terminalThreads,

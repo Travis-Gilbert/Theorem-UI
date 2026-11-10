@@ -1,20 +1,38 @@
-// SOURCING: coss ui sidebar, collapsible, menu and kbd over Base UI, the shadcn button, @dnd-kit/core (DndContext, useDroppable and DragOverlay: a thread dragged onto a project moves there), @tanstack/react-router, the shell's tenant and command palette, useGlideHighlight from components/motion, lib/theorem/organization. The shape (a stable tree with attention views above it and the Librarian below) is the design direction of 2026-11-05, with thread membership translated from mikecann/threadbear@78b77e1 (MIT, Mike Cann).
+// SOURCING: coss ui sidebar, collapsible, menu and kbd over Base UI, the shadcn button, @dnd-kit/core (DndContext, useDroppable and DragOverlay: a thread dragged onto a project moves there), @dnd-kit/sortable with @dnd-kit/modifiers and @dnd-kit/utilities (a project dragged to another place in its list, as the rail's destinations are), @tanstack/react-router, the shell's tenant and command palette, useGlideHighlight from components/motion, lib/theorem/organization. The shape (a stable tree with attention views above it and the Librarian below) is the design direction of 2026-11-05, with thread membership translated from mikecann/threadbear@78b77e1 (MIT, Mike Cann).
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useAuiState } from '@assistant-ui/react'
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  closestCenter,
   pointerWithin,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type {
+  Active,
+  CollisionDetection,
+  DragEndEvent,
+  DragStartEvent,
+  Modifier,
+} from '@dnd-kit/core'
+import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from '@dnd-kit/modifiers'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import { ThreadFromFailure } from '@/components/assistant-ui/elements/thread-list.aui'
 import { focusComposer } from '@/components/chat/composer-references'
 import { Button } from '@/components/ui/button'
@@ -96,16 +114,6 @@ function useSectionOpen(key: string, fallback: boolean) {
   return [open, (next: boolean) => set(key, next)] as const
 }
 
-const Chevron = ({ open }: { open: boolean }) => (
-  <Icon.ChevronRight
-    aria-hidden
-    className={cn(
-      'size-3.5 shrink-0 text-ink-muted transition-transform duration-(--duration-snap) ease-snap',
-      open && 'rotate-90',
-    )}
-  />
-)
-
 /** Threads a project lists before "Show more", so one busy project does not push the others away. */
 const THREADS_SHOWN = 4
 
@@ -118,25 +126,57 @@ const DOT = {
 /** Where a dragged thread can land: a project, or out of every project (null). */
 type DropTarget = { projectId: string | null }
 
-/** A project's row or the Unsorted row taking a dragged thread that is not already there. */
-function useDropTarget(id: string, projectId: string | null) {
-  const { setNodeRef, isOver, active } = useDroppable({
-    id,
-    data: { projectId } satisfies DropTarget,
-  })
-  const drag = active?.data.current as RowDrag | undefined
-  const already = drag
-    ? projectId === null
-      ? drag.thread.memberships.length === 0
-      : drag.thread.memberships.some((m) => m.projectId === projectId)
-    : true
-  return {
-    setNodeRef,
-    accepting: Boolean(isOver && !already),
-  }
+const projectItem = (projectId: string) => `project:${projectId}`
+
+/** The thread a drag carries; a dragged project carries none. */
+const threadOf = (active: Active | null) =>
+  (active?.data.current as Partial<RowDrag> | undefined)?.thread
+
+/** Whether a place takes what is dragged: a thread that is not already there. */
+function takes(active: Active | null, projectId: string | null) {
+  const thread = threadOf(active)
+  if (!thread) return false
+  return projectId === null
+    ? thread.memberships.length > 0
+    : !thread.memberships.some((m) => m.projectId === projectId)
 }
 
 const dropRing = 'rounded-lg bg-selected/50 outline-1 outline-focus'
+
+/** A thread lands on what the pointer is over; a project takes the place of the nearest project. */
+const collide: CollisionDetection = (args) =>
+  threadOf(args.active)
+    ? pointerWithin(args)
+    : closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+          (place) => place.data.current?.sortable,
+        ),
+      })
+
+/** A project moves up and down its list only; a thread goes where the pointer does. */
+const keepProjectsInList: Modifier = (args) =>
+  threadOf(args.active)
+    ? args.transform
+    : restrictToParentElement({
+        ...args,
+        transform: restrictToVerticalAxis(args),
+      })
+
+/**
+ * Cancels the click a drag's release makes. dnd-kit stops that click at the
+ * document, before React hears it, and leaves its default: Firefox sends it to
+ * the dragged row's link, which then loads its page. The window hears it first.
+ */
+function cancelReleaseClick() {
+  const cancel = (event: Event) => event.preventDefault()
+  window.addEventListener('click', cancel, { capture: true, once: true })
+  // As long as dnd-kit's own guard stays up after a drag.
+  setTimeout(
+    () => window.removeEventListener('click', cancel, { capture: true }),
+    50,
+  )
+}
 
 /** The chat being started where the composer will file it, until its first message makes it a thread. */
 function useStartingIn() {
@@ -367,6 +407,7 @@ function ProjectNode({
   threads,
   starting,
   onNewThread,
+  onMove,
   served,
 }: {
   project: ProjectEntry
@@ -374,6 +415,8 @@ function ProjectNode({
   /** A new chat is being started here. */
   starting: boolean
   onNewThread: (projectId: string) => void
+  /** Moves the project one place up or down the list, where there is one. */
+  onMove: { up?: () => void; down?: () => void }
   served: boolean
 }) {
   const [stored, setOpen] = useSectionOpen(
@@ -382,10 +425,20 @@ function ProjectNode({
   )
   const open = stored || starting
   const [editingState, setEditingState] = useState(false)
-  const { setNodeRef: dropRef, accepting } = useDropTarget(
-    `project:${project.projectId}`,
-    project.projectId,
-  )
+  // One node does both: a dragged thread drops on it, and it is dragged among the projects.
+  const {
+    setNodeRef,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+    active,
+  } = useSortable({
+    id: projectItem(project.projectId),
+    data: { projectId: project.projectId } satisfies DropTarget,
+  })
+  const accepting = isOver && takes(active, project.projectId)
   const live = threads.some((t) => t.attention.running)
   const wanting = threads.some((t) => t.attention.reasons.length > 0)
   return (
@@ -394,8 +447,14 @@ function ProjectNode({
       onOpenChange={setOpen}
       render={
         <SidebarMenuItem
-          ref={dropRef}
-          className={cn('group/project', accepting && dropRing)}
+          ref={setNodeRef}
+          style={{ transform: CSS.Translate.toString(transform), transition }}
+          className={cn(
+            'group/project',
+            accepting && dropRing,
+            isDragging &&
+              'z-10 rounded-lg bg-raised shadow-md ring-1 ring-separator',
+          )}
         />
       }
     >
@@ -405,6 +464,7 @@ function ProjectNode({
             <CollapsibleTrigger
               render={
                 <SidebarMenuButton
+                  {...listeners}
                   title={project.state?.text ?? project.title}
                   className="pe-8"
                 />
@@ -412,9 +472,9 @@ function ProjectNode({
             />
           }
         >
-          <Chevron open={open} />
           <ProjectGlyph
             glyph={project.glyph}
+            open={open}
             aria-hidden
             className="text-ink-muted"
           />
@@ -444,6 +504,15 @@ function ProjectNode({
               Where it stands
             </MenuItem>
           )}
+          <MenuSeparator />
+          <MenuItem disabled={!onMove.up} onClick={onMove.up}>
+            <Icon.ArrowUp className="size-4" />
+            Move up
+          </MenuItem>
+          <MenuItem disabled={!onMove.down} onClick={onMove.down}>
+            <Icon.ArrowDown className="size-4" />
+            Move down
+          </MenuItem>
         </MenuPopup>
       </ContextMenu.Root>
       <ProjectStateDialog
@@ -489,7 +558,15 @@ function UnsortedNode({
 }) {
   const [stored, setOpen] = useSectionOpen('view:unsorted', false)
   const open = stored || starting
-  const { setNodeRef: dropRef, accepting } = useDropTarget('unsorted', null)
+  const {
+    setNodeRef: dropRef,
+    isOver,
+    active,
+  } = useDroppable({
+    id: 'unsorted',
+    data: { projectId: null } satisfies DropTarget,
+  })
+  const accepting = isOver && takes(active, null)
   return (
     <Collapsible
       open={open}
@@ -499,7 +576,6 @@ function UnsortedNode({
       }
     >
       <CollapsibleTrigger render={<SidebarMenuButton className="pe-8" />}>
-        <Chevron open={open} />
         <Icon.Mail aria-hidden className="text-ink-muted" />
         <span className="min-w-0 flex-1 truncate">Unsorted</span>
       </CollapsibleTrigger>
@@ -648,30 +724,47 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   )
   const mover = useMoveThread()
+  /** The thread being dragged; a dragged project is its own row. */
   const [dragging, setDragging] = useState<RowDrag>()
-  const justDropped = useRef(false)
-  const onDragStart = ({ active }: DragStartEvent) =>
-    setDragging(active.data.current as RowDrag)
+  /** A project is being dragged, so rows sit away from where they are laid out. */
+  const [sorting, setSorting] = useState(false)
+  const projectIds = views.projects.map(({ project }) => project.projectId)
+  const projectItems = projectIds.map(projectItem)
+  const setProjectOrder = useShell((s) => s.setProjectOrder)
+  const placeProject = (from: number, to: number) => {
+    if (from < 0 || to < 0 || from === to || to >= projectIds.length) return
+    setProjectOrder(arrayMove(projectIds, from, to))
+  }
+  const onDragStart = ({ active }: DragStartEvent) => {
+    if (threadOf(active)) setDragging(active.data.current as RowDrag)
+    else setSorting(true)
+  }
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     setDragging(undefined)
-    // The release also clicks the row's link; it must not open the thread.
-    justDropped.current = true
-    setTimeout(() => (justDropped.current = false))
-    const drag = active.data.current as RowDrag | undefined
-    const target = over?.data.current as DropTarget | undefined
-    if (!drag || !target) return
-    mover.move(drag.thread, drag.from, target.projectId)
+    setSorting(false)
+    cancelReleaseClick()
+    if (!over) return
+    const drag = active.data.current as Partial<RowDrag>
+    if (!drag.thread || drag.from === undefined) {
+      placeProject(
+        projectItems.indexOf(String(active.id)),
+        projectItems.indexOf(String(over.id)),
+      )
+      return
+    }
+    const { projectId } = over.data.current as DropTarget
+    mover.move(drag.thread, drag.from, projectId)
     useShell
       .getState()
       .setOrganizeOpen(
-        target.projectId ? `project:${target.projectId}` : 'view:unsorted',
+        projectId ? `project:${projectId}` : 'view:unsorted',
         true,
       )
   }
-  const onClickCapture = (event: MouseEvent) => {
-    if (!justDropped.current) return
-    event.preventDefault()
-    event.stopPropagation()
+  const onDragCancel = () => {
+    setDragging(undefined)
+    setSorting(false)
+    cancelReleaseClick()
   }
 
   const tree = useMemo(
@@ -715,20 +808,24 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
           ref={pillRef}
           aria-hidden
           style={{ opacity: 0 }}
-          className="pointer-events-none absolute rounded-lg bg-selected"
+          className={cn(
+            'pointer-events-none absolute rounded-lg bg-selected',
+            // The highlight is placed by layout, which a dragged project leaves.
+            sorting && 'invisible',
+          )}
         />
         <OrganizeTree.Provider value={tree}>
           <DndContext
             sensors={sensors}
-            collisionDetection={pointerWithin}
+            collisionDetection={collide}
+            modifiers={[keepProjectsInList]}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            onDragCancel={() => setDragging(undefined)}
+            onDragCancel={onDragCancel}
           >
             <div
               ref={listRef}
               onKeyDown={onKeyDown}
-              onClickCapture={onClickCapture}
               className="flex flex-col gap-2"
             >
               <SidebarMenu>
@@ -767,16 +864,31 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
                     Array.from({ length: 4 }, (_, index) => (
                       <SidebarMenuSkeleton key={index} />
                     ))}
-                  {views.projects.map(({ project, threads }) => (
-                    <ProjectNode
-                      key={project.projectId}
-                      project={project}
-                      threads={threads}
-                      starting={startingIn === project.projectId}
-                      served={tree.served}
-                      onNewThread={newThread}
-                    />
-                  ))}
+                  <SortableContext
+                    items={projectItems}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {views.projects.map(({ project, threads }, index) => (
+                      <ProjectNode
+                        key={project.projectId}
+                        project={project}
+                        threads={threads}
+                        starting={startingIn === project.projectId}
+                        served={tree.served}
+                        onNewThread={newThread}
+                        onMove={{
+                          up:
+                            index > 0
+                              ? () => placeProject(index, index - 1)
+                              : undefined,
+                          down:
+                            index < projectIds.length - 1
+                              ? () => placeProject(index, index + 1)
+                              : undefined,
+                        }}
+                      />
+                    ))}
+                  </SortableContext>
                   {(views.unsorted.length > 0 ||
                     startingUnsorted ||
                     dragging) && (

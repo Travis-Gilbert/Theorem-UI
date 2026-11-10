@@ -87,6 +87,19 @@ describe('organizedViews', () => {
     ],
   }
 
+  test('projects keep the order a person gave them, with the rest after', () => {
+    const views = organizedViews(
+      { ...organization, projects: [...organization.projects, project('c')] },
+      new Set(),
+      ['b', 'gone', 'a'],
+    )
+    expect(views.projects.map((p) => p.project.projectId)).toEqual([
+      'b',
+      'a',
+      'c',
+    ])
+  })
+
   test('a thread in two projects shows in each and in its attention view', () => {
     const views = organizedViews(organization)
     expect(views.projects.map((p) => p.project.projectId)).toEqual(['a', 'b'])

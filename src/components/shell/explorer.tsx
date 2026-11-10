@@ -1,8 +1,8 @@
-// SOURCING: the app's FilesystemTree (components/ui/filesystem-tree: lucide icons, framer-motion, tree roles and arrow keys), @tanstack/react-query via lib/theorem/project-files (the cached root, children and content reads)
+// SOURCING: the app's FilesystemTree (components/ui/filesystem-tree: lucide icons, framer-motion, tree roles and arrow keys), the coss sidebar's group and row (the heading is a row like a project's, its folder opening with it), @tanstack/react-query via lib/theorem/project-files (the cached root, children and content reads)
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, Folder } from 'lucide-react'
 import { useState } from 'react'
-import { SidebarGroup, SidebarGroupLabel } from '@/components/coss/sidebar'
+import { SidebarGroup, SidebarMenuButton } from '@/components/coss/sidebar'
+import { Icon } from '@/components/icons'
 import { FolderTrees } from '@/components/workspace/folders'
 import { FilesystemTree } from '@/components/ui/filesystem-tree'
 import type { FilesystemNode } from '@/components/ui/filesystem-tree'
@@ -124,35 +124,28 @@ export function Explorer() {
   const toggle = useShell((s) => s.toggleExplorer)
   const root = useFileRoot(project?.projectId)
   const name = root.data?.root.name
+  const Mark = open ? Icon.FolderOpen : Icon.Folder
 
   return (
     <SidebarGroup
       role="region"
       aria-label="Files"
       className={cn(
-        'mb-2 min-h-0 overflow-hidden border-t border-separator pt-1',
+        'min-h-0 overflow-hidden border-t border-separator',
         open ? 'max-h-[50%] shrink' : 'shrink-0',
       )}
     >
-      <SidebarGroupLabel
-        render={<button type="button" />}
+      <SidebarMenuButton
         aria-expanded={open}
         onClick={toggle}
-        className="h-10 gap-2 text-base text-ink hover:text-ink"
+        className="shrink-0"
       >
-        <ChevronRight
-          aria-hidden
-          className={cn(
-            'size-3.5 transition-transform duration-150 motion-reduce:transition-none',
-            open && 'rotate-90',
-          )}
-        />
-        <Folder aria-hidden className="size-[18px] text-ink-muted" />
-        Files
-        {name && (
-          <span className="min-w-0 truncate text-ink-muted">· {name}</span>
-        )}
-      </SidebarGroupLabel>
+        <Mark aria-hidden className="text-ink-muted" />
+        <span className="min-w-0 flex-1 truncate">
+          Files
+          {name && <span className="text-ink-muted"> · {name}</span>}
+        </span>
+      </SidebarMenuButton>
       {open && (
         <div className="min-h-0 flex-1 overflow-auto">
           {project && <ExplorerBody projectId={project.projectId} />}
