@@ -76,6 +76,10 @@ export type WorkItem = {
   dueAt?: string
   commentCount: number
   pullRequest?: WorkPullRequest
+  /** The conversation this item started, such as an investigation's agent run. */
+  threadId?: string
+  /** The run in that conversation. */
+  runId?: string
   /** Opaque; sent as If-Match on PATCH. */
   revision: string
 }
@@ -214,6 +218,9 @@ export type InboxEntry = {
   readAt?: string
   snoozedUntil?: string
   archivedAt?: string
+  /** The conversation this entry's event started, when it started one. */
+  threadId?: string
+  runId?: string
   item: Pick<
     WorkItem,
     'id' | 'kind' | 'key' | 'title' | 'status' | 'priority' | 'source' | 'url'

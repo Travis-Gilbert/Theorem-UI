@@ -21,7 +21,13 @@ import { cn } from '@/lib/utils'
 import { DatePicker, snoozePresets } from './date-picker'
 import { WorkDetail } from './item-detail'
 import { fromControl } from './keys'
-import { ActorAvatar, RelativeTime, StatusMark, actorName } from './marks'
+import {
+  ActorAvatar,
+  RelativeTime,
+  StatusMark,
+  ThreadLink,
+  actorName,
+} from './marks'
 import { Notice, useNotice } from './notice'
 import { useInboxAction, useInboxBulk, useWorkInbox } from './queries'
 import { useWorkSource } from './source'
@@ -126,6 +132,16 @@ function Entry({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {entry.threadId && (
+          <ThreadLink
+            threadId={entry.threadId}
+            title="Open the conversation"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-link hover:bg-hover"
+          >
+            <Icon.Conversation className="size-3.5 shrink-0" />
+            Conversation
+          </ThreadLink>
+        )}
         <span className="flex items-center opacity-0 group-focus-within/entry:opacity-100 group-hover/entry:opacity-100">
           <Button
             size="icon-xs"

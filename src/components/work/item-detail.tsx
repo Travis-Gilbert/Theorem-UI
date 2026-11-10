@@ -20,6 +20,7 @@ import {
   PullRequestBadges,
   RelativeTime,
   StatusMark,
+  ThreadLink,
   actorName,
 } from './marks'
 import { EditErrorContext, Notice, useNotice } from './notice'
@@ -214,6 +215,17 @@ function Properties({
           dim(item.source.provider === 'local' ? 'Local item' : item.key)
         )}
       </Row>
+      {item.threadId && (
+        <Row label="Conversation">
+          <ThreadLink
+            threadId={item.threadId}
+            className="inline-flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-sm text-link hover:bg-hover"
+          >
+            <Icon.Conversation className="size-3.5 shrink-0" />
+            <span className="truncate">Open</span>
+          </ThreadLink>
+        </Row>
+      )}
       <Row label="Created">
         <span className="px-1.5 text-sm text-ink-muted">
           {format(parseISO(item.createdAt), 'MMM d, yyyy')}

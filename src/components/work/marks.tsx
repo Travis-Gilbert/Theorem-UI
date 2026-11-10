@@ -1,6 +1,8 @@
-// SOURCING: hand-roll — the tracker's status, priority and review glyphs (domain marks no library carries); coss ui Badge and the app's Avatar for pills and people; date-fns for relative time
+// SOURCING: hand-roll — the tracker's status, priority and review glyphs (domain marks no library carries); coss ui Badge and the app's Avatar for pills and people; date-fns for relative time; @tanstack/react-router Link to the conversation an item started
 import { enUS } from 'date-fns/locale'
 import { formatDistanceToNowStrict } from 'date-fns'
+import { Link } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/coss/badge'
 import { cn } from '@/lib/utils'
@@ -269,5 +271,32 @@ export function RelativeTime({
     >
       {ago(iso)}
     </time>
+  )
+}
+
+/** Opens the conversation an item or inbox entry started. */
+export function ThreadLink({
+  threadId,
+  className,
+  children,
+  ...rest
+}: {
+  threadId: string
+  className?: string
+  children: ReactNode
+  title?: string
+  'aria-label'?: string
+}) {
+  return (
+    <Link
+      {...rest}
+      to="/c/$threadId"
+      params={{ threadId }}
+      // A row that opens its item on click must not also open it from here.
+      onClick={(event) => event.stopPropagation()}
+      className={className}
+    >
+      {children}
+    </Link>
   )
 }
