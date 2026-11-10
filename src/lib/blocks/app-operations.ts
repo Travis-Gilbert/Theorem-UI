@@ -199,6 +199,8 @@ function postReceipt(request: AppRequest, receipt: AppReceipt) {
 const RECEIPT_RETRIES = 6
 const receiptDelay = (failures: number) => Math.min(500 * 2 ** failures, 8_000)
 const receipts = new QueryClient()
+// Mounted for the page's life: only a mounted client resumes what it paused offline.
+receipts.mount()
 const served = new Set<string>()
 let queue: Promise<void> = Promise.resolve()
 

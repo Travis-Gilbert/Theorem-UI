@@ -80,6 +80,22 @@ test('what is hidden is left out, and a role that was given is the role', () => 
   )
 })
 
+test('a name is the words that are shown, not the ones hidden inside it', () => {
+  expect(
+    outline(`
+      <button>Save<span hidden>Delete</span></button>
+      <h2>Total <span aria-hidden="true">(draft)</span><span style="display: none">old</span></h2>
+      <label>Amount <span hidden>in cents</span><input /></label>
+    `)
+      .split('\n')
+      .filter((line) => !line.startsWith('- text:')),
+  ).toEqual([
+    '- button "Save"',
+    '- heading "Total" [level=2]',
+    '- textbox "Amount": ""',
+  ])
+})
+
 test('a thing made by source says where, and a picture is named and not read', () => {
   expect(
     outline(`

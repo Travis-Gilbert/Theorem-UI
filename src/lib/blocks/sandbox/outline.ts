@@ -92,6 +92,16 @@ function hidden(element: Element): boolean {
   return style.display === 'none' || style.visibility === 'hidden'
 }
 
+/** The words under `node` that are shown: what `textContent` gives, less what is hidden. */
+function shownText(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
+  if (!(node instanceof Element)) return ''
+  if (SKIPPED.has(node.localName) || hidden(node)) return ''
+  let text = ''
+  for (const child of node.childNodes) text += shownText(child)
+  return text
+}
+
 function roleOf(element: Element): string | undefined {
   const explicit = element.getAttribute('role')?.trim().split(/\s+/)[0]
   if (explicit) return explicit === 'presentation' ? 'none' : explicit
@@ -121,13 +131,14 @@ function nameOf(element: Element, role: string): string {
   if (labelled) {
     const text = labelled
       .split(/\s+/)
+      // A label may be hidden and still name the thing, so all of it is read.
       .map((id) => element.ownerDocument.getElementById(id)?.textContent ?? '')
       .join(' ')
     if (text.trim()) return clip(text)
   }
   const labels = (element as HTMLInputElement).labels
   if (labels && labels.length > 0)
-    return clip([...labels].map((each) => each.textContent).join(' '))
+    return clip([...labels].map((each) => shownText(each)).join(' '))
   if (role === 'img') {
     const alt =
       element.getAttribute('alt') ??
@@ -135,7 +146,7 @@ function nameOf(element: Element, role: string): string {
     if (alt?.trim()) return clip(alt)
   }
   if (NAMED_BY_CONTENT.has(role)) {
-    const text = clip(element.textContent)
+    const text = clip(shownText(element))
     if (text) return text
     const value = (element as HTMLInputElement).value
     if (role === 'button' && typeof value === 'string' && value)

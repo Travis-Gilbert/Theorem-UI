@@ -177,6 +177,14 @@ export interface SandboxMethods {
   'module.action': { params: { name: string; payload: unknown }; result: null }
   /** The page's theme changed: its tokens, resolved, and its mode. */
   'theme.changed': { params: ThemeState; result: null }
+  /**
+   * The frame as it is now, without waiting for it to settle: what a snapshot
+   * holds. Null when the copy is too large to send.
+   */
+  'frame.look': {
+    params: Record<string, never>
+    result: { html: string; outline: string } | null
+  }
 }
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */

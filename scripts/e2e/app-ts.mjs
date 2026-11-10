@@ -281,6 +281,17 @@ try {
       ),
     thrownCheck.problems,
   )
+  // A page that never stops changing never settles into a snapshot of its own.
+  const tickingCheck = await inspect(
+    '<!doctype html><h1>Clock</h1><p id="t"></p><script>let n = 0; setInterval(() => { document.getElementById("t").textContent = "tick " + n++ }, 50)</script>',
+  )
+  check(
+    'an App that keeps changing is still seen, as it was at the end of its run',
+    /^- heading "Clock" \[level=1\]/m.test(
+      tickingCheck.rendered?.outline ?? '',
+    ) && /tick \d+/.test(tickingCheck.rendered?.text ?? ''),
+    tickingCheck.rendered,
+  )
   const plainCheck = await inspect(
     '<!doctype html><p id="x">Plain</p><script>document.getElementById("x").textContent = "Ran"</script>',
   )

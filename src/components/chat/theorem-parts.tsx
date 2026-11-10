@@ -181,9 +181,17 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
  * made, and what it found. Kit's operations draw nothing here; the fox on
  * the stage shows what they did.
  */
-const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
+/**
+ * What the chip for an `app.check` request says, or null for any other
+ * operation. `wrong` is anything short of a check that was made and found
+ * nothing: a type check that could not be made found nothing either, and says
+ * so with its `reason`.
+ */
+export function appCheckSummary(
+  data: unknown,
+  running: boolean,
+): { words: string; pending: boolean; wrong: boolean; reason?: string } | null {
   const call = object(data)
-  const running = useAuiState((s) => s.message.status?.type === 'running')
   if (str(call.operation) !== 'app.check') return null
   const state = str(call.state) ?? 'pending'
   const receipt = object(call.receipt)
@@ -193,20 +201,32 @@ const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
     problems + (typeof result.omitted === 'number' ? result.omitted : 0)
   const pending = state === 'pending' && running
   const checked = state === 'answered' && str(receipt.outcome) === 'applied'
-  const wrong = !pending && (!checked || found > 0)
-  const StateIcon = pending ? Icon.Code : wrong ? Icon.Close : Icon.Check
+  const reason = checked ? str(result.typeCheckError) : undefined
+  const wrong = !pending && (!checked || found > 0 || reason !== undefined)
   const words = pending
     ? 'Checking the App'
     : !checked
       ? 'The App was not checked'
       : result.built === false
         ? 'The App does not build'
-        : found === 0
-          ? 'Checked the App: no problems'
-          : `Checked the App: ${found === 1 ? '1 problem' : `${found} problems`}`
+        : found > 0
+          ? `Checked the App: ${found === 1 ? '1 problem' : `${found} problems`}`
+          : reason !== undefined
+            ? 'Checked the App: its types could not be checked'
+            : 'Checked the App: no problems'
+  return { words, pending, wrong, reason }
+}
+
+const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
+  const running = useAuiState((s) => s.message.status?.type === 'running')
+  const summary = appCheckSummary(data, running)
+  if (!summary) return null
+  const { words, pending, wrong, reason } = summary
+  const StateIcon = pending ? Icon.Code : wrong ? Icon.Close : Icon.Check
   return (
     <span
       data-slot="app-check"
+      title={reason}
       className={cn(
         'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
         liveEnter,

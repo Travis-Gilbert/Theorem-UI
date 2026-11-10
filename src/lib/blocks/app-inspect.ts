@@ -3,6 +3,7 @@
 // block sandbox and its bridge (executor.ts), and the trace of what a frame
 // throws (app-trace.ts). What a check of an App reports, and that it runs the
 // App where it can change nothing, is this app's.
+import { z } from 'zod'
 import { documentAppDatabases, openInMemory } from './app-db'
 import * as checker from './app-checker'
 import { AppBuildError, appSourcesOf } from './app-source'
@@ -12,7 +13,8 @@ import { parseHtmlDeclarations } from './declarations'
 import { pinnedAppHost, pinnedAppState } from './document-app'
 import { BLOCK_SANDBOX, FrameConnection } from './executor'
 import * as hosted from './hosted-app'
-import type { FrameError } from './sandbox/protocol'
+import { MAX_OUTLINE, MAX_SNAPSHOT, call } from './sandbox/protocol'
+import type { FrameError, SandboxMethods } from './sandbox/protocol'
 
 /** What a check of an App found. Everything in it is JSON. */
 export interface AppInspection {
@@ -49,6 +51,13 @@ export const DEFAULT_RUN_MS = 1500
 export const MAX_RUN_MS = 5000
 /** How long the App's page has to connect before the run is given up. */
 const CONNECT_MS = 10_000
+/** How long the App's page has to say what it shows at the end of its run. */
+const LOOK_MS = 2_000
+/** What a frame answers when asked what it shows. It is the App's word, so it is checked. */
+const looked = z.object({
+  html: z.string().max(MAX_SNAPSHOT),
+  outline: z.string().max(MAX_OUTLINE),
+})
 /** The most problems one check reports, and the most text of the rendered page. */
 export const MAX_PROBLEMS = 40
 const MAX_MESSAGE = 400
@@ -175,7 +184,23 @@ async function run(
         kind: 'runtime',
         message: 'The App did not start: its page never connected to Theorem.',
       })
-    else await wait(runMs)
+    else {
+      await wait(runMs)
+      // What the App shows at the end of its run. An App that keeps changing
+      // (a clock, an animation) never settles into a snapshot of its own, and
+      // one that changed late would leave an older one.
+      const seen = await Promise.race([
+        connection.connected.then((rpc) =>
+          call<SandboxMethods, 'frame.look'>(rpc, 'frame.look', {}),
+        ),
+        wait(LOOK_MS).then(() => null),
+      ]).catch(() => null)
+      const last = looked.safeParse(seen)
+      if (last.success) {
+        snapshot = last.data.html
+        outline = last.data.outline
+      }
+    }
   } finally {
     connection.dispose()
     databases.dispose()

@@ -83,6 +83,17 @@ export function snapshotHtml(): string {
 }
 
 /**
+ * The page as it is now: a snapshot and its outline, or null when the copy is
+ * too large to send. The outline is read from the live page, which knows what
+ * a copy cannot: what is hidden, what a field holds, what is checked.
+ */
+export function lookNow(): { html: string; outline: string } | null {
+  const html = snapshotHtml()
+  if (html.length > MAX_SNAPSHOT) return null
+  return { html, outline: outlineOf(document.body) }
+}
+
+/**
  * Calls `report` with a snapshot of the page once it settles after a change,
  * for the page to show where a live frame would cost too much (a canvas card
  * far out).
@@ -92,10 +103,8 @@ export function observeSnapshots(
 ): void {
   let timer: ReturnType<typeof setTimeout> | undefined
   const take = () => {
-    const html = snapshotHtml()
-    // Read from the live page, which knows what a copy cannot: what is hidden,
-    // what a field holds, what is checked.
-    if (html.length <= MAX_SNAPSHOT) report(html, outlineOf(document.body))
+    const seen = lookNow()
+    if (seen) report(seen.html, seen.outline)
   }
   const schedule = () => {
     clearTimeout(timer)

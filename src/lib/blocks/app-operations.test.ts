@@ -2,6 +2,7 @@
 // requests read off a conversation, the answers, and the receipts posted.
 import { describe, expect, test } from 'bun:test'
 import type { ThreadMessage } from '@assistant-ui/react'
+import { onlineManager } from '@tanstack/react-query'
 import { KIT_OPERATIONS } from '@/lib/kit/operations'
 import { useKitStage } from '@/lib/kit/stage'
 import { clientSurfaceTurnOptions } from '@/lib/theorem/client-surface'
@@ -234,5 +235,37 @@ describe('serving requests', () => {
     )
     expect(attempts).toBe(3)
     expect(page.inspected).toHaveLength(1)
+  })
+
+  test('a receipt held while the page is offline goes once it is back, and the next check is answered', async () => {
+    const page = host()
+    const posted: Array<string> = []
+    let attempts = 0
+    const post = async (asked: AppRequest) => {
+      attempts += 1
+      if (attempts === 1) {
+        onlineManager.setOnline(false)
+        throw new Error('network down')
+      }
+      posted.push(asked.requestRef)
+    }
+    const served = serveAppRequests(
+      [
+        request({ html: '<p>Held</p>' }, 'serve-held'),
+        request({ html: '<p>Next</p>' }, 'serve-next'),
+      ],
+      post,
+      page.host,
+      () => 0,
+    )
+    try {
+      await Bun.sleep(20)
+      expect(attempts).toBe(1)
+    } finally {
+      onlineManager.setOnline(true)
+    }
+    await served
+    expect(posted).toEqual(['serve-held', 'serve-next'])
+    expect(page.inspected).toHaveLength(2)
   })
 })
