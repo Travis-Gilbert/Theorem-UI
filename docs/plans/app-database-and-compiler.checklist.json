@@ -12,26 +12,38 @@
     {
       "id": "rustyred-wasm-crate",
       "requirement": "A rustyred-wasm crate in RustyRedDB builds the graph store over the OPFS projection chunk store and over memory, without Database::create/open",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "RustyRedDB PR #4 (feat/browser-binding, f873b62): Database::with_chunk_store and crates/rustyred-wasm",
+        "cargo test -p rustyred-wasm: 4 passed; cargo test -p rustyred --test chunk_store_database: 2 passed"
+      ]
     },
     {
       "id": "rustyred-browser-api",
       "requirement": "@rustyreddb/browser mirrors the Node binding (mutate, getNode, getEdge, queryNodes, neighbors, query, fulltext, compact, close) with the same error codes, behind an async client that owns the worker",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "RustyRedDB PR #4 (feat/browser-binding, f873b62): crates/rustyred-wasm/npm (worker.js, index.js, index.d.ts)",
+        "Not included: designateFulltext and fulltextSearch (Tantivy default features do not build for wasm32; the call answers fulltext_unavailable) and compact (native .RR files only)"
+      ]
     },
     {
       "id": "rustyred-subscribe",
       "requirement": "subscribe re-runs a registered read after a commit and posts the result",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "RustyRedDB PR #4 (feat/browser-binding, f873b62): npm/src/worker.js publish(); oracle check \"a subscription sees each change to its read and nothing else\"",
+        "Every subscribed read is run again after each commit and reported only when its result differs"
+      ]
     },
     {
       "id": "rustyred-browser-oracle",
       "requirement": "Headless Chromium: records written are read back after a page reload; runtime panics on wasm32 found by this run are fixed",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "npm run oracle in headless Chromium, 2026-11-10: 14 of 14 checks; records, edge and graph version present after a page reload; verify ok before and after",
+        "No wasm32 runtime panic appeared on these paths. Module 3.9 MB; first open about 90 ms, open after reload about 160 ms"
+      ]
     },
     {
       "id": "db-capability",
@@ -42,6 +54,12 @@
     {
       "id": "db-worker-per-app",
       "requirement": "One database per App document id in a host-page worker; every revision of an App sees the same records; a pinned revision is read-only",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "db-one-owner-across-tabs",
+      "requirement": "Two tabs showing the same App share its database: one tab owns the worker and the others reach it, because OPFS gives one exclusive handle per file",
       "status": "todo",
       "evidence": []
     },

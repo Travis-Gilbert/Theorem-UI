@@ -98,6 +98,11 @@ package.
 - A browser oracle (headless Chromium) proves: write, reload the page, read
   the same records back.
 
+Built and observed on 2026-11-10 (RustyRedDB PR #4), with two exceptions.
+Full-text search is not in the browser binding: the engine's index is built
+with Tantivy, whose default features do not build for `wasm32`. `compact` is
+for native files only.
+
 The browser file is not a native `.RR` file (`docs/compatibility.md`). Moving
 data between the two is export and import, and is not in this phase.
 
@@ -115,6 +120,11 @@ In Theorem UI.
   host today.
 - The agent learns the surface from the same declaration file the checker uses
   in Phase 3.
+
+- Two tabs showing the same App share one database. The browser gives one
+  exclusive handle per file, and a second open is refused (observed in the
+  Phase 1 oracle), so one tab owns the worker, chosen with a Web Lock, and the
+  others reach it over a `BroadcastChannel`.
 
 This works for today's HTML Apps and does not wait for Phase 3.
 
