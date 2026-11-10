@@ -472,7 +472,14 @@ export class KitDriver {
     let onto: PerchName | undefined
     if (climb && above) {
       if (world)
-        await this.jump(world, generation, climb.line.name, climb.at, 'hop')
+        await this.jump(
+          world,
+          generation,
+          climb.line.name,
+          climb.at,
+          'hop',
+          touch,
+        )
       else await this.land(climb.line, climb.at)
       if (generation === this.generation) onto = useKitStage.getState().perch
     } else if (!world) {
@@ -603,13 +610,15 @@ export class KitDriver {
     perch: PerchName,
     at: number,
     style: KitJumpStyle,
+    /** The person's touch this jump finishes; the fall that replaces it reports it instead. */
+    touch?: KitTouchKind,
   ): Promise<boolean> {
     if (!(await this.crouch())) return false
     if (generation !== this.generation) return false
     const goal = perchLine(perch)
     if (!goal) {
       // The perch went away during the crouch: Kit settles where it is.
-      void this.drop()
+      void this.release({ x: 0, y: 0 }, touch)
       return false
     }
     const [gx, gy] = standPoint(goal, at)
