@@ -289,7 +289,9 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
           </p>
         )}
         {!failed && (picked || fault) && (
-          <div className="absolute inset-x-3 bottom-3 flex flex-col items-start gap-2">
+          // Bottom-left, clear of the scene page's own Play/Pause at the
+          // bottom-right; the agent is told to keep both corners free.
+          <div className="absolute bottom-3 left-3 right-28 flex flex-col items-start gap-2">
             {picked && onAsk && (
               <Button
                 type="button"
