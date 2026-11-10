@@ -5,6 +5,7 @@
 // `Modes/<mode>.page.json`, else from their template.
 import type { LayoutData, PageDocument } from './contract'
 import { PAGE_SCHEMA, PAGE_SUFFIX } from './contract'
+import { WORK_TEMPLATES } from './work-templates'
 
 export const TEMPLATES_FOLDER = 'Templates'
 export const MODES_FOLDER = 'Modes'
@@ -20,6 +21,8 @@ export interface PageTemplate {
   title: string
   description?: string
   origin: 'builtin' | 'vault'
+  /** What has to be switched on for the template to be offered; absent for all. */
+  feature?: 'work' | 'github'
   layout: LayoutData
 }
 
@@ -109,6 +112,7 @@ export const CODING_TEMPLATE: PageTemplate = {
 export const BUILTIN_TEMPLATES: ReadonlyArray<PageTemplate> = [
   INDEX_TEMPLATE,
   CODING_TEMPLATE,
+  ...WORK_TEMPLATES,
 ]
 
 /** The modes that are pages: where each is kept, and what it starts as. */

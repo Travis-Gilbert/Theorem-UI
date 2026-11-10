@@ -15,6 +15,7 @@ import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import type { InstanceProps, SettingSpec } from '@/lib/modules/contract'
 import { MISSING_TYPE } from '@/lib/modules/layout'
+import { useWorkAvailable } from '@/components/work/settings'
 import { allModules, useModuleCatalog } from '@/lib/modules/registry'
 import type { ModuleDefinition } from '@/lib/modules/registry'
 import { cn } from '@/lib/utils'
@@ -305,7 +306,12 @@ const missingComponent: ComponentConfig = {
 }
 
 /** The page's Puck config, for these modules. */
-export function pageConfig(modules: ReadonlyArray<ModuleDefinition>): Config {
+export function pageConfig(
+  modules: ReadonlyArray<ModuleDefinition>,
+  // The Work modules stay renderable for pages that hold them; with the
+  // tracker off they are just not offered.
+  offerWork = true,
+): Config {
   const components: Record<string, ComponentConfig> = { ...layoutComponents }
   for (const definition of modules)
     components[definition.id] = moduleComponent(definition)
@@ -351,6 +357,7 @@ export function pageConfig(modules: ReadonlyArray<ModuleDefinition>): Config {
     categories: {
       layout: { title: 'Layout', components: [...LAYOUT_TYPES] },
       theorem: { title: 'Theorem', components: of('Theorem') },
+      work: { title: 'Work', components: of('Work'), visible: offerWork },
       // A heading over nothing says nothing, so these show once they hold one.
       installed: {
         title: 'Installed',
@@ -371,5 +378,6 @@ export function pageConfig(modules: ReadonlyArray<ModuleDefinition>): Config {
 /** The config for the catalog as it is now, rebuilt when the catalog changes. */
 export function usePageConfig(): Config {
   const catalog = useModuleCatalog()
-  return useMemo(() => pageConfig(allModules(catalog)), [catalog])
+  const work = useWorkAvailable()
+  return useMemo(() => pageConfig(allModules(catalog), work), [catalog, work])
 }

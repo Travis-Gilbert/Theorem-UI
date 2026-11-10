@@ -7,6 +7,8 @@ import { ATLAS_VIEW_ID, DATA_MODEL_VIEW_ID } from '@/components/index/programs'
 import { useViews } from '@/components/index/queries'
 import { activeObjectTypes, useDataModel } from '@/components/records/queries'
 import { useShell } from '@/components/shell/shell-state'
+import { useWorkProjects, useWorkViews } from '@/components/work/queries'
+import { useWorkAvailable } from '@/components/work/settings'
 import { Button } from '@/components/ui/button'
 import type { ResourceKind } from '@/lib/modules/contract'
 import { useVaultClient } from '@/lib/modules/store'
@@ -35,6 +37,10 @@ export function ResourceField({
       return <FileField {...props} />
     case 'conversation':
       return <ConversationField {...props} />
+    case 'work-view':
+      return <WorkViewField {...props} />
+    case 'work-project':
+      return <WorkProjectField {...props} />
     case 'app':
       return (
         <input
@@ -72,6 +78,82 @@ function IndexViewField({ label, value, onChange }: FieldProps) {
       {options.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** With the tracker off nothing is asked of it; the id stays editable as text. */
+function WorkOffField({ label, value, onChange }: FieldProps) {
+  return (
+    <input
+      aria-label={label}
+      className={fieldControl}
+      placeholder="The work tracker is off"
+      value={value}
+      onChange={(event) => onChange(event.target.value.trim())}
+    />
+  )
+}
+
+function WorkViewField(props: FieldProps) {
+  return useWorkAvailable() ? (
+    <WorkViewChoice {...props} />
+  ) : (
+    <WorkOffField {...props} />
+  )
+}
+
+function WorkViewChoice({ label, value, onChange }: FieldProps) {
+  const views = useWorkViews()
+  const options = (views.data ?? []).filter((view) => view.scope === 'items')
+  return (
+    <select
+      aria-label={label}
+      className={fieldControl}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      <option value="">The module's own</option>
+      {value && !options.some((view) => view.id === value) && (
+        <option value={value}>{value}</option>
+      )}
+      {options.map((view) => (
+        <option key={view.id} value={view.id}>
+          {view.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function WorkProjectField(props: FieldProps) {
+  return useWorkAvailable() ? (
+    <WorkProjectChoice {...props} />
+  ) : (
+    <WorkOffField {...props} />
+  )
+}
+
+function WorkProjectChoice({ label, value, onChange }: FieldProps) {
+  const projects = useWorkProjects()
+  return (
+    <select
+      aria-label={label}
+      className={fieldControl}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      <option value="">
+        {projects.isPending ? 'Reading the projects…' : 'Choose a project'}
+      </option>
+      {value && !projects.data?.some((p) => p.id === value) && (
+        <option value={value}>{value}</option>
+      )}
+      {projects.data?.map((project) => (
+        <option key={project.id} value={project.id}>
+          {project.name}
         </option>
       ))}
     </select>

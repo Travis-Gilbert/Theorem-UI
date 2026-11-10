@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { useWorkTracker } from '@/components/work/settings'
 import { grantKey, useModuleGrants } from '@/lib/modules/grants'
 import { useModuleCatalog } from '@/lib/modules/registry'
 import type { ModuleDefinition } from '@/lib/modules/registry'
@@ -38,6 +39,7 @@ import {
   modePagePath,
 } from '@/lib/modules/templates'
 import type { PageMode, PageTemplate } from '@/lib/modules/templates'
+import { templateOffered } from '@/lib/modules/work-templates'
 import { cn } from '@/lib/utils'
 import { openWorkspaceFile } from '@/lib/workspace/open'
 import type { WorkspaceClient } from '@/lib/workspace/types'
@@ -369,7 +371,15 @@ function NewPageDialog({
   const saved = useVaultTemplates(client)
   const [title, setTitle] = useState('')
   const [chosen, setChosen] = useState(BLANK)
-  const templates: PageTemplate[] = [...BUILTIN_TEMPLATES, ...saved.templates]
+  const tracker = useWorkTracker()
+  const offered = {
+    work: tracker.state === 'on',
+    github: tracker.state === 'on' && tracker.github,
+  }
+  const templates: PageTemplate[] = [
+    ...BUILTIN_TEMPLATES.filter((t) => templateOffered(t, offered)),
+    ...saved.templates,
+  ]
   const template = templates.find((t) => t.id === chosen)
   const submit = (event: FormEvent) => {
     event.preventDefault()
