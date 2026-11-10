@@ -60,11 +60,9 @@ export const writeSettings = (settings: WorkSettings) =>
 
 // Items
 
+/** A read sent as a POST: the server checks CSRF on every method but GET, as it does for the Index's query route. */
 export const queryItems = (query: WorkQuery) =>
-  theoremJson<WorkItemsPage>(`${WORK}/items/query`, {
-    method: 'POST',
-    body: query,
-  })
+  write<WorkItemsPage>('POST', `${WORK}/items/query`, query)
 
 export const readItem = (itemId: string) =>
   theoremJson<WorkItemDetail>(`${WORK}/items/${id(itemId)}`)
