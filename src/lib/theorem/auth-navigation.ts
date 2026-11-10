@@ -1,4 +1,18 @@
 // Shared by the login screen and server redirects; URL parsing uses the platform API.
+
+/**
+ * For the pages Neon sends a person to while signing in. They take a password
+ * or an approval, so no other site may frame them; their address carries a
+ * signed authorization query, so it is not sent to other origins. Same-origin,
+ * not no-referrer: a no-referrer page sends `Origin: null` on its POSTs, which
+ * Neon would refuse.
+ */
+export const authPageHeaders = {
+  'Content-Security-Policy': "frame-ancestors 'none'",
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'same-origin',
+  'Cache-Control': 'no-store',
+}
 export function safeReturnTo(value: string | null | undefined) {
   const origin = 'https://theorem.invalid'
   if (!value?.startsWith('/') || value.startsWith('//')) return '/'
@@ -27,7 +41,7 @@ export function signInFailureMessage(code: string) {
     case 'expired':
       return 'Your sign-in session is missing or expired. Start again in the same browser, with cookies enabled.'
     case 'access_denied':
-      return 'GitHub sign-in was cancelled or access was declined. You can try again.'
+      return 'Sign-in was cancelled, or that account is not admitted to this Theorem. You can try again, or sign in another way.'
     case 'invalid_grant':
       return 'The sign-in code expired or was already used. Start a new sign-in instead of reloading the callback.'
     case 'invalid_client':
