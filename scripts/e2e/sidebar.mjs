@@ -97,8 +97,13 @@ check(
 )
 await shot('thread-moved')
 
-// From the new chat page, so the click has somewhere to go.
-await page.getByRole('button', { name: 'New thread', exact: true }).click()
+// From the new chat page, so the click has somewhere to go. The button beside
+// Search: a chat being started has a "New thread" row of its own in the tree.
+await page
+  .getByRole('list')
+  .filter({ has: page.getByRole('button', { name: /^Search/ }) })
+  .getByRole('button', named('New thread'))
+  .click()
 await page.waitForURL((url) => url.pathname === '/')
 await place(to).locator(`a[href="${href}"]`).click()
 await page.waitForURL((url) => url.pathname !== '/').catch(() => {})
