@@ -58,7 +58,7 @@ import {
   useRevealOpenThread,
 } from './thread-row'
 import type { RowDrag } from './thread-row'
-import { neighbour } from '@/lib/theorem/highlight-finders'
+import { neighbour } from '@/lib/theorem/row-neighbour'
 import { useCommandPalette } from '@/components/shell/command-palette'
 import { useShellMode } from '@/components/shell/modes'
 import { useTenant } from '@/components/shell/projects'

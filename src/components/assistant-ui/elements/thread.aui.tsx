@@ -60,7 +60,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/coss/collapsible";
 import { ProjectGlyph } from "@/components/organize/glyphs";
-import { useTenant } from "@/components/shell/projects";
 import { ChevronRight } from "lucide-react";
 
 import { Magnet, useArrivedLive } from "@/components/motion";
@@ -77,6 +76,8 @@ import { useComposerSend } from "@assistant-ui/core/react";
 import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
 import { EffortPicker } from "@/components/chat/effort-picker";
 import { DirectiveText } from "./directive-text.aui";
+import { ChatCollapsibleMessage } from "@/components/coss/chat/chat-collapsible-message";
+import { UnseenDivider, UnseenFromProvider, useUnseenFrom } from "./unseen-divider.aui";
 import { attendKit } from "@/lib/kit/store";
 import { messageLabel, messageSurface } from "@/lib/kit/stage";
 
@@ -150,6 +151,8 @@ const taskAwareGroupBy = (
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
   autoFocus?: boolean | undefined;
+  /** Another view lies over the thread while it stays laid out, as Theia and the Vault do on the desktop. */
+  covered?: boolean | undefined;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
@@ -194,21 +197,24 @@ const ThreadHistorySkeleton: FC = () => (
 export const Thread: FC<ThreadProps> = ({
   components = EMPTY_COMPONENTS,
   autoFocus = true,
+  covered = false,
 }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} autoFocus={autoFocus} />
+      <ThreadRoot isEmpty={isEmpty} autoFocus={autoFocus} covered={covered} />
     </ThreadComponentsContext.Provider>
   );
 };
 
-const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
-  isEmpty,
-  autoFocus,
-}) => {
+const ThreadRoot: FC<{
+  isEmpty: boolean;
+  autoFocus: boolean;
+  covered: boolean;
+}> = ({ isEmpty, autoFocus, covered }) => {
   const footerRef = useRef<HTMLDivElement>(null);
+  const unseen = useUnseenFrom(covered);
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
   // edge, so it glides rather than overshooting past it.
@@ -230,6 +236,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
       }}
     >
       <ThreadPrimitive.Viewport
+        ref={unseen.ref}
         turnAnchor="top"
         data-slot="aui_thread-viewport"
         data-kit-clip
@@ -253,9 +260,11 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             data-slot="aui_message-group"
             className="mb-14 flex flex-col gap-y-6 empty:hidden"
           >
-            <ThreadPrimitive.Messages>
-              {() => <ThreadMessage />}
-            </ThreadPrimitive.Messages>
+            <UnseenFromProvider value={unseen.anchor}>
+              <ThreadPrimitive.Messages>
+                {() => <ThreadMessage />}
+              </ThreadPrimitive.Messages>
+            </UnseenFromProvider>
           </div>
 
           <ThreadReviewCards />
@@ -289,7 +298,12 @@ const ThreadMessage: FC = () => {
   if (isEditing) return <EditComposer />;
   if (isSpoken) return <SpokenMessage />;
   if (role === "user") return <UserMessage />;
-  return <AssistantMessageComponent />;
+  return (
+    <>
+      <UnseenDivider />
+      <AssistantMessageComponent />
+    </>
+  );
 };
 
 type VoiceRunPosition = "single" | "start" | "middle" | "end";
@@ -735,6 +749,7 @@ export const AssistantMessageContent: FC = () => {
   );
 };
 /** A mark, then who spoke above what they said, as in docs/plans/evidence/refs/sidebar-compare@2026-11-05.webp. */
+/** The agent speaks from the left of the column, under its mark and name. */
 const MESSAGE_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2";
 const MESSAGE_SPEAKER = "flex min-h-6 items-center gap-2 px-2 font-medium text-ink";
 
@@ -889,7 +904,6 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 const UserMessage: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const surface = useKitSurface();
-  const tenant = useTenant();
   // A message just sent from the composer flies up from where it was typed.
   useLayoutEffect(() => {
     const origin = takeLaunch();
@@ -910,60 +924,57 @@ const UserMessage: FC = () => {
   }, []);
 
   return (
+    // The person speaks from the right of the column, across from the agent,
+    // on the composer's paper the message rose from.
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
       {...surface}
-      className={cn(
-        MESSAGE_GRID,
-        "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
-      )}
+      className="flex flex-col items-end gap-1 ps-[20%] pe-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
       data-role="user"
     >
-      <span
-        aria-hidden
-        className="bg-action text-ink flex size-8 items-center justify-center rounded-full text-sm font-medium"
-      >
-        {tenant?.charAt(0).toUpperCase()}
-      </span>
-      <div className="min-w-0">
-        <div className={MESSAGE_SPEAKER}>
-          You
-          <div className="aui-user-action-bar-wrapper">
-            <UserActionBar />
-          </div>
+      <UserMessageAttachments />
+      <div className="aui-user-message-content-wrapper flex max-w-full min-w-0 items-start gap-1">
+        <div className="aui-user-action-bar-wrapper pt-1">
+          <UserActionBar />
         </div>
-        <UserMessageAttachments />
-        <div className="aui-user-message-content-wrapper px-2">
-          <div
-            ref={contentRef}
-            className="aui-user-message-content text-ink leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
-          >
-            <MessagePrimitive.Parts
-              components={{
-                File: UserFilePart,
-                Image: UserImagePart,
-                Text: UserTextPart,
-              }}
-            />
-          </div>
+        <div
+          ref={contentRef}
+          className="aui-user-message-content surface-paper border-separator text-ink min-w-0 rounded-2xl border px-3.5 py-2 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
+        >
+          <MessagePrimitive.Parts
+            components={{
+              File: UserFilePart,
+              Image: UserImagePart,
+              Text: UserTextPart,
+            }}
+          />
         </div>
-        <BranchPicker data-slot="aui_user-branch-picker" className="px-1" />
       </div>
+      <BranchPicker data-slot="aui_user-branch-picker" className="px-1" />
     </MessagePrimitive.Root>
   );
 };
 
-/** A review's answer has a card naming the review, so the line telling the agent which one stays out of view. */
+/**
+ * A review's answer has a card naming the review, so the line telling the
+ * agent which one stays out of view. A long paste folds after its opening,
+ * so the replies around it stay in reach.
+ */
 const UserTextPart: TextMessagePartComponent = (part) => {
   const answered = useAuiState((s) =>
     s.message.parts.some(
       (part) => part.type === "data" && part.name === "theorem-review_answer",
     ),
   );
+  const text = answered ? answerBody(part.text) : part.text;
+  if (!text) return null;
   return (
-    <DirectiveText
-      {...part}
-      text={answered ? answerBody(part.text) : part.text}
+    <ChatCollapsibleMessage
+      text={text}
+      side="outgoing"
+      showMoreLabel="Show more"
+      showLessLabel="Show less"
+      renderText={(shown) => <DirectiveText {...part} text={shown} />}
     />
   );
 };
