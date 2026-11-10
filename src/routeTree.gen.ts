@@ -23,8 +23,11 @@ import { Route as ChatPagesRouteImport } from './routes/_chat/pages'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthConsentRouteImport } from './routes/auth/consent'
+import { Route as AuthEmailRouteImport } from './routes/auth/email'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as LoginCodeRouteImport } from './routes/login_.code'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
@@ -36,6 +39,7 @@ import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
 import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
+import { Route as AuthNeonSplatRouteImport } from './routes/auth/neon.$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
@@ -137,6 +141,16 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthConsentRoute = AuthConsentRouteImport.update({
+  id: '/auth/consent',
+  path: '/auth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthEmailRoute = AuthEmailRouteImport.update({
+  id: '/auth/email',
+  path: '/auth/email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/auth/sign-in',
   path: '/auth/sign-in',
@@ -145,6 +159,11 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
 const AuthSignOutRoute = AuthSignOutRouteImport.update({
   id: '/auth/sign-out',
   path: '/auth/sign-out',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginCodeRoute = LoginCodeRouteImport.update({
+  id: '/login_/code',
+  path: '/login/code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -200,6 +219,11 @@ const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
 const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
   id: '/api/index/$',
   path: '/api/index/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthNeonSplatRoute = AuthNeonSplatRouteImport.update({
+  id: '/auth/neon/$',
+  path: '/auth/neon/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesktopBlocksIndexRoute = DesktopBlocksIndexRouteImport.update({
@@ -392,8 +416,11 @@ export interface FileRoutesByFullPath {
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/email': typeof AuthEmailRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/login/code': typeof LoginCodeRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -405,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/auth/neon/$': typeof AuthNeonSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -449,8 +477,11 @@ export interface FileRoutesByTo {
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/email': typeof AuthEmailRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/login/code': typeof LoginCodeRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -463,6 +494,7 @@ export interface FileRoutesByTo {
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/auth/neon/$': typeof AuthNeonSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
@@ -510,8 +542,11 @@ export interface FileRoutesById {
   '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/email': typeof AuthEmailRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/login_/code': typeof LoginCodeRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
@@ -524,6 +559,7 @@ export interface FileRoutesById {
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/auth/neon/$': typeof AuthNeonSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -572,8 +608,11 @@ export interface FileRouteTypes {
     | '/spaces'
     | '/vault'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/email'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/login/code'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -585,6 +624,7 @@ export interface FileRouteTypes {
     | '/pages/$pageId'
     | '/api/artifacts/$'
     | '/api/index/$'
+    | '/auth/neon/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -629,8 +669,11 @@ export interface FileRouteTypes {
     | '/spaces'
     | '/vault'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/email'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/login/code'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -643,6 +686,7 @@ export interface FileRouteTypes {
     | '/pages/$pageId'
     | '/api/artifacts/$'
     | '/api/index/$'
+    | '/auth/neon/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
@@ -689,8 +733,11 @@ export interface FileRouteTypes {
     | '/_chat/spaces'
     | '/_chat/vault'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/email'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/login_/code'
     | '/settings/ai'
     | '/settings/appearance'
     | '/settings/import'
@@ -703,6 +750,7 @@ export interface FileRouteTypes {
     | '/_chat/pages/$pageId'
     | '/api/artifacts/$'
     | '/api/index/$'
+    | '/auth/neon/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -744,12 +792,16 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesDotjsonRoute: typeof StoriesDotjsonRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthConsentRoute: typeof AuthConsentRoute
+  AuthEmailRoute: typeof AuthEmailRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  LoginCodeRoute: typeof LoginCodeRoute
   StoryIdRoute: typeof StoryIdRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
   ApiArtifactsSplatRoute: typeof ApiArtifactsSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
+  AuthNeonSplatRoute: typeof AuthNeonSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
@@ -883,6 +935,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/consent': {
+      id: '/auth/consent'
+      path: '/auth/consent'
+      fullPath: '/auth/consent'
+      preLoaderRoute: typeof AuthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/email': {
+      id: '/auth/email'
+      path: '/auth/email'
+      fullPath: '/auth/email'
+      preLoaderRoute: typeof AuthEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/sign-in': {
       id: '/auth/sign-in'
       path: '/auth/sign-in'
@@ -895,6 +961,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/sign-out'
       fullPath: '/auth/sign-out'
       preLoaderRoute: typeof AuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login_/code': {
+      id: '/login_/code'
+      path: '/login/code'
+      fullPath: '/login/code'
+      preLoaderRoute: typeof LoginCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -972,6 +1045,13 @@ declare module '@tanstack/react-router' {
       path: '/api/index/$'
       fullPath: '/api/index/$'
       preLoaderRoute: typeof ApiIndexSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/neon/$': {
+      id: '/auth/neon/$'
+      path: '/auth/neon/$'
+      fullPath: '/auth/neon/$'
+      preLoaderRoute: typeof AuthNeonSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/desktop/blocks/': {
@@ -1258,12 +1338,16 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   StoriesDotjsonRoute: StoriesDotjsonRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthConsentRoute: AuthConsentRoute,
+  AuthEmailRoute: AuthEmailRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  LoginCodeRoute: LoginCodeRoute,
   StoryIdRoute: StoryIdRoute,
   TheiaSplatRoute: TheiaSplatRoute,
   ApiArtifactsSplatRoute: ApiArtifactsSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
+  AuthNeonSplatRoute: AuthNeonSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
@@ -1309,12 +1393,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

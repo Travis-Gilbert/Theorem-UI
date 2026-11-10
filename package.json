@@ -62,6 +62,7 @@
     "@milkdown/react": "7.22.3",
     "@moritzrs/mdast-util-ofm-callout": "0.0.1",
     "@moritzrs/micromark-extension-ofm-callout": "0.0.1",
+    "@neon/auth": "0.8.2",
     "@observablehq/inputs": "0.12.0",
     "@observablehq/notebook-kit": "2.7.1",
     "@observablehq/runtime": "6.0.1",
@@ -179,6 +180,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@better-auth/oauth-provider": "1.7.12",
     "@happy-dom/global-registrator": "21.0.3",
     "@napi-rs/canvas": "1.0.11",
     "@tanstack/eslint-config": "0.4.0",
@@ -202,6 +204,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/write-file-atomic": "4.0.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "better-auth": "1.7.12",
     "eslint": "^9.20.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "26.1.0",
