@@ -14,6 +14,7 @@ export const SETTINGS_GROUPS = [
     sections: [
       { path: '/settings/ai', label: 'AI', Mark: Icon.Model },
       { path: '/settings/keys', label: 'API keys', Mark: Icon.Key },
+      { path: '/settings/connections', label: 'Connections', Mark: Icon.Plugin },
       { path: '/settings/import', label: 'Import context', Mark: Icon.Download },
     ],
   },
