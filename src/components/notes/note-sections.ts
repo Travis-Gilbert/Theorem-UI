@@ -151,8 +151,28 @@ export function placeItem(
     : layout
 }
 
-export const toggleSection = (layout: SectionLayout, id: SectionId) =>
-  editSection(layout, id, (s) => ({ ...s, collapsed: !s.collapsed }))
+/**
+ * The section folded or opened as the person chose. It names the state, not a
+ * flip, so making it again over another device's layout keeps their choice.
+ */
+export const foldSection = (
+  layout: SectionLayout,
+  id: SectionId,
+  collapsed: boolean,
+) => editSection(layout, id, (s) => ({ ...s, collapsed }))
+
+/**
+ * A click on a section's heading: the other way from the first layout it is
+ * made over, which is this device's latest, earlier clicks included. Made again
+ * over another device's layout, it keeps that choice rather than flipping theirs.
+ */
+export function refold(id: SectionId) {
+  let collapsed: boolean | undefined
+  return (layout: SectionLayout) => {
+    collapsed ??= !layout.sections.find((s) => s.id === id)?.collapsed
+    return foldSection(layout, id, collapsed)
+  }
+}
 
 /** Each section's rows, kept in the order they came in. */
 export function groupBySection<T>(

@@ -12,7 +12,8 @@ import {
   placeItem,
   renameSection,
   sectionOf,
-  toggleSection,
+  foldSection,
+  refold,
 } from './note-sections'
 import type { SectionLayout } from './note-sections'
 
@@ -135,12 +136,37 @@ describe('placeItem', () => {
   })
 })
 
-describe('toggleSection', () => {
+describe('foldSection', () => {
   test('folds a section away and opens it again', () => {
-    const folded = toggleSection(START_LAYOUT, 'notes')
+    const folded = foldSection(START_LAYOUT, 'notes', true)
     expect(folded.sections[1]?.collapsed).toBe(true)
-    expect(toggleSection(folded, 'notes').sections[1]?.collapsed).toBe(false)
+    expect(foldSection(folded, 'notes', false).sections[1]?.collapsed).toBe(
+      false,
+    )
     expect(folded.sections[0].collapsed).toBe(false)
+  })
+
+  test('folding a section already folded keeps it folded', () => {
+    const folded = foldSection(START_LAYOUT, 'notes', true)
+    expect(foldSection(folded, 'notes', true).sections[1]?.collapsed).toBe(true)
+  })
+})
+
+describe('refold', () => {
+  test('folds an open section the other way', () => {
+    expect(refold('notes')(START_LAYOUT).sections[1]?.collapsed).toBe(true)
+  })
+
+  test('two clicks in a row, each made over the last, leave it as it was', () => {
+    const first = refold('notes')(START_LAYOUT)
+    expect(refold('notes')(first).sections[1]?.collapsed).toBe(false)
+  })
+
+  test('made again over another layout, it keeps the way it first chose', () => {
+    const fold = refold('notes')
+    fold(START_LAYOUT)
+    const theirs = foldSection(START_LAYOUT, 'notes', true)
+    expect(fold(theirs).sections[1]?.collapsed).toBe(true)
   })
 })
 

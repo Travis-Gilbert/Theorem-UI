@@ -64,7 +64,7 @@ import {
   placeItem,
   renameSection,
   sectionOf,
-  toggleSection,
+  refold,
 } from './note-sections'
 import type { Section, SectionId } from './note-sections'
 import { INTO, SECTION, after, collide, dropSteps } from './note-drop'

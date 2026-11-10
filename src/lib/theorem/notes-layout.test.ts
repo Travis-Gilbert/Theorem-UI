@@ -3,6 +3,8 @@ import { TheoremError } from '@theoremharness/sdk'
 import {
   START_LAYOUT,
   addSection,
+  foldSection,
+  refold,
   renameSection,
 } from '@/components/notes/note-sections'
 import {
@@ -104,6 +106,17 @@ describe('saveLayout', () => {
       'Agents',
       'New section',
     ])
+  })
+
+  test('a fold made again over a device that folded it first stays folded', async () => {
+    const fold = refold('notes')
+    const theirs = stored(5, foldSection(START_LAYOUT, 'notes', true))
+    const saved = await saveLayout(fold, stored(2), (layout, revision) =>
+      revision === 2
+        ? Promise.reject(stale(theirs))
+        : Promise.resolve(stored(revision + 1, layout)),
+    )
+    expect(saved.layout?.sections[1]?.collapsed).toBe(true)
   })
 
   test('gives up after three stale tries', async () => {
