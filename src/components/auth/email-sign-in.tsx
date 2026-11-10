@@ -35,9 +35,19 @@ export function EmailSignIn() {
     retry: false,
   })
   const signedIn = Boolean(session.data?.session)
+  const resume = useMutation({
+    mutationFn: async (): Promise<Failure | undefined> => {
+      const { error } = await neonAuth().oauth2.continue({ selected: true })
+      // Without an error, Neon's response navigates on to Theorem.
+      if (!error) return undefined
+      return error.status && error.status < 500 ? 'expired' : 'unavailable'
+    },
+  })
+  const resumeFailure = resume.isError ? 'unavailable' : resume.data
+  const { mutate: resumeMutate, status: resumeStatus } = resume
   useEffect(() => {
-    if (signedIn) void neonAuth().oauth2.continue({ selected: true })
-  }, [signedIn])
+    if (signedIn && resumeStatus === 'idle') resumeMutate()
+  }, [signedIn, resumeMutate, resumeStatus])
 
   const [failure, setFailure] = useState<Failure>()
   const signIn = useMutation({
@@ -84,6 +94,23 @@ export function EmailSignIn() {
             </a>{' '}
             and choose email there.
           </p>
+        ) : signedIn && resumeFailure ? (
+          <div
+            role="alert"
+            className="mt-6 rounded-lg border border-border bg-muted p-4 text-sm leading-6"
+          >
+            {failureText[resumeFailure]}
+            {resumeFailure === 'unavailable' && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="mt-4 w-full"
+                onClick={() => resume.mutate()}
+              >
+                Try again
+              </Button>
+            )}
+          </div>
         ) : signedIn ? (
           <p className="mt-6 text-sm text-ink-muted" aria-live="polite">
             Signing you in…

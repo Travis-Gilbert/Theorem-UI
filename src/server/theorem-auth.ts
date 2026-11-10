@@ -59,7 +59,10 @@ export type CodeSignIn = {
 export type CodeSignInStatus =
   | { status: 'pending'; interval: number }
   | { status: 'signed_in'; returnTo: string }
-  | { status: 'denied' | 'expired' | 'unavailable' }
+  | { status: 'denied' | 'expired' }
+  // Theorem could not be reached. The code is kept, so polling goes on at
+  // the interval, when this poll got far enough to know it.
+  | { status: 'unavailable'; interval?: number }
 
 /**
  * Chat and run routes accept run:read and run:write in place of tenant:read
@@ -417,8 +420,12 @@ export async function pollCodeSignIn(): Promise<CodeSignInStatus> {
       ),
     )
   } catch (error) {
-    if (!(error instanceof oauth.ResponseBodyError))
-      return { status: 'unavailable' }
+    if (
+      !(error instanceof oauth.ResponseBodyError) ||
+      error.status >= 500 ||
+      error.error === 'temporarily_unavailable'
+    )
+      return { status: 'unavailable', interval: device.interval }
     switch (error.error) {
       case 'authorization_pending':
         return { status: 'pending', interval: device.interval }

@@ -26,10 +26,17 @@ export function CodeSignIn({ returnTo = '/' }: { returnTo?: string }) {
     queryKey: ['theorem', 'code-sign-in', code?.userCode],
     queryFn: () => pollCodeSignIn(),
     enabled: Boolean(code),
+    // Keep polling while the approval is pending or Theorem is unreachable;
+    // stop once the code is spent, refused or expired.
     refetchInterval: (query) => {
       const result = query.state.data
-      if (!result) return (code?.interval ?? 5) * 1000
-      return result.status === 'pending' ? result.interval * 1000 : false
+      if (
+        result &&
+        result.status !== 'pending' &&
+        result.status !== 'unavailable'
+      )
+        return false
+      return (result?.interval ?? code?.interval ?? 5) * 1000
     },
     refetchIntervalInBackground: true,
     retry: false,

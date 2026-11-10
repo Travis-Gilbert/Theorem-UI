@@ -57,7 +57,9 @@ const issuer = Bun.serve({
           'urn:ietf:params:oauth:grant-type:device_code' &&
         deviceAnswer !== 'approved'
       )
-        return Response.json({ error: deviceAnswer }, { status: 400 })
+        return deviceAnswer === 'down'
+          ? new Response('upstream unavailable', { status: 503 })
+          : Response.json({ error: deviceAnswer }, { status: 400 })
       if (lastGrant.get('code') === 'expired-code')
         return Response.json({ error: 'invalid_grant' }, { status: 400 })
       return Response.json({
@@ -328,6 +330,16 @@ test('a code sign-in keeps its device code sealed and signs in once approved', a
   expect(await personBearer()).toBe('test-access')
   // The code is spent; another poll has nothing to wait for.
   expect(await pollCodeSignIn()).toEqual({ status: 'expired' })
+})
+
+test('a code outlives a Theorem that cannot be reached', async () => {
+  await startCodeSignIn('/')
+  deviceAnswer = 'down'
+  expect(await pollCodeSignIn()).toEqual({ status: 'unavailable', interval: 5 })
+  deviceAnswer = 'temporarily_unavailable'
+  expect(await pollCodeSignIn()).toEqual({ status: 'unavailable', interval: 5 })
+  deviceAnswer = 'approved'
+  expect(await pollCodeSignIn()).toEqual({ status: 'signed_in', returnTo: '/' })
 })
 
 test('a refused code says so and forgets the device code', async () => {
