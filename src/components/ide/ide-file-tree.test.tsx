@@ -70,3 +70,35 @@ test('a folder read before its parent was collapsed shows what changed in it onc
   await click(row('src')!)
   expect(await waitFor(() => row('b.tsx'))).toBeDefined()
 })
+
+test('a folder that could not be read says so, and Try again reads it once the frame answers', async () => {
+  const listing: Record<string, Array<{ name: string; path: string; folder: boolean }>> = {
+    '': [{ name: 'src', path: 'src', folder: true }],
+    src: [{ name: 'a.ts', path: 'src/a.ts', folder: false }],
+  }
+  let refuse = true
+  useFollow.setState({
+    ide: {
+      listFiles: async (path: string) => {
+        if (path === 'src' && refuse) throw new Error('The workspace is busy.')
+        return listing[path] ?? []
+      },
+    } as unknown as Ide,
+  })
+  const { container } = await render(<IdeFileTree workspaceId="w" />)
+  const row = (name: string) =>
+    [...container.querySelectorAll('[role="treeitem"]')].find(
+      (item) => item.textContent.trim() === name,
+    )
+  await click(await waitFor(() => row('src')))
+  const alert = await waitFor(() => container.querySelector('[role="alert"]'))
+  expect(alert.textContent).toContain('“src” could not be read: The workspace is busy.')
+  // The frame answers again; reopening alone would show the empty list the tree kept.
+  refuse = false
+  const retry = [...alert.querySelectorAll('button')].find(
+    (button) => button.textContent.trim() === 'Try again',
+  )
+  await click(retry!)
+  expect(await waitFor(() => row('a.ts'))).toBeDefined()
+  await waitFor(() => (container.querySelector('[role="alert"]') ? undefined : true))
+})

@@ -68,6 +68,12 @@ function linkedIde(): Promise<Ide> {
 const failure = (error: unknown) =>
   error instanceof Error ? error.message.replace(/\.$/, '') : String(error)
 
+/** Folders whose last read failed, and why the latest one did. */
+interface Unread {
+  folders: ReadonlyArray<string>
+  reason: string
+}
+
 /** A file or folder waiting for its name, in `folder`. */
 interface Draft {
   folder: string
@@ -94,6 +100,7 @@ export function IdeFileTree({
   const [draft, setDraft] = useState<Draft>()
   const [doomed, setDoomed] = useState<Array<IdeFileEntry>>()
   const [problem, setProblem] = useState<string>()
+  const [unread, setUnread] = useState<Unread>()
   const [menuTarget, setMenuTarget] = useState(ROOT)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -122,13 +129,28 @@ export function IdeFileTree({
     dataLoader: {
       // Every item but the root arrives with its folder's listing.
       getItem: (id) => ({ name: basename(id), path: pathOf(id), folder: true }),
+      // A failed read still answers, with nothing: a thrown one would leave the
+      // folder loading for good. The tree keeps that empty list, so the folder
+      // is remembered until a read of it succeeds; Try again asks for one.
       getChildrenWithData: async (id) => {
         const ide = await linkedIde()
-        const entries = await ide.listFiles(pathOf(id)).catch((error) => {
-          setProblem(`This folder could not be read: ${failure(error)}.`)
+        try {
+          const entries = await ide.listFiles(pathOf(id))
+          setUnread((now) => {
+            if (!now?.folders.includes(id)) return now
+            const folders = now.folders.filter((other) => other !== id)
+            return folders.length ? { ...now, folders } : undefined
+          })
+          return entries.map((entry) => ({ id: idOf(entry.path), data: entry }))
+        } catch (error) {
+          setUnread((now) => ({
+            folders: now?.folders.includes(id)
+              ? now.folders
+              : [...(now?.folders ?? []), id],
+            reason: failure(error),
+          }))
           return []
-        })
-        return entries.map((entry) => ({ id: idOf(entry.path), data: entry }))
+        }
       },
     },
     onPrimaryAction: (item) => {
@@ -316,7 +338,7 @@ export function IdeFileTree({
         >
           {draft?.folder === '' && draftRow(0)}
           {top.map((item) => entry(item, 0))}
-          {top.length === 0 && !draft && (
+          {top.length === 0 && !draft && !unread?.folders.includes(ROOT) && (
             <p className="px-2 py-1 text-sm text-ink-muted">
               {root.isLoading() || !listed
                 ? 'Opening the workspace…'
@@ -372,6 +394,31 @@ export function IdeFileTree({
           </ContextMenu.Positioner>
         </ContextMenu.Portal>
       </ContextMenu.Root>
+      {unread && (
+        <div
+          role="alert"
+          className="flex items-start gap-1 px-2 pt-1 text-xs text-error-ink"
+        >
+          <p className="min-w-0 flex-1">
+            {unread.folders.length > 1
+              ? `${unread.folders.length} folders`
+              : unread.folders[0] === ROOT
+                ? 'The workspace'
+                : `“${basename(unread.folders[0] ?? '')}”`}{' '}
+            could not be read: {unread.reason}.
+          </p>
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => {
+              for (const id of unread.folders)
+                void tree.getItemInstance(id).invalidateChildrenIds()
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
       {problem && (
         <p role="alert" className="px-2 pt-1 text-xs text-error-ink">
           {problem}
