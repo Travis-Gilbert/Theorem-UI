@@ -11,10 +11,13 @@
 // `content-visibility: auto` containment cannot clip.
 //
 // The artifact is the agent's own code and draws its own title, so the card
-// has no chrome: a corner control to expand it, and, when it is needed, the
-// error that stopped the code with a Fix that asks the agent to mend it, or
-// the thing the reader picked with an offer to ask about it. Inline, the card
-// is wider than the reading column (--spacing-artifact), centred on it.
+// has no chrome: a corner control to expand it, and, when it is needed, a
+// strip under the scene with the error that stopped the code and a Fix that
+// asks the agent to mend it. Nothing of the card's is drawn over the scene.
+// A part the reader picks gets a callout the page itself draws on the part;
+// when the conversation can take a question the callout carries Ask, and the
+// page tells the card which part was asked about. Inline, the card is wider
+// than the reading column (--spacing-artifact), centred on it.
 import {
   useCallback,
   useEffect,
@@ -61,7 +64,10 @@ export type SceneCardProps = {
   scene: Scene
   /** The conversation's tokens, posted with the package. */
   theme: SceneTheme
-  /** Puts the picked entity in the composer as a reference. */
+  /**
+   * Puts the part the reader asked about in the composer as a reference.
+   * When set, the callout the page draws on a picked part carries Ask.
+   */
   onAsk?: (entity: SceneEntity) => void
   /** Asks the agent to fix the code that failed. */
   onRepair?: (error: ModuleError) => void
@@ -73,19 +79,21 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
   const expandButton = useRef<HTMLButtonElement>(null)
   const frame = useRef<HTMLIFrameElement | null>(null)
   const switching = useRef(false)
-  // The theme the current page last drew with; empty until it can take a mount.
-  const drawnTheme = useRef<string | undefined>(undefined)
+  // What the current page last drew with; empty until it can take a mount.
+  const drawnWith = useRef<string | undefined>(undefined)
   const [phase, setPhase] = useState<Phase>('loading')
   const [layout, setLayout] = useState<SceneLayout>('inline')
   const [fault, setFault] = useState<Fault>()
-  const [picked, setPicked] = useState<SceneEntity | null>(null)
   const label = scene.title ?? 'Interactive scene'
-  const themeKey = JSON.stringify(theme)
+  const asks = onAsk !== undefined
+  // What a mount says besides the package: the colours, and whether the
+  // callout on a picked part offers Ask.
+  const mountKey = JSON.stringify([theme, asks])
 
   // The latest values the frame's listener reads, without making a new frame.
-  const latest = useRef({ scene, layout, theme, themeKey })
+  const latest = useRef({ scene, layout, theme, asks, mountKey, onAsk })
   useEffect(() => {
-    latest.current = { scene, layout, theme, themeKey }
+    latest.current = { scene, layout, theme, asks, mountKey, onAsk }
   })
 
   const post = useCallback((message: HostMessage) => {
@@ -132,8 +140,7 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
     if (!parent) return
     setPhase('loading')
     setFault(undefined)
-    setPicked(null)
-    drawnTheme.current = undefined
+    drawnWith.current = undefined
     const element = document.createElement('iframe')
     element.title = label
     element.setAttribute('sandbox', SCENE_SANDBOX)
@@ -145,7 +152,7 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
       setPhase('failed')
       // A page that took the package and never answered is stuck in the
       // agent's code; a page that never loaded is not the agent's to fix.
-      if (drawnTheme.current !== undefined)
+      if (drawnWith.current !== undefined)
         setFault({
           error: {
             stage: 'mount',
@@ -162,13 +169,13 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
       switch (message.type) {
         case 'sceneos:host-ready': {
           // Also after the page reloads, so it is told again.
-          const { scene: current, theme: colours, themeKey: key } =
-            latest.current
-          drawnTheme.current = key
+          const current = latest.current
+          drawnWith.current = current.mountKey
           post({
             type: 'sceneos:mount',
-            package: current.scenePackage,
-            theme: colours,
+            package: current.scene.scenePackage,
+            theme: current.theme,
+            ask: current.asks,
           })
           post({ type: 'sceneos:layout', layout: latest.current.layout })
           return
@@ -182,8 +189,9 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
         case 'sceneos:error':
           setFault({ error: message.error, asked: false })
           return
-        case 'sceneos:select':
-          setPicked(message.entity)
+        case 'sceneos:ask':
+          // Ask on the callout the page drew on the picked part.
+          latest.current.onAsk?.(message.entity)
           return
         case 'sceneos:dismiss':
           collapse()
@@ -203,19 +211,20 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneKey, post, collapse])
 
-  // A palette or mode switch: the page tears the run down and draws the
-  // package again in the new colours, in the same frame.
+  // A palette or mode switch, or a conversation that starts or stops taking
+  // questions: the page tears the run down and draws the package again, in
+  // the same frame.
   useEffect(() => {
-    const drawn = drawnTheme.current
-    if (drawn === undefined || drawn === themeKey) return
-    drawnTheme.current = themeKey
-    setPicked(null)
+    const drawn = drawnWith.current
+    if (drawn === undefined || drawn === mountKey) return
+    drawnWith.current = mountKey
     post({
       type: 'sceneos:mount',
       package: latest.current.scene.scenePackage,
       theme: latest.current.theme,
+      ask: latest.current.asks,
     })
-  }, [themeKey, post])
+  }, [mountKey, post])
 
   // Escape asks a modal dialog to close: collapse instead. Where the browser
   // does not let that be refused, the dialog closes and is shown again inline.
@@ -288,33 +297,16 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
             Drawing the scene…
           </p>
         )}
-        {!failed && (picked || fault) && (
-          // Bottom-left, clear of the scene page's own Play/Pause at the
-          // bottom-right; the agent is told to keep both corners free.
-          <div className="absolute bottom-3 left-3 right-28 flex flex-col items-start gap-2">
-            {picked && onAsk && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => onAsk(picked)}
-                className="max-w-full shadow-pill pointer-coarse:min-h-11"
-              >
-                <span className="truncate">
-                  Ask about {picked.label ?? picked.id}
-                </span>
-              </Button>
-            )}
-            {fault && (
-              <FaultNotice
-                fault={fault}
-                onFix={repair}
-                className="w-full rounded-lg border border-separator bg-artifact/95 px-3 py-2 shadow-pill"
-              />
-            )}
-          </div>
-        )}
       </div>
+      {!failed && fault && (
+        // Under the scene, not over it: the scene stays whole and usable.
+        <FaultNotice
+          fault={fault}
+          onFix={repair}
+          role="status"
+          className="shrink-0 border-t border-separator px-3 py-2"
+        />
+      )}
       {failed && (
         <div role="status" className="flex flex-col gap-2 p-4 text-sm">
           <p className="text-ink-muted">This scene could not be drawn.</p>
@@ -352,14 +344,16 @@ export function SceneCard({ scene, theme, onAsk, onRepair }: SceneCardProps) {
 function FaultNotice({
   fault,
   onFix,
+  role,
   className,
 }: {
   fault: Fault
   onFix?: () => void
+  role?: 'status'
   className?: string
 }) {
   return (
-    <div className={cn('flex items-start gap-2', className)}>
+    <div role={role} className={cn('flex items-start gap-2', className)}>
       <code className="line-clamp-3 min-w-0 flex-1 font-mono text-xs break-words text-ink-muted">
         {errorLine(fault.error)}
       </code>
