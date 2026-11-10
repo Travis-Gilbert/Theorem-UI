@@ -138,10 +138,16 @@ export class TheoremIdeBridge implements FrontendApplicationContribution, Comman
                 void host.connectionChanged(this.connection.status);
                 this.connection.onDidChangeStatus(status => void host.connectionChanged(status));
                 this.files.onDidFilesChange(event => {
-                    const folders = new Set(event.changes.flatMap(({ resource }) => {
+                    const paths = event.changes.flatMap(({ resource }) => {
                         const path = this.connection.toPath(resource);
-                        return path === undefined ? [] : [path.slice(0, Math.max(path.lastIndexOf('/'), 0))];
-                    }));
+                        return path === undefined ? [] : [path];
+                    });
+                    // The root itself changing means changes were missed: any folder may differ.
+                    if (paths.includes('')) {
+                        void host.filesChanged([''], true);
+                        return;
+                    }
+                    const folders = new Set(paths.map(path => path.slice(0, Math.max(path.lastIndexOf('/'), 0))));
                     if (folders.size) {
                         void host.filesChanged([...folders]);
                     }

@@ -14,9 +14,12 @@ type IdePageState = {
   statusBar: StatusBarItems | undefined
   /** The folders whose files changed last ('' the top), a new array each time. */
   changedFolders: ReadonlyArray<string>
+  /** With the last change: changes were missed, so any folder may differ. */
+  changedEverywhere: boolean
 }
 
 export const useIdePage = create<IdePageState>()(() => ({
   statusBar: undefined,
   changedFolders: [],
+  changedEverywhere: false,
 }))

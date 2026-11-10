@@ -189,6 +189,10 @@ export type IdeHostMethods = {
     connectionChanged(connection: IdeConnection): void;
     /** Embedded: the frame's status bar changed, or the link was just made. */
     statusBarChanged(items: StatusBarItems): void;
-    /** Files changed in these folders ('' the top), by the person, the agent or anyone else. */
-    filesChanged(folders: string[]): void;
+    /**
+     * Files changed in these folders ('' the top), by the person, the agent or anyone else.
+     * `everywhere`: the workspace root itself changed, as after the live stream missed changes,
+     * so any folder may differ.
+     */
+    filesChanged(folders: string[], everywhere?: boolean): void;
 };

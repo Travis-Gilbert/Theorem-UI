@@ -195,7 +195,11 @@ export function IdeFrame({
           }
         }),
       statusBarChanged: (statusBar) => useIdePage.setState({ statusBar }),
-      filesChanged: (changedFolders) => useIdePage.setState({ changedFolders }),
+      filesChanged: (changedFolders, everywhere) =>
+        useIdePage.setState({
+          changedFolders,
+          changedEverywhere: everywhere === true,
+        }),
     }
     const link = connect<IdeFrameMethods>({
       messenger: new WindowMessenger({ remoteWindow }),
