@@ -1,0 +1,133 @@
+{
+  "plan": "docs/plans/app-database-and-compiler.md",
+  "items": [
+    {
+      "id": "tsrs-feasibility",
+      "requirement": "tsrs checks and emits TSX (react-jsx) against virtual node_modules declarations for React and a custom SDK package, from an in-memory file map",
+      "status": "done",
+      "evidence": [
+        "Node run of @tsrs/wasm 0.23.0-ts7.1.0-beta, 2026-11-10: exit 0 on a valid file, TS2339 and TS2345 on the planted errors, about 260 ms cold, 111 MiB. Not yet run in a browser worker."
+      ]
+    },
+    {
+      "id": "rustyred-wasm-crate",
+      "requirement": "A rustyred-wasm crate in RustyRedDB builds the graph store over the OPFS projection chunk store and over memory, without Database::create/open",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "rustyred-browser-api",
+      "requirement": "@rustyreddb/browser mirrors the Node binding (mutate, getNode, getEdge, queryNodes, neighbors, query, fulltext, compact, close) with the same error codes, behind an async client that owns the worker",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "rustyred-subscribe",
+      "requirement": "subscribe re-runs a registered read after a commit and posts the result",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "rustyred-browser-oracle",
+      "requirement": "Headless Chromium: records written are read back after a page reload; runtime panics on wasm32 found by this run are fixed",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "db-capability",
+      "requirement": "A db capability is declared like the others and db.* page methods are parsed and checked against it",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "db-worker-per-app",
+      "requirement": "One database per App document id in a host-page worker; every revision of an App sees the same records; a pinned revision is read-only",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "db-in-frame",
+      "requirement": "window.theorem.db in the app bridge, with subscriptions delivered over the existing port",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "ts-app-form",
+      "requirement": "An App can be several source files in its document; the single-HTML form still works",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "ts-build",
+      "requirement": "esbuild-wasm builds a source revision against the import map; a failed build keeps the last working preview",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "ts-check",
+      "requirement": "tsrs checks the same frozen snapshot in its own worker, loaded on first use; results for a superseded revision are dropped",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "ts-declarations",
+      "requirement": "Declarations for @theorem/app are generated from the bridge schemas",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "runtime-errors",
+      "requirement": "The frame forwards error and unhandledrejection with source-mapped positions",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "repair-reference",
+      "requirement": "Build errors, check diagnostics and runtime errors reach the agent as a repair reference naming the source revision",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "builder-multi-file",
+      "requirement": "The Theorem builder can emit the multi-file App form (Theorem repo)",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "mobile-budget",
+      "requirement": "Checker load, memory and time measured on a phone",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "click-to-source",
+      "requirement": "Build-time element ids and an id to source-span index per revision; ids never written into source",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "edit-actions",
+      "requirement": "Reversible actions (property, token or style, insert, reorder, remove, binding, extract) become AST edits against the revision they were made on",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "component-plugins",
+      "requirement": "Component plugins and style books are vault folders with manifest, declarations, inventory, schema-checked tokens and a usage file",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "save-component",
+      "requirement": "A component saved from the designer can be imported by another App",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "edit-theorem",
+      "requirement": "A vault module is editable with the TypeScript path and the designer and updates on a page without reloading the host",
+      "status": "todo",
+      "evidence": []
+    }
+  ]
+}
