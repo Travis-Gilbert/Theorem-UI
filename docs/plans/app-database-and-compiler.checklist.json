@@ -202,19 +202,27 @@
       "id": "component-plugins",
       "requirement": "Component plugins and style books are vault folders with manifest, declarations, inventory, schema-checked tokens and a usage file",
       "status": "todo",
-      "evidence": []
+      "evidence": [
+        "Not built. Needs decisions that are the owner's: where a library's source lives (vault folder or vendored package), how an App names the one it uses, and how the agent is given its usage file"
+      ]
     },
     {
       "id": "save-component",
       "requirement": "A component saved from the designer can be imported by another App",
       "status": "todo",
-      "evidence": []
+      "evidence": [
+        "Not built. Needs decisions that are the owner's: where a library's source lives (vault folder or vendored package), how an App names the one it uses, and how the agent is given its usage file"
+      ]
     },
     {
       "id": "edit-theorem",
       "requirement": "A vault module is editable with the TypeScript path and the designer and updates on a page without reloading the host",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "A vault module's page is hosted by the same hostedAppDocument (src/components/pages/sandboxed-module.tsx), so a module that carries TypeScript source is built, stamped and traced like an App: app-source.test.ts \"a page module's page is built the same way, under the hosts it was allowed\"",
+        "Not built for modules: the problems list, the type check, Ask to fix, the element panel and db. A module that does not build shows the build error as text",
+        "Not observed: a TypeScript module on a page, which needs a vault"
+      ]
     }
   ]
 }

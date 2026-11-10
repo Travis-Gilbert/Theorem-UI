@@ -212,6 +212,29 @@ Through the surfaces that already exist: modules, pages and themes
 Phase 3 and the designer from Phase 4. The host keeps authentication,
 routing, persistence and lifecycle; those are not editable surfaces.
 
+## Where this stands (2026-11-10)
+
+Built and observed: Phases 1, 2 and 3, click to source, the first edit
+actions, and editing a source App one file at a time. The checklist has the
+evidence for each.
+
+Open, in the order they matter:
+
+1. **A builder run.** Theorem PR #1002 tells the builder about `db`, the
+   TypeScript form, the repair selection and `selection.source`. Nothing here
+   has been exercised by a model yet: that needs the deployed stack.
+2. **Compaction of the browser store**, a storage-core change in RustyRedDB.
+3. **The phone measurement** of the checker.
+4. **Component plugins and style books.** Not started, and it needs decisions:
+   where a library's source lives, how an App names the one it uses, and how
+   the agent is given its usage guidance. A workable shape: a library is a
+   vault folder of `.tsx` files with a manifest and a usage file; an App
+   declares it (`kit("research")`), the host adds its files to the build and
+   the check under `@kit/research/…`, and the builder is handed the usage
+   file with the turn.
+5. **The rest of the edit actions**, and the designer for page modules.
+6. **Full-text search** in the browser database, and types for d3 and Plot.
+
 ## Not in this plan
 
 - Replacing Sucrase for live blocks.

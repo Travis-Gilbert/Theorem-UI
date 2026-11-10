@@ -195,6 +195,18 @@ describe('a hosted TypeScript App', () => {
     )
   }, 60_000)
 
+  test("a page module's page is built the same way, under the hosts it was allowed", async () => {
+    // A vault module is hosted with the net it was granted, whatever it declares.
+    const hosted = await hostedApp(
+      typescriptApp({ 'main.ts': 'document.title = "module"' }),
+      esbuild,
+      { net: ['api.example.com'] },
+    )
+    expect(hosted.build).toBeDefined()
+    expect(hosted.page).toContain('document.title = "module"')
+    expect(hosted.page).toContain('connect-src https://api.example.com')
+  }, 60_000)
+
   test('a plain HTML App is hosted as before, with nothing built', async () => {
     const hosted = await hostedApp('<p>Plain</p>', esbuild)
     expect(hosted.build).toBeUndefined()
