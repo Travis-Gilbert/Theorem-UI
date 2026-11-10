@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, the run's step groups drawn from their parts by RunSummary, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -7,7 +7,6 @@
 // gives the artifact tools a pending card while they run. Delegated work has
 // its own cards in delegation-parts.
 import {
-  MessagePrimitive,
   useAui,
   useAuiState,
   useAssistantDataUI,
@@ -18,7 +17,7 @@ import type {
   ToolCallMessagePartComponent,
 } from '@assistant-ui/react'
 import { useEffect, useMemo, useState } from 'react'
-import type { FC } from 'react'
+import type { FC, ReactNode } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
 import { CollapsibleTrigger } from '@/components/assistant-ui/elements/collapsible-root'
@@ -50,6 +49,13 @@ import {
   mutate,
   theorem,
 } from '@/lib/theorem/client'
+import { CompletionFooter } from '@/components/chat/run-footer'
+import {
+  drawsInStep,
+  endsRun,
+  isStepDataPart,
+  isStreamingProse,
+} from '@/lib/theorem/run-parts'
 import { uploadContentPath } from '@/lib/theorem/uploads'
 import { DRAFT_PLAN } from '@/lib/theorem/plans'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
@@ -415,9 +421,35 @@ function progressLabels(
   })
 }
 
+/** The newest progress part's label while its step is under way. */
+function liveProgressLabel(
+  content: readonly { type: string; name?: string; data?: unknown }[],
+) {
+  const last = content.findLast(
+    (part) => part.type === 'data' && part.name === 'theorem-progress',
+  )
+  const data = last?.type === 'data' ? object(last.data) : {}
+  return LIVE_STATUSES.has(str(data.status) ?? '') ? str(data.label) : undefined
+}
+
+/** Whether the message's newest part is work that a step group above is drawing live. */
+const endsOnStep = (
+  content: readonly { type: string; name?: string }[],
+) => {
+  const last = content.at(-1)
+  return (
+    last !== undefined &&
+    (last.type === 'reasoning' ||
+      (last.type === 'tool-call' && !isStandaloneToolCall(last)) ||
+      isStepDataPart(last))
+  )
+}
+
 /**
- * Theorem publishes answer text at turn end, so a running turn needs a visible
- * state: the latest progress label, or "Thinking", beside a thinking orb.
+ * A running turn's state when nothing else on screen says it: the latest
+ * progress label, or "Thinking", beside a thinking orb. It steps aside while
+ * prose is being written, and while a step group at the end of the message is
+ * showing the work itself.
  */
 export const RunningIndicator: FC = () => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
@@ -428,16 +460,11 @@ export const RunningIndicator: FC = () => {
       return approval !== undefined && approvalOutcome(approval) === 'awaiting'
     }),
   )
-  const label = useAuiState((s) => {
-    const last = s.message.content.findLast(
-      (part) => part.type === 'data' && part.name === 'theorem-progress',
-    )
-    const data = last?.type === 'data' ? object(last.data) : {}
-    return LIVE_STATUSES.has(str(data.status) ?? '')
-      ? str(data.label)
-      : undefined
-  })
-  if (!running) return null
+  const label = useAuiState((s) => liveProgressLabel(s.message.content))
+  const shown = useAuiState(
+    (s) => isStreamingProse(s.message.content) || endsOnStep(s.message.content),
+  )
+  if (!running || (shown && !awaiting)) return null
   return (
     <ThinkingIndicator
       className="my-2"
@@ -448,29 +475,42 @@ export const RunningIndicator: FC = () => {
 }
 
 /**
- * A settled run's one line: its outcome, opening to its steps and to the tool
- * calls it made. Tool calls draw no row of their own; the thread folds them
- * here (`tools` holds their part indices), so a finished turn reads as its
- * answer under one quiet line, each call's arguments and result a click away.
+ * One stretch of work between prose: the reasoning, tool calls and delegated
+ * work a run did before it spoke again (`indices`), in a group that follows
+ * its place in the message. It stands open, naming what the run is doing,
+ * while it is the newest thing in a running message, and folds to one quiet
+ * line once the run speaks again or ends: its outcome, opening to its steps
+ * and to what it did (`children`: each tool call's arguments and result).
  */
 export const RunSummary: FC<{
-  tools: readonly number[]
-  Tool: ToolCallMessagePartComponent
-}> = ({ tools, Tool }) => {
-  const settled = useAuiState((s) => s.message.status?.type !== 'running')
+  indices: readonly number[]
+  children?: ReactNode
+}> = ({ indices, children }) => {
+  const running = useAuiState((s) => s.message.status?.type === 'running')
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
-  const labels = useMemo(() => progressLabels(content), [content])
-  const lastStatus = useAuiState((s) => {
-    const last = s.message.content.findLast(
+  const [chosen, setChosen] = useState<boolean>()
+  const step = useMemo(() => {
+    const parts = indices.flatMap((index) => content[index] ?? [])
+    const lastProgress = parts.findLast(
       (part) => part.type === 'data' && part.name === 'theorem-progress',
     )
-    return last?.type === 'data' ? str(object(last.data).status) : undefined
-  })
+    return {
+      labels: progressLabels(parts),
+      live: liveProgressLabel(parts),
+      body: parts.some(drawsInStep),
+      lastStatus:
+        lastProgress?.type === 'data'
+          ? str(object(lastProgress.data).status)
+          : undefined,
+      last: endsRun(content, indices),
+    }
+  }, [content, indices])
   // Labels are what the run was doing while live ("Working"), even on the
   // step that completes, so the line names the outcome from the statuses: the
-  // message's, then the last step's.
+  // message's, then the last step's. Only the stretch the run ended on can
+  // say the run stopped; any other was finished when the run spoke again.
   const outcome = useAuiState((s) =>
     s.message.status?.type === 'complete'
       ? 'Done'
@@ -480,21 +520,28 @@ export const RunSummary: FC<{
           : 'Did not finish'
         : undefined,
   )
-  const components = useMemo(() => ({ tools: { Fallback: Tool } }), [Tool])
-  if (!settled || (labels.length === 0 && tools.length === 0)) return null
-  const finished = DONE_STATUSES.has(lastStatus ?? 'complete')
-  const result = outcome ?? (finished ? 'Done' : 'Did not finish')
+  const live = running && step.last
+  const steps = step.labels.length > 1
+  const expandable = steps || step.body
+  if (!live && step.labels.length === 0 && !step.body) return null
+  const finished = DONE_STATUSES.has(step.lastStatus ?? 'complete')
+  const result = !step.last
+    ? 'Done'
+    : (outcome ?? (finished ? 'Done' : 'Did not finish'))
   const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
-  const steps = labels.length > 1
-  const line = (
+  const line = live ? (
+    <span className="shimmer motion-reduce:animate-none">
+      {step.live ?? 'Working'}
+    </span>
+  ) : (
     <>
       <StatusIcon className="size-3.5" />
       {steps
-        ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
+        ? `${result} ${result === 'Done' ? 'in' : 'after'} ${step.labels.length} steps`
         : result}
     </>
   )
-  if (!steps && tools.length === 0)
+  if (!expandable)
     return (
       <p
         data-slot="run-summary"
@@ -508,6 +555,8 @@ export const RunSummary: FC<{
       variant="ghost"
       data-slot="run-summary"
       className="my-1 text-sm text-ink-faint"
+      open={chosen ?? live}
+      onOpenChange={setChosen}
     >
       <CollapsibleTrigger className="group/trigger flex items-center gap-1.5 py-1 hover:text-ink">
         {line}
@@ -516,18 +565,12 @@ export const RunSummary: FC<{
       <ToolGroupContent>
         {steps && (
           <ol className="ms-5 list-decimal text-sm leading-6">
-            {labels.map((label, index) => (
+            {step.labels.map((label, index) => (
               <li key={index}>{label}</li>
             ))}
           </ol>
         )}
-        {tools.map((index) => (
-          <MessagePrimitive.PartByIndex
-            key={index}
-            index={index}
-            components={components}
-          />
-        ))}
+        {children}
       </ToolGroupContent>
     </ToolGroupRoot>
   )
@@ -730,6 +773,7 @@ const RENDERERS = (
     ['theorem-attachment', AttachmentPart],
     ['theorem-host_call', HostCallPart],
     ['theorem-user_input', UserInputPart],
+    ['theorem-completion', CompletionFooter],
     ...DELEGATION_RENDERERS,
   ] satisfies Array<[string, DataMessagePartComponent]>
 )
@@ -748,6 +792,8 @@ const RENDERERS = (
     // The native agent's program: what it does shows up as its host calls
     // and their artifacts, and its stored source is not the full program.
     ['theorem-program', Inert],
+    // The run's limits are read by the footer and the limits popover.
+    ['theorem-limits', Inert],
   ])
 
 function DataRenderer({
