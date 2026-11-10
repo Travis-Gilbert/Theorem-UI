@@ -39,6 +39,12 @@ import { toastManager } from '@/components/coss/toast'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
 import { DRAFT_PLAN } from './plans'
+import {
+  consumePendingStyle,
+  conversationStyleSettled,
+  holdPendingStyle,
+  styleTurnOptions,
+} from './response-styles'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
@@ -616,12 +622,17 @@ function useTheoremThreadRuntime() {
       async *run(options) {
         try {
           const references = useComposerReferences.getState().references
+          // Read before initialize() creates the conversation: the style picked for a new one becomes that conversation's, and rides its messages until one is accepted.
+          const existed = Boolean(aui.threadListItem.getState().remoteId)
           const { remoteId } = await aui.threadListItem.initialize()
+          if (!existed) holdPendingStyle(remoteId)
+          // A style picked for this conversation a moment ago may still be on its way to Theorem; the turn starts once it is kept or refused.
+          await conversationStyleSettled(remoteId)
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...clientSurfaceTurnOptions()}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...clientSurfaceTurnOptions(),...styleTurnOptions(remoteId)}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
@@ -629,6 +640,7 @@ function useTheoremThreadRuntime() {
           const turn = runTurn(remoteId,composed,turnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
+            consumePendingStyle(remoteId, added.responseStyle, queryClient)
           })
           for await (const step of turn) {
             // Plan stays on until a plan is written; the turn that writes one turns it off.
@@ -643,7 +655,7 @@ function useTheoremThreadRuntime() {
         }
       },
     }),
-    [aui, turnOptions],
+    [aui, queryClient, turnOptions],
   )
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)

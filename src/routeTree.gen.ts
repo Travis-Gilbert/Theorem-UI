@@ -34,6 +34,7 @@ import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsImportRouteImport } from './routes/settings/import'
 import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
+import { Route as SettingsStylesRouteImport } from './routes/settings/styles'
 import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
@@ -197,6 +198,11 @@ const SettingsImportRoute = SettingsImportRouteImport.update({
 const SettingsKeysRoute = SettingsKeysRouteImport.update({
   id: '/keys',
   path: '/keys',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsStylesRoute = SettingsStylesRouteImport.update({
+  id: '/styles',
+  path: '/styles',
   getParentRoute: () => SettingsRoute,
 } as any)
 const StoryIdRoute = StoryIdRouteImport.update({
@@ -444,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/styles': typeof SettingsStylesRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/settings/': typeof SettingsIndexRoute
@@ -508,6 +515,7 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/styles': typeof SettingsStylesRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
@@ -576,6 +584,7 @@ export interface FileRoutesById {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/styles': typeof SettingsStylesRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
@@ -645,6 +654,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/styles'
     | '/story/$id'
     | '/theia/$'
     | '/settings/'
@@ -709,6 +719,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/styles'
     | '/story/$id'
     | '/theia/$'
     | '/'
@@ -776,6 +787,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/styles'
     | '/story/$id'
     | '/theia/$'
     | '/_chat/'
@@ -1047,6 +1059,13 @@ declare module '@tanstack/react-router' {
       path: '/keys'
       fullPath: '/settings/keys'
       preLoaderRoute: typeof SettingsKeysRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/styles': {
+      id: '/settings/styles'
+      path: '/styles'
+      fullPath: '/settings/styles'
+      preLoaderRoute: typeof SettingsStylesRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/story/$id': {
@@ -1387,6 +1406,7 @@ interface SettingsRouteChildren {
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsImportRoute: typeof SettingsImportRoute
   SettingsKeysRoute: typeof SettingsKeysRoute
+  SettingsStylesRoute: typeof SettingsStylesRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -1395,6 +1415,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsImportRoute: SettingsImportRoute,
   SettingsKeysRoute: SettingsKeysRoute,
+  SettingsStylesRoute: SettingsStylesRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 

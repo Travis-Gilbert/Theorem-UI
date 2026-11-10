@@ -861,6 +861,9 @@ const RENDERERS = (
     // The native agent's program: what it does shows up as its host calls
     // and their artifacts, and its stored source is not the full program.
     ['theorem-program', Inert],
+    // How the reply was set up (style, frameworks, suggestions) is offered
+    // from the reply's More menu, not drawn in the transcript.
+    ['theorem-response_style', Inert],
   ])
 
 function DataRenderer({

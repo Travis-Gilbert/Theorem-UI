@@ -1,7 +1,7 @@
 // SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message.
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import {
   AssistantRuntimeProvider,
@@ -16,10 +16,13 @@ import { Canvas } from '@/components/canvas/canvas'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
+import { useResponseDetails } from '@/components/chat/response-style-details'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
+import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ComparePane } from '@/components/review/compare-pane'
 import { ReviewCard } from '@/components/review/review-card'
 import { LibrarianFooter } from '@/components/organize/librarian-footer'
+import { ResponseStylesPage } from '@/components/settings/styles/response-styles-page'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
 import { useNote } from '@/lib/theorem/notes'
@@ -30,6 +33,7 @@ import { useReview } from '@/lib/theorem/reviews'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
+import { seedResponseStylesSettings } from './fixtures/response-styles-settings'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -231,6 +235,120 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
   }
 }
 
+/** Which of the reply's details are shown: the style, a loaded framework, and what the suggestions did. */
+const RESPONSE_STYLE_PART = {
+  style: {
+    id: 'theorem.style.concise',
+    name: 'Concise',
+    revision: 0,
+    revisionId: 'shipped-concise',
+    source: 'account',
+  },
+  frameworks: [
+    {
+      id: 'theorem.framework.explanation',
+      name: 'Understanding through explanation',
+      revision: 0,
+      revisionId: 'shipped-explanation',
+      references: ['references/source-notes.md'],
+    },
+  ],
+  suggestions: {
+    state: 'suggested',
+    model: 'openrouter/typesafe/jev-1.14',
+    items: [
+      {
+        id: 'theorem.framework.related-questions',
+        category: 'framework',
+        name: 'Related questions',
+        relevance: 0.82,
+      },
+      { id: 'web_search', category: 'tool', name: 'Web search', relevance: 0.71 },
+    ],
+  },
+}
+
+/**
+ * A new conversation's composer over the fake Theorem, which serves response
+ * styles, so the picker beside the model and effort pickers names the style
+ * the first message will use.
+ */
+function ResponseStylePickerStory() {
+  const runtime = useExternalStoreRuntime({
+    messages: [],
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="mx-auto flex h-[320px] w-full max-w-(--spacing-reading) flex-col">
+        <Thread autoFocus={false} />
+      </div>
+    </AssistantRuntimeProvider>
+  )
+}
+
+/**
+ * An assistant message carrying a `response_style` part, with its details
+ * open as the More menu's "Response details" item opens them. The transcript
+ * itself shows no routing text.
+ */
+function ResponseDetailsStory() {
+  const runtime = useExternalStoreRuntime({
+    messages: [
+      {
+        id: 'message-response-details',
+        role: 'assistant',
+        status: { type: 'complete', reason: 'stop' },
+        content: [
+          {
+            type: 'data',
+            name: 'theorem-response_style',
+            data: RESPONSE_STYLE_PART,
+          },
+          { type: 'text', text: 'Denver gets about 300 days of sun a year.' },
+        ],
+      },
+    ],
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  useEffect(() => {
+    useResponseDetails.getState().show('message-response-details')
+    return () => useResponseDetails.getState().show(undefined)
+  }, [])
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <div className="mx-auto h-[620px] w-full max-w-(--spacing-reading)">
+        <Thread autoFocus={false} />
+      </div>
+    </AssistantRuntimeProvider>
+  )
+}
+
+/**
+ * Settings, Response styles over the fake Theorem: a shipped style the person
+ * edited (with a newer shipped version waiting) and one of their own, seeded
+ * once through the fake's own routes before the page reads them.
+ */
+function ResponseStylesSettingsStory() {
+  const [ready, setReady] = useState(false)
+  const started = useRef(false)
+  useEffect(() => {
+    if (started.current) return
+    started.current = true
+    void seedResponseStylesSettings().then(() => setReady(true))
+  }, [])
+  return (
+    <div className="mx-auto flex max-w-[680px] flex-col gap-6 bg-sheet px-6 py-8">
+      {ready && <ResponseStylesPage />}
+    </div>
+  )
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   ...Object.fromEntries(
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
@@ -243,6 +361,9 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
   'program-note': ProgramNoteStory,
+  'response-style-picker': ResponseStylePickerStory,
+  'response-details': ResponseDetailsStory,
+  'response-styles-settings': ResponseStylesSettingsStory,
   'cpu-gpu-tradeoff': () => <NotebookStory id="cpu-gpu-tradeoff" />,
   'cpu-gpu-measured': () => <NotebookStory id="cpu-gpu-measured" />,
   'cpu-gpu-awaiting-gpu': () => <NotebookStory id="cpu-gpu-awaiting-gpu" />,

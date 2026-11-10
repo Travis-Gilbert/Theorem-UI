@@ -15,6 +15,7 @@ import {
   outputsAnswer,
 } from './fixtures/notebook-parts'
 import { organizationFixture } from './fixtures/organization'
+import { responseStylesRoutes } from './fixtures/response-styles'
 import { reviewFixture, reviewShots } from './fixtures/review'
 import { threadMessages } from './fixtures/thread'
 
@@ -83,6 +84,19 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     return review
   }
   return {
+    // Response styles, over the same threads: the composer's picker and a reply's details.
+    ...responseStylesRoutes({
+      now: () => now,
+      threadProjects: Object.fromEntries(
+        organization.threads.map((thread) => [
+          thread.threadId,
+          thread.homeProjectId,
+        ]),
+      ),
+      selection: { account: 'theorem.style.concise' },
+      // Formal's shipped text moved after the settings story's edit of it.
+      updatesAvailable: ['theorem.style.formal'],
+    }),
     [`GET ${BASE}/bootstrap`]: () => ({
       schema: 'theorem.chat.bootstrap.v1',
       tenantId: 'story',
