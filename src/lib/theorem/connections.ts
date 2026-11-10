@@ -222,6 +222,15 @@ export const connectionsApi = {
     send<{ authorizationUrl: string }>(`${mcpPath(id)}/connect`, 'POST', {
       returnTo,
     }),
+  /**
+   * Finishes a sign-in from the signed-in app. Theorem trades the server's
+   * answer for access only here, where it can see who is asking; the token is
+   * the one it put on the address this browser was returned to.
+   */
+  completeSignIn: (completion: string) =>
+    send<{ connector: string }>(`${root}/oauth/complete`, 'POST', {
+      completion,
+    }),
   tools: (q?: string) =>
     theoremJson<{ groups: ToolGroup[] }>(withQuery(`${root}/tools`, { q })),
 }

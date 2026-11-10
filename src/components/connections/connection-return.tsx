@@ -1,4 +1,6 @@
 // SOURCING: coss ui Alert and Button over lib/theorem/connections' list query; the wording for each outcome Theorem sends back after a sign-in is Theorem's own, so it lives here once
+import { useEffect, useRef } from 'react'
+import { TheoremError } from '@theoremharness/sdk'
 import {
   Alert,
   AlertAction,
@@ -6,7 +8,7 @@ import {
   AlertTitle,
 } from '@/components/coss/alert'
 import { Button } from '@/components/ui/button'
-import { useConnections } from '@/lib/theorem/connections'
+import { connectionsApi, useConnections } from '@/lib/theorem/connections'
 
 /** What Theorem appends to the page it returns the person to after a sign-in. */
 export type ConnectionOutcome = {
@@ -33,7 +35,33 @@ export function readOutcome(search: {
   }
 }
 
+/**
+ * A sign-in the server answered but Theorem has not finished: it finishes
+ * only when the signed-in app asks, so that an approval given in one
+ * person's browser cannot land on another person's connection.
+ */
+export type PendingSignIn = {
+  connector: string
+  /** The one-time token Theorem put on the address; sent back once. */
+  completion: string
+}
+
+/** Reads a sign-in waiting to be finished; nothing when the address has none. */
+export function readPending(search: {
+  connector?: string
+  connection?: string
+  completion?: string
+}): PendingSignIn | undefined {
+  if (!search.connector || search.connection !== 'pending') return undefined
+  if (!search.completion) return undefined
+  return { connector: search.connector, completion: search.completion }
+}
+
 const REASONS: Record<string, string> = {
+  mcp_authorization_other_account:
+    'That sign-in was started from a different Theorem account, so it was not finished here. Connect again from this account.',
+  mcp_authorization_issuer_mismatch:
+    'The answer came from a different sign-in service than the one this server named, so Theorem did not use it.',
   mcp_authorization_denied:
     'The sign-in was not approved. Connect again when you are ready.',
   mcp_authorization_expired:
@@ -61,9 +89,62 @@ export const reasonText = (reason: string | undefined) =>
     ? (REASONS[reason] ?? `Theorem reported: ${reason}.`)
     : 'Theorem did not say why. Try connecting again.'
 
+/** The connection's own label where the list has it. */
+function useConnectionName(connector: string) {
+  const list = useConnections()
+  return (
+    list.data?.connections.find((entry) => entry.id === connector)?.label ??
+    (connector === 'github' ? 'GitHub' : 'The server')
+  )
+}
+
+/** The problem code Theorem refused with, when it gave one. */
+const problemCode = (error: unknown) => {
+  if (!(error instanceof TheoremError)) return undefined
+  const code = (error.body as { code?: unknown } | undefined)?.code
+  return typeof code === 'string' ? code : undefined
+}
+
+/**
+ * Finishes a sign-in the person was just returned from, once, and reports
+ * how it ended. Shown in the notice's place while Theorem answers.
+ */
+export function FinishingSignIn({
+  pending,
+  onDone,
+}: {
+  pending: PendingSignIn
+  onDone: (outcome: ConnectionOutcome) => void
+}) {
+  const name = useConnectionName(pending.connector)
+  // The token is good once, and React runs an effect twice in development.
+  const asked = useRef(false)
+  useEffect(() => {
+    if (asked.current) return
+    asked.current = true
+    connectionsApi.completeSignIn(pending.completion).then(
+      (done) => onDone({ connector: done.connector, result: 'connected' }),
+      (error: unknown) =>
+        onDone({
+          connector: pending.connector,
+          result: 'error',
+          reason: problemCode(error),
+        }),
+    )
+  }, [pending, onDone])
+  return (
+    <Alert variant="info" role="status">
+      <AlertTitle>Finishing the sign-in for {name}</AlertTitle>
+      <AlertDescription>
+        Theorem is checking the sign-in belongs to this account.
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 /**
  * Says how a sign-in ended, once, at the top of the page the person was
- * returned to. The name is the connection's own label where the list has it.
+ * returned to.
  */
 export function ConnectionReturn({
   outcome,
@@ -72,10 +153,7 @@ export function ConnectionReturn({
   outcome: ConnectionOutcome
   onDismiss: () => void
 }) {
-  const list = useConnections()
-  const name =
-    list.data?.connections.find((entry) => entry.id === outcome.connector)
-      ?.label ?? (outcome.connector === 'github' ? 'GitHub' : 'The server')
+  const name = useConnectionName(outcome.connector)
   const connected = outcome.result === 'connected'
   return (
     <Alert variant={connected ? 'success' : 'error'} role="status">
