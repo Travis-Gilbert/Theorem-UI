@@ -176,6 +176,54 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/**
+ * A check the agent asked this page to make of an App: that it is being
+ * made, and what it found. Kit's operations draw nothing here; the fox on
+ * the stage shows what they did.
+ */
+const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
+  const call = object(data)
+  const running = useAuiState((s) => s.message.status?.type === 'running')
+  if (str(call.operation) !== 'app.check') return null
+  const state = str(call.state) ?? 'pending'
+  const receipt = object(call.receipt)
+  const result = object(receipt.result)
+  const problems = Array.isArray(result.problems) ? result.problems.length : 0
+  const found =
+    problems + (typeof result.omitted === 'number' ? result.omitted : 0)
+  const pending = state === 'pending' && running
+  const checked = state === 'answered' && str(receipt.outcome) === 'applied'
+  const wrong = !pending && (!checked || found > 0)
+  const StateIcon = pending ? Icon.Code : wrong ? Icon.Close : Icon.Check
+  const words = pending
+    ? 'Checking the App'
+    : !checked
+      ? 'The App was not checked'
+      : result.built === false
+        ? 'The App does not build'
+        : found === 0
+          ? 'Checked the App: no problems'
+          : `Checked the App: ${found === 1 ? '1 problem' : `${found} problems`}`
+  return (
+    <span
+      data-slot="app-check"
+      className={cn(
+        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
+        liveEnter,
+        wrong ? 'text-error-ink' : 'text-ink-muted',
+      )}
+    >
+      <StateIcon
+        className={cn(
+          'size-3 shrink-0',
+          pending && 'animate-pulse motion-reduce:animate-none',
+        )}
+      />
+      <span>{words}</span>
+    </span>
+  )
+}
+
 /* ------------------------------------------------------------------ approvals */
 
 export type TheoremApproval = {
@@ -747,9 +795,7 @@ function guarded(
   name: string,
   Render: DataMessagePartComponent,
 ): DataMessagePartComponent {
-  const errorComponent = () => (
-    <PartNotice name={name} />
-  )
+  const errorComponent = () => <PartNotice name={name} />
   return (props) => (
     <CatchBoundary
       getResetKey={() => props.data}
@@ -790,8 +836,8 @@ const RENDERERS = (
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],
-    // Kit's client operations: the fox on the stage shows what they did.
-    ['theorem-client_operation', Inert],
+    // The page's client operations: a check of an App shows as a chip.
+    ['theorem-client_operation', ClientOperationPart],
     // The native agent's program: what it does shows up as its host calls
     // and their artifacts, and its stored source is not the full program.
     ['theorem-program', Inert],

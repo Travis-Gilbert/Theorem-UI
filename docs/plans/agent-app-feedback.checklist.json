@@ -1,0 +1,73 @@
+{
+  "plan": "docs/plans/agent-app-feedback.md",
+  "items": [
+    {
+      "id": "app-check-operation",
+      "requirement": "The page declares app.check on every send, beside Kit's operations, within what Theorem admits of a declaration",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-operations.ts APP_OPERATIONS; src/lib/theorem/client-surface.ts; src/lib/theorem/runtime.tsx",
+        "bun test src/lib/blocks/app-operations.test.ts: 10 passed, including \"a send declares checking Apps, and Kit beside it while Kit is on screen\""
+      ]
+    },
+    {
+      "id": "app-check-headless",
+      "requirement": "A check builds the App, checks its types when it has source, and runs it off screen; it reaches no network, changes no state and opens no App's records",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-inspect.ts inspectApp; app-db.ts openInMemory",
+        "bun run e2e:app-ts, dev and --built, 2026-11-10: 19 of 19 checks, including \"what the App throws while it runs is reported at its source line\" (summary.ts:8) and \"a check leaves nothing behind: no frame, and nothing in storage\"",
+        "A cold check of a three-file React App took about 3.5 s including a 1.5 s run"
+      ]
+    },
+    {
+      "id": "app-check-result",
+      "requirement": "The result says whether the App built, lists build, type and runtime problems with file, line and column, and gives the text the App showed",
+      "status": "done",
+      "evidence": [
+        "AppInspection in app-inspect.ts; e2e: \"a check of a correct App finds nothing and says what it showed\" (rendered text \"Alder housing\\nBirch transit\")"
+      ]
+    },
+    {
+      "id": "app-check-receipts",
+      "requirement": "Each request is answered once with a receipt at the revision the run expects; a receipt that fails to post is sent again without checking again",
+      "status": "done",
+      "evidence": [
+        "app-operations.ts serveAppRequests; app-operations.test.ts \"serving requests\"; e2e: \"the app.check operation answers its run with those findings\""
+      ]
+    },
+    {
+      "id": "app-check-chip",
+      "requirement": "The conversation shows each check and what it found",
+      "status": "partial",
+      "evidence": [
+        "src/components/chat/theorem-parts.tsx ClientOperationPart",
+        "Not observed in a conversation: no test renders it, and no live turn has made the request"
+      ]
+    },
+    {
+      "id": "app-check-live",
+      "requirement": "A live turn: the front model calls app__check and reads the result",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "front-publish",
+      "requirement": "The front model publishes or revises an App with publish_app; a build failure refuses it (Theorem repo)",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "worker-check",
+      "requirement": "A builder's app.check reaches the conversation's page, and complete_work with an App that does not build is refused with its problems (Theorem repo)",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "js-cell",
+      "requirement": "js_cell runs in a chat turn and a worker, its tool() calls reaching the turn's tools; the conversation draws it (Theorem repo and this one)",
+      "status": "todo",
+      "evidence": []
+    }
+  ]
+}
