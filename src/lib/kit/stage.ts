@@ -171,12 +171,22 @@ export function resetKitStage() {
 }
 
 /**
- * Whether a marked element shows now: it has a size and, inside a scroller
- * marked `data-kit-clip`, its top edge is within the scroller's view.
+ * Whether a marked element shows now: it has a size, no layer it is on is
+ * inert or made invisible (a page the shell keeps mounted under another), and,
+ * inside a scroller marked `data-kit-clip`, its top edge is within the
+ * scroller's view.
  */
 function showing(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect()
   if (rect.width <= 0 || rect.height <= 0) return false
+  if (element.closest('[inert]')) return false
+  if (
+    !element.checkVisibility({
+      opacityProperty: true,
+      visibilityProperty: true,
+    })
+  )
+    return false
   const clip = element.closest<HTMLElement>('[data-kit-clip]')
   if (!clip) return true
   const view = clip.getBoundingClientRect()
