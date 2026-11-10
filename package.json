@@ -12,6 +12,7 @@
     "e2e:models": "node scripts/e2e/models.mjs",
     "e2e:keys": "node scripts/e2e/keys.mjs",
     "e2e:notes": "node scripts/e2e/notes.mjs",
+    "e2e:sidebar": "node scripts/e2e/sidebar.mjs",
     "e2e:app-db": "node scripts/e2e/app-db.mjs",
     "e2e:app-ts": "node scripts/e2e/app-ts.mjs",
     "dev": "sh terminal/build.sh && bun --bun vite dev --port 3000",
