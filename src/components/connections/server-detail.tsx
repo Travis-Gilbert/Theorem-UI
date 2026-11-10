@@ -143,6 +143,13 @@ function Body({ server }: { server: McpServer }) {
             onChange={(event) => setQuery(event.target.value)}
           />
         )}
+        {server.toolsTruncated && (
+          <p className="text-xs text-ink-muted">
+            This server lists more tools than Theorem keeps. The first{' '}
+            {server.tools.length} are here; the rest are not offered to your
+            agent.
+          </p>
+        )}
         {server.tools.length === 0 ? (
           <p className="text-sm text-ink-muted">
             No tools found yet. Test the connection to look again.
@@ -154,7 +161,9 @@ function Body({ server }: { server: McpServer }) {
             {tools.map((tool) => (
               <li key={tool.name} className="flex items-center gap-3 px-3 py-2">
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm">{tool.title ?? tool.name}</span>
+                  <span className="truncate text-sm">
+                    {tool.title ?? tool.name}
+                  </span>
                   {tool.title && tool.title !== tool.name && (
                     <span className="truncate font-mono text-xs text-ink-faint">
                       {tool.name}
@@ -184,7 +193,8 @@ function Body({ server }: { server: McpServer }) {
         )}
         <p className="text-xs text-ink-faint">
           A tool marked Write changes something on the server, so your agent
-          asks you first. Switching a tool off removes it from every conversation.
+          asks you first. Switching a tool off removes it from every
+          conversation.
         </p>
         {setToolEnabled.error && (
           <p role="alert" className="text-xs text-error-ink">

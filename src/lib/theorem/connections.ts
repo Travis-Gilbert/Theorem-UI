@@ -20,10 +20,7 @@ import { mutate } from './client'
 import { theoremJson } from './passthrough'
 
 export type ConnectionStatus =
-  | 'connected'
-  | 'disconnected'
-  | 'needs_auth'
-  | 'error'
+  'connected' | 'disconnected' | 'needs_auth' | 'error'
 
 export type Health = {
   state: 'ok' | 'degraded' | 'failing' | 'unknown'
@@ -45,11 +42,7 @@ export type Connection = {
 }
 
 export type DeliveryState =
-  | 'received'
-  | 'processing'
-  | 'processed'
-  | 'failed'
-  | 'skipped'
+  'received' | 'processing' | 'processed' | 'failed' | 'skipped'
 
 export type GithubRepository = {
   id: number
@@ -78,7 +71,12 @@ export type GithubConnection = Connection & {
     configured: boolean
     url?: string
     lastDeliveryAt?: string
-    counts: { received: number; processed: number; pending: number; failed: number }
+    counts: {
+      received: number
+      processed: number
+      pending: number
+      failed: number
+    }
   }
   lastEvent?: {
     event: string
@@ -124,6 +122,8 @@ export type McpServer = Connection & {
   /** Secrets are never returned. */
   auth: { type: McpAuthType; configured: boolean }
   tools: McpTool[]
+  /** The server declared more tools than Theorem keeps; absent before the first discovery. */
+  toolsTruncated?: boolean
   discoveredAt?: string
 }
 
@@ -161,14 +161,22 @@ export type ToolGroup = {
   kind: string
   /** The connection is switched on in Settings. */
   enabled: boolean
-  tools: { name: string; title?: string; description?: string; effect: ToolEffect }[]
+  tools: {
+    name: string
+    title?: string
+    description?: string
+    effect: ToolEffect
+  }[]
 }
 
 export type DeliveryPage = { deliveries: GithubDelivery[]; nextCursor?: string }
 
 const root = '/api/connections/v1'
 
-const withQuery = (path: string, params: Record<string, string | undefined>) => {
+const withQuery = (
+  path: string,
+  params: Record<string, string | undefined>,
+) => {
   const query = new URLSearchParams()
   for (const [name, value] of Object.entries(params))
     if (value) query.set(name, value)
@@ -300,7 +308,8 @@ const withServer = (servers: McpServer[], next: McpServer) =>
 /** GitHub's writes. The agent switch is optimistic and rolls back on a refusal. */
 export function useGithubMutations() {
   const client = useQueryClient()
-  const settle = () => client.invalidateQueries({ queryKey: connectionKeys.all })
+  const settle = () =>
+    client.invalidateQueries({ queryKey: connectionKeys.all })
   const remember = (next: GithubConnection) =>
     client.setQueryData(connectionKeys.github, next)
 
@@ -341,7 +350,8 @@ export function useGithubMutations() {
 /** The MCP servers' writes. Switches are optimistic and roll back on a refusal. */
 export function useMcpMutations() {
   const client = useQueryClient()
-  const settle = () => client.invalidateQueries({ queryKey: connectionKeys.all })
+  const settle = () =>
+    client.invalidateQueries({ queryKey: connectionKeys.all })
   const remember = (next: McpServer) => {
     client.setQueryData<McpServer[]>(connectionKeys.mcp, (servers) =>
       servers?.some((server) => server.id === next.id)
