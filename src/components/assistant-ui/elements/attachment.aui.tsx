@@ -239,7 +239,7 @@ const AttachmentRemove: FC<{ name: string }> = ({ name }) => {
 
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="aui-user-message-attachments flex w-full flex-row gap-2 px-2 empty:hidden">
+    <div className="aui-user-message-attachments flex w-full flex-row justify-end gap-2 empty:hidden">
       <MessagePrimitive.Attachments>
         {() => <AttachmentUI />}
       </MessagePrimitive.Attachments>

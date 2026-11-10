@@ -60,7 +60,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/coss/collapsible";
 import { ProjectGlyph } from "@/components/organize/glyphs";
-import { useTenant } from "@/components/shell/projects";
 import { ChevronRight } from "lucide-react";
 
 import { Magnet, useArrivedLive } from "@/components/motion";
@@ -734,6 +733,7 @@ export const AssistantMessageContent: FC = () => {
   );
 };
 /** A mark, then who spoke above what they said, as in docs/plans/evidence/refs/sidebar-compare@2026-11-05.webp. */
+/** The agent speaks from the left of the column, under its mark and name. */
 const MESSAGE_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2";
 const MESSAGE_SPEAKER = "flex min-h-6 items-center gap-2 px-2 font-medium text-ink";
 
@@ -880,7 +880,6 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 const UserMessage: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const surface = useKitSurface();
-  const tenant = useTenant();
   // A message just sent from the composer flies up from where it was typed.
   useLayoutEffect(() => {
     const origin = takeLaunch();
@@ -901,45 +900,33 @@ const UserMessage: FC = () => {
   }, []);
 
   return (
+    // The person speaks from the right of the column, across from the agent,
+    // on the composer's paper the message rose from.
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
       {...surface}
-      className={cn(
-        MESSAGE_GRID,
-        "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
-      )}
+      className="flex flex-col items-end gap-1 ps-[20%] pe-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
       data-role="user"
     >
-      <span
-        aria-hidden
-        className="bg-action text-ink flex size-8 items-center justify-center rounded-full text-sm font-medium"
-      >
-        {tenant?.charAt(0).toUpperCase()}
-      </span>
-      <div className="min-w-0">
-        <div className={MESSAGE_SPEAKER}>
-          You
-          <div className="aui-user-action-bar-wrapper">
-            <UserActionBar />
-          </div>
+      <UserMessageAttachments />
+      <div className="aui-user-message-content-wrapper flex max-w-full min-w-0 items-start gap-1">
+        <div className="aui-user-action-bar-wrapper pt-1">
+          <UserActionBar />
         </div>
-        <UserMessageAttachments />
-        <div className="aui-user-message-content-wrapper px-2">
-          <div
-            ref={contentRef}
-            className="aui-user-message-content text-ink leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
-          >
-            <MessagePrimitive.Parts
-              components={{
-                File: UserFilePart,
-                Image: UserImagePart,
-                Text: UserTextPart,
-              }}
-            />
-          </div>
+        <div
+          ref={contentRef}
+          className="aui-user-message-content surface-paper border-separator text-ink min-w-0 rounded-2xl border px-3.5 py-2 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
+        >
+          <MessagePrimitive.Parts
+            components={{
+              File: UserFilePart,
+              Image: UserImagePart,
+              Text: UserTextPart,
+            }}
+          />
         </div>
-        <BranchPicker data-slot="aui_user-branch-picker" className="px-1" />
       </div>
+      <BranchPicker data-slot="aui_user-branch-picker" className="px-1" />
     </MessagePrimitive.Root>
   );
 };
