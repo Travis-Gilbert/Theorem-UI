@@ -105,6 +105,24 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     viewport: { width: 960, height: 900 },
   },
+  {
+    id: 'response-style-picker',
+    title: 'Composer with the response style picker',
+    lane: 'original',
+    viewport: { width: 760, height: 320 },
+  },
+  {
+    id: 'response-details',
+    title: 'Response details for a reply',
+    lane: 'original',
+    viewport: { width: 760, height: 620 },
+  },
+  {
+    id: 'response-styles-settings',
+    title: 'Settings, response styles',
+    lane: 'original',
+    viewport: { width: 760, height: 900 },
+  },
   ...ARTIFACT_STORIES.map(
     ({ id, title }): StoryMeta => ({
       id,

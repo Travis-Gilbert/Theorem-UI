@@ -14,6 +14,7 @@ export const SETTINGS_GROUPS = [
     sections: [
       { path: '/settings/ai', label: 'AI', Mark: Icon.Model },
       { path: '/settings/keys', label: 'API keys', Mark: Icon.Key },
+      { path: '/settings/styles', label: 'Response styles', Mark: Icon.Draft },
       { path: '/settings/import', label: 'Import context', Mark: Icon.Download },
     ],
   },
