@@ -79,6 +79,8 @@ export const RESOURCE_KINDS = [
   'file',
   'app',
   'conversation',
+  'work-view',
+  'work-project',
 ] as const
 export type ResourceKind = (typeof RESOURCE_KINDS)[number]
 

@@ -31,6 +31,7 @@ import { Route as SettingsAppearanceRouteImport } from './routes/settings/appear
 import { Route as SettingsConnectionsRouteImport } from './routes/settings/connections'
 import { Route as SettingsImportRouteImport } from './routes/settings/import'
 import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
+import { Route as SettingsWorkRouteImport } from './routes/settings/work'
 import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
@@ -178,6 +179,11 @@ const SettingsImportRoute = SettingsImportRouteImport.update({
 const SettingsKeysRoute = SettingsKeysRouteImport.update({
   id: '/keys',
   path: '/keys',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsWorkRoute = SettingsWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => SettingsRoute,
 } as any)
 const StoryIdRoute = StoryIdRouteImport.update({
@@ -417,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/settings/': typeof SettingsIndexRoute
@@ -477,6 +484,7 @@ export interface FileRoutesByTo {
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
@@ -541,6 +549,7 @@ export interface FileRoutesById {
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
@@ -606,6 +615,7 @@ export interface FileRouteTypes {
     | '/settings/connections'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/work'
     | '/story/$id'
     | '/theia/$'
     | '/settings/'
@@ -666,6 +676,7 @@ export interface FileRouteTypes {
     | '/settings/connections'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/work'
     | '/story/$id'
     | '/theia/$'
     | '/'
@@ -729,6 +740,7 @@ export interface FileRouteTypes {
     | '/settings/connections'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/work'
     | '/story/$id'
     | '/theia/$'
     | '/_chat/'
@@ -975,6 +987,13 @@ declare module '@tanstack/react-router' {
       path: '/keys'
       fullPath: '/settings/keys'
       preLoaderRoute: typeof SettingsKeysRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/work': {
+      id: '/settings/work'
+      path: '/work'
+      fullPath: '/settings/work'
+      preLoaderRoute: typeof SettingsWorkRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/story/$id': {
@@ -1295,6 +1314,7 @@ interface SettingsRouteChildren {
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SettingsImportRoute: typeof SettingsImportRoute
   SettingsKeysRoute: typeof SettingsKeysRoute
+  SettingsWorkRoute: typeof SettingsWorkRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -1304,6 +1324,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsConnectionsRoute: SettingsConnectionsRoute,
   SettingsImportRoute: SettingsImportRoute,
   SettingsKeysRoute: SettingsKeysRoute,
+  SettingsWorkRoute: SettingsWorkRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -1372,12 +1393,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
