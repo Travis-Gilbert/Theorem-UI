@@ -135,12 +135,20 @@ const columns = columnHelper.columns([
   }),
 ])
 
-/** How wide a cell is allowed to be; the title takes what is left. */
+/**
+ * How wide a cell is allowed to be; the title takes what is left. The fields
+ * that say least about the row step aside as the list narrows (container
+ * queries on the grid, so an open inspector counts), so the title keeps its room.
+ */
 const CELL: Record<string, string> = {
   select: 'w-5 shrink-0',
-  key: 'w-16 shrink-0',
+  key: 'w-[4.5rem] shrink-0',
   title: 'min-w-0 flex-1',
-  labels: 'min-w-0 shrink overflow-hidden',
+  labels: 'hidden min-w-0 shrink overflow-hidden @3xl:flex',
+  pullRequest: 'hidden shrink-0 @3xl:flex',
+  milestone: 'hidden shrink-0 @3xl:flex',
+  repo: 'hidden shrink-0 @3xl:flex',
+  project: 'hidden shrink-0 @2xl:flex',
 }
 
 type ItemRow = Extract<ListRow, { type: 'item' }>
@@ -340,7 +348,7 @@ function ListBody({
           aria-label="Work items"
           aria-rowcount={flat.length}
           aria-multiselectable
-          className="group/list min-h-0 flex-1 overflow-auto outline-none"
+          className="group/list @container min-h-0 flex-1 overflow-auto outline-none"
         >
           <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
             {virtualizer.getVirtualItems().map((virtual) => {

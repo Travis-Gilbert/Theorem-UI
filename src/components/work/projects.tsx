@@ -332,7 +332,7 @@ function ProjectItems({
   )
   const state = useViewState('all-issues', extra)
   return (
-    <div className="flex h-[32rem] min-h-0 flex-col border-t border-separator">
+    <div className="flex h-[32rem] shrink-0 flex-col border-t border-separator">
       <WorkViewBar state={state} />
       <WorkItems state={state} selectedId={selectedId} onOpen={onOpen} />
     </div>

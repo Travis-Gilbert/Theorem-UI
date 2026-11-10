@@ -124,10 +124,16 @@ export function UpdatedField({ item }: { item: WorkItem }) {
   )
 }
 
+/** `theorem/web#108` reads `web#108` in a row; the whole key is the tooltip and the repo has its own field. */
+export const shortKey = (key: string) => key.slice(key.lastIndexOf('/') + 1)
+
 export function KeyField({ item }: { item: WorkItem }) {
   return (
-    <span className="shrink-0 text-xs tabular-nums text-ink-faint">
-      {item.key}
+    <span
+      title={item.key}
+      className="shrink-0 truncate text-xs tabular-nums text-ink-faint"
+    >
+      {shortKey(item.key)}
     </span>
   )
 }
