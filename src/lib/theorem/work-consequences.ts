@@ -1,21 +1,12 @@
-// SOURCING: @tanstack/react-query over lib/theorem/passthrough and client.mutate; the wire types are copied from the Work items and Connections contract, section A (WorkSettings). The tracker's other settings belong to the work tracker, so this module reads the whole document and writes it back with only `consequences` changed.
+// SOURCING: @tanstack/react-query over lib/theorem/passthrough and client.mutate; the wire types are the work tracker's (components/work/contract). The tracker's other settings belong to the work tracker, so this module reads the whole document and writes it back with only `consequences` changed.
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { SETTINGS_KEY } from '@/components/work/cache'
+import type { WorkConsequence, WorkSettings } from '@/components/work/contract'
 import { hasStatus, mutate } from './client'
 import { theoremJson } from './passthrough'
 
-export type ConsequenceId =
-  | 'push_refreshes_context'
-  | 'review_request_creates_inbox_entry'
-  | 'failed_workflow_starts_investigation'
-  | 'issue_comment_joins_task'
-
-export type WorkSettings = {
-  enabled: boolean
-  github: { enabled: boolean; repos: string[] }
-  consequences: { id: ConsequenceId; enabled: boolean }[]
-  sync: { state: 'idle' | 'running' | 'error'; lastSyncedAt?: string; detail?: string }
-  revision: string
-}
+export type { WorkSettings }
+export type ConsequenceId = WorkConsequence['id']
 
 /** What each GitHub event does, in the order the settings page lists them. */
 export const CONSEQUENCES: readonly {
@@ -48,7 +39,8 @@ export const CONSEQUENCES: readonly {
 
 const path = '/api/work/v1/settings'
 
-export const workSettingsKey = ['theorem', 'work', 'settings'] as const
+/** The tracker's own cache entry, so a switch flipped on either settings page shows on both. */
+export const workSettingsKey = SETTINGS_KEY
 
 export const workSettingsQuery = queryOptions({
   queryKey: workSettingsKey,
