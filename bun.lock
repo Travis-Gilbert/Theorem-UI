@@ -53,6 +53,7 @@
         "@prosemirror-adapter/react": "0.5.5",
         "@puckeditor/core": "0.24.0",
         "@radix-ui/react-use-size": "1.1.5",
+        "@rustyreddb/browser": "file:vendor/rustyreddb-browser-0.1.0-beta.2.tgz",
         "@rustyreddb/node": "0.1.0-beta.2",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.1.18",
@@ -943,6 +944,8 @@
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
     "@rollup/pluginutils": ["@rollup/pluginutils@5.5.1", "", { "dependencies": { "@types/estree": "^1.0.0", "estree-walker": "^2.0.2", "picomatch": "^4.0.2" }, "peerDependencies": { "rollup": "^1.20.0||^2.0.0||^3.0.0||^4.0.0" }, "optionalPeers": ["rollup"] }, "sha512-P9ZvnfouRu4MSC+ilERaw6FmZs8zqKhpHxEs4aGDGWQAMzQGXnhvCSvoNwokfNvdt7t3Y5Y4p6gStQgezeIqug=="],
+
+    "@rustyreddb/browser": ["@rustyreddb/browser@vendor/rustyreddb-browser-0.1.0-beta.2.tgz", {}, "sha512-PWg3EXUWzG+pkOLwgZBJP02mb/Mf0FoOSHtH7dRUokFigufa8Vp+pH96gjs7QXcYBlu52loxisxL67Zcjo47cA=="],
 
     "@rustyreddb/node": ["@rustyreddb/node@0.1.0-beta.2", "", { "optionalDependencies": { "@rustyreddb/node-darwin-arm64": "0.1.0-beta.2", "@rustyreddb/node-linux-x64-gnu": "0.1.0-beta.2" } }, "sha512-4hwdcLdwH1WzDCRc+GIoS2L8obk+G3k6h3Z4Igr+eBJO0775p3q5k3Nnu46AaNncUj1IsnOGuZ3cJIhoeKhc6g=="],
 

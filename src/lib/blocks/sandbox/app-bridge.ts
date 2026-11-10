@@ -1,11 +1,13 @@
 // SOURCING: the modules beside it; the script the block listener adds to an
 // HTML app's pages (served at /__runtime/app-bridge). It gives the app
-// `window.theorem`: the same declared files, state and run calls a cell has.
+// `window.theorem`: the same declared files, state and run calls a cell has,
+// and the graph databases it declared.
 // On a page, an app placed as a module also gets `theorem.module`: the values
 // it is handed, the actions routes reach, and the outputs and events it
 // declared.
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
+import { Databases } from './db'
 import { markSelectedCell, observeHeight, observeSnapshots } from './display'
 import { call, rpcOver, serve } from './protocol'
 import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
@@ -20,6 +22,11 @@ const actionListeners = new Map<string, Set<ActionListener>>()
 const context = connectToPage().then((port) => {
   const rpc = rpcOver(port)
   const cells = new CellContext(rpc, { show: () => {}, clear: () => {} })
+  const databases = new Databases(rpc)
+  serve<SandboxMethods, 'db.changed'>(rpc, 'db.changed', ({ id, outcome }) => {
+    databases.changed(id, outcome)
+    return null
+  })
   serve<SandboxMethods, 'state.changed'>(
     rpc,
     'state.changed',
@@ -91,14 +98,14 @@ const context = connectToPage().then((port) => {
   })
   document.addEventListener('pointerup',selection)
   document.addEventListener('keyup',selection)
-  return cells
+  return { cells, databases }
 })
 
 type Files = ReturnType<CellContext['files']>
 const files =
   (name: keyof Files) =>
   async (...args: Array<string>) =>
-    ((await context).files()[name] as (...a: Array<string>) => unknown)(...args)
+    ((await context).cells.files()[name] as (...a: Array<string>) => unknown)(...args)
 
 const theorem = {
   /** Resolves once the page has connected this app. */
@@ -111,9 +118,11 @@ const theorem = {
     list: files('list'),
     write: files('write'),
   },
-  state: async (name: string) => (await context).state(name),
+  state: async (name: string) => (await context).cells.state(name),
+  /** A graph database kept in this browser, declared with `db("name")`. */
+  db: async (name: string) => (await context).databases.open(name),
   run: async (target: string) =>
-    call<PageMethods, 'run.request'>((await context).rpc, 'run.request', {
+    call<PageMethods, 'run.request'>((await context).cells.rpc, 'run.request', {
       target,
     }),
   module: {
@@ -131,12 +140,12 @@ const theorem = {
       return () => listeners.delete(listener)
     },
     output: async (name: string, value: unknown) =>
-      call<PageMethods, 'module.output'>((await context).rpc, 'module.output', {
+      call<PageMethods, 'module.output'>((await context).cells.rpc, 'module.output', {
         name,
         value,
       }),
     emit: async (name: string, payload: unknown) =>
-      call<PageMethods, 'module.emit'>((await context).rpc, 'module.emit', {
+      call<PageMethods, 'module.emit'>((await context).cells.rpc, 'module.emit', {
         name,
         payload,
       }),

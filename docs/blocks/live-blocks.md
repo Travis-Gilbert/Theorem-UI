@@ -179,6 +179,7 @@ The list is parsed with acorn as JavaScript call expressions:
 | `files.read("Data/*.csv")` | reading and listing matching workspace paths (picomatch globs)   |
 | `files.write("Log.csv")`   | writing matching paths                                           |
 | `state("habits")`          | the `habits` collection in the workspace's state document        |
+| `db("records")`            | the App's `records` graph database, kept in this browser         |
 | `net("api.example.com")`   | `fetch` to `https://api.example.com` (the frame's `connect-src`) |
 | `run("agent:#weekly")`     | asking for a run of the agent block `#weekly`                    |
 
@@ -344,6 +345,7 @@ An `.html` file, or a folder with `index.html`, opens as an app.
   resolves:
   - `theorem.files` (`text`, `json`, `csv`, `bytes`, `list`, `write`);
   - `theorem.state(name)`;
+  - `theorem.db(name)`, for a conversation App (see [App databases](#app-databases));
   - `theorem.run(target)`.
 
   Everything the page reaches is checked against the entry page's
@@ -371,6 +373,51 @@ Each workspace has one Loro document, `state.loro` in its app data. Each
 with one over Documents v2, and the state document follows the workspace's
 replication policy (D12). The replica, the bridge and blocks stay as they
 are. Until then, state stays on this machine.
+
+## App databases
+
+A conversation App that declares `db("records")` keeps a graph database: nodes
+with labels and properties, and edges between them.
+
+```html
+<meta name="theorem:uses" content='db("records")' />
+<script>
+  theorem.db('records').then((db) => {
+    db.subscribe({ method: 'queryNodes', args: { label: 'Org' } }, (orgs) => {
+      // now, and again after any commit that changes the result
+    })
+    db.mutate({
+      upsertNodes: [
+        { id: 'org:a', labels: ['Org'], properties: { name: 'Alder' } },
+      ],
+    })
+  })
+</script>
+```
+
+- **The calls.** `mutate(batch)` commits one batch atomically. `getNode`,
+  `getEdge`, `queryNodes` and `neighbors` read the graph. `query(cypher,
+params)` runs read-only Cypher. `subscribe(read, next)` keeps one of those
+  reads current. A failure is a `DbError` with the database's own `code`, such
+  as `cypher_write_unsupported`.
+- **Where it lives.** The database is RustyRedDB (`@rustyreddb/browser`) in a
+  worker of the page, stored in the origin private file system. A sandboxed
+  frame has no storage, so each call crosses the bridge and is checked against
+  the declaration first (`bridge.ts`, `app-db.ts`).
+- **It belongs to the App, not a revision.** Its directory is named by the
+  App's document id. A new revision of the App reads the records the last one
+  wrote, and two views of the App on one page share one database: a write in
+  one reaches the other's subscriptions.
+- **A saved revision reads only.** A pinned revision in the conversation sees
+  the App's records as they are now, and its `mutate` fails with `read_only`.
+- **This browser only.** The records do not sync. `state(name)` is still the
+  choice for data that must follow a person to another device. A second tab
+  showing the same App cannot open its database while the first holds it.
+- **Not yet.** Full-text search and compaction are not in the browser
+  database. Folder HTML apps, cells and page modules have no `db`.
+
+`bun run e2e:app-db` runs this in headless Chromium without a
+Theorem server.
 
 ## Export
 
@@ -438,6 +485,7 @@ Pure blocks then run in a phone browser. Effectful ones wait for remote runs
 | Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                        |
 | Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                             |
 | Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                             |
+| App databases                   | `app-db.ts`, `app-db.worker.ts`, `sandbox/db.ts`, `scripts/e2e/app-db.mjs`                       |
 | State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts` |
 | Views                           | `src/components/blocks/`                                                                         |
 | Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                            |

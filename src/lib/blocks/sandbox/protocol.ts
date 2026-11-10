@@ -57,6 +57,28 @@ export interface AppSelection {
   cellId?: string
 }
 
+/** The reads a database answers. A subscription keeps one of them current. */
+export const DB_READS = [
+  'inspect',
+  'getNode',
+  'getEdge',
+  'queryNodes',
+  'neighbors',
+  'query',
+] as const
+export type DbRead = (typeof DB_READS)[number]
+export type DbMethod = DbRead | 'mutate'
+
+/** A database failure. `code` is the database's own, such as `cypher_write_unsupported`. */
+export interface DbFailure {
+  code: string
+  message: string
+}
+
+/** A database call's outcome. A failure is a value, so its code crosses the bridge. */
+export type DbOutcome =
+  { ok: true; value: unknown } | { ok: false; error: DbFailure }
+
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
 export interface PageMethods {
   'files.read': {
@@ -78,6 +100,17 @@ export interface PageMethods {
   }
   'state.delete': { params: { name: string; key: string }; result: null }
   'run.request': { params: { target: string }; result: RunRequestResult }
+  /** One call on a declared database. `args` is the method's own argument. */
+  'db.call': {
+    params: { name: string; method: DbMethod; args?: unknown }
+    result: DbOutcome
+  }
+  /** Keeps a read current; its results arrive as `db.changed` with this id. */
+  'db.subscribe': {
+    params: { name: string; id: number; method: DbRead; args?: unknown }
+    result: null
+  }
+  'db.unsubscribe': { params: { id: number }; result: null }
   'frame.selection': { params: AppSelection; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
@@ -109,6 +142,8 @@ export interface SandboxMethods {
     params: { name: string; value: Record<string, unknown> }
     result: null
   }
+  /** A subscribed read's result, now and after each commit that changes it. */
+  'db.changed': { params: { id: number; outcome: DbOutcome }; result: null }
   /** A page module's settings or inputs changed. */
   'module.inputs': { params: ModuleValues; result: null }
   /** A route reached one of a page module's declared actions. */

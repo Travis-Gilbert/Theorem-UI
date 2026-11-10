@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { askAbout } from '@/components/chat/composer-references'
 import { Button } from '@/components/ui/button'
+import { documentAppDatabases } from '@/lib/blocks/app-db'
 import { documentAppHost, documentAppState } from '@/lib/blocks/document-app'
 import { hostedAppDocument } from '@/lib/blocks/hosted-app'
 import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
@@ -85,6 +86,12 @@ function AppPreview({
     () => appDeclarations(snapshot.html),
     [snapshot.html],
   )
+  // Named by the document, so the next revision of this App finds its records.
+  const databases = useMemo(
+    () => documentAppDatabases(app.documentId),
+    [app.documentId],
+  )
+  useEffect(() => () => databases.dispose(), [databases])
   // State-only saves update the existing frame rather than restarting its controls.
   const host = useMemo(
     () =>
@@ -94,6 +101,7 @@ function AppPreview({
           app.getSnapshot()!,
           declarations.capabilities,
           state.state,
+          databases,
         ),
         onSelection: (selection: AppSelection) => {
           const context = captureAppSelection(
@@ -104,7 +112,7 @@ function AppPreview({
           onSelection(context)
         },
       },
-    [app, source, declarations, state, onSelection],
+    [app, source, declarations, state, databases, onSelection],
   )
   if (error || stateError)
     return <BlockMessage tone="error">{error || stateError}</BlockMessage>

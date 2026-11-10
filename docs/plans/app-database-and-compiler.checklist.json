@@ -48,14 +48,20 @@
     {
       "id": "db-capability",
       "requirement": "A db capability is declared like the others and db.* page methods are parsed and checked against it",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/declarations.ts (db), bridge.ts (db.call, db.subscribe, db.unsubscribe, each zod-parsed and checked against the declaration)",
+        "bun test src/lib/blocks/app-db.test.ts: 13 passed, including \"a database that was not declared is not reached\""
+      ]
     },
     {
       "id": "db-worker-per-app",
       "requirement": "One database per App document id in a host-page worker; every revision of an App sees the same records; a pinned revision is read-only",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-db.ts: one database per App document id and declared name, shared by every view on the page; a pinned revision is opened with writable false",
+        "node scripts/e2e/app-db.mjs in headless Chromium, 2026-11-10: 9 of 9 checks, including \"the next revision of the App finds its records\", \"they are there after the page is loaded again\" and \"a saved revision reads them and may not change them\""
+      ]
     },
     {
       "id": "db-one-owner-across-tabs",
@@ -64,10 +70,25 @@
       "evidence": []
     },
     {
-      "id": "db-in-frame",
-      "requirement": "window.theorem.db in the app bridge, with subscriptions delivered over the existing port",
+      "id": "db-compaction",
+      "requirement": "An App's database does not grow without bound: the browser store is compacted",
       "status": "todo",
       "evidence": []
+    },
+    {
+      "id": "db-agent-knows",
+      "requirement": "The builder is told the db surface, so a generated App can declare and use a database (Theorem repo)",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "db-in-frame",
+      "requirement": "window.theorem.db in the app bridge, with subscriptions delivered over the existing port",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/sandbox/db.ts and app-bridge.ts (window.theorem.db); subscriptions arrive as db.changed over the frame's port",
+        "scripts/e2e/app-db.mjs: \"a second view of the App follows without a rebuild\""
+      ]
     },
     {
       "id": "ts-app-form",
