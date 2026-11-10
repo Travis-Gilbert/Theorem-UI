@@ -5,6 +5,7 @@ import appBridge from './sandbox/app-bridge.ts?raw'
 import cell from './sandbox/cell.ts?raw'
 import cellRuntime from './sandbox/cell-runtime.ts?raw'
 import connect from './sandbox/connect.ts?raw'
+import db from './sandbox/db.ts?raw'
 import display from './sandbox/display.ts?raw'
 import notebook from './sandbox/notebook.ts?raw'
 import protocol from './sandbox/protocol.ts?raw'
@@ -18,6 +19,7 @@ export const runtimeSources: Record<string, string> = {
   cell,
   'cell-runtime': cellRuntime,
   connect,
+  db,
   display,
   notebook,
   protocol,

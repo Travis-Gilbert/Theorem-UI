@@ -1,4 +1,4 @@
-// SOURCING: coss ui popover, switch, button and scroll area, date-fns for how long ago, lib/theorem/organization for the Librarian's status, history and Undo. Its behaviour (a quiet activity area with the reason and the undo one click away) is translated from mikecann/threadbear@78b77e1 (MIT, Mike Cann).
+// SOURCING: coss ui popover, switch and scroll area, the owned Librarian mark from components/icons, date-fns for how long ago, lib/theorem/organization for the Librarian's status, history and Undo. Its behaviour (a quiet activity area with the reason and the undo one click away) is translated from mikecann/threadbear@78b77e1 (MIT, Mike Cann).
 import { formatDistanceToNowStrict } from 'date-fns'
 import {
   Popover,
@@ -14,10 +14,7 @@ import {
   useLibrarianHistory,
   useUndoOrganize,
 } from '@/lib/theorem/organization'
-import type {
-  LibrarianStatus,
-  OrganizeEvent,
-} from '@/lib/theorem/organization'
+import type { LibrarianStatus, OrganizeEvent } from '@/lib/theorem/organization'
 import { describeError } from '@/lib/theorem/client'
 import { cn } from '@/lib/utils'
 
@@ -67,7 +64,11 @@ function Why({ event }: { event: OrganizeEvent }) {
       <PopoverPopup side="top" align="start" className="w-64 text-sm">
         <p className="text-ink">{why || 'No reason was recorded.'}</p>
         <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-          {actor === 'librarian' ? 'The Librarian' : actor === 'agent' ? 'The agent' : 'You'}{' '}
+          {actor === 'librarian'
+            ? 'The Librarian'
+            : actor === 'agent'
+              ? 'The agent'
+              : 'You'}{' '}
           {trigger ? `decided ${TRIGGER_LABEL[trigger]}` : 'decided this'}
           {evidence
             ? `, from ${evidence.messageIds.length} ${evidence.messageIds.length === 1 ? 'message' : 'messages'} (${evidence.inputChars.toLocaleString()} characters)${evidence.model ? ` with ${evidence.model}` : ''}`
@@ -194,20 +195,23 @@ export function LibrarianFooter({ librarian }: { librarian: LibrarianStatus }) {
   return (
     <section
       aria-label="Librarian"
-      className="flex shrink-0 flex-col gap-2.5 border-t border-separator px-3 py-3 text-sm"
+      className="flex shrink-0 flex-col gap-1.5 border-t border-separator px-3 py-2.5 text-sm"
     >
-      <div className="flex items-start gap-2">
-        <Icon.Sparkle
+      <div className="flex items-center gap-2">
+        <Icon.Librarian
           aria-hidden
           className={cn(
-            'mt-0.5 size-5 shrink-0 text-ink-muted',
+            'size-4 shrink-0 text-ink-muted',
             librarian.state === 'working' &&
               'animate-pulse motion-reduce:animate-none',
           )}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-md leading-tight font-semibold">Librarian</p>
-          <p aria-live="polite" className="mt-0.5 truncate text-ink-muted">
+          <p className="leading-tight font-medium">Librarian</p>
+          <p
+            aria-live="polite"
+            className="truncate text-xs leading-tight text-ink-muted"
+          >
             {line}
           </p>
         </div>
@@ -217,18 +221,14 @@ export function LibrarianFooter({ librarian }: { librarian: LibrarianStatus }) {
         <button
           type="button"
           onClick={() => control.mutate({ paused: false })}
-          className="self-start rounded-sm text-ink-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus"
+          className="ms-6 self-start rounded-sm text-xs text-ink-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus"
         >
           Resume
         </button>
       ) : (
         newest &&
         librarian.state !== 'off' && (
-          <div className="flex items-center gap-1.5">
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full bg-teal dark:bg-teal-ink"
-            />
+          <div className="flex items-center gap-1.5 ps-6 text-xs">
             <p className="min-w-0 flex-1 truncate" title={newest.text}>
               {newest.text}
             </p>

@@ -82,7 +82,7 @@ export const sendAction = (rpc: Rpc, name: string, payload: unknown) =>
 
 /**
  * The bridge's capabilities for a module: what was granted, plus reading its
- * own folder. A module never starts agents.
+ * own folder. A module never starts agents and keeps no database.
  */
 export function bridgeCapabilities(
   grant: RequestedCapabilities,
@@ -94,6 +94,7 @@ export function bridgeCapabilities(
     state: grant.state,
     net: grant.net,
     run: [],
+    db: [],
   }
 }
 

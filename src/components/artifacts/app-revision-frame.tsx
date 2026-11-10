@@ -13,6 +13,7 @@ import { BlockFrame, SnapshotFrame } from '@/components/blocks/block-frame'
 import { BlockMessage } from '@/components/blocks/block-status'
 import { appDeclarations } from '@/components/blocks/html-app-handler'
 import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
+import { documentAppDatabases } from '@/lib/blocks/app-db'
 import { pinnedAppHost, pinnedAppState } from '@/lib/blocks/document-app'
 import { hostedAppDocument } from '@/lib/blocks/hosted-app'
 import { useSnapshot } from '@/lib/blocks/snapshots'
@@ -114,6 +115,14 @@ export function PinnedAppFrame({
       pinned.dispose()
     }
   }, [seed])
+  // The App's records as they are now, for reading: a saved revision keeps
+  // its source, and an App keeps one set of data across revisions.
+  const documentId = artifact.documentId ?? artifact.artifactId
+  const databases = useMemo(
+    () => documentAppDatabases(documentId, { writable: false }),
+    [documentId],
+  )
+  useEffect(() => () => databases.dispose(), [databases])
   const host = useMemo(
     () =>
       state && {
@@ -122,6 +131,7 @@ export function PinnedAppFrame({
           artifact.documentId ?? artifact.artifactId,
           appDeclarations(artifact.content).capabilities,
           state.state,
+          databases,
         ),
         onSelection,
       },
@@ -130,6 +140,7 @@ export function PinnedAppFrame({
       artifact.documentId,
       artifact.artifactId,
       state,
+      databases,
       onSelection,
     ],
   )

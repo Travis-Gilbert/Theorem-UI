@@ -2,7 +2,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { bootstrap, isSignedOut, mutate, theorem } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
-import { inboxOf } from '@/lib/theorem/organization'
+import { inboxOf, organizationKey } from '@/lib/theorem/organization'
+import type { OrganizationRead } from '@/lib/theorem/organization'
 import { useShell } from './shell-state'
 
 const PROJECTS = ['theorem', 'projects'] as const
@@ -53,6 +54,31 @@ export function useCreateProject() {
         ...prev,
         record,
       ])
+      // The sidebar's tree reads the organization, so the project shows there at once.
+      queryClient.setQueryData<OrganizationRead>(organizationKey, (prev) =>
+        prev && !prev.projects.some((p) => p.projectId === record.projectId)
+          ? {
+              ...prev,
+              projects: [
+                ...prev.projects,
+                {
+                  projectId: record.projectId,
+                  title: record.title,
+                  isInbox: false,
+                  createdBy: 'user' as const,
+                  threadCount: 0,
+                  outputCount: 0,
+                  brief: false,
+                },
+              ].sort((a, b) =>
+                a.title.localeCompare(b.title, undefined, {
+                  sensitivity: 'base',
+                }),
+              ),
+            }
+          : prev,
+      )
+      void queryClient.invalidateQueries({ queryKey: organizationKey })
       setProjectId(record.projectId)
     },
   })
