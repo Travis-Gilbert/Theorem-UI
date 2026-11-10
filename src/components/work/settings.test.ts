@@ -1,5 +1,6 @@
 // SOURCING: bun:test over the work tracker's settings writes (read, change the two switches, write the whole object back with If-Match), against a stand-in Theorem
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+import { bootstrap } from '@/lib/theorem/client'
 import { SETTINGS } from './fixtures'
 import type { WorkSettings } from './contract'
 import { saveSettings, withChange } from './settings'
@@ -18,7 +19,7 @@ let stored: WorkSettings
 let stale: number
 const realFetch = window.fetch
 
-beforeEach(() => {
+beforeEach(async () => {
   calls = []
   stale = 0
   stored = {
@@ -56,6 +57,9 @@ beforeEach(() => {
     }
     return Response.json({}, { status: 404 })
   }) as typeof fetch
+  // The session is cached for the whole app, so another test file may have left one behind.
+  await bootstrap(true)
+  calls = []
 })
 afterEach(() => {
   window.fetch = realFetch
@@ -81,7 +85,6 @@ describe('saving the switches', () => {
 
     expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
       'GET /api/work/v1/settings',
-      'GET /api/chat/v1/bootstrap',
       'PUT /api/work/v1/settings',
     ])
     const put = puts()[0]!
