@@ -594,7 +594,8 @@ function NewProjectRow({
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing) return
             if (event.key === 'Enter') submit()
-            else if (event.key === 'Escape') onDone()
+            // A create already sent still lands; leaving now would drop its place in the list.
+            else if (event.key === 'Escape' && !create.isPending) onDone()
           }}
         />
       </div>
