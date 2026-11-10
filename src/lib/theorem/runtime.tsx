@@ -65,7 +65,9 @@ import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
 
 import { KitStage } from '@/components/kit/kit-stage'
-import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
+import { useKitRequests } from '@/lib/kit/operations'
+import { useAppRequests } from '@/lib/blocks/app-operations'
+import { clientSurfaceTurnOptions } from './client-surface'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -619,7 +621,7 @@ function useTheoremThreadRuntime() {
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...clientSurfaceTurnOptions()}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
@@ -646,6 +648,8 @@ function useTheoremThreadRuntime() {
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)
   useKitRequests(runtime)
+  // The agent checks Apps with the page's compiler; this answers it.
+  useAppRequests(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()

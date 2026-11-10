@@ -8,6 +8,7 @@ import connect from './sandbox/connect.ts?raw'
 import db from './sandbox/db.ts?raw'
 import display from './sandbox/display.ts?raw'
 import notebook from './sandbox/notebook.ts?raw'
+import outline from './sandbox/outline.ts?raw'
 import protocol from './sandbox/protocol.ts?raw'
 import standalone from './sandbox/standalone.ts?raw'
 import theme from './sandbox/theme.ts?raw'
@@ -22,6 +23,7 @@ export const runtimeSources: Record<string, string> = {
   db,
   display,
   notebook,
+  outline,
   protocol,
   standalone,
   theme,

@@ -135,7 +135,10 @@ export interface PageMethods {
   'frame.error': { params: FrameError; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
-  'frame.snapshot': { params: { html: string }; result: null }
+  'frame.snapshot': {
+    params: { html: string; outline?: string }
+    result: null
+  }
   /** A page module publishing one of its declared outputs. */
   'module.output': { params: { name: string; value: unknown }; result: null }
   /** A person used a page module's frame: its next events are theirs. */
@@ -152,6 +155,9 @@ export interface ModuleValues {
 
 /** The largest snapshot a frame may send, in characters. */
 export const MAX_SNAPSHOT = 512 * 1024
+
+/** The largest outline of a page a frame may send, in characters. */
+export const MAX_OUTLINE = 128 * 1024
 
 /** Methods the sandbox serves; the page calls them. */
 export interface SandboxMethods {
@@ -171,6 +177,14 @@ export interface SandboxMethods {
   'module.action': { params: { name: string; payload: unknown }; result: null }
   /** The page's theme changed: its tokens, resolved, and its mode. */
   'theme.changed': { params: ThemeState; result: null }
+  /**
+   * The frame as it is now, without waiting for it to settle: what a snapshot
+   * holds. Null when the copy is too large to send.
+   */
+  'frame.look': {
+    params: Record<string, never>
+    result: { html: string; outline: string } | null
+  }
 }
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */

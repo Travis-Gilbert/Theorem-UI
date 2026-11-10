@@ -489,6 +489,14 @@ carries its source files as scripts a browser does not run.
   with its problems above it. A plain HTML revision replaces the frame at
   once, as before.
 
+- **The agent checks an App.** The page declares the client operation
+  `app.check` on every send, so the turn has a tool that builds an App, checks
+  its types and runs it off screen, and returns its problems and the text it
+  showed (`app-operations.ts`, `app-inspect.ts`). It takes a draft's HTML or a
+  published App's document id. The run reaches no network, keeps its state in
+  the frame and gets an empty in-memory database, so a check changes nothing.
+  `docs/plans/agent-app-feedback.md` has the rest.
+
 `bun run e2e:app-ts` runs this in headless Chromium without a Theorem server,
 and with `--built` against a production build.
 
@@ -551,16 +559,16 @@ Pure blocks then run in a phone browser. Effectful ones wait for remote runs
 
 ## Where the code is
 
-| Concern                         | Files                                                                                                                 |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Format, round trip, editor node | `src/lib/blocks/format.ts`, `milkdown.ts`, `output.ts`                                                                |
-| Compile and cache               | `compile.ts`, `compile.worker.ts`, `compiler.ts`, `vendor/`                                                           |
-| Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                                             |
-| Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                                                  |
-| Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                                                  |
-| TypeScript Apps                 | `app-source.ts`, `app-check*.ts`, `app-checker.ts`, `app-trace.ts`, `app-edit.ts`, `check/`, `scripts/e2e/app-ts.mjs` |
-| App databases                   | `app-db.ts`, `app-db.worker.ts`, `sandbox/db.ts`, `scripts/e2e/app-db.mjs`                                            |
-| State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts`                      |
-| Views                           | `src/components/blocks/`                                                                                              |
-| Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                                                 |
-| Fixtures                        | `test/fixtures/blocks/`: `Today.md`, `Tools/Habit tracker.tsx`, `Data/habits.csv`                                     |
+| Concern                         | Files                                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Format, round trip, editor node | `src/lib/blocks/format.ts`, `milkdown.ts`, `output.ts`                                                                                                       |
+| Compile and cache               | `compile.ts`, `compile.worker.ts`, `compiler.ts`, `vendor/`                                                                                                  |
+| Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                                                                                    |
+| Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                                                                                         |
+| Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                                                                                         |
+| TypeScript Apps                 | `app-source.ts`, `app-check*.ts`, `app-checker.ts`, `app-trace.ts`, `app-edit.ts`, `app-inspect.ts`, `app-operations.ts`, `check/`, `scripts/e2e/app-ts.mjs` |
+| App databases                   | `app-db.ts`, `app-db.worker.ts`, `sandbox/db.ts`, `scripts/e2e/app-db.mjs`                                                                                   |
+| State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts`                                                             |
+| Views                           | `src/components/blocks/`                                                                                                                                     |
+| Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                                                                                        |
+| Fixtures                        | `test/fixtures/blocks/`: `Today.md`, `Tools/Habit tracker.tsx`, `Data/habits.csv`                                                                            |
