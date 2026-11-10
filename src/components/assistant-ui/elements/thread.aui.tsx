@@ -10,7 +10,6 @@ import {
 } from "@/components/assistant-ui/elements/attachment.aui";
 import { File, getFileHref } from "@/components/assistant-ui/elements/file";
 import { Image } from "@/components/assistant-ui/elements/image";
-import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
   ReasoningContent,
@@ -25,6 +24,8 @@ import {
   TheoremToolCall,
   RunSummary,
 } from "@/components/chat/theorem-parts";
+import { ProseSegment } from "@/components/chat/prose-segment";
+import { isStepDataPart } from "@/lib/theorem/run-parts";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -49,19 +50,11 @@ import {
   createContext,
   useContext,
   useLayoutEffect,
-  useMemo,
   useRef,
-  useState,
 } from "react";
-import type { ComponentType, FC, PropsWithChildren, ReactNode } from "react";
-import {
-  Collapsible,
-  CollapsiblePanel,
-  CollapsibleTrigger,
-} from "@/components/coss/collapsible";
+import type { ComponentType, FC, PropsWithChildren } from "react";
 import { ProjectGlyph } from "@/components/organize/glyphs";
 import { useTenant } from "@/components/shell/projects";
-import { ChevronRight } from "lucide-react";
 
 import { Magnet, useArrivedLive } from "@/components/motion";
 import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
@@ -76,6 +69,7 @@ import { useComposerSend } from "@assistant-ui/core/react";
 import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
 import { ComposerConnections } from "@/components/chat/composer-connections";
 import { EffortPicker } from "@/components/chat/effort-picker";
+import { ResponseControl } from "@/components/chat/response-control";
 import { DirectiveText } from "./directive-text.aui";
 import { attendKit } from "@/lib/kit/store";
 import { messageLabel, messageSurface } from "@/lib/kit/stage";
@@ -113,39 +107,49 @@ export type ThreadComponents = {
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
 };
 
-const defaultGroupBy = groupPartByType({
-  reasoning: ["group-chainOfThought", "group-reasoning"],
-  "tool-call": ["group-chainOfThought", "group-tool"],
-  "standalone-tool-call": [],
-});
-
-// Theorem: artifact tools and pending approvals render outside the tool group.
-const messageGroupBy: typeof defaultGroupBy = (part, context) =>
-  isStandaloneToolCall(part) ? [] : defaultGroupBy(part, context);
-
 type ThreadGroupKey =
-  | "group-chainOfThought"
+  | "group-step"
   | "group-reasoning"
   | "group-tool"
   | "group-task";
 
-const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
-  "group-chainOfThought",
-  "group-task",
-];
+const byType = groupPartByType({
+  reasoning: ["group-step", "group-reasoning"],
+  "tool-call": ["group-step", "group-tool"],
+  "standalone-tool-call": [],
+});
 
-const taskAwareGroupBy = (
-  part: Parameters<typeof messageGroupBy>[0],
-  context?: Parameters<typeof messageGroupBy>[1],
-): readonly ThreadGroupKey[] => {
-  const path = messageGroupBy(part, context);
-  return part.type === "tool-call" &&
-    part.messages !== undefined &&
-    path.length > 0 &&
-    !context?.toolUIs?.[part.toolName]?.length
-    ? TASK_GROUP_PATH
-    : path;
-};
+const TASK_GROUP_PATH: readonly ThreadGroupKey[] = ["group-step", "group-task"];
+
+/**
+ * Where a part sits in the run. Reasoning, tool calls and the data parts of
+ * delegated work belong to the stretch of work they happened in, and prose
+ * ends the stretch: each stretch between prose segments is its own
+ * `group-step`, at the place in the message where it happened. Theorem:
+ * artifact tools, plans and pending approvals stand on their own, as does
+ * every other data part. With a `TaskGroup`, a tool call that carries a
+ * nested conversation and has no registered UI is a task.
+ */
+const stepGroupBy =
+  (tasks: boolean) =>
+  (
+    part: Parameters<typeof byType>[0],
+    context?: Parameters<typeof byType>[1],
+  ): readonly ThreadGroupKey[] => {
+    if (part.type === "data") return isStepDataPart(part) ? ["group-step"] : [];
+    if (isStandaloneToolCall(part)) return [];
+    const path = byType(part, context);
+    return tasks &&
+      part.type === "tool-call" &&
+      part.messages !== undefined &&
+      path.length > 0 &&
+      !context?.toolUIs?.[part.toolName]?.length
+      ? TASK_GROUP_PATH
+      : path;
+  };
+
+const plainGroupBy = stepGroupBy(false);
+const taskAwareGroupBy = stepGroupBy(true);
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
@@ -535,6 +539,7 @@ const ComposerAction: FC = () => {
       <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
         <EffortPicker />
+        <ResponseControl />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-9 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
@@ -587,63 +592,6 @@ const MessageError: FC = () => {
 };
 
 /** An assistant message's parts as the thread shows them; a delegation panel shows a specialist's run with it. */
-/** How long the person waited for this reply, for history that kept no part timing. */
-const turnSeconds = (s: AssistantState) => {
-  const { messages } = s.thread;
-  const at = messages.findIndex((message) => message.id === s.message.id);
-  const asked = messages.slice(0, Math.max(at, 0)).findLast(
-    (message) => message.role === "user",
-  );
-  const replied = messages[at];
-  if (!asked || !replied) return undefined;
-  return Math.round(
-    (replied.createdAt.getTime() - asked.createdAt.getTime()) / 1000,
-  );
-};
-
-const spokenSeconds = (seconds: number) =>
-  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-
-/**
- * The reasoning and tool calls behind a reply, one row until it is opened. It
- * stands open while the model works and folds once it is done, unless the
- * person has already chosen.
- */
-const WorkGroup: FC<{ group: ThreadGroupPart; children: ReactNode }> = ({
-  group,
-  children,
-}) => {
-  const running = group.status.type === "running";
-  const turn = useAuiState(turnSeconds);
-  const [chosen, setChosen] = useState<boolean>();
-  const seconds = reasoningDuration(group.timing) ?? turn;
-  return (
-    <Collapsible
-      data-slot="aui_chain-of-thought"
-      className="mb-3"
-      open={chosen ?? running}
-      onOpenChange={setChosen}
-    >
-      <CollapsibleTrigger className="group/work flex h-9 w-full items-center gap-2 rounded-lg border border-separator bg-raised/40 px-3 text-sm text-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus">
-        <ChevronRight
-          aria-hidden
-          className="size-3.5 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/work:rotate-90"
-        />
-        <span className={cn(running && "shimmer motion-reduce:animate-none")}>
-          {running
-            ? "Working"
-            : seconds
-              ? `Worked for ${spokenSeconds(seconds)}`
-              : "Worked"}
-        </span>
-      </CollapsibleTrigger>
-      <CollapsiblePanel>
-        <div className="pt-2">{children}</div>
-      </CollapsiblePanel>
-    </Collapsible>
-  );
-};
-
 export const AssistantMessageContent: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = TheoremToolCall,
@@ -651,31 +599,18 @@ export const AssistantMessageContent: FC = () => {
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
-  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
-  // Theorem: a tool group draws no row; its calls fold into the run summary.
-  const parts = useAuiState((s) => s.message.parts);
-  const toolUIs = useAuiState((s) => s.tools.toolUIs);
-  const folded = useMemo(
-    () =>
-      ToolGroup
-        ? []
-        : parts.flatMap((part, index) =>
-            groupBy(part, { toolUIs }).at(-1) === "group-tool" ? [index] : [],
-          ),
-    [ToolGroup, groupBy, parts, toolUIs],
-  );
+  const groupBy = TaskGroupComponent ? taskAwareGroupBy : plainGroupBy;
 
   return (
     <div
       data-slot="aui_assistant-message-content"
       className="text-foreground px-2 leading-6 wrap-break-word"
     >
-      <RunSummary tools={folded} Tool={ToolFallbackComponent} />
       <MessagePrimitive.GroupedParts groupBy={groupBy}>
         {({ part, children }) => {
           switch (part.type) {
-            case "group-chainOfThought":
-              return <WorkGroup group={part}>{children}</WorkGroup>;
+            case "group-step":
+              return <RunSummary indices={part.indices}>{children}</RunSummary>;
             case "group-task":
               return TaskGroupComponent ? (
                 <TaskGroupComponent group={part} />
@@ -683,7 +618,9 @@ export const AssistantMessageContent: FC = () => {
             case "group-tool":
               return ToolGroup ? (
                 <ToolGroup group={part}>{children}</ToolGroup>
-              ) : null;
+              ) : (
+                <>{children}</>
+              );
             case "group-reasoning": {
               if (ReasoningGroup) {
                 return (
@@ -704,7 +641,7 @@ export const AssistantMessageContent: FC = () => {
               );
             }
             case "text":
-              return <MarkdownText />;
+              return <ProseSegment part={part} />;
             case "reasoning":
               return <Reasoning {...part} />;
             case "tool-call":
