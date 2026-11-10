@@ -163,6 +163,8 @@ export function KitStage() {
         ref={hold}
         tabIndex={0}
         role="button"
+        // The shell's press squeeze clears the transform that places Kit; a tap plays Kit's own gesture instead.
+        data-press="off"
         aria-label="Kit, the agent's figure. Press to pet it, or drag it somewhere."
         onKeyDown={(event) => {
           if (event.key !== 'Enter' && event.key !== ' ') return
