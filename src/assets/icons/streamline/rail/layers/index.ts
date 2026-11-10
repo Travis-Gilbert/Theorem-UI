@@ -7,6 +7,8 @@ import indexLine from './index-line.png'
 import indexAccent from './index-accent.png'
 import indexTint from './index-tint.png'
 import indexPaper from './index-paper.png'
+import notesLine from './notes-line.png'
+import notesTint from './notes-tint.png'
 import pagesLine from './pages-line.png'
 import pagesAccent from './pages-accent.png'
 import pagesTint from './pages-tint.png'
@@ -32,6 +34,7 @@ import filesPaper from './files-paper.png'
 export const RAIL_LAYERS = {
   home: { line: homeLine, accent: homeAccent, tint: homeTint, paper: homePaper },
   index: { line: indexLine, accent: indexAccent, tint: indexTint, paper: indexPaper },
+  notes: { line: notesLine, tint: notesTint },
   pages: { line: pagesLine, accent: pagesAccent, tint: pagesTint },
   spaces: { line: spacesLine, accent: spacesAccent },
   canvas: { line: canvasLine, accent: canvasAccent, tint: canvasTint, paper: canvasPaper },

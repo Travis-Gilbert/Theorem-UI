@@ -2,6 +2,7 @@
 import type { SerializedDockview } from 'dockview-react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { NoteOrder } from '@/lib/theorem/note-order'
 import type { ShellMode } from './modes'
 
 /** A project's desktop dock arrangement. */
@@ -70,7 +71,10 @@ type ShellState = {
   terminalTabs: Readonly<
     Record<string, { tabs: readonly TerminalTab[]; active: string }>
   >
+  /** The order Notes mode lists notes in. */
+  noteOrder: NoteOrder
   setProjectId: (projectId: string) => void
+  setNoteOrder: (order: NoteOrder) => void
   saveLayout: (projectId: string, layout: SavedLayout) => void
   setPanelWidth: (width: number) => void
   togglePanel: (mode: ShellMode) => void
@@ -112,6 +116,7 @@ export const useShell = create<ShellState>()(
       panelCollapsed: {},
       railOrder: [],
       filesShown: false,
+      noteOrder: 'edited',
       chatThreadId: undefined,
       explorerOpen: false,
       ideFilesOpen: true,
@@ -123,6 +128,7 @@ export const useShell = create<ShellState>()(
       sideDrawer: undefined,
       sideWidth: 620,
       terminalTabs: {},
+      setNoteOrder: (noteOrder) => set({ noteOrder }),
       setProjectId: (projectId) => set({ projectId }),
       saveLayout: (projectId, layout) =>
         set((s) => ({ layouts: { ...s.layouts, [projectId]: layout } })),
@@ -249,6 +255,7 @@ export const useShell = create<ShellState>()(
         terminalThreads,
         terminalThreadIds,
         terminalTabs,
+        noteOrder,
       }) => ({
         projectId,
         layouts,
@@ -264,6 +271,7 @@ export const useShell = create<ShellState>()(
         terminalThreads,
         terminalThreadIds,
         terminalTabs,
+        noteOrder,
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined

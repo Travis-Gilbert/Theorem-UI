@@ -52,7 +52,10 @@ async function signIn(page) {
 
 export async function open(path = '/') {
   mkdirSync(SHOTS, { recursive: true })
-  const browser = await chromium.launch()
+  // Full Chromium in new headless mode. The separate headless shell (Playwright
+  // 1.64, revision 1248) never paints a frame on macOS 27, so every screenshot
+  // and click waits forever.
+  const browser = await chromium.launch({ channel: 'chromium' })
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     colorScheme: 'dark',
@@ -70,11 +73,17 @@ export async function open(path = '/') {
   const page = await context.newPage()
   page.setDefaultTimeout(30_000)
   page.on('pageerror', (error) => problems.push(String(error).slice(0, 300)))
-  page.on('response', (response) => {
-    if (response.status() >= 400 && response.url().includes('/api/'))
-      problems.push(
-        `${response.status()} ${response.request().method()} ${response.url().replace(UI, '').slice(0, 90)}`,
-      )
+  page.on('response', async (response) => {
+    if (response.status() < 400 || !response.url().includes('/api/')) return
+    const method = response.request().method()
+    // A refused write says why; a missing read needs no more than its address.
+    const why =
+      method === 'GET'
+        ? ''
+        : ` ${(await response.text().catch(() => '')).slice(0, 400)}`
+    problems.push(
+      `${response.status()} ${method} ${response.url().replace(UI, '').slice(0, 90)}${why}`,
+    )
   })
   // A cold Vite or a server replaying its journal can take a while to answer.
   const asked = await context.request

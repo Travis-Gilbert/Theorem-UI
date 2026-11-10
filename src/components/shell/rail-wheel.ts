@@ -10,11 +10,12 @@ import type { RailIcon } from '@/assets/icons/streamline/rail/layers'
 const STEPS = {
   home: 0,
   index: 1,
-  pages: 2,
-  vault: 3,
-  spaces: 4,
-  canvas: 5,
-  ide: 6,
+  notes: 2,
+  pages: 3,
+  vault: 4,
+  spaces: 5,
+  canvas: 6,
+  ide: 7,
   files: 0,
 } as const satisfies Record<RailIcon, number>
 

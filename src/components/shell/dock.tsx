@@ -52,7 +52,13 @@ import {
 } from './arrangements'
 import type { Arrangement } from './arrangements'
 import { FilePanel } from './file-panel'
-import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
+import {
+  hasOwnView,
+  ModeView,
+  modeLabel,
+  navigatorMode,
+  useShellMode,
+} from './modes'
 import type { ShellMode } from './modes'
 import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
@@ -111,10 +117,7 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
   useEffect(
     () =>
       api.setTitle(
-        mode === 'spaces' ||
-        mode === 'canvas' ||
-        mode === 'index' ||
-        mode === 'pages'
+        hasOwnView(mode)
           ? modeLabel(mode)
           : title || 'New chat',
       ),

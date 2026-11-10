@@ -46,7 +46,7 @@ export function FilesystemMarks({
         (folder ? (
           <Folder
             aria-hidden="true"
-            className="size-4 shrink-0 fill-sky-500 text-sky-500"
+            className="size-4 shrink-0 fill-folder text-folder"
           />
         ) : (
           <File aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />

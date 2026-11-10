@@ -555,6 +555,25 @@ Penrose triangle stood in before.
 |---|---|---|---|
 | Theorem | `streamline/streamline-ai-robot-generate-variation.png` | Ai Robot Generate Variation (by shape) | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
 
+One more came on 2026-11-08 as a loose download in the same Light style,
+"Descending-Sort-Filter-2--Streamline-Ultimate.png" (48 x 48), copied byte for
+byte and renamed the same way. It opens the Notes panel's sort menu.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Sort | `streamline/streamline-descending-sort-filter-2.png` | Descending Sort Filter 2 | `a5097120a673269d387f8017df4a0a4dd70a6b52bbf7887a85fe76cd1dedab18` |
+
+Two more came the same day. Common File Add is from
+"streamline-ultimate-light--48x48-PNG (3).zip". The AI file is a PNG the owner
+attached in conversation (48 x 48, the same Light style); it carried no name and
+none was matched, so its file name describes the shape. Both were copied byte
+for byte.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| NewNote | `streamline/streamline-common-file-add.png` | Common File Add | `9a25b0adc52b53bd08017f59930028c4a10c06d8b889c55c4291f32872695816` |
+| AgentNote | `streamline/streamline-ai-file-sparkle.png` | (owner attachment, unnamed: a file with a four-point sparkle) | `184dc83fc9f69ed94c92ea7d03ece38f546f0968381af5bf5b8b29ed160450f1` |
+
 The rest of those downloads is kept in `streamline/library/`. Nothing imports
 those files, so they do not ship; they are there to reach for. Dzone Logo and
 Tripit Logo draw real companies' marks, so check before using either as an
@@ -611,8 +630,9 @@ the owner chose it for Spaces.
 | Vault | `streamline/rail/source/streamline-folder-zip.png` | Folder Zip (colored; name inferred from the image) | `09a2592d12b09cceb6a241a673c8a1b361b792331931848a5d6973f8fc97eeb7` |
 | Files control at the rail's foot | `streamline/rail/source/streamline-hierarchy-files-1.png` | Hierarchy Files 1 | `88dd557e71a8a6eca831706aa9cd5105a9415eb93d53db20cf636690fab0aad1` |
 
-Pages reuses the Light-style Browser Page Layout PNG. It is black ink on
-transparent, so the generator fills each enclosed region itself.
+Pages reuses the Light-style Browser Page Layout PNG, and Notes the Light-style
+Common File Stack PNG listed above. Both are black ink on transparent, so the
+generator fills each enclosed region itself.
 
 The colour comes from `scripts/rail-icons.mjs`, which splits every source into
 up to four alpha masks by luma and chroma (line, accent, tint, paper) and writes
