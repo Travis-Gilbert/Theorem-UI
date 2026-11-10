@@ -37,6 +37,12 @@ const search = (id: string, query: string): StoredPart[] => [
   { partId: `${id}-call`, type: 'tool_call', payload: { toolCallId: id, toolName: 'web_search', safeArguments: { query } } },
   { partId: `${id}-result`, type: 'tool_result', payload: { toolCallId: id, status: 'complete', safeOutput: { query, hits: [] } } },
 ]
+const reasoning: StoredPart = { partId: 'why', type: 'reasoning', payload: { text: 'Each city reports its own sunshine hours.' } }
+/** A tool call the run cannot make until the person allows it. */
+const awaitingApproval = (id: string, summary: string): StoredPart[] => [
+  { partId: `${id}-call`, type: 'tool_call', payload: { toolCallId: id, toolName: 'bash', safeArguments: { command: 'curl wttr.in/Denver' } } },
+  { partId: `${id}-approval`, type: 'tool_approval', payload: { approvalId: `approve-${id}`, toolCallId: id, toolName: 'bash', summary, risk: 'medium', status: 'requires_action' } },
+]
 const message = (messageId: string, role: Theorem.MessageRole, createdAtMs: number, parts: StoredPart[]): Theorem.Message => ({
   schema: 'theorem.chat.message.v1', messageId, tenantId: 'tenant',
   threadId: 'thread', originBranchId: 'branch', role, createdAtMs, parts,
@@ -59,6 +65,8 @@ const activity = (root: ParentNode) => {
   return line
 }
 const toolRows = (root: ParentNode) => root.querySelectorAll('[data-slot="tool-fallback-trigger"]')
+const reasoningRows = (root: ParentNode) => root.querySelectorAll('[data-slot="reasoning-root"]')
+const approvalCards = (root: ParentNode) => root.querySelectorAll('[data-slot="approval-card"]')
 
 test('a finished turn is one line by the name, and Details opens its tool calls on a sheet', async () => {
   const { container } = await render(<Harness messages={turn([...search('s1', 'denver sun'), ...search('s2', 'denver snow')])} />)
@@ -106,4 +114,40 @@ test('a turn that stopped says so on its line', async () => {
   const { container } = await render(<Harness messages={stopped} />)
   await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
   expect(activity(container).textContent).toBe('Theorem·Stopped·42s·Details')
+})
+
+test('an approval and the answer stay in the reply while reasoning and tool calls wait on the sheet', async () => {
+  const parts = [reasoning, ...search('s1', 'denver sun'), ...awaitingApproval('b1', 'Allow bash to fetch the forecast?')]
+  const waiting = withStatus(turn(parts, 'running'), { type: 'running' })
+  const { container } = await render(<Harness isRunning messages={waiting} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  const line = activity(container)
+  const reply = container.querySelector('[data-slot="aui_assistant-message-content"]')
+  if (!reply) throw new Error('no reply')
+
+  // Closed: the card and the answer are in the reply; the reasoning and the search are nowhere.
+  expect(line.textContent.replace(/\s+/g, ' ')).toContain('Waiting for your approval')
+  expect(approvalCards(reply)).toHaveLength(1)
+  expect(reply.textContent).toContain('Allow bash to fetch the forecast?')
+  expect(reply.textContent).toContain('Denver gets 300 days of sun.')
+  expect(reasoningRows(container)).toHaveLength(0)
+  expect(toolRows(container)).toHaveLength(0)
+
+  const step = line.querySelector('[role="button"]')
+  if (!step) throw new Error('the live step does not open')
+  await click(step)
+  const sheet = await waitFor(() => line.querySelector('[data-slot="activity-details"]'))
+  await waitFor(() => reasoningRows(sheet).length === 1)
+  expect(toolRows(sheet)).toHaveLength(1)
+  // The reasoning row holds its text until it is pressed, like any other.
+  const thought = sheet.querySelector('[data-slot="reasoning-trigger"]')
+  if (!thought) throw new Error('the reasoning row does not open')
+  await click(thought)
+  await waitFor(() => sheet.textContent.includes('Each city reports its own sunshine hours.'))
+  // Opened: each part is drawn once, the work on the sheet and the card and the answer still in the reply.
+  expect(reasoningRows(container)).toHaveLength(1)
+  expect(toolRows(container)).toHaveLength(1)
+  expect(approvalCards(container)).toHaveLength(1)
+  expect(approvalCards(reply)).toHaveLength(1)
+  expect(reply.textContent).toContain('Denver gets 300 days of sun.')
 })
