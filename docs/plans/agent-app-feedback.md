@@ -1,18 +1,21 @@
 # The agent sees what it builds
 
-The agent that writes an App gets the page's compiler and sandbox as its
-own: it checks an App and reads what is wrong before a person does, the front
-model can change an App itself, and a cell can drive the whole loop. The
-checklist is `agent-app-feedback.checklist.json`. This follows
-`app-database-and-compiler.md`, which put the compiler in the page.
+The agent that writes an App writes it as code and sees what the page's
+compiler and sandbox made of it, in the same turn, with nothing between the
+code and the App. The front model can change an App itself, and a subagent
+works the same way. The checklist is `agent-app-feedback.checklist.json`. This
+follows `app-database-and-compiler.md`, which put the compiler in the page.
 
 The owner's direction (2026-11-10) is the requirement:
 
-| Decision                                                              | Owner's words                                                                                               |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| The model gets the compiler's feedback itself, not through the person | "The model needs to be able to see it and get feedback directly"                                            |
-| The front model can edit and build, not only a subagent               | "the front model needs to be able to edit and build as well ... If the task is small enough"                |
-| A codemode cell is a way in, for the front model and for subagents    | "should be able to use a codemode ... cell to write typescript to be compiled directly in the WASM browser" |
+| Decision                                                              | Owner's words                                                                                                                                                        |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The model gets the compiler's feedback itself, not through the person | "The model needs to be able to see it and get feedback directly"                                                                                                     |
+| The front model can edit and build, not only a subagent               | "the front model needs to be able to edit and build as well ... If the task is small enough"                                                                         |
+| The model writes code, in a Boa cell, and the browser compiles it     | "should be able to use a codemode boa cell to write typescript to be compiled directly in the WASM browser"                                                          |
+| The browser is where it compiles                                      | "The decision to compile it in the browser was in the original plan documents"                                                                                       |
+| Boa, not QuickJS                                                      | "QuickJS is slated to be replaced by Boa ... can you install Boa and use that in place of QuickJS?"                                                                  |
+| No step between the code and the App                                  | "I'm not sure that there needs to be a tool call in between the model writing JavaScript and the creation of the artifact, with the exception of call it a subagent" |
 
 ## What was true before (read 2026-11-10)
 
@@ -31,13 +34,21 @@ The owner's direction (2026-11-10) is the requirement:
   result. The owner's turn waits 120 seconds, a visitor's 20. Kit uses this.
 - **Workers have no client operations.** A worker's tools are a fixed list
   and its run is not the conversation's.
-- **Cells are QuickJS, and not in chat.** `codemode-kernel` runs TypeScript
+- **Cells were QuickJS, and not in chat.** `codemode-kernel` ran TypeScript
   cells on QuickJS (types stripped with `deno_ast`, not checked), reachable
-  through MCP and the `theorem-cell` CLI. A chat turn has `execute_program`,
-  which is Python (Monty). The `js_cell` tool is declared and has no executor
-  in a chat turn. Nothing in Theorem uses Boa.
+  through MCP and the `theorem-cell` CLI. Nothing in Theorem used Boa, though
+  `SPEC-THEOREM-CONTEXT-ENGINE-2.0` (NC1 to NC4) had ratified the swap.
+- **A turn is already a program.** In the native agent the model's reply is
+  either final text or a program (`ModelDecision::Program`,
+  `crates/agent/src/program_turn.rs`): the model writes the program as its
+  reply, the host runs it against the turn's operations, and what it returned
+  is the next thing the model reads. Native tool calls are compiled into the
+  same shape. The language is `monty` (Python), and the transcript event names
+  its language so that "TypeScript on Boa" can be another
+  (`crates/agent/CRATE.md`, "Program language"). This is the place where a
+  model writes code with no tool call around it.
 
-## Step 1: `app.check`, the page's compiler as a tool (this repo)
+## Step 1: the page's compiler answers a turn (this repo)
 
 Built 2026-11-10.
 
@@ -57,47 +68,79 @@ Built 2026-11-10.
   not be made.
 - The conversation shows a chip for each check and what it found.
 
-No server change is needed for the front model to use it: a declared
-operation is already a tool.
+A declared operation is already a tool of the turn, so the front model can
+call this today. That is not the design's end state: a separate call to check
+is the step the owner does not want between the code and the App. What step 1
+leaves standing is the mechanism underneath, a turn asking the page to build
+and getting the findings back, which step 4 uses without the model asking.
 
-## Step 2: the front model publishes (Theorem repo)
+## Step 2: Boa runs cells (Theorem repo)
 
-- A native operation for the conversation turn, `publish_app`: a title, the
-  HTML, and optionally the document of an App to revise. It reuses
-  `conversation_apps::publish` and the fields `complete_work.app` validates.
-- A build failure refuses the publish; type and runtime problems do not. The
-  server cannot build, so it asks the page: when the page declared
-  `app.check`, the operation runs it first and refuses with the build
-  problems. Without a page that can check, it publishes and says the App was
-  not checked.
-- Which regime the web UI's turns run in, and whether that regime admits a
-  write operation, is settled before this is written.
+Built 2026-11-10 on `feat/boa-cell-engine`.
 
-## Step 3: a subagent gets the same feedback (Theorem repo)
+- `codemode-kernel`'s cell runtime is Boa with Oxc for the TypeScript step.
+  `rquickjs` and `deno_ast` are gone from the workspace, and a cell builds
+  with no C toolchain.
+- Boa has no heap ceiling and cannot be interrupted, so each cell runs in a
+  worker process (`theorem-js-cell`): the worker's allocator ends it past the
+  memory limit, the parent ends it past the deadline, and both stay the typed
+  refusals they were.
+- Boa 0.22 and not the spec's 0.21: 0.21 cannot be resolved in one build with
+  Monty 1.4.0 (they need different `icu_properties` 2.x releases). Oxc 0.152
+  is the newest the repository's rustc 1.96.1 pin builds. Both are the
+  owner's to confirm.
 
-- A builder's `app.check` is routed through the conversation turn that
-  started it, whose page answers.
-- `complete_work` with an App is checked the same way before it settles, so a
-  builder that submits one that does not build gets the problems back and
-  repairs it in the same attempt.
+## Step 3: a turn can be a TypeScript program (Theorem repo)
 
-## Step 4: cells (Theorem repo)
+- A program names its language. `monty` runs as it does now; `typescript`
+  runs in a Boa cell, hosted, with the turn's operations as the cell's
+  `tool(name, args)` and under the authority a Monty program has.
+- The front model and a worker both get it. Which language a role writes is
+  that role's instruction, not a new tool.
+- The conversation draws a TypeScript program as it draws a Monty one, with
+  its source highlighted in its language.
 
-- `js_cell` gets an executor in a chat turn and in a worker: QuickJS in
-  hosted mode, whose `tool(name, args)` calls reach the turn's tools with
-  their own authority, as a Monty program's host functions do. `app__check`
-  and `publish_app` are among them.
-- The cell's TypeScript is run by QuickJS on the server. What the page's
-  compiler checks is the App the cell assembles. Checking the cell's own types
-  with the page's tsrs is a further operation (`ts.check`), not in this step.
-- The conversation draws a cell: its source, and what each call returned.
+## Step 4: writing the App is the App (Theorem repo and this repo)
+
+- A program has `app`. `app.write(files)` and `app.edit(file, old, new)` save
+  a revision of the conversation's App, and that write is the publication:
+  there is no `publish_app`, and a builder no longer submits an App through
+  `complete_work`.
+- Each write is built by the page, which is the only place it can be, and
+  the write returns what step 1's check returns: whether it built, the
+  problems with file, line and column, and the text it showed. The model
+  reads that as the value of the line it wrote and goes on in the same
+  program.
+- `app.read()` gives a program the App as it stands, which is how the front
+  model takes over what a subagent handed back and changes it on the spot.
+- The front model's role admits writing an App. Today that role is read-only
+  and a publication is tied to a work record, so this is a change to the
+  owner of `conversation_apps`, made there and not in the page.
+- With no page open, a write is saved and says it was not built.
+
+## Step 5: a subagent gets the same feedback (Theorem repo)
+
+- A worker's program has the same `app`. Its builds are answered by the page
+  of the conversation that started the work.
+- Starting a subagent stays a call (`start_work`), which is the exception the
+  owner named.
+
+## Not decided
+
+- **Where a cell runs.** Steps 3 to 5 run the cell on the server and send
+  each build to the page. Boa also builds for WebAssembly, so the page could
+  run the cell itself, beside the compiler and the App's database, and reach
+  an App's records directly, which a server cell cannot. The page already has
+  a JavaScript engine and a sandbox, so Boa there buys the same language and
+  limits on both sides at a cost of several megabytes.
+- **Checking the cell's own types.** Boa runs a cell with its types erased.
+  The page's tsrs could check the program before it runs.
 
 ## Decisions made while building, open to change
 
 - **No page, no check.** When no page answers, the tool says the check was
-  not made. A server-side build and check would close this; it means the
-  server carrying the UI's build rules and declarations, and is not in this
-  plan.
+  not made. The compiler is in the browser by the owner's decision, so a
+  build needs a page.
 - **The run is against an empty database.** A check of a published App does
   not read the person's records. It finds what an App throws on its own, not
   what it throws on particular data.
@@ -107,9 +150,13 @@ operation is already a tool.
 1. A real browser: the hidden check reports a clean App, type errors, a build
    failure and a thrown error at their places, and leaves no frame and nothing
    in storage. Observed: `bun run e2e:app-ts`, dev and `--built`.
-2. A live turn: the front model calls `app__check` on a draft and reads the
-   result. Needs the deployed stack.
-3. A live turn: the front model publishes a small change with `publish_app`.
-4. A live builder: a broken App is refused at `complete_work` and repaired
-   without the person.
-5. A live turn: a cell assembles, checks and publishes an App.
+2. Boa cells: the kernel's cell tests and the worker tests pass, with the
+   memory and deadline refusals held by the worker. Recorded in the Theorem
+   pull request.
+3. A live turn: the front model writes a TypeScript program whose
+   `app.write` returns the page's findings, and repairs a type error without
+   the person. Needs the deployed stack.
+4. A live turn: the front model reads an App a subagent published and
+   changes it.
+5. A live builder: a worker's program writes an App, reads a build failure
+   and repairs it in the same attempt.

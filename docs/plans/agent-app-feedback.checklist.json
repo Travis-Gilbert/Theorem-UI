@@ -52,20 +52,40 @@
       "evidence": []
     },
     {
-      "id": "front-publish",
-      "requirement": "The front model publishes or revises an App with publish_app; a build failure refuses it (Theorem repo)",
+      "id": "boa-cells",
+      "requirement": "Cells run on Boa with Oxc for TypeScript; QuickJS and deno_ast are gone; memory and deadline stay typed refusals, held by a worker process (Theorem repo)",
+      "status": "partial",
+      "evidence": [
+        "Theorem branch feat/boa-cell-engine; evidence is recorded in that pull request"
+      ]
+    },
+    {
+      "id": "typescript-program",
+      "requirement": "A turn's program can be TypeScript, run in a Boa cell with the turn's operations, for the front model and for workers (Theorem repo)",
       "status": "todo",
       "evidence": []
     },
     {
-      "id": "worker-check",
-      "requirement": "A builder's app.check reaches the conversation's page, and complete_work with an App that does not build is refused with its problems (Theorem repo)",
+      "id": "app-write-is-the-app",
+      "requirement": "A program's app.write and app.edit save a revision of the conversation's App with no publish step, and return what the page's build found (Theorem repo and this repo)",
       "status": "todo",
       "evidence": []
     },
     {
-      "id": "js-cell",
-      "requirement": "js_cell runs in a chat turn and a worker, its tool() calls reaching the turn's tools; the conversation draws it (Theorem repo and this one)",
+      "id": "front-edits",
+      "requirement": "The front model's role admits writing an App, and app.read lets it change what a subagent handed back (Theorem repo)",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "worker-feedback",
+      "requirement": "A worker's program has the same app, built by the page of the conversation that started the work (Theorem repo)",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "live-program",
+      "requirement": "A live turn: the front model writes a TypeScript program whose app.write returns the page's findings, and repairs a type error without the person",
       "status": "todo",
       "evidence": []
     }
