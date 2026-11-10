@@ -148,7 +148,7 @@ the accessibility tree, by vision, or by the harness's visual perceiver.
    - This repo (built, `feat/app-picture`): `app.check` takes `picture: true`
      and its result then has `picture`, the App's snapshot drawn by the
      browser, as `{type: "image", mediaType, data, width, height}`. PNG, or
-     JPEG where the PNG is over 2 MiB of base64. A real Chromium draws the
+     JPEG where the PNG is over 1 MiB of base64. A real Chromium draws the
      fixture's layout and its canvas (`bun run e2e:app-ts`).
    - Theorem (being built): a receipt's result is JSON, and JSON is text to a model, so the
      turn takes a picture of that shape out of a result and gives it to the

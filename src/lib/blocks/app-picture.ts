@@ -17,8 +17,11 @@ export interface AppPicture {
   height: number
 }
 
-/** The most base64 a turn keeps of one picture; a larger one is dropped there. */
-export const MAX_PICTURE_BASE64 = 2 * 1024 * 1024
+/**
+ * The most base64 one picture is sent as. The route a check answers on takes
+ * 2 MiB in all, and the answer carries the check's findings as well.
+ */
+export const MAX_PICTURE_BASE64 = 1024 * 1024
 
 /** The widest and tallest a picture is drawn, in CSS pixels. */
 export const PICTURE_WIDTH = 1024
@@ -106,6 +109,6 @@ export async function pictureOf(
   }
 }
 
-/** Whether a picture's base64 is one a turn will keep. */
+/** Whether a picture's base64 is small enough to send. */
 export const fitsATurn = (data: string) =>
   data.length > 0 && data.length <= MAX_PICTURE_BASE64
