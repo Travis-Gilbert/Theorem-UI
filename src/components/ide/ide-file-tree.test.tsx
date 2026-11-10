@@ -102,3 +102,32 @@ test('a folder that could not be read says so, and Try again reads it once the f
   expect(await waitFor(() => row('a.ts'))).toBeDefined()
   await waitFor(() => (container.querySelector('[role="alert"]') ? undefined : true))
 })
+
+test('a folder that could not be read stops being named once it is gone from its parent', async () => {
+  const listing: Record<string, Array<{ name: string; path: string; folder: boolean }>> = {
+    '': [
+      { name: 'docs', path: 'docs', folder: true },
+      { name: 'src', path: 'src', folder: true },
+    ],
+  }
+  useFollow.setState({
+    ide: {
+      listFiles: async (path: string) => {
+        if (path === 'src') throw new Error('The workspace is busy.')
+        return listing[path] ?? []
+      },
+    } as unknown as Ide,
+  })
+  const { container } = await render(<IdeFileTree workspaceId="w" />)
+  const row = (name: string) =>
+    [...container.querySelectorAll('[role="treeitem"]')].find(
+      (item) => item.textContent.trim() === name,
+    )
+  await click(await waitFor(() => row('src')))
+  await waitFor(() => container.querySelector('[role="alert"]'))
+  // The agent deletes src, and the frame reports the top of the workspace.
+  listing[''] = [{ name: 'docs', path: 'docs', folder: true }]
+  await act(async () => useIdePage.setState({ changedFolders: [''] }))
+  await waitFor(() => (row('src') ? undefined : true))
+  await waitFor(() => (container.querySelector('[role="alert"]') ? undefined : true))
+})

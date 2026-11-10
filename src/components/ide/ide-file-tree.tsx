@@ -74,6 +74,25 @@ interface Unread {
   reason: string
 }
 
+/**
+ * Whether reading folder `read` and finding `entries` settles the failed
+ * folder `failed`: it is that folder, now read, or it was in it and is gone
+ * from it (renamed or deleted), taking everything under it along.
+ */
+function settledBy(
+  failed: string,
+  read: string,
+  entries: ReadonlyArray<IdeFileEntry>,
+): boolean {
+  if (failed === read) return true
+  const here = pathOf(read)
+  const path = pathOf(failed)
+  if (here && !path.startsWith(`${here}/`)) return false
+  if (!path) return false
+  const child = join(here, path.slice(here ? here.length + 1 : 0).split('/')[0]!)
+  return !entries.some((entry) => entry.path === child)
+}
+
 /** A file or folder waiting for its name, in `folder`. */
 interface Draft {
   folder: string
@@ -137,8 +156,11 @@ export function IdeFileTree({
         try {
           const entries = await ide.listFiles(pathOf(id))
           setUnread((now) => {
-            if (!now?.folders.includes(id)) return now
-            const folders = now.folders.filter((other) => other !== id)
+            if (!now) return now
+            const folders = now.folders.filter(
+              (folder) => !settledBy(folder, id, entries),
+            )
+            if (folders.length === now.folders.length) return now
             return folders.length ? { ...now, folders } : undefined
           })
           return entries.map((entry) => ({ id: idOf(entry.path), data: entry }))
