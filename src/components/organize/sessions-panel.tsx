@@ -654,6 +654,57 @@ function useFreshAfterRuns(missing: boolean) {
  * the sections the user made and the rest by when they last moved. The
  * workspace switcher comes from the shell, which owns how a project opens.
  */
+/**
+ * A section rename or delete the server refused or never got: why, with the
+ * same edit to try again. The rename field and the delete dialog have closed
+ * by then, so this is the only place the person learns nothing changed.
+ */
+export function FailedSectionEdits({
+  edits,
+  projects,
+}: {
+  edits: ReturnType<typeof useProjectEdits>
+  projects: ReadonlyArray<Pick<ProjectEntry, 'projectId' | 'title'>>
+}) {
+  const { rename, archive } = edits
+  const titleOf = (projectId: string) =>
+    projects.find((project) => project.projectId === projectId)?.title ||
+    'The section'
+  const failures = [
+    rename.isError && {
+      key: 'rename',
+      what: `“${titleOf(rename.variables.projectId)}” could not be renamed.`,
+      error: rename.error,
+      retry: () => rename.mutate(rename.variables),
+      dismiss: () => rename.reset(),
+    },
+    archive.isError && {
+      key: 'archive',
+      what: `“${titleOf(archive.variables)}” could not be deleted.`,
+      error: archive.error,
+      retry: () => archive.mutate(archive.variables),
+      dismiss: () => archive.reset(),
+    },
+  ].filter((failure) => failure !== false)
+  return failures.map((failure) => (
+    <div
+      key={failure.key}
+      role="alert"
+      className="flex items-start gap-1 px-2 py-1 text-xs text-error-ink"
+    >
+      <p className="min-w-0 flex-1">
+        {failure.what} {describeError(failure.error)}
+      </p>
+      <Button size="xs" variant="ghost" onClick={failure.retry}>
+        Try again
+      </Button>
+      <Button size="xs" variant="ghost" onClick={failure.dismiss}>
+        Dismiss
+      </Button>
+    </div>
+  ))
+}
+
 export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
   const { data, error, isPending } = useOrganization()
   const views = useOrganizedViews()
@@ -949,6 +1000,10 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
                       {describeError(error)}
                     </p>
                   )}
+                  <FailedSectionEdits
+                    edits={projectEdits}
+                    projects={context.projects}
+                  />
                 </div>
               </Sessions.Provider>
             </SidebarContent>
