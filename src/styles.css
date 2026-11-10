@@ -75,7 +75,7 @@
   --surface-pill: var(--surface-rail);
   /* A shadow cannot show on the near-black rail, so the sheet glows instead. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(227 98 9 / 0.32);
   --glow-to: rgb(53 132 185 / 0.38);
 
@@ -99,7 +99,7 @@
      the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
      read against the rail, warm at the top and teal at the bottom. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(205 78 24 / 0.36);
   --glow-to: rgb(25 142 169 / 0.36);
 
@@ -123,7 +123,7 @@
 .dark[data-palette='vitesse'] {
   --surface-pill: var(--surface-rail);
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(77 147 117 / 0.34);
   --glow-to: rgb(99 148 191 / 0.3);
 
@@ -613,17 +613,18 @@
    --paper-texture (lib/paper-texture.ts) and painted through it in the
    palette's ink, under the content, so text stays crisp and no surface holds
    a WebGL context. Each sits a step off its surroundings with a soft shadow
-   and a lit top edge. surface-paper keeps the element's own border (the
-   composer's follows focus); surface-paper-subtle draws a hairline, so add
-   none. Plain bg-*, shadow-* and position utilities override either. */
+   and a faintly lit top edge, both a pixel soft so neither reads as a drawn
+   line. surface-paper keeps the element's own border (the composer's follows
+   focus; give it --paper-edge at rest); surface-paper-subtle draws its own
+   edge, so add none. Plain bg-*, shadow-* and position utilities override either. */
 :root {
   /* Masks the grain out until the bake lands. */
   --paper-texture: linear-gradient(transparent, transparent);
   --paper-texture-size: 512px;
   --paper-grain-opacity: 0.1;
   --paper-depth: 1;
-  --paper-highlight: rgb(255 255 255 / 0.7);
-  --paper-edge: color-mix(in oklab, var(--line-separator) 80%, transparent);
+  --paper-highlight: rgb(255 255 255 / 0.34);
+  --paper-edge: color-mix(in oklab, var(--line-separator) 60%, transparent);
 }
 
 /* The grain is one continuous tone that varies either sheet by a level or two
@@ -631,7 +632,7 @@
    edge is the ink's. */
 .dark {
   --paper-depth: 2.5;
-  --paper-highlight: color-mix(in srgb, var(--ink) 8%, transparent);
+  --paper-highlight: color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 @utility surface-paper {
@@ -639,7 +640,8 @@
   isolation: isolate;
   background-color: var(--surface-composer);
   box-shadow:
-    inset 0 1px 0 var(--paper-highlight),
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 2px var(--paper-edge),
     0 1px 2px rgb(var(--shadow-tint) / calc(0.07 * var(--paper-depth))),
     0 8px 24px -8px rgb(var(--shadow-tint) / calc(0.16 * var(--paper-depth)));
 
@@ -669,8 +671,8 @@
   isolation: isolate;
   background-color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
   box-shadow:
-    inset 0 1px 0 var(--paper-highlight),
-    0 0 0 1px var(--paper-edge),
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 1.5px 0.5px var(--paper-edge),
     0 1px 2px rgb(var(--shadow-tint) / calc(0.05 * var(--paper-depth))),
     0 4px 14px -6px rgb(var(--shadow-tint) / calc(0.1 * var(--paper-depth)));
 

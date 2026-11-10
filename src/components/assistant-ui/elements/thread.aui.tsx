@@ -529,7 +529,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
       {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
       <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
       <AttachmentRefusals />
-      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" data-kit-perch="composer" className="border-separator focus-within:border-control data-[dragging=true]:border-focus surface-paper flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
+      <ComposerPrimitive.AttachmentDropzone render={<div ref={shellRef} data-slot="aui_composer-shell" data-kit-perch="composer" className="border-(color:--paper-edge) focus-within:border-control data-[dragging=true]:border-focus surface-paper flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected" />}><ComposerReferences /><ComposerAttachments /><ComposerPrimitive.Input
                       placeholder="Message Theorem, / for tools"
                       className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-72 min-h-14 w-full resize-none bg-transparent px-2 pt-1.5 pb-2 text-[1rem] leading-6 outline-none focus-visible:outline-none"
                       rows={1}
@@ -925,7 +925,7 @@ const UserMessage: FC = () => {
         </div>
         <div
           ref={contentRef}
-          className="aui-user-message-content surface-paper border-separator text-ink min-w-0 rounded-2xl border px-3.5 py-2 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
+          className="aui-user-message-content surface-paper border-(color:--paper-edge) text-ink min-w-0 rounded-2xl border px-3.5 py-2 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
         >
           <MessagePrimitive.Parts
             components={{
@@ -989,7 +989,7 @@ const EditComposer: FC = () => {
       <div className="relative ms-auto w-full max-w-[70%]">
         <div aria-hidden="true" className="lift-glow [--glow-radius:var(--composer-radius)]" />
         <ComposerPrimitive.TriggerPopoverRoot>
-        <ComposerPrimitive.Root className="aui-edit-composer-root border-separator focus-within:border-control surface-paper flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100">
+        <ComposerPrimitive.Root className="aui-edit-composer-root border-(color:--paper-edge) focus-within:border-control surface-paper flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100">
           <ComposerToolTrigger />
           <ComposerPrimitive.Input
             className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
