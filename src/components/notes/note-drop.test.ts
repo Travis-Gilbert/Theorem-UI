@@ -6,7 +6,15 @@ import type {
   UniqueIdentifier,
 } from '@dnd-kit/core'
 import type { NoteFolder } from '@/lib/theorem/note-folders'
-import { INTO, SECTION, collide, dropSteps } from './note-drop'
+import {
+  INTO,
+  SECTION,
+  collide,
+  dragNames,
+  dropSteps,
+  stepToward,
+} from './note-drop'
+import { AGENTS_ITEM, START_LAYOUT } from './note-sections'
 
 const folder = (collectionId: string, parentId: string | null = null) =>
   ({ collectionId, name: collectionId, parentId }) satisfies NoteFolder
@@ -47,9 +55,9 @@ describe('dropSteps', () => {
   })
 
   test('a folder dropped on another goes inside it', () => {
-    expect(dropSteps('folder:coll:recipes', `${INTO}coll:other`, filed)).toEqual(
-      [{ kind: 'nest', folderId: 'coll:recipes', into: 'coll:other' }],
-    )
+    expect(
+      dropSteps('folder:coll:recipes', `${INTO}coll:other`, filed),
+    ).toEqual([{ kind: 'nest', folderId: 'coll:recipes', into: 'coll:other' }])
   })
 
   test('a folder dropped on a folder inside it stays', () => {
@@ -112,7 +120,12 @@ describe('collide', () => {
     node: { current: null },
     rect: { current: rects.get(id) ?? null },
   })
-  const hits = (dragged: string, x: number, y: number, dragRect = rect(y, 10)) => {
+  const hits = (
+    dragged: string,
+    x: number,
+    y: number,
+    dragRect = rect(y, 10),
+  ) => {
     const active: Active = {
       id: dragged,
       data: { current: undefined },
@@ -126,6 +139,22 @@ describe('collide', () => {
       pointerCoordinates: { x, y },
     }).map((hit) => hit.id)
   }
+
+  test('a keyboard drag, with no pointer, lands where the dragged row sits', () => {
+    // The arrow keys centre the dragged row on the folder row.
+    const keyboard = collide({
+      active: {
+        id: 'note:doc:1',
+        data: { current: undefined },
+        rect: { current: { initial: null, translated: null } },
+      },
+      collisionRect: rect(25, 10),
+      droppableRects: rects,
+      droppableContainers: [...rects.keys()].map((id) => container(String(id))),
+      pointerCoordinates: null,
+    }).map((hit) => hit.id)
+    expect(keyboard).toEqual([`${INTO}coll:recipes`, `${SECTION}folders`])
+  })
 
   test('a note over a folder goes into the folder before the section around it', () => {
     expect(hits('note:doc:1', 10, 30)).toEqual([
@@ -170,5 +199,51 @@ describe('collide', () => {
     expect(hits(`${SECTION}notes`, 10, 30, rect(25, 10))).not.toContain(
       `${INTO}coll:recipes`,
     )
+  })
+})
+
+describe('dragNames', () => {
+  const name = dragNames(START_LAYOUT, filed.folders, [
+    { opens: 'doc:loose', title: 'Heron sightings' },
+  ])
+
+  test('names what is dragged and where it goes as the panel shows them', () => {
+    expect(name(`${SECTION}notes`)).toBe('the Notes section')
+    expect(name('folder:coll:soups')).toBe('the folder coll:soups')
+    expect(name(`${INTO}coll:recipes`)).toBe('the folder coll:recipes')
+    expect(name('note:doc:loose')).toBe('the note Heron sightings')
+    expect(name(AGENTS_ITEM)).toBe('Agent notes')
+  })
+
+  test('something it cannot find is still called something', () => {
+    expect(name('note:doc:gone')).toBe('the note')
+  })
+})
+
+describe('stepToward', () => {
+  const box = (top: number, height: number) => ({ top, height })
+  // The Folders section with a folder row in it, then the Notes section.
+  const places = [
+    { id: `${SECTION}folders`, rect: box(0, 100) },
+    { id: `${INTO}coll:recipes`, rect: box(20, 20) },
+    { id: `${SECTION}notes`, rect: box(100, 100) },
+  ]
+
+  test('up moves the dragged row onto the nearest place above its middle', () => {
+    expect(stepToward('ArrowUp', box(150, 10), places)).toBe(50 - 155)
+  })
+
+  test('pressed again from there, it reaches the folder row', () => {
+    expect(stepToward('ArrowUp', box(45, 10), places)).toBe(30 - 50)
+  })
+
+  test('down goes the other way, and the end of the list goes nowhere', () => {
+    // From the folder row it leaves the Folders section it is in for Notes.
+    expect(stepToward('ArrowDown', box(25, 10), places)).toBe(150 - 30)
+    expect(stepToward('ArrowDown', box(145, 10), places)).toBeUndefined()
+  })
+
+  test('other keys do not move it', () => {
+    expect(stepToward('ArrowLeft', box(150, 10), places)).toBeUndefined()
   })
 })

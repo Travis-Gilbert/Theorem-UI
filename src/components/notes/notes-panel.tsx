@@ -1,13 +1,14 @@
-// SOURCING: @tanstack/react-router (a note is /notes/$documentId), the Pages panel's row and heading grammar, Base UI Toolbar (the panel's tools, with arrow keys between them) and Menu (the sort menu), ThreadListSearch (the search that springs open, as in the Index and the threads), TooltipIconButton, ui/filesystem-item (the file tree's folder row, for the folders and Agent notes), lucide Folder and FolderPlus, @dnd-kit/core (a note dragged onto a folder; already used by the data table), the note library and folders (Theorem Documents v2 and its collections, through note-library.ts and note-folders.ts)
+// SOURCING: @tanstack/react-router (a note is /notes/$documentId), the Pages panel's row and heading grammar, Base UI Toolbar (the panel's tools, with arrow keys between them) and Menu (the sort menu), ThreadListSearch (the search that springs open, as in the Index and the threads), TooltipIconButton, ui/filesystem-item (the file tree's folder row, for the folders and Agent notes), lucide Folder and FolderPlus, @dnd-kit/core (a note dragged onto a folder, with the pointer or the keyboard; already used by the data table), the note library and folders (Theorem Documents v2 and its collections, through note-library.ts and note-folders.ts)
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
+import type { Announcements, DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   useSortable,
@@ -67,7 +68,15 @@ import {
   refold,
 } from './note-sections'
 import type { Section, SectionId } from './note-sections'
-import { INTO, SECTION, after, collide, dropSteps } from './note-drop'
+import {
+  INTO,
+  SECTION,
+  after,
+  collide,
+  dragNames,
+  dropSteps,
+  stepKeys,
+} from './note-drop'
 import type { DropStep } from './note-drop'
 import { useNote, useNoteStatus } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
@@ -374,6 +383,16 @@ function NoteSections({
   const { layout, edit, trouble } = useNotesLayout()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Space picks a row or a section up, the arrows step between the places it
+    // can go, Space drops it and Escape puts it back. Enter keeps opening.
+    useSensor(KeyboardSensor, {
+      coordinateGetter: stepKeys,
+      keyboardCodes: {
+        start: ['Space'],
+        cancel: ['Escape'],
+        end: ['Space', 'Enter'],
+      },
+    }),
   )
   const folderOf = folders.data?.folderOf
   const notes = library.data
@@ -461,11 +480,25 @@ function NoteSections({
   }
   const onDragEnd = ({ active, over }: DragEndEvent) =>
     dropSteps(active.id, over?.id ?? null, filed).forEach(run)
+  const name = dragNames(layout, filed.folders, library.data)
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Picked up ${name(active.id)}.`,
+    onDragOver: ({ active, over }) =>
+      over
+        ? `${name(active.id)} is over ${name(over.id)}.`
+        : `${name(active.id)} is not over a place it can go.`,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `${name(active.id)} was dropped on ${name(over.id)}.`
+        : `${name(active.id)} was put back.`,
+    onDragCancel: ({ active }) => `${name(active.id)} was put back.`,
+  }
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={collide}
       onDragEnd={onDragEnd}
+      accessibility={{ announcements }}
     >
       {folders.isError && (
         <p role="alert" className="px-2 pb-1 text-xs text-error-ink">
@@ -784,7 +817,7 @@ function NoteSectionBlock({
             aria-expanded={open}
             title={open ? 'Fold this section away' : 'Open this section'}
             className={`group/section flex min-w-0 flex-1 items-center gap-1 rounded-sm text-start ${headingText} outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus`}
-            onClick={() => edit((l) => toggleSection(l, section.id))}
+            onClick={() => edit(refold(section.id))}
             onDoubleClick={() => onRename(section.id)}
           >
             <span className="min-w-0 truncate">{section.name}</span>
