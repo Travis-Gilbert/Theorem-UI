@@ -185,6 +185,44 @@ test('an older revision opens its pinned source, labeled, while the live App sta
   }
 }, 20_000)
 
+test("an older revision's frame keeps the page's look as it changes", async () => {
+  const originalUrl = window.location.href
+  window.location.href = 'https://theorem.test/'
+  const store = await appDocumentFixture()
+  const get = spyOn(window, 'fetch').mockImplementation(
+    Object.assign(async () => Response.json(store.saved()), {
+      preconnect: window.fetch.preconnect,
+    }),
+  )
+  const followed: Array<HTMLIFrameElement> = []
+  const follow = spyOn(hosted, 'followTheme').mockImplementation(
+    (connection) => {
+      followed.push(
+        (connection as unknown as { frame: HTMLIFrameElement }).frame,
+      )
+      return () => {}
+    },
+  )
+  try {
+    const { container } = await render(
+      <Harness
+        messages={[message(1, '<p>Original revision</p>'), message(2)]}
+      />,
+    )
+    await waitFor(() => buttonNamed(container, 'Edit source'))
+    await click(container.querySelector('[aria-label="Previous version"]')!)
+    const revision = await waitFor(() =>
+      container.querySelector('[data-slot="app-revision"]'),
+    )
+    const frame = await waitFor(() => revision.querySelector('iframe'), 10_000)
+    expect(followed).toContain(frame)
+  } finally {
+    follow.mockRestore()
+    get.mockRestore()
+    window.location.href = originalUrl
+  }
+}, 20_000)
+
 test('App copy and shared download resolve canonical source rather than the empty artifact placeholder', async () => {
   const originalUrl = window.location.href
   window.location.href = 'https://theorem.test/'
