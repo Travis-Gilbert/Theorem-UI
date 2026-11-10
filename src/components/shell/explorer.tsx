@@ -124,7 +124,6 @@ export function Explorer() {
   const toggle = useShell((s) => s.toggleExplorer)
   const root = useFileRoot(project?.projectId)
   const name = root.data?.root.name
-  const Mark = open ? Icon.FolderOpen : Icon.Folder
 
   return (
     <SidebarGroup
@@ -140,7 +139,7 @@ export function Explorer() {
         onClick={toggle}
         className="shrink-0"
       >
-        <Mark aria-hidden className="text-ink-muted" />
+        <Icon.Folder />
         <span className="min-w-0 flex-1 truncate">
           Files
           {name && <span className="text-ink-muted"> · {name}</span>}

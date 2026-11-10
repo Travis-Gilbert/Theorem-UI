@@ -6,8 +6,9 @@
 // subtree were components made in render, which remounted them each time and
 // cut their animations short; here they are plain elements.
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ChevronRight, File, Folder } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Icon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 const spring = { type: 'spring', bounce: 0, duration: 0.4 } as const
@@ -42,15 +43,7 @@ export function FilesystemMarks({
       >
         <ChevronRight className="size-4 text-ink-faint" />
       </motion.span>
-      {icon ??
-        (folder ? (
-          <Folder
-            aria-hidden="true"
-            className="size-4 shrink-0 fill-folder text-folder"
-          />
-        ) : (
-          <File aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
-        ))}
+      {icon ?? (folder ? <Icon.Folder /> : <Icon.FileEntry />)}
     </>
   )
 }

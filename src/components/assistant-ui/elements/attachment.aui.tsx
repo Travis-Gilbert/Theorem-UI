@@ -32,7 +32,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
 import { COMPOSER_TOOLTIP_DELAY } from "@/components/chat/composer-tools";
 import { useIsomorphicLayoutEffect } from "@/components/assistant-ui/utils/useIsomorphicLayoutEffect";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
-import { popIn, popOut } from "@/lib/motion";
+import { popIn } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type AttachmentPreviewProps = {
@@ -257,23 +257,19 @@ export const ComposerAttachments: FC = () => {
   );
 };
 
-/** The folder opens while the file picker is up and closes when it goes. */
+/** The folder lifts as the file picker comes up and settles when it goes. */
 const AttachMark: FC<{ open: boolean }> = ({ open }) => {
   const ref = useRef<HTMLSpanElement>(null);
   const shown = useRef(open);
   useIsomorphicLayoutEffect(() => {
-    const marks = ref.current;
-    if (!marks || shown.current === open) return;
+    const mark = ref.current;
+    if (!mark || shown.current === open) return;
     shown.current = open;
-    const enter = marks.querySelector(open ? "[data-open]" : "[data-closed]");
-    const leave = marks.querySelector(open ? "[data-closed]" : "[data-open]");
-    if (leave) popOut(leave);
-    if (enter) popIn(enter, { from: 0.7, rotate: open ? -10 : 8, ease: "lift" });
+    popIn(mark, { from: 0.7, rotate: open ? -10 : 8, ease: "lift" });
   }, [open]);
   return (
-    <span ref={ref} className="grid size-4 *:col-start-1 *:row-start-1">
-      <Icon.Folder data-closed="" className={cn("size-4", open && "opacity-0")} />
-      <Icon.FolderOpen data-open="" className={cn("size-4", !open && "opacity-0")} />
+    <span ref={ref} className="flex">
+      <Icon.AttachFolder />
     </span>
   );
 };

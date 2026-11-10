@@ -90,8 +90,8 @@ function ToolFallbackRoot({
 type ToolStatus = ToolCallMessagePartStatus["type"];
 
 const statusIconMap: Record<ToolStatus, React.ElementType> = {
-  running: Icon.Refresh,
-  complete: Icon.Check,
+  running: Icon.ToolRunning,
+  complete: Icon.ToolDone,
   incomplete: Icon.Close,
   "requires-action": Icon.Close,
 };
@@ -167,7 +167,7 @@ function ToolFallbackTrigger({
         className={cn(
           "aui-tool-fallback-trigger-icon size-4 shrink-0",
           isCancelled && "text-muted-foreground",
-          isRunning && "animate-spin",
+          isRunning && "animate-pulse motion-reduce:animate-none",
         )}
       />
       <span

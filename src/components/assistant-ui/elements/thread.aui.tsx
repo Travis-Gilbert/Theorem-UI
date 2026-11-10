@@ -52,7 +52,6 @@ import {
   useRef,
 } from "react";
 import type { ComponentType, FC, PropsWithChildren } from "react";
-import { ProjectGlyph } from "@/components/organize/glyphs";
 
 import { Magnet, useArrivedLive } from "@/components/motion";
 import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
@@ -785,7 +784,7 @@ const AssistantMessage: FC = () => {
         aria-hidden
         className="text-ink-muted flex size-8 items-center justify-center"
       >
-        <ProjectGlyph className="size-5" />
+        <Icon.Speaker className="size-5" />
       </span>
       <div className="min-w-0">
         <AssistantMessageContent speaker="Theorem" />
