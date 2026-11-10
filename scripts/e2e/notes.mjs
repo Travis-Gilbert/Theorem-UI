@@ -358,6 +358,25 @@ check(
   'search finds the note',
   (await notesNav.getByRole('button').count()) >= 1,
 )
+
+// A section made during a search stays in view to be named, though it is
+// empty and the search would otherwise leave it out.
+const FOUND = `Found ${MARK}`
+const headingNamed = (name) =>
+  notesNav
+    .locator('[data-slot="notes-section"]')
+    .getByRole('button', { name, exact: true })
+await headingNamed(RENAMED).click({ button: 'right' })
+await page.getByRole('menuitem', { name: 'New section', exact: true }).click()
+const nameField = page.getByLabel('Section name')
+const namedInSearch = await nameField
+  .waitFor({ timeout: 10_000 })
+  .then(() => true, () => false)
+check('a section made during a search can be named', namedInSearch)
+if (namedInSearch) {
+  await nameField.fill(FOUND)
+  await page.keyboard.press('Enter')
+}
 // A search that finds only what an agent wrote opens the agents' folder on it.
 const agentTitle = agentPage?.documents?.find((row) => row.title)?.title
 if (agentTitle) {
@@ -419,6 +438,14 @@ if (agentTitle) {
 }
 await page.getByLabel('Search notes').fill('')
 await page.getByLabel('Search notes').blur()
+// The section the search made is not part of what follows.
+if (await headingNamed(FOUND).count()) {
+  await headingNamed(FOUND).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Delete section', exact: true }).click()
+  const goneBy = Date.now() + SETTLE
+  while ((await sections()).includes(FOUND) && Date.now() < goneBy)
+    await page.waitForTimeout(250)
+}
 
 // Sort lists the notes by last edit, creation or title, and keeps the choice.
 const looseTitles = () =>
@@ -655,16 +682,20 @@ await shot('sections')
 
 // The keyboard moves what a pointer drags: Space picks up, the arrows step
 // between places, Space drops, and a screen reader hears each step by name.
-const announced = page.locator('[id^="DndLiveRegion"]')
+// Every dnd-kit context has its own live region (the rail's too); only the
+// one being dragged in says anything.
+const liveRegions = page.locator('[id^="DndLiveRegion"]')
+const announced = async () =>
+  (await liveRegions.allTextContents()).join(' ')
 const keyboardDrag = async (what, overText, key, steps = 12) => {
   await what.focus()
   await page.keyboard.press('Space')
   for (let step = 0; step < steps; step++) {
     await page.keyboard.press(key)
     await page.waitForTimeout(150)
-    if ((await announced.textContent())?.includes(overText)) break
+    if ((await announced()).includes(overText)) break
   }
-  const heard = await announced.textContent()
+  const heard = await announced()
   await page.keyboard.press('Space')
   return heard
 }
