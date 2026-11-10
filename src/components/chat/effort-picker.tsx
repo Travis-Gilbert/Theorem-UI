@@ -58,6 +58,8 @@ export function EffortPicker() {
   const chosen = override.effort ?? DEFAULT
   const requested = override.effort ?? accountEffort
   const ranAt = mapped?.requested === requested ? mapped?.effective : undefined
+  // The last reply's route took no level at all, so the one chosen was not sent.
+  const notSent = Boolean(requested) && mapped?.requested === requested && mapped?.reason === 'unsupported'
   const shown = ranAt ?? requested
   const standing = accountEffort ?? model?.effortDefault
   // A level kept from another model stays in the list so the choice shows.
@@ -79,9 +81,11 @@ export function EffortPicker() {
             <Icon.UpDown className="size-3.5 shrink-0" />
           </TooltipTrigger>
           <TooltipContent side="top">
-            {ranAt && requested && ranAt !== requested
-              ? `${effortLabel(requested)} is not offered here; the last reply ran at ${effortLabel(ranAt)}`
-              : 'How hard the model thinks before it answers'}
+            {notSent && requested
+              ? `The last reply ran without ${effortLabel(requested)}: its model takes no effort level`
+              : ranAt && requested && ranAt !== requested
+                ? `${effortLabel(requested)} is not offered here; the last reply ran at ${effortLabel(ranAt)}`
+                : 'How hard the model thinks before it answers'}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

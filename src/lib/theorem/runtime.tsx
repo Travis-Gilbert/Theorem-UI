@@ -60,6 +60,7 @@ import type { Theorem } from './client'
 import { chatAttachments, turnUploads } from './chat-attachments'
 import { RefusedSend } from './send-recovery'
 import { generationTurnOptions, useGenerationOverrides } from './generation'
+import { saveThreadGeneration, takeThreadGeneration } from './thread-generation'
 import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
@@ -346,6 +347,7 @@ const loadedForResume = new Map<
  */
 async function durableHistory(threadId: string) {
   const snapshot = await theorem().chat.threads.get({ threadId })
+  takeThreadGeneration(snapshot.thread)
   const { lastRun, pendingTurn } = snapshot.thread
   const unanswered = snapshot.messages.at(-1)?.role === 'user' && !pendingTurn
   const runId =
@@ -617,6 +619,8 @@ function useTheoremThreadRuntime() {
           const { remoteId } = await aui.threadListItem.initialize()
           // A new chat's response settings were kept as a draft until it had a thread to belong to.
           if (isNew) useGenerationOverrides.getState().adopt(remoteId)
+          // The override belongs on the thread; what is not there yet goes with the turn below.
+          await saveThreadGeneration(remoteId)
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined

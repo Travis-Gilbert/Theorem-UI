@@ -7,7 +7,6 @@ export const RESPONSE_DETAILS = ['concise', 'balanced', 'thorough'] as const
 export type ResponseDetail = (typeof RESPONSE_DETAILS)[number]
 
 const EFFORT_NAMES: Readonly<Record<string, string>> = {
-  minimal: 'Minimal',
   low: 'Low',
   medium: 'Medium',
   high: 'High',
@@ -15,7 +14,7 @@ const EFFORT_NAMES: Readonly<Record<string, string>> = {
   max: 'Max',
 }
 
-/** Every level a model may list, lowest first, for a choice that is not tied to one model. */
+/** Every level Theorem takes, lowest first, for a choice that is not tied to one model. */
 export const EFFORT_LEVELS = Object.keys(EFFORT_NAMES)
 
 export const effortLabel = (level: string) =>
@@ -94,46 +93,103 @@ export const DRAFT = ''
 
 type OverridesState = {
   byThread: Readonly<Record<string, Generation>>
+  /**
+   * The threads whose override changed here since Theorem last held it. Until
+   * a thread's override is saved onto it, its turns carry the override
+   * themselves, and Theorem's copy does not replace the one here.
+   */
+  unsaved: Readonly<Record<string, true>>
   change: (thread: string, change: GenerationChange) => void
   reset: (thread: string) => void
   /** A new conversation's draft override becomes its thread's, once the thread exists. */
   adopt: (thread: string) => void
+  /** Theorem's copy of a thread's override, taken unless a change here is waiting to be saved. */
+  take: (thread: string, generation: Generation | undefined) => void
+  /** Theorem holds `saved` for the thread; a change made since stays waiting. */
+  markSaved: (thread: string, saved: Generation) => void
 }
+
+const without = <T>(map: Readonly<Record<string, T>>, key: string) => {
+  const { [key]: _dropped, ...rest } = map
+  return rest
+}
+
+const withOverride = (
+  byThread: Readonly<Record<string, Generation>>,
+  thread: string,
+  next: Generation,
+) => (Object.keys(next).length ? { ...without(byThread, thread), [thread]: next } : without(byThread, thread))
+
+const same = (a: Generation = {}, b: Generation = {}) =>
+  JSON.stringify(composed(a)) === JSON.stringify(composed(b))
 
 /**
  * The per-conversation overrides, keyed by the thread's id, or `DRAFT` before
- * there is one. This is the only place an override lives, so a server-stored
- * override replaces `byThread` and nothing else.
+ * there is one. A thread's override is kept on the thread in Theorem (its
+ * `generation`), so Theorem names it as the conversation's and it follows the
+ * person; this store is the copy the composer edits, written back before the
+ * next send.
  */
 export const useGenerationOverrides = create<OverridesState>()(
   persist(
     (set) => ({
       byThread: {},
+      unsaved: {},
       change: (thread, change) =>
-        set(({ byThread }) => {
-          const next = changed(byThread[thread] ?? {}, change)
-          const { [thread]: _previous, ...rest } = byThread
-          return { byThread: Object.keys(next).length ? { ...rest, [thread]: next } : rest }
-        }),
+        set(({ byThread, unsaved }) => ({
+          byThread: withOverride(byThread, thread, changed(byThread[thread] ?? {}, change)),
+          unsaved: { ...unsaved, [thread]: true },
+        })),
       reset: (thread) =>
-        set(({ byThread }) => {
-          const { [thread]: _previous, ...rest } = byThread
-          return { byThread: rest }
-        }),
+        set(({ byThread, unsaved }) => ({
+          byThread: without(byThread, thread),
+          unsaved: { ...unsaved, [thread]: true },
+        })),
       adopt: (thread) =>
-        set(({ byThread }) => {
-          const { [DRAFT]: draft, ...rest } = byThread
-          return draft ? { byThread: { ...rest, [thread]: draft } } : {}
+        set(({ byThread, unsaved }) => {
+          const draft = byThread[DRAFT]
+          if (!draft) return {}
+          return {
+            byThread: { ...without(byThread, DRAFT), [thread]: draft },
+            unsaved: { ...without(unsaved, DRAFT), [thread]: true },
+          }
         }),
+      take: (thread, generation) =>
+        set(({ byThread, unsaved }) =>
+          unsaved[thread] || same(byThread[thread], generation)
+            ? {}
+            : { byThread: withOverride(byThread, thread, pruned(generation ?? {})) },
+        ),
+      markSaved: (thread, saved) =>
+        set(({ byThread, unsaved }) =>
+          same(byThread[thread], saved) ? { unsaved: without(unsaved, thread) } : {},
+        ),
     }),
-    { name: 'theorem-ui:generation', partialize: ({ byThread }) => ({ byThread }) },
+    {
+      name: 'theorem-ui:generation',
+      version: 1,
+      partialize: ({ byThread, unsaved }) => ({ byThread, unsaved }),
+      // Overrides kept before threads held them have never been saved onto one.
+      migrate: (stored) => {
+        const byThread = (stored as { byThread?: Record<string, Generation> } | undefined)?.byThread ?? {}
+        return {
+          byThread,
+          unsaved: Object.fromEntries(Object.keys(byThread).map((thread) => [thread, true as const])),
+        }
+      },
+    },
   ),
 )
 
 /**
- * Turn options for a send, retry or edit in `thread`: the account defaults
- * under the conversation's override, with only the fields that are set. Read
- * at send time, as the model pick is.
+ * Turn options for a send, retry or edit in `thread`: whatever Theorem does
+ * not already hold. The account defaults go along only until the account's
+ * preferences hold them, and the conversation's override only until its
+ * thread does, so that Theorem can say where each limit came from. Read at
+ * send time, as the model pick is.
  */
-export const generationTurnOptions = (thread: string = DRAFT): Generation =>
-  composed(useGenerationDefaults.getState().defaults, useGenerationOverrides.getState().byThread[thread])
+export function generationTurnOptions(thread: string = DRAFT): Generation {
+  const { defaults, onServer } = useGenerationDefaults.getState()
+  const { byThread, unsaved } = useGenerationOverrides.getState()
+  return composed(onServer ? {} : defaults, unsaved[thread] ? byThread[thread] : undefined)
+}

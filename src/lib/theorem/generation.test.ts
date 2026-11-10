@@ -11,7 +11,7 @@ import {
 
 afterEach(() => {
   useGenerationDefaults.setState({ defaults: {}, onServer: undefined })
-  useGenerationOverrides.setState({ byThread: {} })
+  useGenerationOverrides.setState({ byThread: {}, unsaved: {} })
 })
 
 test('a turn carries only the fields that are set', () => {
@@ -77,4 +77,44 @@ test('a server value outside the contract reads as nothing rather than as a sett
   expect(readGeneration({ responseDetail: 'verbose' })).toBeUndefined()
   expect(readGeneration({ maxOutputTokens: -5 })).toBeUndefined()
   expect(readGeneration(undefined)).toBeUndefined()
+})
+
+test('defaults the account preferences hold are not repeated on a turn', () => {
+  useGenerationDefaults.getState().change({ responseDetail: 'concise', effort: 'low' })
+  useGenerationOverrides.getState().change('t1', { effort: 'high' })
+  expect(generationTurnOptions('t1')).toEqual({ responseDetail: 'concise', effort: 'high' })
+  // Theorem took the defaults: it reads them itself and names them as the account's.
+  useGenerationDefaults.setState({ onServer: true })
+  expect(generationTurnOptions('t1')).toEqual({ effort: 'high' })
+  // A Theorem that refused them is sent them with every turn.
+  useGenerationDefaults.setState({ onServer: false })
+  expect(generationTurnOptions('t1')).toEqual({ responseDetail: 'concise', effort: 'high' })
+})
+
+test('an override goes with the turn only until its thread holds it', () => {
+  const { change, markSaved } = useGenerationOverrides.getState()
+  change('t1', { maxOutputTokens: 800 })
+  expect(useGenerationOverrides.getState().unsaved).toEqual({ t1: true })
+  // Saving an older value does not settle a newer one.
+  markSaved('t1', { maxOutputTokens: 400 })
+  expect(generationTurnOptions('t1')).toEqual({ maxOutputTokens: 800 })
+  markSaved('t1', { maxOutputTokens: 800 })
+  expect(useGenerationOverrides.getState().unsaved).toEqual({})
+  expect(generationTurnOptions('t1')).toEqual({})
+})
+
+test('a draft that becomes a thread is waiting to be saved onto it', () => {
+  const { change, adopt } = useGenerationOverrides.getState()
+  change(DRAFT, { effort: 'max' })
+  adopt('t3')
+  expect(useGenerationOverrides.getState().unsaved).toEqual({ t3: true })
+})
+
+test('overrides kept before threads held them are all waiting to be saved', () => {
+  const migrate = useGenerationOverrides.persist.getOptions().migrate!
+  expect(migrate({ byThread: { t1: { effort: 'high' }, t2: { maxOutputTokens: 9 } } }, 0)).toEqual({
+    byThread: { t1: { effort: 'high' }, t2: { maxOutputTokens: 9 } },
+    unsaved: { t1: true, t2: true },
+  })
+  expect(migrate(undefined, 0)).toEqual({ byThread: {}, unsaved: {} })
 })

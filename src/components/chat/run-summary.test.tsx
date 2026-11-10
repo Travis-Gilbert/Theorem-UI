@@ -219,8 +219,8 @@ const limits = (over: Record<string, unknown> = {}) => ({
   maxOutputTokensPerCall: { value: 8000, source: 'default' },
   modelMaxOutputTokens: 64000,
   runBudget: { maxOutputTokens: null, usedOutputTokens: 1840, maxSteps: null, usedSteps: 3 },
-  effort: { requested: 'max', effective: 'high', reason: 'the model lists low, medium, high' },
-  responseDetail: 'balanced',
+  effort: { requested: 'max', source: 'preference', effective: 'high', reason: 'nearest' },
+  responseDetail: { value: 'balanced', source: 'conversation' },
   ...over,
 })
 const timing = { acceptedAtMs: 1000, firstProviderContentAtMs: 1700, firstPartPersistedAtMs: 1800, completedAtMs: 4500 }
@@ -264,13 +264,14 @@ test('a run that used its output budget offers to double the budget for the conv
   expect(useGenerationOverrides.getState().byThread['']).toEqual({ runBudget: { maxOutputTokens: 8000 } })
 })
 
-test('a run that reached its step limit can only be continued', async () => {
-  const capped = limits({ runBudget: { maxOutputTokens: null, usedOutputTokens: 900, maxSteps: 3, usedSteps: 3 } })
+test('a run that reached its step limit offers to continue or to double the steps for the conversation', async () => {
+  const capped = limits({ runBudget: { maxOutputTokens: null, usedOutputTokens: 900, maxSteps: 3, maxStepsSource: 'conversation', usedSteps: 3 } })
   const { container } = await render(<Harness messages={stopped('step_limit', { limits: capped })} />)
   const line = await waitFor(() => footer(container))
   expect(line.textContent).toContain('reached its limit of 3 steps')
   expect(buttonNamed(line, 'Continue')).toBeTruthy()
-  expect(buttonNamed(line, /Raise/)).toBeUndefined()
+  await click(buttonNamed(line, /Raise to 6 steps/)!)
+  expect(useGenerationOverrides.getState().byThread['']).toEqual({ runBudget: { maxSteps: 6 } })
 })
 
 test('only the newest run offers to continue; an older one just says why it stopped', async () => {
@@ -288,8 +289,9 @@ test('the limits popover opens from the footer with the limits and the run timin
   await click(buttonNamed(line, 'Limits')!)
   const panel = await waitFor(() => document.querySelector('[data-slot="limits-panel"]'))
   expect(panel.textContent).toContain("Theorem's default")
-  expect(panel.textContent).toContain('Asked for Max, ran at High')
-  expect(panel.textContent).toContain('the model lists low, medium, high')
+  expect(panel.textContent).toContain('High')
+  expect(panel.textContent).toContain('the nearest level this model lists to Max')
+  expect(panel.textContent).toContain('set for this conversation')
   expect(panel.textContent).toContain('Timing')
   expect(panel.textContent).toContain('700 ms')
   expect(panel.textContent).toContain('3.5 s')

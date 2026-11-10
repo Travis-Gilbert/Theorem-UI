@@ -4,6 +4,7 @@ import {
   endsRun,
   firstRenderedAt,
   isStepDataPart,
+  limitRows,
   isStreamingProse,
   latestRunFacts,
   noteFirstRender,
@@ -16,12 +17,20 @@ import {
   timingRows,
 } from './run-parts'
 
+// The shape Theorem publishes (docs/plans/front-response/CONTRACT.md, section 3, as built).
 const limits = {
-  maxOutputTokensPerCall: { value: 8000, source: 'request' },
+  maxOutputTokensPerCall: { value: 8000, source: 'request', clamped: false, requested: 8000 },
   modelMaxOutputTokens: 64_000,
-  runBudget: { maxOutputTokens: 60_000, usedOutputTokens: 59_000, maxSteps: 40, usedSteps: 3 },
-  effort: { requested: 'high', effective: 'medium', reason: 'the model lists no high level' },
-  responseDetail: 'balanced',
+  runBudget: {
+    maxOutputTokens: 60_000,
+    maxOutputTokensSource: 'conversation',
+    usedOutputTokens: 59_000,
+    maxSteps: 40,
+    maxStepsSource: 'preference',
+    usedSteps: 3,
+  },
+  effort: { requested: 'high', source: 'preference', effective: 'medium', reason: 'nearest' },
+  responseDetail: { value: 'balanced', source: 'conversation' },
 }
 const notice = (stopReason: string, over: Record<string, unknown> = {}) => {
   const completion = readCompletion({ stopReason, limits, ...over })
@@ -64,8 +73,61 @@ test('a spent run budget offers to double the budget; the server gets the last w
   expect(notice('run_budget', { detail: 'Out of budget.' })?.text).toBe('Out of budget.')
 })
 
-test('a step limit explains itself and offers no raise', () => {
-  expect(notice('step_limit')).toEqual({ text: 'This run reached its limit of 40 steps.' })
+test('a step limit explains itself and offers to double the steps', () => {
+  expect(notice('step_limit')).toEqual({
+    text: 'This run reached its limit of 40 steps.',
+    raise: { patch: { runBudget: { maxSteps: 80 } }, label: 'Raise to 80 steps' },
+  })
+  expect(notice('step_limit', { limits: undefined })).toEqual({ text: 'This run reached its limit on steps.' })
+})
+
+test('the limits rows say what each limit was and who set it', () => {
+  expect(limitRows(readLimits({ limits })!)).toEqual([
+    { label: 'Output per step', value: '8,000 tokens', note: 'set for this reply' },
+    { label: 'Model maximum', value: '64,000 tokens' },
+    { label: 'Run output', value: '59,000 of 60,000 tokens', note: 'set for this conversation' },
+    { label: 'Run steps', value: '3 of 40 steps', note: 'your default' },
+    { label: 'Reasoning effort', value: 'Medium', note: 'the nearest level this model lists to High' },
+    { label: 'Response detail', value: 'Balanced', note: 'set for this conversation' },
+  ])
+})
+
+test('a limit that was cut down says what was asked for', () => {
+  const cut = {
+    maxOutputTokensPerCall: { value: 64_000, source: 'model', clamped: true, requested: 200_000 },
+  }
+  expect(limitRows(readLimits({ limits: cut })!)).toEqual([
+    {
+      label: 'Output per step',
+      value: '64,000 tokens',
+      note: "the model's own maximum; 200,000 tokens was asked for",
+    },
+  ])
+})
+
+test('effort is reported as it ran: applied, not sent, or never asked for', () => {
+  const row = (effort: Record<string, unknown>) =>
+    limitRows(readLimits({ limits: { effort } })!).find((r) => r.label === 'Reasoning effort')
+  expect(row({ requested: 'high', source: 'request', effective: 'high', reason: 'applied' })).toEqual({
+    label: 'Reasoning effort',
+    value: 'High',
+    note: 'set for this reply',
+  })
+  expect(row({ requested: 'xhigh', source: 'preference', effective: null, reason: 'unsupported' })).toEqual({
+    label: 'Reasoning effort',
+    value: 'Not sent',
+    note: 'this model takes no level; Extra high was asked for',
+  })
+  expect(row({ requested: null, effective: null, reason: 'unsupported' })).toBeUndefined()
+  expect(row({ requested: null, effective: null, reason: 'not_requested' })).toBeUndefined()
+})
+
+test('a run with no budget of its own reports what it used so far', () => {
+  const open = { runBudget: { maxOutputTokens: null, usedOutputTokens: 1234, maxSteps: 100, maxStepsSource: 'default', usedSteps: 2 } }
+  expect(limitRows(readLimits({ limits: open })!)).toEqual([
+    { label: 'Run output', value: '1,234 tokens so far, no cap' },
+    { label: 'Run steps', value: '2 of 100 steps', note: "Theorem's default" },
+  ])
 })
 
 test('a completion or limits part that is not what the contract says reads as nothing', () => {
@@ -74,6 +136,17 @@ test('a completion or limits part that is not what the contract says reads as no
   expect(readLimits({ limits: { maxOutputTokensPerCall: { value: 'many' } } })).toBeUndefined()
   expect(readLimits({})).toBeUndefined()
   expect(readLimits({ limits })).toMatchObject({ effort: { requested: 'high', effective: 'medium' } })
+  // The detail is an object with its source; a bare string is not this contract.
+  expect(readLimits({ limits: { responseDetail: 'balanced' } })).toBeUndefined()
+})
+
+test('a completion whose run was never accepted here still says why it stopped', () => {
+  const cut = readCompletion({
+    stopReason: 'cancelled',
+    timing: { acceptedAtMs: null, firstProviderContentAtMs: null, firstPartPersistedAtMs: null, completedAtMs: 9 },
+  })
+  expect(cut?.stopReason).toBe('cancelled')
+  expect(timingRows(cut!.timing!)).toEqual([])
 })
 
 test('text metadata is read from the provider metadata the adapter sets, and is empty without it', () => {
