@@ -1,0 +1,56 @@
+// SOURCING: bun:test over the SVG an App's picture is drawn from
+// (app-picture.ts). DOMPurify runs over jsdom's window here, as in
+// snapshots.test.ts: happy-dom's parser hands it a snapshot's styles apart.
+import { expect, test } from 'bun:test'
+import createDOMPurify from 'dompurify'
+import { JSDOM } from 'jsdom'
+import { pictureSvg } from './app-picture'
+
+const purify = createDOMPurify(new JSDOM('').window)
+
+/** The SVG as a document, which fails to parse unless it is well-formed XML. */
+function parsed(svg: string): Document {
+  const page = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  expect(page.querySelector('parsererror')).toBeNull()
+  return page
+}
+
+test('a snapshot is drawn at the size asked, in a foreignObject', () => {
+  const svg = pictureSvg(
+    '<style>p { color: red }</style><p>Hello<br>there</p>',
+    640,
+    480,
+    purify,
+  )
+  const page = parsed(svg)
+  expect(page.documentElement.getAttribute('width')).toBe('640')
+  expect(page.documentElement.getAttribute('height')).toBe('480')
+  const drawn = page.querySelector('foreignObject')
+  expect(drawn?.getAttribute('height')).toBe('480')
+  expect(drawn?.textContent).toContain('Hello')
+  expect(svg).toContain('p { color: red }')
+})
+
+test('what an App could run or load is not in its picture', () => {
+  const svg = pictureSvg(
+    '<p onclick="steal()">Text</p><script>steal()</script><iframe src="https://example.com"></iframe>',
+    100,
+    100,
+    purify,
+  )
+  parsed(svg)
+  expect(svg).not.toContain('steal')
+  expect(svg).not.toContain('iframe')
+  expect(svg).toContain('Text')
+})
+
+test('what an App styles on its root is styled on the element it is drawn in', () => {
+  const svg = pictureSvg(
+    '<style>:root { --ink: blue } body { color: var(--ink) }</style><p>Ink</p>',
+    100,
+    100,
+    purify,
+  )
+  expect(svg).toContain('html { --ink: blue }')
+  expect(svg).not.toContain(':root')
+})

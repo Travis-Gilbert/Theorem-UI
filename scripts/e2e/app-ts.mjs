@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs'
 // An App written in TypeScript, in a browser: its source is built in the
 // page and runs in a sandboxed frame, tsrs checks it in a worker, a failure
 // in it is traced to the file and line that threw, and a revision that does
@@ -291,6 +292,48 @@ try {
       tickingCheck.rendered?.outline ?? '',
     ) && /tick \d+/.test(tickingCheck.rendered?.text ?? ''),
     tickingCheck.rendered,
+  )
+  // E2E_PICTURE=path writes the fixture App's picture there, to look at.
+  if (process.env.E2E_PICTURE) {
+    const seen = await inspect(GOOD, { picture: true })
+    if (seen.picture)
+      writeFileSync(
+        process.env.E2E_PICTURE,
+        Buffer.from(seen.picture.data, 'base64'),
+      )
+  }
+  // A picture of the App, drawn in the page from its snapshot: what it laid out
+  // with CSS and what it drew on a canvas.
+  const pictured = await inspect(
+    `<!doctype html><style>body { margin: 0 } #box { width: 200px; height: 100px; background: rgb(255, 0, 0) }</style>
+     <div id="box"></div><canvas id="c" width="200" height="100"></canvas>
+     <script>const g = document.getElementById("c").getContext("2d"); g.fillStyle = "rgb(0, 0, 255)"; g.fillRect(0, 0, 200, 100)</script>`,
+    { picture: true },
+  )
+  const pixels = pictured.picture
+    ? await page.evaluate(async (picture) => {
+        const image = new Image()
+        image.src = `data:${picture.mediaType};base64,${picture.data}`
+        await image.decode()
+        const canvas = document.createElement('canvas')
+        canvas.width = image.width
+        canvas.height = image.height
+        const context = canvas.getContext('2d')
+        context.drawImage(image, 0, 0)
+        const at = (x, y) => [...context.getImageData(x, y, 1, 1).data].join()
+        return {
+          box: at(100, 50),
+          canvas: at(100, 150),
+          size: [image.width, image.height],
+        }
+      }, pictured.picture)
+    : null
+  check(
+    'a check can picture the App: its layout, and what it drew on a canvas',
+    pixels?.box === '255,0,0,255' &&
+      pixels.canvas === '0,0,255,255' &&
+      pixels.size[0] === 1024,
+    { pixels, bytes: pictured.picture?.data.length },
   )
   const plainCheck = await inspect(
     '<!doctype html><p id="x">Plain</p><script>document.getElementById("x").textContent = "Ran"</script>',
