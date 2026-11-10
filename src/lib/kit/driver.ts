@@ -12,6 +12,7 @@ import {
   perchLine,
   perchLines,
   standPoint,
+  surfaceAround,
   useKitStage,
 } from './stage'
 import type { Gait, Motion, PerchLine, PerchName } from './stage'
@@ -455,10 +456,26 @@ export class KitDriver {
   ) {
     this.stop()
     const generation = this.generation
+    // Carried into a surface's box and let go, Kit climbs onto its top; it
+    // would fall through it otherwise, since surfaces catch only from above.
+    const inside =
+      touch === 'moved'
+        ? surfaceAround(this.x + KIT_SIZE / 2, this.y + KIT_SIZE / 2)
+        : undefined
+    const climb = inside && {
+      line: inside,
+      at: atOf(inside, this.x),
+    }
+    const above = climb && standPoint(climb.line, climb.at)[1] < this.y - 2
     const world = await this.ready()
     if (generation !== this.generation) return
     let onto: PerchName | undefined
-    if (!world) {
+    if (climb && above) {
+      if (world)
+        await this.jump(world, generation, climb.line.name, climb.at, 'hop')
+      else await this.land(climb.line, climb.at)
+      if (generation === this.generation) onto = useKitStage.getState().perch
+    } else if (!world) {
       await this.settle()
       onto = useKitStage.getState().perch
     } else {

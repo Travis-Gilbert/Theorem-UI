@@ -238,6 +238,25 @@ export function perchLines(): PerchLine[] {
     .filter((line): line is PerchLine => line !== undefined)
 }
 
+/**
+ * The surface whose box holds the point (x, y), the composer first: a person
+ * who sets Kit down on the composer or a message aims at its box, not at the
+ * line along its top. The floor has no box.
+ */
+export function surfaceAround(x: number, y: number): PerchLine | undefined {
+  return perchLines().find((line) => {
+    if (line.name === 'floor') return false
+    const rect = perchElement(line.name)?.getBoundingClientRect()
+    return (
+      rect !== undefined &&
+      x >= rect.left &&
+      x <= rect.right &&
+      y >= rect.top &&
+      y <= rect.bottom
+    )
+  })
+}
+
 /** The surfaces on screen as the scene names them, with their labels. */
 export function surfacesOf(lines: readonly PerchLine[]): KitSurface[] {
   return lines.map(({ name }) => {

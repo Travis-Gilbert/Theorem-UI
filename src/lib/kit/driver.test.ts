@@ -152,6 +152,41 @@ describe('Kit in its world', () => {
   })
 })
 
+describe('a carry let go inside a surface', () => {
+  const release = () =>
+    (
+      driver as unknown as {
+        release: (v: { x: number; y: number }, kind: string) => Promise<void>
+      }
+    ).release.bind(driver)
+  const place = () =>
+    (driver as unknown as { place: (x: number, y: number) => void }).place.bind(
+      driver,
+    )
+
+  test('set down in the middle of the composer, Kit climbs onto its top', async () => {
+    perch('composer', { left: 100, top: 300, width: 400, height: 120 })
+    driver!.track()
+    // The person carried Kit into the composer's box and let go there.
+    place()(284, 344)
+    await release()({ x: 0, y: 0 }, 'moved')
+    expect(useKitStage.getState()).toMatchObject({
+      perch: 'composer',
+      motion: 'still',
+      touched: { kind: 'moved', onto: 'composer' },
+    })
+    expect(driver!.position()[1]).toBe(300 + 1 - FEET)
+  })
+
+  test('set down above the composer, Kit falls onto it as before', async () => {
+    perch('composer', { left: 100, top: 300, width: 400, height: 120 })
+    driver!.track()
+    place()(284, 200)
+    await release()({ x: 0, y: 0 }, 'moved')
+    expect(useKitStage.getState().perch).toBe('composer')
+  })
+})
+
 describe('a follow that ends, and moves cut off', () => {
   test('a follow stops at its time even in the middle of a step', async () => {
     changeStage({ perch: 'floor', at: 0.02 })
