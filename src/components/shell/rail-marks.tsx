@@ -1,12 +1,10 @@
 // SOURCING: the rail's Streamline PNGs split into outline, accent, tint and paper masks by scripts/rail-icons.mjs, painted as CSS masks (.icon-mask) in colours the theme around them derives (.rail-mark in styles.css: CSS relative colors over the accent, no script)
-import type { CSSProperties, FC } from 'react'
+import type { FC } from 'react'
 import { RAIL_LAYERS } from '@/assets/icons/streamline/rail/layers'
 import type { RailIcon } from '@/assets/icons/streamline/rail/layers'
+import { painted } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { RAIL_SHIFT } from './rail-wheel'
-
-/** Paint order: the fills first, the outline over them. */
-const ORDER = ['tint', 'paper', 'accent', 'line'] as const
 
 type Props = { className?: string }
 
@@ -18,33 +16,15 @@ type Props = { className?: string }
  * pressed state.
  */
 function railMark(name: RailIcon): FC<Props> {
-  const layers = RAIL_LAYERS[name] as Partial<
-    Record<(typeof ORDER)[number], string>
-  >
+  const Mark = painted(RAIL_LAYERS[name], RAIL_SHIFT[name])
   return function RailMark({ className }) {
     return (
-      <span
-        aria-hidden="true"
+      <Mark
         className={cn(
-          'rail-mark opacity-75 group-hover/rail:opacity-100 group-aria-[current=page]/rail:opacity-100 group-aria-pressed/rail:opacity-100',
+          'opacity-75 group-hover/rail:opacity-100 group-aria-[current=page]/rail:opacity-100 group-aria-pressed/rail:opacity-100',
           className,
         )}
-        style={{ '--rail-shift': RAIL_SHIFT[name] } as CSSProperties}
-      >
-        {ORDER.map((layer) => {
-          const src = layers[layer]
-          return (
-            src && (
-              <span
-                key={layer}
-                data-layer={layer}
-                className="icon-mask"
-                style={{ '--icon-mask': `url("${src}")` } as CSSProperties}
-              />
-            )
-          )
-        })}
-      </span>
+      />
     )
   }
 }

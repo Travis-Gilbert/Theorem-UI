@@ -18,15 +18,19 @@ const TILE = 512
 /**
  * Feeds `--paper-texture`, the mask the surface-paper utilities paint their grain through, when
  * the page cannot bake one: SVG fractal noise stitched to tile, its red channel taken as alpha and
- * scaled to the baked tile's coverage (about a sixth on average, a third of it clear).
+ * scaled to the baked tile's coverage (an eighth on average, varying by about half that, almost
+ * none of it clear).
  */
 const FALLBACK = `url("data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='${TILE}' height='${TILE}'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.1 0 0 0 -0.95'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`,
+  `<svg xmlns='http://www.w3.org/2000/svg' width='${TILE}' height='${TILE}'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.35' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0 0 0 -0.17'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`,
 )}")`
 
 /**
- * Fine grain and a little fiber on a flat sheet: folds, wrinkles, crumples, drops and distortion
- * are off. Paper and backdrop are clear and the pattern is opaque black, so the tile's alpha is the
+ * A smooth sheet: mostly fiber, a little grain, both at a broad size, and nothing else (folds,
+ * wrinkles, crumples, drops and distortion are off). The shader clamps its pattern at zero, so
+ * strong fine grain leaves bare paper between hard specks, which reads as sandpaper. Fiber is
+ * never negative, so with it carrying the pattern the tile is one continuous tone with no clipped
+ * flats. Paper and backdrop are clear and the pattern is opaque black, so the tile's alpha is the
  * grain and the utilities choose its colour per palette. The image is Paper's empty pixel: the shader
  * sizes the sheet by the image's aspect ratio, which is never set without one.
  */
@@ -43,11 +47,11 @@ function grainUniforms(noise: HTMLImageElement, pixel: HTMLImageElement) {
     u_clip: false,
     u_angle: 0,
     u_seed: 7,
-    u_roughness: 0.7,
-    u_roughnessSize: 0.2,
+    u_roughness: 0.12,
+    u_roughnessSize: 0.7,
     u_roughnessRows: 0,
-    u_fiber: 0.25,
-    u_fiberSize: 0.2,
+    u_fiber: 0.45,
+    u_fiberSize: 0.7,
     u_folds: 0,
     u_foldSizeX: 0,
     u_foldSizeY: 0,
@@ -79,12 +83,15 @@ async function bake(): Promise<Blob> {
   pixel.src = emptyPixel
   await Promise.all([noise.decode(), pixel.decode()])
 
+  // The shader sizes its grain in canvas pixels, so the tile has to be the same canvas on every
+  // display: the host is the tile's pixel size and the pixel budget holds the canvas to it.
+  const pixels = TILE * 2
   const host = document.createElement('div')
-  host.style.cssText = `position:fixed;left:${-2 * TILE}px;top:0;width:${TILE}px;height:${TILE}px;pointer-events:none;contain:strict`
+  host.style.cssText = `position:fixed;left:${-2 * pixels}px;top:0;width:${pixels}px;height:${pixels}px;pointer-events:none;contain:strict`
   document.body.append(host)
   let mount: ShaderMount | undefined
   try {
-    // Throws without WebGL2. The canvas is pinned at 2x (minPixelRatio 2, at most TILE * 2 square).
+    // Throws without WebGL2.
     mount = new ShaderMount(
       host,
       paperTextureFragmentShader,
@@ -92,8 +99,8 @@ async function bake(): Promise<Blob> {
       { preserveDrawingBuffer: true },
       0,
       0,
-      2,
-      (TILE * 2) ** 2,
+      1,
+      pixels ** 2,
     )
     const { canvasElement } = mount
     // The mount renders in its own ResizeObserver callback. Observers run in the order they were

@@ -1,4 +1,4 @@
-// SOURCING: components/icons (the owned Streamline and Noun marks the rest of Theorem draws with; Lucide only where the owned set has no mark). A thread's or project's icon is the Librarian's word on what the work is about; rows fall back when it has not chosen.
+// SOURCING: components/icons (the owned Streamline and Noun marks the rest of Theorem draws with; Lucide only where the owned set has no mark). A thread's or project's icon is the Librarian's word on what the work is about; rows fall back when it has not chosen: a thread to the chat bubble, a project to the folder the notes tree draws.
 import { Bug } from 'lucide-react'
 import type { ComponentProps, ComponentType } from 'react'
 import { Icon } from '@/components/icons'
@@ -19,16 +19,17 @@ const GLYPHS: Readonly<Record<Glyph, Mark>> = {
   bug: Bug,
   research: Icon.Skill,
   map: Icon.Route,
-  chat: Icon.Chat,
+  chat: Icon.Thread,
 }
 
 type GlyphProps = ComponentProps<'svg'> & { glyph?: Glyph }
 
 export function ThreadGlyph({ glyph, ...props }: GlyphProps) {
-  const Mark = glyph ? GLYPHS[glyph] : Icon.Chat
+  const Mark = glyph ? GLYPHS[glyph] : Icon.Thread
   return <Mark {...props} />
 }
 
+/** A project's mark: the folder files are listed with, until the Librarian gives it one. */
 export function ProjectGlyph({ glyph, ...props }: GlyphProps) {
   const Mark = glyph ? GLYPHS[glyph] : Icon.Folder
   return <Mark {...props} />

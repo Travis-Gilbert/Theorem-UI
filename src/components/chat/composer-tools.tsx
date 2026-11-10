@@ -6,7 +6,6 @@ import type {
 } from '@assistant-ui/react'
 import { Toggle } from '@base-ui/react/toggle'
 import { useMemo, useRef } from 'react'
-import type { ComponentProps } from 'react'
 import { create } from 'zustand'
 import { ComposerTriggerPopover } from '@/components/assistant-ui/elements/composer-trigger-popover.aui'
 import { Icon } from '@/components/icons'
@@ -66,10 +65,14 @@ const CHIP =
   'text-ink-muted hover:bg-hover hover:text-ink data-pressed:bg-redwood/15 data-pressed:text-redwood data-pressed:hover:bg-redwood/25 flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:outline-focus'
 
 /** The web mark turns while the pointer rests on its toggle, faster on a press. */
-function WebMark(props: ComponentProps<'svg'>) {
-  const ref = useRef<SVGSVGElement>(null)
+function WebMark({ className }: { className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
   useSpin(ref)
-  return <Icon.Web ref={ref} {...props} />
+  return (
+    <span ref={ref} className="flex">
+      <Icon.WebSearch className={className} />
+    </span>
+  )
 }
 
 /** The Web chip asks Theorem to research while keeping its other tools. */
