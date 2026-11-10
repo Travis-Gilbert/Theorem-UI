@@ -158,18 +158,21 @@ export function IdeFileTree({
     ],
   })
 
-  // The frame reports changed folders; those the tree has open read again, keeping their rows meanwhile.
+  // The frame reports changed folders; those the tree has read read again, keeping their rows meanwhile,
+  // including one under a collapsed folder, which would otherwise show its old list once reopened.
   // After missed changes, every folder the tree has read reads again.
   useEffect(
     () =>
       useIdePage.subscribe(({ changedFolders, changedEverywhere }, previous) => {
         if (changedFolders === previous.changedFolders) return
-        const shown = new Set(tree.getItems().map((item) => item.getId()))
+        const read = Object.keys(
+          tree.getDataRef<AsyncDataLoaderDataRef>().current.childrenIds,
+        )
         const folders = changedEverywhere
-          ? Object.keys(
-              tree.getDataRef<AsyncDataLoaderDataRef>().current.childrenIds,
-            )
-          : changedFolders.map(idOf).filter((id) => id === ROOT || shown.has(id))
+          ? read
+          : changedFolders
+              .map(idOf)
+              .filter((id) => id === ROOT || read.includes(id))
         for (const id of folders)
           void tree.getItemInstance(id).invalidateChildrenIds(true)
       }),
