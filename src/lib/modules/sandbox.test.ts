@@ -164,6 +164,7 @@ describe('a sandboxed module', () => {
       state: ['rows'],
       net: ['api.example.com'],
       run: [],
+      db: [],
     })
   })
 

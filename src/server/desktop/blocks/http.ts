@@ -50,6 +50,8 @@ const capabilities = z.object({
   state: z.array(z.string()),
   net: z.array(z.string()),
   run: z.array(z.string()),
+  // Absent from a cell compiled before databases could be declared.
+  db: z.array(z.string()).default([]),
 })
 
 const compiledBody = z.object({
