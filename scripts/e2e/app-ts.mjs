@@ -103,6 +103,42 @@ function count(orgs: Array<Org>): string {
 }`,
 })
 
+/**
+ * The example Theorem's builder is given for this form (builder_app.md in the
+ * Theorem repo), as it is written there.
+ */
+const AS_TOLD = String.raw`<!doctype html>
+<meta name="theorem:uses" content='db("records")'>
+<style>table { border-collapse: collapse }</style>
+<div id="root"></div>
+<script type="text/theorem-source" data-path="main.tsx">
+import { createRoot } from 'react-dom/client'
+import { Table } from './Table'
+
+await window.theorem.ready
+createRoot(document.getElementById('root')!).render(<Table title="Organizations" />)
+</script>
+<script type="text/theorem-source" data-path="Table.tsx">
+import { useEffect, useState } from 'react'
+
+interface Org { id: string; name: string }
+
+export function Table({ title }: { title: string }) {
+  const [orgs, setOrgs] = useState<Array<Org>>([])
+  useEffect(() => {
+    let stop = () => {}
+    void window.theorem.db('records').then((db) => {
+      stop = db.subscribe<Array<{ id: string; properties: Record<string, unknown> }>>(
+        { method: 'queryNodes', args: { label: 'Org' } },
+        (nodes) => setOrgs(nodes.map((node) => ({ id: node.id, name: String(node.properties.name) }))),
+      )
+    })
+    return () => stop()
+  }, [])
+  return <table aria-label={title}><tbody>{orgs.map((org) => <tr key={org.id} data-row-id={org.id}><td>{org.name}</td></tr>)}</tbody></table>
+}
+</script>`
+
 const served = await servePage('app-ts')
 const { url } = served
 console.log(
@@ -254,6 +290,25 @@ try {
       thrown[0].includes('summary.ts:8') &&
       thrown[0].includes('TypeError'),
     thrown,
+  )
+
+  await revise(AS_TOLD)
+  // The frame is replaced when the revision has built: ask whichever is there.
+  let told = []
+  for (const deadline = Date.now() + 60_000; Date.now() < deadline;) {
+    told = await frame()
+      .$$eval('table[aria-label="Organizations"] tr', (trs) =>
+        trs.map((tr) => tr.textContent),
+      )
+      .catch(() => [])
+    if (told.length === 2) break
+    await page.waitForTimeout(100)
+  }
+  await settled(0)
+  check(
+    "the example Theorem's builder is given builds, runs and passes its check",
+    told.join() === 'Alder,Birch' && (await problems()).length === 0,
+    told,
   )
 
   await revise(GOOD)

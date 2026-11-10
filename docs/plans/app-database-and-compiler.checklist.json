@@ -158,8 +158,13 @@
     {
       "id": "builder-multi-file",
       "requirement": "The Theorem builder can emit the multi-file App form (Theorem repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "No server change was needed for the form: the builder still publishes {title, html}",
+        "Theorem PR #1002: builder_app.md documents the TypeScript form and the repair selection",
+        "bun run e2e:app-ts, dev and --built: \"the example Theorem's builder is given builds, runs and passes its check\"",
+        "No builder run has been made with the new contract"
+      ]
     },
     {
       "id": "mobile-budget",
