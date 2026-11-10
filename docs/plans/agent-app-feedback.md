@@ -67,6 +67,11 @@ Built 2026-11-10.
 - A check that finds problems is `applied`; `failed` is a check that could
   not be made.
 - The conversation shows a chip for each check and what it found.
+- The result also carries an outline of the page as assistive technology
+  reads it: each thing with its role, its name and its state, and the place
+  in the source that made it (`lib/blocks/sandbox/outline.ts`). The frame
+  reads it from the live page. Added 2026-11-10 on the owner's direction that
+  the model "literally see what it has built".
 
 A declared operation is already a tool of the turn, so the front model can
 call this today. That is not the design's end state: a separate call to check
@@ -76,7 +81,9 @@ and getting the findings back, which step 4 uses without the model asking.
 
 ## Step 2: Boa runs cells (Theorem repo)
 
-Built 2026-11-10 on `feat/boa-cell-engine`.
+Built 2026-11-10 on `feat/boa-cell-engine` (Theorem pull request 1008). Its
+cell unit tests, worker tests and `theorem-cell`'s suite pass there; the
+container images and `rustyred-thg-mcp`'s cell tests were not run.
 
 - `codemode-kernel`'s cell runtime is Boa with Oxc for the TypeScript step.
   `rquickjs` and `deno_ast` are gone from the workspace, and a cell builds
@@ -113,9 +120,12 @@ Built 2026-11-10 on `feat/boa-cell-engine`.
   program.
 - `app.read()` gives a program the App as it stands, which is how the front
   model takes over what a subagent handed back and changes it on the spot.
-- The front model's role admits writing an App. Today that role is read-only
-  and a publication is tied to a work record, so this is a change to the
-  owner of `conversation_apps`, made there and not in the page.
+- The front model's role admits writing an App (the owner, 2026-11-10: "the
+  front model should get a publishing capability"). Today the role's policy
+  (`organization_runtime::front_policy`) refuses writes and
+  `conversation_apps::publish` commits an App only together with a worker's
+  receipt, so this is a second way in at the owner of `conversation_apps`,
+  bound to the turn, and one more tool in the front role's policy.
 - With no page open, a write is saved and says it was not built.
 
 ## Step 5: a subagent gets the same feedback (Theorem repo)
@@ -124,6 +134,24 @@ Built 2026-11-10 on `feat/boa-cell-engine`.
   of the conversation that started the work.
 - Starting a subagent stays a call (`start_work`), which is the exception the
   owner named.
+
+## Seeing the App
+
+The owner's direction (2026-11-10): the model should see what it made, by
+the accessibility tree, by vision, or by the harness's visual perceiver.
+
+1. **The outline** (built, step 1). Text, so every model reads it, and it
+   names real elements. The harness's own `perception_visual` README puts the
+   tree first on web surfaces and the perceiver where there is no tree.
+2. **A picture, for a model with vision.** An outline cannot say whether the
+   layout is right. It needs the frame's pixels and a way to give a turn an
+   image; a receipt's result is JSON today, so the second is Theorem's.
+3. **The visual perceiver on that picture** (`perception_visual`, reached
+   through `THEOREM_OMNIPARSER_URL`), for a model without vision and for what
+   is drawn on a canvas, which has no tree.
+4. **Acting.** With elements named, a program can press and type and read
+   the outline again, which tests what the App does and not only what it
+   shows.
 
 ## Not decided
 

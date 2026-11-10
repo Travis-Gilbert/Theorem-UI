@@ -46,6 +46,16 @@
       ]
     },
     {
+      "id": "app-check-outline",
+      "requirement": "A check says what is on the page by role, name and state, with the source place that made each thing",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/sandbox/outline.ts outlineOf; app-inspect.ts rendered.outline",
+        "bun test src/lib/blocks/sandbox/outline.test.ts: 6 passed; bun test: 1548 passed",
+        "E2E_CHROMIUM=/opt/pw-browsers/chromium bun run e2e:app-ts, dev server, 2026-11-10: 19 of 19, the fixture's outline is table > rowgroup > row > cell \"Alder\" [source=Table.tsx:26:13]"
+      ]
+    },
+    {
       "id": "app-check-live",
       "requirement": "A live turn: the front model calls app__check and reads the result",
       "status": "todo",
@@ -56,7 +66,8 @@
       "requirement": "Cells run on Boa with Oxc for TypeScript; QuickJS and deno_ast are gone; memory and deadline stay typed refusals, held by a worker process (Theorem repo)",
       "status": "partial",
       "evidence": [
-        "Theorem branch feat/boa-cell-engine; evidence is recorded in that pull request"
+        "Theorem pull request 1008, commit 810c34832: cargo test -p codemode-kernel --lib js_cell 21 passed; --test js_cell_worker 10 passed; cargo test -p theorem-cell 35 and 33 passed",
+        "Not run: the container images, rustyred-thg-mcp's cell tests, a release build"
       ]
     },
     {
@@ -86,6 +97,12 @@
     {
       "id": "live-program",
       "requirement": "A live turn: the front model writes a TypeScript program whose app.write returns the page's findings, and repairs a type error without the person",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "app-picture",
+      "requirement": "A model with vision is given a picture of the App, and the visual perceiver reads it for one without (Theorem repo and this repo)",
       "status": "todo",
       "evidence": []
     }
