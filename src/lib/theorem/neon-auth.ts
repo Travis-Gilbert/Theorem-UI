@@ -9,6 +9,13 @@
 // '@neon/auth/vanilla': the package root's type declarations redeclare the
 // global `Bun` as `{ version?: string }`, which hides Bun's own types from
 // every file in this project.
+//
+// The adapter must never reach the server bundle. Its module calls
+// crypto.randomUUID() at the top level, which the Workers runtime refuses in
+// global scope, and the server bundle loads its library chunk at startup, so
+// the whole Worker would fail to start. createClientOnlyFn strips this body
+// from the server build, which drops the import with it.
+import { createClientOnlyFn } from '@tanstack/react-start'
 import { BetterAuthVanillaAdapter } from '@neon/auth/vanilla'
 
 let client:
@@ -20,12 +27,12 @@ let client:
   | undefined
 
 /** Browser only: the client is bound to this page's origin. */
-export function neonAuth() {
+export const neonAuth = createClientOnlyFn(() => {
   client ??= BetterAuthVanillaAdapter()(
     `${window.location.origin}/auth/neon`,
   ).getBetterAuthInstance()
   return client
-}
+})
 
 /**
  * Whether this page was reached with Neon's signed authorization query, which
