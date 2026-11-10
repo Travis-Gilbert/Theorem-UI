@@ -4,13 +4,21 @@
 import DOMPurify from 'dompurify'
 import { resolvedTheme } from './sandbox/theme'
 
-/** A picture of what an App showed. `data` is base64, with no `data:` prefix. */
+/**
+ * A picture of what an App showed, in the shape a turn takes a picture out of
+ * a result by: `type: 'image'`, a media type, and `data` as base64 with no
+ * `data:` prefix. The model is shown it as an image, not as text.
+ */
 export interface AppPicture {
-  mediaType: 'image/png'
+  type: 'image'
+  mediaType: 'image/png' | 'image/jpeg'
   data: string
   width: number
   height: number
 }
+
+/** The most base64 a turn keeps of one picture; a larger one is dropped there. */
+export const MAX_PICTURE_BASE64 = 2 * 1024 * 1024
 
 /** The widest and tallest a picture is drawn, in CSS pixels. */
 export const PICTURE_WIDTH = 1024
@@ -84,14 +92,20 @@ export async function pictureOf(
   context.fillRect(0, 0, width, tall)
   context.drawImage(image, 0, 0)
   try {
-    const url = canvas.toDataURL('image/png')
-    return {
-      mediaType: 'image/png',
-      data: url.slice(url.indexOf(',') + 1),
-      width,
-      height: tall,
+    // PNG keeps text and edges exact. A page too busy to fit as one is sent
+    // as JPEG, which is smaller and still legible.
+    for (const mediaType of ['image/png', 'image/jpeg'] as const) {
+      const url = canvas.toDataURL(mediaType, 0.85)
+      const data = url.slice(url.indexOf(',') + 1)
+      if (url.startsWith(`data:${mediaType}`) && fitsATurn(data))
+        return { type: 'image', mediaType, data, width, height: tall }
     }
+    return undefined
   } catch {
     return undefined
   }
 }
+
+/** Whether a picture's base64 is one a turn will keep. */
+export const fitsATurn = (data: string) =>
+  data.length > 0 && data.length <= MAX_PICTURE_BASE64

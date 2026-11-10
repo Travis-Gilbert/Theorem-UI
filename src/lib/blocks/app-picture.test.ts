@@ -1,10 +1,10 @@
 // SOURCING: bun:test over the SVG an App's picture is drawn from
 // (app-picture.ts). DOMPurify runs over jsdom's window here, as in
 // snapshots.test.ts: happy-dom's parser hands it a snapshot's styles apart.
-import { expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import createDOMPurify from 'dompurify'
 import { JSDOM } from 'jsdom'
-import { pictureSvg } from './app-picture'
+import { MAX_PICTURE_BASE64, fitsATurn, pictureSvg } from './app-picture'
 
 const purify = createDOMPurify(new JSDOM('').window)
 
@@ -53,4 +53,12 @@ test('what an App styles on its root is styled on the element it is drawn in', (
   )
   expect(svg).toContain('html { --ink: blue }')
   expect(svg).not.toContain(':root')
+})
+
+describe('what a turn keeps of a picture', () => {
+  test('a picture is kept up to the bound and not past it', () => {
+    expect(fitsATurn('')).toBe(false)
+    expect(fitsATurn('a'.repeat(MAX_PICTURE_BASE64))).toBe(true)
+    expect(fitsATurn('a'.repeat(MAX_PICTURE_BASE64 + 1))).toBe(false)
+  })
 })

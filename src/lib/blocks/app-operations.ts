@@ -29,7 +29,7 @@ export const APP_OPERATIONS = [
   {
     name: APP_CHECK,
     description:
-      "Builds and checks an App in the person's browser and returns what is wrong with it. Pass `html`, a complete App document exactly as it would be published, to check a draft before publishing it; or pass `documentId` to check a published App as it is saved now. The result says whether it built, lists its build, type and runtime problems with file, line and column, and gives what the App showed: its text, and `outline`, each thing on the page by role, name and state as assistive technology reads it, with the source place that made it. Nothing is changed and nothing is shown to the person: the App runs hidden for a moment with no network, empty state and an empty in-memory database, so records it reads are not the person's.",
+      "Builds and checks an App in the person's browser and returns what is wrong with it. Pass `html`, a complete App document exactly as it would be published, to check a draft before publishing it; or pass `documentId` to check a published App as it is saved now. The result says whether it built, lists its build, type and runtime problems with file, line and column, and gives what the App showed: its text, and `outline`, each thing on the page by role, name and state as assistive technology reads it, with the source place that made it. Pass `picture: true` to also get `picture`, an image of the App as drawn, if you read images. Nothing is changed and nothing is shown to the person: the App runs hidden for a moment with no network, empty state and an empty in-memory database, so records it reads are not the person's.",
     effect: 'read',
     inputSchema: {
       type: 'object',
@@ -53,6 +53,11 @@ export const APP_OPERATIONS = [
           maximum: MAX_RUN_MS,
           description:
             'How long to run the App and listen for errors. 0 builds and checks types without running it. Default 1500.',
+        },
+        picture: {
+          type: 'boolean',
+          description:
+            'Also return an image of what the App showed. Only a model that reads images is shown it.',
         },
       },
     },
@@ -156,8 +161,11 @@ export async function answerAppRequest(
       outcome: 'rejected',
       reason: `This page has no operation ${request.operation}.`,
     }
-  const { html, documentId, runMs } = request.args
-  const options = typeof runMs === 'number' ? { runMs } : {}
+  const { html, documentId, runMs, picture } = request.args
+  const options = {
+    ...(typeof runMs === 'number' ? { runMs } : {}),
+    ...(picture === true ? { picture: true } : {}),
+  }
   try {
     if (typeof html === 'string' && html)
       return { outcome: 'applied', result: await host.inspect(html, options) }
