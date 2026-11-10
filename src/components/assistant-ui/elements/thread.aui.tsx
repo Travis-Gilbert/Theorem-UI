@@ -74,6 +74,7 @@ import { hasTheoremError } from "@/lib/theorem/message-history";
 
 import { useComposerSend } from "@assistant-ui/core/react";
 import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
+import { ComposerConnections } from "@/components/chat/composer-connections";
 import { EffortPicker } from "@/components/chat/effort-picker";
 import { DirectiveText } from "./directive-text.aui";
 import { attendKit } from "@/lib/kit/store";
@@ -527,6 +528,7 @@ const ComposerAction: FC = () => {
         <ComposerAddAttachment />
         <ComposerWebToggle />
         <ComposerPlanToggle />
+        <ComposerConnections />
       </div>
       {/* Claims 8rem beside the attachment button, Web and Plan, so a long
           model name truncates first; the row wraps only when less than that is left. */}
