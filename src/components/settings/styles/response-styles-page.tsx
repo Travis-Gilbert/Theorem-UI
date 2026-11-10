@@ -20,7 +20,11 @@ import { SuggestionsSection } from './suggestions-section'
 
 const NEW = 'new'
 
-/** Reads one style, then hands it to an editor that keeps its own copy. */
+/**
+ * Reads one style, then hands it to an editor that keeps its own copy. Every
+ * write reads the style again; a read that fails then is said beside the
+ * editor, which stays up with whatever is typed in it.
+ */
 function OpenStyle({
   id,
   catalog,
@@ -33,23 +37,29 @@ function OpenStyle({
   onOpen: (id: string) => void
 }) {
   const style = useResponseStyle(id)
-  if (style.error)
-    return (
+  if (!style.data)
+    return style.error ? (
       <Problem
         title="Theorem did not open this style"
         detail={describeError(style.error)}
         onBack={onBack}
       />
+    ) : (
+      <Loading />
     )
-  if (!style.data) return <Loading />
   return (
-    <StyleEditor
-      key={id}
-      initial={style.data}
-      frameworks={catalog.frameworks}
-      onBack={onBack}
-      onOpen={onOpen}
-    />
+    <div className="flex flex-col gap-4">
+      {style.error ? (
+        <Unrefreshed what="this style" error={style.error} />
+      ) : null}
+      <StyleEditor
+        key={id}
+        initial={style.data}
+        frameworks={catalog.frameworks}
+        onBack={onBack}
+        onOpen={onOpen}
+      />
+    </div>
   )
 }
 
@@ -63,26 +73,42 @@ function OpenFramework({
   onOpen: (id: string) => void
 }) {
   const framework = useResponseFramework(id)
-  if (framework.error)
-    return (
+  if (!framework.data)
+    return framework.error ? (
       <Problem
         title="Theorem did not open this framework"
         detail={describeError(framework.error)}
         onBack={onBack}
       />
+    ) : (
+      <Loading />
     )
-  if (!framework.data) return <Loading />
   return (
-    <FrameworkEditor
-      key={id}
-      initial={framework.data}
-      onBack={onBack}
-      onOpen={onOpen}
-    />
+    <div className="flex flex-col gap-4">
+      {framework.error ? (
+        <Unrefreshed what="this framework" error={framework.error} />
+      ) : null}
+      <FrameworkEditor
+        key={id}
+        initial={framework.data}
+        onBack={onBack}
+        onOpen={onOpen}
+      />
+    </div>
   )
 }
 
 const Loading = () => <p className="text-sm text-ink-muted">Loading.</p>
+
+/** A later read failed. What was read before stays on the page, and so does anything typed. */
+function Unrefreshed({ what, error }: { what: string; error: unknown }) {
+  return (
+    <p role="alert" className="text-sm text-error-ink">
+      Theorem could not read {what} again, so this is the last copy it gave.{' '}
+      {describeError(error)}
+    </p>
+  )
+}
 
 function Problem({
   title,
@@ -182,7 +208,16 @@ export function ResponseStylesPage() {
       title="Response styles"
       description="A style tells Theorem how to write its answers. Edit the ones that ship, make your own, and choose where each applies."
     >
-      {catalog.error ? (
+      {catalog.data ? (
+        // A list read once stays up when a later read fails: the panels hold
+        // editors, and taking them down would drop what is typed in them.
+        <>
+          {catalog.error && (
+            <Unrefreshed what="the styles" error={catalog.error} />
+          )}
+          <Panels catalog={catalog.data} />
+        </>
+      ) : catalog.error ? (
         isResponseStylesAbsent(catalog.error) ? (
           <Empty className="rounded-lg border border-separator">
             <EmptyTitle>Response styles are not available here</EmptyTitle>
@@ -197,8 +232,6 @@ export function ResponseStylesPage() {
             <EmptyDescription>{describeError(catalog.error)}</EmptyDescription>
           </Empty>
         )
-      ) : catalog.data ? (
-        <Panels catalog={catalog.data} />
       ) : (
         <p className="text-sm text-ink-muted">Loading styles.</p>
       )}

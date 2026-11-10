@@ -17,6 +17,8 @@ import { describeError } from './client'
 import {
   BUILTIN_STYLE_ID,
   consumePendingStyle,
+  conversationStyleSettled,
+  holdPendingStyle,
   inheritedStyle,
   isResponseStyleConflict,
   isResponseStylesAbsent,
@@ -24,6 +26,7 @@ import {
   readResponseStyle,
   resolveStyle,
   responseStylesQuery,
+  styleRevisionQuery,
   styleTurnOptions,
   useResponseStyles,
   usePendingStyle,
@@ -48,6 +51,8 @@ const requests: {
   body: unknown
   ifMatch: string | null
 }[] = []
+/** Writes wait for this before Theorem answers them. */
+let slow: Promise<void> | undefined
 
 function fake(options: ResponseStylesFakeOptions = {}) {
   restore?.()
@@ -64,6 +69,7 @@ function fake(options: ResponseStylesFakeOptions = {}) {
           body: text ? (JSON.parse(text) as unknown) : undefined,
           ifMatch: request.headers.get('If-Match'),
         })
+        if (request.method !== 'GET') await slow
         return answer(params, request)
       },
     ]),
@@ -83,7 +89,8 @@ afterEach(async () => {
   client.clear()
   restore?.()
   requests.length = 0
-  usePendingStyle.setState({ styleId: undefined })
+  slow = undefined
+  usePendingStyle.setState({ styleId: undefined, held: {} })
 })
 
 /** Mounts a hook under a QueryClient and hands back its latest result. */
@@ -378,20 +385,142 @@ test('a lost save is a conflict by status or by code', () => {
 
 // --- the send option --------------------------------------------------------
 
-test('the pick rides only the first message of a conversation that does not exist', () => {
-  expect(styleTurnOptions(false)).toEqual({})
+test('a pick waits for a new conversation, then rides that conversation until a message is accepted', () => {
+  const formal = { responseStyle: 'theorem.style.formal' }
+  expect(styleTurnOptions('t1')).toEqual({})
   usePendingStyle.getState().choose('theorem.style.formal')
-  expect(styleTurnOptions(false)).toEqual({
-    responseStyle: 'theorem.style.formal',
-  })
-  expect(styleTurnOptions(true)).toEqual({})
-  // Accepted: the conversation holds it now. A different pick made meanwhile stays.
-  usePendingStyle.getState().choose('theorem.style.concise')
-  consumePendingStyle('theorem.style.formal')
-  expect(usePendingStyle.getState().styleId).toBe('theorem.style.concise')
-  consumePendingStyle('theorem.style.concise')
+  // No conversation has it yet: a message in one that already exists carries nothing.
+  expect(styleTurnOptions('t1')).toEqual({})
+
+  // A send made t1 for it. It is t1's pick now, and the next new conversation starts without one.
+  holdPendingStyle('t1')
   expect(usePendingStyle.getState().styleId).toBeUndefined()
-  expect(styleTurnOptions(false)).toEqual({})
+  expect(styleTurnOptions('t1')).toEqual(formal)
+  expect(styleTurnOptions('t2')).toEqual({})
+
+  // The message was refused, so nothing was accepted with it: the next attempt carries it again.
+  consumePendingStyle('t1', undefined)
+  expect(styleTurnOptions('t1')).toEqual(formal)
+  // A conversation made with no pick waiting takes nothing from t1.
+  holdPendingStyle('t2')
+  expect(styleTurnOptions('t2')).toEqual({})
+
+  // Accepted: the conversation holds it now. A different pick made meanwhile stays.
+  usePendingStyle.getState().choose('theorem.style.concise', 't1')
+  consumePendingStyle('t1', 'theorem.style.formal')
+  expect(styleTurnOptions('t1')).toEqual({
+    responseStyle: 'theorem.style.concise',
+  })
+  consumePendingStyle('t1', 'theorem.style.concise')
+  expect(usePendingStyle.getState().held).toEqual({})
+  expect(styleTurnOptions('t1')).toEqual({})
+})
+
+test("a message accepted with a pick shows it as the conversation's choice and reads the catalogs again", async () => {
+  const probe = await mountHook(() => ({
+    mine: useResponseStyles({ threadId: 't1' }),
+    other: useResponseStyles({ threadId: 't2' }),
+  }))
+  await waitFor(() => probe.current.mine.data && probe.current.other.data)
+  const reads = () => sent('GET', '/api/chat/v1/response-styles?').length
+  const before = reads()
+  const conversation = (threadId: string) =>
+    client.getQueryData(responseStylesQuery({ threadId }).queryKey)?.selection
+      .conversation
+
+  // A message that was refused changes nothing.
+  await inAct(async () => consumePendingStyle('t1', undefined, client))
+  expect(conversation('t1')).toBeNull()
+  expect(reads()).toBe(before)
+
+  usePendingStyle.setState({ held: { t1: 'theorem.style.formal' } })
+  await inAct(async () => {
+    consumePendingStyle('t1', 'theorem.style.formal', client)
+    // At once, before Theorem is asked again.
+    expect(conversation('t1')).toBe('theorem.style.formal')
+    expect(conversation('t2')).toBeNull()
+  })
+  expect(usePendingStyle.getState().held).toEqual({})
+  await waitFor(() => reads() >= before + 2)
+})
+
+test("a conversation's choice still on its way holds a turn back until Theorem keeps or refuses it", async () => {
+  const probe = await mountHook(() => useSelectionMutation())
+  const writes = () =>
+    sent('PUT', '/api/chat/v1/response-styles/selection').length
+  const waits = async (threadId: string) => {
+    let settled = false
+    void conversationStyleSettled(threadId).then(() => (settled = true))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)))
+    return !settled
+  }
+  /** Starts a choice Theorem does not answer until the returned function is called. */
+  const choose = async (change: Parameters<typeof probe.current.mutate>[0]) => {
+    let answer = () => {}
+    slow = new Promise<void>((resolve) => (answer = resolve))
+    const before = writes()
+    await act(async () => probe.current.mutate(change))
+    await waitFor(() => writes() === before + 1)
+    return answer
+  }
+  // Nothing is being written.
+  expect(await waits('t1')).toBe(false)
+
+  const keep = await choose({
+    scope: 'conversation',
+    threadId: 't1',
+    style: 'theorem.style.formal',
+  })
+  expect(await waits('t1')).toBe(true)
+  // Another conversation's turn is not held by it.
+  expect(await waits('t2')).toBe(false)
+  const turn = conversationStyleSettled('t1')
+  keep()
+  await waitFor(() => probe.current.isSuccess)
+  await turn
+  expect(await waits('t1')).toBe(false)
+
+  // A choice Theorem refuses lets the turn go too.
+  const refuse = await choose({
+    scope: 'conversation',
+    threadId: 't1',
+    style: 'user.style.missing',
+  })
+  expect(await waits('t1')).toBe(true)
+  refuse()
+  await waitFor(() => probe.current.isError)
+  expect(problemCode(probe.current.error)).toBe('response_style_unknown')
+  expect(await waits('t1')).toBe(false)
+
+  // A default being written holds no conversation's turn.
+  const byDefault = await choose({
+    scope: 'account',
+    style: 'theorem.style.formal',
+  })
+  expect(await waits('t1')).toBe(false)
+  byDefault()
+  await waitFor(() => probe.current.isSuccess)
+})
+
+test('the shipped version is read again every time it is opened, and a saved revision once', async () => {
+  const id = 'theorem.style.concise'
+  const root = `/api/chat/v1/response-styles/styles/${id}/revisions`
+  const gone = () => new Promise((resolve) => setTimeout(resolve, 10))
+
+  await client.fetchQuery(styleRevisionQuery(id, 0))
+  await client.fetchQuery(styleRevisionQuery(id, 0))
+  expect(sent('GET', `${root}/0`)).toHaveLength(1)
+  await gone()
+  expect(client.getQueryData(styleRevisionQuery(id, 0).queryKey)).toBeDefined()
+
+  // `shipped` names whatever Theorem ships now, so an earlier answer is never given again.
+  await client.fetchQuery(styleRevisionQuery(id, 'shipped'))
+  await client.fetchQuery(styleRevisionQuery(id, 'shipped'))
+  expect(sent('GET', `${root}/shipped`)).toHaveLength(2)
+  await gone()
+  expect(
+    client.getQueryData(styleRevisionQuery(id, 'shipped').queryKey),
+  ).toBeUndefined()
 })
 
 // --- the hooks, against the stateful fake -----------------------------------

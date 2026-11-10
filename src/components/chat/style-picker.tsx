@@ -33,6 +33,7 @@ import {
 } from '@/lib/theorem/organization'
 import {
   inheritedStyle,
+  pendingStyleFor,
   responseStylesQuery,
   usePendingStyle,
   useSelectionMutation,
@@ -87,15 +88,16 @@ export function StylePicker() {
     placeholderData: keepPreviousData,
   })
   const select = useSelectionMutation()
-  const pending = usePendingStyle((s) => s.styleId)
+  // The pick still waiting on a message: for a conversation not made yet, or for one whose first message was refused.
+  const pending = usePendingStyle((s) => pendingStyleFor(s, threadId))
   const choosePending = usePendingStyle((s) => s.choose)
   const styles = catalog.data?.styles
 
-  // A pick made before the conversation existed may name a style since deleted.
+  // A pick made before a message was accepted may name a style since deleted.
   useEffect(() => {
     if (styles && pending && !styles.some((style) => style.id === pending))
-      choosePending(undefined)
-  }, [styles, pending, choosePending])
+      choosePending(undefined, threadId)
+  }, [styles, pending, choosePending, threadId])
 
   if (!catalog.data) return null
   const { selection } = catalog.data
@@ -106,8 +108,8 @@ export function StylePicker() {
       description: describeError(error),
     })
 
-  // The pick this conversation holds: the one made for it, or, before it exists, the one waiting for its first message.
-  const chosen = threadId ? selection.conversation : (pending ?? null)
+  // The pick this conversation holds: the one waiting for a message to be accepted with it, or else the one Theorem has for it.
+  const chosen = pending ?? (threadId ? selection.conversation : null)
   const picked = chosen
     ? catalog.data.styles.find((style) => style.id === chosen)
     : undefined
@@ -121,12 +123,13 @@ export function StylePicker() {
 
   const choose = (value: string) => {
     const style = value === INHERIT ? null : value
-    if (!threadId) choosePending(style ?? undefined)
-    else
-      select.mutate(
-        { scope: 'conversation', threadId, style },
-        { onError: fail('Could not change the response style') },
-      )
+    if (!threadId) return choosePending(style ?? undefined)
+    // The conversation exists, so its choice is written now, in place of any pick still waiting on a message. A turn sent meanwhile waits for the write.
+    choosePending(undefined, threadId)
+    select.mutate(
+      { scope: 'conversation', threadId, style },
+      { onError: fail('Could not change the response style') },
+    )
   }
   const makeDefault = (scope: 'project' | 'account') =>
     select.mutate(

@@ -18,10 +18,13 @@ type Prose = { name: string; description: string; body: string }
 export function DescribeChange({
   kind,
   current,
+  locked,
   onApply,
 }: {
   kind: 'style' | 'framework'
   current: Prose
+  /** The editor is writing to Theorem, so a proposal cannot be applied to it yet. */
+  locked: boolean
   onApply: (proposal: Prose) => void
 }) {
   const [instruction, setInstruction] = useState('')
@@ -82,6 +85,7 @@ export function DescribeChange({
           <div className="flex flex-wrap gap-2">
             <Button
               size="xs"
+              disabled={locked}
               onClick={() => {
                 onApply(proposal.draft)
                 draft.reset()

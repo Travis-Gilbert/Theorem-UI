@@ -27,10 +27,7 @@ import type { ResponseStylesFakeOptions } from '@/stories/fixtures/response-styl
 import { installFakeTheorem } from '@/stories/fake-theorem'
 import type { FakeRoutes } from '@/stories/fake-theorem'
 import { Thread } from '../assistant-ui/elements/thread.aui'
-import {
-  usePendingStyle,
-  styleTurnOptions,
-} from '@/lib/theorem/response-styles'
+import { usePendingStyle } from '@/lib/theorem/response-styles'
 import { cleanup, render, waitFor } from '../../../test/blocks/render'
 import { StylePicker } from './style-picker'
 
@@ -146,7 +143,7 @@ afterEach(async () => {
   await cleanup()
   client.clear()
   restore?.()
-  usePendingStyle.setState({ styleId: undefined })
+  usePendingStyle.setState({ styleId: undefined, held: {} })
   useShell.setState({ projectId: undefined })
 })
 
@@ -327,18 +324,15 @@ test('choosing before the conversation exists sends nothing yet, and rides the f
   useShell.setState({ projectId: 'p1' })
   const { container } = await mount()
   expect(trigger(container)?.textContent).toBe('Formal')
-  expect(styleTurnOptions(false)).toEqual({})
+  expect(usePendingStyle.getState().styleId).toBeUndefined()
 
   const items = await open(container)
   await act(() => itemNamed(items, 'Concise').click())
   expect(selectionWrites()).toEqual([])
   expect(usePendingStyle.getState().styleId).toBe('theorem.style.concise')
   await waitFor(() => trigger(container)?.textContent === 'Concise')
-  expect(styleTurnOptions(false)).toEqual({
-    responseStyle: 'theorem.style.concise',
-  })
-  // A conversation that already exists never carries it.
-  expect(styleTurnOptions(true)).toEqual({})
+  // It waits for the conversation a first message makes; none holds it yet.
+  expect(usePendingStyle.getState().held).toEqual({})
 
   const again = await open(container)
   await act(() => again[0]!.click())
@@ -352,6 +346,49 @@ test('a pick waiting for a first message that names a style since deleted is dro
   usePendingStyle.setState({ styleId: 'user.style.gone' })
   await mount()
   await waitFor(() => usePendingStyle.getState().styleId === undefined)
+})
+
+test('a pick whose first message was refused still shows on its conversation, and choosing again writes it', async () => {
+  backend({ selection: { account: 'theorem.style.educational' } })
+  // The conversation was made for the message, so Theorem holds no choice for it yet.
+  usePendingStyle.setState({
+    held: { t1: 'theorem.style.concise', t2: 'theorem.style.formal' },
+  })
+  const { container } = await mount('t1')
+  await waitFor(() => trigger(container)?.textContent === 'Concise')
+  const items = await open(container)
+  expect(itemNamed(items, 'Concise').getAttribute('aria-checked')).toBe('true')
+
+  await act(() => itemNamed(items, 'Exploratory').click())
+  // The choice goes to Theorem now, so nothing is left to ride a message; another conversation's pick stays.
+  expect(usePendingStyle.getState().held).toEqual({
+    t2: 'theorem.style.formal',
+  })
+  expect(selectionWrites().map((write) => write.body)).toEqual([
+    {
+      scope: 'conversation',
+      threadId: 't1',
+      style: 'theorem.style.exploratory',
+    },
+  ])
+  await waitFor(() => trigger(container)?.textContent === 'Exploratory')
+})
+
+test('a conversation with no pick waiting shows what Theorem has for it, whatever another holds', async () => {
+  backend({ selection: { account: 'theorem.style.educational' } })
+  usePendingStyle.setState({
+    styleId: 'theorem.style.formal',
+    held: { t2: 'theorem.style.concise' },
+  })
+  const { container } = await mount('t1')
+  expect(trigger(container)?.textContent).toBe('Educational')
+})
+
+test('a pick held for a conversation that names a style since deleted is dropped', async () => {
+  backend({})
+  usePendingStyle.setState({ held: { t1: 'user.style.gone' } })
+  await mount('t1')
+  await waitFor(() => !('t1' in usePendingStyle.getState().held))
 })
 
 test("the project's default is offered inside a project, and sets the style in use", async () => {

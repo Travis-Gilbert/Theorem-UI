@@ -40,6 +40,8 @@ const BLANK: StyleDraft = {
  * it carries is the one a save is made against; undefined is a style not yet
  * made. The editor holds its own copy from there: a background read never
  * replaces what the person is typing, and nothing is saved until they say so.
+ * While a save, a restore or a reload is on its way the text is read-only: the
+ * answer replaces the draft, so nothing typed meanwhile can be lost to it.
  */
 export function StyleEditor({
   initial,
@@ -213,17 +215,20 @@ export function StyleEditor({
       )}
       <TextField
         label="Name"
+        readOnly={busy}
         value={draft.name}
         onChange={(name) => edit({ name })}
       />
       <TextField
         label="Description"
+        readOnly={busy}
         hint="One line, shown beside the name in the style menu."
         value={draft.description}
         onChange={(description) => edit({ description })}
       />
       <TextField
         label="Instructions"
+        readOnly={busy}
         hint="Say in plain language how Theorem should answer: tone, length, how to open and close."
         multiline
         tall
@@ -248,6 +253,7 @@ export function StyleEditor({
               className="mt-0.5"
               aria-label={framework.name}
               checked={draft.frameworks.includes(framework.id)}
+              disabled={busy}
               onCheckedChange={(checked) => toggle(framework.id, checked)}
             />
             <span className="flex min-w-0 flex-col">
@@ -268,6 +274,7 @@ export function StyleEditor({
         <DescribeChange
           kind="style"
           current={draft}
+          locked={busy}
           onApply={(proposal) => edit(proposal)}
         />
       </EditorSection>

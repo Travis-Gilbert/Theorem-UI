@@ -94,6 +94,12 @@ type Stored = {
   shippedVersion: string | null
   /** Ascending. A shipped resource starts with revision 0; a person's with 1. */
   versions: Version[]
+  /**
+   * The `revisionId` of the shipped file the person's override was made from;
+   * unset while a shipped resource has none. A shipped file that has changed
+   * since is an update on offer, until the person takes it.
+   */
+  overrides?: string
   deleted: boolean
 }
 
@@ -365,8 +371,8 @@ export function createResponseStylesFake(
             version: item.shippedVersion,
             revisionId: baselineOf(item)?.revisionId ?? '',
             updateAvailable:
-              (options.updatesAvailable ?? []).includes(item.id) &&
-              current(item).revision > 0,
+              item.overrides !== undefined &&
+              item.overrides !== baselineOf(item)?.revisionId,
           }
         : null,
   })
@@ -590,6 +596,9 @@ export function createResponseStylesFake(
     return content
   }
 
+  /** What an override records as its shipped file when that file is said to have changed since. */
+  const EARLIER_SHIPPED = 'sha256:an-earlier-shipped-file'
+
   const uniqueId = (kind: Kind, name: string) => {
     const base = `user.${kind}.${slugify(name)}`
     let id = base
@@ -620,6 +629,11 @@ export function createResponseStylesFake(
     item.versions.push(
       await versionOf(item, content, current(item).revision + 1, cause, now()),
     )
+    // The first override records the shipped file it was made from, and later ones keep that.
+    if (item.origin === 'shipped')
+      item.overrides ??= (options.updatesAvailable ?? []).includes(item.id)
+        ? EARLIER_SHIPPED
+        : baselineOf(item)?.revisionId
   }
   const contentOf = (version: Version): Content => ({
     name: version.name,
@@ -637,6 +651,20 @@ export function createResponseStylesFake(
     async (params, request) => {
       await ready
       return handler(params, request)
+    }
+  /**
+   * A write, answered only after every write before it, as Theorem's store
+   * answers them: each one checks the revision it was sent and chooses its id
+   * against what the last one kept, so two that arrive together cannot both
+   * pass the same check or take the same id.
+   */
+  let written: Promise<unknown> = ready
+  const write =
+    (handler: Handler): Handler =>
+    (params, request) => {
+      const answer = written.then(() => handler(params, request))
+      written = answer.catch(() => undefined)
+      return answer
     }
   const bodyOf = async (request: Request) =>
     record(await request.json().catch(() => ({})))
@@ -660,7 +688,7 @@ export function createResponseStylesFake(
         const item = find(kind, id)
         return item ? detail(item) : missing(kind, id)
       }),
-      [`PUT ${base}/:id`]: once(async ({ id = '' }, request) => {
+      [`PUT ${base}/:id`]: write(async ({ id = '' }, request) => {
         const item = find(kind, id)
         if (!item) return missing(kind, id)
         const refused = revisionGuard(request, item)
@@ -674,7 +702,7 @@ export function createResponseStylesFake(
         await append(item, content, 'edit')
         return detail(item)
       }),
-      [`DELETE ${base}/:id`]: once(({ id = '' }, request) => {
+      [`DELETE ${base}/:id`]: write(({ id = '' }, request) => {
         const item = find(kind, id)
         if (!item) return missing(kind, id)
         if (item.origin === 'shipped')
@@ -731,7 +759,7 @@ export function createResponseStylesFake(
               )
         },
       ),
-      [`POST ${base}/:id/restore`]: once(async ({ id = '' }, request) => {
+      [`POST ${base}/:id/restore`]: write(async ({ id = '' }, request) => {
         const item = find(kind, id)
         if (!item) return missing(kind, id)
         const refused = revisionGuard(request, item)
@@ -764,6 +792,8 @@ export function createResponseStylesFake(
           contentOf(version),
           version.revision === 0 ? 'reset' : 'restore',
         )
+        // Taking the shipped text takes the file Theorem ships now, so no update is left on offer.
+        if (shipped) item.overrides = version.revisionId
         return detail(item)
       }),
     }
@@ -783,7 +813,7 @@ export function createResponseStylesFake(
       }),
       ...resourceRoutes('style'),
       ...resourceRoutes('framework'),
-      [`POST ${ROOT}/styles`]: once(async (_, request) => {
+      [`POST ${ROOT}/styles`]: write(async (_, request) => {
         const body = await bodyOf(request)
         const from = str(body.from)
         const source = from ? find('style', from) : undefined
@@ -798,7 +828,7 @@ export function createResponseStylesFake(
           styleDetail(await add('style', content, from ? 'duplicate' : 'edit')),
         )
       }),
-      [`POST ${ROOT}/frameworks`]: once(async (_, request) => {
+      [`POST ${ROOT}/frameworks`]: write(async (_, request) => {
         const body = await bodyOf(request)
         const from = str(body.from)
         const forStyle = str(body.forStyle)
@@ -842,7 +872,7 @@ export function createResponseStylesFake(
       [`GET ${ROOT}/selection`]: once((_, request) =>
         selectionFor(scopeOf(request)),
       ),
-      [`PUT ${ROOT}/selection`]: once(async (_, request) => {
+      [`PUT ${ROOT}/selection`]: write(async (_, request) => {
         const body = await bodyOf(request)
         const scope = str(body.scope)
         const threadId = str(body.threadId)
@@ -869,7 +899,7 @@ export function createResponseStylesFake(
         else choices.conversations.set(threadId ?? '', style)
         return selectionFor({ threadId, projectId })
       }),
-      [`PUT ${ROOT}/suggestions`]: once(async (_, request) => {
+      [`PUT ${ROOT}/suggestions`]: write(async (_, request) => {
         const body = await bodyOf(request)
         if (
           (body.enabled !== undefined && typeof body.enabled !== 'boolean') ||

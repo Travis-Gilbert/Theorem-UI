@@ -800,6 +800,147 @@ test('a shipped update reads as available only once the person has an override',
   ).toBe(true)
 })
 
+test('taking the shipped version clears the update it offered, and a later edit does not bring it back', async () => {
+  const id = 'theorem.style.concise'
+  fake({ updatesAvailable: [id] })
+  const offered = async (style = id) =>
+    (await get<ResponseStyleDetail>(`/styles/${style}`)).shipped
+      ?.updateAvailable
+  const save = (style: string, description: string, revision: number) =>
+    send('PUT', `/styles/${style}`, { description }, revision)
+
+  await save(id, 'Shorter.', 0)
+  expect(await offered()).toBe(true)
+  // More edits, and going back to one of them, are still made from the older shipped file.
+  await save(id, 'Shorter still.', 1)
+  await send('POST', `/styles/${id}/restore`, { revision: 1 }, 2)
+  expect(await offered()).toBe(true)
+
+  const taken = await send<ResponseStyleDetail>(
+    'POST',
+    `/styles/${id}/restore`,
+    { shipped: true },
+    3,
+  )
+  expect(taken).toMatchObject({
+    revision: 4,
+    shipped: { updateAvailable: false },
+  })
+  expect(await offered()).toBe(false)
+  const listed = (await get<ResponseStyleCatalog>('')).styles.find(
+    (style) => style.id === id,
+  )
+  expect(listed?.shipped?.updateAvailable).toBe(false)
+  // An override made after that starts from the file Theorem ships now.
+  await save(id, 'Short.', 4)
+  expect(await offered()).toBe(false)
+
+  // An override of a shipped file that has not changed never offers one.
+  await save('theorem.style.formal', 'Stiffer.', 0)
+  expect(await offered('theorem.style.formal')).toBe(false)
+})
+
+test('two resources made at once under one name get ids of their own, and both are kept', async () => {
+  const [first, second] = await Promise.all([
+    send<ResponseStyleDetail>('POST', '/styles', {
+      name: 'Field notes',
+      body: 'Write as field notes.',
+    }),
+    send<ResponseStyleDetail>('POST', '/styles', {
+      name: 'Field notes',
+      body: 'Write as a field report.',
+    }),
+  ])
+  expect([first.id, second.id]).toEqual([
+    'user.style.field-notes',
+    'user.style.field-notes-2',
+  ])
+  expect(
+    (await get<ResponseStyleDetail>(`/styles/${first.id}`)).body,
+  ).toContain('field notes')
+  expect(
+    (await get<ResponseStyleDetail>(`/styles/${second.id}`)).body,
+  ).toContain('field report')
+  expect(
+    (await get<ResponseStyleCatalog>('')).styles.filter(
+      (style) => style.name === 'Field notes',
+    ),
+  ).toHaveLength(2)
+
+  const made = await Promise.all(
+    ['Read the room first.', 'Then answer.', 'Then stop.'].map((body) =>
+      send<{ framework: ResponseFrameworkDetail }>('POST', '/frameworks', {
+        name: 'Pacing',
+        body,
+      }),
+    ),
+  )
+  expect(made.map(({ framework }) => framework.id)).toEqual([
+    'user.framework.pacing',
+    'user.framework.pacing-2',
+    'user.framework.pacing-3',
+  ])
+  for (const { framework } of made)
+    expect(
+      (await get<ResponseFrameworkDetail>(`/frameworks/${framework.id}`)).body,
+    ).toBe(framework.body)
+})
+
+test('of two saves sent at once from one revision, one is kept and the other is a lost race', async () => {
+  const id = 'theorem.style.concise'
+  const save = (description: string) =>
+    send<ResponseStyleDetail>('PUT', `/styles/${id}`, { description }, 0).then(
+      (kept) => ({ kept }),
+      (error: unknown) => ({ error }),
+    )
+  const [first, second] = await Promise.all([save('Mine.'), save('Yours.')])
+  expect('kept' in first && first.kept).toMatchObject({
+    revision: 1,
+    description: 'Mine.',
+  })
+  expect(
+    'error' in second && (second.error as TheoremError).body,
+  ).toMatchObject({
+    status: 412,
+    code: 'response_style_changed',
+    currentRevision: 1,
+  })
+  const { revisions } = await get<{ revisions: RevisionSummary[] }>(
+    `/styles/${id}/revisions`,
+  )
+  expect(revisions.map(({ revision }) => revision)).toEqual([1, 0])
+  expect((await get<ResponseStyleDetail>(`/styles/${id}`)).description).toBe(
+    'Mine.',
+  )
+
+  // A save, a restore and a delete that all name the one revision: only the first is kept.
+  const copy = await send<ResponseStyleDetail>('POST', '/styles', {
+    from: id,
+    name: 'Brief',
+  })
+  const outcomes = await Promise.all(
+    [
+      send('PUT', `/styles/${copy.id}`, { description: 'Briefer.' }, 1),
+      send('POST', `/styles/${copy.id}/restore`, { revision: 1 }, 1),
+      send('DELETE', `/styles/${copy.id}`, undefined, 1),
+    ].map((run) =>
+      run.then(
+        () => 'kept',
+        (error: unknown) =>
+          ((error as TheoremError).body as { code?: string }).code,
+      ),
+    ),
+  )
+  expect(outcomes).toEqual([
+    'kept',
+    'response_style_changed',
+    'response_style_changed',
+  ])
+  expect((await get<ResponseStyleDetail>(`/styles/${copy.id}`)).revision).toBe(
+    2,
+  )
+})
+
 test('preview answers visibly different text per variant, and says it is generated', async () => {
   const result = await send<PreviewResult>('POST', '/preview', {
     question: 'Should I batch this query?',

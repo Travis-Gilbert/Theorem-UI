@@ -33,7 +33,9 @@ import {
 /**
  * One framework's text and its references. A framework can be listed by many
  * styles, so saving it changes all of them: the editor says which, and offers
- * a copy for one style to edit on its own.
+ * a copy for one style to edit on its own. While a save, a restore, a copy or a
+ * reload is on its way the text is read-only: the answer replaces the draft or
+ * opens the copy, so nothing typed meanwhile can be lost to it.
  */
 export function FrameworkEditor({
   initial,
@@ -221,17 +223,20 @@ export function FrameworkEditor({
       )}
       <TextField
         label="Name"
+        readOnly={busy}
         value={draft.name}
         onChange={(name) => edit({ name })}
       />
       <TextField
         label="Description"
+        readOnly={busy}
         hint="One line, shown beside the name wherever the framework is offered."
         value={draft.description}
         onChange={(description) => edit({ description })}
       />
       <TextField
         label="Instructions"
+        readOnly={busy}
         hint="What the model does once it loads this framework."
         multiline
         tall
@@ -247,6 +252,7 @@ export function FrameworkEditor({
             <TextField
               key={reference.path}
               label={`Reference: ${reference.path}`}
+              readOnly={busy}
               multiline
               value={reference.body}
               onChange={(body) =>
@@ -267,6 +273,7 @@ export function FrameworkEditor({
         <DescribeChange
           kind="framework"
           current={draft}
+          locked={busy}
           onApply={(proposal) => edit(proposal)}
         />
       </EditorSection>

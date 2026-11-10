@@ -24,6 +24,7 @@ export function TextField({
   onChange,
   multiline,
   tall,
+  readOnly,
 }: {
   label: string
   hint?: ReactNode
@@ -31,6 +32,8 @@ export function TextField({
   onChange: (next: string) => void
   multiline?: boolean
   tall?: boolean
+  /** The text cannot be changed for now; it keeps its focus and can still be read and copied. */
+  readOnly?: boolean
 }) {
   const id = useId()
   const hintId = `${id}-hint`
@@ -43,6 +46,7 @@ export function TextField({
         <Textarea
           id={id}
           value={value}
+          readOnly={readOnly}
           aria-describedby={hint ? hintId : undefined}
           className={tall ? '[&_textarea]:min-h-64' : undefined}
           onChange={(event) => onChange(event.target.value)}
@@ -51,6 +55,7 @@ export function TextField({
         <Input
           id={id}
           value={value}
+          readOnly={readOnly}
           aria-describedby={hint ? hintId : undefined}
           onChange={(event) => onChange(event.target.value)}
         />

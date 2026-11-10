@@ -458,8 +458,12 @@ const revisionQuery = <T>(
     ] as const,
     queryFn: () =>
       theoremJson<T>(`${ROOT}/${collection}/${part(id)}/revisions/${revision}`),
-    // A revision never changes once saved.
-    staleTime: Infinity,
+    // A saved revision never changes. `shipped` names whatever Theorem ships
+    // now, which a newer build replaces, so it is never answered from an
+    // earlier read: a comparison shows the text a restore would write.
+    ...(revision === 'shipped'
+      ? { staleTime: 0, gcTime: 0 }
+      : { staleTime: Infinity }),
     retry,
   })
 
@@ -665,36 +669,70 @@ export type SelectionChange = {
 }
 
 /**
+ * Shows a choice in every catalog it reaches, before they are read again: a
+ * conversation's is read by the catalogs for that thread, whatever project
+ * they were asked for with, and a project's by those for that project.
+ */
+const showSelection = (
+  queryClient: QueryClient,
+  { scope, style, threadId, projectId }: SelectionChange,
+) =>
+  queryClient.setQueriesData<ResponseStyleCatalog>(
+    {
+      queryKey: [...responseStylesKey, 'catalog'],
+      predicate: ({ queryKey: [, , , thread, project] }) =>
+        scope === 'account' ||
+        (scope === 'conversation'
+          ? thread === (threadId ?? null)
+          : project === (projectId ?? null)),
+    },
+    (old) => (old ? withSelection(old, scope, style) : old),
+  )
+
+/** The write of each conversation's choice that Theorem has not answered yet, by thread id. */
+const choiceWrites = new Map<string, Promise<void>>()
+
+/**
+ * Resolves once no choice for this conversation is still being written,
+ * whether Theorem kept it or refused it. A turn waits on this before it
+ * starts, so a style picked a moment before Send is the one the turn uses.
+ */
+export async function conversationStyleSettled(threadId: string) {
+  for (
+    let write = choiceWrites.get(threadId);
+    write;
+    write = choiceWrites.get(threadId)
+  )
+    await write
+}
+
+/**
  * Sets or clears one scope's choice. The catalogs it reaches show it at once;
  * every query reads again after.
  */
 export function useSelectionMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (change: SelectionChange) =>
-      mutate((headers) =>
+    mutationFn: (change: SelectionChange) => {
+      const write = mutate((headers) =>
         theoremJson<StyleSelection>(`${ROOT}/selection`, {
           method: 'PUT',
           body: change,
           headers,
         }),
-      ),
-    onSuccess: (_, { scope, style, threadId, projectId }) => {
-      // Every catalog the change reaches shows it at once: a conversation's
-      // choice is read by the catalogs for that thread, whatever project they
-      // were asked for with, and a project's by those for that project.
-      queryClient.setQueriesData<ResponseStyleCatalog>(
-        {
-          queryKey: [...responseStylesKey, 'catalog'],
-          predicate: ({ queryKey: [, , , thread, project] }) =>
-            scope === 'account' ||
-            (scope === 'conversation'
-              ? thread === (threadId ?? null)
-              : project === (projectId ?? null)),
-        },
-        (old) => (old ? withSelection(old, scope, style) : old),
       )
+      const { threadId } = change
+      if (change.scope === 'conversation' && threadId) {
+        const done = () => {
+          if (choiceWrites.get(threadId) === settled)
+            choiceWrites.delete(threadId)
+        }
+        const settled: Promise<void> = write.then(done, done)
+        choiceWrites.set(threadId, settled)
+      }
+      return write
     },
+    onSuccess: (_, change) => showSelection(queryClient, change),
     onSettled: settle(queryClient),
   })
 }
@@ -786,40 +824,93 @@ export const useDraftMutation = () =>
   })
 
 // ---------------------------------------------------------------------------
-// A conversation that does not exist yet
+// A conversation that has not had its first message
 // ---------------------------------------------------------------------------
 
 type PendingStyle = {
   /** The style picked for the next new conversation; undefined inherits. */
   styleId: string | undefined
-  choose: (styleId: string | undefined) => void
+  /**
+   * Picks whose conversation was made by a send and has had no message
+   * accepted yet, by thread id. A refused first message leaves its pick here,
+   * so the next attempt on that conversation still carries it.
+   */
+  held: Readonly<Record<string, string>>
+  /** Sets or clears a pick: the next new conversation's, or, with a thread id, the one held for that conversation. */
+  choose: (styleId: string | undefined, threadId?: string) => void
 }
+
+const withHeld = (
+  held: PendingStyle['held'],
+  threadId: string,
+  styleId: string | undefined,
+) => ({
+  ...Object.fromEntries(Object.entries(held).filter(([id]) => id !== threadId)),
+  ...(styleId ? { [threadId]: styleId } : {}),
+})
 
 /**
  * The composer on `/` has no thread to hold a choice, so it is held here until
- * the first message goes out with it as `responseStyle`.
+ * a message goes out with it as `responseStyle` and is accepted.
  */
 export const usePendingStyle = create<PendingStyle>()((set) => ({
   styleId: undefined,
-  choose: (styleId) => set({ styleId }),
+  held: {},
+  choose: (styleId, threadId) =>
+    set((s) =>
+      threadId ? { held: withHeld(s.held, threadId, styleId) } : { styleId },
+    ),
 }))
 
+/** The pick waiting on this conversation's first message; with no thread id, the next new conversation's. */
+export const pendingStyleFor = (
+  state: Pick<PendingStyle, 'styleId' | 'held'>,
+  threadId: string | undefined,
+) => (threadId ? state.held[threadId] : state.styleId)
+
 /**
- * The send option for the message in hand: the pending pick, and only for a
- * conversation that does not exist yet. Read when the message is sent, so a
- * change made while typing is the one that goes.
+ * A send just made this conversation: the pick that was waiting for one is its
+ * pick from here on, and the next new conversation starts without one.
  */
-export function styleTurnOptions(conversationExists: boolean): {
-  responseStyle?: string
-} {
-  const { styleId } = usePendingStyle.getState()
-  return !conversationExists && styleId ? { responseStyle: styleId } : {}
+export function holdPendingStyle(threadId: string) {
+  usePendingStyle.setState((s) =>
+    s.styleId
+      ? {
+          styleId: undefined,
+          held: withHeld(s.held, threadId, s.styleId),
+        }
+      : s,
+  )
 }
 
-/** The first message was accepted with this pick, so the conversation holds it now. */
-export function consumePendingStyle(sent: string | undefined) {
-  if (sent)
-    usePendingStyle.setState((s) =>
-      s.styleId === sent ? { styleId: undefined } : s,
-    )
+/**
+ * The send option for the message in hand: the pick held for its conversation.
+ * Read when the message is sent, so a change made while typing is the one that
+ * goes, and a message sent again after a refusal carries it again.
+ */
+export function styleTurnOptions(threadId: string): {
+  responseStyle?: string
+} {
+  const styleId = usePendingStyle.getState().held[threadId]
+  return styleId ? { responseStyle: styleId } : {}
+}
+
+/**
+ * A message was accepted with this pick, so the conversation holds it now: the
+ * pick is spent, and the catalogs read for the conversation say what it chose.
+ */
+export function consumePendingStyle(
+  threadId: string,
+  sent: string | undefined,
+  queryClient?: QueryClient,
+) {
+  if (!sent) return
+  usePendingStyle.setState((s) =>
+    s.held[threadId] === sent
+      ? { held: withHeld(s.held, threadId, undefined) }
+      : s,
+  )
+  if (!queryClient) return
+  showSelection(queryClient, { scope: 'conversation', threadId, style: sent })
+  void settle(queryClient)()
 }

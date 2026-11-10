@@ -11,13 +11,14 @@ import {
   test,
 } from 'bun:test'
 import { useAui, useAuiState } from '@assistant-ui/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toastManager } from '@/components/coss/toast'
 import { TheoremError } from '@theoremharness/sdk'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
 import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
 import { usePlanning, useWebSearch } from '@/components/chat/composer-tools'
-import { usePendingStyle } from './response-styles'
+import { usePendingStyle, useSelectionMutation } from './response-styles'
 import {
   mutateThread,
   pendingSendKey,
@@ -51,6 +52,9 @@ let createdThreads = 0
 let lostReplies = 0
 /** How the next sends are answered, in place of a run. */
 let answers: Array<Response | Promise<Response>> = []
+/** Writes of a conversation's response style, and what each waits for before it is answered. */
+let styleWrites = 0
+let styleWriteGate: Promise<void> | undefined
 /** The run a thread's snapshot says is live. */
 let liveRunId: string | undefined
 const titleThreads = new Map<string, { title: string; revision: number; text: string }>()
@@ -98,6 +102,11 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
     return new Response(closedRun, {
       headers: { 'content-type': 'text/event-stream' },
     })
+  }
+  if (path.endsWith('/response-styles/selection')) {
+    styleWrites += 1
+    await styleWriteGate
+    return Response.json({ conversation: 'theorem.style.formal' })
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
@@ -184,6 +193,8 @@ beforeEach(() => {
   createdThreads = 0
   lostReplies = 0
   answers = []
+  styleWrites = 0
+  styleWriteGate = undefined
   liveRunId = undefined
   titleThreads.clear()
   inaccessibleTitles.clear()
@@ -193,7 +204,7 @@ beforeEach(() => {
   titleReads = []
   useWebSearch.setState({ on: false })
   usePlanning.setState({ on: false })
-  usePendingStyle.setState({ styleId: undefined })
+  usePendingStyle.setState({ styleId: undefined, held: {} })
 })
 afterEach(cleanup)
 
@@ -479,7 +490,8 @@ test('the style picked for a new chat goes with its first message and no later o
     responseStyle: 'theorem.style.concise',
   })
   // The conversation holds the choice now, so the pick is spent.
-  await waitFor(() => usePendingStyle.getState().styleId === undefined)
+  await waitFor(() => !('created-1' in usePendingStyle.getState().held))
+  expect(usePendingStyle.getState().styleId).toBeUndefined()
 
   // A pick made after that is for the next new chat, not for this one.
   usePendingStyle.getState().choose('theorem.style.formal')
@@ -517,7 +529,92 @@ test('a lost first send is replayed with the style it went out with, and spends 
     'theorem.style.concise',
     'theorem.style.concise',
   ])
-  await waitFor(() => usePendingStyle.getState().styleId === undefined)
+  await waitFor(() => !('created-1' in usePendingStyle.getState().held))
+  expect(usePendingStyle.getState().styleId).toBeUndefined()
+})
+
+test('a first message that is refused leaves the pick with its chat, and the next one carries it', async () => {
+  usePendingStyle.getState().choose('theorem.style.concise')
+  answers = [revisionConflict()]
+  const { say, idle } = await openComposer()
+  await say('Explain B-trees')
+  await waitFor(() => sends.length === 1)
+  expect(sends[0]?.responseStyle).toBe('theorem.style.concise')
+  await idle()
+  // The chat was made for that message, so the pick is its own now, and the next new chat starts without one.
+  expect(usePendingStyle.getState()).toMatchObject({
+    styleId: undefined,
+    held: { 'created-1': 'theorem.style.concise' },
+  })
+
+  await say('Explain B-trees')
+  await waitFor(() => sends.length === 2)
+  expect(sends[1]?.responseStyle).toBe('theorem.style.concise')
+  expect(sends[1]?.key).not.toBe(sends[0]?.key)
+  // Accepted this time: the conversation holds the choice, and no later message carries it.
+  await waitFor(() => !('created-1' in usePendingStyle.getState().held))
+  await idle()
+  await say('And skip lists?')
+  await waitFor(() => sends.length === 3)
+  expect(sends[2]?.responseStyle).toBeUndefined()
+})
+
+test("a message sent while its chat's style is still being written waits for that write", async () => {
+  const threadId = `thread-${crypto.randomUUID()}`
+  let kept = () => {}
+  styleWriteGate = new Promise<void>((resolve) => {
+    kept = resolve
+  })
+  const handle: {
+    aui?: ReturnType<typeof useAui>
+    select?: ReturnType<typeof useSelectionMutation>
+  } = {}
+  function Probe() {
+    handle.aui = useAui()
+    handle.select = useSelectionMutation()
+    return null
+  }
+  await render(
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(TheoremRuntimeProvider, {
+        projectId: 'project',
+        threadId,
+        onThreadIdChange: () => {},
+        children: createElement(Probe),
+      }),
+    ),
+  )
+  const say = (text: string) =>
+    act(async () => {
+      handle.aui!.composer.setText(text)
+      handle.aui!.composer.send()
+    })
+  const idle = () =>
+    waitFor(() => !handle.aui!.thread().getState().isRunning)
+
+  // With no choice on its way a message goes out at once.
+  await say('Hello')
+  await waitFor(() => sends.length === 1)
+  await idle()
+
+  await act(async () =>
+    handle.select!.mutate({
+      scope: 'conversation',
+      threadId,
+      style: 'theorem.style.formal',
+    }),
+  )
+  await waitFor(() => styleWrites === 1)
+  await say('Explain B-trees')
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  expect(sends).toHaveLength(1)
+
+  await act(async () => kept())
+  await waitFor(() => sends.length === 2)
+  // The conversation's choice was kept before the turn began, so the turn names none of its own.
+  expect(sends[1]).toEqual({ key: expect.any(String), text: 'Explain B-trees' })
 })
 
 test('existing New Chat rows get meaningful projected titles without revision writes', async () => {

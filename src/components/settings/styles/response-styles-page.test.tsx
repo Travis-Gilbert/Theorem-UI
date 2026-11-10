@@ -43,6 +43,10 @@ let sent: Sent[]
 let quiet = false
 let restore: (() => void) | undefined
 let client: QueryClient
+/** Reads Theorem fails to answer for now, by path, as when its store is down. */
+let outage: RegExp | undefined
+/** Writes wait for this before they are answered, as a slow Theorem would make them. */
+let slow: Promise<void> | undefined
 
 /** Installs the fake backend, recording what the page sends it. `null` is a Theorem with no response-styles routes. */
 function backend(
@@ -66,6 +70,22 @@ function backend(
             ifMatch: request.headers.get('If-Match'),
           })
         }
+        if (
+          request.method === 'GET' &&
+          outage?.test(new URL(request.url).pathname)
+        )
+          return new Response(
+            JSON.stringify({
+              title: 'Store unavailable',
+              detail: 'The style store is not reachable.',
+              code: 'store_unavailable',
+            }),
+            {
+              status: 500,
+              headers: { 'content-type': 'application/problem+json' },
+            },
+          )
+        if (request.method !== 'GET') await slow
         return answer(params, request)
       },
     ]),
@@ -112,6 +132,8 @@ async function elsewhere(
 
 beforeEach(() => {
   sent = []
+  outage = undefined
+  slow = undefined
   client = new QueryClient({
     defaultOptions: { queries: { retry: false, retryDelay: 1 } },
   })
@@ -972,6 +994,99 @@ test('unsaved text survives a look at another tab', async () => {
   await click(tab('Styles')!)
   expect(field('Instructions')?.value).toBe('Draft text.')
   expect(text()).toContain('Unsaved changes')
+})
+
+// -- a read that fails, a write that is slow --------------------------------------
+
+/** Reads everything again, as the page does after each write. */
+const readAgain = () => act(async () => void (await client.invalidateQueries()))
+
+test('a style that cannot be read at all says so, with a way back', async () => {
+  backend({})
+  await mount()
+  outage = /\/styles\/theorem\.style\.concise$/
+  await click(await waitFor(() => byLabel('Edit Concise')))
+  await waitText('Theorem did not open this style')
+  expect(field('Name')).toBeNull()
+  await click(button('Go back')!)
+  await waitFor(() => byLabel('Edit Concise'))
+})
+
+test('a read that fails once a style is open keeps the editor and its unsaved text, and says so', async () => {
+  backend({})
+  await mount()
+  await openStyle('Concise')
+  await type(await waitField('Instructions'), 'Draft text.')
+
+  outage = /\/styles\/theorem\.style\.concise$/
+  await readAgain()
+  await waitText('Theorem could not read this style again')
+  expect(text()).toContain('The style store is not reachable.')
+  expect(text()).not.toContain('Theorem did not open this style')
+  expect(field('Instructions')?.value).toBe('Draft text.')
+  expect(text()).toContain('Unsaved changes')
+
+  // Once Theorem answers again the notice goes, and the text is still the person's.
+  outage = undefined
+  await readAgain()
+  await waitFor(() => !text().includes('Theorem could not read this style'))
+  expect(field('Instructions')?.value).toBe('Draft text.')
+})
+
+test('a read that fails once a framework is open keeps the editor and its unsaved text', async () => {
+  backend({})
+  await mount()
+  await openFramework('Understanding through explanation')
+  await type(await waitField('Instructions'), 'Draft text.')
+
+  outage = /\/frameworks\/[^/]+$/
+  await readAgain()
+  await waitText('Theorem could not read this framework again')
+  expect(text()).not.toContain('Theorem did not open this framework')
+  expect(field('Instructions')?.value).toBe('Draft text.')
+})
+
+test('a list that cannot be read again keeps the tabs and the text typed in both editors', async () => {
+  backend({})
+  await mount()
+  await openStyle('Concise')
+  await type(await waitField('Instructions'), 'Draft text.')
+
+  outage = /\/response-styles$/
+  await readAgain()
+  await waitText('Theorem could not read the styles again')
+  expect(text()).toContain('The style store is not reachable.')
+  expect(text()).not.toContain('Theorem did not list its styles')
+  expect(tab('Frameworks')).toBeDefined()
+  expect(field('Instructions')?.value).toBe('Draft text.')
+  expect(text()).toContain('Unsaved changes')
+})
+
+test('the text cannot be changed while a save is on its way, so the answer replaces nothing typed after it', async () => {
+  backend({})
+  await mount()
+  await openStyle('Educational')
+  await type(await waitField('Instructions'), 'Answer in one line.')
+  const fields = ['Name', 'Description', 'Instructions']
+  const locked = () => fields.map((label) => field(label)?.readOnly)
+  const framework = () => checkbox('Understanding through explanation')
+  expect(locked()).toEqual([false, false, false])
+  expect(framework()?.disabled).toBe(false)
+
+  let answer!: () => void
+  slow = new Promise((resolve) => {
+    answer = resolve
+  })
+  await click(button('Save')!)
+  await waitButton('Saving')
+  expect(locked()).toEqual([true, true, true])
+  expect(framework()?.disabled).toBe(true)
+
+  await act(async () => answer())
+  await waitText('Saved as revision 1.')
+  expect(locked()).toEqual([false, false, false])
+  expect(framework()?.disabled).toBe(false)
+  expect(field('Instructions')?.value).toBe('Answer in one line.')
 })
 
 // -- a newer shipped version ----------------------------------------------------
