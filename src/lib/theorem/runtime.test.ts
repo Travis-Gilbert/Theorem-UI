@@ -39,6 +39,10 @@ type Send = {
   planning?: boolean
   model?: { provider: string; model: string }
   executionMode?: string
+  responseDetail?: string
+  effort?: string
+  maxOutputTokens?: number
+  runBudget?: { maxOutputTokens?: number; maxSteps?: number }
 }
 
 let sends: Send[] = []
@@ -96,7 +100,7 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, capabilityScope, webResearch, planning, model, executionMode } =
+    const { text, capabilityScope, webResearch, planning, model, executionMode, ...limits } =
       (await request.json()) as Omit<Send, 'key'>
     sends.push({
       key: request.headers.get('Idempotency-Key') ?? '',
@@ -106,6 +110,11 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
       ...(planning !== undefined ? { planning } : {}),
       ...(model ? { model } : {}),
       ...(executionMode ? { executionMode } : {}),
+      ...Object.fromEntries(
+        ['responseDetail', 'effort', 'maxOutputTokens', 'runBudget'].flatMap((field) =>
+          field in limits ? [[field, (limits as Record<string, unknown>)[field]]] : [],
+        ),
+      ),
     })
     if (lostReplies > 0) {
       lostReplies -= 1
@@ -555,6 +564,17 @@ test('research and planning retain an explicit caller capability scope', async (
   expect(sends[0]?.capabilityScope).toEqual(['web_read'])
 })
 
+
+test('the response limits a turn names go out on its send, and a turn that names none sends none', async () => {
+  const limited = {
+    ...options('Keep it short'),
+    runConfig: { custom: { theoremTurnOptions: { responseDetail: 'concise', effort: 'max', maxOutputTokens: 4000, runBudget: { maxOutputTokens: 20000, maxSteps: 6 } } } },
+  }
+  await drain(runTurn(`limits-${crypto.randomUUID()}`, limited))
+  expect(sends.at(-1)).toMatchObject({ responseDetail: 'concise', effort: 'max', maxOutputTokens: 4000, runBudget: { maxOutputTokens: 20000, maxSteps: 6 } })
+  await drain(runTurn(`limits-${crypto.randomUUID()}`, options('Plain')))
+  expect(Object.keys(sends.at(-1)!).sort()).toEqual(['key', 'text'])
+})
 
 test('new chat creation failures are visible and still reject admission', async () => {
   const failure = new TheoremError({ statusCode: 500, body: {

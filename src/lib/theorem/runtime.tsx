@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit)
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -28,10 +28,9 @@ import {
   toAssistantMessages,
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
-import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useContext, useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
@@ -59,6 +58,7 @@ import {
 import type { Theorem } from './client'
 import { chatAttachments, turnUploads } from './chat-attachments'
 import { RefusedSend } from './send-recovery'
+import { generationTurnOptions, useGenerationOverrides } from './generation'
 import { modelTurnOptions } from './models'
 
 import { toHistoryMessages } from './message-history'
@@ -606,25 +606,25 @@ export function draftedPlan(step: ChatModelRunResult): boolean {
 }
 function useTheoremThreadRuntime() {
   const aui = useAui()
-  // Absent outside the app's query provider; a send there carries no effort level.
-  const queryClient = useContext(QueryClientContext)
-  const turnOptions = useMemo(() => modelTurnOptions(queryClient), [queryClient])
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
         try {
           const references = useComposerReferences.getState().references
+          const isNew = !aui.threadListItem.getState().remoteId
           const { remoteId } = await aui.threadListItem.initialize()
+          // A new chat's response settings were kept as a draft until it had a thread to belong to.
+          if (isNew) useGenerationOverrides.getState().adopt(remoteId)
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions(),...generationTurnOptions(remoteId)}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
           } : options
-          const turn = runTurn(remoteId,composed,turnOptions,()=>{
+          const turn = runTurn(remoteId,composed,modelTurnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
@@ -641,7 +641,7 @@ function useTheoremThreadRuntime() {
         }
       },
     }),
-    [aui, turnOptions],
+    [aui],
   )
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)

@@ -7,7 +7,7 @@ type StoredPart = Theorem.Message['parts'][number]
 const content = (parts: StoredPart[]) => toAssistantMessages([{
   schema: 'theorem.chat.message.v1', messageId: 'm', tenantId: 'tenant',
   threadId: 'thread', originBranchId: 'branch', role: 'assistant', createdAtMs: 1, parts,
-} satisfies Theorem.Message])[0].content as readonly Record<string, unknown>[]
+} satisfies Theorem.Message])[0]!.content as readonly Record<string, unknown>[]
 
 test('a text part keeps its purpose, segment and status as provider metadata', () => {
   const [text] = content([
