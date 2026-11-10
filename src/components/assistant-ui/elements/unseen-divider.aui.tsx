@@ -14,25 +14,34 @@ export const UnseenFromProvider = UnseenFrom.Provider;
  * conversation stays mounted behind other modes, so a hidden viewport means
  * the person is away as surely as a hidden tab does. (The message list itself
  * would not do: it collapses while history loads, which reads as leaving.)
+ * `covered` says another view lies over the thread while it stays laid out,
+ * as Theia and the Vault do on the desktop.
  */
-export function useUnseenFrom() {
+export function useUnseenFrom(covered: boolean) {
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
   const [list, setList] = useState<HTMLElement | null>(null);
   const [visit, setVisit] = useState<Visit & { threadId: string }>();
   const watching = useRef<{ threadId: string; shown: boolean }>(undefined);
 
   useEffect(() => {
-    if (!threadId || !list) return;
+    if (!threadId || !list) {
+      // A new chat, or nothing laid out: coming back is a fresh look.
+      watching.current = undefined;
+      return;
+    }
     const { mark } = useSeenThreads.getState();
-    // Moving to another thread counts as having seen this one.
+    // Running again on the thread it was showing (a new element, a cover
+    // coming down, StrictMode) is not a fresh look: the visit carries on.
     const previous = watching.current;
-    if (previous?.shown && previous.threadId !== threadId)
-      mark(previous.threadId, Date.now());
-    const state = { threadId, shown: false };
+    const state = {
+      threadId,
+      shown: previous?.threadId === threadId && previous.shown,
+    };
     watching.current = state;
 
     const sync = () => {
       const shown =
+        !covered &&
         document.visibilityState === "visible" &&
         list.getClientRects().length > 0;
       if (shown === state.shown) return;
@@ -52,8 +61,11 @@ export function useUnseenFrom() {
     return () => {
       resize.disconnect();
       document.removeEventListener("visibilitychange", sync);
+      // Leaving for another thread, a new chat or another page is the last
+      // time this one was seen.
+      if (state.shown) mark(threadId, Date.now());
     };
-  }, [threadId, list]);
+  }, [threadId, list, covered]);
 
   const anchor = useAuiState((s) =>
     visit && visit.threadId === threadId
