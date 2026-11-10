@@ -11,6 +11,7 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -337,13 +338,17 @@ function BoardBody({
             </div>
           )}
         </div>
-        <DragOverlay>
-          {overlay && (
-            <div className="flex w-72 flex-col gap-1.5 rounded-lg border border-separator bg-raised p-2.5 shadow-lg">
-              <CardBody item={overlay} shown={shown} groupBy={groupBy} />
-            </div>
-          )}
-        </DragOverlay>
+        {/* In the body: the Index's panes are containers, and a fixed overlay inside one is placed, and collided, from the container's corner. */}
+        {createPortal(
+          <DragOverlay>
+            {overlay && (
+              <div className="flex w-72 flex-col gap-1.5 rounded-lg border border-separator bg-raised p-2.5 shadow-lg">
+                <CardBody item={overlay} shown={shown} groupBy={groupBy} />
+              </div>
+            )}
+          </DragOverlay>,
+          document.body,
+        )}
       </DndContext>
       {creating && (
         <NewItemDialog
