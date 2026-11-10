@@ -8,13 +8,13 @@ an agent edit the same running interface. The checklist is
 The owner's design (pasted with the request on 2026-11-10) is the requirement,
 together with these decisions:
 
-| Decision                                                                   | Owner's words                                                              |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Standalone RustyRedDB is the shared engine; the browser binding wraps it   | "use the standalone, embeddable RustyRed as the shared engine"             |
-| The browser binding is a new crate in RustyRedDB                           | `rustyred-web` in Theorem is the crawler; `apps/theoremweb` is being removed |
-| tsrs (`@tsrs/wasm`) is the type checker                                    | "the new TypeScript compiler, which was rewritten in Rust to WASM"         |
-| Work starts from `main` on `feat/artifact-db-compiler`                     | "yes"                                                                      |
-| Plan first, then build, then revise the plan as the build teaches us       | "I would prefer plan, build, and then revise as needed"                    |
+| Decision                                                                 | Owner's words                                                                |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Standalone RustyRedDB is the shared engine; the browser binding wraps it | "use the standalone, embeddable RustyRed as the shared engine"               |
+| The browser binding is a new crate in RustyRedDB                         | `rustyred-web` in Theorem is the crawler; `apps/theoremweb` is being removed |
+| tsrs (`@tsrs/wasm`) is the type checker                                  | "the new TypeScript compiler, which was rewritten in Rust to WASM"           |
+| Work starts from `main` on `feat/artifact-db-compiler`                   | "yes"                                                                        |
+| Plan first, then build, then revise the plan as the build teaches us     | "I would prefer plan, build, and then revise as needed"                      |
 
 ## What is true today (read 2026-11-10)
 
