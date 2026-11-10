@@ -671,5 +671,13 @@ from the palette. At a control's size each fill takes the next lighter colour
 (`painted(..., soft)` in `components/icons.tsx`), so the outline stays legible.
 `scripts/rail-icons.test.ts` covers these layers too.
 
+Since 2026-11-10 these ten layers are vector outlines, not PNG alpha. The
+sources are the same 48px PNGs, byte for byte; no SVG export came with the
+downloads. The generator reads each icon's own flat colours, takes every
+anti-aliased pixel as a blend of two of them to get each layer's coverage,
+enlarges that eight times (jimp, bicubic) and traces it (potrace), then
+shortens the paths (svgo). A traced mark is sharp at any size and holds no
+detail the 48px source did not. The rail's layers are still PNG alpha.
+
 A failed tool call and one waiting on the user keep the Noun close mark; no
 replacement came with these downloads.

@@ -1,4 +1,4 @@
-// SOURCING: vite-plugin-svgr (SVG-as-React-component, adopted as build plugin) over owner-licensed Noun SVG assets; Vite asset URLs for owner-supplied Streamline PNGs painted as CSS masks, the coloured ones as the layers scripts/rail-icons.mjs splits them into; lucide-react for the folder and file the notes tree draws
+// SOURCING: vite-plugin-svgr (SVG-as-React-component, adopted as build plugin) over owner-licensed Noun SVG assets; Vite asset URLs for owner-supplied Streamline PNGs painted as CSS masks, the coloured ones as the layers scripts/rail-icons.mjs splits them into (PNG alpha for the rail, traced SVG outlines for the controls); lucide-react for the folder and file the notes tree draws
 // Noun Project icons owned under the paid subscription; see src/assets/icons/PROVENANCE.md.
 // Noun icons are filled contours on a 100 viewBox, painted with currentColor by the
 // svg[data-icon] rule in styles.css. Moon and Sun are the Lucide-derived theme glyphs
@@ -207,7 +207,7 @@ const SOFT = { tint: 'paper', paper: 'paper', accent: 'tint', line: 'line' }
 
 /**
  * A coloured Streamline mark as stacked masks, one per layer
- * scripts/rail-icons.mjs splits its PNG into: the outline in ink, the accent
+ * scripts/rail-icons.mjs splits its source into: the outline in ink, the accent
  * in the theme's accent turned `shift` degrees of the colour wheel, and the
  * tint and paper as that colour taken toward the ground (.rail-mark in
  * styles.css), so it follows the palette and the mode. Each layer is its own
@@ -389,9 +389,9 @@ export const PortClassMark = {
   other: Circle,
 } as const
 
-/** The controls' coloured marks, each at its own turn of the wheel from the accent. */
 /** The outline folder that stands for Theorem beside its replies. */
 const Speaker = masked(FolderClosed)
+/** The controls' coloured marks, each at its own turn of the wheel from the accent. */
 const Thread = painted(CONTROL_LAYERS.thread, 180, true)
 const ChatSearch = painted(CONTROL_LAYERS.chatSearch, 180, true)
 const Send = painted(CONTROL_LAYERS.send, 0, true)

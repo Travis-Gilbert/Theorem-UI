@@ -4,6 +4,8 @@ export type IconSet = {
   icons: ReadonlyArray<{ name: string; source: string; autofill?: boolean }>
   table: string
   type: string
+  /** Trace each layer to an SVG outline instead of writing its PNG alpha. */
+  vector?: boolean
   what: string
 }
 export const SETS: IconSet[]
