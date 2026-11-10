@@ -55,17 +55,26 @@ export const pollCodeSignIn = createServerFn({ method: 'POST' }).handler(() =>
 export const signInHref = () =>
   `/login?${new URLSearchParams({ returnTo: safeReturnTo(window.location.pathname + window.location.search) })}`
 
+/**
+ * Ends Neon's own session on this origin. Otherwise the next "Continue with
+ * email" in this browser signs in as the same account without asking, since
+ * Neon skips its login page for a signed-in person. Where email sign-in is not
+ * configured this answers 503, which is fine.
+ */
+export const endNeonSession = () =>
+  fetch('/auth/neon/sign-out', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  }).then(
+    () => undefined,
+    () => undefined,
+  )
+
 export async function signOut() {
   await Promise.all([
     fetch('/auth/sign-out', { method: 'POST' }),
-    // Neon's own session on this origin ends too; otherwise the next "Continue
-    // with email" in this browser would sign in as the same account without
-    // asking. Where email sign-in is not configured this answers 503.
-    fetch('/auth/neon/sign-out', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: '{}',
-    }).catch(() => undefined),
+    endNeonSession(),
   ])
   window.location.assign('/')
 }

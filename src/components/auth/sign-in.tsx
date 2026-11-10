@@ -1,11 +1,13 @@
-// SOURCING: coss ui Form, existing Base UI Button and theme tokens.
+// SOURCING: coss ui Form, existing Base UI Button and theme tokens; @tanstack/react-query useMutation for ending a refused Neon session.
+import { useMutation } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { Form } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import {
   safeReturnTo,
   signInFailureMessage,
 } from '@/lib/theorem/auth-navigation'
-import { useSignInOptions } from '@/lib/theorem/sign-in'
+import { endNeonSession, useSignInOptions } from '@/lib/theorem/sign-in'
 import type { SignInOptions } from '@/server/theorem-auth'
 
 export function SignIn({
@@ -21,6 +23,14 @@ export function SignIn({
   const fetched = useSignInOptions(!given)
   const options = given ?? fetched
   const back = safeReturnTo(returnTo)
+  // A refused email account is still signed in to Neon in this browser, and
+  // Neon would hand it straight back on the next try. End that session first,
+  // so the next try asks which account.
+  const forget = useMutation({ mutationFn: endNeonSession })
+  const { mutate: forgetMutate, status: forgetStatus } = forget
+  useEffect(() => {
+    if (failure === 'access_denied' && forgetStatus === 'idle') forgetMutate()
+  }, [failure, forgetMutate, forgetStatus])
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 py-12 text-foreground">
       <section aria-labelledby="sign-in-heading" className="w-full max-w-sm">
@@ -67,6 +77,7 @@ export function SignIn({
               size="lg"
               variant={index === 0 ? 'default' : 'outline'}
               className="w-full"
+              disabled={forget.isPending}
             >
               Continue with {provider.name}
             </Button>
