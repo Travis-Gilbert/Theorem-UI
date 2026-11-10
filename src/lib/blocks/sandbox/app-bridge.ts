@@ -83,10 +83,13 @@ const context = connectToPage().then((port) => {
     const cell = target?.closest('[data-cell-id]')
     markSelectedCell(cell)
     const cellId = cell?.getAttribute('data-cell-id') ?? undefined
+    // In an App built from source, the element says where it was written.
+    const source = target?.closest('[data-theorem-source]')?.getAttribute('data-theorem-source') ?? undefined
     void call<PageMethods,'frame.selection'>(rpc,'frame.selection',{
       text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),
       entityId:entityId?.slice(0,200),entityLabel:entityLabel?.slice(0,200),
       cellId:cellId?.slice(0,200),
+      source:source?.slice(0,300),
     }).catch(() => {})
   }
   // A person's input inside the frame never reaches the page; say so, so a

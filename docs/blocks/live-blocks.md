@@ -469,6 +469,12 @@ carries its source files as scripts a browser does not run.
   above the App with their file and line. **Ask to fix** adds a reference to
   that revision with the problems, for the next turn
   (`appRepairReference`, `app-problems.tsx`).
+- **Click to source.** Each element a built App renders carries
+  `data-theorem-source`, the file, line and column that wrote it
+  (`Table.tsx:26:13`). The App's JSX runtime adds it from the place esbuild
+  passes to `jsxDEV`; nothing is written into the App's source. A selection
+  or click in the App sends the nearest one, so **Ask about selection** tells
+  the agent which element of which file was pointed at.
 - **A revision that does not build** leaves the last one that built running,
   with its problems above it. A plain HTML revision replaces the frame at
   once, as before.

@@ -180,7 +180,8 @@ repair reference and repairs an App.
 
 ## Phase 4: the designer
 
-- **Click to source.** The build stamps each JSX element with an id and keeps
+- **Click to source.** (Built 2026-11-10: the stamp is the place itself,
+  `file:line:column`, so there is no index.) The build stamps each JSX element with an id and keeps
   an id to file-and-span index for that source revision. Ids are added at
   build time and are never written into the person's source. (Onlook writes
   them into source; we own the build step, so we do not need to.)

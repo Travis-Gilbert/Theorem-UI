@@ -176,9 +176,13 @@
     },
     {
       "id": "click-to-source",
-      "requirement": "Build-time element ids and an id to source-span index per revision; ids never written into source",
-      "status": "todo",
-      "evidence": []
+      "requirement": "Each rendered element names the file, line and column that wrote it, added at build time and never written into source; a selection carries it to the agent",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/export.ts: the App's JSX runtime stamps data-theorem-source from the place esbuild passes to jsxDEV, so no index is kept and no source is parsed",
+        "sandbox/app-bridge.ts sends the nearest one as selection.source; app-references.ts labels the reference by file and line",
+        "bun run e2e:app-ts, dev and --built: \"an element says where it was written, and pointing at it tells the agent\" (Table.tsx:26:13)"
+      ]
     },
     {
       "id": "edit-actions",

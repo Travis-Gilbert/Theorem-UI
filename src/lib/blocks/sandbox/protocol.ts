@@ -55,6 +55,11 @@ export interface AppSelection {
   entityLabel?: string
   /** The notebook cell (`[data-cell-id]`) the selection or click is in. */
   cellId?: string
+  /**
+   * Where the element was written, `Table.tsx:21:13`, in an App built from
+   * source: the nearest `[data-theorem-source]`.
+   */
+  source?: string
 }
 
 /** The reads a database answers. A subscription keeps one of them current. */

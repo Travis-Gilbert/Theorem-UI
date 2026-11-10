@@ -93,6 +93,35 @@ createRoot(document.getElementById('root')!).render(<Greeting name="Alder" />)`,
     expect(map.sources).toContain('Greeting.tsx')
   }, 60_000)
 
+  test('each element that becomes a DOM node is stamped with where it was written', async () => {
+    const bundle = await bundleAppSources(
+      appSourcesOf(
+        typescriptApp({
+          'main.tsx': `import { createRoot } from 'react-dom/client'
+import { Row } from './parts/Row'
+createRoot(document.getElementById('root')!).render(
+  <table>
+    <Row name="Alder" />
+  </table>,
+)`,
+          'parts/Row.tsx': `export const Row = ({ name }: { name: string }) => (
+  <tr>
+    <td>{name}</td>
+  </tr>
+)`,
+        }),
+      )!,
+      esbuild,
+    )
+    // The runtime adds the attribute; the place is what esbuild passes it.
+    expect(bundle.code).toContain('"data-theorem-source":')
+    expect(bundle.code).toMatch(
+      /jsxDEV\("td",[^;]*?fileName: "theorem-app:parts\/Row\.tsx",\s*lineNumber: 3,\s*columnNumber: 5/,
+    )
+    // A component is not a DOM node: only what it renders is stamped.
+    expect(bundle.code).toContain('typeof type === "string"')
+  }, 60_000)
+
   test('a file that does not parse is a problem at its line', async () => {
     const problems = await problemsOf(() =>
       bundleAppSources(

@@ -138,6 +138,7 @@ const params = {
     entityId: z.string().max(200).optional(),
     entityLabel: z.string().max(200).optional(),
     cellId: z.string().max(200).optional(),
+    source: z.string().max(300).optional(),
   }),
   snapshot: z.object({ html: z.string().max(MAX_SNAPSHOT) }),
 }

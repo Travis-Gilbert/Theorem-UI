@@ -224,6 +224,21 @@ try {
     'the type check of a correct App finds nothing',
     (await settled(0)).length === 0,
   )
+  // Pointing at something in the App names the place in its source.
+  const stamp = await frame().$eval('tr[data-row-id="org:b"] td', (cell) =>
+    cell.getAttribute('data-theorem-source'),
+  )
+  await frame().click('tr[data-row-id="org:b"] td')
+  await page.click('button:has-text("Ask about selection")')
+  const [pointed] = await page.evaluate(() => window.oracle.references())
+  const selection = JSON.parse(pointed?.excerpt ?? '{}').selection
+  check(
+    'an element says where it was written, and pointing at it tells the agent',
+    stamp === 'Table.tsx:26:13' &&
+      selection?.source === stamp &&
+      selection.rowId === 'org:b',
+    { stamp, label: pointed?.label, selection },
+  )
   // What a check costs here, once the checker is loaded: its own clock and
   // the compiler's peak memory.
   const cost = await page.evaluate((text) => window.oracle.check(text), GOOD)

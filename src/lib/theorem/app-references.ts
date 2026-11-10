@@ -31,14 +31,15 @@ export function selectionForSource(
     : undefined
 }
 
-/** Whether a selection names anything: text, a row, a field, an entity or a notebook cell. */
+/** Whether a selection names anything: text, a row, a field, an entity, a notebook cell or a place in the source. */
 const says = (selection: AppSelection) =>
   Boolean(
     selection.text ||
     selection.rowId ||
     selection.field ||
     selection.entityId ||
-    selection.cellId,
+    selection.cellId ||
+    selection.source,
   )
 
 /**
@@ -58,7 +59,9 @@ function revisionReference(
   const named =
     selection?.entityLabel ||
     selection?.text.slice(0, 60) ||
-    (selection?.cellId && `cell ${selection.cellId}`)
+    (selection?.cellId && `cell ${selection.cellId}`) ||
+    // `Table.tsx:21:13` is named by its file and line.
+    selection?.source?.replace(/:\d+$/, '')
   return {
     label: named ? `${label}: ${named}` : label,
     location: {

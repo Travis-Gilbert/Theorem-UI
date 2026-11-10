@@ -272,6 +272,34 @@ function joinSource(importer: string, path: string): string | null {
   return parts.join('/')
 }
 
+/** The attribute a built App's elements carry: the file, line and column that wrote them. */
+export const SOURCE_ATTRIBUTE = 'data-theorem-source'
+
+/** Where esbuild is told an App's JSX runtime is; the plugin answers with JSX_RUNTIME. */
+const JSX_SOURCE = 'theorem-app-jsx'
+
+/**
+ * The JSX runtime an App is built with: React's, with each element that
+ * becomes a DOM node stamped with where it was written. esbuild passes that
+ * place to `jsxDEV`, so nothing is parsed and nothing is written into the
+ * App's own source.
+ */
+const JSX_RUNTIME = `import { Fragment, jsx, jsxs } from 'react/jsx-runtime'
+export { Fragment }
+export function jsxDEV(type, props, key, isStatic, source) {
+  const stamped =
+    typeof type === 'string' && source && props['${SOURCE_ATTRIBUTE}'] === undefined
+      ? {
+          ...props,
+          '${SOURCE_ATTRIBUTE}':
+            String(source.fileName).replace(/^${NAMESPACE.app}:/, '') +
+            ':' + source.lineNumber + ':' + source.columnNumber,
+        }
+      : props
+  return (isStatic ? jsxs : jsx)(type, stamped, key)
+}
+`
+
 /**
  * Resolves an App's own files from memory and every other import through the
  * import map to the vendored files: the modules a block frame has, no others.
@@ -283,6 +311,14 @@ function appPlugin({ files, entry }: AppSources): Esbuild.Plugin {
       build.onResolve({ filter: /^theorem:app$/ }, () => ({
         path: entry,
         namespace: NAMESPACE.app,
+      }))
+      build.onResolve(
+        { filter: new RegExp(`^${JSX_SOURCE}/jsx-dev-runtime$`) },
+        () => ({ path: 'jsx-dev-runtime', namespace: NAMESPACE.entry }),
+      )
+      build.onLoad({ filter: /.*/, namespace: NAMESPACE.entry }, () => ({
+        contents: JSX_RUNTIME,
+        loader: 'js',
       }))
       build.onResolve(
         { filter: /^\.\.?\//, namespace: NAMESPACE.app },
@@ -389,6 +425,9 @@ export async function bundleAppSources(
       format: 'esm',
       target: 'es2022',
       jsx: 'automatic',
+      // The development transform passes each element's place in its file.
+      jsxDev: true,
+      jsxImportSource: JSX_SOURCE,
       sourcemap: 'external',
       // Positions are all a stack frame needs; the text would double the map.
       sourcesContent: false,
