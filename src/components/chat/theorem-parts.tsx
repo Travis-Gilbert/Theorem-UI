@@ -496,9 +496,14 @@ const waitedSeconds = (s: AssistantState) => {
     .findLast((message) => message.role === 'user')
   const replied = messages[at]
   if (!asked || !replied) return undefined
-  return Math.round(
-    (replied.createdAt.getTime() - asked.createdAt.getTime()) / 1000,
-  )
+  // A live reply is stamped when its run begins; its timing says when it settled.
+  const timing =
+    replied.role === 'assistant' ? replied.metadata.timing : undefined
+  const settled =
+    timing?.totalStreamTime === undefined
+      ? replied.createdAt.getTime()
+      : timing.streamStartTime + timing.totalStreamTime
+  return Math.round((settled - asked.createdAt.getTime()) / 1000)
 }
 
 const spokenSeconds = (seconds: number) =>

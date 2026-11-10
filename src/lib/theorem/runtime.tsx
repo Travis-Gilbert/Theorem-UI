@@ -600,6 +600,22 @@ export async function* runTurn(
     noteLiveRun(threadId, undefined)
   }
 }
+/**
+ * A turn's steps, then how long they took. assistant-ui stamps a live reply
+ * when its run begins and records no end, so this is what lets the reply say
+ * how long the person waited; a reply read from history has its stored time.
+ */
+export async function* timed(turn: AsyncIterable<ChatModelRunResult>): AsyncGenerator<ChatModelRunResult> {
+  const streamStartTime = Date.now()
+  let totalChunks = 0
+  let toolCallCount = 0
+  for await (const step of turn) {
+    totalChunks += 1
+    toolCallCount = (step.content ?? []).filter((part) => part.type === 'tool-call').length
+    yield step
+  }
+  yield { metadata: { timing: { streamStartTime, totalStreamTime: Date.now() - streamStartTime, totalChunks, toolCallCount } } }
+}
 /** Whether a streamed step carries a finished `draft_plan` call. */
 export function draftedPlan(step: ChatModelRunResult): boolean {
   return (step.content ?? []).some(
@@ -630,7 +646,7 @@ function useTheoremThreadRuntime() {
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
-          for await (const step of turn) {
+          for await (const step of timed(turn)) {
             // Plan stays on until a plan is written; the turn that writes one turns it off.
             if (draftedPlan(step)) usePlanning.getState().set(false)
             yield step

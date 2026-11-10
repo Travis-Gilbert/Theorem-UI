@@ -1,10 +1,12 @@
-import { afterAll, afterEach, beforeAll, expect, test } from 'bun:test'
-import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
+import { afterAll, afterEach, beforeAll, expect, setSystemTime, test } from 'bun:test'
+import { AssistantRuntimeProvider, useExternalStoreRuntime, useLocalRuntime } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
-import type { ThreadMessageLike } from '@assistant-ui/react'
+import type { ChatModelAdapter, ThreadAssistantMessagePart, ThreadMessageLike, ThreadRuntime } from '@assistant-ui/react'
+import { act, useEffect } from 'react'
 import type { Theorem } from '@/lib/theorem/client'
 import { Thread } from '../assistant-ui/elements/thread.aui'
+import { timed } from '@/lib/theorem/runtime'
 import { TheoremPartRenderers } from './theorem-parts'
 import { buttonNamed, cleanup, click, render, waitFor } from '../../../test/blocks/render'
 
@@ -21,7 +23,19 @@ function Harness({ messages, isRunning = false }: { messages: ThreadMessageLike[
     </AssistantRuntimeProvider>
   </QueryClientProvider>
 }
+/** A thread that runs its turns live, as the app's does; `started` hands back the thread to send on. */
+function LiveHarness({ adapter, started }: { adapter: ChatModelAdapter; started: (thread: ThreadRuntime) => void }) {
+  const runtime = useLocalRuntime(adapter)
+  useEffect(() => started(runtime.thread), [runtime, started])
+  return <QueryClientProvider client={queryClient}>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  </QueryClientProvider>
+}
 afterEach(cleanup)
+afterEach(() => { setSystemTime() })
 // The running turn's thinking indicator splits its label into words, which waits on fonts; happy-dom has none.
 beforeAll(() => {
   Object.defineProperty(document, 'fonts', {
@@ -150,4 +164,28 @@ test('an approval and the answer stay in the reply while reasoning and tool call
   expect(approvalCards(container)).toHaveLength(1)
   expect(approvalCards(reply)).toHaveLength(1)
   expect(reply.textContent).toContain('Denver gets 300 days of sun.')
+})
+
+test('a live turn says how long the person waited once it settles', async () => {
+  setSystemTime(new Date(1_000))
+  const contentOf = (step: string) => turn(search('s1', 'denver sun'), step)[1]?.content as ThreadAssistantMessagePart[]
+  let finish = () => {}
+  const held = new Promise<void>((resolve) => { finish = resolve })
+  // The stream carries content and status; `timed`, as in the app's adapter, adds when it settled.
+  const adapter: ChatModelAdapter = {
+    run: () => timed((async function* () {
+      yield { content: contentOf('running') }
+      await held
+      yield { content: contentOf('complete') }
+    })()),
+  }
+  let thread: ThreadRuntime | undefined
+  const { container } = await render(<LiveHarness adapter={adapter} started={(live) => { thread = live }} />)
+  await act(async () => thread?.append('How sunny is Denver?'))
+  await waitFor(() => activity(container).textContent.includes('Searching the web'))
+
+  setSystemTime(new Date(43_000))
+  await act(async () => finish())
+  await waitFor(() => activity(container).textContent.includes('Details'))
+  expect(activity(container).textContent).toBe('Theorem·42s·Details')
 })
