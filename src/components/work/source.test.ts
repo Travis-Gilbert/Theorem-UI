@@ -88,6 +88,16 @@ describe('the work event stream', () => {
     expect(got).toEqual([{ type: 'work.item.deleted', id: '8' }])
   })
 
+  test('a reset from the server asks for everything to be read again', () => {
+    const got: WorkSignal[] = []
+    subscribeToEvents((signal) => got.push(signal), open)
+    opened[0]!.emit(
+      'work.reset',
+      JSON.stringify({ type: 'work.reset', cursor: '4812' }),
+    )
+    expect(got).toEqual([{ type: 'work.resync' }])
+  })
+
   test('an error while the browser is still retrying is left to it', () => {
     subscribeToEvents(() => undefined, open)
     opened[0]!.readyState = FakeEventSource.CONNECTING

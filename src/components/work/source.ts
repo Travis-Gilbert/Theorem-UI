@@ -74,7 +74,8 @@ const RECONNECT_MS = [1_000, 2_000, 5_000, 15_000, 30_000]
  * connection and sends Last-Event-ID, so the server resumes where it left
  * off. When the server answers with an error the browser gives up (the
  * state turns CLOSED); this opens a new one after a delay, and because that
- * one has no cursor to send, asks for everything to be read again.
+ * one has no cursor to send, asks for everything to be read again. The
+ * server asks for the same with `work.reset` when a cursor is too old.
  */
 export function subscribeToEvents(
   listener: (signal: WorkSignal) => void,
@@ -100,6 +101,11 @@ export function subscribeToEvents(
           // A frame that is not JSON is not ours; the next one is.
         }
       })
+    // The server could not replay from the cursor it was given: events were
+    // dropped, so what is cached may be stale.
+    source.addEventListener('work.reset', () =>
+      listener({ type: 'work.resync' }),
+    )
     source.addEventListener('error', () => {
       if (stopped || source?.readyState !== EventSource.CLOSED) return
       source.close()
