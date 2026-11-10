@@ -144,6 +144,18 @@ export async function mutateThread<T>(
   }
 }
 
+/** The project, read from every page of the list until it turns up. */
+async function findProject(projectId: string) {
+  let cursor: string | undefined
+  do {
+    const page = await theorem().chat.projects.list({ limit: 100, cursor })
+    const project = page.items.find((item) => item.projectId === projectId)
+    if (project) return project
+    cursor = page.nextCursor
+  } while (cursor)
+  return undefined
+}
+
 /**
  * As mutateThread, for a project. Projects have no single read, so the
  * revision comes from the list.
@@ -153,8 +165,7 @@ export async function mutateProject<T>(
   run: (headers: MutationHeaders & { 'If-Match': string }) => Promise<T>,
 ): Promise<T> {
   const attempt = async () => {
-    const page = await theorem().chat.projects.list({ limit: 100 })
-    const project = page.items.find((item) => item.projectId === projectId)
+    const project = await findProject(projectId)
     if (!project) throw new Error('That section is no longer there')
     return mutate((headers) =>
       run({ ...headers, 'If-Match': String(project.revision) }),
