@@ -1,5 +1,5 @@
-// SOURCING: @tanstack/react-query (useMutation starts the code, useQuery's refetchInterval polls it), existing Base UI Button and theme tokens; the protocol is src/server/theorem-auth.ts over oauth4webapi.
-import { useMutation, useQuery } from '@tanstack/react-query'
+// SOURCING: @tanstack/react-query (one deduplicated query starts the code, useQuery's refetchInterval polls it), existing Base UI Button and theme tokens; the protocol is src/server/theorem-auth.ts over oauth4webapi.
+import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { safeReturnTo } from '@/lib/theorem/auth-navigation'
@@ -12,15 +12,22 @@ import { pollCodeSignIn, startCodeSignIn } from '@/lib/theorem/sign-in'
  */
 export function CodeSignIn({ returnTo = '/' }: { returnTo?: string }) {
   const back = safeReturnTo(returnTo)
-  const start = useMutation({
-    mutationFn: () => startCodeSignIn({ data: { returnTo: back } }),
+  // One code per visit. Starting saves the code to this browser's session, so
+  // a second start would leave the page showing a code the session no longer
+  // polls. A query, unlike an effect, is not started again when React mounts
+  // the page twice. A new code is a button press after that.
+  const start = useQuery({
+    queryKey: ['theorem', 'code-sign-in', 'start', back],
+    queryFn: async () =>
+      (await startCodeSignIn({ data: { returnTo: back } })) ?? null,
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
   const code = start.data
-  // Start once on arrival; a new code is a button press after that.
-  const { mutate, status } = start
-  useEffect(() => {
-    if (status === 'idle') mutate()
-  }, [mutate, status])
 
   const poll = useQuery({
     queryKey: ['theorem', 'code-sign-in', code?.userCode],
@@ -53,8 +60,8 @@ export function CodeSignIn({ returnTo = '/' }: { returnTo?: string }) {
       size="lg"
       variant="outline"
       className="mt-6 w-full"
-      onClick={() => start.mutate()}
-      disabled={start.isPending}
+      onClick={() => void start.refetch()}
+      disabled={start.isFetching}
     >
       Get a new code
     </Button>
