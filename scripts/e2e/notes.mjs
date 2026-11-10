@@ -17,6 +17,9 @@ const session = await open('/notes')
 const { page, context } = session
 const shot = (name) =>
   page.screenshot({ path: join(SHOTS, `notes-${name}.png`) })
+// How long a check waits for Theorem to show what the panel did. The local
+// server is a debug build and often shares the machine with other builds.
+const SETTLE = 90_000
 const notesNav = page.getByRole('navigation', { name: 'Notes' })
 const trashNav = page.getByRole('navigation', { name: 'Trash' })
 const editor = page.locator('.ProseMirror').first()
@@ -192,7 +195,7 @@ check(
   (await sections()).includes(RENAMED),
   JSON.stringify(await sections()),
 )
-const settledBy = Date.now() + 30_000
+const settledBy = Date.now() + SETTLE
 let settled = await openMark()
 while (settled !== 'written' && Date.now() < settledBy) {
   await page.waitForTimeout(250)
@@ -233,7 +236,7 @@ check(
   marks.includes('editing'),
   marks.join(', '),
 )
-const againBy = Date.now() + 30_000
+const againBy = Date.now() + SETTLE
 while ((await openMark()) !== 'written' && Date.now() < againBy)
   await page.waitForTimeout(250)
 await shot('written')
@@ -242,14 +245,26 @@ await shot('written')
 // complement of the person's folder colour.
 const agentFolder = notesNav.getByRole('button', { name: 'Agent notes' })
 await agentFolder.waitFor(READ)
-const after = await notesNav.evaluate((nav) => {
+// After every note row, not last of all: "Show more" follows the list once the
+// account holds more than a page of notes.
+const later = await notesNav.evaluate((nav) => {
   const buttons = [...nav.querySelectorAll('button')]
-  const folder = buttons.findIndex(
+  const folder = buttons.find(
     (button) => button.textContent?.trim() === 'Agent notes',
   )
-  return folder === buttons.length - 1
+  if (!folder) return ['(no Agent notes folder)']
+  return [...nav.querySelectorAll('li')]
+    .filter(
+      (row) =>
+        folder.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    .map((row) => row.textContent?.trim() ?? '')
 })
-check('the Agent notes folder comes after the notes', after)
+check(
+  'the Agent notes folder comes after the notes',
+  later.length === 0,
+  JSON.stringify(later),
+)
 await agentFolder.click()
 check('it opens', (await agentFolder.getAttribute('aria-expanded')) === 'true')
 const agentRows = await context.request.get(
@@ -360,6 +375,47 @@ if (agentTitle) {
         .count()) > 0 &&
       (await notesNav.getByText('Nothing matches.').count()) === 0,
   )
+
+  // When the agents' search fails, the folder says so and offers a retry,
+  // instead of the search looking like it found nothing there.
+  const agentSearch = (url) =>
+    url.searchParams.get('origin') === 'agent_encoded' &&
+    url.searchParams.has('query')
+  await page.route(agentSearch, (route) =>
+    route.fulfill({ status: 503, body: 'agent search down' }),
+  )
+  // A search not made yet, so nothing answers it from the cache.
+  await page.getByLabel('Search notes').fill(agentTitle.slice(0, -1))
+  const retry = notesNav.getByRole('button', { name: 'Try again' })
+  await retry.waitFor(READ).catch(() => undefined)
+  check(
+    "a failed search for agents' notes shows the error in the open folder",
+    (await agentFolder.getAttribute('aria-expanded')) === 'true' &&
+      (await retry.count()) > 0 &&
+      (await notesNav.getByText('Nothing matches.').count()) === 0,
+    JSON.stringify({
+      open: await agentFolder.getAttribute('aria-expanded'),
+      retry: await retry.count(),
+      nothing: await notesNav.getByText('Nothing matches.').count(),
+      text: (await notesNav.innerText()).slice(0, 400),
+    }),
+  )
+  await page.unroute(agentSearch)
+  await retry
+    .first()
+    .click()
+    .catch(() => undefined)
+  await notesNav
+    .getByRole('button', { name: agentTitle, exact: true })
+    .first()
+    .waitFor(READ)
+    .catch(() => undefined)
+  check(
+    'Try again finds the agent note',
+    (await notesNav
+      .getByRole('button', { name: agentTitle, exact: true })
+      .count()) > 0,
+  )
 }
 await page.getByLabel('Search notes').fill('')
 await page.getByLabel('Search notes').blur()
@@ -421,7 +477,7 @@ await notesNav
 await editor.click()
 await page.keyboard.press('ControlOrMeta+End')
 await page.keyboard.type(' Seen again.')
-const movedBy = Date.now() + 30_000
+const movedBy = Date.now() + SETTLE
 while ((await looseTitles())[0] !== second && Date.now() < movedBy)
   await page.waitForTimeout(500)
 check(
@@ -465,7 +521,7 @@ check(
 // runs leave many folders and notes behind, so Folders is folded first and
 // the new section made under it, where both stay in view.
 const until = async (test) => {
-  const by = Date.now() + 30_000
+  const by = Date.now() + SETTLE
   while (!(await test()) && Date.now() < by) await page.waitForTimeout(500)
   return test()
 }
@@ -596,6 +652,38 @@ check(
   JSON.stringify(await sections()),
 )
 await shot('sections')
+
+// The keyboard moves what a pointer drags: Space picks up, the arrows step
+// between places, Space drops, and a screen reader hears each step by name.
+const announced = page.locator('[id^="DndLiveRegion"]')
+const keyboardDrag = async (what, overText, key, steps = 12) => {
+  await what.focus()
+  await page.keyboard.press('Space')
+  for (let step = 0; step < steps; step++) {
+    await page.keyboard.press(key)
+    await page.waitForTimeout(150)
+    if ((await announced.textContent())?.includes(overText)) break
+  }
+  const heard = await announced.textContent()
+  await page.keyboard.press('Space')
+  return heard
+}
+const heardSection = await keyboardDrag(
+  sectionHeading(READING),
+  'is over the Folders section',
+  'ArrowDown',
+  1,
+)
+check(
+  'a section moved with the keyboard takes the next place',
+  await until(async () => (await sections())[1] === READING),
+  JSON.stringify({ sections: await sections(), heardSection }),
+)
+check(
+  'and a screen reader hears it by name',
+  heardSection?.includes(`the ${READING} section is over`),
+  heardSection,
+)
 await menuOn(READING, 'Delete section')
 check(
   'deleting a section puts its note back under Notes',
@@ -647,9 +735,17 @@ check(
 )
 const noteRow = notesNav.getByRole('button', { name: TITLE })
 await dragOnto(noteRow, folderRow)
+const alerts = async () =>
+  JSON.stringify(await page.getByRole('alert').allInnerTexts())
 check(
   'a note dragged onto the folder moves into it',
   await until(async () => (await holding(FOLDER)).includes(documentId)),
+  JSON.stringify({
+    alerts: await alerts(),
+    heldBy: (await collections())
+      .filter((c) => c.documentIds?.includes(documentId))
+      .map((c) => c.name),
+  }),
 )
 await noteRow.waitFor({ state: 'detached', ...READ })
 check('a closed folder hides its notes', true)
@@ -667,6 +763,26 @@ check(
 await folderRow.click()
 await noteRow.waitFor(READ)
 check('and the list shows it loose again', true)
+const heardNote = await keyboardDrag(
+  noteRow,
+  `is over the folder ${FOLDER}`,
+  'ArrowUp',
+)
+check(
+  'a note moved with the keyboard onto a folder goes into it',
+  await until(async () => (await holding(FOLDER)).includes(documentId)),
+  JSON.stringify({
+    heardNote,
+    alerts: await alerts(),
+    heldBy: (await collections())
+      .filter((c) => c.documentIds?.includes(documentId))
+      .map((c) => c.name),
+  }),
+)
+await page.getByRole('button', { name: 'Move to', exact: true }).click()
+await page.getByRole('menuitemradio', { name: 'No folder' }).click()
+await until(async () => !(await holding(FOLDER)).includes(documentId))
+await noteRow.waitFor(READ)
 
 // Folders nest. New folder inside makes one under the folder right-clicked, a
 // folder dragged onto a section comes out to the top and dragged onto another
