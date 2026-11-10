@@ -439,7 +439,10 @@ function NoteSections({
     noteItem(entry.opens),
   )
   const agentsIn = sectionOf(layout, AGENTS_ITEM)
-  const agentsFound = searching && Boolean(agentNotes.data?.length)
+  // A search keeps the agents' folder, open, until their search comes back
+  // empty: while it loads or after it fails, the folder shows which.
+  const agentsFound =
+    searching && !(agentNotes.isSuccess && !agentNotes.data.length)
   const nothing = !library.data.length && !filed.folders.length
   const run = (step: DropStep) => {
     switch (step.kind) {
@@ -501,7 +504,7 @@ function NoteSections({
           {layout.sections.map((section) => {
             const sectionFolders = foldersIn.get(section.id) ?? []
             const sectionNotes = notesIn.get(section.id) ?? []
-            // A search shows the agents' folder only when it found a note there.
+            // A search drops the agents' folder only when it found nothing there.
             const agents =
               agentsIn === section.id && (!searching || agentsFound)
             const empty =
@@ -982,7 +985,7 @@ function AgentNotes({
 }: {
   query: string
   order: NoteOrder
-  /** A search found notes here, so the folder opens on them. */
+  /** A search found notes here, or has not settled, so the folder opens on it. */
   found: boolean
 }) {
   const [chosen, setOpen] = useState(false)
@@ -1036,7 +1039,19 @@ function NoteList({
   const library = useNoteLibrary(query, shelf, order)
   if (library.isPending) return <Hint>Loading notes…</Hint>
   if (library.isError)
-    return <Hint>{describeError(library.error, 'document')}</Hint>
+    return (
+      <Hint>
+        {describeError(library.error, 'document')}{' '}
+        <Button
+          variant="ghost"
+          size="xs"
+          disabled={library.isFetching}
+          onClick={() => void library.refetch()}
+        >
+          Try again
+        </Button>
+      </Hint>
+    )
   if (!library.data.length)
     return <Hint>{query.trim() ? 'Nothing matches.' : emptyShelf[shelf]}</Hint>
   return (
