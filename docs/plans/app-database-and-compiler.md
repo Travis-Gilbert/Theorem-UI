@@ -192,6 +192,9 @@ repair reference and repairs an App.
   style, insert into a slot, reorder, remove, change a binding, extract a
   component. Each becomes an AST edit on the source revision it was made
   against. Anything outside the set goes to the agent with the selection.
+  Built 2026-11-10: plain text and string attributes of the element pointed
+  at, read by a small scanner rather than a parser, which gives up on
+  anything written as code. The rest of the set is not built.
 - **Scope is explicit**: this instance, this variant, this component, this
   style book.
 - **Gestures stay responsive**: a drag changes a temporary value in the frame

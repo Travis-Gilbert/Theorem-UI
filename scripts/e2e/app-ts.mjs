@@ -85,6 +85,22 @@ const BROKEN = app({
   'Table.tsx': TABLE.replace('return () => stop()', 'return () => stop('),
   'types.ts': TYPES,
 })
+/** The App with a heading whose text and class are written as plain text. */
+const HEADED = app({
+  'main.tsx': MAIN.replace(
+    "import { Table } from './Table'",
+    "import { Table } from './Table'\nimport { Heading } from './Heading'",
+  ).replace(
+    '<Table title="Organizations" />',
+    '<><Heading /><Table title="Organizations" /></>',
+  ),
+  'Table.tsx': TABLE,
+  'types.ts': TYPES,
+  'Heading.tsx': `export function Heading() {
+  return <h2 className="title">Organizations</h2>
+}`,
+})
+
 /** A revision that throws, two calls down, after it has rendered. */
 const THROWS = app({
   'main.tsx': `${MAIN}
@@ -324,6 +340,34 @@ try {
     "the example Theorem's builder is given builds, runs and passes its check",
     told.join() === 'Alder,Birch' && (await problems()).length === 0,
     told,
+  )
+
+  // Pointing at an element and changing what its source writes as plain text.
+  const heading = async (wanted) => {
+    for (const deadline = Date.now() + 60_000; Date.now() < deadline;) {
+      const text = await frame()
+        ?.$eval('h2', (h2) => `${h2.className}|${h2.textContent}`)
+        .catch(() => undefined)
+      if (text === wanted) return true
+      await page.waitForTimeout(100)
+    }
+    return false
+  }
+  await revise(HEADED)
+  await heading('title|Organizations')
+  await settled(0)
+  await frame().click('h2')
+  await page.fill('[data-slot="app-element"] input[name="Text"]', 'Funders')
+  await page.fill(
+    '[data-slot="app-element"] input[name="className"]',
+    'title wide',
+  )
+  await page.click('button:has-text("Apply to source")')
+  check(
+    'changing an element in the panel rewrites its source, and the App shows it',
+    (await heading('title wide|Funders')) &&
+      (await table(2)).length === 2 &&
+      (await settled(0)).length === 0,
   )
 
   await revise(GOOD)

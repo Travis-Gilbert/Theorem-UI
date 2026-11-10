@@ -208,3 +208,94 @@ test('what the App throws is listed at the line of the source file that threw it
     close()
   }
 }, 60_000)
+
+const HEADED = typescriptApp({
+  'main.tsx': `import { createRoot } from 'react-dom/client'
+import { Header } from './Header'
+createRoot(document.getElementById('root')!).render(<Header />)`,
+  'Header.tsx': `export function Header() {
+  return (
+    <header>
+      <h2 className="title">Organizations</h2>
+    </header>
+  )
+}`,
+})
+
+/** Types into a field the way a person does, so React hears it. */
+async function type(input: HTMLInputElement, value: string) {
+  const set = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(input) as object,
+    'value',
+  )!.set!
+  await act(async () => {
+    set.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
+
+test('pointing at an element offers its plain text and attributes, and applying rewrites its source', async () => {
+  const view = await running(HEADED)
+  const { container, app } = view
+  const { rpc, close } = await connectAppFrame(container)
+  try {
+    await act(() =>
+      call<PageMethods, 'frame.selection'>(rpc, 'frame.selection', {
+        text: '',
+        source: 'Header.tsx:4:7',
+      }),
+    )
+    const panel = await waitFor(() =>
+      container.querySelector('[data-slot="app-element"]'),
+    )
+    expect(panel.textContent).toContain('<h2>')
+    expect(panel.textContent).toContain('Header.tsx:4')
+    const fields = [...panel.querySelectorAll('input')]
+    expect(fields.map((field) => [field.name, field.value])).toEqual([
+      ['Text', 'Organizations'],
+      ['className', 'title'],
+    ])
+    const apply = buttonNamed(container, 'Apply to source')!
+    expect(apply.disabled).toBe(true)
+    await type(fields[0]!, 'Funders')
+    await type(fields[1]!, 'title wide')
+    expect(apply.disabled).toBe(false)
+    const before = app.getSnapshot()!
+    await click(apply)
+    await waitFor(
+      () => app.getSnapshot()!.revision.position !== before.revision.position,
+    )
+    // The one line changed, in the one file, and the rest of the page did not.
+    expect(app.getSnapshot()!.html).toBe(
+      before.html.replace(
+        '<h2 className="title">Organizations</h2>',
+        '<h2 className="title wide">Funders</h2>',
+      ),
+    )
+    await waitFor(() => !container.querySelector('[data-slot="app-element"]'))
+  } finally {
+    close()
+  }
+}, 60_000)
+
+test('an element with nothing written as plain text says so and offers nothing to edit', async () => {
+  const { container } = await running(HEADED)
+  const { rpc, close } = await connectAppFrame(container)
+  try {
+    await act(() =>
+      call<PageMethods, 'frame.selection'>(rpc, 'frame.selection', {
+        text: '',
+        source: 'Header.tsx:3:5',
+      }),
+    )
+    const panel = await waitFor(() =>
+      container.querySelector('[data-slot="app-element"]'),
+    )
+    expect(panel.textContent).toContain('<header>')
+    expect(panel.textContent).toContain('Nothing here is written as plain text')
+    expect(panel.querySelector('input')).toBeNull()
+    expect(buttonNamed(container, 'Apply to source')).toBeUndefined()
+  } finally {
+    close()
+  }
+}, 60_000)

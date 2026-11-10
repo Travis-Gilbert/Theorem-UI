@@ -190,8 +190,13 @@
     {
       "id": "edit-actions",
       "requirement": "Reversible actions (property, token or style, insert, reorder, remove, binding, extract) become AST edits against the revision they were made on",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "Built: set an element's plain text, and set, add or remove an attribute written as a string (src/lib/blocks/app-edit.ts editElement, writeAppSource; src/components/blocks/app-element.tsx). Each is a new App revision, so the revision history is the undo",
+        "bun test src/lib/blocks/app-edit.test.ts: 12 passed; typescript-app.test.tsx: \"pointing at an element offers its plain text and attributes, and applying rewrites its source\"",
+        "bun run e2e:app-ts, dev and --built: \"changing an element in the panel rewrites its source, and the App shows it\"",
+        "Not built: insert into a slot, reorder, remove, change a binding, extract a component, token and style edits, and any edit to a value written as code"
+      ]
     },
     {
       "id": "component-plugins",

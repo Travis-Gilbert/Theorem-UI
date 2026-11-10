@@ -11,6 +11,7 @@ import { askAbout } from '@/components/chat/composer-references'
 import { Button } from '@/components/ui/button'
 import { documentAppDatabases } from '@/lib/blocks/app-db'
 import * as checker from '@/lib/blocks/app-checker'
+import { writeAppSource } from '@/lib/blocks/app-edit'
 import {
   AppBuildError,
   SOURCE_TYPE,
@@ -32,6 +33,7 @@ import {
 } from '@/lib/theorem/app-references'
 import type { AppSelectionContext } from '@/lib/theorem/app-references'
 import type { AppDocument, AppSnapshot } from '@/lib/theorem/apps'
+import { AppElement } from './app-element'
 import { AppProblems } from './app-problems'
 import { BlockFrame } from './block-frame'
 import { BlockMessage } from './block-status'
@@ -452,6 +454,8 @@ export function DocumentAppView({
   const [edit, setEdit] = useState<Edit>()
   const [running, setRunning] = useState(initiallyRunning)
   const [selection, setSelection] = useAppSelection(app)
+  // What was pointed at, while it is still this revision that is on screen.
+  const pointed = snapshot && selectionForSource(snapshot, selection)
   if (!snapshot)
     return (
       <BlockMessage tone={error ? 'error' : undefined}>
@@ -487,6 +491,21 @@ export function DocumentAppView({
         app={app}
         attempt={attempt}
       />
+      {pointed?.selection.source && !edit && (
+        <AppElement
+          html={snapshot.html}
+          stamp={pointed.selection.source}
+          onApply={(file, source) =>
+            attempt(async () => {
+              await app.saveSource(
+                writeAppSource(snapshot.html, file, source),
+                snapshot.revision,
+              )
+              setSelection(undefined)
+            })
+          }
+        />
+      )}
       {edit && (
         <AppSourceEditor
           app={app}
