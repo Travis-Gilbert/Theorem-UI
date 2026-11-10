@@ -299,3 +299,39 @@ test('an element with nothing written as plain text says so and offers nothing t
     close()
   }
 }, 60_000)
+
+test('Edit source opens an App built from source one file at a time, with the page last', async () => {
+  const { container, app } = await running(HEADED)
+  await click(buttonNamed(container, 'Edit source')!)
+  const tabs = () =>
+    [...container.querySelectorAll('[role="tab"]')].map((tab) => [
+      tab.textContent,
+      tab.getAttribute('aria-selected'),
+    ])
+  expect(tabs()).toEqual([
+    ['main.tsx', 'true'],
+    ['Header.tsx', 'false'],
+    ['Page', 'false'],
+  ])
+  // The editor holds that file's text, not the page around it.
+  const shown = () => container.querySelector('.cm-content')?.textContent ?? ''
+  expect(shown()).toContain("import { Header } from './Header'")
+  expect(shown()).not.toContain('text/theorem-source')
+  await click(buttonNamed(container, 'Header.tsx')!)
+  expect(shown()).toContain('export function Header()')
+  expect(shown()).not.toContain('createRoot')
+  await click(buttonNamed(container, 'Page')!)
+  expect(shown()).toContain('text/theorem-source')
+  // Saving without a change keeps the page as it was written.
+  const before = app.getSnapshot()!.html
+  await click(buttonNamed(container, 'Save source')!)
+  await waitFor(() => !buttonNamed(container, 'Save source'))
+  expect(app.getSnapshot()!.html).toBe(before)
+}, 60_000)
+
+test('a plain HTML App is edited as one page, without file tabs', async () => {
+  const { container } = await running('<p>Plain</p>')
+  await click(buttonNamed(container, 'Edit source')!)
+  expect(container.querySelector('[role="tablist"]')).toBeNull()
+  expect(container.querySelector('.cm-content')?.textContent).toContain('Plain')
+}, 60_000)

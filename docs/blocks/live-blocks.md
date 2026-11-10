@@ -482,6 +482,9 @@ carries its source files as scripts a browser does not run.
   as its next revision; the rest of the page is left exactly as written
   (`app-edit.ts`, `app-element.tsx`). An attribute or child written as code is
   not offered: that change is the agent's, with the selection.
+- **Editing.** **Edit source** opens an App built from source one file at a
+  time, in tabs, with the whole page as the last tab. A plain HTML App is
+  edited as one page.
 - **A revision that does not build** leaves the last one that built running,
   with its problems above it. A plain HTML revision replaces the frame at
   once, as before.

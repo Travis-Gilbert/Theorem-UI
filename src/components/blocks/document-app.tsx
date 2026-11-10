@@ -322,6 +322,21 @@ function useAppSnapshot(app: AppDocument, pinnedPosition?: number | string) {
 }
 
 type Edit = { html: string; base: AppSnapshot }
+
+/** The whole page, among an App's files. */
+const PAGE = 'Page'
+
+/** An App's source files in the HTML being edited, or none when it is not built from source. */
+function editableFiles(html: string): Record<string, string> {
+  if (!carriesSource(html)) return {}
+  try {
+    return appSourcesOf(html)?.files ?? {}
+  } catch {
+    // A page that no longer reads as source files is edited whole.
+    return {}
+  }
+}
+
 function AppSourceEditor({
   app,
   edit,
@@ -333,14 +348,64 @@ function AppSourceEditor({
   setEdit: (edit: Edit | undefined) => void
   attempt: Attempt
 }) {
+  const files = editableFiles(edit.html)
+  const paths = Object.keys(files)
+  const [chosen, setChosen] = useState<string>()
+  const [problem, setProblem] = useState<string>()
+  // An App built from source opens on its first file; the page is the last tab.
+  const file =
+    chosen !== undefined && (chosen === PAGE || Object.hasOwn(files, chosen))
+      ? chosen
+      : (paths[0] ?? PAGE)
   return (
     <div className="flex flex-col gap-2">
-      <SourceEditor
-        value={edit.html}
-        lang="html"
-        label="App source"
-        onChange={(html) => setEdit({ ...edit, html })}
-      />
+      {paths.length > 0 && (
+        <div
+          role="tablist"
+          aria-label="App files"
+          className="flex flex-wrap gap-1"
+        >
+          {[...paths, PAGE].map((path) => (
+            <Button
+              key={path}
+              role="tab"
+              aria-selected={path === file}
+              size="xs"
+              variant={path === file ? 'outline' : 'ghost'}
+              onClick={() => {
+                setProblem(undefined)
+                setChosen(path)
+              }}
+            >
+              {path}
+            </Button>
+          ))}
+        </div>
+      )}
+      {file === PAGE ? (
+        <SourceEditor
+          value={edit.html}
+          lang="html"
+          label="App source"
+          onChange={(html) => setEdit({ ...edit, html })}
+        />
+      ) : (
+        <SourceEditor
+          key={file}
+          value={files[file] ?? ''}
+          lang={file.slice(file.lastIndexOf('.') + 1)}
+          label={file}
+          onChange={(text) => {
+            try {
+              setEdit({ ...edit, html: writeAppSource(edit.html, file, text) })
+              setProblem(undefined)
+            } catch (failure) {
+              setProblem(errorText(failure))
+            }
+          }}
+        />
+      )}
+      {problem && <BlockMessage tone="error">{problem}</BlockMessage>}
       <div className="flex gap-2">
         <Button
           size="xs"
