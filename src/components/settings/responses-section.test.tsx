@@ -1,3 +1,4 @@
+// SOURCING: none — test over the Responses section, rendered through test/blocks/render
 import { act } from 'react'
 import { afterEach, expect, test } from 'bun:test'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
