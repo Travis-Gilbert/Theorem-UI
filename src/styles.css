@@ -605,10 +605,11 @@
   background-repeat: no-repeat;
 }
 
-/* Paper: a flat sheet with fine grain. surface-paper is the composer's, at full
-   strength; surface-paper-subtle is for panels that open in the conversation
-   (an opened activity disclosure, an artifact frame, a review candidate). The
-   grain is Paper Design's PaperTexture baked once per page into
+/* Paper: a smooth sheet whose texture shows when you look for it.
+   surface-paper is the composer's, at full strength; surface-paper-subtle is
+   for panels that open in the conversation (an opened activity disclosure, an
+   artifact frame, a review candidate). The grain is Paper Design's
+   PaperTexture baked once per page into
    --paper-texture (lib/paper-texture.ts) and painted through it in the
    palette's ink, under the content, so text stays crisp and no surface holds
    a WebGL context. Each sits a step off its surroundings with a soft shadow
@@ -625,12 +626,10 @@
   --paper-edge: color-mix(in oklab, var(--line-separator) 80%, transparent);
 }
 
-/* The grain varies the light sheet by about 4 sRGB levels; the dark sheet's
-   ink sits closer to its ground, so it takes more opacity for the same. Black
-   shadows need more weight to read on a dark sheet, and the lit edge is the
-   ink's. */
+/* The grain is one continuous tone that varies either sheet by a level or two
+   of sRGB. Black shadows need more weight to read on a dark sheet, and the lit
+   edge is the ink's. */
 .dark {
-  --paper-grain-opacity: 0.12;
   --paper-depth: 2.5;
   --paper-highlight: color-mix(in srgb, var(--ink) 8%, transparent);
 }
