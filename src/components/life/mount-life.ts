@@ -118,6 +118,9 @@ export function mountLife(
 ): LifeGame {
   const canvas = document.createElement('canvas')
   canvas.className = 'absolute inset-0'
+  // textmode.js paints its own dark loading screen until its font is ready,
+  // whatever the theme, so the canvas shows from the field's first frame.
+  canvas.style.visibility = 'hidden'
   // textmode.js sizes its first grid from the canvas, which starts at 300 by 150.
   canvas.width = host.clientWidth
   canvas.height = host.clientHeight
@@ -129,6 +132,7 @@ export function mountLife(
     height: host.clientHeight,
     fontSize: CELL_SIZE * density,
     frameRate: 60,
+    loadingScreen: { transition: 'none' },
   })
   // Layers default to a 16px font; the overlay takes the field's cell so its
   // glyphs land on the field's grid. It holds the agent's presence and the
@@ -273,6 +277,7 @@ export function mountLife(
   })
 
   t.draw(() => {
+    canvas.style.visibility = ''
     fitField()
     const { playing, companion: playsAlong } = useLifeControls.getState()
     const seconds = t.deltaTime() / 1000

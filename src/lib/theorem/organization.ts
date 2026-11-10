@@ -306,13 +306,15 @@ export const useOrganization = () => useQuery(organizationQuery())
 export function useOrganizedViews() {
   const { data } = useOrganization()
   const terminalThreads = useShell((state) => state.terminalThreadIds)
+  const projectOrder = useShell((state) => state.projectOrder)
   return useMemo(
     () =>
       organizedViews(
         data ?? { projects: [], threads: [] },
         new Set([...terminalThreads, ...documentThreadIds()]),
+        projectOrder,
       ),
-    [data, terminalThreads],
+    [data, terminalThreads, projectOrder],
   )
 }
 
@@ -329,18 +331,25 @@ export type OrganizedViews = {
  * The quick views and the tree: every view reads the same threads, and sorting
  * is by title and creation time, so a badge changing never moves a row.
  * `apart` holds threads that live elsewhere (the agent terminal's, a note's).
+ * `order` is the projects as the person arranged them; ones it does not name
+ * follow, as Theorem lists them.
  */
 export function organizedViews(
   organization: Pick<Organization, 'projects' | 'threads'>,
   apart: ReadonlySet<string> = new Set(),
+  order: readonly string[] = [],
 ): OrganizedViews {
   const threads = organization.threads.filter((t) => !apart.has(t.threadId))
+  const place = new Map(order.map((projectId, index) => [projectId, index]))
+  const placeOf = (project: ProjectEntry) =>
+    place.get(project.projectId) ?? order.length
   return {
     attention: threads.filter((t) => t.attention.reasons.length > 0),
     running: threads.filter((t) => t.attention.running),
     later: threads.filter((t) => t.later),
     projects: organization.projects
       .filter((project) => !project.isInbox)
+      .sort((a, b) => placeOf(a) - placeOf(b))
       .map((project) => ({
         project,
         threads: threads.filter((thread) =>

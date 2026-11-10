@@ -29,7 +29,12 @@ export function ThreadGlyph({ glyph, ...props }: GlyphProps) {
   return <Mark {...props} />
 }
 
-export function ProjectGlyph({ glyph, ...props }: GlyphProps) {
-  const Mark = glyph ? GLYPHS[glyph] : Icon.Folder
+/** A project's mark: a folder, drawn open while the project is, until the Librarian gives it one. */
+export function ProjectGlyph({
+  glyph,
+  open = false,
+  ...props
+}: GlyphProps & { open?: boolean }) {
+  const Mark = glyph ? GLYPHS[glyph] : open ? Icon.FolderOpen : Icon.Folder
   return <Mark {...props} />
 }

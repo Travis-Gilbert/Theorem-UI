@@ -5,7 +5,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { chromium } from 'playwright-core'
+import { chromium, firefox } from 'playwright-core'
 import { ACCOUNT, DATA_DIR, UI } from './config.mjs'
 
 const BROWSER_STATE = join(DATA_DIR, 'browser-state.json')
@@ -50,12 +50,16 @@ async function signIn(page) {
   await page.waitForURL((url) => url.href.startsWith(UI) && !url.pathname.startsWith('/login'))
 }
 
-export async function open(path = '/') {
+/** `browser: 'firefox'` is the Firefox installed on this machine, for what only Gecko does. */
+export async function open(path = '/', { browser: name = 'chromium' } = {}) {
   mkdirSync(SHOTS, { recursive: true })
   // Full Chromium in new headless mode. The separate headless shell (Playwright
   // 1.64, revision 1248) never paints a frame on macOS 27, so every screenshot
-  // and click waits forever.
-  const browser = await chromium.launch({ channel: 'chromium' })
+  // and click waits forever. Firefox is the stock one, driven over WebDriver BiDi.
+  const browser =
+    name === 'firefox'
+      ? await firefox.launch({ channel: 'moz-firefox' })
+      : await chromium.launch({ channel: 'chromium' })
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     colorScheme: 'dark',
@@ -92,10 +96,14 @@ export async function open(path = '/') {
       throw new Error(`${UI} did not answer the bootstrap request`)
     })
   if (asked.status() === 401) {
-    await page.goto(`${UI}/login`, { waitUntil: 'domcontentloaded', timeout: 120_000 })
-    await signIn(page)
+    // On a page of its own: the app is still starting when sign-in lands, and
+    // Firefox drops a navigation asked for in the middle of that.
+    const door = await context.newPage()
+    await door.goto(`${UI}/login`, { waitUntil: 'domcontentloaded', timeout: 120_000 })
+    await signIn(door)
     log('signed in as', ACCOUNT)
     await context.storageState({ path: BROWSER_STATE })
+    await door.close()
   }
   await page.goto(UI + path, { waitUntil: 'domcontentloaded', timeout: 120_000 })
   return { browser, context, page, problems }
