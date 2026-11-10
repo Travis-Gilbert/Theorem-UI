@@ -1,0 +1,109 @@
+import { afterAll, afterEach, beforeAll, expect, test } from 'bun:test'
+import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
+import type { ThreadMessageLike } from '@assistant-ui/react'
+import type { Theorem } from '@/lib/theorem/client'
+import { Thread } from '../assistant-ui/elements/thread.aui'
+import { TheoremPartRenderers } from './theorem-parts'
+import { buttonNamed, cleanup, click, render, waitFor } from '../../../test/blocks/render'
+
+const queryClient = new QueryClient()
+function Harness({ messages, isRunning = false }: { messages: ThreadMessageLike[]; isRunning?: boolean }) {
+  const runtime = useExternalStoreRuntime({
+    messages, isRunning, onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  return <QueryClientProvider client={queryClient}>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  </QueryClientProvider>
+}
+afterEach(cleanup)
+// The running turn's thinking indicator splits its label into words, which waits on fonts; happy-dom has none.
+beforeAll(() => {
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    // The composer's autosize listens for font loads on the same object.
+    value: { status: 'loaded', ready: Promise.resolve(), addEventListener() {}, removeEventListener() {} },
+  })
+})
+afterAll(() => Reflect.deleteProperty(document, 'fonts'))
+
+type StoredPart = Theorem.Message['parts'][number]
+const search = (id: string, query: string): StoredPart[] => [
+  { partId: `${id}-call`, type: 'tool_call', payload: { toolCallId: id, toolName: 'web_search', safeArguments: { query } } },
+  { partId: `${id}-result`, type: 'tool_result', payload: { toolCallId: id, status: 'complete', safeOutput: { query, hits: [] } } },
+]
+const message = (messageId: string, role: Theorem.MessageRole, createdAtMs: number, parts: StoredPart[]): Theorem.Message => ({
+  schema: 'theorem.chat.message.v1', messageId, tenantId: 'tenant',
+  threadId: 'thread', originBranchId: 'branch', role, createdAtMs, parts,
+})
+/** A question, and the reply that arrived 42 seconds later. */
+const turn = (parts: StoredPart[], step = 'complete') => toAssistantMessages([
+  message('ask', 'user', 1_000, [{ partId: 'ask-text', type: 'text', payload: { text: 'How sunny is Denver?' } }]),
+  message('answer', 'assistant', 43_000, [
+    { partId: 'progress', type: 'progress', payload: { label: 'Searching the web', status: step } },
+    ...parts,
+    { partId: 'text', type: 'text', payload: { text: 'Denver gets 300 days of sun.' } },
+  ]),
+])
+const withStatus = (messages: ThreadMessageLike[], status: ThreadMessageLike['status']) =>
+  messages.map((item) => (item.role === 'assistant' ? { ...item, status } : item))
+
+const activity = (root: ParentNode) => {
+  const [line, ...more] = root.querySelectorAll('[data-slot="activity"]')
+  if (!line || more.length > 0) throw new Error('expected one activity line')
+  return line
+}
+const toolRows = (root: ParentNode) => root.querySelectorAll('[data-slot="tool-fallback-trigger"]')
+
+test('a finished turn is one line by the name, and Details opens its tool calls on a sheet', async () => {
+  const { container } = await render(<Harness messages={turn([...search('s1', 'denver sun'), ...search('s2', 'denver snow')])} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  const line = activity(container)
+  expect(line.textContent).toBe('Theorem·42s·Details')
+  expect(toolRows(container)).toHaveLength(0)
+  expect(container.textContent).not.toMatch(/tool calls?|Used tool|Done|Worked/)
+
+  const details = buttonNamed(line, 'Details')
+  if (!details) throw new Error('no Details control')
+  await click(details)
+  const sheet = await waitFor(() => line.querySelector('[data-slot="activity-details"]'))
+  await waitFor(() => toolRows(sheet).length === 2)
+  expect(sheet.textContent).toContain('Used tool: Web search')
+  // The tool calls are on the sheet only, never in the reply.
+  expect(toolRows(container)).toHaveLength(2)
+})
+
+test('a running turn names its live step on the line and keeps its tool calls closed', async () => {
+  const running = withStatus(turn(search('s1', 'denver sun'), 'running'), { type: 'running' })
+  const { container } = await render(<Harness isRunning messages={running} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  const line = activity(container)
+  expect(line.textContent.replace(/\s+/g, ' ')).toContain('Searching the web')
+  expect(line.textContent).not.toContain('Details')
+  expect(toolRows(container)).toHaveLength(0)
+
+  const step = line.querySelector('[role="button"]')
+  if (!step) throw new Error('the live step does not open')
+  await click(step)
+  await waitFor(() => toolRows(line).length === 1)
+})
+
+test('a turn with nothing to open has no control on its line', async () => {
+  const { container } = await render(<Harness messages={turn([])} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  const line = activity(container)
+  expect(line.textContent).toBe('Theorem·42s')
+  expect(line.querySelector('button, [role="button"]')).toBeNull()
+})
+
+test('a turn that stopped says so on its line', async () => {
+  const stopped = withStatus(turn(search('s1', 'denver sun')), { type: 'incomplete', reason: 'cancelled' })
+  const { container } = await render(<Harness messages={stopped} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  expect(activity(container).textContent).toBe('Theorem·Stopped·42s·Details')
+})

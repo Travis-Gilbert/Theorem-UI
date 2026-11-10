@@ -20,10 +20,9 @@ import {
 } from "@/components/assistant-ui/elements/reasoning.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
+  Activity,
   isStandaloneToolCall,
-  RunningIndicator,
   TheoremToolCall,
-  RunSummary,
 } from "@/components/chat/theorem-parts";
 import { ModelPicker } from "@/components/chat/model-picker";
 import { Icon } from "@/components/icons";
@@ -51,16 +50,9 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
-import type { ComponentType, FC, PropsWithChildren, ReactNode } from "react";
-import {
-  Collapsible,
-  CollapsiblePanel,
-  CollapsibleTrigger,
-} from "@/components/coss/collapsible";
+import type { ComponentType, FC, PropsWithChildren } from "react";
 import { ProjectGlyph } from "@/components/organize/glyphs";
-import { ChevronRight } from "lucide-react";
 
 import { Magnet, useArrivedLive } from "@/components/motion";
 import { flyFrom, kick, recordLaunch, takeLaunch } from "@/lib/motion";
@@ -96,8 +88,8 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
  * the whole message; the remaining slots override how the
  * assistant message renders tool calls and part groups. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`. Without `ToolGroup`, grouped tool calls draw no row of
- * their own and fold into the settled run's summary line (`RunSummary`).
+ * `ToolFallback`. Reasoning and grouped tool calls draw on the sheet the
+ * activity line opens (`Activity`), not in the reply.
  * When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
  * tool group; without it they render like any other tool call.
@@ -120,15 +112,26 @@ const defaultGroupBy = groupPartByType({
   "standalone-tool-call": [],
 });
 
-// Theorem: artifact tools and pending approvals render outside the tool group.
-const messageGroupBy: typeof defaultGroupBy = (part, context) =>
-  isStandaloneToolCall(part) ? [] : defaultGroupBy(part, context);
-
 type ThreadGroupKey =
   | "group-chainOfThought"
   | "group-reasoning"
   | "group-tool"
-  | "group-task";
+  | "group-task"
+  | "group-reply";
+
+const WORK_PATH: readonly ThreadGroupKey[] = ["group-chainOfThought"];
+
+// Theorem: artifact tools and pending approvals render outside the tool group,
+// and a reasoning summary is work like the reasoning it stands in for.
+const messageGroupBy = (
+  part: Parameters<typeof defaultGroupBy>[0],
+  context?: Parameters<typeof defaultGroupBy>[1],
+): readonly ThreadGroupKey[] =>
+  isStandaloneToolCall(part)
+    ? []
+    : part.type === "data" && part.name === "theorem-reasoning_summary"
+      ? WORK_PATH
+      : defaultGroupBy(part, context);
 
 const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
   "group-chainOfThought",
@@ -147,6 +150,21 @@ const taskAwareGroupBy = (
     ? TASK_GROUP_PATH
     : path;
 };
+
+type GroupBy = typeof taskAwareGroupBy;
+
+const REPLY_PATH: readonly ThreadGroupKey[] = ["group-reply"];
+
+/** The same grouping with everything that is not work gathered into groups the work pass leaves out. */
+const workOnly =
+  (groupBy: GroupBy): GroupBy =>
+  (part, context) => {
+    const path = groupBy(part, context);
+    return path.length > 0 ? path : REPLY_PATH;
+  };
+
+const messageWorkGroupBy = workOnly(messageGroupBy);
+const taskAwareWorkGroupBy = workOnly(taskAwareGroupBy);
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
@@ -599,159 +617,129 @@ const MessageError: FC = () => {
   );
 };
 
-/** An assistant message's parts as the thread shows them; a delegation panel shows a specialist's run with it. */
-/** How long the person waited for this reply, for history that kept no part timing. */
-const turnSeconds = (s: AssistantState) => {
-  const { messages } = s.thread;
-  const at = messages.findIndex((message) => message.id === s.message.id);
-  const asked = messages.slice(0, Math.max(at, 0)).findLast(
-    (message) => message.role === "user",
-  );
-  const replied = messages[at];
-  if (!asked || !replied) return undefined;
-  return Math.round(
-    (replied.createdAt.getTime() - asked.createdAt.getTime()) / 1000,
-  );
-};
-
-const spokenSeconds = (seconds: number) =>
-  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-
 /**
- * The reasoning and tool calls behind a reply, one row until it is opened. It
- * stands open while the model works and folds once it is done, unless the
- * person has already chosen.
+ * An assistant message's parts. The reply pass draws what the agent said and
+ * leaves its reasoning and tool calls out; the work pass draws only those, for
+ * the sheet the activity line opens.
  */
-const WorkGroup: FC<{ group: ThreadGroupPart; children: ReactNode }> = ({
-  group,
-  children,
-}) => {
-  const running = group.status.type === "running";
-  const turn = useAuiState(turnSeconds);
-  const [chosen, setChosen] = useState<boolean>();
-  const seconds = reasoningDuration(group.timing) ?? turn;
-  return (
-    <Collapsible
-      data-slot="aui_chain-of-thought"
-      className="mb-3"
-      open={chosen ?? running}
-      onOpenChange={setChosen}
-    >
-      <CollapsibleTrigger className="group/work flex h-9 w-full items-center gap-2 rounded-lg border border-separator bg-raised/40 px-3 text-sm text-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus">
-        <ChevronRight
-          aria-hidden
-          className="size-3.5 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/work:rotate-90"
-        />
-        <span className={cn(running && "shimmer motion-reduce:animate-none")}>
-          {running
-            ? "Working"
-            : seconds
-              ? `Worked for ${spokenSeconds(seconds)}`
-              : "Worked"}
-        </span>
-      </CollapsibleTrigger>
-      <CollapsiblePanel>
-        <div className="pt-2">{children}</div>
-      </CollapsiblePanel>
-    </Collapsible>
-  );
-};
-
-export const AssistantMessageContent: FC = () => {
+const MessageParts: FC<{ work?: boolean }> = ({ work = false }) => {
   const {
     ToolFallback: ToolFallbackComponent = TheoremToolCall,
     ToolGroup,
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
-  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
-  // Theorem: a tool group draws no row; its calls fold into the run summary.
+  const groupBy = TaskGroupComponent
+    ? work
+      ? taskAwareWorkGroupBy
+      : taskAwareGroupBy
+    : work
+      ? messageWorkGroupBy
+      : messageGroupBy;
+
+  return (
+    <MessagePrimitive.GroupedParts groupBy={groupBy}>
+      {({ part, children }) => {
+        switch (part.type) {
+          // A group that returns null draws none of its parts.
+          case "group-reply":
+            return null;
+          case "group-chainOfThought":
+            return work ? children : null;
+          case "group-task":
+            return TaskGroupComponent ? (
+              <TaskGroupComponent group={part} />
+            ) : null;
+          case "group-tool":
+            return ToolGroup ? (
+              <ToolGroup group={part}>{children}</ToolGroup>
+            ) : (
+              children
+            );
+          case "group-reasoning": {
+            if (ReasoningGroup) {
+              return <ReasoningGroup group={part}>{children}</ReasoningGroup>;
+            }
+            const running = part.status.type === "running";
+            // Reasoning is drawn on the activity sheet only, which is its frame.
+            return (
+              <ReasoningRoot streaming={running} variant="ghost" className="mb-1">
+                <ReasoningTrigger
+                  active={running}
+                  duration={reasoningDuration(part.timing)}
+                />
+                <ReasoningContent aria-busy={running}>
+                  <ReasoningText>{children}</ReasoningText>
+                </ReasoningContent>
+              </ReasoningRoot>
+            );
+          }
+          case "text":
+            return <MarkdownText />;
+          case "reasoning":
+            return <Reasoning {...part} />;
+          case "tool-call":
+            return part.toolUI ?? <ToolFallbackComponent {...part} />;
+          case "data":
+            return part.dataRendererUI;
+          case "file":
+            return (
+              <div data-slot="aui_assistant-message-file" className="py-1">
+                <MessageFile {...part} />
+              </div>
+            );
+          case "image":
+            return (
+              <div data-slot="aui_assistant-message-image" className="py-1">
+                <Image {...part} />
+              </div>
+            );
+          case "indicator":
+            return null;
+          default:
+            return null;
+        }
+      }}
+    </MessagePrimitive.GroupedParts>
+  );
+};
+
+/**
+ * An assistant message as the thread shows it: the activity line, by the
+ * speaker's name when it has one, then the reply. A delegation panel shows a
+ * specialist's run with it.
+ */
+export const AssistantMessageContent: FC<{ speaker?: string }> = ({
+  speaker,
+}) => {
+  const { TaskGroup } = useContext(ThreadComponentsContext);
+  const groupBy = TaskGroup ? taskAwareGroupBy : messageGroupBy;
   const parts = useAuiState((s) => s.message.parts);
   const toolUIs = useAuiState((s) => s.tools.toolUIs);
-  const folded = useMemo(
-    () =>
-      ToolGroup
-        ? []
-        : parts.flatMap((part, index) =>
-            groupBy(part, { toolUIs }).at(-1) === "group-tool" ? [index] : [],
-          ),
-    [ToolGroup, groupBy, parts, toolUIs],
+  const hasWork = useMemo(
+    () => parts.some((part) => groupBy(part, { toolUIs }).length > 0),
+    [groupBy, parts, toolUIs],
   );
 
   return (
-    <div
-      data-slot="aui_assistant-message-content"
-      className="text-foreground px-2 leading-6 wrap-break-word"
-    >
-      <RunSummary tools={folded} Tool={ToolFallbackComponent} />
-      <MessagePrimitive.GroupedParts groupBy={groupBy}>
-        {({ part, children }) => {
-          switch (part.type) {
-            case "group-chainOfThought":
-              return <WorkGroup group={part}>{children}</WorkGroup>;
-            case "group-task":
-              return TaskGroupComponent ? (
-                <TaskGroupComponent group={part} />
-              ) : null;
-            case "group-tool":
-              return ToolGroup ? (
-                <ToolGroup group={part}>{children}</ToolGroup>
-              ) : null;
-            case "group-reasoning": {
-              if (ReasoningGroup) {
-                return (
-                  <ReasoningGroup group={part}>{children}</ReasoningGroup>
-                );
-              }
-              const running = part.status.type === "running";
-              return (
-                <ReasoningRoot streaming={running}>
-                  <ReasoningTrigger
-                    active={running}
-                    duration={reasoningDuration(part.timing)}
-                  />
-                  <ReasoningContent aria-busy={running}>
-                    <ReasoningText>{children}</ReasoningText>
-                  </ReasoningContent>
-                </ReasoningRoot>
-              );
-            }
-            case "text":
-              return <MarkdownText />;
-            case "reasoning":
-              return <Reasoning {...part} />;
-            case "tool-call":
-              return part.toolUI ?? <ToolFallbackComponent {...part} />;
-            case "data":
-              return part.dataRendererUI;
-            case "file":
-              return (
-                <div data-slot="aui_assistant-message-file" className="py-1">
-                  <MessageFile {...part} />
-                </div>
-              );
-            case "image":
-              return (
-                <div data-slot="aui_assistant-message-image" className="py-1">
-                  <Image {...part} />
-                </div>
-              );
-            case "indicator":
-              return null;
-            default:
-              return null;
-          }
-        }}
-      </MessagePrimitive.GroupedParts>
-      <RunningIndicator />
-      <MessageError />
-    </div>
+    <>
+      <Activity
+        speaker={speaker}
+        work={hasWork ? <MessageParts work /> : undefined}
+      />
+      <div
+        data-slot="aui_assistant-message-content"
+        className="text-foreground px-2 leading-6 wrap-break-word"
+      >
+        <MessageParts />
+        <MessageError />
+      </div>
+    </>
   );
 };
 /** A mark, then who spoke above what they said, as in docs/plans/evidence/refs/sidebar-compare@2026-11-05.webp. */
 /** The agent speaks from the left of the column, under its mark and name. */
 const MESSAGE_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2";
-const MESSAGE_SPEAKER = "flex min-h-6 items-center gap-2 px-2 font-medium text-ink";
 
 /** The attributes that make a message a surface Kit can stand on, named and labelled for the agent. */
 function useKitSurface() {
@@ -800,8 +788,7 @@ const AssistantMessage: FC = () => {
         <ProjectGlyph className="size-5" />
       </span>
       <div className="min-w-0">
-        <div className={cn(MESSAGE_SPEAKER, "mb-1.5")}>Theorem</div>
-        <AssistantMessageContent />
+        <AssistantMessageContent speaker="Theorem" />
 
         <div
           data-slot="aui_assistant-message-footer"

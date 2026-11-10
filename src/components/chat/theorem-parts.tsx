@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, scene-part.tsx for the theorem-scene part
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, coss ui Collapsible (base-ui) for the activity line's details, and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, scene-part.tsx for the theorem-scene part
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -6,22 +6,22 @@
 // approvals (decided through runs.command, since Theorem owns approvals), and
 // gives the artifact tools a pending card while they run. Delegated work has
 // its own cards in delegation-parts.
-import {
-  MessagePrimitive,
-  useAui,
-  useAuiState,
-  useAssistantDataUI,
-} from '@assistant-ui/react'
+import { useAui, useAuiState, useAssistantDataUI } from '@assistant-ui/react'
 import { CatchBoundary } from '@tanstack/react-router'
 import type {
+  AssistantState,
   DataMessagePartComponent,
   ToolCallMessagePartComponent,
 } from '@assistant-ui/react'
-import { useEffect, useMemo, useState } from 'react'
-import type { FC } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import type { FC, ReactNode } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
-import { CollapsibleTrigger } from '@/components/assistant-ui/elements/collapsible-root'
+import {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleTrigger,
+} from '@/components/coss/collapsible'
 import {
   ReasoningContent,
   ReasoningRoot,
@@ -29,10 +29,6 @@ import {
   ReasoningTrigger,
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-} from '@/components/assistant-ui/elements/tool-group.aui'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import {
   ARTIFACT_PART,
@@ -463,7 +459,7 @@ export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   return <ToolFallback {...props} />
 }
 
-/* ------------------------------------------------------------- run summary */
+/* ---------------------------------------------------------------- activity */
 
 const LIVE_STATUSES = new Set([
   'running',
@@ -491,11 +487,42 @@ function progressLabels(
   })
 }
 
+/** How long the person waited for this reply: from their message to its arrival. */
+const waitedSeconds = (s: AssistantState) => {
+  const { messages } = s.thread
+  const at = messages.findIndex((message) => message.id === s.message.id)
+  const asked = messages
+    .slice(0, Math.max(at, 0))
+    .findLast((message) => message.role === 'user')
+  const replied = messages[at]
+  if (!asked || !replied) return undefined
+  return Math.round(
+    (replied.createdAt.getTime() - asked.createdAt.getTime()) / 1000,
+  )
+}
+
+const spokenSeconds = (seconds: number) =>
+  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+
+const ACTIVITY_CONTROL =
+  '-mx-1 cursor-pointer rounded-sm px-1 outline-offset-2 outline-focus transition-colors duration-(--duration-snap) ease-snap hover:bg-hover hover:text-ink focus-visible:outline-2 data-panel-open:bg-hover data-panel-open:text-ink'
+
 /**
- * Theorem publishes answer text at turn end, so a running turn needs a visible
- * state: the latest progress label, or "Thinking", beside a thinking orb.
+ * What the agent is doing, then what it did, as one unboxed line by its name:
+ * the live step while it works ("Theorem · Checking the examples"), and once
+ * it settles how long the reply took and a Details control ("Theorem · 42s ·
+ * Details"). Theorem publishes answer text at turn end, so the live step is
+ * the running turn's visible state. Either opens the steps, the reasoning and
+ * the tool calls on a small sheet of paper; until then the work takes no room
+ * of its own. A run that stopped or did not finish says so on the line, and an
+ * approval still to give keeps its card in the reply.
  */
-export const RunningIndicator: FC = () => {
+export const Activity: FC<{
+  /** Whose line this is. A specialist's run in a delegation panel has no name to sit by. */
+  speaker?: string | undefined
+  /** The reply's reasoning and tool calls as the thread draws them, when it has any. */
+  work?: ReactNode
+}> = ({ speaker, work }) => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   const awaiting = useAuiState((s) =>
     s.message.content.some((part) => {
@@ -504,46 +531,17 @@ export const RunningIndicator: FC = () => {
       return approval !== undefined && approvalOutcome(approval) === 'awaiting'
     }),
   )
-  const label = useAuiState((s) => {
-    const last = s.message.content.findLast(
-      (part) => part.type === 'data' && part.name === 'theorem-progress',
-    )
-    const data = last?.type === 'data' ? object(last.data) : {}
-    return LIVE_STATUSES.has(str(data.status) ?? '')
-      ? str(data.label)
-      : undefined
-  })
-  if (!running) return null
-  return (
-    <ThinkingIndicator
-      className="my-2"
-      label={awaiting ? 'Waiting for your approval' : (label ?? 'Thinking')}
-      orb={awaiting ? 'breathing' : 'working'}
-    />
-  )
-}
-
-/**
- * A settled run's one line: its outcome, opening to its steps and to the tool
- * calls it made. Tool calls draw no row of their own; the thread folds them
- * here (`tools` holds their part indices), so a finished turn reads as its
- * answer under one quiet line, each call's arguments and result a click away.
- */
-export const RunSummary: FC<{
-  tools: readonly number[]
-  Tool: ToolCallMessagePartComponent
-}> = ({ tools, Tool }) => {
-  const settled = useAuiState((s) => s.message.status?.type !== 'running')
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
   const labels = useMemo(() => progressLabels(content), [content])
-  const lastStatus = useAuiState((s) => {
-    const last = s.message.content.findLast(
+  const progress = useMemo(() => {
+    const last = content.findLast(
       (part) => part.type === 'data' && part.name === 'theorem-progress',
     )
-    return last?.type === 'data' ? str(object(last.data).status) : undefined
-  })
+    return last?.type === 'data' ? object(last.data) : {}
+  }, [content])
+  const status = str(progress.status)
   // Labels are what the run was doing while live ("Working"), even on the
   // step that completes, so the line names the outcome from the statuses: the
   // message's, then the last step's.
@@ -556,56 +554,100 @@ export const RunSummary: FC<{
           : 'Did not finish'
         : undefined,
   )
-  const components = useMemo(() => ({ tools: { Fallback: Tool } }), [Tool])
-  if (!settled || (labels.length === 0 && tools.length === 0)) return null
-  const finished = DONE_STATUSES.has(lastStatus ?? 'complete')
-  const result = outcome ?? (finished ? 'Done' : 'Did not finish')
-  const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
+  const seconds = useAuiState(waitedSeconds)
+  const [open, setOpen] = useState(false)
+
   const steps = labels.length > 1
-  const line = (
-    <>
-      <StatusIcon className="size-3.5" />
-      {steps
-        ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
-        : result}
-    </>
-  )
-  if (!steps && tools.length === 0)
-    return (
-      <p
-        data-slot="run-summary"
-        className="my-1 flex items-center gap-1.5 py-1 text-sm text-ink-faint"
-      >
-        {line}
-      </p>
+  const openable = steps || Boolean(work)
+  const notes: ReactNode[] = []
+  if (running) {
+    const doing = (
+      <ThinkingIndicator
+        label={
+          awaiting
+            ? 'Waiting for your approval'
+            : ((LIVE_STATUSES.has(status ?? '')
+                ? str(progress.label)
+                : undefined) ?? 'Thinking')
+        }
+        orb={awaiting ? 'breathing' : 'working'}
+      />
     )
+    notes.push(
+      openable ? (
+        <CollapsibleTrigger
+          nativeButton={false}
+          render={doing}
+          className={ACTIVITY_CONTROL}
+        />
+      ) : (
+        doing
+      ),
+    )
+  } else if (labels.length > 0 || work) {
+    const result =
+      outcome ??
+      (DONE_STATUSES.has(status ?? 'complete') ? 'Done' : 'Did not finish')
+    if (result !== 'Done') notes.push(result)
+    if (seconds)
+      notes.push(<span className="tabular-nums">{spokenSeconds(seconds)}</span>)
+    if (openable)
+      notes.push(
+        <CollapsibleTrigger className={ACTIVITY_CONTROL}>
+          Details
+        </CollapsibleTrigger>,
+      )
+  }
+  if (!speaker && notes.length === 0) return null
+
   return (
-    <ToolGroupRoot
-      variant="ghost"
-      data-slot="run-summary"
-      className="my-1 text-sm text-ink-faint"
+    <Collapsible
+      data-slot="activity"
+      className="mb-1.5"
+      open={open}
+      onOpenChange={setOpen}
     >
-      <CollapsibleTrigger className="group/trigger flex items-center gap-1.5 py-1 hover:text-ink">
-        {line}
-        <Icon.Next className="size-3 shrink-0 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
-      </CollapsibleTrigger>
-      <ToolGroupContent>
-        {steps && (
-          <ol className="ms-5 list-decimal text-sm leading-6">
-            {labels.map((label, index) => (
-              <li key={index}>{label}</li>
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2 px-2">
+        {speaker && <span className="font-medium text-ink">{speaker}</span>}
+        {notes.length > 0 && (
+          <span
+            data-slot="activity-line"
+            className="flex min-w-0 items-center gap-x-2 text-sm text-ink-muted"
+          >
+            {notes.map((note, index) => (
+              <Fragment key={index}>
+                {(speaker || index > 0) && (
+                  <span aria-hidden className="text-ink-faint">
+                    ·
+                  </span>
+                )}
+                {note}
+              </Fragment>
             ))}
-          </ol>
+          </span>
         )}
-        {tools.map((index) => (
-          <MessagePrimitive.PartByIndex
-            key={index}
-            index={index}
-            components={components}
-          />
-        ))}
-      </ToolGroupContent>
-    </ToolGroupRoot>
+      </div>
+      {openable && (
+        <CollapsiblePanel>
+          {/* Room for the sheet's shadow inside the panel's clip. */}
+          <div className="px-2 pt-2 pb-3">
+            <div
+              data-slot="activity-details"
+              className="surface-paper-subtle rounded-xl px-3 py-2 text-sm"
+            >
+              {steps && (
+                <ol className="ms-5 list-decimal py-1 leading-6 text-ink-muted">
+                  {labels.map((label, index) => (
+                    <li key={index}>{label}</li>
+                  ))}
+                </ol>
+              )}
+              {work}
+            </div>
+          </div>
+        </CollapsiblePanel>
+      )}
+    </Collapsible>
   )
 }
 
@@ -616,7 +658,7 @@ const ReasoningSummaryPart: DataMessagePartComponent = ({ data }) => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   if (!text) return null
   return (
-    <ReasoningRoot streaming={running}>
+    <ReasoningRoot streaming={running} variant="ghost" className="mb-1">
       <ReasoningTrigger active={running} />
       <ReasoningContent>
         <ReasoningText>
@@ -851,7 +893,7 @@ const RENDERERS = (
     guarded(name, render),
   ])
   .concat([
-    // The run's steps are drawn once per message by RunSummary.
+    // The run's steps are drawn once per message by Activity.
     ['theorem-progress', Inert],
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
