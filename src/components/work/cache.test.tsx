@@ -1,7 +1,7 @@
 // SOURCING: bun:test over the work tracker's cache edits and mutation hooks, rendered with React into happy-dom (test/workspace's render, which supplies the QueryClient) against a fake WorkSource
 import { QueryClient, useQueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, test } from 'bun:test'
-import { act } from 'react'
+import { act, useState } from 'react'
 import { cleanup, render, settle, waitFor } from '../../../test/workspace'
 import {
   SETTINGS_KEY,
@@ -181,6 +181,38 @@ describe('an edit shown before the server answers', () => {
     expect(listed(client).items[0]!.status.id).toBe('todo')
     expect(client.getQueryData<WorkItemDetail>(keys.item('1'))!.item.status.id).toBe('todo')
     expect(listed(client).groups!.map((g) => g.count)).toEqual([2, 0])
+  })
+
+  test('a refusal is reported even after the row that asked has gone', async () => {
+    const answer = deferred<WorkItem>()
+    const reported: unknown[] = []
+    let patch!: ReturnType<typeof usePatchWorkItem>['mutate']
+    let drop!: () => void
+    // An edit that regroups a row unmounts the component that sent it.
+    function Row() {
+      patch = usePatchWorkItem((error) => reported.push(error)).mutate
+      return null
+    }
+    function List() {
+      const [shown, setShown] = useState(true)
+      drop = () => setShown(false)
+      return shown ? <Row /> : null
+    }
+    const { queryClient } = await render(
+      <WorkSourceProvider source={fakeSource({ patchItem: () => answer.promise })}>
+        <List />
+      </WorkSourceProvider>,
+    )
+    queryClient.setQueryData(keys.facets, FACETS)
+    queryClient.setQueryData(keys.itemList(QUERY), pages(item('1', { status: TODO })))
+
+    await act(async () => patch({ id: '1', patch: { statusId: 'doing' } }))
+    await act(async () => drop())
+    await act(async () => answer.reject(new Error('conflict')))
+    await settle()
+
+    expect(reported.map(String)).toEqual(['Error: conflict'])
+    expect(listed(queryClient).items[0]!.status.id).toBe('todo')
   })
 
   test('quick edits go one at a time, each with the revision the last returned', async () => {

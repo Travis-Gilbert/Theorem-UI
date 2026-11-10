@@ -30,16 +30,15 @@ import type { WorkFacets, WorkItem, WorkPriority } from './contract'
 /** Applies a choice to one or more items; every item gets its own patch. */
 export function useQuickEdit(onError?: (error: unknown) => void) {
   const source = useWorkSource()
-  const patch = usePatchWorkItem()
   const report = useContext(EditErrorContext)
+  const patch = usePatchWorkItem(onError ?? report)
   return {
     canEdit: !!source.patchItem,
     choose(items: WorkItem[], field: EditField, value: string | null) {
       const add = value ? addsOnToggle(items, field, value) : true
       for (const item of items) {
         const change = patchFor(field, item, value, add)
-        if (change)
-          patch.mutate({ id: item.id, patch: change }, { onError: onError ?? report })
+        if (change) patch.mutate({ id: item.id, patch: change })
       }
     },
   }
@@ -92,7 +91,13 @@ export function OptionPicker({
 }) {
   return (
     <Popover open={!!anchor} onOpenChange={(open) => !open && onClose()}>
-      <PopoverPopup anchor={anchor} align="start" className="p-0">
+      {/* A click in the popup bubbles through the React tree to the row or card that holds it, which would open the item. */}
+      <PopoverPopup
+        anchor={anchor}
+        align="start"
+        className="p-0"
+        onClick={(event) => event.stopPropagation()}
+      >
         <Command
           items={options}
           itemToStringValue={(item: unknown) => (item as Option).label}

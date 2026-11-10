@@ -168,9 +168,9 @@ type PatchVariables = { id: string; patch: WorkItemPatch }
  * Edits an item. The caches show the change at once; the server's answer
  * replaces it, and a refusal puts the item back as it was. Edits go one at a
  * time, each sent with the revision the last one returned, so two quick ones
- * do not race on If-Match.
+ * do not race on If-Match. `report` hears a refusal after the item is back.
  */
-export function usePatchWorkItem() {
+export function usePatchWorkItem(report?: (error: unknown) => void) {
   const source = useWorkSource()
   const keys = useWorkKeys()
   const client = useQueryClient()
@@ -192,8 +192,10 @@ export function usePatchWorkItem() {
         )
       return { before }
     },
-    onError: (_error, _variables, context) => {
+    // Here, not in a `mutate` callback: those are dropped once the component that asked has unmounted, and an edit that moves a row to another group unmounts it.
+    onError: (error, _variables, context) => {
       if (context?.before) writeItem(client, keys, context.before)
+      report?.(error)
     },
     onSuccess: (item) => void writeItem(client, keys, item),
     onSettled: (_item, _error, { id }) => {
