@@ -85,6 +85,29 @@ test('what the App put on its body and root is on the ones it is drawn in', () =
   expect(svg).not.toContain('steal')
 })
 
+test('a body background is painted once, behind the whole picture', () => {
+  const svg = pictureSvg('<p>Tinted</p>', 100, 100, purify, {
+    root: {},
+    body: { style: 'background: rgba(255, 0, 0, 0.5)' },
+    background: 'rgba(255, 0, 0, 0.5)',
+  })
+  const page = parsed(svg)
+  expect(page.querySelector('html')?.getAttribute('style')).toContain(
+    'background-color: rgba(255, 0, 0, 0.5)',
+  )
+  // The body no longer paints it: the root does, across the whole picture.
+  const body = page.querySelector('body')?.getAttribute('style') ?? ''
+  expect(body).toMatch(/background(?:-color)?: transparent/)
+  expect(body).not.toContain('rgba')
+  // Anything that is not a colour is not drawn with.
+  const refused = pictureSvg('<p>x</p>', 100, 100, purify, {
+    root: {},
+    body: {},
+    background: 'url(https://example.com/a.png)',
+  })
+  expect(refused).not.toContain('example.com')
+})
+
 describe('what a turn keeps of a picture', () => {
   test('a picture is kept up to the bound and not past it', () => {
     expect(fitsATurn('')).toBe(false)

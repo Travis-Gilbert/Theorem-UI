@@ -9,7 +9,12 @@ import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import type { Display } from './cell'
 import { outlineOf } from './outline'
-import { MAX_PAGE_ATTRIBUTES, MAX_SNAPSHOT, PAGE_ATTRIBUTE } from './protocol'
+import {
+  MAX_PAGE_ATTRIBUTES,
+  MAX_SNAPSHOT,
+  PAGE_ATTRIBUTE,
+  TRANSPARENT,
+} from './protocol'
 import type { PageAttributes } from './protocol'
 
 /** Shows displayed values in `container`, each in its own element. */
@@ -98,9 +103,6 @@ export function lookNow(): {
   return { html, outline: outlineOf(document.body), page: pageAttributes() }
 }
 
-/** A computed colour that paints nothing. */
-const TRANSPARENT = /^(?:transparent|rgba\(0, 0, 0, 0\))$/
-
 function carried(element: Element): Record<string, string> {
   const attributes: Record<string, string> = {}
   for (const { name, value } of element.attributes)
@@ -113,9 +115,13 @@ function carried(element: Element): Record<string, string> {
  * than a page takes, so the copy is still sent.
  */
 export function pageAttributes(): PageAttributes {
-  const background = [document.documentElement, document.body]
-    .map((element) => getComputedStyle(element).backgroundColor)
-    .find((colour) => colour && !TRANSPARENT.test(colour))
+  const painted = (element: Element) => {
+    const colour = getComputedStyle(element).backgroundColor
+    return colour && !TRANSPARENT.test(colour) ? colour : undefined
+  }
+  const background = painted(document.documentElement)
+    ? undefined
+    : painted(document.body)
   const page: PageAttributes = {
     root: carried(document.documentElement),
     body: carried(document.body),

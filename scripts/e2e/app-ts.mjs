@@ -306,7 +306,7 @@ try {
   // with CSS and what it drew on a canvas.
   const pictured = await inspect(
     `<!doctype html><html class="night"><style>body { margin: 0 } #box { width: 200px; height: 100px; background: rgb(255, 0, 0) } .night:root #under { height: 50px; background: rgb(255, 255, 0) }</style>
-     <body style="background: rgb(0, 128, 0)"><div id="box"></div><canvas id="c" width="200" height="100"></canvas><div id="under"></div>
+     <body style="background: rgba(0, 128, 0, 0.5)"><div id="box"></div><canvas id="c" width="200" height="100"></canvas><div id="under"></div>
      <script>const g = document.getElementById("c").getContext("2d"); g.fillStyle = "rgb(0, 0, 255)"; g.fillRect(0, 0, 200, 100)</script>`,
     { picture: true },
   )
@@ -327,6 +327,8 @@ try {
           // Styled by a class on the root, and by a style on the body.
           under: at(100, 225),
           body: at(600, 600),
+          // Inside the body's own box, beside the box and the canvas.
+          margin: at(600, 50),
           size: [image.width, image.height],
         }
       }, pictured.picture)
@@ -336,7 +338,9 @@ try {
     pixels?.box === '255,0,0,255' &&
       pixels.canvas === '0,0,255,255' &&
       pixels.under === '255,255,0,255' &&
-      pixels.body === '0,128,0,255' &&
+      // Half green over the white base, once: twice would be 64,160,64.
+      pixels.body === '127,191,127,255' &&
+      pixels.margin === pixels.body &&
       pixels.size[0] === 1024,
     { pixels, bytes: pictured.picture?.data.length },
   )

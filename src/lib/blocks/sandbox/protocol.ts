@@ -196,18 +196,21 @@ export interface PageAttributes {
   root: Record<string, string>
   body: Record<string, string>
   /**
-   * The colour behind the whole page: the root's background or, where it has
-   * none, the body's, which a browser paints across the viewport.
+   * The body's background colour, where the root has none. A browser paints
+   * that behind the whole page and not in the body's box, so a copy has to be
+   * told. Absent where the root has its own or neither has one.
    */
   background?: string
 }
 
-/** What a computed background colour looks like; nothing else is drawn with. */
+/** What a computed colour looks like; nothing else is drawn with. */
 export const PAGE_BACKGROUND =
   /^(?:rgba?|color|oklch|oklab|lab|lch|hsla?)\([\w\s.,%/+-]{1,80}\)$/
 
 /** The attributes carried: what CSS can select on or read, and nothing that runs. */
 export const PAGE_ATTRIBUTE = /^(?:class|style|dir|lang|data-[\w-]{1,64})$/
+/** A computed colour that paints nothing. */
+export const TRANSPARENT = /^(?:transparent|rgba\(0, 0, 0, 0\))$/
 /** The most text one page's carried attributes are, all together. */
 export const MAX_PAGE_ATTRIBUTES = 32 * 1024
 
