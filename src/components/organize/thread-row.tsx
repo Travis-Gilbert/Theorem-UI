@@ -409,7 +409,7 @@ export function ThreadRow({
   )
 }
 
-/** Keeps a thread's project open when that thread becomes the open one. */
+/** Keeps a thread's project open when that thread becomes the open one. Chats outside every project are always listed. */
 export function useRevealOpenThread(views: OrganizedViews) {
   const { threadId } = useParams({ strict: false })
   const thread = threadId ? views.byId.get(threadId) : undefined
@@ -422,11 +422,9 @@ export function useRevealOpenThread(views: OrganizedViews) {
   useEffect(() => {
     if (threadId && failedAt) markSeen(threadId)
   }, [threadId, failedAt, markSeen])
+  const filed = (thread?.memberships.length ?? 0) > 0
   useEffect(() => {
-    if (!primary) return
-    const { setOrganizeOpen } = useShell.getState()
-    setOrganizeOpen(`project:${primary}`, true)
-    if (views.unsorted.some((t) => t.threadId === threadId))
-      setOrganizeOpen('view:unsorted', true)
-  }, [threadId, primary, views.unsorted])
+    if (primary && filed)
+      useShell.getState().setOrganizeOpen(`project:${primary}`, true)
+  }, [threadId, primary, filed])
 }

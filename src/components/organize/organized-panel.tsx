@@ -1,4 +1,4 @@
-// SOURCING: coss ui sidebar, collapsible, menu and kbd over Base UI, the shadcn button, @dnd-kit/core (DndContext, useDroppable and DragOverlay: a thread dragged onto a project moves there), @dnd-kit/sortable with @dnd-kit/modifiers and @dnd-kit/utilities (a project dragged to another place in its list, as the rail's destinations are), @tanstack/react-router, the shell's tenant and command palette, useGlideHighlight from components/motion, lib/theorem/organization. The shape (a stable tree with attention views above it and the Librarian below) is the design direction of 2026-11-05, with thread membership translated from mikecann/threadbear@78b77e1 (MIT, Mike Cann).
+// SOURCING: coss ui sidebar, collapsible, menu and input over Base UI, the shadcn button, @dnd-kit/core (DndContext, useDroppable and DragOverlay: a thread dragged onto a project moves there), @dnd-kit/sortable with @dnd-kit/modifiers and @dnd-kit/utilities (a project dragged to another place in its list, as the rail's destinations are), @tanstack/react-router, the shell's tenant and command palette, useGlideHighlight from components/motion, lib/theorem/organization. The shape (a stable tree with attention views above it and the Librarian below) is the design direction of 2026-11-05, with thread membership translated from mikecann/threadbear@78b77e1 (MIT, Mike Cann).
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useAuiState } from '@assistant-ui/react'
 import {
@@ -41,7 +41,7 @@ import {
   CollapsiblePanel,
   CollapsibleTrigger,
 } from '@/components/coss/collapsible'
-import { Kbd } from '@/components/coss/kbd'
+import { Input } from '@/components/coss/input'
 import {
   Menu,
   MenuItem,
@@ -79,7 +79,7 @@ import type { RowDrag } from './thread-row'
 import { neighbour } from '@/lib/theorem/row-neighbour'
 import { useCommandPalette } from '@/components/shell/command-palette'
 import { useShellMode } from '@/components/shell/modes'
-import { useTenant } from '@/components/shell/projects'
+import { useCreateProject, useTenant } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { describeError } from '@/lib/theorem/client'
 import {
@@ -101,7 +101,6 @@ import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { openReview } from '@/lib/theorem/reviews'
 import { cn } from '@/lib/utils'
 import { LibrarianFooter } from './librarian-footer'
-import { NewProjectDialog } from './new-project-dialog'
 
 const HIGHLIGHTED = '[data-organize-row="primary"]'
 const panelMotion =
@@ -116,6 +115,8 @@ function useSectionOpen(key: string, fallback: boolean) {
 
 /** Threads a project lists before "Show more", so one busy project does not push the others away. */
 const THREADS_SHOWN = 4
+/** Chats outside every project list more: that is where a chat goes until it is filed. */
+const CHATS_SHOWN = 8
 
 const DOT = {
   attention: 'bg-attention',
@@ -360,9 +361,12 @@ function AppsAndOutputs({ project }: { project: ProjectEntry }) {
 function ThreadRows({
   threads,
   place,
+  first = THREADS_SHOWN,
 }: {
   threads: readonly ThreadEntry[]
   place: string
+  /** How many show before "Show more". */
+  first?: number
 }) {
   const { roots, children } = useMemo(() => nestByOrigin(threads), [threads])
   const { threadId: openThreadId } = useParams({ strict: false })
@@ -373,8 +377,7 @@ function ThreadRows({
   const shown = showAll
     ? roots
     : roots.filter(
-        (thread, index) =>
-          index < THREADS_SHOWN || thread.threadId === openRoot,
+        (thread, index) => index < first || thread.threadId === openRoot,
       )
   const hidden = roots.length - shown.length
   return (
@@ -474,7 +477,6 @@ function ProjectNode({
         >
           <ProjectGlyph
             glyph={project.glyph}
-            open={open}
             aria-hidden
             className="text-ink-muted"
           />
@@ -549,48 +551,99 @@ function ProjectNode({
   )
 }
 
-function UnsortedNode({
+/**
+ * A project being named where it will be listed. Enter or leaving the field
+ * makes it; Escape, or leaving it empty or after a refusal, drops it.
+ */
+function NewProjectRow({
+  onDone,
+  onCreated,
+}: {
+  onDone: () => void
+  onCreated: (projectId: string) => void
+}) {
+  const [title, setTitle] = useState('')
+  const create = useCreateProject()
+  const submit = () => {
+    const name = title.trim()
+    if (!name) return onDone()
+    if (create.isPending) return
+    create.mutate(name, {
+      onSuccess: ({ record }) => {
+        onDone()
+        onCreated(record.projectId)
+      },
+    })
+  }
+  return (
+    <SidebarMenuItem>
+      <div className="flex h-8 items-center gap-2 ps-2 pe-1">
+        <Icon.Folder />
+        <Input
+          autoFocus
+          size="sm"
+          aria-label="Project name"
+          placeholder="Project name"
+          value={title}
+          // Read-only keeps the focus a disabled field would lose.
+          readOnly={create.isPending}
+          aria-busy={create.isPending}
+          className="h-7"
+          onChange={(event) => setTitle(event.target.value)}
+          onBlur={() => (create.isError ? onDone() : submit())}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return
+            if (event.key === 'Enter') submit()
+            else if (event.key === 'Escape') onDone()
+          }}
+        />
+      </div>
+      {create.error && (
+        <p role="alert" className="px-2 py-1 text-xs text-error-ink">
+          {describeError(create.error)}
+        </p>
+      )}
+    </SidebarMenuItem>
+  )
+}
+
+/**
+ * The chats outside every project, beside the projects and not among them: a
+ * chat started with no project is listed here, and a thread dragged here
+ * leaves its projects.
+ */
+function ChatsGroup({
   threads,
   starting,
 }: {
   threads: readonly ThreadEntry[]
   starting: boolean
 }) {
-  const [stored, setOpen] = useSectionOpen('view:unsorted', false)
-  const open = stored || starting
-  const {
-    setNodeRef: dropRef,
-    isOver,
-    active,
-  } = useDroppable({
+  const { setNodeRef, isOver, active } = useDroppable({
     id: 'unsorted',
     data: { projectId: null } satisfies DropTarget,
   })
   const accepting = isOver && takes(active, null)
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      render={
-        <SidebarMenuItem ref={dropRef} className={cn(accepting && dropRing)} />
-      }
-    >
-      <CollapsibleTrigger render={<SidebarMenuButton className="pe-8" />}>
-        <Icon.Mail aria-hidden className="text-ink-muted" />
-        <span className="min-w-0 flex-1 truncate">Unsorted</span>
-      </CollapsibleTrigger>
-      {threads.length > 0 && (
-        <SidebarMenuBadge className="text-ink-muted">
-          {threads.length}
-        </SidebarMenuBadge>
+    <SidebarGroup
+      ref={setNodeRef}
+      className={cn(
+        'border-t border-separator p-0 pt-2',
+        accepting && dropRing,
       )}
-      <CollapsiblePanel className={panelMotion}>
-        <SidebarMenuSub className="me-0 pe-0">
-          {starting && <StartingRow />}
-          <ThreadRows threads={threads} place="unsorted" />
-        </SidebarMenuSub>
-      </CollapsiblePanel>
-    </Collapsible>
+    >
+      <SidebarGroupLabel>Chats</SidebarGroupLabel>
+      {/* The rows a project nests, here at the top level: no guide line, no ticks. */}
+      <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 px-0 *:before:hidden">
+        {starting && <StartingRow />}
+        <ThreadRows threads={threads} place="unsorted" first={CHATS_SHOWN} />
+        {threads.length === 0 && !starting && (
+          <li className="px-2 py-1 text-xs text-ink-muted">
+            No chats yet. Start one above, or drag one out of a project.
+          </li>
+        )}
+      </SidebarMenuSub>
+    </SidebarGroup>
   )
 }
 
@@ -662,7 +715,7 @@ function useFreshAfterRuns(known: (threadId: string) => boolean) {
   }, [client, running, missing])
 }
 
-/** Chat's panel: attention views above a stable project tree, the Librarian below, the files folded. */
+/** Chat's panel: attention views above a stable project tree and the chats outside it, the Librarian below, the files folded. */
 export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
   const { data, error, isPending } = useOrganization()
   const navigate = useNavigate()
@@ -673,7 +726,7 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
 
   const inbox = data?.projects.find((project) => project.isInbox)
   const startingIn = useStartingIn()
-  // A chat started outside every project shows under Unsorted until it is filed.
+  // A chat started outside every project shows under Chats until it is filed.
   const startingUnsorted =
     startingIn !== undefined &&
     (startingIn === inbox?.projectId ||
@@ -683,12 +736,8 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
     const shell = useShell.getState()
     if (projectId) {
       shell.setProjectId(projectId)
-      shell.setOrganizeOpen(
-        projectId === inbox?.projectId
-          ? 'view:unsorted'
-          : `project:${projectId}`,
-        true,
-      )
+      if (projectId !== inbox?.projectId)
+        shell.setOrganizeOpen(`project:${projectId}`, true)
     }
     void navigate({ to: '/' }).then(() =>
       requestAnimationFrame(() => void focusComposer()),
@@ -754,12 +803,8 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
     }
     const { projectId } = over.data.current as DropTarget
     mover.move(drag.thread, drag.from, projectId)
-    useShell
-      .getState()
-      .setOrganizeOpen(
-        projectId ? `project:${projectId}` : 'view:unsorted',
-        true,
-      )
+    if (projectId)
+      useShell.getState().setOrganizeOpen(`project:${projectId}`, true)
   }
   const onDragCancel = () => {
     setDragging(undefined)
@@ -791,11 +836,11 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
+            aria-label="Search"
+            title="Search (⌘K)"
             onClick={() => useCommandPalette.getState().setOpen(true)}
           >
-            <Icon.Search aria-hidden />
-            <span className="min-w-0 flex-1 truncate">Search</span>
-            <Kbd>⌘K</Kbd>
+            <Icon.ChatSearch />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -860,6 +905,16 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
                   <Icon.Add />
                 </SidebarGroupAction>
                 <SidebarMenu>
+                  {creating && (
+                    <NewProjectRow
+                      onDone={() => setCreating(false)}
+                      onCreated={(projectId) => {
+                        // It stays where it was named: first in the list.
+                        setProjectOrder([projectId, ...projectIds])
+                        newThread(projectId)
+                      }}
+                    />
+                  )}
                   {isPending &&
                     Array.from({ length: 4 }, (_, index) => (
                       <SidebarMenuSkeleton key={index} />
@@ -889,14 +944,6 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
                       />
                     ))}
                   </SortableContext>
-                  {(views.unsorted.length > 0 ||
-                    startingUnsorted ||
-                    dragging) && (
-                    <UnsortedNode
-                      threads={views.unsorted}
-                      starting={startingUnsorted}
-                    />
-                  )}
                 </SidebarMenu>
                 {(error ?? mover.error) && (
                   <p role="alert" className="px-2 py-1 text-xs text-error-ink">
@@ -904,6 +951,10 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
                   </p>
                 )}
               </SidebarGroup>
+              <ChatsGroup
+                threads={views.unsorted}
+                starting={startingUnsorted}
+              />
             </div>
             <DragOverlay dropAnimation={null}>
               {dragging && (
@@ -925,11 +976,6 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
       <ThreadFromFailure />
       {data?.served && <LibrarianFooter librarian={data.librarian} />}
       {footer}
-      <NewProjectDialog
-        open={creating}
-        onOpenChange={setCreating}
-        onCreated={(projectId) => newThread(projectId)}
-      />
     </div>
   )
 }

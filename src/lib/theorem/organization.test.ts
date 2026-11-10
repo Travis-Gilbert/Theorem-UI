@@ -114,7 +114,7 @@ describe('organizedViews', () => {
     expect(views.running.map((t) => t.threadId)).toEqual(['live'])
   })
 
-  test('no live membership is Unsorted and the inbox is not a project', () => {
+  test('no live membership is Chats (unsorted) and the inbox is not a project', () => {
     const views = organizedViews(organization)
     expect(views.unsorted.map((t) => t.threadId)).toEqual([
       'snoozed',
@@ -257,7 +257,7 @@ describe('organizationFromThreads', () => {
       ...over,
     }) as Theorem.Thread
 
-  test('the oldest project is the inbox and its threads are Unsorted', () => {
+  test('the oldest project is the inbox and its threads are Chats (unsorted)', () => {
     const read = organizationFromThreads(
       [apiProject('later', 5), apiProject('first', 1)],
       [apiThread('here', 'first'), apiThread('there', 'later')],
@@ -318,7 +318,7 @@ describe('planMove', () => {
     expect(planMove(served, t, 'view:running', 'a')).toBeUndefined()
   })
 
-  test('served: Unsorted drops every membership, and an unsorted thread needs nothing', () => {
+  test('served: Chats (unsorted) drops every membership, and an unsorted thread needs nothing', () => {
     const t = thread('t', { memberships: [member('a'), member('b')] })
     expect(planMove(served, t, 'a', null)).toEqual({
       kind: 'placement',
@@ -327,7 +327,7 @@ describe('planMove', () => {
     expect(planMove(served, thread('u'), 'unsorted', null)).toBeUndefined()
   })
 
-  test('unserved: a move changes home, and Unsorted is the inbox', () => {
+  test('unserved: a move changes home, and Chats (unsorted) is the inbox', () => {
     const t = thread('t', { homeProjectId: 'a' })
     expect(planMove(unserved, t, 'a', 'b')).toEqual({
       kind: 'home',
