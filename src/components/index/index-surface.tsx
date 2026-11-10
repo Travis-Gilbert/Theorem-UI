@@ -12,6 +12,9 @@ import type { IndexView, ViewOrigin, ViewRevision } from './contract'
 import { RecordInspector } from '@/components/records/record-inspector'
 import { objectTypeByName, parseRecordItemId } from '@/components/records/model'
 import { useDataModel } from '@/components/records/queries'
+import { WorkInspector } from '@/components/work/inspector'
+import { isWorkView, parseWorkItemId, workItemId } from '@/components/work/route'
+import { WorkScreenTitle } from '@/components/work/screen-title'
 import { Inspector } from './inspector'
 import type { IndexHost } from './library'
 import { useAskTheorem, useIndexPlace } from './navigation'
@@ -186,7 +189,11 @@ function ViewHeader({
     <header className="flex flex-col gap-1 pb-5">
       <div className="flex items-center gap-2">
         <h1 className="min-w-0 flex-1 truncate font-heading text-[22px] font-medium">
-          {revision.title}
+          {isWorkView(view.viewId) ? (
+            <WorkScreenTitle viewId={view.viewId} fallback={revision.title} />
+          ) : (
+            revision.title
+          )}
         </h1>
         <span className="flex shrink-0 items-center">
           {!builtIn && (
@@ -413,6 +420,20 @@ export function InspectorColumn({ className }: { className?: string }) {
     navigate,
   } = useIndexPlace()
   if (!item) return null
+  const work = parseWorkItemId(item)
+  if (work)
+    return (
+      <WorkInspector
+        itemId={work}
+        onOpen={(id) => {
+          const opened = workItemId(id)
+          observer().record({ kind: 'item_opened', scope, subjects: [opened] })
+          navigate.openItem(opened)
+        }}
+        onClose={navigate.closeItem}
+        className={className}
+      />
+    )
   const record = parseRecordItemId(item)
   if (record)
     return (
