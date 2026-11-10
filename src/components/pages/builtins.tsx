@@ -22,6 +22,7 @@ import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { DocumentApp } from '@/components/blocks/document-app'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { IdePageShown } from '@/components/ide/ide-page'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
 import type { Scope as IndexScope } from '@/components/index/contract'
 import { ViewColumn } from '@/components/index/index-surface'
@@ -360,12 +361,15 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
   useModuleAction('attach', (payload) => {
     if (isReference(payload)) useComposerReferences.getState().add(payload)
   })
+  // Kept laid out under another mode, the page's conversation is still out
+  // of sight: what arrives meanwhile is new when the person comes back.
+  const shown = useContext(IdePageShown)
   if (!mine) return <Elsewhere what="The conversation" onTake={take} />
   return (
     <div className="h-full min-h-[320px]">
       <ArtifactPlacement.Provider value="inline">
         <LifeBackdrop>
-          <Thread autoFocus={false} composerDocked />
+          <Thread autoFocus={false} composerDocked covered={!shown} />
         </LifeBackdrop>
       </ArtifactPlacement.Provider>
     </div>

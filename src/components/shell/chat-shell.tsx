@@ -35,7 +35,7 @@ import { useNoteView } from '@/components/notes/note-view'
 import { useParams } from '@tanstack/react-router'
 
 import { ModePage } from '@/components/pages/mode-page'
-import { OnIdePage } from '@/components/ide/ide-page'
+import { IdePageShown, OnIdePage } from '@/components/ide/ide-page'
 import { IdeStatusBar } from '@/components/ide/ide-status-bar'
 
 const VaultWorkspace = lazy(() =>
@@ -192,7 +192,9 @@ function DockView() {
           className={cn('absolute inset-0', !ide && HIDDEN_LAYER)}
         >
           <OnIdePage value>
-            <ModePage mode="ide" />
+            <IdePageShown value={ide}>
+              <ModePage mode="ide" />
+            </IdePageShown>
           </OnIdePage>
         </div>
       )}
