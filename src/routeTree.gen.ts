@@ -28,6 +28,7 @@ import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsConnectionsRouteImport } from './routes/settings/connections'
 import { Route as SettingsImportRouteImport } from './routes/settings/import'
 import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
 import { Route as StoryIdRouteImport } from './routes/story.$id'
@@ -35,7 +36,9 @@ import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
 import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
+import { Route as ApiConnectionsSplatRouteImport } from './routes/api/connections/$'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
+import { Route as ApiWorkSplatRouteImport } from './routes/api/work/$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
@@ -162,6 +165,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsImportRoute = SettingsImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -197,9 +205,19 @@ const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
   path: '/api/artifacts/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConnectionsSplatRoute = ApiConnectionsSplatRouteImport.update({
+  id: '/api/connections/$',
+  path: '/api/connections/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
   id: '/api/index/$',
   path: '/api/index/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkSplatRoute = ApiWorkSplatRouteImport.update({
+  id: '/api/work/$',
+  path: '/api/work/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesktopBlocksIndexRoute = DesktopBlocksIndexRouteImport.update({
@@ -396,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
   '/story/$id': typeof StoryIdRoute
@@ -404,7 +423,9 @@ export interface FileRoutesByFullPath {
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
+  '/api/connections/$': typeof ApiConnectionsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -453,6 +474,7 @@ export interface FileRoutesByTo {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
   '/story/$id': typeof StoryIdRoute
@@ -462,7 +484,9 @@ export interface FileRoutesByTo {
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
+  '/api/connections/$': typeof ApiConnectionsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
@@ -514,6 +538,7 @@ export interface FileRoutesById {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
   '/story/$id': typeof StoryIdRoute
@@ -523,7 +548,9 @@ export interface FileRoutesById {
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
+  '/api/connections/$': typeof ApiConnectionsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -576,6 +603,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/connections'
     | '/settings/import'
     | '/settings/keys'
     | '/story/$id'
@@ -584,7 +612,9 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/pages/$pageId'
     | '/api/artifacts/$'
+    | '/api/connections/$'
     | '/api/index/$'
+    | '/api/work/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -633,6 +663,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/connections'
     | '/settings/import'
     | '/settings/keys'
     | '/story/$id'
@@ -642,7 +673,9 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/pages/$pageId'
     | '/api/artifacts/$'
+    | '/api/connections/$'
     | '/api/index/$'
+    | '/api/work/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
@@ -693,6 +726,7 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/connections'
     | '/settings/import'
     | '/settings/keys'
     | '/story/$id'
@@ -702,7 +736,9 @@ export interface FileRouteTypes {
     | '/_chat/c/$threadId'
     | '/_chat/pages/$pageId'
     | '/api/artifacts/$'
+    | '/api/connections/$'
     | '/api/index/$'
+    | '/api/work/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -749,7 +785,9 @@ export interface RootRouteChildren {
   StoryIdRoute: typeof StoryIdRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
   ApiArtifactsSplatRoute: typeof ApiArtifactsSplatRoute
+  ApiConnectionsSplatRoute: typeof ApiConnectionsSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
+  ApiWorkSplatRoute: typeof ApiWorkSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
@@ -918,6 +956,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/connections': {
+      id: '/settings/connections'
+      path: '/connections'
+      fullPath: '/settings/connections'
+      preLoaderRoute: typeof SettingsConnectionsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/import': {
       id: '/settings/import'
       path: '/import'
@@ -967,11 +1012,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiArtifactsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/connections/$': {
+      id: '/api/connections/$'
+      path: '/api/connections/$'
+      fullPath: '/api/connections/$'
+      preLoaderRoute: typeof ApiConnectionsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/index/$': {
       id: '/api/index/$'
       path: '/api/index/$'
       fullPath: '/api/index/$'
       preLoaderRoute: typeof ApiIndexSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/work/$': {
+      id: '/api/work/$'
+      path: '/api/work/$'
+      fullPath: '/api/work/$'
+      preLoaderRoute: typeof ApiWorkSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/desktop/blocks/': {
@@ -1233,6 +1292,7 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 interface SettingsRouteChildren {
   SettingsAiRoute: typeof SettingsAiRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SettingsImportRoute: typeof SettingsImportRoute
   SettingsKeysRoute: typeof SettingsKeysRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -1241,6 +1301,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAiRoute: SettingsAiRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsConnectionsRoute: SettingsConnectionsRoute,
   SettingsImportRoute: SettingsImportRoute,
   SettingsKeysRoute: SettingsKeysRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -1263,7 +1324,9 @@ const rootRouteChildren: RootRouteChildren = {
   StoryIdRoute: StoryIdRoute,
   TheiaSplatRoute: TheiaSplatRoute,
   ApiArtifactsSplatRoute: ApiArtifactsSplatRoute,
+  ApiConnectionsSplatRoute: ApiConnectionsSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
+  ApiWorkSplatRoute: ApiWorkSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
