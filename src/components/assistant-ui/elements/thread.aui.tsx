@@ -73,6 +73,7 @@ import { Magnet, useArrivedLive } from '@/components/motion'
 import { flyFrom, kick, recordLaunch, takeLaunch } from '@/lib/motion'
 
 import { ComposerReferences } from '@/components/chat/composer-references'
+import { SCENE_PART } from '@/components/chat/scene-model'
 import { answerBody } from '@/lib/theorem/reviews'
 import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
 
@@ -882,6 +883,13 @@ function useKitSurface() {
 const AssistantMessage: FC = () => {
   const live = useArrivedLive()
   const surface = useKitSurface()
+  // Theorem: a scene is wider than the row, and `content-visibility: auto`
+  // paint-contains the row, which would clip it.
+  const hasScene = useAuiState((s) =>
+    s.message.content.some(
+      (part) => part.type === 'data' && part.name === SCENE_PART,
+    ),
+  )
   const ACTION_BAR_PT = 'pt-1.5'
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`
@@ -894,7 +902,9 @@ const AssistantMessage: FC = () => {
       data-live={live || undefined}
       className={cn(
         MESSAGE_GRID,
-        'data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5 [contain-intrinsic-size:auto_200px] [content-visibility:auto]',
+        'data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5',
+        !hasScene &&
+          '[contain-intrinsic-size:auto_200px] [content-visibility:auto]',
       )}
     >
       <span
