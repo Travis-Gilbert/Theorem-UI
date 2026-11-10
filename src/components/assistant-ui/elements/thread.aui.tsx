@@ -75,6 +75,8 @@ import { useComposerSend } from "@assistant-ui/core/react";
 import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
 import { EffortPicker } from "@/components/chat/effort-picker";
 import { DirectiveText } from "./directive-text.aui";
+import { ChatCollapsibleMessage } from "@/components/coss/chat/chat-collapsible-message";
+import { UnseenDivider, UnseenFromProvider, useUnseenFrom } from "./unseen-divider.aui";
 import { attendKit } from "@/lib/kit/store";
 import { messageLabel, messageSurface } from "@/lib/kit/stage";
 
@@ -207,6 +209,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   autoFocus,
 }) => {
   const footerRef = useRef<HTMLDivElement>(null);
+  const unseen = useUnseenFrom();
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
   // edge, so it glides rather than overshooting past it.
@@ -228,6 +231,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
       }}
     >
       <ThreadPrimitive.Viewport
+        ref={unseen.ref}
         turnAnchor="top"
         data-slot="aui_thread-viewport"
         data-kit-clip
@@ -251,9 +255,11 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             data-slot="aui_message-group"
             className="mb-14 flex flex-col gap-y-6 empty:hidden"
           >
-            <ThreadPrimitive.Messages>
-              {() => <ThreadMessage />}
-            </ThreadPrimitive.Messages>
+            <UnseenFromProvider value={unseen.anchor}>
+              <ThreadPrimitive.Messages>
+                {() => <ThreadMessage />}
+              </ThreadPrimitive.Messages>
+            </UnseenFromProvider>
           </div>
 
           <ThreadReviewCards />
@@ -287,7 +293,12 @@ const ThreadMessage: FC = () => {
   if (isEditing) return <EditComposer />;
   if (isSpoken) return <SpokenMessage />;
   if (role === "user") return <UserMessage />;
-  return <AssistantMessageComponent />;
+  return (
+    <>
+      <UnseenDivider />
+      <AssistantMessageComponent />
+    </>
+  );
 };
 
 type VoiceRunPosition = "single" | "start" | "middle" | "end";
@@ -931,17 +942,26 @@ const UserMessage: FC = () => {
   );
 };
 
-/** A review's answer has a card naming the review, so the line telling the agent which one stays out of view. */
+/**
+ * A review's answer has a card naming the review, so the line telling the
+ * agent which one stays out of view. A long paste folds after its opening,
+ * so the replies around it stay in reach.
+ */
 const UserTextPart: TextMessagePartComponent = (part) => {
   const answered = useAuiState((s) =>
     s.message.parts.some(
       (part) => part.type === "data" && part.name === "theorem-review_answer",
     ),
   );
+  const text = answered ? answerBody(part.text) : part.text;
+  if (!text) return null;
   return (
-    <DirectiveText
-      {...part}
-      text={answered ? answerBody(part.text) : part.text}
+    <ChatCollapsibleMessage
+      text={text}
+      side="outgoing"
+      showMoreLabel="Show more"
+      showLessLabel="Show less"
+      renderText={(shown) => <DirectiveText {...part} text={shown} />}
     />
   );
 };
