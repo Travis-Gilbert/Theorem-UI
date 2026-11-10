@@ -57,19 +57,34 @@ export function readPending(search: {
   return { connector: search.connector, completion: search.completion }
 }
 
+const OTHER_ACCOUNT =
+  'That sign-in was started from a different Theorem account, so it was not finished here. Connect again from this account.'
+const EXPIRED =
+  'The sign-in was not finished in time. Connect again to start a new one.'
+const USED =
+  'That sign-in was already finished once. Connect again to start a new one.'
+const UNKNOWN =
+  'Theorem did not recognise that sign-in. Connect again to start a new one.'
+const UNCONFIGURED =
+  'This Theorem has not been told its own address, so it cannot send you back after a sign-in. Whoever runs it needs to set that first.'
+
 const REASONS: Record<string, string> = {
-  mcp_authorization_other_account:
-    'That sign-in was started from a different Theorem account, so it was not finished here. Connect again from this account.',
+  mcp_authorization_other_account: OTHER_ACCOUNT,
+  connector_authorization_other_account: OTHER_ACCOUNT,
+  connector_authorization_provider_mismatch:
+    'That sign-in was for a different account type than the one this page was returned for, so Theorem did not use it. Connect again.',
+  connector_authorization_expired: EXPIRED,
+  connector_authorization_used: USED,
+  connector_authorization_unknown: UNKNOWN,
+  connector_app_unconfigured: UNCONFIGURED,
+  mcp_oauth_unconfigured: UNCONFIGURED,
   mcp_authorization_issuer_mismatch:
     'The answer came from a different sign-in service than the one this server named, so Theorem did not use it.',
   mcp_authorization_denied:
     'The sign-in was not approved. Connect again when you are ready.',
-  mcp_authorization_expired:
-    'The sign-in took longer than ten minutes. Connect again to start a new one.',
-  mcp_authorization_used:
-    'That sign-in was already finished once. Connect again to start a new one.',
-  mcp_authorization_unknown:
-    'Theorem did not recognise that sign-in. Connect again to start a new one.',
+  mcp_authorization_expired: EXPIRED,
+  mcp_authorization_used: USED,
+  mcp_authorization_unknown: UNKNOWN,
   mcp_oauth_token_failed:
     'The server approved the sign-in but did not hand over access. Try again, or check the server.',
   mcp_oauth_discovery_failed:
@@ -94,7 +109,11 @@ function useConnectionName(connector: string) {
   const list = useConnections()
   return (
     list.data?.connections.find((entry) => entry.id === connector)?.label ??
-    (connector === 'github' ? 'GitHub' : 'The server')
+    (connector === 'github'
+      ? 'GitHub'
+      : connector.startsWith('mcp:')
+        ? 'The server'
+        : 'The account')
   )
 }
 
@@ -122,7 +141,9 @@ export function FinishingSignIn({
   useEffect(() => {
     if (asked.current) return
     asked.current = true
-    connectionsApi.completeSignIn(pending.completion).then(
+    connectionsApi
+      .completeSignIn(pending.connector, pending.completion)
+      .then(
       (done) => onDone({ connector: done.connector, result: 'connected' }),
       (error: unknown) =>
         onDone({

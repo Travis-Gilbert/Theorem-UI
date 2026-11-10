@@ -223,14 +223,24 @@ export const connectionsApi = {
       returnTo,
     }),
   /**
-   * Finishes a sign-in from the signed-in app. Theorem trades the server's
+   * Finishes a sign-in from the signed-in app. Theorem trades the provider's
    * answer for access only here, where it can see who is asking; the token is
-   * the one it put on the address this browser was returned to.
+   * the one it put on the address this browser was returned to. A tool
+   * server ("mcp:<id>") and an account Theorem connects itself ("github",
+   * "google_gmail", ...) finish on their own routes.
    */
-  completeSignIn: (completion: string) =>
-    send<{ connector: string }>(`${root}/oauth/complete`, 'POST', {
-      completion,
-    }),
+  completeSignIn: async (connector: string, completion: string) => {
+    if (connector.startsWith('mcp:'))
+      return send<{ connector: string }>(`${root}/oauth/complete`, 'POST', {
+        completion,
+      })
+    await send<unknown>(
+      `/api/chat/v1/connectors/${encodeURIComponent(connector)}/complete`,
+      'POST',
+      { completion },
+    )
+    return { connector }
+  },
   tools: (q?: string) =>
     theoremJson<{ groups: ToolGroup[] }>(withQuery(`${root}/tools`, { q })),
 }

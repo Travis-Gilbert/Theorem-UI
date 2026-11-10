@@ -106,7 +106,7 @@ test('a sign-in that did not finish says why in plain words', async () => {
     reason: 'mcp_authorization_expired',
   })
   await waitFor(() => text().includes('Docs server was not connected'))
-  expect(text()).toContain('longer than ten minutes')
+  expect(text()).toContain('not finished in time')
 })
 
 test('a reason Theorem has no sentence for is still shown, and a missing one says so', () => {
