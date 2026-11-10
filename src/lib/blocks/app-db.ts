@@ -36,10 +36,14 @@ const openInBrowser: OpenDatabaseAt = async (directory) => {
   return open(directory, {
     controlEvents: false,
     keepHistory: false,
+    // Another tab showing this App uses the same database: one tab holds its
+    // file and the rest reach it through that tab.
+    shared: true,
     wasm,
-    worker: new Worker(new URL('./app-db.worker.ts', import.meta.url), {
-      type: 'module',
-    }),
+    worker: () =>
+      new Worker(new URL('./app-db.worker.ts', import.meta.url), {
+        type: 'module',
+      }),
   })
 }
 
@@ -53,8 +57,8 @@ interface Held {
 }
 
 /**
- * The databases this page has open, by directory. The browser gives one
- * handle to a database's file, so every frame showing an App shares one.
+ * The databases this page has open, by directory: every frame showing an App
+ * shares one client. Between tabs, the database itself is shared.
  */
 const held = new Map<string, Held>()
 

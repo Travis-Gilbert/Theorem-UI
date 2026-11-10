@@ -411,8 +411,10 @@ params)` runs read-only Cypher. `subscribe(read, next)` keeps one of those
 - **A saved revision reads only.** A pinned revision in the conversation sees
   the App's records as they are now, and its `mutate` fails with `read_only`.
 - **This browser only.** The records do not sync. `state(name)` is still the
-  choice for data that must follow a person to another device. A second tab
-  showing the same App cannot open its database while the first holds it.
+  choice for data that must follow a person to another device.
+- **Several tabs.** Tabs showing the same App use one database. One tab holds
+  its file and the others reach it through that tab; when it closes, another
+  takes over.
 - **Not yet.** Full-text search and compaction are not in the browser
   database. Folder HTML apps, cells and page modules have no `db`.
 

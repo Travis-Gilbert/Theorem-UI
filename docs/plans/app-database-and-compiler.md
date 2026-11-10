@@ -128,11 +128,11 @@ In Theorem UI.
 
 This works for today's HTML Apps and does not wait for Phase 3.
 
-Built and observed on 2026-11-10 for conversation Apps, apart from the
-shared database across tabs. `docs/blocks/live-blocks.md` describes it. Still
-open: the builder is not yet told that `db` exists, so no generated App uses
-it until the Theorem repo's builder instructions say so; and the browser
-store is never compacted, so a database that is rewritten often grows.
+Built and observed on 2026-11-10 for conversation Apps, including the shared
+database across tabs. `docs/blocks/live-blocks.md` describes it. The
+builder's contract documents `db` in Theorem PR #1002; no builder run has
+been made with it yet. Still open: the browser store is never compacted, so a
+database that is rewritten often grows.
 
 Open question for this phase: App data is local to one browser profile. Whether
 and how it syncs to the Theorem server is not decided here; the App document

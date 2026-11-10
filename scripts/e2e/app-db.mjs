@@ -66,6 +66,43 @@ const UNDECLARED = `<!doctype html>
   })
 </script>`
 
+/**
+ * An App written the way Theorem's builder is told to (builder_app.md in the
+ * Theorem repo): render from subscribe, change one field by reading the node
+ * and spreading it, link with an edge, seed only when nothing is there.
+ */
+const AS_BUILT = `<!doctype html>
+<meta name="theorem:uses" content='db("records")'>
+<ul id="rows"></ul><p id="links"></p><p id="found"></p><p id="problem"></p>
+<script>
+(async () => {
+  await window.theorem.ready
+  const db = await window.theorem.db('records')
+  const showError = (error) => { document.getElementById('problem').textContent = error.code }
+  db.subscribe({ method: 'queryNodes', args: { label: 'Org' } }, (orgs) => {
+    document.getElementById('rows').innerHTML = orgs
+      .map((org) => org.properties.name).sort()
+      .map((name) => '<li>' + name + '</li>').join('')
+    document.body.dataset.count = String(orgs.length)
+  }, showError)
+  db.subscribe({ method: 'neighbors', args: { nodeId: 'org:a', direction: 'out', edgeType: 'FUNDS' } },
+    (links) => { document.getElementById('links').textContent = links.map((link) => link.nodeId).join() },
+    showError)
+  try {
+    if ((await db.queryNodes({ label: 'Org', limit: 1 })).length === 0)
+      await db.mutate({ upsertNodes: [
+        { id: 'org:a', labels: ['Org'], properties: { id: 'org:a', name: 'Alder', area: 'housing' } },
+        { id: 'org:b', labels: ['Org'], properties: { id: 'org:b', name: 'Birch', area: 'transit' } },
+      ] })
+    const org = await db.getNode('org:b')
+    await db.mutate({ upsertNodes: [{ ...org, properties: { ...org.properties, name: 'Beech' } }] })
+    await db.mutate({ upsertEdges: [{ id: 'funds:org:a:org:b', from: 'org:a', to: 'org:b', type: 'FUNDS', properties: {} }] })
+    const result = await db.query('MATCH (o:Org) WHERE o.area = $area RETURN o.name AS name', { area: 'transit' })
+    document.getElementById('found').textContent = JSON.stringify([result.columns, result.rows, (await db.getNode('org:b')).properties.area])
+  } catch (error) { showError(error) }
+})()
+</script>`
+
 const server = await createServer({
   root,
   configFile: false,
@@ -90,22 +127,21 @@ const check = (name, pass, detail) => {
 const browser = await chromium.launch({
   executablePath: process.env.E2E_CHROMIUM || undefined,
 })
-const page = await browser.newPage()
+const context = await browser.newContext()
+const page = await context.newPage()
 page.on('pageerror', (error) => console.log(`  [page error] ${error.message}`))
 
-const load = async () => {
-  await page.goto(url)
-  await page.waitForFunction(() => 'oracle' in window)
+// Each helper works on the first tab unless it is given another.
+const load = async (tab = page) => {
+  await tab.goto(url)
+  await tab.waitForFunction(() => 'oracle' in window)
 }
-const mount = (id, html, options) =>
-  page.evaluate(
-    ([i, h, o]) => window.oracle.mount(i, h, o),
-    [id, html, options],
-  )
+const mount = (id, html, options, tab = page) =>
+  tab.evaluate(([i, h, o]) => window.oracle.mount(i, h, o), [id, html, options])
 const unmount = (id) => page.evaluate((i) => window.oracle.unmount(i), id)
-const frame = (id) => page.frame({ name: id })
-const rows = async (id, count) => {
-  const app = frame(id)
+const frame = (id, tab = page) => tab.frame({ name: id })
+const rows = async (id, count, tab = page) => {
+  const app = frame(id, tab)
   await app.waitForFunction(
     (wanted) => document.body.dataset.count === String(wanted),
     count,
@@ -188,10 +224,57 @@ try {
     ),
   )
 
-  await page.evaluate(async () => {
-    for (const id of ['reloaded', 'saved', 'other', 'undeclared'])
-      window.oracle.unmount(id)
-  })
+  await mount('built', AS_BUILT, { documentId: 'app-3' })
+  await frame('built').waitForFunction(
+    () => document.getElementById('found').textContent !== '',
+  )
+  const built = await rows('built', 2)
+  check(
+    "the calls Theorem's builder is told to use work as it is told",
+    built.join() === 'Alder,Beech' &&
+      (await frame('built').textContent('#links')) === 'org:b' &&
+      (await frame('built').textContent('#found')) ===
+        '[["name"],[["Beech"]],"transit"]' &&
+      (await frame('built').textContent('#problem')) === '',
+    {
+      rows: built,
+      links: await frame('built').textContent('#links'),
+      found: await frame('built').textContent('#found'),
+      problem: await frame('built').textContent('#problem'),
+    },
+  )
+  await unmount('built')
+  await mount('rebuilt', AS_BUILT, { documentId: 'app-3' })
+  await frame('rebuilt').waitForFunction(
+    () => document.getElementById('found').textContent !== '',
+  )
+  check(
+    'and it does not reseed what is already there',
+    (await rows('rebuilt', 2)).join() === 'Alder,Beech',
+  )
+
+  // A second tab of the same browser, showing the same App.
+  const tab = await context.newPage()
+  tab.on('pageerror', (error) => console.log(`  [page error] ${error.message}`))
+  await load(tab)
+  await mount('elsewhere', LIST, { documentId: 'app-1' }, tab)
+  check(
+    'a second tab showing the App reads the same records',
+    (await rows('elsewhere', 2, tab)).join() === 'Alder,Birch',
+  )
+  await frame('elsewhere', tab).click('#add')
+  check(
+    'a write in one tab reaches the other',
+    (await rows('elsewhere', 3, tab)).join() === 'Alder,Birch,Cedar' &&
+      (await rows('reloaded', 3)).join() === 'Alder,Birch,Cedar',
+  )
+  // The first tab, which held the database's file, goes away.
+  await page.close()
+  await frame('elsewhere', tab).click('#add')
+  check(
+    'the App keeps working in the tab that is left',
+    (await rows('elsewhere', 4, tab)).join() === 'Alder,Birch,Cedar,Dogwood',
+  )
 } finally {
   await browser.close()
   await server.close()

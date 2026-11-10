@@ -42,7 +42,8 @@
       "status": "done",
       "evidence": [
         "npm run oracle in headless Chromium, 2026-11-10: 14 of 14 checks; records, edge and graph version present after a page reload; verify ok before and after",
-        "No wasm32 runtime panic appeared on these paths. Module 3.9 MB; first open about 90 ms, open after reload about 160 ms"
+        "No wasm32 runtime panic appeared on these paths. Module 3.9 MB; first open about 90 ms, open after reload about 160 ms",
+        "2026-11-10, later: 21 of 21 checks with the shared mode, five runs"
       ]
     },
     {
@@ -66,8 +67,11 @@
     {
       "id": "db-one-owner-across-tabs",
       "requirement": "Two tabs showing the same App share its database: one tab owns the worker and the others reach it, because OPFS gives one exclusive handle per file",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "RustyRedDB PR #4: open(name, { shared: true }) in crates/rustyred-wasm/npm/src/shared.js (a Web Lock chooses the tab that holds the file, a BroadcastChannel carries the others' calls); its oracle drives three pages, 21 of 21 checks",
+        "src/lib/blocks/app-db.ts opens shared; bun run e2e:app-db: \"a write in one tab reaches the other\" and \"the App keeps working in the tab that is left\", 14 of 14 checks, three runs"
+      ]
     },
     {
       "id": "db-compaction",
@@ -78,8 +82,12 @@
     {
       "id": "db-agent-knows",
       "requirement": "The builder is told the db surface, so a generated App can declare and use a database (Theorem repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "Theorem PR #1002: conversation_work/builder_app.md documents db(\"name\") and its calls",
+        "bun run e2e:app-db: \"the calls Theorem's builder is told to use work as it is told\"",
+        "No builder run has been made with the new contract"
+      ]
     },
     {
       "id": "db-in-frame",
