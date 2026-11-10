@@ -1,4 +1,4 @@
-// SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message.
+// SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message; the activity and composer stories hand committed messages to the thread itself the same way, converted by the SDK's toAssistantMessages.
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useState } from 'react'
@@ -10,6 +10,8 @@ import {
   useExternalStoreRuntime,
 } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
+import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
@@ -22,13 +24,14 @@ import { ReviewCard } from '@/components/review/review-card'
 import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
-import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 import { useReview } from '@/lib/theorem/reviews'
+import { ACTIVITY_STATES, activityMessages } from './fixtures/activity'
+import type { ActivityState } from './fixtures/activity'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
@@ -247,7 +250,54 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
   }
 }
 
+const ACTIVITY_STATUS: Record<ActivityState, ThreadMessageLike['status']> = {
+  working: { type: 'running' },
+  approval: { type: 'running' },
+  finished: { type: 'complete', reason: 'stop' },
+  stopped: { type: 'incomplete', reason: 'cancelled' },
+  unfinished: {
+    type: 'incomplete',
+    reason: 'error',
+    error: 'The response could not be saved.',
+  },
+}
+
+/**
+ * The thread itself, composer and all, over committed messages: none for a new
+ * conversation, or one question and its reply in a state of the activity line.
+ */
+function threadStory(state?: ActivityState) {
+  const messages: ThreadMessageLike[] = state
+    ? toAssistantMessages(activityMessages(state)).map((message) =>
+        message.role === 'assistant'
+          ? { ...message, status: ACTIVITY_STATUS[state] }
+          : message,
+      )
+    : []
+  const isRunning = state === 'working' || state === 'approval'
+  return function ThreadStory() {
+    const runtime = useExternalStoreRuntime({
+      messages,
+      isRunning,
+      onNew: async () => {},
+      convertMessage: (message: ThreadMessageLike) => message,
+    })
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <TheoremPartRenderers />
+        <div className="h-dvh">
+          <Thread autoFocus={false} />
+        </div>
+      </AssistantRuntimeProvider>
+    )
+  }
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
+  'composer-paper': threadStory(),
+  ...Object.fromEntries(
+    ACTIVITY_STATES.map((state) => [`activity-${state}`, threadStory(state)]),
+  ),
   ...Object.fromEntries(
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),

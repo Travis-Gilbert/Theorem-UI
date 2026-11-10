@@ -195,7 +195,7 @@ export function LibrarianFooter({ librarian }: { librarian: LibrarianStatus }) {
   return (
     <section
       aria-label="Librarian"
-      className="flex shrink-0 flex-col gap-1.5 border-t border-separator px-3 py-2.5 text-sm"
+      className="flex shrink-0 flex-col gap-1.5 border-t border-separator px-4 py-2.5 text-sm"
     >
       <div className="flex items-center gap-2">
         <Icon.Librarian
