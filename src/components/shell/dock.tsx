@@ -30,8 +30,7 @@ import {
 import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
-import { HighlightsView } from '@/components/organize/highlights-view'
-import { ThreadHeader, useThreadView } from '@/components/organize/thread-header'
+import { ThreadHeader } from '@/components/organize/thread-header'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
 import {
@@ -123,7 +122,7 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
       ),
     [api, mode, title],
   )
-  // Chat's breadcrumb and views stand in for the tab while the conversation is
+  // Chat's breadcrumb stands in for the tab while the conversation is
   // alone in its group; a tab dropped beside it brings the tab bar back.
   const inChat = mode === 'chat'
   const alone = useSyncExternalStore(
@@ -134,7 +133,6 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
     // eslint-disable-next-line react-hooks/immutability -- dockview's header takes this as a setter, and has no method for it.
     api.group.header.hidden = inChat && alone
   }, [api, inChat, alone])
-  const view = useThreadView((s) => s.view)
   return (
     <div className="flex h-full flex-col">
       {inChat && (
@@ -145,10 +143,7 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
         />
       )}
       <div className="relative min-h-0 flex-1">
-        <div hidden={inChat && view === 'highlights'} className="h-full">
-          <ModeView docked />
-        </div>
-        {inChat && view === 'highlights' && <HighlightsView />}
+        <ModeView docked />
       </div>
     </div>
   )

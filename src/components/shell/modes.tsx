@@ -126,7 +126,7 @@ export function ModeView({ docked = false }: { docked?: boolean }) {
     <>
       <div hidden={!showThread} className="h-full">
         <LifeBackdrop>
-          <Thread />
+          <Thread covered={mode !== 'chat'} />
         </LifeBackdrop>
       </div>
       {mode === 'ide' && !docked && <IdeFrame />}

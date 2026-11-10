@@ -55,7 +55,7 @@ import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { Button } from '@/components/ui/button'
 import { describeError } from '@/lib/theorem/client'
-import { neighbour } from '@/lib/theorem/highlight-finders'
+import { neighbour } from '@/lib/theorem/row-neighbour'
 import {
   attentionLabel,
   lastMoved,
