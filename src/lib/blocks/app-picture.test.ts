@@ -51,8 +51,38 @@ test('what an App styles on its root is styled on the element it is drawn in', (
     100,
     purify,
   )
-  expect(svg).toContain('html { --ink: blue }')
+  expect(svg).toContain('.theorem-pictured-root { --ink: blue }')
   expect(svg).not.toContain(':root')
+  expect(parsed(svg).querySelector('html')?.getAttribute('class')).toContain(
+    'theorem-pictured-root',
+  )
+})
+
+test('a root selector joined to another keeps what it is joined to', () => {
+  const svg = pictureSvg(
+    '<style>.dark:root { --a: 1 } html:root { --b: 2 } :root-ish { --c: 3 }</style><p>x</p>',
+    100,
+    100,
+    purify,
+  )
+  expect(svg).toContain('.dark.theorem-pictured-root { --a: 1 }')
+  expect(svg).toContain('html.theorem-pictured-root { --b: 2 }')
+  expect(svg).toContain(':root-ish { --c: 3 }')
+})
+
+test('what the App put on its body and root is on the ones it is drawn in', () => {
+  const svg = pictureSvg('<p>Night</p>', 100, 100, purify, {
+    root: { class: 'dark', 'data-theme': 'night', onload: 'steal()' },
+    body: { class: 'bg-slate-900', style: 'background: red; color: white' },
+  })
+  const page = parsed(svg)
+  const root = page.querySelector('html')
+  const body = page.querySelector('body')
+  expect(root?.getAttribute('class')?.split(' ')).toContain('dark')
+  expect(root?.getAttribute('data-theme')).toBe('night')
+  expect(body?.getAttribute('class')).toBe('bg-slate-900')
+  expect(body?.getAttribute('style')).toContain('background: red')
+  expect(svg).not.toContain('steal')
 })
 
 describe('what a turn keeps of a picture', () => {

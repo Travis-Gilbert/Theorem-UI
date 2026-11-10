@@ -15,8 +15,17 @@ import { parseHtmlDeclarations } from './declarations'
 import { pinnedAppHost, pinnedAppState } from './document-app'
 import { BLOCK_SANDBOX, FrameConnection } from './executor'
 import * as hosted from './hosted-app'
-import { MAX_OUTLINE, MAX_SNAPSHOT, call } from './sandbox/protocol'
-import type { FrameError, SandboxMethods } from './sandbox/protocol'
+import {
+  MAX_OUTLINE,
+  MAX_SNAPSHOT,
+  PAGE_BACKGROUND,
+  call,
+} from './sandbox/protocol'
+import type {
+  FrameError,
+  PageAttributes,
+  SandboxMethods,
+} from './sandbox/protocol'
 
 /** What a check of an App found. Everything in it is JSON. */
 export interface AppInspection {
@@ -65,9 +74,17 @@ const FRAME_HEIGHT = 768
 /** How long the App's page has to say what it shows at the end of its run. */
 const LOOK_MS = 2_000
 /** What a frame answers when asked what it shows. It is the App's word, so it is checked. */
+const attributes = z.record(z.string().max(80), z.string())
 const looked = z.object({
   html: z.string().max(MAX_SNAPSHOT),
   outline: z.string().max(MAX_OUTLINE),
+  page: z
+    .object({
+      root: attributes,
+      body: attributes,
+      background: z.string().regex(PAGE_BACKGROUND).optional(),
+    })
+    .optional(),
 })
 /** The most problems one check reports, and the most text of the rendered page. */
 export const MAX_PROBLEMS = 40
@@ -148,6 +165,8 @@ async function run(
 }> {
   const problems: Array<AppProblem> = []
   let snapshot: string | undefined
+  // What the App's root and body carried when it was last looked at.
+  let carried: PageAttributes | undefined
   let outline: string | undefined
   let height = FRAME_HEIGHT
   const build = hosted.hostedBuild(page)
@@ -179,6 +198,7 @@ async function run(
     onSnapshot: (copy: string, things?: string) => {
       snapshot = copy
       outline = things
+      carried = undefined
     },
     onResize: (tall: number) => {
       height = Math.max(tall, FRAME_HEIGHT)
@@ -215,6 +235,7 @@ async function run(
       if (last.success) {
         snapshot = last.data.html
         outline = last.data.outline
+        carried = last.data.page
       }
     }
   } finally {
@@ -231,7 +252,7 @@ async function run(
       snapshot === undefined ? undefined : renderedOf(snapshot, outline),
     picture:
       pictured && snapshot !== undefined
-        ? await pictureOf(snapshot, height)
+        ? await pictureOf(snapshot, height, carried)
         : undefined,
   }
 }

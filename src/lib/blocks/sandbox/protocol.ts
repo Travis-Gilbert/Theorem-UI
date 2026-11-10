@@ -183,9 +183,33 @@ export interface SandboxMethods {
    */
   'frame.look': {
     params: Record<string, never>
-    result: { html: string; outline: string } | null
+    result: { html: string; outline: string; page?: PageAttributes } | null
   }
 }
+
+/**
+ * The attributes on a frame's root and body that its CSS reads: a snapshot is
+ * the body's contents, and what styles them may be a class or a style on the
+ * elements above.
+ */
+export interface PageAttributes {
+  root: Record<string, string>
+  body: Record<string, string>
+  /**
+   * The colour behind the whole page: the root's background or, where it has
+   * none, the body's, which a browser paints across the viewport.
+   */
+  background?: string
+}
+
+/** What a computed background colour looks like; nothing else is drawn with. */
+export const PAGE_BACKGROUND =
+  /^(?:rgba?|color|oklch|oklab|lab|lch|hsla?)\([\w\s.,%/+-]{1,80}\)$/
+
+/** The attributes carried: what CSS can select on or read, and nothing that runs. */
+export const PAGE_ATTRIBUTE = /^(?:class|style|dir|lang|data-[\w-]{1,64})$/
+/** The most text one page's carried attributes are, all together. */
+export const MAX_PAGE_ATTRIBUTES = 32 * 1024
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */
 export interface MessageCarrier {

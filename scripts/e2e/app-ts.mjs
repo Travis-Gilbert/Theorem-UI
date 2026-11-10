@@ -305,8 +305,8 @@ try {
   // A picture of the App, drawn in the page from its snapshot: what it laid out
   // with CSS and what it drew on a canvas.
   const pictured = await inspect(
-    `<!doctype html><style>body { margin: 0 } #box { width: 200px; height: 100px; background: rgb(255, 0, 0) }</style>
-     <div id="box"></div><canvas id="c" width="200" height="100"></canvas>
+    `<!doctype html><html class="night"><style>body { margin: 0 } #box { width: 200px; height: 100px; background: rgb(255, 0, 0) } .night:root #under { height: 50px; background: rgb(255, 255, 0) }</style>
+     <body style="background: rgb(0, 128, 0)"><div id="box"></div><canvas id="c" width="200" height="100"></canvas><div id="under"></div>
      <script>const g = document.getElementById("c").getContext("2d"); g.fillStyle = "rgb(0, 0, 255)"; g.fillRect(0, 0, 200, 100)</script>`,
     { picture: true },
   )
@@ -324,14 +324,19 @@ try {
         return {
           box: at(100, 50),
           canvas: at(100, 150),
+          // Styled by a class on the root, and by a style on the body.
+          under: at(100, 225),
+          body: at(600, 600),
           size: [image.width, image.height],
         }
       }, pictured.picture)
     : null
   check(
-    'a check can picture the App: its layout, and what it drew on a canvas',
+    'a check can picture the App: its layout, what it drew on a canvas, and what its root and body style',
     pixels?.box === '255,0,0,255' &&
       pixels.canvas === '0,0,255,255' &&
+      pixels.under === '255,255,0,255' &&
+      pixels.body === '0,128,0,255' &&
       pixels.size[0] === 1024,
     { pixels, bytes: pictured.picture?.data.length },
   )

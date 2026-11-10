@@ -9,7 +9,8 @@ import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import type { Display } from './cell'
 import { outlineOf } from './outline'
-import { MAX_SNAPSHOT } from './protocol'
+import { MAX_PAGE_ATTRIBUTES, MAX_SNAPSHOT, PAGE_ATTRIBUTE } from './protocol'
+import type { PageAttributes } from './protocol'
 
 /** Shows displayed values in `container`, each in its own element. */
 export function createDisplay(container: HTMLElement): Display {
@@ -87,10 +88,42 @@ export function snapshotHtml(): string {
  * too large to send. The outline is read from the live page, which knows what
  * a copy cannot: what is hidden, what a field holds, what is checked.
  */
-export function lookNow(): { html: string; outline: string } | null {
+export function lookNow(): {
+  html: string
+  outline: string
+  page: PageAttributes
+} | null {
   const html = snapshotHtml()
   if (html.length > MAX_SNAPSHOT) return null
-  return { html, outline: outlineOf(document.body) }
+  return { html, outline: outlineOf(document.body), page: pageAttributes() }
+}
+
+/** A computed colour that paints nothing. */
+const TRANSPARENT = /^(?:transparent|rgba\(0, 0, 0, 0\))$/
+
+function carried(element: Element): Record<string, string> {
+  const attributes: Record<string, string> = {}
+  for (const { name, value } of element.attributes)
+    if (PAGE_ATTRIBUTE.test(name)) attributes[name] = value
+  return attributes
+}
+
+/**
+ * What the root and the body carry that CSS reads. Left empty when it is more
+ * than a page takes, so the copy is still sent.
+ */
+export function pageAttributes(): PageAttributes {
+  const background = [document.documentElement, document.body]
+    .map((element) => getComputedStyle(element).backgroundColor)
+    .find((colour) => colour && !TRANSPARENT.test(colour))
+  const page: PageAttributes = {
+    root: carried(document.documentElement),
+    body: carried(document.body),
+    ...(background ? { background } : {}),
+  }
+  return JSON.stringify(page).length > MAX_PAGE_ATTRIBUTES
+    ? { root: {}, body: {} }
+    : page
 }
 
 /**
