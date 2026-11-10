@@ -20,6 +20,11 @@ export const ICONS = [
   { name: 'home', source: 'rail/source/streamline-house-1.png' },
   { name: 'index', source: 'rail/source/streamline-drawer-file.png' },
   {
+    name: 'notes',
+    source: 'streamline-common-file-stack.png',
+    autofill: true,
+  },
+  {
     name: 'pages',
     source: 'streamline-browser-page-layout.png',
     autofill: true,

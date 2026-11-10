@@ -102,7 +102,7 @@ export function StartPanel() {
   const actions = [
     {
       label: 'New note',
-      Mark: Icon.Add,
+      Mark: Icon.NewNote,
       run: client && (() => void createNote(client)),
     },
     {

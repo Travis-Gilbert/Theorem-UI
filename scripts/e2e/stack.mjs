@@ -241,7 +241,15 @@ if (process.env.E2E_KEY_STANDIN) {
   delete serverEnv.OPENROUTER_API_KEY
 }
 
+// The server does not start without a web search provider. One named in
+// provider-keys.env wins; otherwise the offline provider answers from a local
+// manifest, so agent web searches in a scenario come back empty, not live.
+const searchManifest = join(DATA_DIR, 'offline-search.jsonl')
+if (!existsSync(searchManifest)) writeFileSync(searchManifest, '')
+
 start('server', server, [], {
+  RUSTYWEB_SEARCH_PROVIDERS: 'offline',
+  RUSTYWEB_OFFLINE_SEARCH_MANIFEST: searchManifest,
   ...serverEnv,
   RUSTY_RED_PORT: String(API_PORT),
   RUSTY_RED_DATA_DIR: join(DATA_DIR, 'store'),

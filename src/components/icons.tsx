@@ -145,6 +145,9 @@ import ZipFileWarning from '@/assets/icons/streamline/streamline-zip-file-warnin
 
 import AstronomyConstellation from '@/assets/icons/streamline/streamline-astronomy-constellation.png'
 import AiRobotVariation from '@/assets/icons/streamline/streamline-ai-robot-generate-variation.png'
+import DescendingSort from '@/assets/icons/streamline/streamline-descending-sort-filter-2.png'
+import CommonFileAdd from '@/assets/icons/streamline/streamline-common-file-add.png'
+import AiFileSparkle from '@/assets/icons/streamline/streamline-ai-file-sparkle.png'
 import AiFolderSpark from '@/assets/icons/streamline/library/streamline-ai-folder-spark.png'
 
 type SvgMark = FC<
@@ -260,6 +263,9 @@ const Delegate = masked(AiRouting)
 
 /** Theorem's own model choice, where the person has not picked one. */
 const Theorem = masked(AiRobotVariation)
+const Sort = masked(DescendingSort)
+const NewNote = masked(CommonFileAdd)
+const AgentNote = masked(AiFileSparkle)
 const File = masked(CommonFileDouble)
 const Follow = masked(AgentCursor)
 const Mail = masked(PaginateMail)
@@ -432,6 +438,9 @@ export const Icon = {
   Route,
   Sink,
   Skill,
+  NewNote,
+  AgentNote,
+  Sort,
   Theorem,
   TheoremVault,
   TreeFile,
