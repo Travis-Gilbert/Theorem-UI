@@ -17,6 +17,7 @@ import type { ChatModelRunOptions } from '@assistant-ui/react'
 import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
 import { usePlanning, useWebSearch } from '@/components/chat/composer-tools'
+import { usePendingStyle } from './response-styles'
 import {
   mutateThread,
   pendingSendKey,
@@ -39,9 +40,13 @@ type Send = {
   planning?: boolean
   model?: { provider: string; model: string }
   executionMode?: string
+  responseStyle?: string
 }
 
 let sends: Send[] = []
+/** Whether the page may create threads, as a new chat's first message does; named in the order made. */
+let createsThreads = false
+let createdThreads = 0
 /** Sends whose reply is lost after Theorem received them. */
 let lostReplies = 0
 /** How the next sends are answered, in place of a run. */
@@ -96,7 +101,7 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, capabilityScope, webResearch, planning, model, executionMode } =
+    const { text, capabilityScope, webResearch, planning, model, executionMode, responseStyle } =
       (await request.json()) as Omit<Send, 'key'>
     sends.push({
       key: request.headers.get('Idempotency-Key') ?? '',
@@ -106,6 +111,7 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
       ...(planning !== undefined ? { planning } : {}),
       ...(model ? { model } : {}),
       ...(executionMode ? { executionMode } : {}),
+      ...(responseStyle ? { responseStyle } : {}),
     })
     if (lostReplies > 0) {
       lostReplies -= 1
@@ -119,6 +125,11 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
       )
     )
   }
+  if (createsThreads && path.endsWith('/threads') && request.method === 'POST')
+    return Response.json(
+      { record: { threadId: `created-${++createdThreads}` } },
+      { status: 201 },
+    )
   if (path.endsWith('/threads')) return Response.json({ items: [...titleThreads.keys()].map((id) => titleSnapshot(id).thread) })
   const threadId = path.split('/').pop()!
   if (inaccessibleTitles.has(threadId)) return Response.json({ code: 'forbidden' }, { status: 403 })
@@ -169,6 +180,8 @@ afterAll(() => {
 })
 beforeEach(() => {
   sends = []
+  createsThreads = false
+  createdThreads = 0
   lostReplies = 0
   answers = []
   liveRunId = undefined
@@ -180,6 +193,7 @@ beforeEach(() => {
   titleReads = []
   useWebSearch.setState({ on: false })
   usePlanning.setState({ on: false })
+  usePendingStyle.setState({ styleId: undefined })
 })
 afterEach(cleanup)
 
@@ -422,6 +436,88 @@ test.each<[boolean, boolean]>([
     ...(on ? { webResearch: true } : {}),
     ...(planning ? { planning: true } : {}),
   })
+})
+
+/** A chat the person types into, with its composer in hand. */
+async function openComposer(threadId?: string) {
+  createsThreads = !threadId
+  const handle: { aui?: ReturnType<typeof useAui> } = {}
+  function Probe() {
+    handle.aui = useAui()
+    return null
+  }
+  await render(
+    createElement(TheoremRuntimeProvider, {
+      projectId: 'project',
+      threadId,
+      onThreadIdChange: () => {},
+      children: createElement(Probe),
+    }),
+  )
+  const mounted = () => {
+    if (!handle.aui) throw new Error('the chat did not mount')
+    return handle.aui
+  }
+  return {
+    say: (text: string) =>
+      act(async () => {
+        mounted().composer.setText(text)
+        mounted().composer.send()
+      }),
+    idle: () => waitFor(() => !mounted().thread().getState().isRunning),
+  }
+}
+
+test('the style picked for a new chat goes with its first message and no later one', async () => {
+  usePendingStyle.getState().choose('theorem.style.concise')
+  const { say, idle } = await openComposer()
+  await say('Explain B-trees')
+  await waitFor(() => sends.length === 1)
+  expect(sends[0]).toEqual({
+    key: expect.any(String),
+    text: 'Explain B-trees',
+    responseStyle: 'theorem.style.concise',
+  })
+  // The conversation holds the choice now, so the pick is spent.
+  await waitFor(() => usePendingStyle.getState().styleId === undefined)
+
+  // A pick made after that is for the next new chat, not for this one.
+  usePendingStyle.getState().choose('theorem.style.formal')
+  await idle()
+  await say('And skip lists?')
+  await waitFor(() => sends.length === 2)
+  expect(sends[1]?.responseStyle).toBeUndefined()
+  expect(usePendingStyle.getState().styleId).toBe('theorem.style.formal')
+})
+
+test('a chat that already exists never sends a pending style', async () => {
+  usePendingStyle.getState().choose('theorem.style.formal')
+  const { say } = await openComposer(`thread-${crypto.randomUUID()}`)
+  await say('Hello')
+  await waitFor(() => sends.length === 1)
+  expect(sends[0]?.responseStyle).toBeUndefined()
+  expect(usePendingStyle.getState().styleId).toBe('theorem.style.formal')
+})
+
+test('a new chat with no pick sends no style', async () => {
+  const { say } = await openComposer()
+  await say('Hello')
+  await waitFor(() => sends.length === 1)
+  expect(Object.keys(sends[0]!)).toEqual(['key', 'text'])
+})
+
+test('a lost first send is replayed with the style it went out with, and spends the pick once', async () => {
+  usePendingStyle.getState().choose('theorem.style.concise')
+  lostReplies = 1
+  const { say } = await openComposer()
+  await say('Explain B-trees')
+  await waitFor(() => sends.length === 2)
+  expect(sends[1]?.key).toBe(sends[0]?.key)
+  expect(sends.map((send) => send.responseStyle)).toEqual([
+    'theorem.style.concise',
+    'theorem.style.concise',
+  ])
+  await waitFor(() => usePendingStyle.getState().styleId === undefined)
 })
 
 test('existing New Chat rows get meaningful projected titles without revision writes', async () => {

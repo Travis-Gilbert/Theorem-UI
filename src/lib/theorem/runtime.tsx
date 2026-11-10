@@ -39,6 +39,7 @@ import { toastManager } from '@/components/coss/toast'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
 import { DRAFT_PLAN } from './plans'
+import { consumePendingStyle, styleTurnOptions } from './response-styles'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
@@ -614,12 +615,14 @@ function useTheoremThreadRuntime() {
       async *run(options) {
         try {
           const references = useComposerReferences.getState().references
+          // Read before initialize() creates the conversation: only the first message of a new one carries the style picked for it.
+          const existed = Boolean(aui.threadListItem.getState().remoteId)
           const { remoteId } = await aui.threadListItem.initialize()
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions(),...styleTurnOptions(existed)}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
@@ -627,6 +630,7 @@ function useTheoremThreadRuntime() {
           const turn = runTurn(remoteId,composed,turnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
+            consumePendingStyle(added.responseStyle)
           })
           for await (const step of turn) {
             // Plan stays on until a plan is written; the turn that writes one turns it off.

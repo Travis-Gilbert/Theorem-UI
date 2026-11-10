@@ -75,6 +75,8 @@ import { hasTheoremError } from "@/lib/theorem/message-history";
 import { useComposerSend } from "@assistant-ui/core/react";
 import { COMPOSER_TOOLTIP_DELAY, ComposerPlanToggle, ComposerToolTrigger, ComposerWebToggle } from "@/components/chat/composer-tools";
 import { EffortPicker } from "@/components/chat/effort-picker";
+import { StylePicker } from "@/components/chat/style-picker";
+import { ResponseDetailsDialog, ResponseDetailsItem } from "@/components/chat/response-style-details";
 import { DirectiveText } from "./directive-text.aui";
 import { attendKit } from "@/lib/kit/store";
 import { messageLabel, messageSurface } from "@/lib/kit/stage";
@@ -533,6 +535,7 @@ const ComposerAction: FC = () => {
       <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
         <EffortPicker />
+        <StylePicker />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate render={<TooltipIconButton tooltip="Voice input" delay={COMPOSER_TOOLTIP_DELAY} side="top" type="button" variant="ghost" size="icon" className="aui-composer-dictate text-ink-muted hover:text-ink size-9 rounded-lg" aria-label="Start voice input" />}><Icon.Microphone className="aui-composer-dictate-icon size-4" /></ComposerPrimitive.Dictate>
@@ -786,6 +789,7 @@ const AssistantMessage: FC = () => {
           <BranchPicker />
           <AssistantActionBar />
         </div>
+        <ResponseDetailsDialog />
       </div>
     </MessagePrimitive.Root>
   );
@@ -842,6 +846,7 @@ const AssistantActionBar: FC = () => {
           className="aui-action-bar-more-content bg-popover text-popover-foreground shadow-popover data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] overflow-hidden rounded-xl border p-1.5"
         >
           <ForkFromMessage />
+          <ResponseDetailsItem />
           <ActionBarPrimitive.ExportMarkdown render={<ActionBarMorePrimitive.Item className="aui-action-bar-more-item hover:bg-hover focus:bg-hover flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none select-none" />}><Icon.Share className="size-4" />Export as Markdown
                               </ActionBarPrimitive.ExportMarkdown>
         </ActionBarMorePrimitive.Content>
