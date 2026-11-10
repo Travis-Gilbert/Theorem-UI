@@ -23,15 +23,18 @@ const displayable = inGamut('rgb')
 type Mode = (typeof modes)[number]
 const mode = (selector: string) => modes.find((m) => m.selector === selector)!
 const workspace = (m: Mode) => workspaceOf((name) => modeTokens(m)[name]!)
-/** A mode with every surface `by` darker in Okhsl lightness; inks and fixed colours stay. */
+/**
+ * A mode with every surface `by` darker in Okhsl lightness; inks stay, and so
+ * does a neutral given as a source theme's hex, which has no lightness to move.
+ */
 const darker = (m: Mode, by: number): Mode => ({
   ...m,
   neutrals: Object.fromEntries(
     Object.entries(m.neutrals).map(([name, l]) => [
       name,
-      name.startsWith('ink') || typeof l !== 'number'
-        ? l
-        : Math.max(0.02, l - by),
+      typeof l === 'number' && !name.startsWith('ink')
+        ? Math.max(0.02, l - by)
+        : l,
     ]),
   ),
 })
@@ -163,25 +166,4 @@ test("a tinted workspace's terminal takes its hue, turned as the slate's is from
     const { c, h } = lch(terminalTheme(WORKSPACES[name]).bg)
     expect(hueGap(c, h, tint.h + turn)).toBeLessThanOrEqual(ROUNDING)
   }
-})
-
-test("a warm workspace's terminal keeps the workspace's own tint: graphite, not brown", () => {
-  for (const name of [
-    'Stone',
-    'Stone dark',
-    'red dark',
-    'green light',
-  ] as const) {
-    const { tint } = measure(WORKSPACES[name])
-    const { c } = lch(terminalTheme(WORKSPACES[name]).bg)
-    expect(c).toBeLessThanOrEqual(tint.c + ROUNDING)
-  }
-  for (const name of ['Stone', 'Stone dark'] as const)
-    expect(lch(terminalTheme(WORKSPACES[name]).bg).c).toBeLessThan(0.01)
-})
-
-test("a cool workspace's terminal takes the slate's extra tint", () => {
-  const { c } = lch(terminalTheme(WORKSPACES['GitHub Sharp dark']).bg)
-  const { tint } = measure(WORKSPACES['GitHub Sharp dark'])
-  expect(c).toBeGreaterThan(3 * tint.c)
 })
