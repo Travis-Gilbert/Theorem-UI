@@ -545,7 +545,9 @@ function NoteSections({
               !sectionNotes.length &&
               !agents &&
               naming !== section.id
-            if (searching && empty) return null
+            // A section being named stays in view, though a search found
+            // nothing in it, so the one just made can be named.
+            if (searching && empty && renaming !== section.id) return null
             return (
               <NoteSectionBlock
                 key={section.id}
