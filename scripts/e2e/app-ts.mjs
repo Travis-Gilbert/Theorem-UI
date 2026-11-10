@@ -220,7 +220,109 @@ try {
   await page.waitForFunction(() => 'oracle' in window)
   await page.evaluate(() => window.oracle.clear())
 
+  // What the agent's app.check does: the same build, check and run, with
+  // nothing on screen, reported instead of shown.
+  const inspect = (html, options) =>
+    page.evaluate(
+      ([text, o]) => window.oracle.inspect(text, o),
+      [html, options],
+    )
+  const before = await page.evaluate(() => window.oracle.traces())
   let started = Date.now()
+  const cleanCheck = await inspect(GOOD)
+  check(
+    'a check of a correct App finds nothing and says what it showed',
+    cleanCheck.built &&
+      cleanCheck.typesChecked &&
+      cleanCheck.problems.length === 0 &&
+      cleanCheck.files.join() === 'main.tsx,Table.tsx,types.ts' &&
+      cleanCheck.rendered?.text === 'Alder housing\nBirch transit' &&
+      // The same page as assistive technology reads it, each cell with the
+      // place in the source that made it.
+      /^- table/m.test(cleanCheck.rendered?.outline ?? '') &&
+      /- cell "Alder" \[source=Table\.tsx:\d+:\d+\]/.test(
+        cleanCheck.rendered?.outline ?? '',
+      ),
+    {
+      ms: Date.now() - started,
+      ranMs: cleanCheck.ranMs,
+      outline: cleanCheck.rendered?.outline,
+      rendered: cleanCheck.rendered,
+    },
+  )
+  const mistypedCheck = await inspect(MISTYPED, { runMs: 0 })
+  check(
+    'it reports type errors at their file and line, without running the App',
+    mistypedCheck.built &&
+      mistypedCheck.ranMs === 0 &&
+      mistypedCheck.problems
+        .map((p) => `${p.kind} ${p.file}:${p.line} ${p.code}`)
+        .sort()
+        .join() === 'type Table.tsx:27 TS2339,type main.tsx:13 TS2322',
+    mistypedCheck.problems,
+  )
+  const brokenCheck = await inspect(BROKEN)
+  check(
+    'an App that does not build is reported as not built, and is not run',
+    !brokenCheck.built &&
+      brokenCheck.ranMs === 0 &&
+      brokenCheck.problems.length === 1 &&
+      brokenCheck.problems[0].kind === 'build' &&
+      brokenCheck.problems[0].file === 'Table.tsx' &&
+      brokenCheck.problems[0].line === 20,
+    brokenCheck.problems,
+  )
+  const thrownCheck = await inspect(THROWS)
+  check(
+    'what the App throws while it runs is reported at its source line',
+    thrownCheck.built &&
+      thrownCheck.problems.some(
+        (p) => p.kind === 'runtime' && p.file === 'summary.ts' && p.line === 8,
+      ),
+    thrownCheck.problems,
+  )
+  // A page that never stops changing never settles into a snapshot of its own.
+  const tickingCheck = await inspect(
+    '<!doctype html><h1>Clock</h1><p id="t"></p><script>let n = 0; setInterval(() => { document.getElementById("t").textContent = "tick " + n++ }, 50)</script>',
+  )
+  check(
+    'an App that keeps changing is still seen, as it was at the end of its run',
+    /^- heading "Clock" \[level=1\]/m.test(
+      tickingCheck.rendered?.outline ?? '',
+    ) && /tick \d+/.test(tickingCheck.rendered?.text ?? ''),
+    tickingCheck.rendered,
+  )
+  const plainCheck = await inspect(
+    '<!doctype html><p id="x">Plain</p><script>document.getElementById("x").textContent = "Ran"</script>',
+  )
+  check(
+    'a plain HTML App is run too, and has no types to check',
+    plainCheck.built &&
+      !plainCheck.typesChecked &&
+      plainCheck.rendered?.text === 'Ran' &&
+      plainCheck.problems.length === 0,
+    plainCheck,
+  )
+  const receipt = await page.evaluate(
+    (html) => window.oracle.ask({ html, runMs: 0 }),
+    MISTYPED,
+  )
+  check(
+    'the app.check operation answers its run with those findings',
+    receipt?.outcome === 'applied' &&
+      receipt.revision === 5 &&
+      receipt.result.problems.length === 2,
+    { outcome: receipt?.outcome, revision: receipt?.revision },
+  )
+  const after = await page.evaluate(() => window.oracle.traces())
+  check(
+    'a check leaves nothing behind: no frame, and nothing in storage',
+    after.frames === before.frames &&
+      after.names.join() === before.names.join(),
+    after,
+  )
+
+  started = Date.now()
   await revise(GOOD)
   await page.evaluate(() => window.oracle.show())
   const rows = await table(2)

@@ -9,7 +9,12 @@
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
 import { Databases } from './db'
-import { markSelectedCell, observeHeight, observeSnapshots } from './display'
+import {
+  lookNow,
+  markSelectedCell,
+  observeHeight,
+  observeSnapshots,
+} from './display'
 import { MAX_FRAME_ERRORS, call, rpcOver, serve } from './protocol'
 import type {
   FrameError,
@@ -66,11 +71,17 @@ const context = connectToPage().then((port) => {
     }
     return null
   })
+  // A page that never stops changing never settles into a snapshot, so the
+  // page can ask for one.
+  serve<SandboxMethods, 'frame.look'>(rpc, 'frame.look', () => lookNow())
   observeHeight((height) => {
     void call<PageMethods, 'frame.resize'>(rpc, 'frame.resize', { height })
   })
-  observeSnapshots((html) => {
-    void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', { html })
+  observeSnapshots((html, outline) => {
+    void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', {
+      html,
+      outline,
+    })
   })
   const selection = (event?: Event) => {
     const selected = window.getSelection()

@@ -47,6 +47,24 @@ const openInBrowser: OpenDatabaseAt = async (directory) => {
   })
 }
 
+/**
+ * A database that is nothing but memory, for a run that must not touch an
+ * App's records: the hidden run a check makes of an App.
+ */
+export const openInMemory: OpenDatabaseAt = async () => {
+  const [{ inMemory }, { default: wasm }] = await Promise.all([
+    import('@rustyreddb/browser'),
+    import('@rustyreddb/browser/rustyred.wasm?url'),
+  ])
+  return inMemory({
+    wasm,
+    worker: () =>
+      new Worker(new URL('./app-db.worker.ts', import.meta.url), {
+        type: 'module',
+      }),
+  })
+}
+
 /** How long a database stays open after its last frame left, in milliseconds. */
 const LINGER_MS = 5_000
 

@@ -6,6 +6,9 @@ import { createRoot } from 'react-dom/client'
 import { DocumentAppView } from '@/components/blocks/document-app'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { checkInWorker } from '@/lib/blocks/app-checker'
+import { inspectApp } from '@/lib/blocks/app-inspect'
+import { serveAppRequests } from '@/lib/blocks/app-operations'
+import type { AppReceipt } from '@/lib/blocks/app-operations'
 import { appSourcesOf } from '@/lib/blocks/app-source'
 import { AppDocument } from '@/lib/theorem/apps'
 import { appDocumentFixture } from '../../../test/blocks/app-documents'
@@ -35,6 +38,34 @@ async function check(html: string) {
   }
 }
 
+/** A check as the agent's `app.check` makes it: the request served, the receipt it would post. */
+async function ask(args: Record<string, unknown>) {
+  let posted: AppReceipt | undefined
+  await serveAppRequests(
+    [
+      {
+        runId: 'run',
+        requestRef: crypto.randomUUID(),
+        operation: 'app.check',
+        args,
+        expectedRevision: 5,
+      },
+    ],
+    async (_request, receipt) => {
+      posted = receipt
+    },
+  )
+  return posted
+}
+
+/** The names in this origin's private storage, and the frames on the page. */
+async function traces() {
+  const names: Array<string> = []
+  const root = await navigator.storage.getDirectory()
+  for await (const name of root.keys()) names.push(name)
+  return { names, frames: document.querySelectorAll('iframe').length }
+}
+
 const references = () => useComposerReferences.getState().take()
 
 function show(): void {
@@ -43,4 +74,15 @@ function show(): void {
   )
 }
 
-Object.assign(window, { oracle: { revise, clear, references, show, check } })
+Object.assign(window, {
+  oracle: {
+    revise,
+    clear,
+    references,
+    show,
+    check,
+    inspect: inspectApp,
+    ask,
+    traces,
+  },
+})

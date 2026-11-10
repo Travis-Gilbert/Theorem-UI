@@ -7,7 +7,13 @@ import picomatch from 'picomatch'
 import { z } from 'zod'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import type { Capabilities } from './declarations'
-import { DB_READS, MAX_SNAPSHOT, call, serve } from './sandbox/protocol'
+import {
+  DB_READS,
+  MAX_OUTLINE,
+  MAX_SNAPSHOT,
+  call,
+  serve,
+} from './sandbox/protocol'
 import type {
   DbFailure,
   DbMethod,
@@ -72,7 +78,7 @@ export interface BridgeHost {
   /** The frame's code threw and nothing caught it. */
   onError?: (error: FrameError) => void
   /** A static copy of the frame, unsanitized: snapshots.ts cleans it before showing it. */
-  onSnapshot?: (html: string) => void
+  onSnapshot?: (html: string, outline?: string) => void
 }
 
 /** A call a block made that its declarations do not allow. */
@@ -140,7 +146,12 @@ const params = {
     cellId: z.string().max(200).optional(),
     source: z.string().max(300).optional(),
   }),
-  snapshot: z.object({ html: z.string().max(MAX_SNAPSHOT) }),
+  snapshot: z.object({
+    html: z.string().max(MAX_SNAPSHOT),
+    // What is on the page by role and name. Longer than the limit is dropped,
+    // not refused: the copy is still good.
+    outline: z.string().optional(),
+  }),
 }
 
 /** The most reads one frame may keep subscribed. */
@@ -321,7 +332,13 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
   })
 
   serve<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', (raw) => {
-    host.onSnapshot?.(params.snapshot.parse(raw).html)
+    const { html, outline } = params.snapshot.parse(raw)
+    host.onSnapshot?.(
+      html,
+      outline !== undefined && outline.length <= MAX_OUTLINE
+        ? outline
+        : undefined,
+    )
     return null
   })
 
