@@ -148,6 +148,7 @@ import AiRobotVariation from '@/assets/icons/streamline/streamline-ai-robot-gene
 import DescendingSort from '@/assets/icons/streamline/streamline-descending-sort-filter-2.png'
 import CommonFileAdd from '@/assets/icons/streamline/streamline-common-file-add.png'
 import AiFileSparkle from '@/assets/icons/streamline/streamline-ai-file-sparkle.png'
+import AiFolderSpark from '@/assets/icons/streamline/library/streamline-ai-folder-spark.png'
 
 type SvgMark = FC<
   ComponentProps<'svg'> & {
@@ -281,6 +282,8 @@ const Fork = masked(WorkflowBranch)
 const Graph = masked(AstronomyConstellation)
 const Note = masked(PencilNote)
 const Organize = masked(HierarchyOrganize)
+/** The Librarian, which files threads into projects. */
+const Librarian = masked(AiFolderSpark)
 const Proposal = masked(WorkflowPullRequest)
 const Skill = masked(AiScienceSpark)
 const Compound = masked(HierarchySix)
@@ -379,6 +382,7 @@ export const Icon = {
   Key,
   Last,
   Layout,
+  Librarian,
   Link,
   Mail,
   Menu,
