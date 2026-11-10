@@ -30,12 +30,14 @@ import { Route as SettingsAiRouteImport } from './routes/settings/ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsImportRouteImport } from './routes/settings/import'
 import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
+import { Route as SettingsWorkRouteImport } from './routes/settings/work'
 import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
 import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
+import { Route as ApiWorkSplatRouteImport } from './routes/api/work/$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
@@ -172,6 +174,11 @@ const SettingsKeysRoute = SettingsKeysRouteImport.update({
   path: '/keys',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsWorkRoute = SettingsWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const StoryIdRoute = StoryIdRouteImport.update({
   id: '/story/$id',
   path: '/story/$id',
@@ -200,6 +207,11 @@ const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
 const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
   id: '/api/index/$',
   path: '/api/index/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkSplatRoute = ApiWorkSplatRouteImport.update({
+  id: '/api/work/$',
+  path: '/api/work/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesktopBlocksIndexRoute = DesktopBlocksIndexRouteImport.update({
@@ -398,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/settings/': typeof SettingsIndexRoute
@@ -405,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -455,6 +469,7 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
@@ -463,6 +478,7 @@ export interface FileRoutesByTo {
   '/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
@@ -516,6 +532,7 @@ export interface FileRoutesById {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/import': typeof SettingsImportRoute
   '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
   '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
@@ -524,6 +541,7 @@ export interface FileRoutesById {
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
@@ -578,6 +596,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/work'
     | '/story/$id'
     | '/theia/$'
     | '/settings/'
@@ -585,6 +604,7 @@ export interface FileRouteTypes {
     | '/pages/$pageId'
     | '/api/artifacts/$'
     | '/api/index/$'
+    | '/api/work/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -635,6 +655,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/work'
     | '/story/$id'
     | '/theia/$'
     | '/'
@@ -643,6 +664,7 @@ export interface FileRouteTypes {
     | '/pages/$pageId'
     | '/api/artifacts/$'
     | '/api/index/$'
+    | '/api/work/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
@@ -695,6 +717,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/import'
     | '/settings/keys'
+    | '/settings/work'
     | '/story/$id'
     | '/theia/$'
     | '/_chat/'
@@ -703,6 +726,7 @@ export interface FileRouteTypes {
     | '/_chat/pages/$pageId'
     | '/api/artifacts/$'
     | '/api/index/$'
+    | '/api/work/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
@@ -750,6 +774,7 @@ export interface RootRouteChildren {
   TheiaSplatRoute: typeof TheiaSplatRoute
   ApiArtifactsSplatRoute: typeof ApiArtifactsSplatRoute
   ApiIndexSplatRoute: typeof ApiIndexSplatRoute
+  ApiWorkSplatRoute: typeof ApiWorkSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
@@ -932,6 +957,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsKeysRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/work': {
+      id: '/settings/work'
+      path: '/work'
+      fullPath: '/settings/work'
+      preLoaderRoute: typeof SettingsWorkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/story/$id': {
       id: '/story/$id'
       path: '/story/$id'
@@ -972,6 +1004,13 @@ declare module '@tanstack/react-router' {
       path: '/api/index/$'
       fullPath: '/api/index/$'
       preLoaderRoute: typeof ApiIndexSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/work/$': {
+      id: '/api/work/$'
+      path: '/api/work/$'
+      fullPath: '/api/work/$'
+      preLoaderRoute: typeof ApiWorkSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/desktop/blocks/': {
@@ -1235,6 +1274,7 @@ interface SettingsRouteChildren {
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsImportRoute: typeof SettingsImportRoute
   SettingsKeysRoute: typeof SettingsKeysRoute
+  SettingsWorkRoute: typeof SettingsWorkRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -1243,6 +1283,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsImportRoute: SettingsImportRoute,
   SettingsKeysRoute: SettingsKeysRoute,
+  SettingsWorkRoute: SettingsWorkRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -1264,6 +1305,7 @@ const rootRouteChildren: RootRouteChildren = {
   TheiaSplatRoute: TheiaSplatRoute,
   ApiArtifactsSplatRoute: ApiArtifactsSplatRoute,
   ApiIndexSplatRoute: ApiIndexSplatRoute,
+  ApiWorkSplatRoute: ApiWorkSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
@@ -1309,12 +1351,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
