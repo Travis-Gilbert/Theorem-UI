@@ -135,7 +135,10 @@ export interface PageMethods {
   'frame.error': { params: FrameError; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
-  'frame.snapshot': { params: { html: string }; result: null }
+  'frame.snapshot': {
+    params: { html: string; outline?: string }
+    result: null
+  }
   /** A page module publishing one of its declared outputs. */
   'module.output': { params: { name: string; value: unknown }; result: null }
   /** A person used a page module's frame: its next events are theirs. */
@@ -152,6 +155,9 @@ export interface ModuleValues {
 
 /** The largest snapshot a frame may send, in characters. */
 export const MAX_SNAPSHOT = 512 * 1024
+
+/** The largest outline of a page a frame may send, in characters. */
+export const MAX_OUTLINE = 128 * 1024
 
 /** Methods the sandbox serves; the page calls them. */
 export interface SandboxMethods {

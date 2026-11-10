@@ -236,10 +236,17 @@ try {
       cleanCheck.typesChecked &&
       cleanCheck.problems.length === 0 &&
       cleanCheck.files.join() === 'main.tsx,Table.tsx,types.ts' &&
-      cleanCheck.rendered?.text === 'Alder housing\nBirch transit',
+      cleanCheck.rendered?.text === 'Alder housing\nBirch transit' &&
+      // The same page as assistive technology reads it, each cell with the
+      // place in the source that made it.
+      /^- table/m.test(cleanCheck.rendered?.outline ?? '') &&
+      /- cell "Alder" \[source=Table\.tsx:\d+:\d+\]/.test(
+        cleanCheck.rendered?.outline ?? '',
+      ),
     {
       ms: Date.now() - started,
       ranMs: cleanCheck.ranMs,
+      outline: cleanCheck.rendered?.outline,
       rendered: cleanCheck.rendered,
     },
   )

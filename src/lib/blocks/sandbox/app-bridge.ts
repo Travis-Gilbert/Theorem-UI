@@ -46,10 +46,14 @@ const context = connectToPage().then((port) => {
     for (const listener of moduleListeners) listener(values)
     return null
   })
-  serve<SandboxMethods, 'module.action'>(rpc, 'module.action', ({ name, payload }) => {
-    for (const listener of actionListeners.get(name) ?? []) listener(payload)
-    return null
-  })
+  serve<SandboxMethods, 'module.action'>(
+    rpc,
+    'module.action',
+    ({ name, payload }) => {
+      for (const listener of actionListeners.get(name) ?? []) listener(payload)
+      return null
+    },
+  )
   // The page's tokens on this document's root; CSS and cells that read them follow.
   serve<SandboxMethods, 'theme.changed'>(rpc, 'theme.changed', (theme) => {
     applyTheme(theme)
@@ -59,53 +63,80 @@ const context = connectToPage().then((port) => {
   observeHeight((height) => {
     void call<PageMethods, 'frame.resize'>(rpc, 'frame.resize', { height })
   })
-  observeSnapshots((html) => {
-    void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', { html })
+  observeSnapshots((html, outline) => {
+    void call<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', {
+      html,
+      outline,
+    })
   })
   const selection = (event?: Event) => {
     const selected = window.getSelection()
     const node = selected?.anchorNode
     const element = node instanceof Element ? node : node?.parentElement
     const active = document.activeElement
-    const input = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? active : null
-    const text = input && input.selectionStart !== null
-      ? input.value.slice(input.selectionStart,input.selectionEnd ?? input.selectionStart)
-      : selected?.toString() ?? ''
+    const input =
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement
+        ? active
+        : null
+    const text =
+      input && input.selectionStart !== null
+        ? input.value.slice(
+            input.selectionStart,
+            input.selectionEnd ?? input.selectionStart,
+          )
+        : (selected?.toString() ?? '')
     // A click on a lane or a bar selects it even when no text is selected.
-    const pointed = event?.type === 'pointerup' && event.target instanceof Element ? event.target : null
+    const pointed =
+      event?.type === 'pointerup' && event.target instanceof Element
+        ? event.target
+        : null
     const target = input ?? pointed ?? element
     const entity = target?.closest('[data-entity-id]')
     const entityId = entity?.getAttribute('data-entity-id') ?? undefined
-    const entityLabel = entity?.getAttribute('data-entity-label') ?? entity?.getAttribute('aria-label') ?? undefined
-    const rowId = target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
-    const field = target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
+    const entityLabel =
+      entity?.getAttribute('data-entity-label') ??
+      entity?.getAttribute('aria-label') ??
+      undefined
+    const rowId =
+      target?.closest('[data-row-id]')?.getAttribute('data-row-id') ?? undefined
+    const field =
+      target?.closest('[data-field]')?.getAttribute('data-field') ?? undefined
     // A notebook's cells are sections with an id; the one a selection names is marked.
     const cell = target?.closest('[data-cell-id]')
     markSelectedCell(cell)
     const cellId = cell?.getAttribute('data-cell-id') ?? undefined
     // In an App built from source, the element says where it was written.
-    const source = target?.closest('[data-theorem-source]')?.getAttribute('data-theorem-source') ?? undefined
-    void call<PageMethods,'frame.selection'>(rpc,'frame.selection',{
-      text:text.slice(0,4096),rowId:rowId?.slice(0,200),field:field?.slice(0,200),
-      entityId:entityId?.slice(0,200),entityLabel:entityLabel?.slice(0,200),
-      cellId:cellId?.slice(0,200),
-      source:source?.slice(0,300),
+    const source =
+      target
+        ?.closest('[data-theorem-source]')
+        ?.getAttribute('data-theorem-source') ?? undefined
+    void call<PageMethods, 'frame.selection'>(rpc, 'frame.selection', {
+      text: text.slice(0, 4096),
+      rowId: rowId?.slice(0, 200),
+      field: field?.slice(0, 200),
+      entityId: entityId?.slice(0, 200),
+      entityLabel: entityLabel?.slice(0, 200),
+      cellId: cellId?.slice(0, 200),
+      source: source?.slice(0, 300),
     }).catch(() => {})
   }
   // A person's input inside the frame never reaches the page; say so, so a
   // module's next event starts its own chain.
   const used = () => {
-    void call<PageMethods, 'module.used'>(rpc, 'module.used', {}).catch(() => {})
+    void call<PageMethods, 'module.used'>(rpc, 'module.used', {}).catch(
+      () => {},
+    )
   }
   document.addEventListener('pointerdown', used, true)
   document.addEventListener('keydown', used, true)
   // A click collapses the text selection after pointerup has reported what it
   // pointed at; only a selection with text in it is news.
-  document.addEventListener('selectionchange',() => {
+  document.addEventListener('selectionchange', () => {
     if (window.getSelection()?.isCollapsed === false) selection()
   })
-  document.addEventListener('pointerup',selection)
-  document.addEventListener('keyup',selection)
+  document.addEventListener('pointerup', selection)
+  document.addEventListener('keyup', selection)
   return { cells, databases }
 })
 
@@ -184,15 +215,23 @@ const theorem = {
       return () => listeners.delete(listener)
     },
     output: async (name: string, value: unknown) =>
-      call<PageMethods, 'module.output'>((await context).cells.rpc, 'module.output', {
-        name,
-        value,
-      }),
+      call<PageMethods, 'module.output'>(
+        (await context).cells.rpc,
+        'module.output',
+        {
+          name,
+          value,
+        },
+      ),
     emit: async (name: string, payload: unknown) =>
-      call<PageMethods, 'module.emit'>((await context).cells.rpc, 'module.emit', {
-        name,
-        payload,
-      }),
+      call<PageMethods, 'module.emit'>(
+        (await context).cells.rpc,
+        'module.emit',
+        {
+          name,
+          payload,
+        },
+      ),
   },
 }
 

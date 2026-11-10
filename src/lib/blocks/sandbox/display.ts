@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import type { Display } from './cell'
+import { outlineOf } from './outline'
 import { MAX_SNAPSHOT } from './protocol'
 
 /** Shows displayed values in `container`, each in its own element. */
@@ -86,11 +87,15 @@ export function snapshotHtml(): string {
  * for the page to show where a live frame would cost too much (a canvas card
  * far out).
  */
-export function observeSnapshots(report: (html: string) => void): void {
+export function observeSnapshots(
+  report: (html: string, outline: string) => void,
+): void {
   let timer: ReturnType<typeof setTimeout> | undefined
   const take = () => {
     const html = snapshotHtml()
-    if (html.length <= MAX_SNAPSHOT) report(html)
+    // Read from the live page, which knows what a copy cannot: what is hidden,
+    // what a field holds, what is checked.
+    if (html.length <= MAX_SNAPSHOT) report(html, outlineOf(document.body))
   }
   const schedule = () => {
     clearTimeout(timer)
@@ -131,7 +136,9 @@ export function observeHeight(report: (height: number) => void): void {
  * what the page will refer to. A selection outside every cell marks none.
  */
 export function markSelectedCell(cell: Element | null | undefined): void {
-  for (const marked of document.querySelectorAll('[data-cell-id][data-selected]'))
+  for (const marked of document.querySelectorAll(
+    '[data-cell-id][data-selected]',
+  ))
     if (marked !== cell) marked.removeAttribute('data-selected')
   cell?.setAttribute('data-selected', '')
 }

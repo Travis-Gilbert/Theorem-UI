@@ -29,7 +29,7 @@ export const APP_OPERATIONS = [
   {
     name: APP_CHECK,
     description:
-      "Builds and checks an App in the person's browser and returns what is wrong with it. Pass `html`, a complete App document exactly as it would be published, to check a draft before publishing it; or pass `documentId` to check a published App as it is saved now. The result says whether it built, lists its build, type and runtime problems with file, line and column, and gives the text the App showed. Nothing is changed and nothing is shown to the person: the App runs hidden for a moment with no network, empty state and an empty in-memory database, so records it reads are not the person's.",
+      "Builds and checks an App in the person's browser and returns what is wrong with it. Pass `html`, a complete App document exactly as it would be published, to check a draft before publishing it; or pass `documentId` to check a published App as it is saved now. The result says whether it built, lists its build, type and runtime problems with file, line and column, and gives what the App showed: its text, and `outline`, each thing on the page by role, name and state as assistive technology reads it, with the source place that made it. Nothing is changed and nothing is shown to the person: the App runs hidden for a moment with no network, empty state and an empty in-memory database, so records it reads are not the person's.",
     effect: 'read',
     inputSchema: {
       type: 'object',

@@ -30,8 +30,13 @@ export interface AppInspection {
   typeCheckError?: string
   /** How long the App ran, in milliseconds; zero when it was not run. */
   ranMs: number
-  /** What the App showed once it settled: its text, and how many elements. */
-  rendered?: { text: string; elements: number }
+  /**
+   * What the App showed once it settled: its text, how many elements, and
+   * `outline`, each thing on the page by role, name and state (and, for an App
+   * built from source, the place that made it). A `canvas` is listed and not
+   * read.
+   */
+  rendered?: { text: string; elements: number; outline?: string }
 }
 
 export interface InspectOptions {
@@ -48,6 +53,7 @@ const CONNECT_MS = 10_000
 export const MAX_PROBLEMS = 40
 const MAX_MESSAGE = 400
 const MAX_RENDERED_TEXT = 2000
+const MAX_RENDERED_OUTLINE = 6000
 
 const declarationsOf = (html: string) =>
   parseHtmlDeclarations(
@@ -67,11 +73,22 @@ const LINE = new Set(
   ),
 )
 
+/** `text` cut at a line's end, saying how many lines were left out. */
+function clipLines(text: string, most: number): string {
+  if (text.length <= most) return text
+  const kept = text.slice(0, text.lastIndexOf('\n', most))
+  const left = text.slice(kept.length).split('\n').length - 1
+  return `${kept}\n… ${left} more`
+}
+
 /**
  * A snapshot's text, as a person would read it down the page: a line for
  * each block and table row, and a space between the things on a line.
  */
-function renderedOf(snapshot: string): AppInspection['rendered'] {
+function renderedOf(
+  snapshot: string,
+  outline: string | undefined,
+): AppInspection['rendered'] {
   const page = new DOMParser().parseFromString(snapshot, 'text/html')
   for (const hidden of page.body.querySelectorAll('script, style, template'))
     hidden.remove()
@@ -84,7 +101,13 @@ function renderedOf(snapshot: string): AppInspection['rendered'] {
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter(Boolean)
     .join('\n')
-  return { text: text.slice(0, MAX_RENDERED_TEXT), elements: elements.length }
+  return {
+    text: text.slice(0, MAX_RENDERED_TEXT),
+    elements: elements.length,
+    ...(outline === undefined
+      ? {}
+      : { outline: clipLines(outline, MAX_RENDERED_OUTLINE) }),
+  }
 }
 
 /**
@@ -103,6 +126,7 @@ async function run(
 }> {
   const problems: Array<AppProblem> = []
   let snapshot: string | undefined
+  let outline: string | undefined
   const build = hosted.hostedBuild(page)
   const state = pinnedAppState(null)
   await state.ready
@@ -130,8 +154,9 @@ async function run(
     onError: (error: FrameError) => {
       problems.push(traceFrameError(error, build))
     },
-    onSnapshot: (copy: string) => {
+    onSnapshot: (copy: string, things?: string) => {
       snapshot = copy
+      outline = things
     },
   })
   frame.src = url
@@ -161,7 +186,8 @@ async function run(
   return {
     problems,
     ranMs: Math.round(performance.now() - started),
-    rendered: snapshot === undefined ? undefined : renderedOf(snapshot),
+    rendered:
+      snapshot === undefined ? undefined : renderedOf(snapshot, outline),
   }
 }
 
