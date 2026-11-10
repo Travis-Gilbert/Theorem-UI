@@ -1,0 +1,228 @@
+{
+  "plan": "docs/plans/app-database-and-compiler.md",
+  "items": [
+    {
+      "id": "tsrs-feasibility",
+      "requirement": "tsrs checks and emits TSX (react-jsx) against virtual node_modules declarations for React and a custom SDK package, from an in-memory file map",
+      "status": "done",
+      "evidence": [
+        "Node run of @tsrs/wasm 0.23.0-ts7.1.0-beta, 2026-11-10: exit 0 on a valid file, TS2339 and TS2345 on the planted errors, about 260 ms cold, 111 MiB. Not yet run in a browser worker."
+      ]
+    },
+    {
+      "id": "rustyred-wasm-crate",
+      "requirement": "A rustyred-wasm crate in RustyRedDB builds the graph store over the OPFS projection chunk store and over memory, without Database::create/open",
+      "status": "done",
+      "evidence": [
+        "RustyRedDB PR #4 (feat/browser-binding, f873b62): Database::with_chunk_store and crates/rustyred-wasm",
+        "cargo test -p rustyred-wasm: 4 passed; cargo test -p rustyred --test chunk_store_database: 2 passed"
+      ]
+    },
+    {
+      "id": "rustyred-browser-api",
+      "requirement": "@rustyreddb/browser mirrors the Node binding (mutate, getNode, getEdge, queryNodes, neighbors, query, fulltext, compact, close) with the same error codes, behind an async client that owns the worker",
+      "status": "partial",
+      "evidence": [
+        "RustyRedDB PR #4 (feat/browser-binding, f873b62): crates/rustyred-wasm/npm (worker.js, index.js, index.d.ts)",
+        "Not included: designateFulltext and fulltextSearch (Tantivy default features do not build for wasm32; the call answers fulltext_unavailable) and compact (native .RR files only)"
+      ]
+    },
+    {
+      "id": "rustyred-subscribe",
+      "requirement": "subscribe re-runs a registered read after a commit and posts the result",
+      "status": "done",
+      "evidence": [
+        "RustyRedDB PR #4 (feat/browser-binding, f873b62): npm/src/worker.js publish(); oracle check \"a subscription sees each change to its read and nothing else\"",
+        "Every subscribed read is run again after each commit and reported only when its result differs"
+      ]
+    },
+    {
+      "id": "rustyred-browser-oracle",
+      "requirement": "Headless Chromium: records written are read back after a page reload; runtime panics on wasm32 found by this run are fixed",
+      "status": "done",
+      "evidence": [
+        "npm run oracle in headless Chromium, 2026-11-10: 14 of 14 checks; records, edge and graph version present after a page reload; verify ok before and after",
+        "No wasm32 runtime panic appeared on these paths. Module 3.9 MB; first open about 90 ms, open after reload about 160 ms",
+        "2026-11-10, later: 21 of 21 checks with the shared mode, five runs"
+      ]
+    },
+    {
+      "id": "db-capability",
+      "requirement": "A db capability is declared like the others and db.* page methods are parsed and checked against it",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/declarations.ts (db), bridge.ts (db.call, db.subscribe, db.unsubscribe, each zod-parsed and checked against the declaration)",
+        "bun test src/lib/blocks/app-db.test.ts: 13 passed, including \"a database that was not declared is not reached\""
+      ]
+    },
+    {
+      "id": "db-worker-per-app",
+      "requirement": "One database per App document id in a host-page worker; every revision of an App sees the same records; a pinned revision is read-only",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-db.ts: one database per App document id and declared name, shared by every view on the page; a pinned revision is opened with writable false",
+        "node scripts/e2e/app-db.mjs in headless Chromium, 2026-11-10: 9 of 9 checks, including \"the next revision of the App finds its records\", \"they are there after the page is loaded again\" and \"a saved revision reads them and may not change them\""
+      ]
+    },
+    {
+      "id": "db-one-owner-across-tabs",
+      "requirement": "Two tabs showing the same App share its database: one tab owns the worker and the others reach it, because OPFS gives one exclusive handle per file",
+      "status": "done",
+      "evidence": [
+        "RustyRedDB PR #4: open(name, { shared: true }) in crates/rustyred-wasm/npm/src/shared.js (a Web Lock chooses the tab that holds the file, a BroadcastChannel carries the others' calls); its oracle drives three pages, 21 of 21 checks",
+        "src/lib/blocks/app-db.ts opens shared; bun run e2e:app-db: \"a write in one tab reaches the other\" and \"the App keeps working in the tab that is left\", 14 of 14 checks, three runs"
+      ]
+    },
+    {
+      "id": "db-compaction",
+      "requirement": "An App's database does not grow without bound: the browser store is compacted",
+      "status": "todo",
+      "evidence": [
+        "Not built. The engine's browser store refuses reclamation by design (rustyred-engine browser_projection.rs, chunk_store_browser_compaction_refused): OPFS has no atomic rename, and the route it names is a two-file generation switch",
+        "Measured in headless Chromium, 2026-11-10, 200 small nodes then 1000 one-node commits: the file grew about 7 KB per commit as Theorem UI opens it (controlEvents and keepHistory off), 7 MB in all, at about 33 ms per commit; with both on, about 100 KB and 100 ms per commit"
+      ]
+    },
+    {
+      "id": "db-agent-knows",
+      "requirement": "The builder is told the db surface, so a generated App can declare and use a database (Theorem repo)",
+      "status": "partial",
+      "evidence": [
+        "Theorem PR #1002: conversation_work/builder_app.md documents db(\"name\") and its calls",
+        "bun run e2e:app-db: \"the calls Theorem's builder is told to use work as it is told\"",
+        "No builder run has been made with the new contract"
+      ]
+    },
+    {
+      "id": "db-in-frame",
+      "requirement": "window.theorem.db in the app bridge, with subscriptions delivered over the existing port",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/sandbox/db.ts and app-bridge.ts (window.theorem.db); subscriptions arrive as db.changed over the frame's port",
+        "scripts/e2e/app-db.mjs: \"a second view of the App follows without a rebuild\""
+      ]
+    },
+    {
+      "id": "ts-app-form",
+      "requirement": "An App can be several source files in its document; the single-HTML form still works",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-source.ts: source files as text/theorem-source scripts in the App's one HTML document; a page without them is a plain HTML App",
+        "bun test src/lib/blocks/app-source.test.ts: 10 passed"
+      ]
+    },
+    {
+      "id": "ts-build",
+      "requirement": "esbuild-wasm builds a source revision against the import map; a failed build keeps the last working preview",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/export.ts bundleAppSources and hosted-app.ts hostedApp; document-app.tsx useHostedPreview keeps the last revision that built",
+        "bun test src/components/blocks/typescript-app.test.tsx: \"a revision that does not build keeps the last one running and says why\"",
+        "bun run e2e:app-ts, dev and --built, 2026-11-10: 9 of 9 checks; a React and TypeScript App builds and runs in about 2.2 s cold"
+      ]
+    },
+    {
+      "id": "ts-check",
+      "requirement": "tsrs checks the same frozen snapshot in its own worker, loaded on first use; results for a superseded revision are dropped",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-check.ts, app-check.worker.ts, app-checker.ts (one lazy worker for the page; checks run one after another); document-app.tsx useTypeCheck drops a result for another revision",
+        "bun test src/lib/blocks/app-check.test.ts: 5 passed against tsrs's Node build",
+        "bun run e2e:app-ts: the worker reports TS2339 and TS2322 at their file and line; a check took about 100 to 140 ms and 111 MiB once loaded"
+      ]
+    },
+    {
+      "id": "ts-declarations",
+      "requirement": "Declarations for @theorem/app are generated from the bridge schemas",
+      "status": "done",
+      "evidence": [
+        "scripts/app-declarations.ts writes src/lib/blocks/check/theorem-app.generated.ts from sandbox/app-bridge.ts with TypeScript's declaration emit",
+        "app-check.test.ts: \"the declarations for window.theorem are the ones its source gives\" fails when the generated file is stale; \"a call the bridge does not have, or a wrong argument to one it has, is a problem\""
+      ]
+    },
+    {
+      "id": "runtime-errors",
+      "requirement": "The frame forwards error and unhandledrejection with source-mapped positions",
+      "status": "done",
+      "evidence": [
+        "sandbox/app-bridge.ts reports error and unhandledrejection as frame.error; app-trace.ts maps them through the page's own source map",
+        "bun run e2e:app-ts: \"what the App throws is traced to the file and line that threw it\" (summary.ts:8) in a real frame"
+      ]
+    },
+    {
+      "id": "repair-reference",
+      "requirement": "Build errors, check diagnostics and runtime errors reach the agent as a repair reference naming the source revision",
+      "status": "done",
+      "evidence": [
+        "src/lib/theorem/app-references.ts appRepairReference (bounded to fit the server's 8192-byte reference limit); app-problems.tsx \"Ask to fix\"",
+        "bun run e2e:app-ts: \"Ask to fix hands the agent that revision and its problem\"",
+        "Not observed: a turn in which the agent receives the reference and repairs the App"
+      ]
+    },
+    {
+      "id": "builder-multi-file",
+      "requirement": "The Theorem builder can emit the multi-file App form (Theorem repo)",
+      "status": "partial",
+      "evidence": [
+        "No server change was needed for the form: the builder still publishes {title, html}",
+        "Theorem PR #1002: builder_app.md documents the TypeScript form and the repair selection",
+        "bun run e2e:app-ts, dev and --built: \"the example Theorem's builder is given builds, runs and passes its check\"",
+        "No builder run has been made with the new contract"
+      ]
+    },
+    {
+      "id": "mobile-budget",
+      "requirement": "Checker load, memory and time measured on a phone",
+      "status": "todo",
+      "evidence": [
+        "Measured in headless desktop Chromium only: the tsrs module is 10 MB (1.7 MB brotli), a check of a three-file React App about 100 to 140 ms and 111 MiB once loaded. No phone was measured."
+      ]
+    },
+    {
+      "id": "click-to-source",
+      "requirement": "Each rendered element names the file, line and column that wrote it, added at build time and never written into source; a selection carries it to the agent",
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/export.ts: the App's JSX runtime stamps data-theorem-source from the place esbuild passes to jsxDEV, so no index is kept and no source is parsed",
+        "sandbox/app-bridge.ts sends the nearest one as selection.source; app-references.ts labels the reference by file and line",
+        "bun run e2e:app-ts, dev and --built: \"an element says where it was written, and pointing at it tells the agent\" (Table.tsx:26:13)"
+      ]
+    },
+    {
+      "id": "edit-actions",
+      "requirement": "Reversible actions (property, token or style, insert, reorder, remove, binding, extract) become AST edits against the revision they were made on",
+      "status": "partial",
+      "evidence": [
+        "Built: set an element's plain text, and set, add or remove an attribute written as a string (src/lib/blocks/app-edit.ts editElement, writeAppSource; src/components/blocks/app-element.tsx). Each is a new App revision, so the revision history is the undo",
+        "bun test src/lib/blocks/app-edit.test.ts: 12 passed; typescript-app.test.tsx: \"pointing at an element offers its plain text and attributes, and applying rewrites its source\"",
+        "bun run e2e:app-ts, dev and --built: \"changing an element in the panel rewrites its source, and the App shows it\"",
+        "Not built: insert into a slot, reorder, remove, change a binding, extract a component, token and style edits, and any edit to a value written as code"
+      ]
+    },
+    {
+      "id": "component-plugins",
+      "requirement": "Component plugins and style books are vault folders with manifest, declarations, inventory, schema-checked tokens and a usage file",
+      "status": "todo",
+      "evidence": [
+        "Not built. Needs decisions that are the owner's: where a library's source lives (vault folder or vendored package), how an App names the one it uses, and how the agent is given its usage file"
+      ]
+    },
+    {
+      "id": "save-component",
+      "requirement": "A component saved from the designer can be imported by another App",
+      "status": "todo",
+      "evidence": [
+        "Not built. Needs decisions that are the owner's: where a library's source lives (vault folder or vendored package), how an App names the one it uses, and how the agent is given its usage file"
+      ]
+    },
+    {
+      "id": "edit-theorem",
+      "requirement": "A vault module is editable with the TypeScript path and the designer and updates on a page without reloading the host",
+      "status": "partial",
+      "evidence": [
+        "A vault module's page is hosted by the same hostedAppDocument (src/components/pages/sandboxed-module.tsx), so a module that carries TypeScript source is built, stamped and traced like an App: app-source.test.ts \"a page module's page is built the same way, under the hosts it was allowed\"",
+        "Not built for modules: the problems list, the type check, Ask to fix, the element panel and db. A module that does not build shows the build error as text",
+        "Not observed: a TypeScript module on a page, which needs a vault"
+      ]
+    }
+  ]
+}

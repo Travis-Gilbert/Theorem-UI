@@ -3,7 +3,7 @@
 import type { AppDocument, AppSnapshot } from '../theorem/apps'
 import { contentDigest } from '../theorem/note-canonical'
 import { BridgeDenied } from './bridge'
-import type { BridgeHost, StateCollections } from './bridge'
+import type { AppDatabases, BridgeHost, StateCollections } from './bridge'
 import type { Capabilities } from './declarations'
 import { StateReplica } from './state'
 
@@ -63,17 +63,22 @@ export function pinnedAppState(seed: Uint8Array | null) {
   }
 }
 
-/** The host for a pinned revision: its own source, no writes, no agent runs. */
+/**
+ * The host for a pinned revision: its own source, no writes, no agent runs.
+ * `db`, when given, is the App's databases opened for reading only.
+ */
 export function pinnedAppHost(
   html: string,
   documentId: string,
   capabilities: Capabilities,
   state: StateCollections,
+  db?: AppDatabases,
 ): BridgeHost {
   const source = new TextEncoder().encode(html)
   return {
     capabilities,
     state,
+    db,
     client: {
       async read(path) {
         if (path !== 'index.html')
@@ -110,6 +115,7 @@ export function documentAppHost(
   snapshot: AppSnapshot,
   capabilities: Capabilities,
   state: StateCollections,
+  db?: AppDatabases,
 ): BridgeHost {
   const source = new TextEncoder().encode(snapshot.html)
   const onlySource = (path: string) => {
@@ -121,6 +127,7 @@ export function documentAppHost(
   return {
     capabilities,
     state,
+    db,
     client: {
       async read(path) {
         onlySource(path)

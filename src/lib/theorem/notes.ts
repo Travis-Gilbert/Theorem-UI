@@ -34,12 +34,23 @@ export type Note = {
   revision: Theorem.DocumentRevision
   /** Canonical snapshot at `revision`; undefined when the server holds it as an artifact. */
   canonical: Uint8Array | undefined
-  /** False for read-only documents and for block layouts other than one Markdown paragraph. */
+  /** False for read-only and retired documents, and for block layouts other than one Markdown paragraph. */
   editable: boolean
+  /** Written by a person, or encoded by an agent (and perhaps already made editable). */
+  origin: Theorem.DocumentOrigin
+  /** In the Trash. */
+  retired: boolean
 }
+
+/** Theorem adds `retired` to the summary; a server without it has no Trash. */
+export const isRetired = (summary: Theorem.DocumentSummary) =>
+  (summary as { retired?: boolean }).retired === true
 
 export const noteKey = (documentId: string) =>
   ['theorem', 'note', documentId] as const
+
+/** Every list of notes (note-library.ts) sits under this key. */
+export const noteLibraryKey = ['theorem', 'notes', 'library'] as const
 
 const fromBase64 = (value: string) =>
   Uint8Array.from(atob(value), (char) => char.charCodeAt(0))
@@ -63,7 +74,11 @@ function toNote(snapshot: Theorem.DocumentSnapshot): Note {
     savedMarkdown: snapshot.markdownProjection,
     revision: snapshot.summary.revision,
     canonical,
+    origin: snapshot.summary.origin,
+    retired: isRetired(snapshot.summary),
+    // Theorem refuses revisions to a retired document until it is restored.
     editable:
+      !isRetired(snapshot.summary) &&
       !snapshot.summary.readOnly &&
       canonical !== undefined &&
       isEditableNote(canonical),
@@ -110,6 +125,8 @@ export async function createNote(markdown: string): Promise<Note> {
     revision: document.revision,
     canonical,
     editable: true,
+    origin: document.origin,
+    retired: false,
   }
 }
 
@@ -192,6 +209,9 @@ async function save(queryClient: QueryClient, documentId: string) {
             }
           : current,
       )
+      // A save can rename the note and moves it up Recently edited, so the
+      // lists that show it refetch.
+      void queryClient.invalidateQueries({ queryKey: noteLibraryKey })
       const after = queryClient.getQueryData<Note>(key)
       setStatus(
         documentId,
@@ -284,6 +304,30 @@ export function leavePage(event?: Event) {
     (status) => status === 'pending' || status === 'saving',
   )
   if (unsaved && event?.type === 'beforeunload') event.preventDefault()
+}
+
+/**
+ * Saves what the open editors hold for this note and resolves once Theorem
+ * has it, so a step that acts on the saved revision (the Trash) acts on the
+ * latest text. Throws when the text could not be saved.
+ */
+export async function settleNote(queryClient: QueryClient, documentId: string) {
+  for (const handover of handovers) handover()
+  const unsaved = () => {
+    const note = queryClient.getQueryData<Note>(noteKey(documentId))
+    return Boolean(note && note.markdown !== note.savedMarkdown)
+  }
+  // Text typed during a save queues another; let those finish too.
+  for (let round = 0; round <= MERGE_ATTEMPTS && unsaved(); round++) {
+    const queue = queues.get(documentId)
+    if (!queue) break
+    if (queue.timer !== undefined) queue.start()
+    await queue.chain
+    const status = useNoteStatus.getState().status[documentId]
+    if (status === 'conflict' || status === 'error') break
+  }
+  if (unsaved())
+    throw new Error('The latest text is not saved yet, so the note stays.')
 }
 
 let watching = false

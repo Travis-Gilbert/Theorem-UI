@@ -22,6 +22,12 @@ test('context-menu capture sees editor changes before the delayed Markdown liste
     revision: { position: 17, contentDigest: 'digest' },
     canonical: undefined,
     editable: true,
+    origin: {
+      kind: 'user_authored',
+      actorId: 'person:test',
+      originSurface: 'test',
+    },
+    retired: false,
   }
   const { container, queryClient } = await render(<NoteEditor note={note} />)
   queryClient.setQueryData(noteKey(note.documentId), note)
@@ -59,6 +65,12 @@ test('NotePanel captures the synchronously flushed source rather than its prior 
     revision: { position: 17, contentDigest: 'digest' },
     canonical: undefined,
     editable: true,
+    origin: {
+      kind: 'user_authored',
+      actorId: 'person:test',
+      originSurface: 'test',
+    },
+    retired: false,
   }
   const { container, queryClient, root } = await render(<></>)
   queryClient.setQueryData(noteKey(note.documentId), note)

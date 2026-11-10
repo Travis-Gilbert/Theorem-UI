@@ -52,6 +52,7 @@ function railMark(name: RailIcon): FC<Props> {
 export const RailMark = {
   Home: railMark('home'),
   Index: railMark('index'),
+  Notes: railMark('notes'),
   Pages: railMark('pages'),
   Spaces: railMark('spaces'),
   Canvas: railMark('canvas'),

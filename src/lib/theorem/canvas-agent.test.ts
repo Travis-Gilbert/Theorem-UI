@@ -14,6 +14,12 @@ const note = (overrides: Partial<Note> = {}): Note => ({
   revision: { position: 17, contentDigest: 'digest' },
   canonical: undefined,
   editable: true,
+  origin: {
+    kind: 'user_authored',
+    actorId: 'person:test',
+    originSurface: 'test',
+  },
+  retired: false,
   ...overrides,
 })
 const page = (

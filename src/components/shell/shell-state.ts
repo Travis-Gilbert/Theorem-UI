@@ -2,6 +2,7 @@
 import type { SerializedDockview } from 'dockview-react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { NoteOrder } from '@/lib/theorem/note-order'
 import type { ShellMode } from './modes'
 
 /** A project's desktop dock arrangement. */
@@ -29,6 +30,11 @@ type ShellState = {
   panelWidth: number
   /** Modes whose context panel the user has closed; each starts open. */
   panelCollapsed: Readonly<Partial<Record<ShellMode, boolean>>>
+  /**
+   * The rail's destinations in the order the person dragged them into. Empty
+   * until they move one; modes it does not name keep their default place.
+   */
+  railOrder: readonly ShellMode[]
   /**
    * Whether the navigator shows the files in full, over the mode's own list.
    * The rail's Files control reveals them; nothing navigates away. Kept for
@@ -61,11 +67,15 @@ type ShellState = {
   terminalTabs: Readonly<
     Record<string, { tabs: readonly TerminalTab[]; active: string }>
   >
+  /** The order Notes mode lists notes in. */
+  noteOrder: NoteOrder
   setProjectId: (projectId: string) => void
+  setNoteOrder: (order: NoteOrder) => void
   saveLayout: (projectId: string, layout: SavedLayout) => void
   setPanelWidth: (width: number) => void
   togglePanel: (mode: ShellMode) => void
   setPanelOpen: (mode: ShellMode, open: boolean) => void
+  setRailOrder: (order: readonly ShellMode[]) => void
   setFilesShown: (shown: boolean) => void
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
@@ -98,7 +108,9 @@ export const useShell = create<ShellState>()(
       layouts: {},
       panelWidth: PANEL_WIDTH.default,
       panelCollapsed: {},
+      railOrder: [],
       filesShown: false,
+      noteOrder: 'edited',
       chatThreadId: undefined,
       explorerOpen: false,
       organizeOpen: {},
@@ -109,6 +121,7 @@ export const useShell = create<ShellState>()(
       sideDrawer: undefined,
       sideWidth: 620,
       terminalTabs: {},
+      setNoteOrder: (noteOrder) => set({ noteOrder }),
       setProjectId: (projectId) => set({ projectId }),
       saveLayout: (projectId, layout) =>
         set((s) => ({ layouts: { ...s.layouts, [projectId]: layout } })),
@@ -124,6 +137,7 @@ export const useShell = create<ShellState>()(
         set((s) => ({
           panelCollapsed: { ...s.panelCollapsed, [mode]: !open },
         })),
+      setRailOrder: (railOrder) => set({ railOrder }),
       setFilesShown: (filesShown) => set({ filesShown }),
       setChatThreadId: (chatThreadId) => set({ chatThreadId }),
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
@@ -220,6 +234,7 @@ export const useShell = create<ShellState>()(
         layouts,
         panelWidth,
         panelCollapsed,
+        railOrder,
         explorerOpen,
         organizeOpen,
         terminalHeight,
@@ -227,11 +242,13 @@ export const useShell = create<ShellState>()(
         terminalThreads,
         terminalThreadIds,
         terminalTabs,
+        noteOrder,
       }) => ({
         projectId,
         layouts,
         panelWidth,
         panelCollapsed,
+        railOrder,
         explorerOpen,
         organizeOpen,
         terminalHeight,
@@ -239,6 +256,7 @@ export const useShell = create<ShellState>()(
         terminalThreads,
         terminalThreadIds,
         terminalTabs,
+        noteOrder,
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined

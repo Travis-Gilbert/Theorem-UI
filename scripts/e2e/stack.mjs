@@ -9,6 +9,13 @@
 //   E2E_SERVER_BIN=<path to rustyred-thg-server> node scripts/e2e/stack.mjs
 //
 // Then, in another shell: node scripts/e2e/review.mjs
+//
+// With E2E_IDENTITY=neon, people sign in the way production offers: GitHub
+// beside email, where email runs through scripts/e2e/neon-standin.mjs as Neon
+// Auth would. The issuer binds the stand-in's claude-e2e account to the
+// claude-e2e tenant; its stranger account is bound to nothing and must be
+// refused. GitHub is offered with a placeholder client, so choosing it fails at
+// GitHub. The accounts' passwords are in secrets.json under neonPasswords.
 // Generated secrets stay in E2E_DATA_DIR, in a file only this user can read.
 //
 // With E2E_KEY_STANDIN set, for scripts/e2e/keys.mjs, the deployment has no OpenRouter
@@ -22,6 +29,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
@@ -33,6 +41,9 @@ import {
   API_PORT,
   DATA_DIR,
   IDENTITY,
+  IDENTITY_MODE,
+  NEON,
+  NEON_ACCOUNTS,
   STANDIN,
   STANDIN_PORT,
   UI,
@@ -71,6 +82,11 @@ function secrets() {
     identityCookieKey: hex(24),
     uiSessionSecret: hex(32),
     testProviderKey: `sk-or-e2e-${hex(24)}`,
+    neonSecret: hex(32),
+    neonCookieSecret: hex(32),
+    neonPasswords: Object.fromEntries(
+      Object.keys(NEON_ACCOUNTS).map((name) => [name, hex(16)]),
+    ),
     ...(existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}),
   }
   writeFileSync(path, JSON.stringify(all), { mode: 0o600 })
@@ -125,14 +141,81 @@ mkdirSync(join(DATA_DIR, 'logs'), { recursive: true, mode: 0o700 })
 mkdirSync(join(DATA_DIR, 'store'), { recursive: true, mode: 0o700 })
 const secret = secrets()
 
-start('identity', process.execPath, ['scripts/e2e/identity.mjs'], {
-  ...process.env,
-  E2E_IDENTITY_CLIENT_ID: IDENTITY_CLIENT_ID,
-  E2E_IDENTITY_CLIENT_SECRET: secret.identityClientSecret,
-  E2E_IDENTITY_COOKIE_KEY: secret.identityCookieKey,
-  E2E_ISSUER_CALLBACK: `${API}/oauth/callback`,
-})
-await ready('identity', `${IDENTITY}/.well-known/openid-configuration`)
+/** Starts the identity provider; returns the issuer's settings for it. */
+async function identity() {
+  if (IDENTITY_MODE === 'oidc') {
+    start('identity', process.execPath, ['scripts/e2e/identity.mjs'], {
+      ...process.env,
+      E2E_IDENTITY_CLIENT_ID: IDENTITY_CLIENT_ID,
+      E2E_IDENTITY_CLIENT_SECRET: secret.identityClientSecret,
+      E2E_IDENTITY_COOKIE_KEY: secret.identityCookieKey,
+      E2E_ISSUER_CALLBACK: `${API}/oauth/callback`,
+    })
+    await ready('identity', `${IDENTITY}/.well-known/openid-configuration`)
+    return {
+      server: {
+        RUSTY_RED_OAUTH_IDENTITY_PROVIDER: 'oidc',
+        RUSTY_RED_OIDC_ISSUER: IDENTITY,
+        RUSTY_RED_OIDC_AUTHORIZATION_ENDPOINT: `${IDENTITY}/auth`,
+        RUSTY_RED_OIDC_TOKEN_ENDPOINT: `${IDENTITY}/token`,
+        RUSTY_RED_OIDC_USERINFO_ENDPOINT: `${IDENTITY}/me`,
+        RUSTY_RED_OIDC_CLIENT_ID: IDENTITY_CLIENT_ID,
+        RUSTY_RED_OIDC_CLIENT_SECRET: secret.identityClientSecret,
+      },
+      ui: {},
+    }
+  }
+  const statePath = join(DATA_DIR, 'neon-state.json')
+  rmSync(statePath, { force: true })
+  start('neon', process.execPath, ['scripts/e2e/neon-standin.mjs'], {
+    ...process.env,
+    E2E_NEON_ORIGIN: NEON,
+    E2E_NEON_UI: UI,
+    E2E_ISSUER_CALLBACK: `${API}/oauth/callback`,
+    E2E_NEON_SECRET: secret.neonSecret,
+    E2E_NEON_STATE: statePath,
+    E2E_NEON_ACCOUNTS: JSON.stringify(
+      Object.fromEntries(
+        Object.entries(NEON_ACCOUNTS).map(([name, email]) => [
+          name,
+          { email, password: secret.neonPasswords[name] },
+        ]),
+      ),
+    ),
+  })
+  await ready('neon', `${NEON}/health`)
+  // The stand-in seeds its accounts and the issuer's client after it listens.
+  for (let attempt = 0; !existsSync(statePath); attempt++) {
+    if (attempt === READY_ATTEMPTS) {
+      console.error('The Neon stand-in wrote no state.')
+      stop(1)
+    }
+    await new Promise((settle) => setTimeout(settle, 250))
+  }
+  const neon = JSON.parse(readFileSync(statePath, 'utf8'))
+  return {
+    server: {
+      RUSTY_RED_OAUTH_IDENTITY_PROVIDERS: 'github,oidc',
+      RUSTY_RED_GITHUB_OAUTH_CLIENT_ID: 'e2e-placeholder',
+      RUSTY_RED_GITHUB_OAUTH_CLIENT_SECRET: 'e2e-placeholder',
+      RUSTY_RED_OIDC_DISPLAY_NAME: 'email',
+      RUSTY_RED_OIDC_ISSUER: neon.issuer,
+      RUSTY_RED_OIDC_AUTHORIZATION_ENDPOINT: `${neon.issuer}/oauth2/authorize`,
+      RUSTY_RED_OIDC_TOKEN_ENDPOINT: `${neon.issuer}/oauth2/token`,
+      RUSTY_RED_OIDC_USERINFO_ENDPOINT: `${neon.issuer}/oauth2/userinfo`,
+      RUSTY_RED_OIDC_CLIENT_ID: neon.clientId,
+      RUSTY_RED_OIDC_CLIENT_SECRET: neon.clientSecret,
+      RUSTY_RED_OAUTH_IDENTITY_BINDINGS_JSON: JSON.stringify([
+        { issuer: neon.issuer, subject: neon.users[ACCOUNT], tenant: ACCOUNT },
+      ]),
+    },
+    ui: {
+      NEON_AUTH_BASE_URL: neon.issuer,
+      NEON_AUTH_COOKIE_SECRET: secret.neonCookieSecret,
+    },
+  }
+}
+const signIn = await identity()
 
 const serverEnv = { ...process.env, ...providerKeys() }
 if (process.env.E2E_KEY_STANDIN) {
@@ -148,13 +231,25 @@ if (process.env.E2E_KEY_STANDIN) {
   writeFileSync(
     serverEnv.THEOREM_MODELS_JSON,
     JSON.stringify({
-      models: { openrouter: Object.fromEntries(STANDIN_MODELS.map((model) => [model, endpoint])) },
+      models: {
+        openrouter: Object.fromEntries(
+          STANDIN_MODELS.map((model) => [model, endpoint]),
+        ),
+      },
     }),
   )
   delete serverEnv.OPENROUTER_API_KEY
 }
 
+// The server does not start without a web search provider. One named in
+// provider-keys.env wins; otherwise the offline provider answers from a local
+// manifest, so agent web searches in a scenario come back empty, not live.
+const searchManifest = join(DATA_DIR, 'offline-search.jsonl')
+if (!existsSync(searchManifest)) writeFileSync(searchManifest, '')
+
 start('server', server, [], {
+  RUSTYWEB_SEARCH_PROVIDERS: 'offline',
+  RUSTYWEB_OFFLINE_SEARCH_MANIFEST: searchManifest,
   ...serverEnv,
   RUSTY_RED_PORT: String(API_PORT),
   RUSTY_RED_DATA_DIR: join(DATA_DIR, 'store'),
@@ -169,13 +264,7 @@ start('server', server, [], {
   THEOREM_PUBLICATION_SIGNING_KEY_HEX: secret.publicationSigningKey,
   RUSTY_RED_OAUTH_ENABLED: 'true',
   RUSTY_RED_OAUTH_PUBLIC_URL: API,
-  RUSTY_RED_OAUTH_IDENTITY_PROVIDER: 'oidc',
-  RUSTY_RED_OIDC_ISSUER: IDENTITY,
-  RUSTY_RED_OIDC_AUTHORIZATION_ENDPOINT: `${IDENTITY}/auth`,
-  RUSTY_RED_OIDC_TOKEN_ENDPOINT: `${IDENTITY}/token`,
-  RUSTY_RED_OIDC_USERINFO_ENDPOINT: `${IDENTITY}/me`,
-  RUSTY_RED_OIDC_CLIENT_ID: IDENTITY_CLIENT_ID,
-  RUSTY_RED_OIDC_CLIENT_SECRET: secret.identityClientSecret,
+  ...signIn.server,
   RUSTY_RED_OAUTH_CLIENTS_JSON: JSON.stringify([
     {
       client_id: CLIENT_ID,
@@ -188,18 +277,20 @@ start('server', server, [], {
 await ready('server', `${API}/.well-known/oauth-authorization-server`)
 
 const { THEOREM_API_TOKEN: _deploymentToken, ...uiEnv } = process.env
-start('ui', process.execPath, [
-  'node_modules/.bin/vite',
-  'dev',
-  '--port',
-  String(UI_PORT),
-  '--strictPort',
-], {
-  ...uiEnv,
-  THEOREM_API_URL: API,
-  THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
-  THEOREM_SESSION_SECRET: secret.uiSessionSecret,
-})
+start(
+  'ui',
+  process.execPath,
+  ['node_modules/.bin/vite', 'dev', '--port', String(UI_PORT), '--strictPort'],
+  {
+    ...uiEnv,
+    ...signIn.ui,
+    THEOREM_API_URL: API,
+    THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
+    THEOREM_SESSION_SECRET: secret.uiSessionSecret,
+  },
+)
 await ready('ui', `${UI}/login`)
 
-console.log(`Stack is up. Sign in at ${UI} as ${ACCOUNT}. Logs: ${DATA_DIR}/logs`)
+console.log(
+  `Stack is up. Sign in at ${UI} as ${ACCOUNT}. Logs: ${DATA_DIR}/logs`,
+)

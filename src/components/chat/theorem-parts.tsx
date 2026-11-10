@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, scene-part.tsx for the theorem-scene part
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -43,6 +43,14 @@ import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
+import { askAbout } from '@/components/chat/composer-references'
+import {
+  readScene,
+  repairRequest,
+  SCENE_PART,
+} from '@/components/chat/scene-model'
+import { SceneCard } from '@/components/chat/scene-part'
+import { useSceneTheme } from '@/components/chat/scene-theme'
 import { Icon } from '@/components/icons'
 import {
   describeError,
@@ -164,6 +172,74 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
       <span>{humanize(name)}</span>
       {failed && ' · failed'}
       {state === 'pending' && !running && ' · did not finish'}
+    </span>
+  )
+}
+
+/**
+ * A check the agent asked this page to make of an App: that it is being
+ * made, and what it found. Kit's operations draw nothing here; the fox on
+ * the stage shows what they did.
+ */
+/**
+ * What the chip for an `app.check` request says, or null for any other
+ * operation. `wrong` is anything short of a check that was made and found
+ * nothing: a type check that could not be made found nothing either, and says
+ * so with its `reason`.
+ */
+export function appCheckSummary(
+  data: unknown,
+  running: boolean,
+): { words: string; pending: boolean; wrong: boolean; reason?: string } | null {
+  const call = object(data)
+  if (str(call.operation) !== 'app.check') return null
+  const state = str(call.state) ?? 'pending'
+  const receipt = object(call.receipt)
+  const result = object(receipt.result)
+  const problems = Array.isArray(result.problems) ? result.problems.length : 0
+  const found =
+    problems + (typeof result.omitted === 'number' ? result.omitted : 0)
+  const pending = state === 'pending' && running
+  const checked = state === 'answered' && str(receipt.outcome) === 'applied'
+  const reason = checked ? str(result.typeCheckError) : undefined
+  const wrong = !pending && (!checked || found > 0 || reason !== undefined)
+  const words = pending
+    ? 'Checking the App'
+    : !checked
+      ? 'The App was not checked'
+      : result.built === false
+        ? 'The App does not build'
+        : found > 0
+          ? `Checked the App: ${found === 1 ? '1 problem' : `${found} problems`}`
+          : reason !== undefined
+            ? 'Checked the App: its types could not be checked'
+            : 'Checked the App: no problems'
+  return { words, pending, wrong, reason }
+}
+
+const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
+  const running = useAuiState((s) => s.message.status?.type === 'running')
+  const summary = appCheckSummary(data, running)
+  if (!summary) return null
+  const { words, pending, wrong, reason } = summary
+  const StateIcon = pending ? Icon.Code : wrong ? Icon.Close : Icon.Check
+  return (
+    <span
+      data-slot="app-check"
+      title={reason}
+      className={cn(
+        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
+        liveEnter,
+        wrong ? 'text-error-ink' : 'text-ink-muted',
+      )}
+    >
+      <StateIcon
+        className={cn(
+          'size-3 shrink-0',
+          pending && 'animate-pulse motion-reduce:animate-none',
+        )}
+      />
+      <span>{words}</span>
     </span>
   )
 }
@@ -679,6 +755,44 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/* --------------------------------------------------------------------- scenes */
+
+/**
+ * A reply's interactive scene (scene-part.tsx), drawn above its text. Fix
+ * sends the failure to the agent as the next turn; a pick becomes a
+ * reference to this reply, with what was picked as its excerpt.
+ */
+const ScenePart: DataMessagePartComponent = ({ data }) => {
+  const aui = useAui()
+  const theme = useSceneTheme()
+  const threadId = useAuiState((s) => s.threadListItem.remoteId)
+  const messageId = useAuiState((s) => s.message.id)
+  const scene = readScene(data)
+  if (!scene) return <PartNotice name={SCENE_PART} />
+  return (
+    <SceneCard
+      scene={scene}
+      theme={theme}
+      onRepair={(error) => aui.thread.append(repairRequest(scene.title, error))}
+      onAsk={
+        threadId
+          ? (entity) =>
+              askAbout({
+                label: `${scene.title ?? 'Scene'}: ${entity.label ?? entity.id}`,
+                excerpt: JSON.stringify({
+                  scene: { sceneId: scene.sceneId, title: scene.title },
+                  entity,
+                }),
+                location: {
+                  resource: { kind: 'message', threadId, messageId },
+                },
+              })
+          : undefined
+      }
+    />
+  )
+}
+
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
@@ -701,9 +815,7 @@ function guarded(
   name: string,
   Render: DataMessagePartComponent,
 ): DataMessagePartComponent {
-  const errorComponent = () => (
-    <PartNotice name={name} />
-  )
+  const errorComponent = () => <PartNotice name={name} />
   return (props) => (
     <CatchBoundary
       getResetKey={() => props.data}
@@ -723,6 +835,7 @@ const ReviewAnswerPart: DataMessagePartComponent = ({ data }) => {
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
+    [SCENE_PART, ScenePart],
     ['theorem-review_answer', ReviewAnswerPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
@@ -743,8 +856,8 @@ const RENDERERS = (
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],
-    // Kit's client operations: the fox on the stage shows what they did.
-    ['theorem-client_operation', Inert],
+    // The page's client operations: a check of an App shows as a chip.
+    ['theorem-client_operation', ClientOperationPart],
     // The native agent's program: what it does shows up as its host calls
     // and their artifacts, and its stored source is not the full program.
     ['theorem-program', Inert],

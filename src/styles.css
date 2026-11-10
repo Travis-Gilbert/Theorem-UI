@@ -219,6 +219,21 @@
   display: none;
 }
 
+/* A folder takes the palette's primary, so it follows the theme. A folder of
+   what agents wrote takes that colour's complement: the hue turned half way
+   round in OKLCH, its lightness and chroma kept, so it holds the same weight
+   beside the person's folders in every palette, light or dark. The palette
+   and dark classes sit on the root, so the complement is taken there. An
+   engine without relative colours (Servo 0.7) shows the palette's ochre. */
+:root {
+  --folder-agent: var(--ochre);
+}
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --folder-agent: oklch(from var(--redwood) l c calc(h + 180));
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -274,6 +289,8 @@
   --color-separator: var(--line-separator);
   --color-control: var(--line-control);
   --color-redwood: var(--redwood);
+  --color-folder: var(--redwood);
+  --color-folder-agent: var(--folder-agent);
   --color-redwood-hover: var(--redwood-hover);
   --color-redwood-pressed: var(--redwood-pressed);
   --color-on-redwood: var(--on-redwood);
@@ -336,6 +353,8 @@
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
   --spacing-reading: 720px;
+  /* An immersive artifact in a reply: wider than the reading column, centred on it. */
+  --spacing-artifact: 1040px;
 
   @keyframes collapsible-down {
     from {

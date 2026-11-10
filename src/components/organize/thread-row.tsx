@@ -1,6 +1,7 @@
-// SOURCING: coss ui sidebar and collapsible, Base UI ContextMenu with coss menu parts, @tanstack/react-router Link, assistant-ui (the open thread's run state and reload), thread-tree (branches and forks, as the previous thread list read them), date-fns for a sleeping thread's wake time
+// SOURCING: coss ui sidebar and collapsible, @dnd-kit/core useDraggable (a row carries its thread to another project), Base UI ContextMenu with coss menu parts, @tanstack/react-router Link, assistant-ui (the open thread's run state and reload), thread-tree (branches and forks, as the previous thread list read them), date-fns for a sleeping thread's wake time
 import { useAui, useAuiState } from '@assistant-ui/react'
 import { ContextMenu } from '@base-ui/react/context-menu'
+import { useDraggable } from '@dnd-kit/core'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { useContext, createContext, useEffect, useRef, useState } from 'react'
@@ -50,6 +51,9 @@ import { ThreadMenuItems } from './thread-menu'
 /** The branch from the tree's guide line to a row. */
 export const TREE_TICK =
   'relative before:pointer-events-none before:absolute before:top-1/2 before:-start-2.5 before:w-2 before:border-t before:border-sidebar-border'
+
+/** What a dragged row carries: the thread, and the project it was listed under. */
+export type RowDrag = { thread: ThreadEntry; from: string }
 
 export type TreeContext = {
   projects: readonly ProjectEntry[]
@@ -196,6 +200,15 @@ export function ThreadRow({
   const hasChildren = forks.length > 0 || childThreads.length > 0
   const [expanded, setExpanded] = useState(true)
   const [renaming, setRenaming] = useState(false)
+  const {
+    setNodeRef: dragRef,
+    listeners: dragListeners,
+    isDragging,
+  } = useDraggable({
+    id: `${place}|${thread.threadId}`,
+    data: { thread, from: place } satisfies RowDrag,
+    disabled: renaming,
+  })
 
   const selectBranch = useSelectBranch()
   const startThread = useStartThreadFrom()
@@ -282,17 +295,21 @@ export function ThreadRow({
               />
             ) : (
               <SidebarMenuSubButton
+                ref={dragRef}
+                {...dragListeners}
                 data-organize-row={
                   current ? (primary ? 'primary' : 'also') : undefined
                 }
                 aria-current={current || undefined}
                 title={thread.summary?.text ?? title}
                 className={cn(
-                  'h-9 w-full translate-x-0 pe-1 text-base text-ink sm:h-9 data-[organize-row=also]:bg-hover',
+                  'w-full translate-x-0 pe-1 data-[organize-row=also]:bg-hover',
                   'relative z-[1] hover:bg-hover',
+                  isDragging && 'opacity-40',
                 )}
                 render={
                   <Link
+                    draggable={false}
                     to="/c/$threadId"
                     params={{ threadId: thread.threadId }}
                     onClick={(event) => {
@@ -311,7 +328,7 @@ export function ThreadRow({
                   <ThreadGlyph
                     glyph={thread.glyph}
                     aria-hidden
-                    className="size-[18px]! shrink-0 text-ink-muted"
+                    className="text-ink-muted"
                   />
                 )}
                 <span className="min-w-0 flex-1 truncate">

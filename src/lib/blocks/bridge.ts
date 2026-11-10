@@ -7,9 +7,20 @@ import picomatch from 'picomatch'
 import { z } from 'zod'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import type { Capabilities } from './declarations'
-import { MAX_SNAPSHOT, call, serve } from './sandbox/protocol'
+import {
+  DB_READS,
+  MAX_OUTLINE,
+  MAX_SNAPSHOT,
+  call,
+  serve,
+} from './sandbox/protocol'
 import type {
+  DbFailure,
+  DbMethod,
+  DbOutcome,
+  DbRead,
   FileFormat,
+  FrameError,
   ListedFile,
   PageMethods,
   Rpc,
@@ -29,17 +40,45 @@ export interface StateCollections {
   ) => () => void
 }
 
+/**
+ * The graph databases the page keeps for one App, by declared name. The page
+ * holds them because a sandboxed frame has no storage of its own.
+ */
+export interface AppDatabases {
+  call: (name: string, method: DbMethod, args: unknown) => Promise<unknown>
+  /** Keeps a read current. Returns the function that stops it. */
+  subscribe: (
+    name: string,
+    read: { method: DbRead; args: unknown },
+    next: (value: unknown) => void,
+    error: (failure: DbFailure) => void,
+  ) => () => void
+}
+
+/** A database failure as the frame is told of it. */
+export function dbFailure(error: unknown): DbFailure {
+  const code = (error as { code?: unknown } | null)?.code
+  return {
+    code: typeof code === 'string' ? code : 'database_failure',
+    message: error instanceof Error ? error.message : String(error),
+  }
+}
+
 /** What the page lends one sandboxed block. */
 export interface BridgeHost {
   client: Pick<WorkspaceClient, 'read' | 'tree' | 'write'>
   capabilities: Capabilities
   state: StateCollections
+  /** Absent where a block has no databases: a declared `db` is then refused. */
+  db?: AppDatabases
   /** Starts an agent block; the bridge has already checked the declaration. */
   run: (target: string) => Promise<RunRequestResult>
   onResize?: (height: number) => void
   onSelection?: (selection: AppSelection) => void
+  /** The frame's code threw and nothing caught it. */
+  onError?: (error: FrameError) => void
   /** A static copy of the frame, unsanitized: snapshots.ts cleans it before showing it. */
-  onSnapshot?: (html: string) => void
+  onSnapshot?: (html: string, outline?: string) => void
 }
 
 /** A call a block made that its declarations do not allow. */
@@ -78,10 +117,45 @@ const params = {
   set: z.object({ name, key: z.string().min(1), value: z.json() }),
   remove: z.object({ name, key: z.string().min(1) }),
   run: z.object({ target: z.string() }),
+  db: z.object({
+    name,
+    method: z.enum([...DB_READS, 'mutate']),
+    args: z.json().optional(),
+  }),
+  subscribe: z.object({
+    name,
+    id: z.number().int().nonnegative(),
+    method: z.enum(DB_READS),
+    args: z.json().optional(),
+  }),
+  unsubscribe: z.object({ id: z.number().int().nonnegative() }),
+  error: z.object({
+    message: z.string().max(2000),
+    name: z.string().max(200).optional(),
+    line: z.number().int().nonnegative().optional(),
+    column: z.number().int().nonnegative().optional(),
+    stack: z.string().max(8000).optional(),
+  }),
   resize: z.object({ height: z.number().finite().nonnegative() }),
-  selection: z.object({text:z.string().max(4096),rowId:z.string().max(200).optional(),field:z.string().max(200).optional(),entityId:z.string().max(200).optional(),entityLabel:z.string().max(200).optional(),cellId:z.string().max(200).optional()}),
-  snapshot: z.object({ html: z.string().max(MAX_SNAPSHOT) }),
+  selection: z.object({
+    text: z.string().max(4096),
+    rowId: z.string().max(200).optional(),
+    field: z.string().max(200).optional(),
+    entityId: z.string().max(200).optional(),
+    entityLabel: z.string().max(200).optional(),
+    cellId: z.string().max(200).optional(),
+    source: z.string().max(300).optional(),
+  }),
+  snapshot: z.object({
+    html: z.string().max(MAX_SNAPSHOT),
+    // What is on the page by role and name. Longer than the limit is dropped,
+    // not refused: the copy is still good.
+    outline: z.string().optional(),
+  }),
 }
+
+/** The most reads one frame may keep subscribed. */
+const MAX_DB_SUBSCRIPTIONS = 64
 
 /** The tallest a block frame may ask to be, in CSS pixels. */
 const MAX_HEIGHT = 20_000
@@ -108,7 +182,7 @@ export function decodeFile(bytes: Uint8Array, as: FileFormat): unknown {
  * Returns a function that stops the state subscriptions it opened.
  */
 export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
-  serve<PageMethods, 'frame.selection'>(rpc, 'frame.selection', raw => {
+  serve<PageMethods, 'frame.selection'>(rpc, 'frame.selection', (raw) => {
     host.onSelection?.(params.selection.parse(raw))
     return null
   })
@@ -183,6 +257,61 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
     return null
   })
 
+  const reads = new Map<number, () => void>()
+  const database = (value: string): AppDatabases => {
+    if (!capabilities.db.includes(value))
+      throw new BridgeDenied(
+        `db("${value}") was not declared; add // uses: db("${value}")`,
+      )
+    if (!host.db)
+      throw new BridgeDenied('Databases are not available to this block.')
+    return host.db
+  }
+
+  serve<PageMethods, 'db.call'>(rpc, 'db.call', async (raw) => {
+    const { name: value, method, args } = params.db.parse(raw)
+    const databases = database(value)
+    try {
+      const result = await databases.call(value, method, args ?? null)
+      return { ok: true, value: result } satisfies DbOutcome
+    } catch (error) {
+      return { ok: false, error: dbFailure(error) } satisfies DbOutcome
+    }
+  })
+
+  serve<PageMethods, 'db.subscribe'>(rpc, 'db.subscribe', (raw) => {
+    const { name: value, id, method, args } = params.subscribe.parse(raw)
+    const databases = database(value)
+    if (reads.has(id)) throw new BridgeDenied(`subscription ${id} is in use`)
+    if (reads.size >= MAX_DB_SUBSCRIPTIONS)
+      throw new BridgeDenied(
+        `A block keeps at most ${MAX_DB_SUBSCRIPTIONS} reads subscribed.`,
+      )
+    const tell = (outcome: DbOutcome) => {
+      void call<SandboxMethods, 'db.changed'>(rpc, 'db.changed', {
+        id,
+        outcome,
+      }).catch(() => {})
+    }
+    reads.set(
+      id,
+      databases.subscribe(
+        value,
+        { method, args: args ?? null },
+        (result) => tell({ ok: true, value: result }),
+        (failure) => tell({ ok: false, error: failure }),
+      ),
+    )
+    return null
+  })
+
+  serve<PageMethods, 'db.unsubscribe'>(rpc, 'db.unsubscribe', (raw) => {
+    const { id } = params.unsubscribe.parse(raw)
+    reads.get(id)?.()
+    reads.delete(id)
+    return null
+  })
+
   serve<PageMethods, 'run.request'>(rpc, 'run.request', (raw) => {
     const { target } = params.run.parse(raw)
     if (!capabilities.run.includes(target))
@@ -192,18 +321,31 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
     return host.run(target)
   })
 
+  serve<PageMethods, 'frame.error'>(rpc, 'frame.error', (raw) => {
+    host.onError?.(params.error.parse(raw))
+    return null
+  })
+
   serve<PageMethods, 'frame.resize'>(rpc, 'frame.resize', (raw) => {
     host.onResize?.(Math.min(params.resize.parse(raw).height, MAX_HEIGHT))
     return null
   })
 
   serve<PageMethods, 'frame.snapshot'>(rpc, 'frame.snapshot', (raw) => {
-    host.onSnapshot?.(params.snapshot.parse(raw).html)
+    const { html, outline } = params.snapshot.parse(raw)
+    host.onSnapshot?.(
+      html,
+      outline !== undefined && outline.length <= MAX_OUTLINE
+        ? outline
+        : undefined,
+    )
     return null
   })
 
   return () => {
     for (const unsubscribe of subscriptions.values()) unsubscribe()
     subscriptions.clear()
+    for (const stop of reads.values()) stop()
+    reads.clear()
   }
 }
