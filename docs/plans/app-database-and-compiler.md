@@ -159,8 +159,24 @@ follow the person across devices until that is decided.
   checker serves all open Apps, and a check runs on a settled edit, not on a
   keystroke. Verified on a phone before it is called done.
 
-Needs the Theorem backend: the builder must be able to emit the multi-file
-form. That is a change in the Theorem repo, planned with this phase.
+Built and observed on 2026-11-10 (`docs/blocks/live-blocks.md`, "TypeScript
+Apps"). What the build decided:
+
+- **The form is one document.** A TypeScript App is an HTML App whose page
+  carries its source files as `text/theorem-source` scripts. The builder still
+  publishes `{title, html}`, and revisions, pinning and the source editor are
+  unchanged. No server change was needed for the form.
+- **The declarations come from the bridge's source**, not from its zod
+  schemas: TypeScript emits them from `sandbox/app-bridge.ts`, and a test
+  fails when the checked-in copy is stale.
+- **Only React is typed** among the import map's modules. d3, Plot and the
+  rest import untyped.
+- **The source map travels in the page**, trimmed to the App's own files, so
+  tracing a failure needs nothing but the page.
+
+Still open: the phone measurement, and the builder being told the form
+(Theorem repo). No turn has yet been observed in which the agent receives a
+repair reference and repairs an App.
 
 ## Phase 4: the designer
 

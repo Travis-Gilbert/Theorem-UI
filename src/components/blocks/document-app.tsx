@@ -1,21 +1,38 @@
 // Reuse the HTML App sandbox, CodeMirror source editor, and native document owner.
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { askAbout } from '@/components/chat/composer-references'
 import { Button } from '@/components/ui/button'
 import { documentAppDatabases } from '@/lib/blocks/app-db'
+import * as checker from '@/lib/blocks/app-checker'
+import {
+  AppBuildError,
+  SOURCE_TYPE,
+  appSourcesOf,
+} from '@/lib/blocks/app-source'
+import type { AppProblem } from '@/lib/blocks/app-source'
+import { traceFrameError } from '@/lib/blocks/app-trace'
 import { documentAppHost, documentAppState } from '@/lib/blocks/document-app'
-import { hostedAppDocument } from '@/lib/blocks/hosted-app'
-import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
+import * as hosted from '@/lib/blocks/hosted-app'
+import type { AppSelection, FrameError } from '@/lib/blocks/sandbox/protocol'
 import { describeError } from '@/lib/theorem/client'
 import { appDocumentFor } from '@/lib/theorem/apps'
 import {
   APP_PENDING_CONTEXT_MESSAGE,
   appContextReference,
+  appRepairReference,
   captureAppSelection,
   selectionForSource,
 } from '@/lib/theorem/app-references'
 import type { AppSelectionContext } from '@/lib/theorem/app-references'
 import type { AppDocument, AppSnapshot } from '@/lib/theorem/apps'
+import { AppProblems } from './app-problems'
 import { BlockFrame } from './block-frame'
 import { BlockMessage } from './block-status'
 import { appDeclarations } from './html-app-handler'
@@ -47,28 +64,120 @@ function errorText(error: unknown): string {
   return describeError(error, 'document')
 }
 
-function usePreviewUrl(html: string, ready: Promise<void> | undefined) {
-  const [preview, setPreview] = useState<{ src?: string; error?: string }>({})
+/** A revision's page as its frame loads it, and what it was built from. */
+interface Shown {
+  html: string
+  src: string
+  /** The hosted page itself: a built App's page says how it was built. */
+  page: string
+}
+
+/** Whether an App's HTML carries TypeScript source, which is built before it runs. */
+const carriesSource = (html: string) => html.includes(SOURCE_TYPE)
+
+/**
+ * The page to show for `html`. A plain HTML App's old page goes the moment
+ * its source changes. An App built from source keeps showing the last
+ * revision that built while the next is built, and after it fails to: then
+ * `problems` says why and `shown` is still the earlier revision.
+ */
+function useHostedPreview(html: string, ready: Promise<void> | undefined) {
+  const [state, setState] = useState<{
+    shown?: Shown
+    failed?: { html: string; problems: Array<AppProblem>; error?: string }
+  }>({})
+  const urls = useRef(new Set<string>())
   useEffect(() => {
     if (!ready) return
     let active = true
-    let url: string | undefined
-    void Promise.all([hostedAppDocument(html), ready])
-      .then(([page]) => {
+    void Promise.all([hosted.hostedAppDocument(html), ready]).then(
+      ([page]) => {
         if (!active) return
-        url = URL.createObjectURL(new Blob([page], { type: 'text/html' }))
-        setPreview({ src: url })
-      })
-      .catch((failure) => {
-        if (active) setPreview({ error: errorText(failure) })
-      })
+        const src = URL.createObjectURL(new Blob([page], { type: 'text/html' }))
+        for (const url of urls.current) URL.revokeObjectURL(url)
+        urls.current = new Set([src])
+        setState({ shown: { html, src, page } })
+      },
+      (failure: unknown) => {
+        if (!active) return
+        setState((previous) => ({
+          shown: previous.shown,
+          failed:
+            failure instanceof AppBuildError
+              ? { html, problems: failure.problems }
+              : { html, problems: [], error: errorText(failure) },
+        }))
+      },
+    )
     return () => {
       active = false
-      if (url) URL.revokeObjectURL(url)
     }
   }, [html, ready])
-  return preview
+  useEffect(() => {
+    const made = urls.current
+    return () => {
+      for (const url of made) URL.revokeObjectURL(url)
+    }
+  }, [])
+  const failed = state.failed?.html === html ? state.failed : undefined
+  // An earlier revision stays only for an App that is built from source.
+  const shown =
+    state.shown && (state.shown.html === html || carriesSource(html))
+      ? state.shown
+      : undefined
+  return {
+    shown,
+    current: shown?.html === html,
+    problems: failed?.problems ?? [],
+    error: failed?.error,
+  }
 }
+
+/** The type check of the revision on screen: its problems, once they are known. */
+function useTypeCheck(html: string, built: boolean) {
+  const [state, setState] = useState<{
+    html: string
+    problems: Array<AppProblem>
+    error?: string
+  }>()
+  const checks = built && carriesSource(html)
+  useEffect(() => {
+    if (!checks) return
+    let active = true
+    void Promise.resolve()
+      .then(() => {
+        const sources = appSourcesOf(html)
+        return sources ? checker.checkInWorker(sources) : undefined
+      })
+      .then(
+        (result) => {
+          if (active) setState({ html, problems: result?.problems ?? [] })
+        },
+        (failure: unknown) => {
+          if (active)
+            setState({
+              html,
+              problems: [],
+              error:
+                failure instanceof Error ? failure.message : String(failure),
+            })
+        },
+      )
+    return () => {
+      active = false
+    }
+  }, [html, checks])
+  // A result for another revision says nothing about this one.
+  const result = checks && state?.html === html ? state : undefined
+  return {
+    problems: result?.problems ?? [],
+    error: result?.error,
+    checking: checks && !result,
+  }
+}
+
+/** The most uncaught errors listed for one frame. */
+const MAX_RUNTIME_PROBLEMS = 20
 
 function AppPreview({
   app,
@@ -79,12 +188,18 @@ function AppPreview({
   snapshot: AppSnapshot
   onSelection: (value: AppSelectionContext | undefined) => void
 }) {
-  const source = snapshot.html
   const { state, error: stateError } = useDocumentReplica(app)
-  const { src, error } = usePreviewUrl(snapshot.html, state?.ready)
+  const preview = useHostedPreview(snapshot.html, state?.ready)
+  const { shown } = preview
+  const types = useTypeCheck(snapshot.html, preview.current)
+  const [thrown, setThrown] = useState<{
+    src: string
+    problems: Array<AppProblem>
+  }>()
+  const shownHtml = shown?.html
   const declarations = useMemo(
-    () => appDeclarations(snapshot.html),
-    [snapshot.html],
+    () => (shownHtml === undefined ? undefined : appDeclarations(shownHtml)),
+    [shownHtml],
   )
   // Named by the document, so the next revision of this App finds its records.
   const databases = useMemo(
@@ -92,10 +207,31 @@ function AppPreview({
     [app.documentId],
   )
   useEffect(() => () => databases.dispose(), [databases])
+  const onError = useCallback(
+    (failure: FrameError) => {
+      if (!shown) return
+      const problem = traceFrameError(failure, hosted.hostedBuild(shown.page))
+      setThrown((previous) => {
+        const before = previous?.src === shown.src ? previous.problems : []
+        const repeat = before.some(
+          (other) =>
+            other.message === problem.message &&
+            other.file === problem.file &&
+            other.line === problem.line,
+        )
+        return repeat || before.length >= MAX_RUNTIME_PROBLEMS
+          ? (previous ?? { src: shown.src, problems: before })
+          : { src: shown.src, problems: [...before, problem] }
+      })
+    },
+    [shown],
+  )
   // State-only saves update the existing frame rather than restarting its controls.
   const host = useMemo(
     () =>
-      state && {
+      state &&
+      declarations &&
+      shownHtml !== undefined && {
         ...documentAppHost(
           app,
           app.getSnapshot()!,
@@ -103,23 +239,50 @@ function AppPreview({
           state.state,
           databases,
         ),
+        onError,
         onSelection: (selection: AppSelection) => {
           const context = captureAppSelection(
-            source,
+            shownHtml,
             app.getSnapshot(),
             selection,
           )
           onSelection(context)
         },
       },
-    [app, source, declarations, state, databases, onSelection],
+    [app, shownHtml, declarations, state, databases, onSelection, onError],
   )
-  if (error || stateError)
-    return <BlockMessage tone="error">{error || stateError}</BlockMessage>
-  return src && host ? (
-    <BlockFrame src={src} host={host} title={snapshot.title} />
-  ) : (
-    <p role="status">Loading App…</p>
+  // What the frame threw belongs to the revision in it; it is listed with the
+  // source's own problems only while that revision is the current one.
+  const problems = [
+    ...preview.problems,
+    ...(preview.current
+      ? [
+          ...types.problems,
+          ...(thrown?.src === shown?.src ? (thrown?.problems ?? []) : []),
+        ]
+      : []),
+  ]
+  const error = preview.error || stateError
+  return (
+    <>
+      {error && <BlockMessage tone="error">{error}</BlockMessage>}
+      <AppProblems
+        problems={problems}
+        kept={Boolean(shown) && !preview.current}
+        checking={types.checking}
+        checkError={types.error}
+        onFix={() => {
+          const current = app.getSnapshot()
+          if (current && !current.pendingState)
+            askAbout(appRepairReference(current, problems))
+        }}
+      />
+      {shown && host ? (
+        <BlockFrame src={shown.src} host={host} title={snapshot.title} />
+      ) : (
+        !error && !problems.length && <p role="status">Loading App…</p>
+      )}
+    </>
   )
 }
 
@@ -333,12 +496,7 @@ export function DocumentAppView({
         />
       )}
       {running ? (
-        <AppPreview
-          key={snapshot.html}
-          app={app}
-          snapshot={snapshot}
-          onSelection={setSelection}
-        />
+        <AppPreview app={app} snapshot={snapshot} onSelection={setSelection} />
       ) : (
         <p className="text-sm text-ink-muted">
           Run this App to use its controls. Changes to its declared state are

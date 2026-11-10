@@ -4,11 +4,14 @@
 // gets them), Web Crypto (the inline script's hash for the page's policy).
 // The export is plan D9's standalone HTML: the tool, its declared files and
 // state, and nothing else, under the same policy a block frame has.
+import { decode, encode } from '@jridgewell/sourcemap-codec'
 import type * as Esbuild from 'esbuild-wasm'
 import picomatch from 'picomatch'
 import type { WorkspaceClient } from '@/lib/workspace/types'
 import { checkPath, decodeFile } from './bridge'
 import type { StateCollections } from './bridge'
+import { AppBuildError } from './app-source'
+import type { AppProblem, AppSources } from './app-source'
 import { compileCell } from './compile'
 import type { CompiledCell } from './compile'
 import {
@@ -61,6 +64,18 @@ const NAMESPACE = {
   entry: 'theorem',
   runtime: 'theorem-runtime',
   vendor: 'theorem-vendor',
+  app: 'theorem-app',
+}
+
+/** A bare import, through the import map, to the vendored file that serves it. */
+function vendored(path: string): Esbuild.OnResolveResult {
+  const imports: Record<string, string> = importMap.imports
+  const served = Object.hasOwn(imports, path) ? imports[path]! : path
+  if (Object.hasOwn(vendorModules, served))
+    return { path: served, namespace: NAMESPACE.vendor }
+  return {
+    errors: [{ text: `"${path}" is not in the blocks' import map` }],
+  }
 }
 
 /**
@@ -81,15 +96,7 @@ function exportPlugin(entry: string, cell: string): Esbuild.Plugin {
           ? undefined
           : { path: path.slice(2), namespace: NAMESPACE.runtime },
       )
-      build.onResolve({ filter: /.*/ }, ({ path }) => {
-        const imports: Record<string, string> = importMap.imports
-        const served = Object.hasOwn(imports, path) ? imports[path]! : path
-        if (Object.hasOwn(vendorModules, served))
-          return { path: served, namespace: NAMESPACE.vendor }
-        return {
-          errors: [{ text: `"${path}" is not in the blocks' import map` }],
-        }
-      })
+      build.onResolve({ filter: /.*/ }, ({ path }) => vendored(path))
       build.onLoad(
         { filter: /.*/, namespace: NAMESPACE.entry },
         ({ path }) => ({
@@ -210,7 +217,12 @@ async function bundle(
 
 /** The existing App bridge bundled for a hosted document's opaque frame. */
 export async function bundleAppBridge(esbuild?: Bundler): Promise<string> {
-  return bundleScript("import './app-bridge'", '', esbuild ?? await browserEsbuild(), 'iife')
+  return bundleScript(
+    "import './app-bridge'",
+    '',
+    esbuild ?? (await browserEsbuild()),
+    'iife',
+  )
 }
 
 /**
@@ -218,7 +230,9 @@ export async function bundleAppBridge(esbuild?: Bundler): Promise<string> {
  * module in the import map bundled in: a cell's `import("d3")` reaches the
  * same vendored build a block's would, and nothing else.
  */
-export async function bundleNotebookRuntime(esbuild?: Bundler): Promise<string> {
+export async function bundleNotebookRuntime(
+  esbuild?: Bundler,
+): Promise<string> {
   const modules = Object.keys(importMap.imports)
     .map((specifier) => {
       const name = JSON.stringify(specifier)
@@ -233,6 +247,179 @@ export async function bundleNotebookRuntime(esbuild?: Bundler): Promise<string> 
     `}`,
   ].join('\n')
   return bundleScript(entry, '', esbuild ?? (await browserEsbuild()), 'iife')
+}
+
+const LOADERS: Record<string, Esbuild.Loader> = {
+  tsx: 'tsx',
+  ts: 'ts',
+  jsx: 'jsx',
+  js: 'js',
+  css: 'css',
+  json: 'json',
+}
+const RESOLVED = ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts']
+
+/** `./Table` from `components/App.tsx` is `components/Table`, or null outside the App. */
+function joinSource(importer: string, path: string): string | null {
+  const parts = importer.split('/').slice(0, -1)
+  for (const part of path.split('/')) {
+    if (part === '.' || part === '') continue
+    if (part === '..') {
+      if (!parts.length) return null
+      parts.pop()
+    } else parts.push(part)
+  }
+  return parts.join('/')
+}
+
+/**
+ * Resolves an App's own files from memory and every other import through the
+ * import map to the vendored files: the modules a block frame has, no others.
+ */
+function appPlugin({ files, entry }: AppSources): Esbuild.Plugin {
+  return {
+    name: 'theorem-app',
+    setup(build) {
+      build.onResolve({ filter: /^theorem:app$/ }, () => ({
+        path: entry,
+        namespace: NAMESPACE.app,
+      }))
+      build.onResolve(
+        { filter: /^\.\.?\//, namespace: NAMESPACE.app },
+        ({ path, importer }) => {
+          const base = joinSource(importer, path)
+          const found =
+            base === null
+              ? undefined
+              : RESOLVED.map((suffix) => base + suffix).find((candidate) =>
+                  Object.hasOwn(files, candidate),
+                )
+          return found
+            ? { path: found, namespace: NAMESPACE.app }
+            : { errors: [{ text: `No file "${path}" in this App` }] }
+        },
+      )
+      build.onResolve({ filter: /.*/ }, ({ path }) => vendored(path))
+      build.onLoad({ filter: /.*/, namespace: NAMESPACE.app }, ({ path }) => ({
+        contents: files[path],
+        loader: LOADERS[path.slice(path.lastIndexOf('.') + 1)] ?? 'js',
+      }))
+      build.onLoad(
+        { filter: /.*/, namespace: NAMESPACE.vendor },
+        ({ path }) => ({ contents: vendorModules[path], loader: 'js' }),
+      )
+    },
+  }
+}
+
+/** An App's files as one module, the styles they import, and where each line came from. */
+export interface AppBundle {
+  code: string
+  css: string
+  /**
+   * A source map of the App's own files only, by their paths: a position in
+   * a module the App imports maps to nothing.
+   */
+  map: string
+}
+
+interface RawMap {
+  version: number
+  sources: Array<string>
+  names: Array<string>
+  mappings: string
+}
+
+/** The bundle's map with only the App's files in it, named as the App names them. */
+function appMap(text: string): string {
+  const raw = JSON.parse(text) as RawMap
+  const renumbered = new Map<number, number>()
+  const sources: Array<string> = []
+  raw.sources.forEach((source, index) => {
+    const path = fromApp(source)
+    if (path === undefined) return
+    renumbered.set(index, sources.length)
+    sources.push(path)
+  })
+  const mappings = decode(raw.mappings).map((line) =>
+    line.flatMap((segment) => {
+      const source =
+        segment.length > 1 ? renumbered.get(segment[1]!) : undefined
+      if (source === undefined) return []
+      // Names are dropped with the rest: a position is all a frame needs.
+      return [
+        [segment[0], source, segment[2]!, segment[3]!] as [
+          number,
+          number,
+          number,
+          number,
+        ],
+      ]
+    }),
+  )
+  return JSON.stringify({
+    version: raw.version,
+    sources,
+    names: [],
+    mappings: encode(mappings),
+  })
+}
+
+const fromApp = (file: string) =>
+  file.startsWith(`${NAMESPACE.app}:`)
+    ? file.slice(NAMESPACE.app.length + 1)
+    : undefined
+
+/**
+ * Builds a TypeScript App: its files and the modules they import, as one
+ * module for the App's frame. Types are erased, not checked; app-check.ts
+ * checks them. A file that does not build is an AppBuildError naming it.
+ */
+export async function bundleAppSources(
+  sources: AppSources,
+  esbuild?: Bundler,
+): Promise<AppBundle> {
+  let result: Esbuild.BuildResult
+  try {
+    result = await (esbuild ?? (await browserEsbuild())).build({
+      entryPoints: ['theorem:app'],
+      outfile: 'app.js',
+      bundle: true,
+      write: false,
+      format: 'esm',
+      target: 'es2022',
+      jsx: 'automatic',
+      sourcemap: 'external',
+      // Positions are all a stack frame needs; the text would double the map.
+      sourcesContent: false,
+      legalComments: 'none',
+      logLevel: 'silent',
+      plugins: [appPlugin(sources)],
+    })
+  } catch (error) {
+    const messages = (error as Partial<Esbuild.BuildFailure>).errors
+    if (!messages?.length) throw error
+    throw new AppBuildError(
+      messages.map(({ text, location }): AppProblem => ({
+        kind: 'build',
+        message: text,
+        file: location ? (fromApp(location.file) ?? location.file) : undefined,
+        line: location?.line,
+        column: location ? location.column + 1 : undefined,
+      })),
+    )
+  }
+  const output = (suffix: string) =>
+    result.outputFiles?.find((file) => file.path.endsWith(suffix))?.text
+  const code = output('app.js')
+  const map = output('app.js.map')
+  if (code === undefined || map === undefined)
+    throw new Error('esbuild wrote nothing')
+  return {
+    code: inlineSafe(code),
+    css: output('app.css') ?? '',
+    map: appMap(map),
+  }
 }
 
 async function bundleScript(

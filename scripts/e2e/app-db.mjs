@@ -2,15 +2,13 @@
 // window.theorem.db, a second view of it follows, the next revision of the
 // App finds them, and so does the page after a reload.
 //
-//   bun run e2e:app-db
+//   bun run e2e:app-db            the page as the dev server serves it
+//   bun run e2e:app-db --built    the page built as for production
 //
 // It serves scripts/e2e/app-db/ with Vite and drives it in headless Chromium.
 // No Theorem server is needed: the App's document id is given, not fetched.
-import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
-import { createServer } from 'vite'
-
-const root = resolve(import.meta.dirname, '../..')
+import { servePage } from './harness.mjs'
 
 /** Revision 1: a list, and a button that adds an organization. */
 const LIST = `<!doctype html>
@@ -103,16 +101,11 @@ const AS_BUILT = `<!doctype html>
 })()
 </script>`
 
-const server = await createServer({
-  root,
-  configFile: false,
-  logLevel: 'warn',
-  resolve: { tsconfigPaths: true },
-  server: { host: '127.0.0.1', port: 0 },
-})
-await server.listen()
-const { port } = server.httpServer.address()
-const url = `http://127.0.0.1:${port}/scripts/e2e/app-db/index.html`
+const served = await servePage('app-db')
+const { url } = served
+console.log(
+  served.built ? 'Serving a production build.' : 'Serving with the dev server.',
+)
 
 const checks = []
 const check = (name, pass, detail) => {
@@ -277,7 +270,7 @@ try {
   )
 } finally {
   await browser.close()
-  await server.close()
+  await served.close()
 }
 
 const passed = checks.filter(Boolean).length

@@ -418,8 +418,63 @@ params)` runs read-only Cypher. `subscribe(read, next)` keeps one of those
 - **Not yet.** Full-text search and compaction are not in the browser
   database. Folder HTML apps, cells and page modules have no `db`.
 
-`bun run e2e:app-db` runs this in headless Chromium without a
-Theorem server.
+`bun run e2e:app-db` runs this in headless Chromium without a Theorem server,
+and with `--built` against a production build.
+
+## TypeScript Apps
+
+A conversation App can be written as TypeScript files instead of one page of
+script. It is still one HTML document with one revision history: the page
+carries its source files as scripts a browser does not run.
+
+```html
+<meta name="theorem:uses" content='db("records")' />
+<div id="root"></div>
+<script type="text/theorem-source" data-path="main.tsx">
+  import { createRoot } from 'react-dom/client'
+  import { Table } from './Table'
+  await window.theorem.ready
+  createRoot(document.getElementById('root')!).render(<Table />)
+</script>
+<script type="text/theorem-source" data-path="Table.tsx">
+  export function Table() { return <table /> }
+</script>
+```
+
+- **The form.** Each file is a `text/theorem-source` script with a
+  `data-path`: `.ts`, `.tsx`, `.js`, `.jsx`, `.css` or `.json`, relative, in
+  folders if wanted. The App starts from `main.tsx` (or `.ts`, `.jsx`, `.js`),
+  or from the file marked `data-entry`. Files import each other by relative
+  path and import the modules in [the import map](#the-import-map), nothing
+  else. A page with no such scripts is a plain HTML App, as before
+  (`app-source.ts`).
+- **Build.** When the page is hosted, esbuild-wasm bundles the files and what
+  they import into one module, which replaces the source scripts and runs
+  last in the body. Imported `.css` becomes a style element. Types are erased,
+  not checked. A file that does not build is a problem at its line
+  (`export.ts` `bundleAppSources`, `hosted-app.ts`).
+- **Check.** tsrs, the Rust port of the TypeScript compiler, checks the same
+  files in a worker that loads when an App with source is first shown
+  (`app-check.ts`, `app-checker.ts`). The check is strict. It knows React,
+  and `window.theorem` exactly as the bridge gives it: those declarations are
+  written from `sandbox/app-bridge.ts` by `bun scripts/app-declarations.ts`,
+  and a test fails when they are stale. The import map's other modules import
+  untyped. An App runs whether or not its check passes; the check and the
+  build are separate facts about a revision.
+- **Running.** What the App throws and does not catch is sent to the page
+  (`frame.error`), which traces it through the bundle's source map to the
+  file and line that threw (`app-trace.ts`). The page carries that map,
+  holding the App's own files only.
+- **Problems.** Build errors, type errors and what the App threw are listed
+  above the App with their file and line. **Ask to fix** adds a reference to
+  that revision with the problems, for the next turn
+  (`appRepairReference`, `app-problems.tsx`).
+- **A revision that does not build** leaves the last one that built running,
+  with its problems above it. A plain HTML revision replaces the frame at
+  once, as before.
+
+`bun run e2e:app-ts` runs this in headless Chromium without a Theorem server,
+and with `--built` against a production build.
 
 ## Export
 
@@ -480,15 +535,16 @@ Pure blocks then run in a phone browser. Effectful ones wait for remote runs
 
 ## Where the code is
 
-| Concern                         | Files                                                                                            |
-| ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Format, round trip, editor node | `src/lib/blocks/format.ts`, `milkdown.ts`, `output.ts`                                           |
-| Compile and cache               | `compile.ts`, `compile.worker.ts`, `compiler.ts`, `vendor/`                                      |
-| Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                        |
-| Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                             |
-| Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                             |
-| App databases                   | `app-db.ts`, `app-db.worker.ts`, `sandbox/db.ts`, `scripts/e2e/app-db.mjs`                       |
-| State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts` |
-| Views                           | `src/components/blocks/`                                                                         |
-| Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                            |
-| Fixtures                        | `test/fixtures/blocks/`: `Today.md`, `Tools/Habit tracker.tsx`, `Data/habits.csv`                |
+| Concern                         | Files                                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Format, round trip, editor node | `src/lib/blocks/format.ts`, `milkdown.ts`, `output.ts`                                                 |
+| Compile and cache               | `compile.ts`, `compile.worker.ts`, `compiler.ts`, `vendor/`                                            |
+| Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                              |
+| Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                                   |
+| Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                                   |
+| TypeScript Apps                 | `app-source.ts`, `app-check*.ts`, `app-checker.ts`, `app-trace.ts`, `check/`, `scripts/e2e/app-ts.mjs` |
+| App databases                   | `app-db.ts`, `app-db.worker.ts`, `sandbox/db.ts`, `scripts/e2e/app-db.mjs`                             |
+| State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts`       |
+| Views                           | `src/components/blocks/`                                                                               |
+| Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                                  |
+| Fixtures                        | `test/fixtures/blocks/`: `Today.md`, `Tools/Habit tracker.tsx`, `Data/habits.csv`                      |

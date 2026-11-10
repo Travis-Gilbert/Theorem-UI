@@ -79,6 +79,20 @@ export interface DbFailure {
 export type DbOutcome =
   { ok: true; value: unknown } | { ok: false; error: DbFailure }
 
+/** Something a frame's code threw and nothing caught, as the frame saw it. */
+export interface FrameError {
+  message: string
+  /** The error's class, such as `TypeError`. */
+  name?: string
+  /** Where the frame's document says it was thrown, one-based. */
+  line?: number
+  column?: number
+  stack?: string
+}
+
+/** The most uncaught errors one load of a frame reports. */
+export const MAX_FRAME_ERRORS = 20
+
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
 export interface PageMethods {
   'files.read': {
@@ -112,6 +126,8 @@ export interface PageMethods {
   }
   'db.unsubscribe': { params: { id: number }; result: null }
   'frame.selection': { params: AppSelection; result: null }
+  /** The frame's code threw and nothing caught it. */
+  'frame.error': { params: FrameError; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
   'frame.snapshot': { params: { html: string }; result: null }

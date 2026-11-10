@@ -101,38 +101,59 @@
     {
       "id": "ts-app-form",
       "requirement": "An App can be several source files in its document; the single-HTML form still works",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-source.ts: source files as text/theorem-source scripts in the App's one HTML document; a page without them is a plain HTML App",
+        "bun test src/lib/blocks/app-source.test.ts: 10 passed"
+      ]
     },
     {
       "id": "ts-build",
       "requirement": "esbuild-wasm builds a source revision against the import map; a failed build keeps the last working preview",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/export.ts bundleAppSources and hosted-app.ts hostedApp; document-app.tsx useHostedPreview keeps the last revision that built",
+        "bun test src/components/blocks/typescript-app.test.tsx: \"a revision that does not build keeps the last one running and says why\"",
+        "bun run e2e:app-ts, dev and --built, 2026-11-10: 9 of 9 checks; a React and TypeScript App builds and runs in about 2.2 s cold"
+      ]
     },
     {
       "id": "ts-check",
       "requirement": "tsrs checks the same frozen snapshot in its own worker, loaded on first use; results for a superseded revision are dropped",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/lib/blocks/app-check.ts, app-check.worker.ts, app-checker.ts (one lazy worker for the page; checks run one after another); document-app.tsx useTypeCheck drops a result for another revision",
+        "bun test src/lib/blocks/app-check.test.ts: 5 passed against tsrs's Node build",
+        "bun run e2e:app-ts: the worker reports TS2339 and TS2322 at their file and line; a check took about 100 to 140 ms and 111 MiB once loaded"
+      ]
     },
     {
       "id": "ts-declarations",
       "requirement": "Declarations for @theorem/app are generated from the bridge schemas",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "scripts/app-declarations.ts writes src/lib/blocks/check/theorem-app.generated.ts from sandbox/app-bridge.ts with TypeScript's declaration emit",
+        "app-check.test.ts: \"the declarations for window.theorem are the ones its source gives\" fails when the generated file is stale; \"a call the bridge does not have, or a wrong argument to one it has, is a problem\""
+      ]
     },
     {
       "id": "runtime-errors",
       "requirement": "The frame forwards error and unhandledrejection with source-mapped positions",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "sandbox/app-bridge.ts reports error and unhandledrejection as frame.error; app-trace.ts maps them through the page's own source map",
+        "bun run e2e:app-ts: \"what the App throws is traced to the file and line that threw it\" (summary.ts:8) in a real frame"
+      ]
     },
     {
       "id": "repair-reference",
       "requirement": "Build errors, check diagnostics and runtime errors reach the agent as a repair reference naming the source revision",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/lib/theorem/app-references.ts appRepairReference (bounded to fit the server's 8192-byte reference limit); app-problems.tsx \"Ask to fix\"",
+        "bun run e2e:app-ts: \"Ask to fix hands the agent that revision and its problem\"",
+        "Not observed: a turn in which the agent receives the reference and repairs the App"
+      ]
     },
     {
       "id": "builder-multi-file",
@@ -144,7 +165,9 @@
       "id": "mobile-budget",
       "requirement": "Checker load, memory and time measured on a phone",
       "status": "todo",
-      "evidence": []
+      "evidence": [
+        "Measured in headless desktop Chromium only: the tsrs module is 10 MB (1.7 MB brotli), a check of a three-file React App about 100 to 140 ms and 111 MiB once loaded. No phone was measured."
+      ]
     },
     {
       "id": "click-to-source",

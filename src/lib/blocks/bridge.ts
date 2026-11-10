@@ -14,6 +14,7 @@ import type {
   DbOutcome,
   DbRead,
   FileFormat,
+  FrameError,
   ListedFile,
   PageMethods,
   Rpc,
@@ -68,6 +69,8 @@ export interface BridgeHost {
   run: (target: string) => Promise<RunRequestResult>
   onResize?: (height: number) => void
   onSelection?: (selection: AppSelection) => void
+  /** The frame's code threw and nothing caught it. */
+  onError?: (error: FrameError) => void
   /** A static copy of the frame, unsanitized: snapshots.ts cleans it before showing it. */
   onSnapshot?: (html: string) => void
 }
@@ -120,6 +123,13 @@ const params = {
     args: z.json().optional(),
   }),
   unsubscribe: z.object({ id: z.number().int().nonnegative() }),
+  error: z.object({
+    message: z.string().max(2000),
+    name: z.string().max(200).optional(),
+    line: z.number().int().nonnegative().optional(),
+    column: z.number().int().nonnegative().optional(),
+    stack: z.string().max(8000).optional(),
+  }),
   resize: z.object({ height: z.number().finite().nonnegative() }),
   selection: z.object({
     text: z.string().max(4096),
@@ -297,6 +307,11 @@ export function serveBridge(rpc: Rpc, host: BridgeHost): () => void {
         `run("${target}") was not declared; add // uses: run("${target}")`,
       )
     return host.run(target)
+  })
+
+  serve<PageMethods, 'frame.error'>(rpc, 'frame.error', (raw) => {
+    host.onError?.(params.error.parse(raw))
+    return null
   })
 
   serve<PageMethods, 'frame.resize'>(rpc, 'frame.resize', (raw) => {

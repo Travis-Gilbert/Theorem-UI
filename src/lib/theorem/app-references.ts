@@ -1,4 +1,5 @@
 import type { TheoremContextReference } from '@theoremharness/sdk'
+import type { AppProblem } from '../blocks/app-source'
 import type { AppSelection } from '../blocks/sandbox/protocol'
 import type { AppSnapshot } from './apps'
 
@@ -34,10 +35,10 @@ export function selectionForSource(
 const says = (selection: AppSelection) =>
   Boolean(
     selection.text ||
-      selection.rowId ||
-      selection.field ||
-      selection.entityId ||
-      selection.cellId,
+    selection.rowId ||
+    selection.field ||
+    selection.entityId ||
+    selection.cellId,
   )
 
 /**
@@ -136,7 +137,51 @@ export function notebookReference(
   return revisionReference(
     notebook,
     notebook.position,
-    cell ? { ...selected!, locator: { kind: 'notebook_cell', cellId: cell } } : selected,
+    cell
+      ? { ...selected!, locator: { kind: 'notebook_cell', cellId: cell } }
+      : selected,
     notebook.title,
   )
+}
+
+/** The room a repair's problems may take: a reference is refused past 8192 bytes. */
+const MAX_REPAIR_BYTES = 6000
+const MAX_PROBLEM_MESSAGE = 400
+
+/**
+ * "Ask to fix": the App revision that has problems, with what they are and
+ * where, so the next turn repairs that revision's source. As many problems as
+ * fit are sent, and the number left out.
+ */
+export function appRepairReference(
+  snapshot: AppSnapshot,
+  problems: ReadonlyArray<AppProblem>,
+): TheoremContextReference {
+  if (snapshot.pendingState) throw new Error(APP_PENDING_CONTEXT_MESSAGE)
+  const sent: Array<AppProblem> = []
+  let bytes = 0
+  for (const problem of problems) {
+    const clipped = {
+      ...problem,
+      message: problem.message.slice(0, MAX_PROBLEM_MESSAGE),
+    }
+    bytes += new TextEncoder().encode(JSON.stringify(clipped)).length + 1
+    if (bytes > MAX_REPAIR_BYTES) break
+    sent.push(clipped)
+  }
+  const omitted = problems.length - sent.length
+  return {
+    label: `${snapshot.title}: fix ${problems.length === 1 ? '1 problem' : `${problems.length} problems`}`,
+    location: {
+      resource: {
+        kind: 'graph-object',
+        objectId: snapshot.documentId,
+        objectType: 'theorem.app',
+      },
+      revision: String(snapshot.revision.position),
+    },
+    excerpt: JSON.stringify({
+      repair: { problems: sent, ...(omitted > 0 && { omitted }) },
+    }),
+  }
 }

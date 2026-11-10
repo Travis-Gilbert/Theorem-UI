@@ -9,8 +9,13 @@ import { CellContext } from './cell'
 import { connectToPage } from './connect'
 import { Databases } from './db'
 import { markSelectedCell, observeHeight, observeSnapshots } from './display'
-import { call, rpcOver, serve } from './protocol'
-import type { ModuleValues, PageMethods, SandboxMethods } from './protocol'
+import { MAX_FRAME_ERRORS, call, rpcOver, serve } from './protocol'
+import type {
+  FrameError,
+  ModuleValues,
+  PageMethods,
+  SandboxMethods,
+} from './protocol'
 import { THEME_EVENT, applyTheme } from './theme'
 
 type ModuleListener = (values: ModuleValues) => void
@@ -101,11 +106,47 @@ const context = connectToPage().then((port) => {
   return { cells, databases }
 })
 
+// What the App's code throws and does not catch goes to the page, which
+// knows the source it was built from. Listening starts now, before the App's
+// own scripts run; the page hears once it has connected.
+let reported = 0
+function report(error: FrameError): void {
+  if (reported++ >= MAX_FRAME_ERRORS) return
+  void context
+    .then(({ cells }) =>
+      call<PageMethods, 'frame.error'>(cells.rpc, 'frame.error', {
+        ...error,
+        message: error.message.slice(0, 2000),
+        name: error.name?.slice(0, 200),
+        stack: error.stack?.slice(0, 8000),
+      }),
+    )
+    .catch(() => {})
+}
+const thrown = (value: unknown): FrameError =>
+  value instanceof Error
+    ? { message: value.message, name: value.name, stack: value.stack }
+    : { message: String(value) }
+window.addEventListener('error', (event) => {
+  // A resource that failed to load is an event with no message.
+  if (!event.message && !event.error) return
+  report({
+    ...thrown(event.error ?? event.message),
+    line: event.lineno || undefined,
+    column: event.colno || undefined,
+  })
+})
+window.addEventListener('unhandledrejection', (event) => {
+  report(thrown(event.reason))
+})
+
 type Files = ReturnType<CellContext['files']>
-const files =
-  (name: keyof Files) =>
-  async (...args: Array<string>) =>
-    ((await context).cells.files()[name] as (...a: Array<string>) => unknown)(...args)
+/** One of the `files` calls, made once the page has connected: its own arguments, its own result. */
+const files = <TName extends keyof Files>(name: TName): Files[TName] =>
+  ((...args: Array<string>) =>
+    context.then(({ cells }) =>
+      (cells.files()[name] as (...a: Array<string>) => unknown)(...args),
+    )) as unknown as Files[TName]
 
 const theorem = {
   /** Resolves once the page has connected this app. */
@@ -151,5 +192,12 @@ const theorem = {
       }),
   },
 }
+
+/**
+ * What an App reaches as `window.theorem`. The checker's declarations for it
+ * are written from this type (scripts/app-declarations.ts), so what an App is
+ * checked against is what it is given.
+ */
+export type TheoremApp = typeof theorem
 
 Object.defineProperty(window, 'theorem', { value: theorem })
