@@ -77,7 +77,10 @@
       "id": "db-compaction",
       "requirement": "An App's database does not grow without bound: the browser store is compacted",
       "status": "todo",
-      "evidence": []
+      "evidence": [
+        "Not built. The engine's browser store refuses reclamation by design (rustyred-engine browser_projection.rs, chunk_store_browser_compaction_refused): OPFS has no atomic rename, and the route it names is a two-file generation switch",
+        "Measured in headless Chromium, 2026-11-10, 200 small nodes then 1000 one-node commits: the file grew about 7 KB per commit as Theorem UI opens it (controlEvents and keepHistory off), 7 MB in all, at about 33 ms per commit; with both on, about 100 KB and 100 ms per commit"
+      ]
     },
     {
       "id": "db-agent-knows",

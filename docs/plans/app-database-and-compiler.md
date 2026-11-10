@@ -131,8 +131,11 @@ This works for today's HTML Apps and does not wait for Phase 3.
 Built and observed on 2026-11-10 for conversation Apps, including the shared
 database across tabs. `docs/blocks/live-blocks.md` describes it. The
 builder's contract documents `db` in Theorem PR #1002; no builder run has
-been made with it yet. Still open: the browser store is never compacted, so a
-database that is rewritten often grows.
+been made with it yet. Still open: the browser store is never compacted. The engine refuses it
+by design, because OPFS has no atomic rename; the route it names is a
+two-file generation switch, which is a change to the storage core. Measured,
+an App's database grows about 7 KB per small commit, so 7 MB per thousand
+edits.
 
 Open question for this phase: App data is local to one browser profile. Whether
 and how it syncs to the Theorem server is not decided here; the App document
