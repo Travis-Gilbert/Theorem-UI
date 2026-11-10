@@ -159,13 +159,28 @@ const putLayout = (layout: SectionLayout, revision: number) =>
  * the layout could not be read, or the latest edit was not saved, `trouble`
  * says so.
  */
+/**
+ * Of the layout cached and one just read or saved, the newer. Theorem's
+ * revision only goes up, so a read that started before a save and lands
+ * after it cannot put the older layout back.
+ */
+const newerLayout = (cached: unknown, incoming: unknown) => {
+  const before = cached as StoredLayout | undefined
+  const after = incoming as StoredLayout
+  return before && before.revision > after.revision ? before : after
+}
+
+/** How the layout is read and kept in the cache. */
+export const notesLayoutQuery = {
+  queryKey: notesLayoutKey,
+  queryFn: readLayout,
+  staleTime: 10_000,
+  structuralSharing: newerLayout,
+}
+
 export function useNotesLayout() {
   const queryClient = useQueryClient()
-  const read = useQuery({
-    queryKey: notesLayoutKey,
-    queryFn: readLayout,
-    staleTime: 10_000,
-  })
+  const read = useQuery(notesLayoutQuery)
   const data = read.data ?? NEVER_SAVED
   const attempts = useMutationState({
     filters: { mutationKey: notesLayoutKey },

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { TheoremError } from '@theoremharness/sdk'
+import { QueryClient } from '@tanstack/react-query'
 import {
   START_LAYOUT,
   addSection,
@@ -11,6 +12,8 @@ import {
   failedLast,
   layoutOf,
   layoutWrite,
+  notesLayoutKey,
+  notesLayoutQuery,
   parseStoredLayout,
   saveLayout,
 } from './notes-layout'
@@ -179,5 +182,37 @@ describe('failedLast', () => {
     expect(
       failedLast([attempt('success', 3), attempt('error', 1)]),
     ).toBeUndefined()
+  })
+})
+
+describe('the cached layout', () => {
+  test('a read that started before a save does not put the older layout back', async () => {
+    const client = new QueryClient()
+    let answer: (stored: StoredLayout) => void = () => {}
+    const read = client.fetchQuery({
+      ...notesLayoutQuery,
+      queryFn: () => new Promise<StoredLayout>((resolve) => (answer = resolve)),
+    })
+    const renamed = renameSection(START_LAYOUT, 'notes', 'Reading')
+    client.setQueryData(notesLayoutKey, stored(2, renamed))
+    answer(stored(1))
+    await read
+    expect(client.getQueryData<StoredLayout>(notesLayoutKey)).toEqual(
+      stored(2, renamed),
+    )
+  })
+
+  test('a read that finds a newer layout replaces the one cached', async () => {
+    const client = new QueryClient()
+    client.setQueryData(notesLayoutKey, stored(1))
+    const renamed = renameSection(START_LAYOUT, 'notes', 'Reading')
+    await client.fetchQuery({
+      ...notesLayoutQuery,
+      staleTime: 0,
+      queryFn: () => Promise.resolve(stored(3, renamed)),
+    })
+    expect(client.getQueryData<StoredLayout>(notesLayoutKey)).toEqual(
+      stored(3, renamed),
+    )
   })
 })
