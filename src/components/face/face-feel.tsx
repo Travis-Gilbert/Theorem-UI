@@ -1,13 +1,13 @@
-// SOURCING: lib/face/feel for the settings and their bounds, lib/figures for what the person chose of them; ui/slider with its label and value, laid out as the OpenUI slider view lays one out (components/artifacts/openui/views.tsx); the settings frame for the section. Settings sits outside the chat shell that mounts the figures (lib/theorem/runtime), so the face a person tries a change on is mounted here, with a slot for it to rest in as a reply's gutter has.
-import { Slider as SliderPrimitive } from '@base-ui/react/slider'
-import { useRef } from 'react'
+// SOURCING: lib/face/feel for the settings and their bounds, lib/figures for what the person chose of them; the settings frame for the section, its box and its rows, with ui/slider where a row's control sits; ui/button. The box is laid out as Twenty's settings lay out a box that has a preview: the part a change is tried on at the top, small labels naming the groups of rows under it. That part stays at the top of the sheet while the rows scroll (the box is let overflow for it). Settings sits outside the chat shell that mounts the figures (lib/theorem/runtime), so the face a person tries a change on is mounted here, with a slot for it to rest in as a reply's gutter has.
+import { useId, useRef } from 'react'
 import {
   SettingsBox,
+  SettingsRow,
   SettingsSection,
 } from '@/components/settings/settings-frame'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { FEEL_REST, FEEL_SPECS } from '@/lib/face/feel'
+import { FEEL_SPECS } from '@/lib/face/feel'
 import type { FeelSpec } from '@/lib/face/feel'
 import { theFace } from '@/lib/face/store'
 import { useFigures } from '@/lib/figures'
@@ -31,49 +31,89 @@ export function feelText({ step, unit }: FeelSpec, value: number) {
   return unit === '×' ? `${number}×` : `${number} ${unit}`
 }
 
-/** One setting: its name, its value, the slider, and what turning it does. */
-function FeelSlider({ spec }: { spec: FeelSpec }) {
+/** One setting as a row: what it is on the left; its value, the way back to what Theo ships with, and its slider on the right. */
+function FeelRow({ spec }: { spec: FeelSpec }) {
   const chosen = useFigures((state) => state.feel[spec.key])
   const setFeel = useFigures((state) => state.setFeel)
-  const value = chosen ?? FEEL_REST[spec.key]
+  const resetFeel = useFigures((state) => state.resetFeel)
+  const name = useId()
+  const value = chosen ?? spec.rest
+  const changed = value !== spec.rest
   return (
-    <div className="flex flex-col gap-1.5" data-feel={spec.key}>
-      <Slider
-        className="flex flex-col gap-2"
-        value={[value]}
-        min={spec.min}
-        max={spec.max}
-        step={spec.step}
-        onValueChange={(next) => {
-          const picked = Array.isArray(next) ? next[0] : next
-          // A step of a twentieth lands on 1.1500000000000001: keep what was meant.
-          if (typeof picked === 'number')
-            setFeel(spec.key, Number(picked.toFixed(places(spec.step))))
-        }}
-        getAriaValueText={(_, picked) => feelText(spec, picked)}
+    <div data-feel={spec.key}>
+      <SettingsRow
+        title={<span id={name}>{spec.label}</span>}
+        description={spec.hint}
       >
-        <div className="flex items-baseline justify-between gap-3 text-sm">
-          <SliderPrimitive.Label>{spec.label}</SliderPrimitive.Label>
-          <output
-            className={
-              chosen === undefined || chosen === spec.rest
-                ? 'text-xs tabular-nums text-ink-muted'
-                : 'text-xs font-medium tabular-nums text-ink'
-            }
-          >
-            {feelText(spec, value)}
-          </output>
+        <div className="flex w-52 shrink-0 flex-col gap-1.5">
+          <div className="flex h-6 items-center justify-end gap-1.5">
+            {changed && (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-ink-muted"
+                onClick={() => resetFeel(spec.key)}
+              >
+                Reset to {feelText(spec, spec.rest)}
+              </Button>
+            )}
+            <output
+              className={
+                changed
+                  ? 'text-xs font-medium tabular-nums text-ink'
+                  : 'text-xs tabular-nums text-ink-muted'
+              }
+            >
+              {feelText(spec, value)}
+            </output>
+          </div>
+          <Slider
+            aria-labelledby={name}
+            value={[value]}
+            min={spec.min}
+            max={spec.max}
+            step={spec.step}
+            onValueChange={(next) => {
+              const picked = Array.isArray(next) ? next[0] : next
+              if (typeof picked === 'number')
+                setFeel(spec.key, Number(picked.toFixed(places(spec.step))))
+            }}
+            getAriaValueText={(_, picked) => feelText(spec, picked)}
+          />
         </div>
-      </Slider>
-      <p className="text-xs text-ink-muted">{spec.hint}</p>
+      </SettingsRow>
+    </div>
+  )
+}
+
+/** One group of settings: its name, then its rows. */
+function FeelGroup({
+  group,
+  specs,
+}: {
+  group: string
+  specs: ReadonlyArray<FeelSpec>
+}) {
+  const name = useId()
+  return (
+    <div role="group" aria-labelledby={name}>
+      <p id={name} className="px-3 pt-2.5 text-xs text-ink-faint">
+        {group}
+      </p>
+      <div className="divide-y divide-separator">
+        {specs.map((spec) => (
+          <FeelRow key={spec.key} spec={spec} />
+        ))}
+      </div>
     </div>
   )
 }
 
 /**
- * How Theo's movement feels, for the person to set: every number of
- * lib/face/feel as a slider, a way back to how it ships, and Theo itself on
- * the page to throw, poke and send across with each change in force.
+ * How Theo's movement feels, as a section of Settings: a row for each
+ * setting, each with its own way back, and Theo on the page to try a change
+ * on, in a strip that stays in view while the rows scroll. A change takes
+ * hold as the thumb moves, on a throw already in the air too.
  */
 export function FaceFeel() {
   const changed = useFigures((state) =>
@@ -85,7 +125,7 @@ export function FaceFeel() {
   const resetFeel = useFigures((state) => state.resetFeel)
   const spot = useRef<HTMLSpanElement | null>(null)
 
-  /** Sends Theo to the far end of the strip; it comes back by itself. */
+  /** Sends Theo to the spot at the strip's far end; it comes back by itself. */
   const send = () => {
     const rect = spot.current?.getBoundingClientRect()
     if (!rect) return
@@ -113,14 +153,17 @@ export function FaceFeel() {
           variant="outline"
           size="sm"
           disabled={!changed}
-          onClick={resetFeel}
+          onClick={() => resetFeel()}
         >
-          Reset
+          Reset all
         </Button>
       }
     >
-      <SettingsBox>
-        <div className="flex items-center gap-3 px-3 py-3" data-slot="feel-try">
+      <SettingsBox className="divide-y-0 overflow-visible">
+        <div
+          className="sticky top-0 z-10 flex items-center gap-3 rounded-t-lg border-b border-separator bg-sheet px-3 py-2.5"
+          data-slot="feel-try"
+        >
           <span
             aria-hidden
             data-face-perch="live"
@@ -139,18 +182,11 @@ export function FaceFeel() {
             className="size-8 shrink-0 rounded-full border border-dashed border-separator"
           />
         </div>
-        {GROUPS.map(({ group, specs }) => (
-          <fieldset key={group} className="flex flex-col gap-3 px-3 py-3">
-            <legend className="float-left text-xs text-ink-faint">
-              {group}
-            </legend>
-            <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              {specs.map((spec) => (
-                <FeelSlider key={spec.key} spec={spec} />
-              ))}
-            </div>
-          </fieldset>
-        ))}
+        <div className="divide-y divide-separator">
+          {GROUPS.map(({ group, specs }) => (
+            <FeelGroup key={group} group={group} specs={specs} />
+          ))}
+        </div>
       </SettingsBox>
       <FaceStage />
     </SettingsSection>

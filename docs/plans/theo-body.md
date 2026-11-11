@@ -109,6 +109,12 @@ ships with.
   mounts the figures, so the panel mounts the face itself, with a slot for it
   to rest in, and a button that sends it across the strip and lets it come
   back, for the travel settings. Throwing and poking are done on Theo.
+- **The panel is laid out as the rest of Settings is.** One row for each
+  setting: its name and hint on the left, its value and slider on the right,
+  under the name of its group. A changed row carries its own reset, which
+  names the value Theo ships with; Reset all is the section's. The strip Theo
+  rests in holds the top of the sheet while the rows scroll, so a change to
+  the last row can still be tried on it.
 
 The world steps at Rapier's default 1/60 s. Frames feed an accumulator; a
 long frame runs at most five steps and drops the rest, so a tab that was in
@@ -223,7 +229,7 @@ src/lib/face/
   book.ts         the performance "visit"
 src/components/face/
   driver.ts       loads the body, moves it by priority (hand, travel, coast, layout), tells the face
-  face-feel.tsx   the panel: a slider for each setting, Reset, and Theo to try them on
+  face-feel.tsx   the panel: a row for each setting with its own way back, Reset all, and Theo to try them on
 src/lib/figures.ts                              keeps what the person changed of the feel
 src/routes/settings/appearance.tsx              shows the panel when Theo is on
 src/components/artifacts/artifact-message.tsx   the card says it is a perch
@@ -233,7 +239,7 @@ src/stories/registry.tsx                        the story face-visit
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face`, 34 of its tests came with
-the body and 15 with the feel):
+the body and 16 with the feel):
 
 - the body (21, against Rapier itself): a trip rests exactly on its anchor
   with a small overshoot; a shorter `over` arrives sooner; a moving anchor is
@@ -252,10 +258,11 @@ the body and 15 with the feel):
   different reaction calm and wound up; a throw is noticed; nothing the body
   does produces a run event; asleep ignores `body.*`; reduced motion moves
   nothing; `artifact` compiles as a place and `visit` looks before it goes;
-- the feel (15): every setting ships inside its bounds; a value outside them
+- the feel (16): every setting ships inside its bounds; a value outside them
   is brought inside and a non-number refused; tuning lays what is given over
   what ships and counts a revision only when something changed; the store
-  keeps only what was changed and Reset empties it; less drag carries a throw
+  keeps only what was changed, one setting can be put back alone and Reset
+  all empties it; less drag carries a throw
   further; the throw threshold decides throw or drop; more bounce comes
   further back off the edge; pace changes when a trip arrives; a looser
   settle swings past and still rests exactly; a change takes hold of a trip
@@ -287,12 +294,14 @@ The panel, at `/settings/appearance` in the same browser:
 | Pace 2×, Settle 0.3, Look first 470 ms | sets off about 350 ms later, swings 206 px past, and still comes back |
 | Sliders by keyboard                    | each press is one step; the value and the stored setting follow       |
 | Reload                                 | the three settings are in force again before anything is touched      |
-| Reset                                  | every slider as shipped, nothing kept, the button disabled            |
+| One row’s “Reset to”                   | that setting as shipped and no longer kept; the others stay           |
+| Scrolled to the last row               | the strip holds the top of the sheet, with Theo still on its slot     |
+| Reset all                              | every slider as shipped, nothing kept, the button disabled            |
 
 Renders, under `docs/plans/evidence/theo-body/`: `visit.png` (looking,
 travelling, arrived, looking it over), `thrown.png` (carried, in flight,
-against the edge, at rest) and `tuning.png` (the panel, dark theme, three
-settings changed).
+against the edge, at rest) and `tuning.png` (the panel, dark theme, scrolled
+to its last rows, two settings changed).
 
 **How the throws were made.** That page runs at about 13 frames a second and
 delivers events 75 to 190 ms apart, so a real-time mouse gesture cannot throw

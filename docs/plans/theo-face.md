@@ -453,7 +453,7 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-129 tests, 34 of them the body's and 15 the feel's, listed in `theo-body.md`):
+130 tests, 34 of them the body's and 16 the feel's, listed in `theo-body.md`):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;

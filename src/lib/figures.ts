@@ -48,8 +48,8 @@ interface FiguresState {
   feel: Partial<Feel>
   /** Changes one setting of the feel; a value outside its bounds is brought inside. */
   setFeel: (key: FeelKey, value: number) => void
-  /** Everything about the feel as Theo ships. */
-  resetFeel: () => void
+  /** One setting of the feel as Theo ships; with no setting named, all of them. */
+  resetFeel: (key?: FeelKey) => void
 }
 
 /**
@@ -76,9 +76,11 @@ export const useFigures = create<FiguresState>()(
         tune(feel)
         set({ feel })
       },
-      resetFeel: () => {
-        tune()
-        set({ feel: {} })
+      resetFeel: (key) => {
+        const feel: Partial<Feel> = key === undefined ? {} : { ...get().feel }
+        if (key !== undefined) delete feel[key]
+        tune(feel)
+        set({ feel })
       },
     }),
     {

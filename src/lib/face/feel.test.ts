@@ -113,6 +113,18 @@ describe('the feel', () => {
     expect(useFigures.getState().feel).toEqual({})
     expect(FEEL).toEqual(FEEL_REST)
   })
+
+  test('one setting goes back to what Theo ships with and the others stay', () => {
+    const figures = useFigures.getState()
+    figures.setFeel('drag', 9)
+    figures.setFeel('pace', 1.5)
+    useFigures.getState().resetFeel('drag')
+    expect(useFigures.getState().feel).toEqual({ pace: 1.5 })
+    expect(FEEL.drag).toBe(FEEL_REST.drag)
+    expect(FEEL.pace).toBe(1.5)
+    useFigures.getState().resetFeel('drag')
+    expect(useFigures.getState().feel).toEqual({ pace: 1.5 })
+  })
 })
 
 describe('what the feel does to the body', () => {
