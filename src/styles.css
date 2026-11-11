@@ -483,7 +483,7 @@
 
   html {
     color-scheme: light;
-    /* Inherited by every scroller; the thread viewport always shows its track. */
+    /* Inherited by every scroller. A scroller draws its bar only while it overflows. */
     scrollbar-color: var(--line-control) transparent;
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
