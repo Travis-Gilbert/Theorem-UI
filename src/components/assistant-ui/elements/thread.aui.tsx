@@ -25,6 +25,11 @@ import {
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
 import { ComposerEditor } from '@/components/chat/composer-editor'
+import {
+  ComposerRunInputStatus,
+  useComposerRunInput,
+} from '@/components/chat/composer-run-input'
+import type { ComposerRunInput } from '@/components/chat/composer-run-input'
 import { ModelPicker } from '@/components/chat/model-picker'
 import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
@@ -81,7 +86,7 @@ import {
 import { ComposerConnections } from '@/components/chat/composer-connections'
 import { EffortPicker } from '@/components/chat/effort-picker'
 import { ResponseControl } from '@/components/chat/response-control'
-import { DirectiveText } from './directive-text.aui'
+import { UserMarkdown } from '@/components/chat/user-markdown'
 import { ChatCollapsibleMessage } from '@/components/coss/chat/chat-collapsible-message'
 import {
   UnseenDivider,
@@ -551,6 +556,7 @@ const AttachmentRefusals: FC = () => {
 
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui()
+  const runInput = useComposerRunInput()
   const shellRef = useRef<HTMLDivElement>(null)
   // Where the text was, for the new user message to fly up from. Recorded on
   // submit because the composer.send event arrives a microtask after the
@@ -572,7 +578,13 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   return (
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root
-        onSubmit={recordLaunches}
+        onSubmit={(event) => {
+          if (runInput.submit()) {
+            event.preventDefault()
+            return
+          }
+          recordLaunches()
+        }}
         className="aui-composer-root relative flex w-full flex-col"
       >
         <ComposerToolTrigger />
@@ -603,14 +615,15 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             onFocus={() => attendKit(true)}
             onBlur={() => attendKit(false)}
           />
-          <ComposerAction />
+          <ComposerRunInputStatus input={runInput} />
+          <ComposerAction runInput={runInput} />
         </ComposerPrimitive.AttachmentDropzone>
       </ComposerPrimitive.Root>
     </ComposerPrimitive.TriggerPopoverRoot>
   )
 }
 
-const ComposerAction: FC = () => {
+const ComposerAction: FC<{ runInput: ComposerRunInput }> = ({ runInput }) => {
   const { disabled: sendDisabled } = useComposerSend()
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
@@ -673,7 +686,8 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            (!s.composer.canCancel ||
+            (runInput.active ||
+              !s.composer.canCancel ||
               (s.thread.voice !== undefined &&
                 s.composer.submission === undefined)) &&
             !shouldShowComposerResume(s)
@@ -681,15 +695,20 @@ const ComposerAction: FC = () => {
         >
           <Magnet>
             <TooltipIconButton
-              tooltip="Send message"
+              tooltip={
+                runInput.active
+                  ? 'Send to current response (⌘/Ctrl+Enter)'
+                  : 'Send message (⌘/Ctrl+Enter)'
+              }
               delay={COMPOSER_TOOLTIP_DELAY}
               side="top"
               type="submit"
-              disabled={sendDisabled}
+              disabled={runInput.active ? !runInput.canSend : sendDisabled}
               variant="default"
               size="icon"
               className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed dark:bg-transparent dark:hover:bg-hover dark:active:bg-selected size-9 rounded-lg disabled:opacity-40 p-2"
               aria-label="Send message"
+              aria-keyshortcuts="Control+Enter Meta+Enter"
             >
               {/* In dark the plane stands without its button, filled with the accent the button would have been. */}
               <Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2 dark:*:data-[layer=paper]:bg-redwood" />
@@ -1131,7 +1150,7 @@ const UserTextPart: TextMessagePartComponent = (part) => {
       side="outgoing"
       showMoreLabel="Show more"
       showLessLabel="Show less"
-      renderText={(shown) => <DirectiveText {...part} text={shown} />}
+      renderText={(shown) => <UserMarkdown text={shown} />}
     />
   )
 }

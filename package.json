@@ -12,6 +12,7 @@
     "e2e:models": "node scripts/e2e/models.mjs",
     "e2e:keys": "node scripts/e2e/keys.mjs",
     "e2e:notes": "node scripts/e2e/notes.mjs",
+    "e2e:composer": "node scripts/e2e/composer.mjs",
     "e2e:sidebar": "node scripts/e2e/sidebar.mjs",
     "e2e:app-db": "node scripts/e2e/app-db.mjs",
     "e2e:app-ts": "node scripts/e2e/app-ts.mjs",
@@ -26,7 +27,8 @@
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "test:composer": "bun test src/components/chat src/components/assistant-ui src/components/notes src/lib/theorem src/stories"
   },
   "dependencies": {
     "@assistant-ui/core": "0.3.30",

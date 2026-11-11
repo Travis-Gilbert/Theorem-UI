@@ -38,6 +38,7 @@ import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { ProgramPart } from '@/components/chat/program-part'
 import { CompletionFooter } from '@/components/chat/run-footer'
+import { UserMarkdown } from '@/components/chat/user-markdown'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
@@ -839,14 +840,14 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
         ? `not delivered${reason && INPUT_REFUSALS[reason] ? `: ${INPUT_REFUSALS[reason]}` : ''}`
         : 'queued for its next step'
   return (
-    <p
+    <div
       data-slot="theorem-user-input"
       data-status={status}
-      className={`my-2 border-s-2 border-separator ps-3 text-sm whitespace-pre-wrap ${status === 'delivered' ? 'text-ink' : 'text-ink-muted'}`}
+      className={`my-2 border-s-2 border-separator ps-3 text-sm ${status === 'delivered' ? 'text-ink' : 'text-ink-muted'}`}
     >
-      {text}
+      <UserMarkdown text={text} />
       {note && <span className="ms-2 text-xs text-ink-faint">· {note}</span>}
-    </p>
+    </div>
   )
 }
 

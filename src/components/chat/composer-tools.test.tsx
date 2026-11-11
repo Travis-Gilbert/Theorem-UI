@@ -177,9 +177,9 @@ async function type(input: HTMLElement, value: string) {
   })
 }
 
-const press = (input: HTMLElement, key: string) =>
+const press = (input: HTMLElement, key: string, modifiers: KeyboardEventInit = {}) =>
   act(async () => {
-    input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...modifiers }))
   })
 
 const options = () => [
@@ -242,7 +242,7 @@ test('Enter picks the highlighted tool, and the message names it for the turn', 
   expect(input.textContent).toStartWith(':tool[recall]')
   expect(sent).toHaveLength(0)
   await type(input, `${composerText().trimEnd()} what did we decide`)
-  await press(input, 'Enter')
+  await press(input, 'Enter', { ctrlKey: true })
   await waitFor(() => sent.length)
   expect(sentText(sent[0]!)).toBe(':tool[recall] what did we decide')
 })
@@ -270,7 +270,20 @@ test('a slash typed at the end of bold text still lists and picks a tool', async
   expect(input.querySelector('strong')!.textContent).toStartWith('hello :tool[recall]')
 })
 
-test('a slash that names no tool stays text, and Enter sends it', async () => {
+test('Ctrl+Enter submits the document even while a slash suggestion is open', async () => {
+  const sent: AppendMessage[] = []
+  const { container } = await mount(<Harness text="" sent={sent} />)
+  const input = inputOf(container)
+  await type(input, '/rec')
+  await waitFor(() => options().length)
+  await press(input, 'Enter', { ctrlKey: true })
+  await waitFor(() => sent.length)
+  expect(sent).toHaveLength(1)
+  expect(sentText(sent[0]!)).toBe('/rec')
+  expect(composerText()).toBe('')
+})
+
+test('a slash that names no tool stays text, and Ctrl+Enter sends it', async () => {
   const sent: AppendMessage[] = []
   const { container } = await mount(<Harness text="" sent={sent} />)
   const input = inputOf(container)
@@ -278,7 +291,7 @@ test('a slash that names no tool stays text, and Enter sends it', async () => {
   await waitFor(() => options().length)
   await type(input, '/usr/bin')
   await waitFor(() => !options().length)
-  await press(input, 'Enter')
+  await press(input, 'Enter', { ctrlKey: true })
   await waitFor(() => sent.length)
   expect(sentText(sent[0]!)).toBe('/usr/bin')
 })
@@ -315,7 +328,7 @@ test('a sent message shows the tool it asked for as a chip', async () => {
   expect(container.textContent).not.toContain(':tool[')
 })
 
-for (const method of ['click', 'Enter'] as const) {
+for (const method of ['click', 'Ctrl+Enter'] as const) {
   test(`composer ${method} sends exactly one message with its run config`, async () => {
     const sent: AppendMessage[] = []
     const { container } = await mount(
@@ -326,7 +339,7 @@ for (const method of ['click', 'Enter'] as const) {
       '[aria-label="Send message"]',
     )!
     await waitFor(() => !send.disabled)
-    await act(() => (method === 'click' ? send.click() : press(input, 'Enter')))
+    await act(() => (method === 'click' ? send.click() : press(input, 'Enter', { ctrlKey: true })))
     await waitFor(() => sent.length)
     expect(sent).toHaveLength(1)
     expect(sent[0]!.runConfig).toEqual({

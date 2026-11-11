@@ -3,7 +3,7 @@
 // The composer's input as a Crepe editor. assistant-ui's ComposerPrimitive.Input
 // is a text area with no seam for another editor, and nothing upstream joins
 // Crepe to it, so what that input does besides hold text is repeated here
-// against the same composer state: Enter sends through the form, the / menu
+// against the same composer state: explicit send goes through the form, the / menu
 // reads the keys and the caret, a pasted file becomes an attachment, and the
 // cursor comes back after a send or a thread switch. The text itself stays in
 // assistant-ui's composer, so everything that reads or writes it keeps working.
@@ -29,11 +29,12 @@ import type { EditorView } from '@milkdown/kit/prose/view'
 import type { Serializer } from '@milkdown/kit/transformer'
 import { $prose } from '@milkdown/kit/utils'
 import { Milkdown, MilkdownProvider } from '@milkdown/react'
-import type { Link, Text } from 'mdast'
+import type { Link } from 'mdast'
 import { defaultHandlers } from 'mdast-util-to-markdown'
 import type { Handle } from 'mdast-util-to-markdown'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef } from 'react'
 import type { ClipboardEvent, FocusEvent, KeyboardEvent } from 'react'
+import { serializeComposerText } from './composer-markdown'
 import { useCrepeMarkdown } from '@/components/notes/crepe-markdown'
 import { cn } from '@/lib/utils'
 
@@ -82,33 +83,6 @@ function caretOffset(view: EditorView, serialize: Serializer, text: string) {
   while (at < before.length && before[at] === text[at]) at++
   return at
 }
-
-/** In a heading or a list item, the next line of Markdown is another block. */
-function nextLineIsBlock(view: EditorView) {
-  const { $head } = view.state.selection
-  for (let depth = $head.depth; depth > 0; depth--) {
-    const { name } = $head.node(depth).type
-    if (name === 'heading' || name === 'list_item') return true
-  }
-  return false
-}
-
-/** A line holding only a code fence, with the caret after it. */
-function opensFence(view: EditorView) {
-  const { $head, empty } = view.state.selection
-  return (
-    empty &&
-    $head.parent.type.name === 'paragraph' &&
-    $head.parentOffset === $head.parent.content.size &&
-    /^```[a-z]*$/.test($head.parent.textContent)
-  )
-}
-
-/** The editor's own Enter: a new paragraph, the next list item, or a code block. */
-const editorEnter = (view: EditorView) =>
-  view.someProp('handleKeyDown', (handle) =>
-    handle(view, new window.KeyboardEvent('keydown', { key: 'Enter' })),
-  )
 
 function Editor({
   label,
@@ -179,18 +153,14 @@ function Editor({
               'aria-label': label,
               ...(placeholder ? { 'aria-placeholder': placeholder } : {}),
               ...(crepe.readonly ? { 'aria-disabled': 'true' } : {}),
-              enterkeyhint: 'send',
+              enterkeyhint: 'enter',
             }),
           }))
           ctx.update(remarkStringifyOptionsCtx, (options) => ({
             ...options,
             handlers: {
               ...options.handlers,
-              // Text goes out as it was typed. Escaping it would send
-              // backslashes nobody wrote and break a `:tool[name]` pick.
-              text: (node: Text) => node.value,
-              // Shift+Enter is one line break in the text, as it always was.
-              break: () => '\n',
+              text: serializeComposerText,
               link,
             },
           }))
@@ -203,8 +173,8 @@ function Editor({
                 viewRef.current = view
                 serializeRef.current = ctx.get(serializerCtx)
                 return {
-                  // The composer's text follows every edit at once, so Enter
-                  // sends what is on screen; Milkdown's own listener waits.
+                  // The composer's text follows every edit at once, so sending
+                  // uses what is on screen; Milkdown's own listener waits.
                   update: (current, before) => {
                     const edited = !before.doc.eq(current.state.doc)
                     if (edited)
@@ -362,16 +332,23 @@ function Editor({
     const view = viewRef.current
     if (!view || isDisabled) return
     if (event.nativeEvent.isComposing || event.keyCode === 229) return
-    // A code block is its own CodeMirror; the link tooltip's field and the
-    // code block's language search keep their keys.
+    // A code block is its own CodeMirror. Native fields supplied by the editor
+    // keep their own handlers, but Enter must not implicitly submit this form.
     const inCode = (event.target as Element).closest('.cm-content') !== null
-    if (!inCode && event.target !== view.dom) return
+    if (!inCode && event.target !== view.dom) {
+      if (event.key === 'Enter' && (event.target as Element).matches('input'))
+        event.preventDefault()
+      return
+    }
 
-    for (const { resource } of popover?.getTriggers().values() ?? [])
-      if (resource.handleKeyDown(event)) {
-        event.stopPropagation()
-        return
-      }
+    const explicitSend =
+      event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.altKey
+    if (!explicitSend)
+      for (const { resource } of popover?.getTriggers().values() ?? [])
+        if (resource.handleKeyDown(event)) {
+          event.stopPropagation()
+          return
+        }
 
     switch (event.key) {
       case 'Tab':
@@ -399,28 +376,11 @@ function Editor({
         return
     }
 
-    const thread = aui.thread.getState()
-    const { queue } = thread.capabilities
-    if (event.shiftKey && (event.ctrlKey || event.metaKey)) {
-      if (!queue || !aui.composer.getState().canSend) return
-      event.preventDefault()
-      event.stopPropagation()
-      aui.composer.send({ steer: true })
-      return
-    }
-    if (event.shiftKey) {
-      // Milkdown's Shift+Enter breaks the line; in a heading or a list item
-      // the next line is a new block, which is the editor's Enter.
-      if (inCode || !nextLineIsBlock(view)) return
-      event.preventDefault()
-      event.stopPropagation()
-      editorEnter(view)
-      return
-    }
-    // While a run that takes no queued message is going, Enter is a new line.
-    if (thread.isRunning && !queue && thread.voice === undefined) return
-    // ``` and Enter opens a code block, as it does wherever Markdown is typed.
-    if (!inCode && opensFence(view)) return
+    // Enter always edits the document, including lists, headings and code.
+    // A response finishing must not turn the next paragraph into a send.
+    // Every explicit shortcut uses the same form as the Send button; the form
+    // decides whether this is a new turn, an edit, or input to a running turn.
+    if (!explicitSend) return
     event.preventDefault()
     event.stopPropagation()
     sentFromHere.current = inCode

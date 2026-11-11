@@ -1,0 +1,75 @@
+name: Composer acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/composer.yml'
+      - 'docs/development/composer-contract.md'
+      - 'package.json'
+      - 'bun.lock'
+      - 'bunfig.toml'
+      - 'tsconfig.json'
+      - 'test/**'
+      - 'patches/**'
+      - 'vendor/theoremharness-sdk-*.tgz'
+      - 'src/components/chat/**'
+      - 'src/components/assistant-ui/**'
+      - 'src/components/notes/**'
+      - 'src/components/terminal/**'
+      - 'src/components/pages/conversation-module*'
+      - 'src/lib/theorem/**'
+      - 'src/routes/_chat*'
+      - 'src/routes/_chat/**'
+      - 'src/routes/api/chat/**'
+      - 'src/routes/v1/theorem/**'
+      - 'src/server/theorem-*'
+      - 'src/stories/**'
+      - 'src/styles.css'
+      - 'scripts/e2e/**'
+      - 'terminal/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  composer:
+    name: Composer contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.3'
+      - name: Install locked dependencies
+        id: install
+        run: bun install --frozen-lockfile
+      # Keep these versions in sync with terminal/rust-toolchain.toml and Cargo.toml.
+      - name: Install the terminal Rust toolchain
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: '1.96.1'
+          targets: wasm32-unknown-unknown
+      - name: Install the matching WebAssembly bindings generator
+        run: cargo install wasm-bindgen-cli --version 0.2.127 --locked
+      - name: Generate terminal bindings and types
+        run: bun run build:terminal
+      - name: Check types
+        run: bun run typecheck
+      - name: Check composer and delivery behavior
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun run test:composer
+      - name: Install the browser for composer interactions
+        id: browser
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Check native composer interactions
+        if: ${{ !cancelled() && steps.browser.outcome == 'success' }}
+        run: bun run e2e:composer --built
