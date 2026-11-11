@@ -199,17 +199,53 @@ const putDraft = (
 /** A draft is the person's own text, so a stale revision means read it again and save. */
 async function writeDraft(
   reviewId: string,
-  next: ReviewResponse,
-  revision: number | undefined,
+  draft: () => ReviewResponse,
+  revision: number,
 ) {
-  const write = (expected: number | undefined) =>
-    putDraft(reviewId, next, { 'If-Match': String(expected) })
+  const write = (expected: number) =>
+    putDraft(reviewId, draft(), { 'If-Match': String(expected) })
   try {
     return await write(revision)
   } catch (error) {
     if (!hasStatus(error, 409)) throw error
     return write((await theoremJson<Review>(reviewPath(reviewId))).revision)
   }
+}
+
+/** Draft writes going out, by review, and the revision the last one answered with. */
+const draftLines = new Map<
+  string,
+  { last: Promise<unknown>; revision: number }
+>()
+
+/**
+ * Saves a review's draft after the writes already out for it. The pane and
+ * every composer write the same review, so they wait in one line, as a
+ * document's views do in apps.ts. `draft` is read as the write goes, and again
+ * if a stale revision sends it twice: a write that waited never puts an older
+ * response over a newer one.
+ */
+export function saveDraft(
+  reviewId: string,
+  draft: () => ReviewResponse,
+  revision = 0,
+): Promise<Review> {
+  const line = draftLines.get(reviewId) ?? {
+    last: Promise.resolve(),
+    revision: 0,
+  }
+  draftLines.set(reviewId, line)
+  const saved = line.last.then(async () => {
+    const review = await writeDraft(
+      reviewId,
+      draft,
+      Math.max(line.revision, revision),
+    )
+    line.revision = review.revision
+    return review
+  })
+  line.last = saved.catch(() => undefined)
+  return saved
 }
 
 /**
@@ -236,19 +272,20 @@ export function useReviewDraft(review: Review | undefined) {
   useEffect(() => {
     if (review) revision.current = review.revision
   }, [review])
-  const writes = useRef(Promise.resolve())
   const leaving = useRef(false)
   const later = useRef<(id: string, next: ReviewResponse) => void>(undefined)
   const saver = useDebouncer(
     // The review is named with the write: the composer can stop answering it
     // before the write goes out.
     (id: string, next: ReviewResponse) => {
+      // What is written here by the time a write goes, which can be later.
+      const draft = () => useDrafts.getState()[id] ?? next
       // An answer carries what was chosen: a draft saved after it says nothing.
       const cached = client.getQueryData<Review>(reviewKey(id))
       if (cached && cached.status !== 'open') return
       // The page cannot wait for a write still out, or read a newer revision.
       if (leaving.current) {
-        void putDraft(id, next).catch(() => undefined)
+        void putDraft(id, draft()).catch(() => undefined)
         return
       }
       // An answer on its way carries this too. Should it fail, save then.
@@ -256,13 +293,10 @@ export function useReviewDraft(review: Review | undefined) {
         later.current?.(id, next)
         return
       }
-      // One at a time: each needs the revision the last one answered with.
-      writes.current = writes.current
-        .then(() => writeDraft(id, next, revision.current))
+      void saveDraft(id, draft, revision.current)
         .then((saved) => {
-          revision.current = saved.revision
           setSaveError(undefined)
-          put({ ...saved, draft: useDrafts.getState()[id] ?? next })
+          put({ ...saved, draft: draft() })
         })
         .catch(setSaveError)
     },
