@@ -134,6 +134,20 @@ test('a pick names an entity, and clearing it names none', () => {
     expect(readFrameMessage({ type: 'sceneos:select', entity })).toBeUndefined()
 })
 
+test('an ask names the part asked about, and nothing without one', () => {
+  expect(
+    readFrameMessage({
+      type: 'sceneos:ask',
+      entity: { id: 'alu', label: 'ALU', kind: 'unit', detail: 'Adds', extra: 1 },
+    }),
+  ).toEqual({
+    type: 'sceneos:ask',
+    entity: { id: 'alu', label: 'ALU', kind: 'unit', detail: 'Adds' },
+  })
+  for (const entity of [null, undefined, { label: 'ALU' }, { id: ' ' }, 'alu'])
+    expect(readFrameMessage({ type: 'sceneos:ask', entity })).toBeUndefined()
+})
+
 test('an error reads as one line, and asks for the code to be fixed', () => {
   const error = {
     stage: 'mount' as const,
