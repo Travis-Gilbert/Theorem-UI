@@ -40,6 +40,13 @@ says for each what was built, what was checked, and what was not.
   - Eyes only at rest. A mouth is added if eyes turn out not to say enough;
     the primitive already allows one.
   - When the agent is not active, Theo sleeps.
+- The owner's decisions on seeing it built (2026-11-11):
+  - The visor is a setting. In dark mode the eyes have no visor by default:
+    "they just have contrast against the screen".
+  - The white-hot look of the eyes stays.
+  - The colour in the eyes follows the theme. The cyan suits GitHub Sharp;
+    Stone and Vitesse get their own, and a theme someone makes should give the
+    face its hue without anyone choosing one.
 - What was already here and is reused, not rebuilt:
   - `src/lib/kit/operations.ts` and `src/lib/blocks/app-operations.ts`:
     Theorem's client operations. A page declares operations on its send, each
@@ -289,9 +296,60 @@ count and size, and the matter's colour in OKLCH. Expression deforms identity
 and always returns to it. Changing how Theo looks is a change to this file and
 to nothing else.
 
-The eyes are white-hot at the centre with a cyan fringe, on a visor that is
-dark in every palette, as the reference's screen is. The mood shifts the hue a
-little; the agent's `theorem-expression` hue shifts it more.
+The eyes are white-hot at the centre with a fringe of colour. The mood shifts
+the hue a little; the agent's `theorem-expression` hue shifts it more. Two
+things about the look are not the identity's but the page's: whether there is
+a visor, and what the hue is.
+
+### The visor
+
+The visor is the dark plate the reference's screen is. It is a setting
+(Settings, Appearance, Figures, "Theo's visor") with three values:
+
+| Setting          | Light theme                        | Dark theme              |
+| ---------------- | ---------------------------------- | ----------------------- |
+| `auto` (default) | visor, eyes of light               | no visor, eyes of light |
+| `on`             | visor, eyes of light               | visor, eyes of light    |
+| `off`            | no visor, eyes drawn as dark _ink_ | no visor, eyes of light |
+
+Light needs something dark behind it. On a dark page the page is that, so
+`auto` drops the plate there. On a light page with no plate the eyes cannot be
+light at all: light that adds to a near-white page shows nothing. There the
+same grains are drawn as ink: the grain's own hue with four fifths of its
+light taken out, covering what is under it instead of adding to it, so piled
+grains go solid dark where they used to burn white. It is the same matter and
+the same motion with the blend turned over. The rule is one function
+(`faceLook` in `src/lib/figures.ts`); both painters take an `ink` flag.
+
+Without the plate, matter that reaches the edge of its canvas thins out over
+the last tenth instead of being cut by a rim that is no longer drawn.
+
+### The hue follows the theme
+
+The hue of the matter is read from the page's theme
+(`src/lib/face/tint.ts`, `src/components/face/look.ts`), in this order:
+
+1. `--face-hue` on `<html>`, an OKLCH hue in degrees, when the theme names
+   one;
+2. the hue of the ground the face sits on (`--surface-neutral`), when the
+   ground is tinted (OKLCH chroma of 0.02 or more);
+3. the hue of the theme's accent (`--focus`), when that is tinted;
+4. the identity's own hue.
+
+Lightness and chroma stay the identity's, so every theme gets the same
+white-hot eyes with a different colour in them.
+
+| Palette      | Hue         | From                                                                                                                                                                                                                                                               |
+| ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GitHub Sharp | 205         | Named in `styles.css`: the cyan the face was drawn in, which the owner said fits                                                                                                                                                                                   |
+| Stone        | 68          | Named: the warm hue every Stone surface leans to. The lean is real but faint (chroma 0.003 to 0.007), no stronger than the rounding of a grey, so it cannot be found by measuring                                                                                  |
+| Vitesse      | 164 and 160 | By the rule: its ground is a true grey, so the face takes its green accent, dark and light                                                                                                                                                                         |
+| A new theme  | by the rule | A theme with a tinted ground gives that hue; one with a grey ground gives its accent's; one that wants something else names `--face-hue`. A made-up theme with a plum ground (`#2a1838`) gave 308 in the browser with nothing else said (see "Tests and evidence") |
+
+The hue is read when the face mounts and again whenever `<html>`'s attributes
+change, which is how the mode, the palette and a theme set from script all
+arrive, so a change of theme recolours the moving face, the still marks and
+the bench at once.
 
 ## Decisions
 
@@ -307,6 +365,8 @@ little; the agent's `theorem-expression` hue shifts it more.
 | Three operations       | read, perform, define                                                                                       | The sixteen-operation limit, and a model learns one manual more readily than seven tools                                                          |
 | Book and rules         | Defaults in code; the agent's additions in `localStorage`                                                   | Useful before any backend work. A durable book in Theorem is under "Not yet"                                                                      |
 | Kit                    | Stays, on by default, with its own switch                                                                   | The owner's decision                                                                                                                              |
+| Visor                  | A setting: `auto` (light theme only), `on`, `off`                                                           | The owner's decision. Bare eyes on a light page are drawn as ink, since light cannot show there                                                   |
+| Hue                    | From the theme: a named `--face-hue`, else a tinted ground, else the accent                                 | The owner's decision. A ground's hue cannot be measured when it is nearly grey, which the shipped palettes all are, so the accent stands in       |
 | Randomness             | One seeded generator per face, and a recorded seed per invocation                                           | "Not the same every time" and "repeatable in a test" are both required                                                                            |
 | Tests                  | `bun test` over the pure modules; stories that can be frozen at a moment                                    | No new test runner                                                                                                                                |
 
@@ -329,13 +389,15 @@ src/lib/face/
   operations.ts   face.* declarations, requests, receipts, run events
   store.ts        the page's one face; whether it is mounted
   random.ts       the seeded generator
-src/lib/figures.ts            Theo's and Kit's switches
+  tint.ts         a colour's hue, and which of a theme's colours the face follows
+src/lib/figures.ts            Theo's and Kit's switches, the visor setting and the look it gives
 src/components/face/
   driver.ts       where the face is on the page; pointer, keyboard, page events
   face-stage.tsx  the layer, the button, the status line
   painter.ts      the Painter interface, the Canvas2D painter, the choice
   luma.ts         the luma painter
   face-mark.tsx   the still mark, and the gutter slot
+  look.ts         the look and the hue here and now: the setting, the mode, the theme's colours
   figures.tsx     mounts Theo and Kit, each if switched on
   face-bench.tsx  the bench and the book sheet, for stories
 ```
@@ -362,7 +424,8 @@ without a jump, and reads back that it was interrupted.
 
 ## Tests and evidence
 
-**Execution correctness** (`bun test src/lib/face`, 61 tests):
+**Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
+73 tests):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;
@@ -390,7 +453,13 @@ without a jump, and reads back that it was interrupted.
   declared only when mounted; a pending request is read from the live turn and
   nothing in history is performed again; read, perform, wait, stop, define,
   remove, rules; refusals; a request is answered once; a receipt that fails
-  to post is sent again and the performance is not played again.
+  to post is sent again and the performance is not played again;
+- the visor: each setting in each mode gives the look in the table above, and
+  eyes are ink only where nothing dark is behind them;
+- the hue: a colour's hue comes back from the colour made with it; a grey has
+  no chroma; a named hue wins; a tinted ground gives its own hue; a grey
+  ground hands over to the accent (Vitesse's and Stone's own colours); a theme
+  with neither keeps the face's hue.
 
 **Visual quality**, checked here in headless Chromium (software WebGL):
 
@@ -400,7 +469,15 @@ without a jump, and reads back that it was interrupted.
 - in the shell: at rest in the live reply's gutter beside Kit on the composer;
   poked; poked eight times running; carried and dropped; sent home; with
   reduced motion; by keyboard; switched off (the old gutter icon returns) and
-  on again; asleep after ninety seconds and awake after a poke.
+  on again; asleep after ninety seconds and awake after a poke;
+- the visor (`visor.png`: light above dark; `auto`, `on`, `off` left to
+  right), drawn by luma in all six, with no shader refusal;
+- the palettes (`palettes.png`: dark above light; GitHub Sharp, Stone,
+  Vitesse left to right);
+- on the settings page, pressing through Dark, Stone, Vitesse, visor On, Off,
+  Light and Auto: the still mark took hue 205, 68, 164 and 160, gained and
+  lost its plate, and turned to ink only for Off in Light; a theme made up on
+  the spot with a plum ground took hue 308.
 
 Renders are under `docs/plans/evidence/theo-face/`.
 
@@ -414,8 +491,10 @@ Renders are under `docs/plans/evidence/theo-face/`.
 - A collage against the reference, sealed by a person.
 - Frame cost in a real browser on real hardware. The solver alone measures
   about 0.5 ms a frame under Bun.
-- Light and dark, and each palette, side by side. The visor is dark in all of
-  them by design; that choice has not been looked at on every one.
+- Vitesse's green shows less in the eyes than the cyan or the gold do at the
+  same lightness and chroma. Whether it wants more chroma is a call for
+  someone looking at a real screen.
+- Ink eyes have been looked at at rest and poked, not through the whole book.
 
 ## To verify
 

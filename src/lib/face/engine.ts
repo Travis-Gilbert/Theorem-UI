@@ -71,6 +71,8 @@ const noStage: Stage = {
  */
 export class Face {
   readonly identity: Identity
+  /** The hue of the matter, in OKLCH degrees: the identity's own until the page gives its theme's (lib/face/tint). `matter.hue` turns from here. */
+  hue: number
   readonly rig: Rig
   readonly field: Field
   readonly book: Book
@@ -101,6 +103,7 @@ export class Face {
 
   constructor(options: FaceOptions = {}) {
     this.identity = options.identity ?? THEO
+    this.hue = this.identity.hue
     this.clock = options.clock ?? (() => Date.now())
     const seed = options.seed ?? 20261111
     this.seeds = seed
@@ -269,10 +272,7 @@ export class Face {
     }
     if (expression.breath !== undefined) hold('auto.breath', expression.breath)
     if (expression.hue !== undefined)
-      hold(
-        'matter.hue',
-        ((expression.hue - this.identity.hue + 540) % 360) - 180,
-      )
+      hold('matter.hue', ((expression.hue - this.hue + 540) % 360) - 180)
   }
 
   /** Wakes the face if it sleeps. */
@@ -347,10 +347,21 @@ export class Face {
     const steps = Math.max(1, Math.ceil(seconds / STEP - 1e-6))
     const dt = seconds / steps
     for (let step = 0; step < steps; step++) this.tick(dt)
+    this.paint()
+  }
+
+  /** Gives the matter the hue of the page's theme, and shows it at once, on a face that is not advancing as much as on one that is. */
+  tint(hue: number) {
+    this.hue = hue
+    this.paint()
+  }
+
+  /** Writes the grains as they stand into the buffer, in the hue the face has now. */
+  private paint() {
     const colour = oklch(
       this.identity.lightness,
       this.identity.chroma,
-      this.identity.hue + this.matter.hue,
+      this.hue + this.matter.hue,
     )
     this.field.write(this.buffer, this.matter, this.identity.grain, colour)
   }

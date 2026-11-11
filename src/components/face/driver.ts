@@ -30,6 +30,8 @@ const LINGER_MS = 3_500
  * and hands them over; nothing here renders through React.
  */
 export class FaceDriver {
+  /** Draw the matter as ink: a bare face on a light page. The stage sets it. */
+  ink = false
   private painter: Painter | undefined
   private frameId = 0
   private place: Place = 'home'
@@ -44,8 +46,7 @@ export class FaceDriver {
   private placed = false
   private pointer: Point = { x: -1e4, y: -1e4 }
   private press:
-    | { id: number; from: Point; grab: Point; carried: boolean }
-    | undefined
+    { id: number; from: Point; grab: Point; carried: boolean } | undefined
   private strokes: Array<number> = []
   private strokeDirection = 0
   private lastDraw = 0
@@ -267,6 +268,7 @@ export class FaceDriver {
       face.field.count,
       face.identity.width,
       face.identity.height,
+      this.ink,
     )
 
     const head = face.head()

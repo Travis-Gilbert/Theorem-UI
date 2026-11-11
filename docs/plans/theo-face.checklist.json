@@ -53,7 +53,7 @@
       "id": "identity",
       "item": "Identity as one data file: visor, features at rest, grain budget, colour",
       "status": "done",
-      "evidence": "src/lib/face/identity.ts. The colour is the face's own in every palette, not theme tokens: the visor is dark everywhere, as the reference's screen is"
+      "evidence": "src/lib/face/identity.ts. Lightness, chroma and the fallback hue are the face's own; the hue in use and whether there is a visor come from the page (see visor, hue)"
     },
     {
       "id": "particles",
@@ -230,6 +230,24 @@
       "evidence": "src/lib/figures.ts; src/routes/settings/appearance.tsx; src/components/face/figures.tsx; toggled in the browser; docs/plans/evidence/theo-face/settings.png"
     },
     {
+      "id": "visor",
+      "item": "The visor is a setting: auto (visor in the light theme, bare eyes in the dark one), on, off; bare eyes on a light page are drawn as ink",
+      "status": "done",
+      "evidence": "src/lib/figures.ts (faceLook), src/components/face/look.ts, painter.ts and luma.ts (ink), styles.css, src/routes/settings/appearance.tsx; src/lib/figures.test.ts; all six combinations in the browser: docs/plans/evidence/theo-face/visor.png and settings-visor.png"
+    },
+    {
+      "id": "hue",
+      "item": "The hue of the eyes follows the theme: a named --face-hue, else a tinted ground, else the accent; GitHub Sharp 205, Stone 68, Vitesse its green; a new theme needs to say nothing",
+      "status": "done",
+      "evidence": "src/lib/face/tint.ts and tint.test.ts, src/components/face/look.ts, styles.css; switched live on the settings page (205, 68, 164, 160; a made-up plum ground gave 308); docs/plans/evidence/theo-face/palettes.png"
+    },
+    {
+      "id": "ink-book",
+      "item": "Ink eyes looked at through every performance in the book",
+      "status": "todo",
+      "evidence": "Seen at rest and poked only"
+    },
+    {
       "id": "stories",
       "item": "Stories: face-bench (can be frozen with ?do=&at=), face-book, face-in-shell",
       "status": "done",
@@ -244,8 +262,8 @@
     {
       "id": "palettes",
       "item": "The face looked at in light and dark and in each palette",
-      "status": "todo",
-      "evidence": "Seen on the default light theme only"
+      "status": "done",
+      "evidence": "Looked at in light and dark in GitHub Sharp, Stone and Vitesse in headless Chromium, drawn by luma: docs/plans/evidence/theo-face/palettes.png and visor.png"
     },
     {
       "id": "frame-cost",

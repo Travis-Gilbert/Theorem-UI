@@ -1,9 +1,10 @@
-// SOURCING: components/kit/kit-stage.tsx for the layer (fixed over the whole shell, taking pointer events only in the figure itself, below popups) and for the status node a screen reader gets; lib/kit/store for the run's liveness and the agent's authored expression, which both figures read. The visor plate is this app's reading of the reference robot's dark screen.
+// SOURCING: components/kit/kit-stage.tsx for the layer (fixed over the whole shell, taking pointer events only in the figure itself, below popups) and for the status node a screen reader gets; lib/kit/store for the run's liveness and the agent's authored expression, which both figures read. The visor plate is this app's reading of the reference robot's dark screen; whether it is there is the person's setting (./look).
 import { useEffect, useRef, useState } from 'react'
 import { THEO } from '@/lib/face/identity'
 import { theFace, useFaceStage } from '@/lib/face/store'
 import { useKit } from '@/lib/kit/store'
 import { FaceDriver, VISOR_PX } from './driver'
+import { useFaceHue, useFaceLook } from './look'
 
 const VISOR_HEIGHT = (VISOR_PX * THEO.height) / THEO.width
 
@@ -18,6 +19,9 @@ export function FaceStage() {
   const holder = useRef<HTMLDivElement | null>(null)
   const plate = useRef<HTMLDivElement | null>(null)
   const screen = useRef<HTMLDivElement | null>(null)
+  const driving = useRef<FaceDriver | undefined>(undefined)
+  const look = useFaceLook()
+  const hue = useFaceHue()
   const [words, setWords] = useState('at rest')
   const liveness = useKit((state) => state.liveness)
   const expression = useKit((state) => state.expression)
@@ -35,19 +39,26 @@ export function FaceStage() {
       },
     )
     driver.start()
+    driving.current = driver
     useFaceStage.setState({ mounted: true })
     return () => {
       driver.destroy()
+      driving.current = undefined
       useFaceStage.setState({ mounted: false, painter: undefined })
     }
   }, [])
 
   useEffect(() => {
+    if (driving.current) driving.current.ink = look.ink
+  }, [look.ink])
+  useEffect(() => {
     theFace().setLiveness(liveness)
   }, [liveness])
+  // The theme's hue first: an authored hue is a turn from it.
   useEffect(() => {
+    theFace().tint(hue)
     theFace().express(expression)
-  }, [expression])
+  }, [expression, hue])
 
   return (
     <div
@@ -72,6 +83,7 @@ export function FaceStage() {
       >
         <div
           ref={plate}
+          data-visor={look.visor ? 'on' : 'off'}
           className="face-plate size-full"
           style={{ willChange: 'transform' }}
         >

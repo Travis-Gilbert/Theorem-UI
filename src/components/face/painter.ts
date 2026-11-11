@@ -5,15 +5,24 @@ import { GRAIN_STRIDE } from '@/lib/face/particles'
 export interface Painter {
   /** `luma` or `canvas2d`: which one is drawing. */
   readonly kind: 'luma' | 'canvas2d'
-  /** Draws `count` grains from the buffer. Face units: `width` by `height`, centre 0,0. */
+  /**
+   * Draws `count` grains from the buffer. Face units: `width` by `height`,
+   * centre 0,0. With `ink` the grains are dark and cover what is under them,
+   * for a face with nothing dark behind it on a light page; without it they
+   * are light that adds.
+   */
   draw: (
     grains: Float32Array,
     count: number,
     width: number,
     height: number,
+    ink?: boolean,
   ) => void
   destroy: () => void
 }
+
+/** How dark ink is, as a share of the grain's own colour: the hue stays, the light goes. */
+export const INK = 0.2
 
 /** Draws grains as discs with the 2D context. The same picture, without the halo. */
 export function canvasPainter(canvas: HTMLCanvasElement): Painter | undefined {
@@ -21,7 +30,7 @@ export function canvasPainter(canvas: HTMLCanvasElement): Painter | undefined {
   if (!context) return undefined
   return {
     kind: 'canvas2d',
-    draw(grains, count, width, height) {
+    draw(grains, count, width, height, ink = false) {
       const ratio = Math.min(window.devicePixelRatio || 1, 2)
       const pixelWidth = Math.round(canvas.clientWidth * ratio)
       const pixelHeight = Math.round(canvas.clientHeight * ratio)
@@ -40,15 +49,22 @@ export function canvasPainter(canvas: HTMLCanvasElement): Painter | undefined {
       )
       context.globalCompositeOperation = 'source-over'
       context.clearRect(-width / 2, -height / 2, width, height)
-      // Light adds, as in the luma painter.
-      context.globalCompositeOperation = 'lighter'
+      // Light adds, as in the luma painter; ink covers.
+      context.globalCompositeOperation = ink ? 'source-over' : 'lighter'
+      const shade = ink ? INK : 1
       for (let index = 0; index < count; index++) {
         const at = index * GRAIN_STRIDE
         const alpha = grains[at + 7] as number
         if (alpha <= 0.004) continue
-        const red = Math.round(((grains[at + 4] as number) / alpha) * 255)
-        const green = Math.round(((grains[at + 5] as number) / alpha) * 255)
-        const blue = Math.round(((grains[at + 6] as number) / alpha) * 255)
+        const red = Math.round(
+          ((grains[at + 4] as number) / alpha) * shade * 255,
+        )
+        const green = Math.round(
+          ((grains[at + 5] as number) / alpha) * shade * 255,
+        )
+        const blue = Math.round(
+          ((grains[at + 6] as number) / alpha) * shade * 255,
+        )
         context.fillStyle = `rgba(${red},${green},${blue},${(alpha * 0.55).toFixed(3)})`
         context.beginPath()
         context.arc(

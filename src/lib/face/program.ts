@@ -152,8 +152,7 @@ export interface Refusal {
 }
 
 export type Checked =
-  | ({ readonly ok: true } & { readonly score: Score })
-  | Refusal
+  ({ readonly ok: true } & { readonly score: Score }) | Refusal
 
 /** What compiling needs from where it runs. */
 export interface CompileContext {

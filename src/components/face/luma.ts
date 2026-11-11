@@ -4,16 +4,24 @@ import type { Device } from '@luma.gl/core'
 import { Model, ShaderInputs } from '@luma.gl/engine'
 import { webgl2Adapter } from '@luma.gl/webgl'
 import { GRAIN_STRIDE } from '@/lib/face/particles'
+import { INK } from './painter'
 import type { Painter } from './painter'
 
 /** How far past its radius a grain's quad reaches, for the halo. */
 const REACH = 2.6
 
+// luma checks the block against uniformTypes one field to a line.
+const VIEW_BLOCK = `layout(std140) uniform viewUniforms {
+  vec2 extent;
+  float ink;
+} view;`
+
 const viewModule = {
   name: 'view',
-  vs: 'layout(std140) uniform viewUniforms { vec2 extent; } view;',
-  uniformTypes: { extent: 'vec2<f32>' },
-  defaultUniforms: { extent: [1, 1] },
+  vs: VIEW_BLOCK,
+  fs: VIEW_BLOCK,
+  uniformTypes: { extent: 'vec2<f32>', ink: 'f32' },
+  defaultUniforms: { extent: [1, 1], ink: 0 },
 } as const
 
 const vs = `#version 300 es
@@ -40,8 +48,33 @@ void main() {
   float core = 1.0 - smoothstep(0.55, 1.15, d);
   float halo = pow(max(0.0, 1.0 - d / ${REACH.toFixed(1)}), 2.6) * 0.16;
   // Light adds: where grains pile up the colour burns toward white, and thins to a glow at the edge.
-  fragColor = colour * (core * 0.42 + halo);
+  vec4 light = colour * (core * 0.42 + halo);
+  // Ink covers: the grain's own hue with the light taken out, piling up to solid, with less of a smudge round it.
+  float cover = colour.a * (core * 0.5 + halo * 0.4);
+  vec4 dark = vec4(colour.rgb / max(colour.a, 0.0001) * ${INK.toFixed(2)} * cover, cover);
+  fragColor = mix(light, dark, view.ink);
 }`
+
+/** Light adds to what is under it. */
+const ADDS = {
+  blend: true,
+  blendColorOperation: 'add',
+  blendColorSrcFactor: 'one',
+  blendColorDstFactor: 'one',
+  blendAlphaOperation: 'add',
+  blendAlphaSrcFactor: 'one',
+  blendAlphaDstFactor: 'one',
+  depthWriteEnabled: false,
+  depthCompare: 'always',
+  cullMode: 'none',
+} as const
+
+/** Ink covers what is under it (premultiplied colour over). */
+const COVERS = {
+  ...ADDS,
+  blendColorDstFactor: 'one-minus-src-alpha',
+  blendAlphaDstFactor: 'one-minus-src-alpha',
+} as const
 
 /** Draws grains with luma.gl on WebGL2. Rejects when the browser has none. */
 export async function lumaPainter(canvas: HTMLCanvasElement): Promise<Painter> {
@@ -78,18 +111,7 @@ export async function lumaPainter(canvas: HTMLCanvasElement): Promise<Painter> {
       vertexCount: 4,
       instanceCount: 0,
       isInstanced: true,
-      parameters: {
-        blend: true,
-        blendColorOperation: 'add',
-        blendColorSrcFactor: 'one',
-        blendColorDstFactor: 'one',
-        blendAlphaOperation: 'add',
-        blendAlphaSrcFactor: 'one',
-        blendAlphaDstFactor: 'one',
-        depthWriteEnabled: false,
-        depthCompare: 'always',
-        cullMode: 'none',
-      },
+      parameters: ADDS,
     })
     // luma reports a shader that failed to build on the pipeline and keeps going; a face that cannot be drawn must fall back.
     if (model.pipeline.linkStatus === 'error')
@@ -97,7 +119,7 @@ export async function lumaPainter(canvas: HTMLCanvasElement): Promise<Painter> {
     let buffer: Buffer | undefined
     return {
       kind: 'luma',
-      draw(grains, count, width, height) {
+      draw(grains, count, width, height, ink = false) {
         const bytes = count * GRAIN_STRIDE * 4
         if (!buffer || buffer.byteLength < bytes) {
           buffer?.destroy()
@@ -109,7 +131,10 @@ export async function lumaPainter(canvas: HTMLCanvasElement): Promise<Painter> {
         }
         buffer.write(grains.subarray(0, count * GRAIN_STRIDE))
         model.setInstanceCount(count)
-        inputs.setProps({ view: { extent: [width / 2, height / 2] } })
+        model.setParameters(ink ? COVERS : ADDS)
+        inputs.setProps({
+          view: { extent: [width / 2, height / 2], ink: ink ? 1 : 0 },
+        })
         const pass = device.beginRenderPass({
           framebuffer: device.getDefaultCanvasContext().getCurrentFramebuffer(),
           clearColor: [0, 0, 0, 0],

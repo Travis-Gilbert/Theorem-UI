@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Face, plainGaze } from '@/lib/face/engine'
 import { THEO } from '@/lib/face/identity'
+import { useFaceHue, useFaceLook } from './look'
 import { canvasPainter, createPainter } from './painter'
 import type { Painter } from './painter'
 
@@ -24,6 +25,8 @@ export function FaceView({
 }) {
   const box = useRef<HTMLDivElement | null>(null)
   const plate = useRef<HTMLDivElement | null>(null)
+  const { visor, ink } = useFaceLook()
+  const hue = useFaceHue()
 
   useEffect(() => {
     const host = box.current
@@ -31,11 +34,12 @@ export function FaceView({
     const canvas = document.createElement('canvas')
     canvas.className = 'block size-full'
     host.replaceChildren(canvas)
+    face.tint(hue)
     let painter: Painter | undefined
     let frame = 0
     let gone = false
     const draw = () => {
-      painter?.draw(face.buffer, face.field.count, THEO.width, THEO.height)
+      painter?.draw(face.buffer, face.field.count, THEO.width, THEO.height, ink)
       const head = face.head()
       const unit = width / THEO.width
       if (plate.current)
@@ -74,11 +78,12 @@ export function FaceView({
       cancelAnimationFrame(frame)
       painter?.destroy()
     }
-  }, [face, width, running, plain, onPainter])
+  }, [face, width, running, plain, onPainter, ink, hue])
 
   return (
     <div
       ref={plate}
+      data-visor={visor ? 'on' : 'off'}
       className="face-plate"
       style={{ width, height: width * RATIO, borderRadius: width * 0.18 }}
     >

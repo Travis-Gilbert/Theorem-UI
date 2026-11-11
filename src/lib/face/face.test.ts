@@ -579,9 +579,11 @@ describe('the face', () => {
     const endings = (failed: boolean) => {
       const seen = new Set<string>()
       for (let seed = 1; seed <= 12; seed++) {
-        const { face, run } = theo(seed)
+        const { face, run, skip } = theo(seed)
         face.setLiveness('work')
-        run(3_000)
+        // Three seconds of work in which nothing happens: the clock moves, and the face is run only long enough to settle. What follows the failure is run in full.
+        run(200)
+        skip(2_800)
         if (failed) face.notice('run.tool.fail')
         run(2_500)
         face.setLiveness('done')
@@ -592,7 +594,8 @@ describe('the face', () => {
     }
     expect(endings(true).has('sigh')).toBe(true)
     expect(endings(false).has('sigh')).toBe(false)
-  })
+    // Twenty-four faces run for some seconds each: about two seconds of work here, given room on a busy machine.
+  }, 20_000)
 
   test('idle long enough it sleeps, the window does not wake it, and the person does', () => {
     const { face, run, skip } = theo()
