@@ -5,6 +5,7 @@
 // `Modes/<mode>.page.json`, else from their template.
 import type { LayoutData, PageDocument } from './contract'
 import { PAGE_SCHEMA, PAGE_SUFFIX } from './contract'
+import { WORK_TEMPLATES } from './work-templates'
 
 export const TEMPLATES_FOLDER = 'Templates'
 export const MODES_FOLDER = 'Modes'
@@ -20,6 +21,8 @@ export interface PageTemplate {
   title: string
   description?: string
   origin: 'builtin' | 'vault'
+  /** What has to be switched on for the template to be offered; absent for all. */
+  feature?: 'work' | 'github'
   layout: LayoutData
 }
 
@@ -85,22 +88,52 @@ export const INDEX_TEMPLATE: PageTemplate = {
 }
 
 /**
- * Coding: Theia, filling the page. The agent terminal is the shell's, opened
- * and closed as everywhere else; Theia's Add to chat opens the right-hand
- * terminal with the selection on its active tab's next turn.
+ * Coding: the conversation with Theia beside it, each open file Theia's own
+ * tab. Theia's Add to chat goes to the conversation's composer, and Follow
+ * follows the conversation's runs.
  */
 export const CODING_TEMPLATE: PageTemplate = {
   id: 'theorem.coding',
   title: 'Coding',
   description:
-    'Theia, filling the page; Add to chat opens the agent terminal on the right with the selection on its next turn.',
+    "The conversation with Theia beside it; Add to chat goes to the conversation's composer.",
   origin: 'builtin',
   layout: {
     root: { props: { fill: true, frames: 'flush' } },
     content: [
       {
-        type: 'theorem.ide',
-        props: { id: 'ide', title: 'IDE', v: 1, chat: 'terminal' },
+        type: 'theorem.split',
+        props: {
+          id: 'coding-split',
+          direction: 'row',
+          ratio: 42,
+          fixed: 'none',
+          size: 420,
+          fold: false,
+          height: 560,
+          first: [
+            {
+              type: 'theorem.conversation',
+              props: { id: 'conversation', title: 'Conversation', v: 1 },
+            },
+          ],
+          second: [
+            {
+              type: 'theorem.ide',
+              props: {
+                id: 'ide',
+                title: 'IDE',
+                v: 1,
+                chat: 'conversation',
+                on: {
+                  added: [
+                    { to: { instance: 'conversation', action: 'attach' } },
+                  ],
+                },
+              },
+            },
+          ],
+        },
       },
     ],
   },
@@ -109,6 +142,7 @@ export const CODING_TEMPLATE: PageTemplate = {
 export const BUILTIN_TEMPLATES: ReadonlyArray<PageTemplate> = [
   INDEX_TEMPLATE,
   CODING_TEMPLATE,
+  ...WORK_TEMPLATES,
 ]
 
 /** The modes that are pages: where each is kept, and what it starts as. */

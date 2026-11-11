@@ -352,9 +352,13 @@
   --spacing-rail: 44px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
-  --spacing-reading: 720px;
-  /* An immersive artifact in a reply: wider than the reading column, centred on it. */
-  --spacing-artifact: 1040px;
+  /* The reading column of a conversation, an artifact and the highlights:
+     wide enough that an agent's answer, its tables and code, read without
+     the column closing in on them. */
+  --spacing-reading: 1080px;
+  /* An immersive artifact in a reply: wider than the reading column, centred
+     on it, reaching 160px past it on each side. */
+  --spacing-artifact: 1400px;
 
   @keyframes collapsible-down {
     from {
@@ -590,17 +594,59 @@
   }
 }
 
-/* The sheet's gradient, sized to the whole sheet (--sheet-h, set by the
-   shell) so every element that paints it samples one field. An element below
-   the sheet's top aligns it with bg-bottom when it sits on the sheet's bottom
-   edge, or with an explicit background position. */
+/* The sheet's field: four layers down the sheet's height, each with its own
+   falloff, listed top layer first.
+   - The lower vignette: nothing above the middle, then it deepens toward the
+     composer and holds --sheet-shade along the bottom edge.
+   - The coloured light: a soft band of --sheet-light between the other two,
+     the palette's own warm container colour, so it follows every palette.
+   - The broad gradient: starts just under the sheet's top edge and carries
+     --sheet-fall of the way to --sheet-to by the bottom.
+   - The base, --sheet-from: the reading plane.
+   Every layer runs top to bottom only, so an element of any width that paints
+   the field (the rail's tab, the composer's footer) samples the same colours
+   at the same height. Light never goes past --sheet-to, the darkest sheet the
+   palette's inks are placed against; dark has room below it, where a darker
+   sheet only adds contrast, and its light stays under --sheet-from. */
+:root {
+  --sheet-fall: 42%;
+  --sheet-shade: var(--sheet-to);
+  --sheet-light: color-mix(in srgb, var(--ochre-container) 24%, transparent);
+  --sheet-field:
+    linear-gradient(to bottom, transparent 52%, 76%, var(--sheet-shade) 94%),
+    linear-gradient(
+      to bottom,
+      transparent 12%,
+      color-mix(in srgb, var(--sheet-light) 15%, transparent) 19%,
+      color-mix(in srgb, var(--sheet-light) 50%, transparent) 26%,
+      color-mix(in srgb, var(--sheet-light) 85%, transparent) 33%,
+      var(--sheet-light) 40%,
+      color-mix(in srgb, var(--sheet-light) 85%, transparent) 47%,
+      color-mix(in srgb, var(--sheet-light) 50%, transparent) 54%,
+      color-mix(in srgb, var(--sheet-light) 15%, transparent) 61%,
+      transparent 68%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 6%,
+      color-mix(in srgb, var(--sheet-to) var(--sheet-fall), transparent)
+    ),
+    linear-gradient(var(--sheet-from), var(--sheet-from));
+}
+
+.dark {
+  --sheet-fall: 70%;
+  --sheet-shade: color-mix(in srgb, var(--sheet-to), #000 22%);
+  --sheet-light: color-mix(in srgb, var(--ochre-container) 14%, transparent);
+}
+
+/* The field, sized to the whole sheet (--sheet-h, set by the shell) so every
+   element that paints it samples one field. An element below the sheet's top
+   aligns it with bg-bottom when it sits on the sheet's bottom edge, or with an
+   explicit background position. */
 @utility bg-sheet {
-  background-color: var(--sheet-to);
-  background-image: linear-gradient(
-    to bottom,
-    var(--sheet-from),
-    var(--sheet-to)
-  );
+  background-color: var(--sheet-shade);
+  background-image: var(--sheet-field);
   background-size: 100% var(--sheet-h, 100dvh);
   background-repeat: no-repeat;
 }
@@ -933,11 +979,7 @@
   & > * {
     position: absolute;
     right: 0;
-    background-image: linear-gradient(
-      to bottom,
-      var(--sheet-from),
-      var(--sheet-to)
-    );
+    background-image: var(--sheet-field);
     background-size: 100% var(--sheet-h, 100dvh);
     background-repeat: no-repeat;
   }
@@ -1665,4 +1707,55 @@
 .vault-graph .css-label--label {
   font-weight: 400;
   text-shadow: 0 0 3px var(--surface-artifact);
+}
+
+/* Theo, the agent's face: glowing matter on a dark visor, as the reference
+   robot's screen is (docs/plans/theo-face.md). The plate is the same in both
+   themes; the screen is the face's own, not the page's. Whether the visor is
+   there is a setting (lib/figures): without it the eyes are light against a
+   dark page and ink against a light one. */
+/* The hue of Theo's matter follows the theme. A palette may name one here;
+   one that does not gives the hue of its ground when that is tinted, else of
+   its accent (lib/face/tint), as a theme someone makes will. GitHub Sharp's
+   is the cyan the face was first drawn in. Stone's is the warm hue all its
+   surfaces lean to (OKLCH 68), named because a lean that faint cannot be told
+   from a grey by measuring. Vitesse's ground is a true grey, so it takes its
+   green by the rule. */
+:root:where(:not([data-palette]), [data-palette='github-sharp']) {
+  --face-hue: 205;
+}
+[data-palette='stone'] {
+  --face-hue: 68;
+}
+.face-plate,
+.face-mark {
+  --face-plate: oklch(0.17 0.012 255);
+  --face-eye: oklch(0.9 0.11 205);
+}
+.face-plate {
+  border-radius: 21.6px;
+  background: var(--face-plate);
+  box-shadow:
+    inset 0 0 0 1.5px oklch(1 0 0 / 0.1),
+    0 3px 10px rgb(0 0 0 / 0.28);
+  overflow: hidden;
+}
+/* Bare: no plate, and matter that reaches the edge of its canvas thins out
+   there, where the plate's rim would have cut it. */
+.face-plate[data-visor='off'] {
+  background: none;
+  box-shadow: none;
+  mask-image:
+    linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+    linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+.face-mark-plate {
+  fill: var(--face-plate);
+}
+.face-mark-eye {
+  fill: var(--face-eye);
+}
+.face-mark-eye[data-ink] {
+  fill: color-mix(in srgb, var(--face-eye) 20%, black);
 }

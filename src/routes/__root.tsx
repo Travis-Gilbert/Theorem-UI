@@ -11,6 +11,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
+import { SignInReturn } from '@/components/connections/sign-in-return'
 import { MotionRoot } from '@/components/motion'
 import { getDesktopHost, isDesktopDocument } from '@/lib/desktop/host'
 import { reportUnsaved } from '@/lib/desktop/unsaved'
@@ -94,6 +95,8 @@ function RootDocument({ children }: { children: ReactNode }) {
           disableTransitionOnChange
         >
           <MotionRoot />
+          {/* A sign-in the person was sent back from is finished on whatever page they return to. */}
+          <SignInReturn />
           {children}
         </ThemeProvider>
         <Scripts />

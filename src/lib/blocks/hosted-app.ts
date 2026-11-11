@@ -1,15 +1,25 @@
-// Hosted documents use the same sandbox and bridge as desktop HTML Apps.
+// Hosted documents use the same sandbox and bridge as desktop HTML Apps. They
+// also take the page's look (sandbox/theme.ts): a host stylesheet ahead of the
+// App's own content, kept current over the bridge by followTheme. The
+// platform's MutationObserver watches the root's class, data-palette and style,
+// as the IDE frame's and the terminal's colours follow them.
 import type * as Esbuild from 'esbuild-wasm'
 import { readAppSources, removeAppSources } from './app-source'
 import { parseHtmlDeclarations } from './declarations'
 import { connectSources, contentSecurityPolicy } from './document'
+import type { FrameConnection } from './executor'
 import { bundleAppBridge, bundleAppSources } from './export'
+import { call } from './sandbox/protocol'
+import type { SandboxMethods } from './sandbox/protocol'
+import { THEME_STYLE, readAppTheme, themeCss } from './sandbox/theme'
+import type { AppTheme } from './sandbox/theme'
 
 let bridgeScript: Promise<string> | undefined
 
 /**
  * `net` replaces the document's own `theorem:uses` declarations: a page
  * module reaches the hosts the person allowed it, whatever its page says.
+ * `theme` is the look the frame starts with; the page's own by default.
  *
  * `loads` names hosts the page may run code from: their scripts, workers,
  * styles and fonts, and the WebAssembly they compile. Only a runtime the
@@ -24,6 +34,7 @@ export interface HostedAppOptions {
   net?: Array<string>
   loads?: Array<string>
   evaluates?: boolean
+  theme?: AppTheme
 }
 
 /** What tracing a failure in a built App back to its source needs. */
@@ -109,6 +120,9 @@ export async function hostedApp(
     'form-action': "'none'",
     'base-uri': "'none'",
   })
+  const theme = page.createElement('style')
+  theme.setAttribute(THEME_STYLE, '')
+  theme.textContent = themeCss(options.theme ?? readAppTheme())
   const bridge = page.createElement('script')
   bridge.dataset.theoremAppBridge = ''
   bridge.textContent = esbuild
@@ -117,9 +131,10 @@ export async function hostedApp(
         bridgeScript = undefined
         throw error
       }))
-  // Install the host policy before any author content. The classic IIFE
-  // exposes theorem.ready before the App's own scripts can execute.
-  page.head.prepend(policy, bridge)
+  // Install the host policy before any author content. The host stylesheet
+  // comes first too, so every rule the App writes comes after it. The classic
+  // IIFE exposes theorem.ready before the App's own scripts can execute.
+  page.head.prepend(policy, theme, bridge)
   if (!appSources || !bundle)
     return { page: `<!doctype html>\n${page.documentElement.outerHTML}` }
   removeAppSources(page)
@@ -141,6 +156,46 @@ export async function hostedApp(
   page.body.append(map, script)
   const text = `<!doctype html>\n${page.documentElement.outerHTML}`
   return { page: text, build: hostedBuild(text) }
+}
+
+/**
+ * Sends a hosted App's frame the page's look once it connects and again
+ * whenever it changes. Made to be a BlockFrame's `onConnection`; returns what
+ * stops it.
+ */
+export function followTheme(connection: FrameConnection): () => void {
+  let stop: (() => void) | undefined
+  let active = true
+  void connection.connected.then(
+    (rpc) => {
+      if (!active) return
+      let sent = ''
+      const send = () => {
+        const theme = readAppTheme()
+        const key = JSON.stringify(theme)
+        if (key === sent) return
+        sent = key
+        void call<SandboxMethods, 'theme.changed'>(
+          rpc,
+          'theme.changed',
+          theme,
+        ).catch(() => {})
+      }
+      // The look may have changed while the frame loaded.
+      send()
+      const observer = new MutationObserver(send)
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'data-palette', 'style'],
+      })
+      stop = () => observer.disconnect()
+    },
+    () => {},
+  )
+  return () => {
+    active = false
+    stop?.()
+  }
 }
 
 function declaredNet(page: Document): Array<string> {

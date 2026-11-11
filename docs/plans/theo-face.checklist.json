@@ -1,0 +1,281 @@
+{
+  "spec": "docs/plans/theo-face.md",
+  "items": [
+    {
+      "id": "reference",
+      "item": "The robot reference recorded in the ledger with its hash and scope",
+      "status": "done",
+      "evidence": "docs/plans/evidence/ledger.md, 'Theo reference': sha256 b91d04ef…, a screen recording supplied by the owner. Neither it nor its frames are committed"
+    },
+    {
+      "id": "handoff",
+      "item": "The handoff theorem-expressive-presence.md taken into the plan where it applies",
+      "status": "done",
+      "evidence": "docs/plans/theo-face.md, 'What the handoff changed': each of its points with what was done, and the three that were not"
+    },
+    {
+      "id": "verify-live-run",
+      "item": "A live Theorem run is offered face.* declared by the page, calls one, and receives the receipt",
+      "status": "todo",
+      "evidence": "Not run here. Theorem's limits on a declaration were read from its source and are asserted in src/lib/face/operations.test.ts; app.check is admitted the same way"
+    },
+    {
+      "id": "verify-code-mode",
+      "item": "A code cell's tool(\"face__perform\", …) reaches the page and its receipt reaches the run",
+      "status": "todo",
+      "evidence": "Not run here. Nothing on this side is specific to cells"
+    },
+    {
+      "id": "verify-luma-desktop",
+      "item": "luma 9.3.6 draws the face in the desktop window's webview",
+      "status": "todo",
+      "evidence": "Not run here. Checked in headless Chromium on software WebGL only; the Canvas2D fallback is there if it does not"
+    },
+    {
+      "id": "luma-deps",
+      "item": "@luma.gl core, engine, shadertools and webgl added at 9.3.6, the version cosmos.gl already locks",
+      "status": "done",
+      "evidence": "package.json, bun.lock"
+    },
+    {
+      "id": "channels",
+      "item": "Channel table: names, bounds, rest values; features added and removed at run time; eyes.* alias; nearest name for a miss",
+      "status": "done",
+      "evidence": "src/lib/face/channels.ts; src/lib/face/face.test.ts 'channels'"
+    },
+    {
+      "id": "feature-primitive",
+      "item": "One feature primitive: superellipse rim with 8 radial gains, upper and lower lids (close, tilt, bow), hollow, turn, scale, alpha, share; a seat maps to a point",
+      "status": "done",
+      "evidence": "src/lib/face/feature.ts; src/lib/face/face.test.ts 'feature'. No hit test per feature: a tap is a poke at a point of the face"
+    },
+    {
+      "id": "identity",
+      "item": "Identity as one data file: visor, features at rest, grain budget, colour",
+      "status": "done",
+      "evidence": "src/lib/face/identity.ts. Lightness, chroma and the fallback hue are the face's own; the hue in use and whether there is a visor come from the page (see visor, hue)"
+    },
+    {
+      "id": "particles",
+      "item": "Seeded seats, shares, springs toward seats; grains move between features when shares change; shove and burst",
+      "status": "done",
+      "evidence": "src/lib/face/particles.ts; src/lib/face/face.test.ts 'field'"
+    },
+    {
+      "id": "luma-renderer",
+      "item": "luma painter: one instanced strip from one buffer a frame; core, halo and additive glow in the shader",
+      "status": "done",
+      "evidence": "src/components/face/luma.ts; the bench story reports 'drawn by luma' in headless Chromium; docs/plans/evidence/theo-face/asleep.png"
+    },
+    {
+      "id": "fallback-renderer",
+      "item": "Canvas2D painter over the same buffer, chosen when WebGL2 is missing or fails to link, and named on the bench",
+      "status": "done",
+      "evidence": "src/components/face/painter.ts; a browser started with 3D APIs disabled reports 'drawn by canvas2d'; docs/plans/evidence/theo-face/canvas2d-fallback.png"
+    },
+    {
+      "id": "frame-loop",
+      "item": "Frame loop that costs little when nothing happens",
+      "status": "partial",
+      "evidence": "src/components/face/driver.ts: one requestAnimationFrame loop, 12 frames a second asleep, stopped by the browser when the tab is hidden. It does not stop while the face is awake and still: breath and saccade always move it. The solver measures about 0.5 ms a frame under Bun; no browser frame cost was measured"
+    },
+    {
+      "id": "layers",
+      "item": "Layer stack (mood, reaction, performance, hand) with the highest holder deciding and release without a snap",
+      "status": "done",
+      "evidence": "src/lib/face/layers.ts; src/lib/face/face.test.ts 'rig'"
+    },
+    {
+      "id": "spring-stability",
+      "item": "No program can make a spring unstable",
+      "status": "done",
+      "evidence": "src/lib/face/layers.ts MAX_OMEGA, SNAP_MS; src/lib/face/face.test.ts 'no move, however abrupt, sends a spring off to infinity'"
+    },
+    {
+      "id": "program-steps",
+      "item": "Steps: to, by, wave, wait, seq, par, stagger, repeat, vary, look, feature, go, burst, use, release; values as numbers, seeded draws or arguments; keep",
+      "status": "done",
+      "evidence": "src/lib/face/program.ts; src/lib/face/face.test.ts 'compile'"
+    },
+    {
+      "id": "program-validation",
+      "item": "A program is checked before it starts; a refusal gives the step's path, the reason and the nearest name; limits on length, cues, depth, repeats and uses; clamps reported",
+      "status": "done",
+      "evidence": "src/lib/face/program.ts compile, LIMITS; src/lib/face/face.test.ts 'a refusal says where and why', 'a program cannot run for ever'. The check is a compiler written here, not zod over a JSON Schema"
+    },
+    {
+      "id": "player",
+      "item": "A score plays on a layer; a newer one interrupts; kept holds stay until the layer is stopped or played on; endings are recorded and awaited",
+      "status": "done",
+      "evidence": "src/lib/face/player.ts; src/lib/face/face.test.ts 'a new performance interrupts the one before it', 'idle long enough it sleeps'"
+    },
+    {
+      "id": "unplanned-feature",
+      "item": "A program adds a feature nobody built and it is taken away when the program ends",
+      "status": "done",
+      "evidence": "src/lib/face/face.test.ts 'a program nobody named plays, and what it adds is taken away after'; the book's skeptic adds two brows (docs/plans/evidence/theo-face/book.png)"
+    },
+    {
+      "id": "book",
+      "item": "A book of named performances with immutable versions, each use saved by version; Theo's own are never lost; one in use cannot be removed, and a single version can be; 64 added versions at most, kept in localStorage",
+      "status": "done",
+      "evidence": "src/lib/face/book.ts (26 to start); src/lib/face/face.test.ts 'book'"
+    },
+    {
+      "id": "autonomy",
+      "item": "Blink, saccade and breath beside the stack, each scaled by a channel",
+      "status": "done",
+      "evidence": "src/lib/face/autonomy.ts"
+    },
+    {
+      "id": "memory",
+      "item": "Per kind of event: fast and slow decayed rates, streak, gap, a days baseline in localStorage, novelty, habit; mood (arousal, valence, focus)",
+      "status": "done",
+      "evidence": "src/lib/face/memory.ts. Exercised through the face's reactions in src/lib/face/face.test.ts; the days baseline has no test of its own"
+    },
+    {
+      "id": "reactions",
+      "item": "Rules as data: kinds or a sequence, gauge ranges, a weighted seeded draw with a recency penalty, a do-nothing candidate, cooldowns",
+      "status": "done",
+      "evidence": "src/lib/face/reactions.ts (40 defaults); src/lib/face/face.test.ts 'poked again and again', 'two faces with different seeds', 'finishing straight after a failure is relief'"
+    },
+    {
+      "id": "events",
+      "item": "The page feeds person, run and environment events",
+      "status": "done",
+      "evidence": "src/components/face/driver.ts (poke, pet, drop, type, send, return; resize, theme, offline, online, copy); src/lib/face/engine.ts (run.start, ask, done); src/lib/face/operations.ts (run.tool, run.tool.fail, run.error). Scroll, selection and hour of day are not fed"
+    },
+    {
+      "id": "sleep",
+      "item": "Idle with no run for ninety seconds, the face sleeps; the person or a run wakes it; the window does not",
+      "status": "done",
+      "evidence": "src/lib/face/face.test.ts 'idle long enough it sleeps'; seen in the browser on the bench after 97 s, and awake 4 s after a poke; docs/plans/evidence/theo-face/asleep.png"
+    },
+    {
+      "id": "liveness",
+      "item": "The run's liveness sets the mood: attend, focus, ask; done and idle let go",
+      "status": "done",
+      "evidence": "src/lib/face/engine.ts setLiveness; src/components/face/face-stage.tsx; src/lib/face/face.test.ts 'a run keeps it awake, and each liveness has its own manner'"
+    },
+    {
+      "id": "expression-part",
+      "item": "The agent's theorem-expression part maps onto channels on the mood layer",
+      "status": "done",
+      "evidence": "src/lib/face/engine.ts express. No test of its own"
+    },
+    {
+      "id": "operations",
+      "item": "face.read, face.perform and face.define declared on the send while the face is on the page, inside Theorem's limits, sixteen at most with Kit's and the App check",
+      "status": "done",
+      "evidence": "src/lib/face/operations.ts; src/lib/theorem/client-surface.ts; src/lib/face/operations.test.ts 'what a turn declares'"
+    },
+    {
+      "id": "receipts",
+      "item": "A receipt says what the browser did: refused with path and reason, started, and with wait how it ended; a later read reports each recent ending",
+      "status": "done",
+      "evidence": "src/lib/face/operations.test.ts 'answering'"
+    },
+    {
+      "id": "no-replay",
+      "item": "Nothing in saved history is performed again, and a request is answered once",
+      "status": "done",
+      "evidence": "src/lib/face/operations.test.ts 'nothing in history is performed again', 'a request is answered once', 'a receipt that fails to post is sent again'"
+    },
+    {
+      "id": "define",
+      "item": "The agent saves a performance or a reaction rule and removes its own",
+      "status": "done",
+      "evidence": "src/lib/face/operations.test.ts 'face.define saves a performance', 'face.define adds a reaction rule'"
+    },
+    {
+      "id": "focus-ownership",
+      "item": "Only the focused conversation's run may perform",
+      "status": "todo",
+      "evidence": "Not built. Any mounted conversation's live turn may perform; the newest interrupts and the older is told"
+    },
+    {
+      "id": "stage",
+      "item": "One face for the page in a fixed layer; a fresh canvas per mount; at rest in the live reply's gutter, else on the composer, else a corner; grows to react and to perform",
+      "status": "done",
+      "evidence": "src/components/face/face-stage.tsx, driver.ts; docs/plans/evidence/theo-face/in-shell.png"
+    },
+    {
+      "id": "mark",
+      "item": "Earlier replies show a still SVG mark; with Theo off the gutter shows the icon it had",
+      "status": "done",
+      "evidence": "src/components/face/face-mark.tsx; src/components/assistant-ui/elements/thread.aui.tsx; seen in the browser with the switch off and on"
+    },
+    {
+      "id": "hands",
+      "item": "Tap pokes, drag carries, stroke pets, double-tap or Escape sends home, Enter or Space pokes; the pointer draws the gaze",
+      "status": "done",
+      "evidence": "src/components/face/driver.ts; driven in the browser: eight pokes gave curious, squint, nothing, squint, shake, glare, dizzy, shake; carried and dropped; docs/plans/evidence/theo-face/carried.png. Arrow keys do not move it"
+    },
+    {
+      "id": "words",
+      "item": "A role=status line says what Theo is doing",
+      "status": "done",
+      "evidence": "src/components/face/face-stage.tsx; read in the browser ('Theo is squint')"
+    },
+    {
+      "id": "reduced-motion",
+      "item": "With motion reduced the face still changes, without bounce or waves",
+      "status": "done",
+      "evidence": "src/lib/face/face.test.ts 'with motion reduced'; driven in the browser with reducedMotion: reduce"
+    },
+    {
+      "id": "switches",
+      "item": "Settings, Appearance, Figures: Theo and Kit each have a switch, both on by default, kept on the device",
+      "status": "done",
+      "evidence": "src/lib/figures.ts; src/routes/settings/appearance.tsx; src/components/face/figures.tsx; toggled in the browser; docs/plans/evidence/theo-face/settings.png"
+    },
+    {
+      "id": "visor",
+      "item": "The visor is a setting: auto (visor in the light theme, bare eyes in the dark one), on, off; bare eyes on a light page are drawn as ink",
+      "status": "done",
+      "evidence": "src/lib/figures.ts (faceLook), src/components/face/look.ts, painter.ts and luma.ts (ink), styles.css, src/routes/settings/appearance.tsx; src/lib/figures.test.ts; all six combinations in the browser: docs/plans/evidence/theo-face/visor.png and settings-visor.png"
+    },
+    {
+      "id": "hue",
+      "item": "The hue of the eyes follows the theme: a named --face-hue, else a tinted ground, else the accent; GitHub Sharp 205, Stone 68, Vitesse its green; a new theme needs to say nothing",
+      "status": "done",
+      "evidence": "src/lib/face/tint.ts and tint.test.ts, src/components/face/look.ts, styles.css; switched live on the settings page (205, 68, 164, 160; a made-up plum ground gave 308); docs/plans/evidence/theo-face/palettes.png"
+    },
+    {
+      "id": "ink-book",
+      "item": "Ink eyes looked at through every performance in the book",
+      "status": "todo",
+      "evidence": "Seen at rest and poked only"
+    },
+    {
+      "id": "stories",
+      "item": "Stories: face-bench (can be frozen with ?do=&at=), face-book, face-in-shell",
+      "status": "done",
+      "evidence": "src/stories/index.ts, registry.tsx; src/components/face/face-bench.tsx; docs/plans/evidence/theo-face/book.png. Not yet in story-oracle's diffed set"
+    },
+    {
+      "id": "bench-editor",
+      "item": "The bench: every channel as a control, capture of a pose, save to the book",
+      "status": "todo",
+      "evidence": "The bench plays the book, fires events and plays a program typed into it. No sliders, capture or save"
+    },
+    {
+      "id": "palettes",
+      "item": "The face looked at in light and dark and in each palette",
+      "status": "done",
+      "evidence": "Looked at in light and dark in GitHub Sharp, Stone and Vitesse in headless Chromium, drawn by luma: docs/plans/evidence/theo-face/palettes.png and visor.png"
+    },
+    {
+      "id": "frame-cost",
+      "item": "Frame cost measured in a browser on the desktop window and a phone",
+      "status": "todo",
+      "evidence": "Not measured"
+    },
+    {
+      "id": "people",
+      "item": "People asked what each performance reads as, description first",
+      "status": "todo",
+      "evidence": "Not done. Nothing here says any performance means what its name says"
+    }
+  ]
+}

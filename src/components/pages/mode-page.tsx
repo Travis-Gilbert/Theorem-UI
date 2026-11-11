@@ -49,6 +49,8 @@ export function ModePage({ mode }: { mode: PageMode }) {
   const { client, isPending, missing } = useVaultClient()
   if (client) return <VaultModePage client={client} mode={mode} />
   if (isPending) return <PageSkeleton />
+  // Without a vault the mode is its built-in arrangement, which is how it
+  // looks until one is saved; there is nothing to say about it in use.
   return (
     <PageRuntimeProvider>
       <ModeSurface

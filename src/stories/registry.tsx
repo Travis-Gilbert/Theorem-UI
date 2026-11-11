@@ -15,6 +15,7 @@ import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
+import { FaceBench, FaceBook } from '@/components/face/face-bench'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
@@ -24,6 +25,7 @@ import { ReviewCard } from '@/components/review/review-card'
 import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
@@ -39,6 +41,7 @@ import type { ActivityState } from './fixtures/activity'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
+import { PROGRAM_PART } from './fixtures/program'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -102,6 +105,20 @@ function ShellCompareStory() {
   return (
     <WithRuntime>
       <ChatShell projectId="project-theorem" threadId="thread-app-gallery" />
+    </WithRuntime>
+  )
+}
+
+/** The thread alone on the sheet: the reading column and the composer at desktop width. */
+/** The conversation as the chat mode shows it (ModeView): over the Life field, on the sheet's gradient. */
+function ConversationWideStory() {
+  return (
+    <WithRuntime>
+      <div className="bg-sheet h-dvh w-full">
+        <LifeBackdrop>
+          <Thread />
+        </LifeBackdrop>
+      </div>
     </WithRuntime>
   )
 }
@@ -222,7 +239,15 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
       ],
     },
   ]
-  return function OpenUIArtifactStory() {
+  return partsStory(messages)
+}
+
+/**
+ * Finished messages drawn by the thread's own part renderers, at the thread's
+ * reading width.
+ */
+function partsStory(messages: ThreadMessageLike[]) {
+  return function PartsStory() {
     const runtime = useExternalStoreRuntime({
       messages,
       isRunning: false,
@@ -239,6 +264,16 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
     )
   }
 }
+
+/** A program the agent wrote, as the row the conversation draws for it. */
+const programStory = partsStory([
+  {
+    id: 'message-program',
+    role: 'assistant',
+    status: { type: 'complete', reason: 'stop' },
+    content: [{ type: 'data', name: 'theorem-program', data: PROGRAM_PART }],
+  },
+])
 
 const ACTIVITY_STATUS: Record<ActivityState, ThreadMessageLike['status']> = {
   working: { type: 'running' },
@@ -288,6 +323,7 @@ function threadStory(
 
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
+  'chat-program': programStory,
   ...Object.fromEntries(
     ACTIVITY_STATES.map((state) => [`activity-${state}`, threadStory(state)]),
   ),
@@ -297,11 +333,15 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'activity-approval-high': threadStory('approval', activityMessages('approval', 'high')),
   'tool-pills': threadStory('working', toolPillMessages()),
   'tool-calls-check': threadStory('finished', appCheckMessages()),
+  'face-bench': FaceBench,
+  'face-book': FaceBook,
+  'face-in-shell': ShellCompareStory,
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'conversation-wide': ConversationWideStory,
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
   'program-note': ProgramNoteStory,

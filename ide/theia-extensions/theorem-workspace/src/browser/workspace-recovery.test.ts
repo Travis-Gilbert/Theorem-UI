@@ -1,6 +1,6 @@
 // SOURCING: none — bun:test over the transport's recovery from a restarted host
 import { describe, expect, mock, test } from 'bun:test';
-import { isolateResyncListeners, recoveringSend, type Send } from './workspace-recovery';
+import { isolateResyncListeners, openUntilReady, reason, recoveringSend, type OpeningState, type Send } from './workspace-recovery';
 
 const refusal = (status: number, body: unknown) => Response.json(body, { status });
 const notOpen = () => refusal(404, { code: 'workspace_not_open' });
@@ -74,5 +74,53 @@ describe('isolateResyncListeners', () => {
         });
         await expect(Promise.resolve(listeners[0]?.(1))).resolves.toBeUndefined();
         expect(failed).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('openUntilReady', () => {
+    const failing = (times: number) => {
+        const attempt = mock(async () => {
+            if (attempt.mock.calls.length <= times) {
+                throw new Error(`refused ${attempt.mock.calls.length}`);
+            }
+        });
+        return attempt;
+    };
+
+    test('tries again after each failure and resolves once one succeeds', async () => {
+        const states: OpeningState[] = [];
+        const attempt = failing(2);
+        await openUntilReady(attempt, state => states.push(state), [1, 2]).ready;
+        expect(attempt).toHaveBeenCalledTimes(3);
+        expect(states).toEqual([
+            { state: 'opening' },
+            { state: 'failed', error: 'refused 1', retryInMs: 1 },
+            { state: 'opening' },
+            { state: 'failed', error: 'refused 2', retryInMs: 2 },
+            { state: 'opening' },
+            { state: 'open' },
+        ]);
+    });
+
+    test('retryNow cuts the wait short', async () => {
+        const attempt = failing(1);
+        let opened = false;
+        const opening = openUntilReady(attempt, () => undefined, [60_000]);
+        void opening.ready.then(() => (opened = true));
+        await Bun.sleep(5);
+        expect(opened).toBe(false);
+        opening.retryNow();
+        await opening.ready;
+        expect(attempt).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('reason', () => {
+    test("reads a problem body's detail, then its title, instead of the SDK's dump", () => {
+        const failure = (body: unknown) => Object.assign(new Error('ServiceUnavailableError Status code: 503 Body: {...}'), { body });
+        expect(reason(failure({ title: 'The Theorem environment is unavailable', detail: 'The host is restarting' }))).toBe('The host is restarting');
+        expect(reason(failure({ title: 'The Theorem environment is unavailable' }))).toBe('The Theorem environment is unavailable');
+        expect(reason(failure('<html>bad gateway</html>'))).toBe('ServiceUnavailableError Status code: 503 Body: {...}');
+        expect(reason(new TypeError('Failed to fetch'))).toBe('Failed to fetch');
     });
 });

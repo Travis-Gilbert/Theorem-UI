@@ -143,12 +143,14 @@ function Age({ at }: { at: number }) {
   )
 }
 
-function RenameField({
+export function RenameField({
   title,
+  label = 'Rename thread',
   onDone,
   onCommit,
 }: {
   title: string
+  label?: string
   onDone: () => void
   onCommit: (title: string) => void
 }) {
@@ -165,7 +167,7 @@ function RenameField({
     <Input
       autoFocus
       size="sm"
-      aria-label="Rename thread"
+      aria-label={label}
       value={value}
       className="h-7"
       onFocus={(event) => event.target.select()}

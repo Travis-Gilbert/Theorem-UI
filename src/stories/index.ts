@@ -18,6 +18,8 @@ export type StoryMeta = {
 
 const SIDEBAR_REF = 'sidebar-compare@2026-11-05.webp'
 const CANVAS_REF = 'canvas-note-types@2026-11-05.png'
+/** The coding-workspace mockup the person attached: the terminal against the code pane, and the fox. */
+const CODING_REF = 'coding-workspace-mockup@2026-11-08.png'
 
 export const STORIES: readonly StoryMeta[] = [
   {
@@ -75,6 +77,14 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1440, height: 900 },
   },
   {
+    id: 'conversation-wide',
+    title: 'Conversation on a wide sheet',
+    lane: 'original',
+    reference: CODING_REF,
+    viewport: { width: 1600, height: 1000 },
+    threadId: 'thread-app-gallery',
+  },
+  {
     id: 'shell-compare',
     title: 'Shell with Compare open',
     lane: 'translation',
@@ -112,6 +122,12 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     viewport: { width: 760, height: 560 },
   },
+  {
+    id: 'chat-program',
+    title: 'A program the agent wrote',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
   ...ACTIVITY_STATES.map(
     (state): StoryMeta => ({
       id: `activity-${state}`,
@@ -125,6 +141,25 @@ export const STORIES: readonly StoryMeta[] = [
     title: 'Activity line: an approval Theorem marks high risk',
     lane: 'original',
     viewport: { width: 760, height: 560 },
+  },
+  {
+    id: 'face-bench',
+    title: 'Theo: the bench, every way to move the face',
+    lane: 'original',
+    viewport: { width: 1000, height: 620 },
+  },
+  {
+    id: 'face-book',
+    title: 'Theo: every performance in the book, stopped at its fullest',
+    lane: 'original',
+    viewport: { width: 780, height: 860 },
+  },
+  {
+    id: 'face-in-shell',
+    title: 'Theo in the shell, beside Kit',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+    threadId: 'thread-app-gallery',
   },
   {
     id: 'tool-pills',

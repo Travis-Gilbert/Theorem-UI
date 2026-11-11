@@ -76,7 +76,10 @@
       "status": "partial",
       "evidence": [
         "Theorem pull request 1012: cargo test -p agent --lib program_turn, the typescript_program_tests run real cells in the worker against an in-process operation",
-        "Not built: the conversation drawing a program part; not observed: a live model writing a TypeScript program"
+        "Theorem pull request 1019: a TypeScript program's finished event is published to the owner's conversation, each program its own part, its source kept to 32 KiB; four built_in_tools tests",
+        "This repo, pull request 68: src/components/chat/program-part.tsx draws it as a row that opens to its highlighted source; program-part.test.ts 5 passed",
+        "Seen in Chromium over a committed part, /story/chat-program on the dev server, 2026-11-11: the row reads \"Wrote a program TypeScript \u00b7 13 lines\", opens to 41 highlighted tokens, in light and dark",
+        "Not observed: the row in a conversation with a live model; a live model writing a TypeScript program"
       ]
     },
     {

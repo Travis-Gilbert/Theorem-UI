@@ -145,3 +145,49 @@ describe('which messages are on screen', () => {
     }
   })
 })
+
+describe('a surface on a hidden layer', () => {
+  function composerAt(top: number, parent: HTMLElement) {
+    const element = document.createElement('div')
+    element.dataset.kitPerch = 'composer'
+    element.getBoundingClientRect = () => ({
+      left: 400,
+      right: 1000,
+      top,
+      bottom: top + 80,
+      width: 600,
+      height: 80,
+      x: 400,
+      y: top,
+      toJSON: () => ({}),
+    })
+    parent.append(element)
+    return element
+  }
+
+  test('is not one Kit stands on: a page left mounted inert, or one made invisible', () => {
+    // The IDE's conversation, kept mounted under Index: inert and invisible.
+    const kept = document.createElement('div')
+    kept.inert = true
+    kept.style.visibility = 'hidden'
+    kept.style.opacity = '0'
+    document.body.append(kept)
+    composerAt(100, kept)
+    // A layer that is only see-through, and one that is only inert.
+    const faded = document.createElement('div')
+    faded.style.opacity = '0'
+    document.body.append(faded)
+    composerAt(200, faded)
+    const blocked = document.createElement('div')
+    blocked.inert = true
+    document.body.append(blocked)
+    composerAt(300, blocked)
+    // The page the person sees.
+    composerAt(500, document.body)
+    try {
+      expect(perchLine('composer')?.y).toBe(501)
+    } finally {
+      document.body.replaceChildren()
+    }
+  })
+})
