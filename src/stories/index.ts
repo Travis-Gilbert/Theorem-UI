@@ -123,6 +123,12 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 760, height: 560 },
   },
   {
+    id: 'composer-markdown',
+    title: 'Composer holding formatted Markdown',
+    lane: 'original',
+    viewport: { width: 760, height: 760 },
+  },
+  {
     id: 'chat-program',
     title: 'A program the agent wrote',
     lane: 'original',
