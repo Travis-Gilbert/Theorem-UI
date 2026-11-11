@@ -18,8 +18,15 @@ export type TerminalTab = { id: string; title: string; threadId?: string }
 /** What the right-hand drawer shows; only the terminal so far. */
 export type SideDrawer = 'terminal'
 
-/** The context panel's working range in px; it opens at the default. */
-export const PANEL_WIDTH = { min: 240, default: 354, max: 420 } as const
+/**
+ * The navigation panel's working range in px; it opens at the default. This
+ * is the one place a sidebar's width is set: the phone drawer and the settings
+ * sidebar take the default from here too.
+ */
+export const PANEL_WIDTH = { min: 240, default: 280, max: 420 } as const
+
+/** The default before version 7: a panel still at it was never dragged. */
+const WIDE_PANEL_WIDTH = 354
 
 type ShellState = {
   /** Project whose threads the sidebar lists. Falls back to the first project. */
@@ -247,7 +254,9 @@ export const useShell = create<ShellState>()(
       // whichever version 4 a layout was saved under. Version 6 gave the IDE
       // its own panel beside the rail: the IDE's collapsed flag had meant
       // Theia's explorer, so it moves to ideFilesOpen and the panel opens.
-      version: 6,
+      // Version 7 narrowed the default width: a panel left at the old default
+      // takes the new one, and a width the person dragged to is kept.
+      version: 7,
       partialize: ({
         projectId,
         layouts,
@@ -287,7 +296,12 @@ export const useShell = create<ShellState>()(
         const state = persisted as Partial<ShellState> | undefined
         const { ide, ...collapsed } = state?.panelCollapsed ?? {}
         const theia = { panelCollapsed: collapsed, ideFilesOpen: !ide }
-        if (version === 5) return { ...state, ...theia }
+        const panelWidth =
+          state?.panelWidth === WIDE_PANEL_WIDTH
+            ? PANEL_WIDTH.default
+            : state?.panelWidth
+        if (version === 6) return { ...state, panelWidth }
+        if (version === 5) return { ...state, ...theia, panelWidth }
         if (version >= 2 && version <= 4) {
           const { filesShown: _, ...kept } = (state ?? {}) as ShellState
           return {
