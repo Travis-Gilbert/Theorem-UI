@@ -1,0 +1,251 @@
+{
+  "spec": "docs/plans/theo-face.md",
+  "items": [
+    {
+      "id": "reference",
+      "item": "The robot reference picture filed under docs/plans/evidence/refs with its hash and scope in the ledger",
+      "status": "blocked",
+      "evidence": "The picture named in the request of 2026-11-11 was not attached"
+    },
+    {
+      "id": "verify-face-namespace",
+      "item": "The authority admits face.* operations declared by the page, or the declaration is added in Theorem",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "verify-luma-desktop",
+      "item": "luma 9.3.6 instanced drawing checked in the desktop window's webview",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "verify-code-mode",
+      "item": "A Boa cell's tool('face.perform') reaches the page and its receipt reaches the run",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "luma-deps",
+      "item": "@luma.gl core, engine, shadertools and webgl added at 9.3.6, one copy in the bundle beside cosmos.gl",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "channels",
+      "item": "Channel table with names, bounds, rest values and blend rules (set, add, scale)",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "feature-primitive",
+      "item": "One feature primitive: contour of 8 radii, upper and lower lids, hollow, transform, share; a seat maps to a point; hit test",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "identity",
+      "item": "Identity as one data file: features at rest, particle budget, palette from theme tokens, manner",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "particles",
+      "item": "Seeded seats, shares, springs toward targets; particles move between features when shares change",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "luma-renderer",
+      "item": "luma renderer: instanced soft points from one buffer per frame, glow, colour and shimmer in the shader",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "fallback-renderer",
+      "item": "Canvas2D fallback over the same arrays, labelled in the status node",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "frame-loop",
+      "item": "Frame loop runs only while something moves; lower idle rate; stopped when hidden or off screen",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "layers",
+      "item": "Layer stack (identity, mood, reaction, performance, hand) with per-channel ownership and release without a snap",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "program-schema",
+      "item": "Program tree (to, hold, seq, par, stagger, look, feature, use, vary, repeat, release) as a JSON Schema read by zod",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "program-validation",
+      "item": "Validation: known channels, reported clamps, 64 nodes, 6 features, 15 seconds; a refusal names the node and reason",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "player",
+      "item": "Player runs a program against the layers; a new program redirects springs with no jump; generations fence old callbacks",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "book",
+      "item": "Default book of named performances, each a parameterised tree with an intensity",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "autonomy",
+      "item": "Blink, saccade, breath and idle glances as add and scale writers, at the rate Kit's own shifts are allowed",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "added-feature",
+      "item": "A feature that is not in the identity (a brow, a tear) added for a performance and removed again",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "stage",
+      "item": "The face on the shell's fixed layer in one small canvas moved by transform; perches, free position, park",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "gutter",
+      "item": "Icon.Speaker replaced: a still SVG mark on earlier messages, a perch on the live one",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "hands",
+      "item": "Pointer and keyboard: gaze follows the pointer, per-feature poke, drag, throw, drop clear of text, arrow keys, park",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "words",
+      "item": "A role=status node names Theo and says what it is doing; run and connection state stay in the interface's text",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "reduced-motion",
+      "item": "Reduced motion: poses change without travel or continuous movement",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "figure-setting",
+      "item": "A setting picks the figure, Theo or Kit, on the same stage and facts",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "bench",
+      "item": "Bench: every channel as a control, the running program as editable JSON, pose capture, save under a name",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "events",
+      "item": "One typed event stream from the person, the run and the environment",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "memory",
+      "item": "Per-kind decayed rates over seconds, minutes and a stored days baseline; novelty, surprise and mood derived from them",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "reactions",
+      "item": "Reaction rules as data: sequence patterns, conditions, a program with expressions, weight, cooldown, seeded draw",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "reaction-varies",
+      "item": "One event repeated gets a falling and then a different answer; a device's baseline changes the answer",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "mood-layer",
+      "item": "Mood writes the mood layer; the theorem-expression part maps onto the same channels",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "operations",
+      "item": "face.perform, set, look, feature, move, define and read declared on the send beside kit.*",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "receipts",
+      "item": "Receipts say started, completed, interrupted (by what), refused or failed, from what the browser did",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "ownership",
+      "item": "Only the focused conversation's performances are taken; the hand outranks them while it holds",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "define",
+      "item": "face.define and the bench keep performances and rules locally; the agent can add a reflex",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "milestone-target",
+      "item": "In a live turn: an unnamed performance, aimed at a real message or artifact, eyes moved apart, interrupted and redirected without a jump, receipt read back",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "unit-tests",
+      "item": "bun test over the pure modules as the spec lists them",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "stories",
+      "item": "Stories face-bench, face-book, face-in-thread and face-fallback with a frozen clock; oracle shots and motion frames",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "frame-cost",
+      "item": "Frame cost measured on the desktop window and a phone and recorded here",
+      "status": "todo",
+      "evidence": ""
+    },
+    {
+      "id": "collage",
+      "item": "Collage against the reference, sealed by a person",
+      "status": "blocked",
+      "evidence": "Needs the reference picture"
+    },
+    {
+      "id": "readings",
+      "item": "People's free descriptions of the default performances, alone and in context, kept with the book",
+      "status": "todo",
+      "evidence": ""
+    }
+  ]
+}
