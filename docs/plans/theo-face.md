@@ -191,7 +191,7 @@ A performance is a list of steps, as JSON:
 | `go`      | moves the whole face on the page, at a size: to a place, a point, or a thing the page names, which it then points at                                     |
 | `burst`   | kicks the matter outward from a point                                                                                                                    |
 | `use`     | plays a named performance inside this one, with arguments and an intensity                                                                               |
-| `release` | gives channels back to the layer below                                                                                                                   |
+| `release` | gives channels back to the layer below, and ends what they followed                                                                                      |
 
 Any number may be `{rand:[low,high]}`, drawn from the invocation's seed, or
 `{arg:"name", or:n}`, passed by the caller. `keep: true` leaves what the

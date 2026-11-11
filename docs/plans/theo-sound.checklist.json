@@ -9,9 +9,9 @@
     },
     {
       "id": "follow",
-      "item": "A `follow` step ties a channel to a signal, for a time or for as long as the performance holds; a wrong signal or channel is refused by path",
+      "item": "A `follow` step ties a channel to a signal, for a time or for as long as the performance holds or until the channel is let go; a wrong signal or channel is refused by path",
       "status": "done",
-      "evidence": "src/lib/face/program.ts, player.ts; sound.test.ts 'a channel tied to a signal moves as the signal does...', 'with `for` the tie lasts that long...', 'a performance that keeps its hold keeps its ties', 'a signal nobody measures...'"
+      "evidence": "src/lib/face/program.ts, player.ts; sound.test.ts 'a channel tied to a signal moves as the signal does...', 'with `for` the tie lasts that long...', 'a performance that keeps its hold keeps its ties', 'a signal nobody measures...', 'letting go of a channel ends what it followed...', 'letting go of everything ends every tie...'"
     },
     {
       "id": "forms",
@@ -53,13 +53,13 @@
       "id": "reduced-motion",
       "item": "With motion reduced nothing follows; that something is sounding is shown by still arcs",
       "status": "done",
-      "evidence": "player.ts follow, engine.ts emitting; sound.test.ts 'with motion reduced, nothing follows', 'with motion reduced the loudspeaker does not pump...'; evidence/theo-sound/reduced-motion.png"
+      "evidence": "player.ts follow, engine.ts emitting; sound.test.ts 'with motion reduced, nothing follows', 'with motion reduced a tie with `for` still ends when it is due to', 'with motion reduced the loudspeaker does not pump...'; evidence/theo-sound/reduced-motion.png"
     },
     {
       "id": "graph",
-      "item": "One audio graph for the page: streamed blocks played back to back, an audio file, cancel; outputs only",
+      "item": "One audio graph for the page: streamed blocks played back to back, an audio file, cancel, woken inside the press; outputs only",
       "status": "done",
-      "evidence": "src/lib/sound/graph.ts; exercised in the browser by the story (reading.png) and by the stop check recorded in theo-sound.md, not by a unit test: happy-dom has no Web Audio"
+      "evidence": "src/lib/sound/graph.ts; exercised in the browser by the story (reading.png) and by the stop check recorded in theo-sound.md, not by a unit test: happy-dom has no Web Audio. With Chromium's own autoplay rule on, the context did not exist before the press and was running 0.15 s after it. Not pressed in Safari"
     },
     {
       "id": "meter",
@@ -69,9 +69,9 @@
     },
     {
       "id": "hear",
-      "item": "The driver feeds the face the signals and events each frame; nothing reads a microphone",
+      "item": "The driver feeds the face the signals and events each frame, and one that starts while sound plays takes up the form; nothing reads a microphone",
       "status": "done",
-      "evidence": "driver.ts hear; graph.ts has no input node; in the browser a played tone gave sound.start, the form, and sound.stop"
+      "evidence": "driver.ts hear; graph.ts has no input node; in the browser a played tone gave sound.start, the form, and sound.stop; with a tone playing, swapping the story left Theo a loudspeaker, and with the driver's line taken out left it at rest"
     },
     {
       "id": "provider",
@@ -95,7 +95,7 @@
       "id": "adapter",
       "item": "assistant-ui's speech adapter over the seam: starting until audio is on its way, running, ended; one at a time; cancel",
       "status": "done",
-      "evidence": "src/lib/speech/adapter.ts, wired in src/lib/theorem/runtime.tsx; adapter.test.ts (6)"
+      "evidence": "src/lib/speech/adapter.ts, wired in src/lib/theorem/runtime.tsx; adapter.test.ts (7)"
     },
     {
       "id": "button",

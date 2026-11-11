@@ -124,7 +124,7 @@ export const STEP_MANUAL: Record<Step['op'], string> = {
     '{op:"burst", x?, y?, strength?} kicks the matter outward from a point in face units.',
   use: '{op:"use", name, args?, intensity?} plays a named performance from the book inside this one.',
   release:
-    '{op:"release", channels?:[...], over?} lets go of channels so they return to what lies beneath.',
+    '{op:"release", channels?:[...], over?} lets go of channels so they return to what lies beneath, and ends what they followed.',
 }
 
 /** The place that is a particular thing on the page, for the same manual. */

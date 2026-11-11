@@ -91,7 +91,7 @@ describe('reading a reply aloud', () => {
   test('it starts, runs once audio is really on its way, and ends when the last of it has played', async () => {
     const { speaker, asked, gates } = provider()
     const { play, heard } = player()
-    const utterance = speechAdapter(() => speaker, play).speak(
+    const utterance = speechAdapter(() => speaker, { play }).speak(
       '**Done.** See `the log`.',
     )
     const seen = statuses(utterance)
@@ -117,7 +117,9 @@ describe('reading a reply aloud', () => {
   test('stopped, it ends as cancelled, tells the provider, and says nothing after', async () => {
     const { speaker, gates } = provider()
     const { play } = player()
-    const utterance = speechAdapter(() => speaker, play).speak('A long reply.')
+    const utterance = speechAdapter(() => speaker, { play }).speak(
+      'A long reply.',
+    )
     const seen = statuses(utterance)
     await tick()
     gates[0]?.block()
@@ -134,7 +136,7 @@ describe('reading a reply aloud', () => {
   test('one thing is said at a time: speaking again stops what was being said', async () => {
     const { speaker, gates } = provider()
     const { play } = player()
-    const adapter = speechAdapter(() => speaker, play)
+    const adapter = speechAdapter(() => speaker, { play })
     const first = adapter.speak('The first reply.')
     const firstSeen = statuses(first)
     await tick()
@@ -166,7 +168,7 @@ describe('reading a reply aloud', () => {
     const warn = console.warn
     console.warn = () => {}
     try {
-      const utterance = speechAdapter(() => failing, player().play).speak('Hi.')
+      const utterance = speechAdapter(() => failing, player()).speak('Hi.')
       const seen = statuses(utterance)
       await tick()
       await tick()
@@ -188,7 +190,7 @@ describe('reading a reply aloud', () => {
     try {
       // The button says which reply it is on, then the runtime asks the adapter.
       useVoice.setState({ asked: 'reply-1' })
-      speechAdapter(() => failing, player().play).speak('Hi.')
+      speechAdapter(() => failing, player()).speak('Hi.')
       expect(useVoice.getState().asked).toBeUndefined()
       await tick()
       await tick()
@@ -196,7 +198,7 @@ describe('reading a reply aloud', () => {
 
       // A voice that breaks off part way is the same failure.
       const { speaker, gates } = provider()
-      const adapter = speechAdapter(() => speaker, player().play)
+      const adapter = speechAdapter(() => speaker, player())
       useVoice.setState({ asked: 'reply-2' })
       adapter.speak('A reply.')
       expect(useVoice.getState().failed).toBeUndefined()
@@ -219,16 +221,37 @@ describe('reading a reply aloud', () => {
     }
   })
 
+  test('the sound is woken in the call the press makes, before the voice is asked for', async () => {
+    const { speaker, asked, gates } = provider()
+    const order: Array<string> = []
+    const { play } = player()
+    const adapter = speechAdapter(
+      () => ({
+        ...speaker,
+        speak: (text, options) => {
+          order.push('voice')
+          return speaker.speak(text, options)
+        },
+      }),
+      { play, wake: () => order.push('woken') },
+    )
+    adapter.speak('Hello.')
+    // Nothing has been awaited yet: this much is still inside the press.
+    expect(order).toEqual(['woken', 'voice'])
+    await tick()
+    expect(asked).toEqual(['Hello.'])
+    gates[0]?.end()
+    await tick()
+  })
+
   test('a reply with nothing to read ends at once, and the provider is not asked', async () => {
     const { speaker, asked } = provider()
-    const utterance = speechAdapter(() => speaker, player().play).speak(
-      '```ts\n```',
-    )
+    const utterance = speechAdapter(() => speaker, player()).speak('```ts\n```')
     const seen = statuses(utterance)
     await tick()
     expect(asked).toEqual(['A block of code.'])
     expect(seen[0]).toBe('starting')
-    const empty = speechAdapter(() => speaker, player().play).speak('\n\n')
+    const empty = speechAdapter(() => speaker, player()).speak('\n\n')
     const emptySeen = statuses(empty)
     await tick()
     expect(asked).toHaveLength(1)

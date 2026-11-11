@@ -29,6 +29,7 @@ const features = (face: Face) =>
   face.rig.channels.features().map((feature) => feature.id)
 /** A channel nothing of the face's own moves, so what it reads is what followed. */
 const TIED = 'emit.left'
+const OTHER = 'emit.right'
 const QUIET = Object.fromEntries(
   SIGNAL_NAMES.filter((name) => name.startsWith('sound.')).map((name) => [
     name,
@@ -184,6 +185,79 @@ describe('follow', () => {
     )
     run(400)
     expect(face.rig.read(TIED)).toBe(0)
+  })
+
+  test('with motion reduced a tie with `for` still ends when it is due to', () => {
+    const { face, run } = theo()
+    face.still = true
+    face.perform(
+      {
+        steps: [
+          {
+            op: 'follow',
+            channel: TIED,
+            signal: 'sound.level',
+            amp: 0.8,
+            for: 600,
+          },
+          { op: 'wait', ms: 2_000 },
+        ],
+      },
+      { owner: 'test' },
+    )
+    run(300)
+    expect(face.player.tied(TIED)).toEqual(['sound.level'])
+    run(500)
+    expect(face.player.tied(TIED)).toEqual([])
+  })
+
+  test('letting go of a channel ends what it followed, and leaves the other ties be', () => {
+    const { face, run } = theo()
+    face.feed({ 'sound.level': 1 })
+    face.perform(
+      {
+        steps: [
+          { op: 'follow', channel: TIED, signal: 'sound.level', amp: 0.8 },
+          { op: 'follow', channel: OTHER, signal: 'sound.level', amp: 0.8 },
+          { op: 'wait', ms: 400 },
+          { op: 'release', channels: [TIED] },
+          { op: 'wait', ms: 1_000 },
+        ],
+      },
+      { owner: 'test' },
+    )
+    run(300)
+    expect(face.rig.read(TIED)).toBeGreaterThan(0.6)
+    run(500)
+    expect(face.rig.read(TIED)).toBe(0)
+    expect(face.player.tied(TIED)).toEqual([])
+    expect(face.rig.read(OTHER)).toBeGreaterThan(0.6)
+    expect(face.player.tied(OTHER)).toEqual(['sound.level'])
+  })
+
+  test('letting go of everything ends every tie, kept or not', () => {
+    const { face, run } = theo()
+    face.feed({ 'sound.level': 1 })
+    face.perform(
+      {
+        keep: true,
+        steps: [
+          { op: 'follow', channel: TIED, signal: 'sound.level', amp: 0.8 },
+          { op: 'follow', channel: OTHER, signal: 'sound.level', amp: 0.8 },
+          { op: 'wait', ms: 400 },
+          { op: 'release' },
+          { op: 'wait', ms: 300 },
+        ],
+      },
+      { owner: 'test' },
+    )
+    run(300)
+    expect(face.rig.read(OTHER)).toBeGreaterThan(0.6)
+    run(1_000)
+    expect(face.rig.read(TIED)).toBe(0)
+    expect(face.rig.read(OTHER)).toBe(0)
+    expect(face.player.tied(TIED)).toEqual([])
+    expect(face.player.tied(OTHER)).toEqual([])
   })
 })
 

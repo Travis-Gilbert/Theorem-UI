@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react's SpeechSynthesisAdapter (speak(text) gives an utterance with a status, cancel and subscribe; the runtime's speak and stopSpeaking, and ActionBarPrimitive.Speak, drive it) over this app's provider seam (./provider) and the page's one sound graph (lib/sound/graph), which is what makes the reply audible to Theo's meter. zustand for what the button shows while a voice is fetched.
+// SOURCING: @assistant-ui/react's SpeechSynthesisAdapter (speak(text) gives an utterance with a status, cancel and subscribe; the runtime's speak and stopSpeaking, and ActionBarPrimitive.Speak, drive it) over this app's provider seam (./provider) and the page's one sound graph (lib/sound/graph), which is what makes the reply audible to Theo's meter. zustand for what the button shows while a voice is fetched. Safari resumes an AudioContext only from inside a user gesture (the unlock pattern at mattmontag.com/web/unlock-web-audio-in-safari-for-ios-and-macos), so the graph is woken in the call the press makes.
 import type { SpeechSynthesisAdapter } from '@assistant-ui/react'
 import { create } from 'zustand'
 import { theSound } from '@/lib/sound/graph'
@@ -39,6 +39,19 @@ async function* marked(
   }
 }
 
+/** What makes the audio heard. */
+export type Sound = {
+  play: (stream: Stream, options: { signal: AbortSignal }) => Playback
+  /** Makes it ready to sound, while the press that asked is still being handled. */
+  wake?: () => void
+}
+
+/** The page's sound graph. */
+const pageSound: Sound = {
+  play: (stream, options) => theSound().play(stream, options),
+  wake: () => theSound().wake(),
+}
+
 /**
  * Reads a reply aloud with whichever provider the page has, through the
  * page's sound graph. One thing is spoken at a time: speaking again stops
@@ -46,16 +59,15 @@ async function* marked(
  */
 export function speechAdapter(
   provider: () => SpeechProvider = () => useVoice.getState().provider,
-  /** What makes the audio heard. The page's sound graph, unless a test says otherwise. */
-  play: (stream: Stream, options: { signal: AbortSignal }) => Playback = (
-    stream,
-    options,
-  ) => theSound().play(stream, options),
+  /** The page's sound graph, unless a test says otherwise. */
+  sound: Sound = pageSound,
 ): SpeechSynthesisAdapter {
   let current: (() => void) | undefined
   return {
     speak(text) {
       current?.()
+      // The runtime calls this inside the press. The voice may take seconds to come, and by then Safari would no longer let the audio start.
+      sound.wake?.()
       // Whose reading this is, so a failure can be said where it was asked for.
       const { asked } = useVoice.getState()
       useVoice.setState({ asked: undefined, failed: undefined })
@@ -100,7 +112,7 @@ export function speechAdapter(
             onFetching: (fetching) => useVoice.setState({ fetching }),
           })
           if (abort.signal.aborted) return
-          const playback = play(
+          const playback = sound.play(
             {
               sampleRate: stream.sampleRate,
               blocks: marked(stream.blocks, () => set({ type: 'running' })),

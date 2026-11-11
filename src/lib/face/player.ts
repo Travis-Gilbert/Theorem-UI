@@ -188,13 +188,14 @@ export class Player {
 
   /** Lays this frame's share of each signal a performance follows over the rig. */
   private follow(playing: Playing) {
-    if (this.rig.still) return
     for (let index = playing.follows.length - 1; index >= 0; index--) {
       const cue = playing.follows[index] as Extract<Cue, { kind: 'follow' }>
       if (cue.until !== undefined && playing.elapsed >= cue.until) {
         playing.follows.splice(index, 1)
         continue
       }
+      // With motion reduced nothing follows, but a tie still ends when it is due to.
+      if (this.rig.still) continue
       const into = (playing.elapsed - cue.at) / FOLLOW_EDGE
       const left =
         cue.until === undefined
@@ -308,6 +309,13 @@ export class Player {
         const names = cue.channels ?? [...playing.held]
         this.rig.release(layer, names, { over: cue.over })
         for (const name of names) playing.held.delete(name)
+        // Letting go of a channel ends what it followed too, eased out as a tie with `for` is.
+        const until = playing.elapsed + FOLLOW_EDGE
+        playing.follows.forEach((tie, index) => {
+          if (cue.channels && !cue.channels.includes(tie.channel)) return
+          if (tie.until === undefined || tie.until > until)
+            playing.follows[index] = { ...tie, until }
+        })
         return
       }
     }

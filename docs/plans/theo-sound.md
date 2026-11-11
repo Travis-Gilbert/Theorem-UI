@@ -60,14 +60,16 @@ A program cannot set one. It ties a channel to one:
 Each frame the channel is `amp` times the signal away from wherever it
 otherwise is. With `for` the tie lasts that many milliseconds; without, as
 long as the performance holds, which with `keep` is until something lets
-go. A tie comes in and goes out over 140 ms.
+go. A `release` of the channel ends what it followed too, and a `release`
+of everything ends every tie. A tie comes in and goes out over 140 ms.
 
 This is the whole of how a face speaks. Nothing says "speaking": the mouth
 opens because the level is above nothing, and it is above nothing only
 while audio is going out of the loudspeaker. A pause in a sentence shuts
 it.
 
-With motion reduced nothing follows.
+With motion reduced nothing follows. A tie still ends when it is due to,
+so what reads the ties (the steady arcs) does not show one that is over.
 
 ## Forms
 
@@ -141,7 +143,11 @@ bars, and ties to signals.
 the page plays goes through it to the loudspeaker and past an analyser, so
 whatever speaks is heard by the same meter and the face never needs to
 know who is talking. It plays raw audio as it arrives, block after block
-with no gap, and an audio file. Nothing is made until something is played.
+with no gap, and an audio file. Nothing is made until something is played
+or the graph is woken. `wake()` is for the moment a press is handled:
+Safari starts audio only from inside one, and the voice a press asks for
+can be seconds away, so the speech adapter wakes the graph in the call
+the press makes, before it waits for anything.
 
 `src/lib/sound/meter.ts` reads the analyser's latest block once a frame
 into the five sound signals and three events:
@@ -157,7 +163,10 @@ gaps in a sentence. A sound's own start is not a jump: `sound.loud` waits
 until the sound has been going a second.
 
 The driver feeds the signals to the face and gives it the events each
-frame (`src/components/face/driver.ts`, `hear`).
+frame (`src/components/face/driver.ts`, `hear`). A driver that stops takes
+the form off, since nobody is left to hear the sound end. One that starts
+while sound is playing was not told it began, so it asks the graph
+(`sounding`) and gives the face the start it missed.
 
 ## Where the voice comes from
 
@@ -255,10 +264,12 @@ src/stories/                         the story `face-sound`; the fake API's orig
 **Execution correctness** (`bun test src/lib/face src/lib/sound
 src/lib/speech src/stories`):
 
-- signals, `follow`, forms, rings and bars (21, `lib/face/sound.test.ts`):
+- signals, `follow`, forms, rings and bars (24, `lib/face/sound.test.ts`):
   bounds; a tied channel moving with the signal and with nothing else;
   `for`; a kept performance keeping its ties; refusals by path; nothing
-  following with motion reduced; the layer order; a form held from start
+  following with motion reduced, and a tie with `for` ending then all the
+  same; a `release` ending the ties of what it lets go, one channel or
+  all; the layer order; a form held from start
   to stop and the face back to two eyes; never left out, and both forms
   drawn; the loudspeaker's parts and what it emits; the steady arcs with
   motion reduced; the mouth; a reaction over a form; no sleep while one is
@@ -271,18 +282,18 @@ src/lib/speech src/stories`):
   when nothing is left; a beat that dies away; a jump that is loud once;
   a sound loud from its start that is not a jump; a long frame;
 - the read-aloud text (10, `lib/speech/speakable.test.ts`);
-- the adapter (6, `lib/speech/adapter.test.ts`, with a provider and a
+- the adapter (7, `lib/speech/adapter.test.ts`, with a provider and a
   player the test supplies): starting until audio is on its way; stopped;
   one at a time; a provider that fails; a failure named for the reply it
   was asked for, a voice that breaks off part way being one and a stop
-  not; nothing to read;
+  not; the sound woken before anything is awaited; nothing to read;
 - the story's fake API (1 added, `stories/fake-theorem.test.ts`): another
   host's `/api/` is passed on.
 
 The whole list (`src/lib/face src/lib/kit src/lib/figures.test.ts
 src/lib/world.test.ts src/lib/sound src/lib/speech src/components/face
 src/components/kit src/components/chat src/components/artifacts
-src/stories`) is 548 tests in 45 files.
+src/stories`) is 552 tests in 45 files.
 
 **Built.** `NITRO_PRESET=cloudflare_module bun --bun vite build` finishes.
 The voice package's worker and four WebAssembly files (about 4.4 MB each,
@@ -310,6 +321,13 @@ was held for the whole reading including its silent gaps, and Theo was two
 eyes again at the end. Pressing Stop reading two and a half seconds in
 silenced it at once and Theo was at rest within half a second.
 
+With the browser's own autoplay rule left on, the page had no audio
+context before the press and a running one 0.15 seconds after it, seconds
+before the voice had anything to play. And with a fifteen-second tone
+playing, swapping the story for another (which stops one driver and starts
+the next) left Theo a loudspeaker; with the driver's new line taken out,
+the same swap left it at rest while the tone played on.
+
 **Deployed** (the Workers preview of commit `538f74f`). Stories are left
 out of a production build, and the app wants a sign-in, so Read aloud
 itself was not pressed there. What was checked:
@@ -336,6 +354,9 @@ itself was not pressed there. What was checked:
   this is not, so it runs on one.
 - A phone, and a slow machine. Five seconds to first audio was on this
   container's network and processor.
+- Safari. Waking the graph inside the press is what Safari's rule asks
+  for, and in Chromium the graph is running straight after the press, but
+  Read aloud has not been pressed in Safari, on a Mac or a phone.
 - Music, or any sound but speech and test tones. The meter's marks were
   set against those.
 - In the shell the full-size form reaches over the sidebar's edge while it

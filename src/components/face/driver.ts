@@ -176,6 +176,8 @@ export class FaceDriver {
       }
     })
     this.listen()
+    // Sound that began before anyone was measuring said so to nobody: take the form it would have given.
+    if (theSound().sounding) face.notice('sound.start')
     this.frameId = requestAnimationFrame(this.frame)
   }
 

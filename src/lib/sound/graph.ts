@@ -77,6 +77,24 @@ export class SoundGraph {
     return this.voices.size > 0
   }
 
+  /** Whether sound that has started is still playing: what somebody who starts listening now was not told. */
+  get sounding() {
+    return this.voices.size > 0 && (this.meter?.playing ?? false)
+  }
+
+  /**
+   * Makes the page's audio ready to sound. For the moment a press is being
+   * handled: Safari lets audio start only then, and what the press asked for
+   * may be seconds from having anything to play.
+   */
+  wake() {
+    try {
+      void this.ensure().context.resume()
+    } catch {
+      // No audio here. Playing says so, where whoever asked can be told.
+    }
+  }
+
   /** Plays raw audio as it arrives. The first block sounds as soon as it is in. */
   play(stream: Stream, options: { signal?: AbortSignal } = {}): Playback {
     const { context, analyser } = this.ensure()
