@@ -137,6 +137,25 @@ export const STORIES: readonly StoryMeta[] = [
     }),
   ),
   {
+    id: 'face-bench',
+    title: 'Theo: the bench, every way to move the face',
+    lane: 'original',
+    viewport: { width: 1000, height: 620 },
+  },
+  {
+    id: 'face-book',
+    title: 'Theo: every performance in the book, stopped at its fullest',
+    lane: 'original',
+    viewport: { width: 780, height: 860 },
+  },
+  {
+    id: 'face-in-shell',
+    title: 'Theo in the shell, beside Kit',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+    threadId: 'thread-app-gallery',
+  },
+  {
     id: 'tool-pills',
     title: 'Tool pills: done, failed and running',
     lane: 'original',

@@ -64,9 +64,10 @@ import { modelTurnOptions } from './models'
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
 
-import { KitStage } from '@/components/kit/kit-stage'
+import { Figures } from '@/components/face/figures'
 import { useKitRequests } from '@/lib/kit/operations'
 import { useAppRequests } from '@/lib/blocks/app-operations'
+import { useFaceRequests } from '@/lib/face/operations'
 import { clientSurfaceTurnOptions } from './client-surface'
 
 type RemoteThreadMetadata = Awaited<
@@ -666,6 +667,8 @@ function useTheoremThreadRuntime() {
   useKitRequests(runtime)
   // The agent checks Apps with the page's compiler; this answers it.
   useAppRequests(runtime)
+  // The agent drives Theo, its face, through the page; this answers it.
+  useFaceRequests(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()
@@ -817,7 +820,7 @@ export function TheoremRuntimeProvider({
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
       {children}
-      <KitStage />
+      <Figures />
     </AssistantRuntimeProvider>
   )
 }

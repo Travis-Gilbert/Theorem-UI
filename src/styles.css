@@ -1670,3 +1670,26 @@
   font-weight: 400;
   text-shadow: 0 0 3px var(--surface-artifact);
 }
+
+/* Theo, the agent's face: a dark visor the glowing matter is drawn on, as the
+   reference robot's screen is (docs/plans/theo-face.md). The plate is the
+   same in both themes; the screen is the face's own, not the page's. */
+.face-plate,
+.face-mark-plate {
+  --face-plate: oklch(0.17 0.012 255);
+  --face-eye: oklch(0.9 0.11 205);
+}
+.face-plate {
+  border-radius: 21.6px;
+  background: var(--face-plate);
+  box-shadow:
+    inset 0 0 0 1.5px oklch(1 0 0 / 0.1),
+    0 3px 10px rgb(0 0 0 / 0.28);
+  overflow: hidden;
+}
+.face-mark-plate {
+  fill: var(--face-plate);
+}
+.face-mark-eye {
+  fill: oklch(0.9 0.11 205);
+}

@@ -15,6 +15,7 @@ import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
+import { FaceBench, FaceBook } from '@/components/face/face-bench'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
@@ -329,6 +330,9 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),
   'tool-pills': threadStory('working', toolPillMessages()),
+  'face-bench': FaceBench,
+  'face-book': FaceBook,
+  'face-in-shell': ShellCompareStory,
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,
