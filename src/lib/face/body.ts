@@ -1,4 +1,4 @@
-// SOURCING: @dimforge/rapier2d-compat 0.21 (a world without gravity on a fixed step; one rigid body for the whole figure, dynamic while it travels or is thrown; a spring joint from a kinematic pin for the tether's pull, with the body's linear damping to settle it; fixed walls at the window's edges; continuous collision detection; collision events for contact), loaded through lib/kit/physics's loadRapier so Theo and Kit share one WASM chunk and one scale. Hand-rolled: the accumulator with bounded catch-up and the interpolation between steps (Rapier steps a world, it does not pace one against a display), and the release velocity read off the hand's last samples.
+// SOURCING: @dimforge/rapier2d-compat 0.21 (a world without gravity on a fixed step; one rigid body for the whole figure, dynamic while it travels or is thrown; a spring joint from a kinematic pin for the tether's pull, with the body's linear damping to settle it; fixed walls at the window's edges; continuous collision detection; collision events for contact), loaded through lib/kit/physics's loadRapier so Theo and Kit share one WASM chunk and one scale; ./feel for the numbers that are the person's to set (drag, bounce, where a throw begins, pace, settle). Hand-rolled: the accumulator with bounded catch-up and the interpolation between steps (Rapier steps a world, it does not pace one against a display), and the release velocity read off the hand's last samples.
 import type RAPIER from '@dimforge/rapier2d-compat'
 import type {
   Collider,
@@ -8,6 +8,7 @@ import type {
   World,
 } from '@dimforge/rapier2d-compat'
 import { PX, STEP } from '@/lib/kit/physics'
+import { FEEL, feelRevision } from './feel'
 
 type Rapier = typeof RAPIER
 
@@ -38,17 +39,10 @@ export interface Sample {
   readonly y: number
 }
 
+/** What is not a matter of taste. The numbers a person may set are in ./feel. */
 export const BODY = {
   /** Steps run in one frame at most. Time past that is dropped, so a tab that stalled does not lurch when it wakes. */
   catchUp: 5,
-  /** The tether's damping ratio: critical, so an arrival settles and does not ring. What few pixels it still runs past come from the fixed step. */
-  damping: 1,
-  /** How fast a coast dies away, per second: let go at a walking pace it carries on about a fifth of that distance. */
-  drag: 4.5,
-  /** How much speed an edge gives back. */
-  bounce: 0.35,
-  /** Let go slower than this, in pixels per second, it is put down, not thrown. */
-  throwFrom: 140,
   /** A throw is never faster than this, in pixels per second. */
   throwAt: 1500,
   /** Tethered, this close to the anchor (pixels) and this slow (pixels per second), it is at rest. */
@@ -68,9 +62,9 @@ const MASS = 1
 const SOLID = 0xffff_ffff
 const GHOST = 0x0001_0000
 
-/** How fast the tether pulls, in radians per second, for a move meant to take about `over` milliseconds. */
+/** How fast the tether pulls, in radians per second, for a move meant to take about `over` milliseconds, at the pace the person set. */
 export const tetherRate = (over: number) =>
-  Math.min(20, Math.max(5, 6000 / Math.max(120, over)))
+  Math.min(20, Math.max(5, 6000 / Math.max(120, over))) * FEEL.pace
 
 /**
  * The hand's velocity as it lets go, in pixels per second: over the last
@@ -132,7 +126,11 @@ export class FaceBody {
   private readonly sides = new Map<number, Side>()
   private readonly events: EventQueue
   private joint: ImpulseJoint | undefined
+  /** About how long the move under way was meant to take, in milliseconds. */
+  private over = 620
   private rate = tetherRate(620)
+  /** The feel this body was last set up for. */
+  private feel = feelRevision()
   private mode: BodyState = 'resting'
   /** Time owed to the simulation, in seconds. */
   private owed = 0
@@ -171,7 +169,7 @@ export class FaceBody {
       rapier.ColliderDesc.cuboid(0.5, 0.5)
         .setMass(MASS)
         .setFriction(0)
-        .setRestitution(BODY.bounce)
+        .setRestitution(FEEL.bounce)
         .setCollisionGroups(GHOST)
         .setActiveEvents(rapier.ActiveEvents.COLLISION_EVENTS),
       this.body,
@@ -267,7 +265,8 @@ export class FaceBody {
    */
   anchor(point: Point, over?: number) {
     if (this.mode === 'held') return
-    if (over !== undefined) this.pace(tetherRate(over))
+    if (over !== undefined) this.over = over
+    this.pace(tetherRate(this.over))
     const from = this.mode === 'resting' ? this.anchorAt : this.after
     this.anchorAt = { ...point }
     this.movePin()
@@ -316,13 +315,13 @@ export class FaceBody {
   release(velocity: Point): boolean {
     if (this.mode !== 'held') return false
     const speed = Math.hypot(velocity.x, velocity.y)
-    if (speed < BODY.throwFrom) {
+    if (speed < FEEL.throwFrom) {
       this.rest(this.hand)
       return false
     }
     const scale = speed > BODY.throwAt ? BODY.throwAt / speed : 1
     this.place(this.hand)
-    this.body.setLinearDamping(BODY.drag)
+    this.body.setLinearDamping(FEEL.drag)
     this.collider.setCollisionGroups(SOLID)
     this.body.setLinvel(
       { x: (velocity.x * scale) / PX, y: (velocity.y * scale) / PX },
@@ -362,6 +361,7 @@ export class FaceBody {
    * a few steps at most and the rest is dropped.
    */
   advance(seconds: number): Advanced {
+    if (this.feel !== feelRevision()) this.retune()
     if (this.mode === 'resting' || this.mode === 'held') {
       this.owed = 0
       return NOTHING
@@ -415,6 +415,17 @@ export class FaceBody {
     return bumps || landed ? { bumps: bumps ?? [], landed } : NOTHING
   }
 
+  /** The person changed how it should feel: what is under way takes the new numbers up. */
+  private retune() {
+    this.feel = feelRevision()
+    this.collider.setRestitution(FEEL.bounce)
+    if (this.mode === 'coasting') this.body.setLinearDamping(FEEL.drag)
+    // The pace is taken up whatever it is doing: at rest there is no tether to redo, and the next poke fastens one at this rate.
+    this.pace(tetherRate(this.over))
+    if (this.mode === 'tethered')
+      this.body.setLinearDamping(2 * this.rate * FEEL.settle)
+  }
+
   private movePin() {
     this.pin.setTranslation(
       { x: this.anchorAt.x / PX, y: this.anchorAt.y / PX },
@@ -444,7 +455,7 @@ export class FaceBody {
     // Travel is not stopped by the edges: where it is sent is already inside them, and an arrival beside one should settle, not rattle.
     this.collider.setCollisionGroups(GHOST)
     // The joint is a spring along the line to the pin, so damping it would leave any sideways motion to orbit for ever. The body's own damping acts in every direction.
-    this.body.setLinearDamping(2 * this.rate * BODY.damping)
+    this.body.setLinearDamping(2 * this.rate * FEEL.settle)
     if (this.joint) return
     const zero = { x: 0, y: 0 }
     this.joint = this.world.createImpulseJoint(

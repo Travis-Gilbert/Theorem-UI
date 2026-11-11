@@ -413,11 +413,12 @@ src/lib/face/
   autonomy.ts     blink, saccade, breath
   engine.ts       Face: the one object everything that moves Theo goes through
   body.ts         the figure's one Rapier body (theo-body.md)
+  feel.ts         the numbers of its movement a person may set (theo-body.md, "The feel")
   operations.ts   face.* declarations, requests, receipts, run events
   store.ts        the page's one face; whether it is mounted
   random.ts       the seeded generator
   tint.ts         a colour's hue, and which of a theme's colours the face follows
-src/lib/figures.ts            Theo's and Kit's switches, the visor setting and the look it gives
+src/lib/figures.ts            Theo's and Kit's switches, the visor setting and the look it gives, what the person changed of the feel
 src/components/face/
   driver.ts       where the face is on the page; pointer, keyboard, page events
   face-stage.tsx  the layer, the button, the status line
@@ -452,7 +453,7 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-114 tests, 34 of them the body's, listed in `theo-body.md`):
+132 tests, 34 of them the body's and 18 the feel's, listed in `theo-body.md`):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;
