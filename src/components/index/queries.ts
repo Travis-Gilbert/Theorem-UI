@@ -121,8 +121,12 @@ export const useFilings = (documentId: string | undefined) =>
  * one, so the improver composes against exactly what this build renders.
  */
 export function useLibraryPublication() {
-  // Theorem is told about the Work components only while the tracker is on;
-  // the publication waits for the answer so it is made once.
+  // Theorem is told about the Work components only while the tracker is on.
+  // Both libraries share the one slot on the server, so every switch and
+  // every mount looks at what the server holds again: a cached answer from
+  // the other switch would skip the publication and leave Theorem composing
+  // against a library this build no longer renders. The digest check keeps
+  // the publication itself to the times the server's copy differs.
   const tracker = useWorkTracker()
   const work = tracker.state === 'on'
   return useQuery({
@@ -136,7 +140,8 @@ export function useLibraryPublication() {
       return api.publishLibrary(record)
     },
     enabled: tracker.state !== 'loading',
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
     retry,
   })
 }
