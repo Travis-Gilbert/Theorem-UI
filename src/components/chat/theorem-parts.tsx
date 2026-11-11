@@ -147,7 +147,11 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     return null
   }
   const failed = state === 'failed'
-  const StateIcon = pending ? Icon.Code : failed ? Icon.Close : Icon.Check
+  const StateIcon = pending
+    ? Icon.ToolRunning
+    : failed
+      ? Icon.Close
+      : Icon.ToolDone
   return (
     <span
       className={cn(
@@ -158,7 +162,8 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     >
       <StateIcon
         className={cn(
-          'size-3 shrink-0',
+          'shrink-0',
+          failed ? 'size-3' : 'size-4',
           // Each state is its own icon, so the settled one pops in.
           pending
             ? 'animate-pulse motion-reduce:animate-none'
@@ -218,7 +223,11 @@ const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
   const summary = appCheckSummary(data, running)
   if (!summary) return null
   const { words, pending, wrong, reason } = summary
-  const StateIcon = pending ? Icon.Code : wrong ? Icon.Close : Icon.Check
+  const StateIcon = pending
+    ? Icon.ToolRunning
+    : wrong
+      ? Icon.Close
+      : Icon.ToolDone
   return (
     <span
       data-slot="app-check"
@@ -231,7 +240,8 @@ const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
     >
       <StateIcon
         className={cn(
-          'size-3 shrink-0',
+          'shrink-0',
+          wrong ? 'size-3' : 'size-4',
           pending && 'animate-pulse motion-reduce:animate-none',
         )}
       />

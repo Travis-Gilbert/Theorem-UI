@@ -123,3 +123,24 @@ export function activityMessages(state: ActivityState): Theorem.Message[] {
     ]),
   ]
 }
+
+const hostCall = (name: string, state: string): Theorem.StoredPart => ({
+  partId: `pill-${name}`,
+  type: 'host_call',
+  payload: { name, effect: 'read', state },
+})
+
+/** A reply still at work whose program called host functions: two done, one failed, one running. */
+export function toolPillMessages(): Theorem.Message[] {
+  return [
+    message('pills-ask', 'user', ASKED_AT, [
+      said('pills-ask-text', 'What did we decide about graph memory?'),
+    ]),
+    message('pills-answer', 'assistant', ASKED_AT + 9_000, [
+      hostCall('search_memory', 'succeeded'),
+      hostCall('search_history', 'succeeded'),
+      hostCall('kit_gesture', 'failed'),
+      hostCall('read_note', 'pending'),
+    ]),
+  ]
+}

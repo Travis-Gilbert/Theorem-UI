@@ -120,6 +120,12 @@ export const STORIES: readonly StoryMeta[] = [
       viewport: { width: 760, height: 560 },
     }),
   ),
+  {
+    id: 'tool-pills',
+    title: 'Tool pills: done, failed and running',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
   ...ARTIFACT_STORIES.map(
     ({ id, title }): StoryMeta => ({
       id,
