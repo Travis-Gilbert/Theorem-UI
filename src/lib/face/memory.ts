@@ -2,9 +2,9 @@
 import { clamp } from './channels'
 import type { Shelf } from './book'
 
-/** Something that happened: the person did it, a run did it, or the environment did. */
+/** Something that happened: the person did it, a run did it, the environment did, or it happened to the figure's own body. */
 export interface FaceEvent {
-  /** A dotted kind: `person.poke`, `run.tool.fail`, `env.resize`. */
+  /** A dotted kind: `person.poke`, `run.tool.fail`, `env.resize`, `body.bump.left`. */
   readonly kind: string
   /** When, in milliseconds. */
   readonly at: number
@@ -57,6 +57,7 @@ const NUDGES: ReadonlyArray<readonly [string, Partial<Mood>]> = [
   ['person.poke', { arousal: 0.16, valence: 0.03 }],
   ['person.pet', { valence: 0.14, arousal: -0.04 }],
   ['person.drop', { arousal: 0.1 }],
+  ['person.throw', { arousal: 0.18, valence: 0.02 }],
   ['person.send', { arousal: 0.1, focus: 0.12 }],
   ['person.type', { focus: 0.02 }],
   ['person.return', { arousal: 0.12, valence: 0.05 }],
@@ -69,6 +70,7 @@ const NUDGES: ReadonlyArray<readonly [string, Partial<Mood>]> = [
   ['env.offline', { valence: -0.15, arousal: 0.1 }],
   ['env.online', { valence: 0.12 }],
   ['env.', { arousal: 0.05 }],
+  ['body.bump', { arousal: 0.14, valence: -0.05 }],
 ]
 
 interface KindMemory {

@@ -850,6 +850,227 @@ describe('the face', () => {
   })
 })
 
+describe('the body', () => {
+  /** Tells the face its figure moved at a steady speed, in face units per second, for a while. */
+  const travel = (
+    made: ReturnType<typeof theo>,
+    vx: number,
+    vy: number,
+    ms: number,
+  ) => {
+    // Told once a frame, as the driver tells it.
+    for (let t = 0; t < ms; t += 8) {
+      made.face.sway((vx * 8) / 1000, (vy * 8) / 1000, 0.008)
+      made.run(8)
+    }
+  }
+
+  test('moving, the head leans into it and the eyes go a little ahead; stopped, both come back', () => {
+    const made = theo()
+    made.run(300)
+    const gaze = made.face.rig.read('gaze.x')
+    travel(made, 700, 0, 400)
+    expect(made.face.head().tilt).toBeGreaterThan(4)
+    expect(made.face.head().tilt).toBeLessThanOrEqual(16)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(gaze + 0.1)
+    travel(made, -700, 0, 500)
+    expect(made.face.head().tilt).toBeLessThan(-4)
+    made.run(900)
+    expect(Math.abs(made.face.head().tilt)).toBeLessThan(0.5)
+  })
+
+  test('setting off, the visor is left a little behind, and it catches up at a steady pace', () => {
+    const made = theo()
+    made.run(300)
+    travel(made, 900, 0, 120)
+    const behind = made.face.head().dx
+    expect(behind).toBeLessThan(-0.8)
+    expect(behind).toBeGreaterThanOrEqual(-5)
+    travel(made, 900, 0, 1500)
+    expect(Math.abs(made.face.head().dx)).toBeLessThan(0.3)
+  })
+
+  test('however fast it is flung, the lean stays inside its bounds', () => {
+    const made = theo()
+    travel(made, 90_000, -90_000, 300)
+    const head = made.face.head()
+    expect(Math.abs(head.tilt)).toBeLessThanOrEqual(16)
+    expect(Math.abs(head.dx)).toBeLessThanOrEqual(5)
+    expect(Math.abs(head.dy)).toBeLessThanOrEqual(5)
+    expect(made.face.buffer.every(Number.isFinite)).toBe(true)
+  })
+
+  test('the eyes are on where it is going before it goes, and let go when it has arrived', () => {
+    const made = theo()
+    made.run(300)
+    const rest = made.face.rig.read('gaze.x')
+    made.face.heading({ x: 1, y: -0.5 })
+    made.run(170)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(rest + 0.5)
+    expect(made.face.rig.read('gaze.y')).toBeLessThan(-0.2)
+    made.face.heading(undefined)
+    made.run(700)
+    expect(made.face.rig.read('gaze.x')).toBeCloseTo(rest, 1)
+  })
+
+  test('bound for somewhere, the eyes do not follow the pointer', () => {
+    const made = theo()
+    made.face.followPointer({ x: -1, y: 0 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeLessThan(-0.4)
+    made.face.heading({ x: 1, y: 0 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(0.6)
+  })
+
+  test('striking an edge knocks the head back from it, shuts the eye on that side, and it recovers', () => {
+    const made = theo()
+    made.run(300)
+    made.face.bump('left', 0.8)
+    made.run(24)
+    const { rig } = made.face
+    expect(made.face.head().dx).toBeGreaterThan(3)
+    expect(made.face.head().squash).toBeLessThan(-0.05)
+    expect(rig.read('eye.left.lid')).toBeGreaterThan(
+      rig.read('eye.right.lid') + 0.25,
+    )
+    expect(made.face.state().recentEvents).toContain('body.bump.left')
+    made.face.player.stop('reaction')
+    made.run(1500)
+    expect(Math.abs(made.face.head().dx)).toBeLessThan(0.2)
+    expect(rig.read('eye.left.lid')).toBeLessThan(0.05)
+
+    made.face.bump('right', 0.8)
+    made.run(24)
+    expect(made.face.head().dx).toBeLessThan(-3)
+    expect(rig.read('eye.right.lid')).toBeGreaterThan(
+      rig.read('eye.left.lid') + 0.25,
+    )
+    made.face.player.stop('reaction')
+    made.run(1500)
+
+    made.face.bump('bottom', 1)
+    made.run(24)
+    expect(made.face.head().dy).toBeLessThan(-3)
+    expect(made.face.head().squash).toBeGreaterThan(0.05)
+  })
+
+  test('a poke to one side closes that eye more than the other', () => {
+    const made = theo()
+    made.run(300)
+    made.face.poke(24, 0)
+    made.face.player.stop('reaction')
+    made.run(24)
+    const { rig } = made.face
+    expect(rig.read('eye.right.lid')).toBeGreaterThan(
+      rig.read('eye.left.lid') + 0.2,
+    )
+    made.run(1200)
+    expect(rig.read('eye.right.lid')).toBeLessThan(0.05)
+  })
+
+  test('what it makes of an edge depends on how wound up it is', () => {
+    const calm = new Set<string>()
+    const wound = new Set<string>()
+    for (let seed = 1; seed <= 40; seed++) {
+      const made = theo(seed)
+      made.run(200)
+      calm.add(plain(made.face.bump('left', 0.6)?.name))
+      const other = theo(seed)
+      other.run(200)
+      for (let poke = 0; poke < 6; poke++) {
+        other.face.poke()
+        other.skip(300)
+      }
+      other.face.player.stop('reaction')
+      expect(other.face.memory.mood.arousal).toBeGreaterThan(0.7)
+      wound.add(plain(other.face.bump('left', 0.6)?.name))
+    }
+    expect(calm.has('squint')).toBe(true)
+    expect(calm.has('dizzy')).toBe(false)
+    expect(calm.has('glare')).toBe(false)
+    expect(wound.has('dizzy')).toBe(true)
+    expect(wound.has('squint')).toBe(false)
+  })
+
+  test('thrown, it lets go of what the hand held and remembers being thrown', () => {
+    const made = theo()
+    made.run(200)
+    made.face.grab()
+    made.run(200)
+    expect(made.face.rig.held('hand').length).toBeGreaterThan(0)
+    made.face.toss(0.7)
+    expect(made.face.rig.held('hand')).toEqual([])
+    expect(made.face.state().recentEvents).toContain('person.throw')
+    expect(made.face.memory.mood.arousal).toBeGreaterThan(0.3)
+  })
+
+  test('none of it says anything about a run', () => {
+    const made = theo()
+    made.run(200)
+    travel(made, 800, 200, 300)
+    made.face.bump('top', 1)
+    made.face.toss(1)
+    made.face.heading({ x: 1, y: 1 })
+    made.run(400)
+    expect(made.face.state().liveness).toBe('idle')
+    expect(
+      made.face.state().recentEvents.filter((kind) => kind.startsWith('run.')),
+    ).toEqual([])
+  })
+
+  test('asleep, its own body settling does not wake it', () => {
+    const made = theo()
+    made.skip(SLEEP_AFTER_MS + 1_000)
+    made.run(100)
+    expect(made.face.asleep).toBe(true)
+    expect(made.face.bump('left', 0.4)).toBeUndefined()
+    expect(made.face.asleep).toBe(true)
+  })
+
+  test('with motion reduced, travel and knocks move nothing', () => {
+    const made = theo()
+    made.face.still = true
+    made.run(300)
+    const lid = made.face.rig.read('eye.left.lid')
+    travel(made, 900, 0, 300)
+    made.face.bump('left', 1)
+    made.face.player.stop('reaction')
+    made.run(24)
+    expect(made.face.head().tilt).toBeCloseTo(0, 5)
+    expect(made.face.head().dx).toBeCloseTo(0, 5)
+    expect(made.face.rig.read('eye.left.lid')).toBeCloseTo(lid, 5)
+  })
+
+  test('the artifact is a place to look at and to go to, and visit goes there', () => {
+    const made = theo()
+    const went: Array<unknown> = []
+    made.face.attach({
+      gazeAt: plainGaze,
+      go: (place, size) => void went.push([place, size]),
+      burst: () => {},
+    })
+    const checked = compile(
+      {
+        steps: [
+          { op: 'look', at: 'artifact' },
+          { op: 'go', to: 'artifact' },
+        ],
+      },
+      { channels: channels(), lookup: () => undefined },
+    )
+    expect(checked.ok).toBe(true)
+    const performed = made.face.perform('visit', { owner: 'test' })
+    expect(performed.ok).toBe(true)
+    // It looks before it goes.
+    made.run(200)
+    expect(went).toEqual([])
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(0.2)
+    made.run(400)
+    expect(went).toEqual([['artifact', 1.8]])
+  })
+})
+
 describe('seeded', () => {
   test('the same seed gives the same numbers', () => {
     const one = seeded(5)

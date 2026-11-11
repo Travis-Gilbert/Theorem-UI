@@ -16,6 +16,7 @@ import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-mod
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
 import { FaceBench, FaceBook } from '@/components/face/face-bench'
+import { FaceStage } from '@/components/face/face-stage'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
@@ -198,6 +199,25 @@ function ArtifactPartMessage() {
 }
 
 /**
+ * Theo on a page that has an artifact: the `visit` performance looks at the
+ * card, travels to its side and looks it over. The live reply's gutter slot
+ * above it is where Theo rests, so the trip has somewhere to start.
+ */
+function FaceVisitStory() {
+  const Artifact = FACE_VISIT_ARTIFACT
+  return (
+    <div className="bg-background min-h-dvh pt-6" data-slot="face-visit">
+      <div className="mx-auto flex w-full max-w-(--spacing-reading) items-center gap-3 px-4">
+        <span data-face-perch="live" className="flex size-8" aria-hidden />
+        <p className="text-ink-muted text-sm">Here is the comparison.</p>
+      </div>
+      <Artifact />
+      <FaceStage />
+    </div>
+  )
+}
+
+/**
  * An OpenUI artifact as the conversation shows it: one assistant message
  * carrying the artifact part, drawn by the thread's own part renderers at the
  * thread's reading width.
@@ -265,6 +285,8 @@ function partsStory(messages: ThreadMessageLike[]) {
 }
 
 /** A program the agent wrote, as the row the conversation draws for it. */
+const FACE_VISIT_ARTIFACT = artifactStory(ARTIFACT_STORIES[0] as ArtifactStory)
+
 const programStory = partsStory([
   {
     id: 'message-program',
@@ -333,6 +355,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'face-bench': FaceBench,
   'face-book': FaceBook,
   'face-in-shell': ShellCompareStory,
+  'face-visit': FaceVisitStory,
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,

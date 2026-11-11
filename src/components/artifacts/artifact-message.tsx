@@ -127,6 +127,7 @@ function ArtifactMessageCard({
     <div
       ref={cardRef}
       data-slot="theorem-artifact-card"
+      data-face-perch="artifact"
       data-artifact-id={artifact.artifactId}
       data-selected={selected || undefined}
       className={cn(

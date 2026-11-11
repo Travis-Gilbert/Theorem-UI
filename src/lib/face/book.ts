@@ -257,6 +257,30 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
       },
     ],
   }),
+  own(
+    'visit',
+    'Goes to the artifact in view: looks at it, travels to its side, and looks it over.',
+    {
+      steps: [
+        { op: 'look', at: 'artifact', over: 240, hold: 220 },
+        { op: 'go', to: 'artifact', size: 1.8, over: 700 },
+        { op: 'wait', ms: 950 },
+        {
+          op: 'par',
+          steps: [
+            { op: 'look', at: 'artifact', over: 220 },
+            {
+              op: 'to',
+              set: { 'face.tilt': -7, 'eye.right.h': 15, 'eye.left.h': 12 },
+              over: 240,
+              bounce: 0.3,
+              hold: 1300,
+            },
+          ],
+        },
+      ],
+    },
+  ),
   own('melt', 'The matter lets go of its shape and sags.', {
     steps: [
       {
