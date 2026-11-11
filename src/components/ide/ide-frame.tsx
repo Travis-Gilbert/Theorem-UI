@@ -210,7 +210,11 @@ export function IdeFrame({
         const remote = rejectWhenDestroyed(proxy)
         setLoad((current) => ({ ...forFrame(current, frameKey), linked: true }))
         const { pending } = useFollow.getState()
-        useFollow.setState({ ide: remote, pending: undefined })
+        useFollow.setState({
+          ide: remote,
+          ideWorkspace: workspaceId,
+          pending: undefined,
+        })
         pending?.(remote)
       },
       // Destroyed by the cleanup below; a frame that never links shows as not started.
@@ -218,10 +222,10 @@ export function IdeFrame({
     )
     return () => {
       link.destroy()
-      useFollow.setState({ ide: undefined })
+      useFollow.setState({ ide: undefined, ideWorkspace: undefined })
       useIdePage.setState({ statusBar: undefined })
     }
-  }, [frameKey, aui, openMode, docked, embedded])
+  }, [frameKey, workspaceId, aui, openMode, docked, embedded])
 
   useEffect(() => {
     if (look) void ide?.setTheme(look)

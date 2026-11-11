@@ -52,16 +52,34 @@ const idOf = (path: string) => path || ROOT
 const parentOf = (path: string) =>
   path.slice(0, Math.max(path.lastIndexOf('/'), 0))
 
-/** The frame once it links; the tree waits for it rather than listing nothing. */
-function linkedIde(): Promise<Ide> {
-  const now = useFollow.getState().ide
-  if (now) return Promise.resolve(now)
+/**
+ * The frame of workspace `workspaceId` once it links; the tree waits for it
+ * rather than listing nothing. Another project's frame never answers, and once
+ * `gone` aborts the wait ends with no frame, so nothing reaches one the tree left.
+ */
+function linkedIde(
+  workspaceId: string,
+  gone: AbortSignal,
+): Promise<Ide | undefined> {
+  const ours = ({
+    ide,
+    ideWorkspace,
+  }: ReturnType<typeof useFollow.getState>) =>
+    ideWorkspace === workspaceId ? ide : undefined
+  const now = ours(useFollow.getState())
+  if (gone.aborted || now) return Promise.resolve(gone.aborted ? undefined : now)
   return new Promise((resolve) => {
-    const stop = useFollow.subscribe(({ ide }) => {
-      if (!ide) return
+    const end = (ide: Ide | undefined) => {
       stop()
+      gone.removeEventListener('abort', abort)
       resolve(ide)
+    }
+    const stop = useFollow.subscribe((state) => {
+      const ide = ours(state)
+      if (ide) end(ide)
     })
+    const abort = () => end(undefined)
+    gone.addEventListener('abort', abort)
   })
 }
 
@@ -122,11 +140,18 @@ export function IdeFileTree({
   const [unread, setUnread] = useState<Unread>()
   const [menuTarget, setMenuTarget] = useState(ROOT)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Aborts when the tree goes, as when the person opens another project: an
+  // edit still waiting for this project's frame is dropped, not sent elsewhere.
+  const [gone] = useState(() => new AbortController())
+  useEffect(() => () => gone.abort(), [gone])
+  const ourFrame = () => linkedIde(workspaceId, gone.signal)
 
   const attempt = async (run: (ide: Ide) => Promise<unknown>, what: string) => {
     setProblem(undefined)
+    const linked = await ourFrame()
+    if (!linked) return
     try {
-      await run(await linkedIde())
+      await run(linked)
     } catch (error) {
       setProblem(`${what}: ${failure(error)}.`)
     }
@@ -152,9 +177,11 @@ export function IdeFileTree({
       // folder loading for good. The tree keeps that empty list, so the folder
       // is remembered until a read of it succeeds; Try again asks for one.
       getChildrenWithData: async (id) => {
-        const ide = await linkedIde()
+        const linked = await ourFrame()
+        // The tree is gone; what it is told no longer matters.
+        if (!linked) return []
         try {
-          const entries = await ide.listFiles(pathOf(id))
+          const entries = await linked.listFiles(pathOf(id))
           setUnread((now) => {
             if (!now) return now
             const folders = now.folders.filter(

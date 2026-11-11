@@ -1,15 +1,16 @@
 import { afterEach, expect, test } from 'bun:test'
-import { act } from 'react'
+import { act, createRef } from 'react'
 import { cleanup, click, render, waitFor } from '../../../test/blocks/render'
 import { useFollow } from './follow'
 import { IdeFileTree } from './ide-file-tree'
+import type { IdeFileTreeHandle } from './ide-file-tree'
 import { useIdePage } from './ide-page'
 
 type Ide = NonNullable<ReturnType<typeof useFollow.getState>['ide']>
 
 afterEach(async () => {
   await cleanup()
-  useFollow.setState({ ide: undefined })
+  useFollow.setState({ ide: undefined, ideWorkspace: undefined })
   useIdePage.setState({ changedFolders: [], changedEverywhere: false })
 })
 
@@ -20,6 +21,7 @@ test('after missed changes, an open folder reads again and shows what changed in
     src: [{ name: 'a.ts', path: 'src/a.ts', folder: false }],
   }
   useFollow.setState({
+    ideWorkspace: 'w',
     ide: { listFiles: async (path: string) => listing[path] ?? [] } as unknown as Ide,
   })
   const { container } = await render(<IdeFileTree workspaceId="w" />)
@@ -46,6 +48,7 @@ test('a folder read before its parent was collapsed shows what changed in it onc
     ],
   }
   useFollow.setState({
+    ideWorkspace: 'w',
     ide: { listFiles: async (path: string) => listing[path] ?? [] } as unknown as Ide,
   })
   const { container } = await render(<IdeFileTree workspaceId="w" />)
@@ -78,6 +81,7 @@ test('a folder that could not be read says so, and Try again reads it once the f
   }
   let refuse = true
   useFollow.setState({
+    ideWorkspace: 'w',
     ide: {
       listFiles: async (path: string) => {
         if (path === 'src' && refuse) throw new Error('The workspace is busy.')
@@ -111,6 +115,7 @@ test('a folder that could not be read stops being named once it is gone from its
     ],
   }
   useFollow.setState({
+    ideWorkspace: 'w',
     ide: {
       listFiles: async (path: string) => {
         if (path === 'src') throw new Error('The workspace is busy.')
@@ -130,4 +135,66 @@ test('a folder that could not be read stops being named once it is gone from its
   await act(async () => useIdePage.setState({ changedFolders: [''] }))
   await waitFor(() => (row('src') ? undefined : true))
   await waitFor(() => (container.querySelector('[role="alert"]') ? undefined : true))
+})
+
+/** A frame that records the files made through it and lists nothing. */
+function frameOf() {
+  const created: Array<[string, boolean]> = []
+  const ide = {
+    listFiles: async () => [],
+    createFile: async (path: string, folder: boolean) => {
+      created.push([path, folder])
+    },
+  } as unknown as Ide
+  return { ide, created }
+}
+
+/** Names a new file in the tree before any frame links, as the Files toolbar lets one. */
+async function newFileBeforeLink(container: HTMLElement, handle: IdeFileTreeHandle | null) {
+  await act(async () => handle?.create('file'))
+  const input = await waitFor(() =>
+    container.querySelector<HTMLInputElement>('input[aria-label="New file name"]'),
+  )
+  input.value = 'notes.md'
+  await act(async () => {
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+}
+
+/** Lets a frame that just linked answer whatever was waiting for it. */
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+
+test('a file named before the frame links reaches its own project’s frame, not another’s', async () => {
+  const handle = createRef<IdeFileTreeHandle>()
+  const { container } = await render(
+    <IdeFileTree key="a" workspaceId="a" handle={handle} />,
+  )
+  await newFileBeforeLink(container, handle.current)
+  const other = frameOf()
+  await act(async () => useFollow.setState({ ide: other.ide, ideWorkspace: 'b' }))
+  await settle()
+  expect(other.created).toEqual([])
+  const own = frameOf()
+  await act(async () => useFollow.setState({ ide: own.ide, ideWorkspace: 'a' }))
+  await waitFor(() => own.created.length > 0)
+  expect(own.created).toEqual([['notes.md', false]])
+})
+
+test('a file still waiting for its frame when the person opens another project is dropped', async () => {
+  const handle = createRef<IdeFileTreeHandle>()
+  const { container, rerender } = await render(
+    <IdeFileTree key="a" workspaceId="a" handle={handle} />,
+  )
+  await newFileBeforeLink(container, handle.current)
+  // Another project opens, as the sidebar keys its tree by workspace.
+  await rerender(<IdeFileTree key="b" workspaceId="b" />)
+  const next = frameOf()
+  await act(async () => useFollow.setState({ ide: next.ide, ideWorkspace: 'b' }))
+  await settle()
+  expect(next.created).toEqual([])
+  // Nor does it reach the first project's frame should that one link later.
+  const first = frameOf()
+  await act(async () => useFollow.setState({ ide: first.ide, ideWorkspace: 'a' }))
+  await settle()
+  expect(first.created).toEqual([])
 })
