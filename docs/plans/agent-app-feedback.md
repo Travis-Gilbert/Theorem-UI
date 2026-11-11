@@ -160,7 +160,11 @@ the accessibility tree, by vision, or by the harness's visual perceiver.
      image and absent from the thread.
 3. **The visual perceiver on that picture** (`perception_visual`, reached
    through `THEOREM_OMNIPARSER_URL`), for a model without vision and for what
-   is drawn on a canvas, which has no tree.
+   is drawn on a canvas, which has no tree. Built in Theorem pull request
+   1014, stacked on 1013: a model that is not sent a picture is told what
+   the perceiver read from it, as lines of text and controls with where each
+   is. Tested against a perceiver stood up in the test; the perceiver service
+   itself was not run, so what it reads from a real App is not observed.
 4. **Acting.** With elements named, a program can press and type and read
    the outline again, which tests what the App does and not only what it
    shows.

@@ -113,8 +113,8 @@
       "evidence": [
         "This repo, pull request 65: app.check takes picture: true; bun run e2e:app-ts 21 of 21 in Chromium, reading back from the picture a CSS box, a canvas, an element styled through a class on the root and a half-transparent body background painted once; bun test 1688 passed",
         "Theorem pull request 1013: agent tool_images 6 of 6; a receipt with a picture is saved without it (client_operations 15 of 15); picture_flow_tests through the chat routes shows the model's next request carrying the picture as an image, and the thread without it",
-        "Not built: the visual perceiver reading the picture for a model without vision",
-        "Not observed: a live model shown a picture; any browser other than Chromium"
+        "Theorem pull request 1014: a model that does not read images is told what the visual perceiver read from the picture; picture_perception 4 of 4 against a perceiver stood up in the test",
+        "Not observed: a live model shown a picture; the perceiver service reading a real App's picture; a chat turn with a model that does not read images; any browser other than Chromium"
       ]
     }
   ]
