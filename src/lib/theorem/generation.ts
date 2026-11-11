@@ -195,12 +195,19 @@ export const useGenerationOverrides = create<OverridesState>()(
  * preferences are confirmed to hold exactly them — a change made since the
  * last confirmation rides with the turns while its save is on its way — and
  * the conversation's override only until its thread does, so that Theorem
- * can say where each limit came from. Read at send time, as the model pick
- * is.
+ * can say where each limit came from. What a turn carries replaces what the
+ * thread holds, so a turn that carries the defaults carries the override
+ * along with them, composed over them, even one its thread already holds:
+ * unsaved account limits must not replace the conversation's own caps. Read
+ * at send time, as the model pick is.
  */
 export function generationTurnOptions(thread: string = DRAFT): Generation {
   const { defaults, onServer, saved } = useGenerationDefaults.getState()
   const { byThread, unsaved } = useGenerationOverrides.getState()
   const held = onServer === true && same(defaults, saved)
-  return composed(held ? {} : defaults, unsaved[thread] ? byThread[thread] : undefined)
+  const riding = !held && Object.keys(pruned(defaults)).length > 0
+  return composed(
+    held ? {} : defaults,
+    unsaved[thread] || riding ? byThread[thread] : undefined,
+  )
 }

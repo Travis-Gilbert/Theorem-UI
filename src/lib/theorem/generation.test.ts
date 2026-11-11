@@ -111,6 +111,28 @@ test('a default changed since the save rode with the turns until the new value i
   expect(generationTurnOptions('t1')).toEqual({})
 })
 
+test('unsaved defaults do not replace a cap the thread already holds', () => {
+  const { change, markSaved } = useGenerationOverrides.getState()
+  useGenerationDefaults.setState({
+    defaults: { effort: 'low' },
+    onServer: true,
+    saved: { effort: 'low' },
+  })
+  change('t1', { maxOutputTokens: 800 })
+  markSaved('t1', { maxOutputTokens: 800 })
+  // Theorem holds the defaults and the thread holds the cap: the turn carries nothing.
+  expect(generationTurnOptions('t1')).toEqual({})
+  // The account defaults change. While that save is on its way the turn
+  // carries them, and the cap rides along composed over them: what a turn
+  // carries replaces what the thread holds, so the sent defaults must not
+  // replace the conversation's own value.
+  useGenerationDefaults.getState().change({ maxOutputTokens: 4000 })
+  expect(generationTurnOptions('t1')).toEqual({ effort: 'low', maxOutputTokens: 800 })
+  // Once the new defaults are confirmed, the turn is quiet again.
+  useGenerationDefaults.setState({ saved: { effort: 'low', maxOutputTokens: 4000 } })
+  expect(generationTurnOptions('t1')).toEqual({})
+})
+
 test('an override goes with the turn only until its thread holds it', () => {
   const { change, markSaved } = useGenerationOverrides.getState()
   change('t1', { maxOutputTokens: 800 })
