@@ -65,17 +65,32 @@ src/
     _chat/c.$threadId.tsx /c/:thread   existing chat
     api/chat/v1/$.ts      proxy to the Theorem chat API
     v1/theorem/agent/stream/$.ts  proxy to the agent event stream
+    settings.tsx          layout: the settings shell (client-only)
+    settings/observe/     /settings/observe and /settings/observe/runs/:run
+    api/observe/v1/$.ts   proxy to the node's turn observations (read only)
   lib/theorem/
     client.ts             SDK client, CSRF bootstrap, idempotent mutations
     runtime.tsx           assistant-ui runtime over Theorem threads, history and live-run resume
+    observe.ts            the observe API's responses parsed with zod, polling queries, span and wait wording
   components/
     shell/                rail, context panel, project switcher, sheet and dock layout
+    settings/             settings shell and page primitives; observe/ holds the Observe page and a turn's trace
     chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, approvals, progress, citations, errors)
     artifacts/            artifact model, view state, panel, renderers
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
 
 `ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The rail's IDE mode shows it in the sheet, served at `/theia`. Until `ide/` is built, `/theia` answers 503 with the build command. `patches/` carries nitro's merged dev fix (nitrojs/nitro#4159), which stops the dev server brotli-compressing Theia's bundle on every load. Drop it once a nitro release includes that fix.
+
+## Settings and Observe
+
+Settings opens from the account menu and takes the whole window: its list of pages sits where the rail and panel were, and the page is the sheet. The anatomy follows Twenty's settings (a grouped list with the way out at its head, a breadcrumb, titled sections of bordered rows), studied from screenshots; none of its code is used.
+
+`/settings/observe` shows what the Theorem node observed of the signed-in identity's turns: whether the node is serving, the alert rules as they stand, what each running turn is waiting for, and how recent turns ended. `/settings/observe/runs/:run` shows one turn's trace: where its time went and each step with its state. Both read `/api/observe/v1` every five seconds while open, and a turn that has ended is read once.
+
+The pages show what the node reports and label what it does not record. A value that was never measured is a dash, a state that was not observed is a hollow mark, and each page ends with the limits of what it can tell you. The node does not learn whether a page drew what a stream delivered, so "sent" is never shown as "seen".
+
+The proxy logs one JSON line, `theorem_proxy.stream_upstream_dropped`, when an event stream's upstream fails mid-stream. The browser sees an ordinary end of stream in that case, so the line is the only record on this side.
 
 ## Artifacts
 

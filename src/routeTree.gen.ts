@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as InstallRouteImport } from './routes/install'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
@@ -18,16 +19,19 @@ import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
+import { Route as SettingsObserveIndexRouteImport } from './routes/settings/observe/index'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
 import { Route as ApiEnvironmentV1SplatRouteImport } from './routes/api/environment/v1/$'
 import { Route as ApiFilesV1SplatRouteImport } from './routes/api/files/v1/$'
+import { Route as ApiObserveV1SplatRouteImport } from './routes/api/observe/v1/$'
 import { Route as ApiProjectFilesV1SplatRouteImport } from './routes/api/project-files/v1/$'
 import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
 import { Route as DesktopWorkspaceWorkspaceIdIndexRouteImport } from './routes/desktop/workspace/$workspaceId/index'
@@ -49,6 +53,7 @@ import { Route as DesktopWorkspaceWorkspaceIdStateEventsRouteImport } from './ro
 import { Route as DesktopWorkspaceWorkspaceIdTagsRouteImport } from './routes/desktop/workspace/$workspaceId/tags'
 import { Route as DesktopWorkspaceWorkspaceIdTreeRouteImport } from './routes/desktop/workspace/$workspaceId/tree'
 import { Route as DesktopWorkspaceWorkspaceIdTrustRouteImport } from './routes/desktop/workspace/$workspaceId/trust'
+import { Route as SettingsObserveRunsRunIdRouteImport } from './routes/settings/observe/runs.$runId'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
 
 const ChatRoute = ChatRouteImport.update({
@@ -58,6 +63,11 @@ const ChatRoute = ChatRouteImport.update({
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
   path: '/install',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -95,6 +105,11 @@ const AuthSignOutRoute = AuthSignOutRouteImport.update({
   path: '/auth/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const TheiaSplatRoute = TheiaSplatRouteImport.update({
   id: '/theia/$',
   path: '/theia/$',
@@ -120,6 +135,11 @@ const DesktopWorkspaceIndexRoute = DesktopWorkspaceIndexRouteImport.update({
   path: '/desktop/workspace/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsObserveIndexRoute = SettingsObserveIndexRouteImport.update({
+  id: '/observe/',
+  path: '/observe/',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ApiCapabilitiesV1SplatRoute = ApiCapabilitiesV1SplatRouteImport.update({
   id: '/api/capabilities/v1/$',
   path: '/api/capabilities/v1/$',
@@ -143,6 +163,11 @@ const ApiEnvironmentV1SplatRoute = ApiEnvironmentV1SplatRouteImport.update({
 const ApiFilesV1SplatRoute = ApiFilesV1SplatRouteImport.update({
   id: '/api/files/v1/$',
   path: '/api/files/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiObserveV1SplatRoute = ApiObserveV1SplatRouteImport.update({
+  id: '/api/observe/v1/$',
+  path: '/api/observe/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProjectFilesV1SplatRoute = ApiProjectFilesV1SplatRouteImport.update({
@@ -269,6 +294,12 @@ const DesktopWorkspaceWorkspaceIdTrustRoute =
     path: '/desktop/workspace/$workspaceId/trust',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SettingsObserveRunsRunIdRoute =
+  SettingsObserveRunsRunIdRouteImport.update({
+    id: '/observe/runs/$runId',
+    path: '/observe/runs/$runId',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const V1TheoremAgentStreamSplatRoute =
   V1TheoremAgentStreamSplatRouteImport.update({
     id: '/v1/theorem/agent/stream/$',
@@ -279,6 +310,7 @@ const V1TheoremAgentStreamSplatRoute =
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/install': typeof InstallRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/ide': typeof ChatIdeRoute
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
@@ -286,15 +318,18 @@ export interface FileRoutesByFullPath {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/theia/$': typeof TheiaSplatRoute
+  '/settings/': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/settings/observe/': typeof SettingsObserveIndexRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
+  '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
@@ -315,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
+  '/settings/observe/runs/$runId': typeof SettingsObserveRunsRunIdRoute
   '/desktop/workspace/$workspaceId/': typeof DesktopWorkspaceWorkspaceIdIndexRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -328,15 +364,18 @@ export interface FileRoutesByTo {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
+  '/settings': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
+  '/settings/observe': typeof SettingsObserveIndexRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
+  '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
@@ -357,6 +396,7 @@ export interface FileRoutesByTo {
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
+  '/settings/observe/runs/$runId': typeof SettingsObserveRunsRunIdRoute
   '/desktop/workspace/$workspaceId': typeof DesktopWorkspaceWorkspaceIdIndexRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -364,6 +404,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
   '/install': typeof InstallRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/vault': typeof ChatVaultRoute
@@ -372,15 +413,18 @@ export interface FileRoutesById {
   '/auth/sign-out': typeof AuthSignOutRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/settings/observe/': typeof SettingsObserveIndexRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
+  '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
@@ -401,6 +445,7 @@ export interface FileRoutesById {
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
+  '/settings/observe/runs/$runId': typeof SettingsObserveRunsRunIdRoute
   '/desktop/workspace/$workspaceId/': typeof DesktopWorkspaceWorkspaceIdIndexRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -409,6 +454,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/install'
+    | '/settings'
     | '/ide'
     | '/spaces'
     | '/vault'
@@ -416,15 +462,18 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/theia/$'
+    | '/settings/'
     | '/c/$threadId'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/settings/observe/'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
     | '/api/files/v1/$'
+    | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
@@ -445,6 +494,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
+    | '/settings/observe/runs/$runId'
     | '/desktop/workspace/$workspaceId/'
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
@@ -458,15 +508,18 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/theia/$'
     | '/'
+    | '/settings'
     | '/c/$threadId'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
+    | '/settings/observe'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
     | '/api/files/v1/$'
+    | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
@@ -487,12 +540,14 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
+    | '/settings/observe/runs/$runId'
     | '/desktop/workspace/$workspaceId'
     | '/v1/theorem/agent/stream/$'
   id:
     | '__root__'
     | '/_chat'
     | '/install'
+    | '/settings'
     | '/_chat/ide'
     | '/_chat/spaces'
     | '/_chat/vault'
@@ -501,15 +556,18 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/theia/$'
     | '/_chat/'
+    | '/settings/'
     | '/_chat/c/$threadId'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/settings/observe/'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
     | '/api/files/v1/$'
+    | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
@@ -530,6 +588,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
+    | '/settings/observe/runs/$runId'
     | '/desktop/workspace/$workspaceId/'
     | '/v1/theorem/agent/stream/$'
   fileRoutesById: FileRoutesById
@@ -537,6 +596,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
   InstallRoute: typeof InstallRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
@@ -549,6 +609,7 @@ export interface RootRouteChildren {
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
   ApiEnvironmentV1SplatRoute: typeof ApiEnvironmentV1SplatRoute
   ApiFilesV1SplatRoute: typeof ApiFilesV1SplatRoute
+  ApiObserveV1SplatRoute: typeof ApiObserveV1SplatRoute
   ApiProjectFilesV1SplatRoute: typeof ApiProjectFilesV1SplatRoute
   ApiSpacesV1SplatRoute: typeof ApiSpacesV1SplatRoute
   DesktopWorkspaceWorkspaceIdBacklinksRoute: typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
@@ -587,6 +648,13 @@ declare module '@tanstack/react-router' {
       path: '/install'
       fullPath: '/install'
       preLoaderRoute: typeof InstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_chat/': {
@@ -638,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignOutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/theia/$': {
       id: '/theia/$'
       path: '/theia/$'
@@ -673,6 +748,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/observe/': {
+      id: '/settings/observe/'
+      path: '/observe'
+      fullPath: '/settings/observe/'
+      preLoaderRoute: typeof SettingsObserveIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/api/capabilities/v1/$': {
       id: '/api/capabilities/v1/$'
       path: '/api/capabilities/v1/$'
@@ -706,6 +788,13 @@ declare module '@tanstack/react-router' {
       path: '/api/files/v1/$'
       fullPath: '/api/files/v1/$'
       preLoaderRoute: typeof ApiFilesV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/observe/v1/$': {
+      id: '/api/observe/v1/$'
+      path: '/api/observe/v1/$'
+      fullPath: '/api/observe/v1/$'
+      preLoaderRoute: typeof ApiObserveV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/project-files/v1/$': {
@@ -855,6 +944,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdTrustRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/observe/runs/$runId': {
+      id: '/settings/observe/runs/$runId'
+      path: '/observe/runs/$runId'
+      fullPath: '/settings/observe/runs/$runId'
+      preLoaderRoute: typeof SettingsObserveRunsRunIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/v1/theorem/agent/stream/$': {
       id: '/v1/theorem/agent/stream/$'
       path: '/v1/theorem/agent/stream/$'
@@ -883,9 +979,26 @@ const ChatRouteChildren: ChatRouteChildren = {
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
+interface SettingsRouteChildren {
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  SettingsObserveIndexRoute: typeof SettingsObserveIndexRoute
+  SettingsObserveRunsRunIdRoute: typeof SettingsObserveRunsRunIdRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsIndexRoute: SettingsIndexRoute,
+  SettingsObserveIndexRoute: SettingsObserveIndexRoute,
+  SettingsObserveRunsRunIdRoute: SettingsObserveRunsRunIdRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
   InstallRoute: InstallRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
@@ -898,6 +1011,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
   ApiEnvironmentV1SplatRoute: ApiEnvironmentV1SplatRoute,
   ApiFilesV1SplatRoute: ApiFilesV1SplatRoute,
+  ApiObserveV1SplatRoute: ApiObserveV1SplatRoute,
   ApiProjectFilesV1SplatRoute: ApiProjectFilesV1SplatRoute,
   ApiSpacesV1SplatRoute: ApiSpacesV1SplatRoute,
   DesktopWorkspaceWorkspaceIdBacklinksRoute:

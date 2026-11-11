@@ -1,5 +1,6 @@
-// SOURCING: Base UI Menu (account menu), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out), useWorkspaces (whether folders can open, for the Vault)
+// SOURCING: Base UI Menu (account menu, with the way into settings), @tanstack/react-router (navigation), the agent terminal toggle, ui/tooltip over Base UI Tooltip, next-themes (theme), lib/palette (colors), the shell's mode routes and tenant hook, the sign-in helpers (sign out), useWorkspaces (whether folders can open, for the Vault)
 import { Menu } from '@base-ui/react/menu'
+import { useNavigate } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -36,6 +37,7 @@ function AccountMenu() {
   const { palette, setPalette } = usePalette()
   const tenant = useTenant()
   const signIn = useSignInConfigured()
+  const navigate = useNavigate()
 
   return (
     <Menu.Root>
@@ -106,9 +108,16 @@ function AccountMenu() {
                 ))}
               </Menu.RadioGroup>
             </Menu.Group>
+            <Menu.Separator className="my-1 h-px bg-separator" />
+            <Menu.Item
+              className={menuItem}
+              onClick={() => void navigate({ to: '/settings' })}
+            >
+              <Icon.Settings className="size-4" />
+              Settings
+            </Menu.Item>
             {signIn && (
               <>
-                <Menu.Separator className="my-1 h-px bg-separator" />
                 <Menu.Item className={menuItem} onClick={() => void signOut()}>
                   Sign out
                 </Menu.Item>
