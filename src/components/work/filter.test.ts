@@ -90,6 +90,32 @@ describe('building a filter', () => {
     expect(next.conditions).toHaveLength(2)
   })
 
+  test('date bounds stay apart: before and after are two conditions', () => {
+    const bounded = addChip(
+      addChip(EMPTY_FILTER, {
+        field: 'createdAt',
+        operator: 'before',
+        values: ['2026-06-01'],
+      }),
+      { field: 'createdAt', operator: 'after', values: ['2026-01-01'] },
+    )
+    expect(bounded.conditions).toEqual([
+      { field: 'createdAt', operator: 'before', value: '2026-06-01' },
+      { field: 'createdAt', operator: 'after', value: '2026-01-01' },
+    ])
+  })
+
+  test('a second text match is its own condition, not one contains of two values', () => {
+    const two = addChip(
+      addChip(EMPTY_FILTER, { field: 'text', operator: 'contains', values: ['crash'] }),
+      { field: 'text', operator: 'contains', values: ['login'] },
+    )
+    expect(two.conditions).toEqual([
+      { field: 'text', operator: 'contains', value: 'crash' },
+      { field: 'text', operator: 'contains', value: 'login' },
+    ])
+  })
+
   test('removing and flipping one condition leaves the others', () => {
     const two = addChip(based, { field: 'label', operator: 'is', values: ['bug'] })
     expect(removeAt(two, 0).conditions).toEqual([

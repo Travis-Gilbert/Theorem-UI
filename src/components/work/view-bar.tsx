@@ -149,15 +149,26 @@ function DisplayMenu({
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-ink-faint">Show</span>
-            {DISPLAY_FIELDS.map((field) => (
-              <label key={field.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={shown.has(field.id)}
-                  onCheckedChange={() => toggleField(field.id)}
-                />
-                {field.label}
-              </label>
-            ))}
+            {DISPLAY_FIELDS.map((field) => {
+              // The last shown field stays: a view with no fields at all
+              // reads as "the defaults", so clearing it would turn every
+              // field back on.
+              const last = shown.size === 1 && shown.has(field.id)
+              return (
+                <label
+                  key={field.id}
+                  className="flex items-center gap-2 text-sm"
+                  title={last ? 'At least one field stays shown' : undefined}
+                >
+                  <Checkbox
+                    checked={shown.has(field.id)}
+                    disabled={last}
+                    onCheckedChange={() => toggleField(field.id)}
+                  />
+                  {field.label}
+                </label>
+              )
+            })}
           </div>
         </div>
       </PopoverPopup>

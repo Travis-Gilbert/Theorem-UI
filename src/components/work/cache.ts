@@ -123,35 +123,32 @@ function adjustGroups(
 
 /**
  * Replaces an item wherever it is cached: every list page and its detail.
- * Returns whether any list held it, so a caller can tell a new item from a
- * changed one.
+ * The incoming item is the whole truth — an optional field it does not carry
+ * was cleared, so the old row's value must not survive it.
  */
 export function writeItem(
   client: QueryClient,
   keys: WorkKeys,
   item: WorkItem,
-): boolean {
-  let held = false
+) {
   for (const [key, data] of listQueries(client, keys)) {
     if (!data) continue
     const query = key[4] as WorkQuery | undefined
     const pages = data.pages.map((page, at) => {
       const index = page.items.findIndex((i) => i.id === item.id)
       if (index < 0) return page
-      held = true
       const before = page.items[index]!
       const next = {
         ...page,
-        items: page.items.with(index, { ...before, ...item }),
+        items: page.items.with(index, item),
       }
       return at === 0 ? adjustGroups(next, query?.groupBy ?? null, before, item) : next
     })
     client.setQueryData<ItemPages>(key, { ...data, pages })
   }
   client.setQueryData<WorkItemDetail>(keys.item(item.id), (detail) =>
-    detail ? { ...detail, item: { ...detail.item, ...item } } : detail,
+    detail ? { ...detail, item } : detail,
   )
-  return held
 }
 
 /** Takes an item out of every cached list and drops its detail. */
@@ -297,9 +294,9 @@ function writeProject(client: QueryClient, keys: WorkKeys, project: WorkProject)
 
 /**
  * One live event applied to what is cached. A changed item is replaced in
- * place, so a row does not jump while a person is looking at it; lists that
- * held it are marked stale for their next read. An item no cached list holds
- * is new, or newly matches one, so the lists read again.
+ * place, so its row shows the change at once, and the lists read again: an
+ * item that stopped matching a list leaves it, and one that started matching
+ * a list enters it, in the server's own membership and order.
  */
 export function applyWorkEvent(
   client: QueryClient,
@@ -309,10 +306,10 @@ export function applyWorkEvent(
   const keys = workKeys(sourceId)
   switch (event.type) {
     case 'work.item.upserted': {
-      const held = writeItem(client, keys, event.item)
+      writeItem(client, keys, event.item)
       void client.invalidateQueries({
         queryKey: keys.items,
-        refetchType: held ? 'none' : 'active',
+        refetchType: 'active',
       })
       void client.invalidateQueries({ queryKey: keys.item(event.item.id) })
       void client.invalidateQueries({ queryKey: keys.projects })

@@ -159,7 +159,8 @@ function Column({
   onCreate?: (defaults: NewItemDefaults) => void
 }) {
   const facets = useWorkFacets().data
-  const movable = DROPPABLE.has(groupBy)
+  // A source that cannot patch offers no drag: the drop would have nothing to send.
+  const movable = !!useWorkSource().patchItem && DROPPABLE.has(groupBy)
   const { setNodeRef, isOver } = useDroppable({
     id: column.key,
     disabled: !movable,
@@ -292,11 +293,20 @@ function BoardBody({
     )
   if (!loaded.length)
     return (
-      <WorkEmpty
-        filtered={!isEmptyFilter(query.filter ?? EMPTY_FILTER)}
-        onClear={onClearFilter}
-        onCreate={source.createItem ? () => setCreating({}) : undefined}
-      />
+      <>
+        <WorkEmpty
+          filtered={!isEmptyFilter(query.filter ?? EMPTY_FILTER)}
+          onClear={onClearFilter}
+          onCreate={source.createItem ? () => setCreating({}) : undefined}
+        />
+        {creating && (
+          <NewItemDialog
+            open
+            onOpenChange={(open) => !open && setCreating(undefined)}
+            defaults={creating}
+          />
+        )}
+      </>
     )
 
   const overlay = dragging

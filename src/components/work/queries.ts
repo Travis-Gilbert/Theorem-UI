@@ -197,11 +197,13 @@ export function usePatchWorkItem(report?: (error: unknown) => void) {
       if (context?.before) writeItem(client, keys, context.before)
       report?.(error)
     },
-    onSuccess: (item) => void writeItem(client, keys, item),
+    onSuccess: (item) => writeItem(client, keys, item),
     onSettled: (_item, _error, { id }) => {
       void client.invalidateQueries({ queryKey: keys.item(id) })
       void client.invalidateQueries({ queryKey: keys.projects })
-      void client.invalidateQueries({ queryKey: keys.items, refetchType: 'none' })
+      // The server's answer can move the item out of a filtered list or
+      // reorder it, so the lists in front of the person read again.
+      void client.invalidateQueries({ queryKey: keys.items, refetchType: 'active' })
     },
   })
 }

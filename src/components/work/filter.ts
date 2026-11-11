@@ -216,16 +216,24 @@ export const isCondition = (
   entry: WorkCondition | WorkFilter,
 ): entry is WorkCondition => 'field' in entry
 
-/** A condition with the same field and polarity absorbs the values of one added to it. */
+/**
+ * A choice condition with the same field and polarity absorbs the values of
+ * one added to it. The other kinds stay conditions of their own: a date's
+ * `before` and `after` are two bounds of one range, not two values of one
+ * condition, and two text matches are two containments.
+ */
 export function addChip(filter: WorkFilter, chip: FilterChip): WorkFilter {
-  const at = filter.conditions.findIndex(
-    (c) =>
-      isCondition(c) &&
-      c.field === chip.field &&
-      isNegated(c.operator) === isNegated(chip.operator) &&
-      chip.values.length > 0 &&
-      c.value !== undefined,
-  )
+  const at =
+    fieldSpec(chip.field).kind === 'choice'
+      ? filter.conditions.findIndex(
+          (c) =>
+            isCondition(c) &&
+            c.field === chip.field &&
+            isNegated(c.operator) === isNegated(chip.operator) &&
+            chip.values.length > 0 &&
+            c.value !== undefined,
+        )
+      : -1
   if (at < 0)
     return { ...filter, conditions: [...filter.conditions, conditionOf(chip)] }
   const held = chipOf(filter.conditions[at] as WorkCondition)

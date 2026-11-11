@@ -1,6 +1,6 @@
 // SOURCING: the app's MarkdownDocument (react-markdown) to read a body and a comment, and MarkdownBlocks (Milkdown Crepe, as the notes use it) to write the body; date-fns and ./date-picker for the due date; ./pickers for every property edit. The timeline is hand-rolled: an item's history as the tracker records it (created, comment, status, review, check) has no upstream component
 import { format, parseISO } from 'date-fns'
-import { Suspense, lazy, useContext, useState } from 'react'
+import { Suspense, lazy, useContext, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useHotkeys } from '@tanstack/react-hotkeys'
 import { MarkdownDocument } from '@/components/artifacts/artifact-renderers'
@@ -261,9 +261,18 @@ function Title({ item }: { item: WorkItem }) {
   const report = useContext(EditErrorContext)
   const canEdit = !!useWorkSource().patchItem
   const [draft, setDraft] = useState<string>()
+  // The blur's commit reads the draft from a ref, so Escape can drop it
+  // before blurring: the state update alone would not have reached the
+  // callback the blur runs, and cancelling would have saved the edit.
+  const draftRef = useRef<string | undefined>(undefined)
+  const edit = (next: string) => {
+    draftRef.current = next
+    setDraft(next)
+  }
   if (!canEdit) return <h2 className="text-lg font-semibold">{item.title}</h2>
   const commit = () => {
-    const next = draft?.trim()
+    const next = draftRef.current?.trim()
+    draftRef.current = undefined
     setDraft(undefined)
     if (next && next !== item.title)
       patch.mutate({ id: item.id, patch: { title: next } }, { onError: report })
@@ -273,13 +282,14 @@ function Title({ item }: { item: WorkItem }) {
       aria-label="Title"
       rows={1}
       value={draft ?? item.title}
-      onChange={(event) => setDraft(event.target.value)}
+      onChange={(event) => edit(event.target.value)}
       onBlur={commit}
       onKeyDown={(event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault()
           event.currentTarget.blur()
         } else if (event.key === 'Escape') {
+          draftRef.current = undefined
           setDraft(undefined)
           event.currentTarget.blur()
         }

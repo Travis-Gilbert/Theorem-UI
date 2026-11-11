@@ -1,7 +1,7 @@
 // SOURCING: bun:test over the work tracker's cache edits and mutation hooks, rendered with React into happy-dom (test/workspace's render, which supplies the QueryClient) against a fake WorkSource
 import { QueryClient, useQueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, test } from 'bun:test'
-import { act, useState } from 'react'
+import { act, useEffect, useState } from 'react'
 import { cleanup, render, settle, waitFor } from '../../../test/workspace'
 import {
   SETTINGS_KEY,
@@ -10,12 +10,13 @@ import {
   applyWorkEvent,
   inboxStateIncludes,
   workKeys,
+  writeItem,
 } from './cache'
 import type { InboxPages, ItemPages } from './cache'
 import type { InboxEntry, WorkItem, WorkItemDetail, WorkItemPatch } from './contract'
-import { DOING, FACETS, SETTINGS, TODO, entry, fakeSource, item, project } from './fixtures'
+import { DOING, DONE, FACETS, SETTINGS, TODO, entry, fakeSource, item, project } from './fixtures'
 import { holdWorkEvents } from './events'
-import { useInboxAction, usePatchWorkItem } from './queries'
+import { useInboxAction, usePatchWorkItem, useWorkItems } from './queries'
 import { WorkSourceProvider } from './source'
 import type { WorkSignal, WorkSource } from './source'
 
@@ -80,6 +81,24 @@ describe('applyPatch', () => {
 
   test('a status the facets do not know leaves the status alone', () => {
     expect(applyPatch(base, { statusId: 'nope' }, FACETS).status).toEqual(TODO)
+  })
+})
+
+describe('writeItem', () => {
+  test('a field the incoming item does not carry is gone, not kept from the old row', () => {
+    const client = new QueryClient()
+    const held = item('1', { projectId: 'p1', milestoneId: 'm1', dueAt: '2026-12-01' })
+    client.setQueryData(keys.itemList(QUERY), pages(held))
+    client.setQueryData<WorkItemDetail>(keys.item('1'), { item: held, timeline: [] })
+
+    // An event about an item whose project was cleared omits the field.
+    writeItem(client, keys, item('1'))
+
+    const row = listed(client).items[0]!
+    expect(row.projectId).toBeUndefined()
+    expect(row.milestoneId).toBeUndefined()
+    expect(row.dueAt).toBeUndefined()
+    expect(client.getQueryData<WorkItemDetail>(keys.item('1'))!.item.projectId).toBeUndefined()
   })
 })
 
@@ -371,6 +390,74 @@ describe('live events', () => {
     client.setQueryData(other, pages(item('1')))
     applyWorkEvent(client, 'fake', { type: 'work.item.deleted', id: '1' })
     expect(client.getQueryData<ItemPages>(other)!.pages[0]!.items).toHaveLength(1)
+  })
+})
+
+describe('a list being watched', () => {
+  test('reads again when a live event changes an item it holds', async () => {
+    let asked = 0
+    const source = fakeSource({
+      queryItems: async () => {
+        asked += 1
+        return {
+          items: [item('1', { status: asked > 1 ? DONE : TODO })],
+          total: 1,
+        }
+      },
+    })
+    function Watch() {
+      const client = useQueryClient()
+      useEffect(() => holdWorkEvents(client, source), [client])
+      useWorkItems({})
+      return null
+    }
+    const { queryClient } = await render(
+      <WorkSourceProvider source={source}>
+        <Watch />
+      </WorkSourceProvider>,
+    )
+    await waitFor(() => asked === 1)
+
+    // The item is replaced in place at once, and the list reads again: the
+    // row the person sees must not outlive the list it no longer matches.
+    act(() =>
+      applyWorkEvent(queryClient, 'fake', {
+        type: 'work.item.upserted',
+        item: item('1', { status: DOING, revision: 'r9' }),
+      }),
+    )
+    await waitFor(() => asked === 2)
+  })
+
+  test('reads again after the server answers a patch', async () => {
+    let asked = 0
+    const source = fakeSource({
+      queryItems: async () => {
+        asked += 1
+        return {
+          items: [item('1', { status: asked > 1 ? DONE : TODO, revision: `r${asked}` })],
+          total: 1,
+        }
+      },
+      patchItem: async (id, patch) => applyPatch(item(id), patch, FACETS),
+    })
+    const seen: Array<ReturnType<typeof usePatchWorkItem>> = []
+    function Watch() {
+      seen.push(usePatchWorkItem())
+      useWorkItems({})
+      return null
+    }
+    await render(
+      <WorkSourceProvider source={source}>
+        <Watch />
+      </WorkSourceProvider>,
+    )
+    await waitFor(() => asked === 1)
+
+    await act(async () => {
+      seen.at(-1)!.mutate({ id: '1', patch: { statusId: 'doing' } })
+    })
+    await waitFor(() => asked === 2)
   })
 })
 
