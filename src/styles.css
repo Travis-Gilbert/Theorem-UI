@@ -594,47 +594,43 @@
   }
 }
 
-/* The sheet's field, top to bottom: the reading plane, a warm middle, and a
-   shaded foot. It only ever darkens on the way down, and most of the darkening
-   is kept for the end.
-   - --sheet-from at the top edge: the reading plane.
-   - --sheet-warm by the middle: a part of the way to --sheet-to, tinted with
-     the palette's own warm container colour, so the light follows every
-     palette.
-   - --sheet-shade from 94% down: the foot under the composer. The colour hint
-     keeps the middle open and lets the shade gather late.
-   These are opaque stops of one gradient, not translucent layers over each
-   other. Layers are rounded to 8 bits one at a time, and a faint dark layer
-   rounds unevenly enough to step the sheet back up a level or two; one
-   gradient whose stops each darken every channel cannot.
+/* The sheet's field: --sheet-from at the top edge darkening to --sheet-shade
+   under the composer, and never lightening on the way. Two contributions are
+   added into one curve:
+   - the broad field, a straight fall that carries a little over half the way,
+     so the sheet darkens the whole way down and has no bright shelf;
+   - the lower vignette, a cubic that is next to nothing above the middle and
+     gathers toward the foot, so the end is deeper than a straight fall leaves
+     it.
+   The stops below are that sum, 0.55 y + 0.45 y^3 with y running to 1 at 94%
+   of the height, sampled closely enough that the rate of darkening changes
+   smoothly. They are opaque stops of one gradient, not translucent layers:
+   layers are rounded to 8 bits one at a time and can step the sheet back up a
+   level, and every stop here is a mix of the same two colours, so each
+   channel only moves one way. The hue stays the palette's own; nothing is
+   tinted.
    It runs top to bottom only, so an element of any width that paints the
    field (the rail's tab, the composer's footer) samples the same colours at
-   the same height. Light never goes past --sheet-to, the darkest sheet the
-   palette's inks are placed against; dark has room below it, where a darker
-   sheet only adds contrast, and its warm middle stays under --sheet-from. */
+   the same height. Light ends at --sheet-to, the darkest sheet the palette's
+   inks are placed against; dark has room below it, where a darker sheet only
+   adds contrast. */
 :root {
   --sheet-shade: var(--sheet-to);
-  --sheet-warm: color-mix(
-    in srgb,
-    var(--ochre-container) 14%,
-    color-mix(in srgb, var(--sheet-to) 18%, var(--sheet-from))
-  );
   --sheet-field: linear-gradient(
     to bottom,
     var(--sheet-from),
-    var(--sheet-warm) 48%,
-    78%,
+    color-mix(in srgb, var(--sheet-shade) 11%, var(--sheet-from)) 18.8%,
+    color-mix(in srgb, var(--sheet-shade) 25%, var(--sheet-from)) 37.6%,
+    color-mix(in srgb, var(--sheet-shade) 43%, var(--sheet-from)) 56.4%,
+    color-mix(in srgb, var(--sheet-shade) 54%, var(--sheet-from)) 65.8%,
+    color-mix(in srgb, var(--sheet-shade) 67%, var(--sheet-from)) 75.2%,
+    color-mix(in srgb, var(--sheet-shade) 82%, var(--sheet-from)) 84.6%,
     var(--sheet-shade) 94%
   );
 }
 
 .dark {
   --sheet-shade: color-mix(in srgb, var(--sheet-to), #000 22%);
-  --sheet-warm: color-mix(
-    in srgb,
-    var(--ochre-container) 9%,
-    color-mix(in srgb, var(--sheet-to) 30%, var(--sheet-from))
-  );
 }
 
 /* The field, sized to the whole sheet (--sheet-h, set by the shell) so every
