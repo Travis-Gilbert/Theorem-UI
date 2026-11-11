@@ -25,6 +25,7 @@ import {
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
 import { ModelPicker } from '@/components/chat/model-picker'
+import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -586,6 +587,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
               ref={shellRef}
               data-slot="aui_composer-shell"
               data-kit-perch="composer"
+              data-face-perch="composer"
               className="border-(color:--paper-edge) focus-within:border-control data-[dragging=true]:border-focus surface-paper flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected"
             />
           }
@@ -930,12 +932,7 @@ const AssistantMessage: FC = () => {
           '[contain-intrinsic-size:auto_200px] [content-visibility:auto]',
       )}
     >
-      <span
-        aria-hidden
-        className="text-ink-muted flex size-8 items-center justify-center"
-      >
-        <Icon.Speaker className="size-5" />
-      </span>
+      <FaceSlot />
       <div className="min-w-0">
         <AssistantMessageContent speaker="Theorem" />
 

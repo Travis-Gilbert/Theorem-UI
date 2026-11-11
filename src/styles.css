@@ -1708,3 +1708,54 @@
   font-weight: 400;
   text-shadow: 0 0 3px var(--surface-artifact);
 }
+
+/* Theo, the agent's face: glowing matter on a dark visor, as the reference
+   robot's screen is (docs/plans/theo-face.md). The plate is the same in both
+   themes; the screen is the face's own, not the page's. Whether the visor is
+   there is a setting (lib/figures): without it the eyes are light against a
+   dark page and ink against a light one. */
+/* The hue of Theo's matter follows the theme. A palette may name one here;
+   one that does not gives the hue of its ground when that is tinted, else of
+   its accent (lib/face/tint), as a theme someone makes will. GitHub Sharp's
+   is the cyan the face was first drawn in. Stone's is the warm hue all its
+   surfaces lean to (OKLCH 68), named because a lean that faint cannot be told
+   from a grey by measuring. Vitesse's ground is a true grey, so it takes its
+   green by the rule. */
+:root:where(:not([data-palette]), [data-palette='github-sharp']) {
+  --face-hue: 205;
+}
+[data-palette='stone'] {
+  --face-hue: 68;
+}
+.face-plate,
+.face-mark {
+  --face-plate: oklch(0.17 0.012 255);
+  --face-eye: oklch(0.9 0.11 205);
+}
+.face-plate {
+  border-radius: 21.6px;
+  background: var(--face-plate);
+  box-shadow:
+    inset 0 0 0 1.5px oklch(1 0 0 / 0.1),
+    0 3px 10px rgb(0 0 0 / 0.28);
+  overflow: hidden;
+}
+/* Bare: no plate, and matter that reaches the edge of its canvas thins out
+   there, where the plate's rim would have cut it. */
+.face-plate[data-visor='off'] {
+  background: none;
+  box-shadow: none;
+  mask-image:
+    linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+    linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+.face-mark-plate {
+  fill: var(--face-plate);
+}
+.face-mark-eye {
+  fill: var(--face-eye);
+}
+.face-mark-eye[data-ink] {
+  fill: color-mix(in srgb, var(--face-eye) 20%, black);
+}
