@@ -7,7 +7,7 @@ A browser-only [Eclipse Theia](https://theia-ide.org) application (Theia 1.76.0)
 It has no Theia backend: files, shared documents, terminals, language features, problems and
 source control come from the Theorem workspace
 host through `@theoremharness/sdk`, and the Theorem UI at the repo root serves the build at
-`/theia/` and shows it across the whole sheet in IDE mode. The layout follows
+`/theia/` and shows it beside the conversation in IDE mode. The layout follows
 [eclipse-theia/theia-ide](https://github.com/eclipse-theia/theia-ide): published `@theia/*` packages,
 an application in `applications/browser`, and our own extensions in `theia-extensions/`.
 
@@ -20,11 +20,19 @@ Bun 1.4.3 or later, the version this is tested on.
 ```sh
 bun install
 bun run build
-bun run download:plugins
 ```
 
-`bun run build` writes `applications/browser/lib/frontend`. Run the Theorem UI from the repo
-root (`bun run dev`) and open its IDE mode, or `/theia/?workspace=<id>&name=<name>` on its origin.
+`bun run build` first downloads the browser app's extensions (`theiaPlugins` in
+`applications/browser/package.json`: VS Code's built-in Markdown grammar and Markdown language
+features, which give Open Preview) into `applications/browser/plugins`, then writes
+`applications/browser/lib/frontend` and the webview page in `applications/browser/lib/webview`.
+The Theorem UI at the repo root serves both: the frontend at `/theia/` and the webview page at
+`/theia/webview/`. A webview loads from its own origin, `<uuid>.webview.<host>`, so a deployment
+needs that wildcard name pointing at the same server. Run the Theorem UI from the repo root
+(`bun run dev`) and open its IDE mode, or `/theia/?workspace=<id>&name=<name>` on its origin.
+
+The root `download:plugins` fetches the whole built-in extension pack into `plugins/` for the Theia
+backend this application no longer runs; the browser app does not read it.
 
 ## Theorem workspace (`theia-extensions/theorem-workspace`)
 
@@ -82,6 +90,7 @@ tooling is removed.
 | `@theia/plugin-ext` | Bun's `require` never calls `Module._load`, so the plugin host's overrides that inject the `vscode` API, node-pty and the proxy-aware `http`/`https`/`tls` never apply. Bun's `spawn` also returns after short-lived children have exited, so extensions that write to child stdin without an error listener (vscode.git) crash into the uncaught exception handler with EPIPE. | `bun-module-load-shim` replays `_load` overrides from `Module._resolveFilename`; `bun-child-stdin-shim` ignores EPIPE on child stdin, as execa does. Both load first in the plugin host, only under Bun. |
 | `@theia/plugin-ext-vscode` | Node's ESM loader hook, which rewrites `import 'vscode'` in ESM extensions, does not exist in Bun. | A `Bun.plugin` rewrites those imports to a virtual module per extension that exports its API. |
 | `@theia/plugin-utils`, `@theia/plugin-ext` | Not Bun-specific: the scanner drops a view's `"visibility"`, so views that extensions contribute as hidden (npm's NPM Scripts) show up at once. | The scanner keeps `visibility`, and the view registry adds `hidden` views hidden (until the user shows them) and `collapsed` views collapsed. |
+| `@theia/plugin-ext` | Not Bun-specific: browser-only extensions break three ways when the app is served under a path (`/theia/`) and viewed in Electron. A frontend extension's `extensionUri` drops the path ([eclipse-theia/theia#18292](https://github.com/eclipse-theia/theia/issues/18292)); Electron refuses a worker started inside the plugin worker, which the Markdown language server is; and the webview page waits forever on a service worker Electron will not register, so the Markdown preview stays blank. | `extensionUri` resolves against the plugin worker's own URL. The plugin worker relays nested workers to the frontend, which starts them and hands each a port, as VS Code's web extension host does (`polyfillNestedWorker.ts`, MIT). The webview page goes on without its service worker when registration fails; only workspace-local resources then fail to load. |
 | `@theia/navigator` | Not Bun-specific: context menus pass their anchor as the command argument, which the explorer's commands do not recognise as the navigator, so Collapse All never shows in the tree's context menu. | The explorer's commands fall back to the navigator when the argument is not a widget. |
 | `@theia/terminal` | Not Bun-specific: with the bottom panel collapsed, Toggle Terminal expands it on its last tab rather than the terminal. | Activates the terminal through the shell. |
 | `drivelist` | Not Bun-specific: the native build breaks when the checkout path contains a space. | Uses `node-addon-api`'s unquoted `include_dir`. |

@@ -280,7 +280,12 @@ function AppPreview({
         }}
       />
       {shown && host ? (
-        <BlockFrame src={shown.src} host={host} title={snapshot.title} />
+        <BlockFrame
+          src={shown.src}
+          host={host}
+          title={snapshot.title}
+          onConnection={hosted.followTheme}
+        />
       ) : (
         !error && !problems.length && <p role="status">Loading App…</p>
       )}
@@ -448,21 +453,21 @@ function AppToolbar({
   return (
     <div
       data-revision={String(snapshot.revision.position)}
-      className="flex flex-wrap items-center gap-2 text-xs text-ink-muted"
+      className="flex flex-wrap items-center gap-1 text-xs text-ink-muted"
     >
       {pinnedPosition !== undefined &&
         String(pinnedPosition) !== String(snapshot.revision.position) && (
           <span>Changed since this result</span>
         )}
-      <Button size="xs" variant="outline" onClick={toggle}>
+      <Button size="xs" variant="ghost" onClick={toggle}>
         {running ? 'Stop App' : 'Run App'}
       </Button>
-      <Button size="xs" variant="outline" onClick={edit}>
+      <Button size="xs" variant="ghost" onClick={edit}>
         Edit source
       </Button>
       <Button
         size="xs"
-        variant="outline"
+        variant="ghost"
         onClick={about}
         disabled={snapshot.pendingState}
       >

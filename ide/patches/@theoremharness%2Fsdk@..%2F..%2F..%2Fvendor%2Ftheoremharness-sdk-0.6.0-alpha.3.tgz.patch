@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 5be6ee919932ffa7fbfaa1fcf87eaa11744a8fa6..6b0a4424319a5f70a6227c18d81b3a57a7657d7b 100644
+index 5be6ee919932ffa7fbfaa1fcf87eaa11744a8fa6..1227eae2e22aa25fad305576bdbe46a9cd6b15a0 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -48861,8 +48861,10 @@ var DocumentSession = class _DocumentSession {
@@ -15,8 +15,152 @@ index 5be6ee919932ffa7fbfaa1fcf87eaa11744a8fa6..6b0a4424319a5f70a6227c18d81b3a57
        }
      } catch (error) {
        this.sending = false;
+@@ -48940,8 +48942,7 @@ var TerminalChannel = class _TerminalChannel {
+       }),
+       live.on("terminal.exited", ({ data }) => {
+         if (data.session !== this.session) return;
+-        this.exited = true;
+-        for (const listener of this.exitListeners) listener(data.exit_code);
++        this.finish(data.exit_code, "exited");
+       }),
+       live.onResync(() => this.attach())
+     );
+@@ -48954,7 +48955,7 @@ var TerminalChannel = class _TerminalChannel {
+   resetListeners = /* @__PURE__ */ new Set();
+   exitListeners = /* @__PURE__ */ new Set();
+   detach = [];
+-  exited = false;
++  reason;
+   /** Start a shell in the workspace checkout. */
+   static async open(options) {
+     const reply = await options.client.ide.terminal.open({
+@@ -48987,45 +48988,68 @@ var TerminalChannel = class _TerminalChannel {
+     return () => this.exitListeners.delete(listener);
+   }
+   get hasExited() {
+-    return this.exited;
++    return this.reason !== void 0;
++  }
++  /** Why the shell ended, or undefined while it is running. */
++  get exitReason() {
++    return this.reason;
+   }
+   /**
+    * Catch up from this channel's position: the retained bytes after it, or a
+    * screen reset when they are gone. Call once listeners are registered.
+    */
+   attach() {
+-    this.attaching ??= this.readFrom(this.offset).finally(() => {
++    if (this.hasExited) return Promise.resolve();
++    this.attaching ??= this.readFrom(this.offset).catch((error) => this.handleError(error)).finally(() => {
+       this.attaching = void 0;
+     });
+     return this.attaching;
+   }
+   async input(data) {
+-    await this.options.client.ide.terminal.input({
+-      workspaceId: this.options.workspaceId,
+-      "X-CSRF-Token": this.options.csrfToken,
+-      "Idempotency-Key": randomId2(),
+-      session: this.session,
+-      bytes: data,
+-      input_id: randomId2()
+-    });
++    if (this.hasExited) return;
++    try {
++      await this.options.client.ide.terminal.input({
++        workspaceId: this.options.workspaceId,
++        "X-CSRF-Token": this.options.csrfToken,
++        "Idempotency-Key": randomId2(),
++        session: this.session,
++        bytes: data,
++        input_id: randomId2()
++      });
++    } catch (error) {
++      this.handleError(error);
++    }
+   }
+   async resize(cols, rows) {
+-    await this.options.client.ide.terminal.resize({
+-      workspaceId: this.options.workspaceId,
+-      "X-CSRF-Token": this.options.csrfToken,
+-      "Idempotency-Key": randomId2(),
+-      body: { session: this.session, cols, rows }
+-    });
++    if (this.hasExited) return;
++    try {
++      await this.options.client.ide.terminal.resize({
++        workspaceId: this.options.workspaceId,
++        "X-CSRF-Token": this.options.csrfToken,
++        "Idempotency-Key": randomId2(),
++        body: { session: this.session, cols, rows }
++      });
++    } catch (error) {
++      this.handleError(error);
++    }
+   }
+-  /** Detach this client. The shell keeps running for other attachments. */
++  /**
++   * Detach this client. The shell keeps running for other attachments. A shell
++   * the host no longer has is already closed, so closing it only detaches.
++   */
+   async close() {
+-    for (const detach of this.detach) detach();
+-    await this.options.client.ide.terminal.close({
+-      workspaceId: this.options.workspaceId,
+-      "X-CSRF-Token": this.options.csrfToken,
+-      "Idempotency-Key": randomId2(),
+-      body: { session: this.session }
+-    });
++    for (const detach of this.detach.splice(0)) detach();
++    if (this.reason === "lost") return;
++    try {
++      await this.options.client.ide.terminal.close({
++        workspaceId: this.options.workspaceId,
++        "X-CSRF-Token": this.options.csrfToken,
++        "Idempotency-Key": randomId2(),
++        body: { session: this.session }
++      });
++    } catch (error) {
++      if (!terminalSessionLost(error)) throw error;
++    }
+   }
+   async readFrom(from) {
+     const reply = await this.options.client.ide.terminal.attach({
+@@ -49044,6 +49068,7 @@ var TerminalChannel = class _TerminalChannel {
+     this.output(reply.offset_start, decode(reply.data));
+   }
+   output(offset, bytes) {
++    if (this.reason === "lost") return;
+     const end = offset + bytes.length;
+     if (end <= this.offset) return;
+     if (offset > this.offset) {
+@@ -49054,7 +49079,23 @@ var TerminalChannel = class _TerminalChannel {
+     this.offset = end;
+     for (const listener of this.dataListeners) listener(fresh);
+   }
++  handleError(error) {
++    if (terminalSessionLost(error)) {
++      this.finish(null, "lost");
++      return;
++    }
++    throw error;
++  }
++  finish(code, reason) {
++    if (this.hasExited) return;
++    this.reason = reason;
++    for (const listener of this.exitListeners) listener(code, reason);
++  }
+ };
++// The host's answer for a session it does not have, for example after a restart.
++function terminalSessionLost(error) {
++  return error instanceof TheoremError && error.statusCode === 404 && typeof error.body === "object" && error.body !== null && "code" in error.body && error.body.code === "terminal_session_not_found";
++}
+ 
+ // src/reference.ts
+ function resourceKey(resource) {
 diff --git a/dist/index.js b/dist/index.js
-index 342b8af985c9da16c4e0b098855ab73e3ab04601..659b0dd692906bd9628a4b36ff8740c1cdd4acdd 100644
+index 342b8af985c9da16c4e0b098855ab73e3ab04601..9e16080cb49c5c1c38bafece285bb7ed25b5794a 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -48784,8 +48784,10 @@ var DocumentSession = class _DocumentSession {
@@ -32,3 +176,173 @@ index 342b8af985c9da16c4e0b098855ab73e3ab04601..659b0dd692906bd9628a4b36ff8740c1
        }
      } catch (error) {
        this.sending = false;
+@@ -48863,8 +48865,7 @@ var TerminalChannel = class _TerminalChannel {
+       }),
+       live.on("terminal.exited", ({ data }) => {
+         if (data.session !== this.session) return;
+-        this.exited = true;
+-        for (const listener of this.exitListeners) listener(data.exit_code);
++        this.finish(data.exit_code, "exited");
+       }),
+       live.onResync(() => this.attach())
+     );
+@@ -48877,7 +48878,7 @@ var TerminalChannel = class _TerminalChannel {
+   resetListeners = /* @__PURE__ */ new Set();
+   exitListeners = /* @__PURE__ */ new Set();
+   detach = [];
+-  exited = false;
++  reason;
+   /** Start a shell in the workspace checkout. */
+   static async open(options) {
+     const reply = await options.client.ide.terminal.open({
+@@ -48910,45 +48911,68 @@ var TerminalChannel = class _TerminalChannel {
+     return () => this.exitListeners.delete(listener);
+   }
+   get hasExited() {
+-    return this.exited;
++    return this.reason !== void 0;
++  }
++  /** Why the shell ended, or undefined while it is running. */
++  get exitReason() {
++    return this.reason;
+   }
+   /**
+    * Catch up from this channel's position: the retained bytes after it, or a
+    * screen reset when they are gone. Call once listeners are registered.
+    */
+   attach() {
+-    this.attaching ??= this.readFrom(this.offset).finally(() => {
++    if (this.hasExited) return Promise.resolve();
++    this.attaching ??= this.readFrom(this.offset).catch((error) => this.handleError(error)).finally(() => {
+       this.attaching = void 0;
+     });
+     return this.attaching;
+   }
+   async input(data) {
+-    await this.options.client.ide.terminal.input({
+-      workspaceId: this.options.workspaceId,
+-      "X-CSRF-Token": this.options.csrfToken,
+-      "Idempotency-Key": randomId2(),
+-      session: this.session,
+-      bytes: data,
+-      input_id: randomId2()
+-    });
++    if (this.hasExited) return;
++    try {
++      await this.options.client.ide.terminal.input({
++        workspaceId: this.options.workspaceId,
++        "X-CSRF-Token": this.options.csrfToken,
++        "Idempotency-Key": randomId2(),
++        session: this.session,
++        bytes: data,
++        input_id: randomId2()
++      });
++    } catch (error) {
++      this.handleError(error);
++    }
+   }
+   async resize(cols, rows) {
+-    await this.options.client.ide.terminal.resize({
+-      workspaceId: this.options.workspaceId,
+-      "X-CSRF-Token": this.options.csrfToken,
+-      "Idempotency-Key": randomId2(),
+-      body: { session: this.session, cols, rows }
+-    });
++    if (this.hasExited) return;
++    try {
++      await this.options.client.ide.terminal.resize({
++        workspaceId: this.options.workspaceId,
++        "X-CSRF-Token": this.options.csrfToken,
++        "Idempotency-Key": randomId2(),
++        body: { session: this.session, cols, rows }
++      });
++    } catch (error) {
++      this.handleError(error);
++    }
+   }
+-  /** Detach this client. The shell keeps running for other attachments. */
++  /**
++   * Detach this client. The shell keeps running for other attachments. A shell
++   * the host no longer has is already closed, so closing it only detaches.
++   */
+   async close() {
+-    for (const detach of this.detach) detach();
+-    await this.options.client.ide.terminal.close({
+-      workspaceId: this.options.workspaceId,
+-      "X-CSRF-Token": this.options.csrfToken,
+-      "Idempotency-Key": randomId2(),
+-      body: { session: this.session }
+-    });
++    for (const detach of this.detach.splice(0)) detach();
++    if (this.reason === "lost") return;
++    try {
++      await this.options.client.ide.terminal.close({
++        workspaceId: this.options.workspaceId,
++        "X-CSRF-Token": this.options.csrfToken,
++        "Idempotency-Key": randomId2(),
++        body: { session: this.session }
++      });
++    } catch (error) {
++      if (!terminalSessionLost(error)) throw error;
++    }
+   }
+   async readFrom(from) {
+     const reply = await this.options.client.ide.terminal.attach({
+@@ -48967,6 +48991,7 @@ var TerminalChannel = class _TerminalChannel {
+     this.output(reply.offset_start, decode(reply.data));
+   }
+   output(offset, bytes) {
++    if (this.reason === "lost") return;
+     const end = offset + bytes.length;
+     if (end <= this.offset) return;
+     if (offset > this.offset) {
+@@ -48977,7 +49002,23 @@ var TerminalChannel = class _TerminalChannel {
+     this.offset = end;
+     for (const listener of this.dataListeners) listener(fresh);
+   }
++  handleError(error) {
++    if (terminalSessionLost(error)) {
++      this.finish(null, "lost");
++      return;
++    }
++    throw error;
++  }
++  finish(code, reason) {
++    if (this.hasExited) return;
++    this.reason = reason;
++    for (const listener of this.exitListeners) listener(code, reason);
++  }
+ };
++// The host's answer for a session it does not have, for example after a restart.
++function terminalSessionLost(error) {
++  return error instanceof TheoremError && error.statusCode === 404 && typeof error.body === "object" && error.body !== null && "code" in error.body && error.body.code === "terminal_session_not_found";
++}
+ 
+ // src/reference.ts
+ function resourceKey(resource) {
+diff --git a/dist/types/src/terminal.d.ts b/dist/types/src/terminal.d.ts
+index fbe5cb36558aac87d15c8b59d7becac0596c8452..97cb1ee2eaeb4888618811fdd878579b19143a14 100644
+--- a/dist/types/src/terminal.d.ts
++++ b/dist/types/src/terminal.d.ts
+@@ -20,7 +20,7 @@ export declare class TerminalChannel {
+     private readonly resetListeners;
+     private readonly exitListeners;
+     private readonly detach;
+-    private exited;
++    private reason;
+     private constructor();
+     /** Start a shell in the workspace checkout. */
+     static open(options: TerminalChannelOptions & {
+@@ -38,8 +38,11 @@ export declare class TerminalChannel {
+      * draw `screen`, which already includes everything up to the next onData.
+      */
+     onReset(listener: (screen: string) => void): () => void;
+-    onExit(listener: (code: number | null) => void): () => void;
++    /** Report shell exit or loss once. A lost session has no exit code. */
++    onExit(listener: (code: number | null, reason: "exited" | "lost") => void): () => void;
+     get hasExited(): boolean;
++    /** Why the shell ended, or undefined while it is running. */
++    get exitReason(): "exited" | "lost" | undefined;
+     /**
+      * Catch up from this channel's position: the retained bytes after it, or a
+      * screen reset when they are gone. Call once listeners are registered.

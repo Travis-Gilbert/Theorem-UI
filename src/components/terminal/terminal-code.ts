@@ -402,6 +402,16 @@ export function toolOutput(
 /** Where a tool's file opens in the editor: one-based lines, both ends included. */
 export type Open = { path: string; start?: number; end?: number }
 
+const stringArg = (value: unknown) =>
+  typeof value === 'string' ? value : undefined
+
+/** The file a tool's arguments name, under any of the names tools give it. */
+export function pathOf(args: Record<string, unknown>) {
+  return (
+    stringArg(args.path) ?? stringArg(args.file_path) ?? stringArg(args.file)
+  )
+}
+
 const lineArg = (value: unknown) =>
   typeof value === 'number' && Number.isInteger(value) && value > 0
     ? value

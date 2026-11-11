@@ -600,6 +600,18 @@ reuses Common File Double.
 
 The files they replace in the registry are listed under Retired.
 
+Two more came as owner attachments on 2026-11-08, "App-Window-Code--Streamline-Ultimate.png"
+and "List-Edit--Streamline-Ultimate.png" (48 x 48, the same set), copied and
+renamed the same way. App Window Code replaced the Shellfile rendition as
+`Icon.Ide`; `rail/noun-shellfile-1517619.svg` stays in the tree, unused. Since the
+coloured rail marks below, the rail draws the IDE with File Code, and `Icon.Ide`
+draws the IDE's glyph in chat cards and the code handler.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Ide | `streamline/streamline-app-window-code.png` | App Window Code | `fac43b13b5cad8cb4c84a43a1f0b7f63190d156fb13d95dd74741f664a1f3f8b` |
+| Todo (the `todo` section glyph) | `streamline/streamline-list-edit.png` | List Edit | `1ffaf8ff236e8e122027931d17ae736e8d3b8c45aad90912b8c4d28162fe8a9c` |
+
 ## Rail marks in colour (Streamline Ultimate, colored style)
 
 The outer rail's marks are Streamline Ultimate colored icons, from the owner's

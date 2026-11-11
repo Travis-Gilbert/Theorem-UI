@@ -1,9 +1,145 @@
 diff --git a/node_modules/@theia/plugin-ext/.bun-tag-21acc2d410494ade b/.bun-tag-21acc2d410494ade
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@theia/plugin-ext/.bun-tag-26b76184dfc843a4 b/.bun-tag-26b76184dfc843a4
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/@theia/plugin-ext/.bun-tag-95cc4b8f68171d0b b/.bun-tag-95cc4b8f68171d0b
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@theia/plugin-ext/.bun-tag-987186535c65363b b/.bun-tag-987186535c65363b
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@theia/plugin-ext/.bun-tag-cda77db11f113f4c b/.bun-tag-cda77db11f113f4c
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@theia/plugin-ext/.bun-tag-cf52a9cc5ff60370 b/.bun-tag-cf52a9cc5ff60370
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/lib/hosted/browser/plugin-worker.js b/lib/hosted/browser/plugin-worker.js
+index 8900e582ff872cf0b47e7628077657f1758618e9..84343b0488de7438a7a8ffab39fb0fde24f09943 100644
+--- a/lib/hosted/browser/plugin-worker.js
++++ b/lib/hosted/browser/plugin-worker.js
+@@ -34,10 +34,26 @@ let PluginWorker = class PluginWorker {
+             return writer;
+         });
+         this.rpc = new rpc_protocol_1.RPCProtocolImpl(channel);
+-        // eslint-disable-next-line arrow-body-style
+-        this.worker.onmessage = buffer => channel.onMessageEmitter.fire(() => {
+-            return new uint8_array_message_buffer_1.Uint8ArrayReadBuffer(buffer.data);
+-        });
++        // Workers an extension starts are started here and given a port to the plugin worker
++        // (see worker-main.js), as VS Code's webWorkerExtensionHostIframe.html does (MIT).
++        const nestedWorkers = new Map();
++        this.worker.onmessage = buffer => {
++            const data = buffer.data;
++            if (data?.type === '_newWorker') {
++                const { id, port, url, options } = data;
++                const nested = new Worker(url, options);
++                nested.postMessage(port, [port]);
++                nested.onerror = console.error.bind(console);
++                nestedWorkers.set(id, nested);
++            }
++            else if (data?.type === '_terminateWorker') {
++                nestedWorkers.get(data.id)?.terminate();
++                nestedWorkers.delete(data.id);
++            }
++            else {
++                channel.onMessageEmitter.fire(() => new uint8_array_message_buffer_1.Uint8ArrayReadBuffer(data));
++            }
++        };
+         this.worker.onerror = e => channel.onErrorEmitter.fire(e);
+     }
+ };
+diff --git a/lib/hosted/browser/worker/worker-main.js b/lib/hosted/browser/worker/worker-main.js
+index 6bed46e13f46eb71f6acd94f330e82309198c6cc..50b5b49eca2abf75e3b3f77e0427dcba1046a8b0 100644
+--- a/lib/hosted/browser/worker/worker-main.js
++++ b/lib/hosted/browser/worker/worker-main.js
+@@ -39,6 +39,84 @@ const worker_plugin_module_1 = require("./worker-plugin-module");
+ const constants_1 = require("@theia/plugin-utils/lib/common/constants");
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ const ctx = self;
++// Extensions start workers of their own, such as the markdown language server. Not every
++// browser loads a worker started inside another worker (Electron refuses it), so as VS Code's
++// web extension host does, the frontend starts the worker and hands it a port to this one.
++// Translated from microsoft/vscode src/vs/workbench/services/extensions/worker/polyfillNestedWorker.ts (MIT).
++const nestedWorkerBootstrap = (function (workerUrl) {
++    const listener = (event) => {
++        globalThis.removeEventListener('message', listener);
++        const port = event.data;
++        Object.defineProperties(globalThis, {
++            postMessage: {
++                value(data, transferOrOptions) {
++                    port.postMessage(data, transferOrOptions);
++                }
++            },
++            onmessage: {
++                get() {
++                    return port.onmessage;
++                },
++                set(value) {
++                    port.onmessage = value;
++                }
++            }
++        });
++        port.addEventListener('message', msg => {
++            globalThis.dispatchEvent(new MessageEvent('message', { data: msg.data, ports: msg.ports ? [...msg.ports] : undefined }));
++        });
++        port.start();
++        globalThis.Worker = class {
++            constructor() {
++                throw new TypeError('Nested workers from within nested worker are NOT supported.');
++            }
++        };
++        importScripts(workerUrl);
++    };
++    globalThis.addEventListener('message', listener);
++}).toString();
++const nativePostMessage = ctx.postMessage.bind(ctx);
++ctx.Worker = class NestedWorker extends EventTarget {
++    constructor(url, options) {
++        super();
++        // The bootstrap runs from a blob, so a relative URL is resolved here.
++        const workerUrl = new URL(String(url), ctx.location.href).href;
++        const bootstrap = `((${nestedWorkerBootstrap})(${JSON.stringify(workerUrl)}))`;
++        const blobUrl = URL.createObjectURL(new Blob([bootstrap], { type: 'application/javascript' }));
++        const channel = new MessageChannel();
++        // A blob URL is unique, so it serves as the id.
++        const id = blobUrl;
++        nativePostMessage({ type: '_newWorker', id, port: channel.port2, url: blobUrl, options }, [channel.port2]);
++        this.postMessage = channel.port1.postMessage.bind(channel.port1);
++        this.terminate = () => {
++            nativePostMessage({ type: '_terminateWorker', id });
++            URL.revokeObjectURL(blobUrl);
++            channel.port1.close();
++            channel.port2.close();
++        };
++        Object.defineProperties(this, {
++            onmessage: {
++                get() {
++                    return channel.port1.onmessage;
++                },
++                set(value) {
++                    channel.port1.onmessage = value;
++                }
++            },
++            onmessageerror: {
++                get() {
++                    return channel.port1.onmessageerror;
++                },
++                set(value) {
++                    channel.port1.onmessageerror = value;
++                }
++            }
++        });
++        channel.port1.addEventListener('messageerror', evt => this.dispatchEvent(new MessageEvent('messageerror', { data: evt.data })));
++        channel.port1.addEventListener('message', evt => this.dispatchEvent(new MessageEvent('message', { data: evt.data })));
++        channel.port1.start();
++    }
++};
+ const pluginsApiImpl = new Map();
+ const pluginsModulesNames = new Map();
+ const scripts = new Set();
 diff --git a/node_modules/@theia/plugin-ext/lib/hosted/node/bun-child-stdin-shim.d.ts b/lib/hosted/node/bun-child-stdin-shim.d.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..cb0ff5c3b541f646105198ee23ac0fc3d805023e
@@ -148,7 +284,7 @@ index 0000000000000000000000000000000000000000..1331174a6e1c9bc228b289c13888c8db
 +};
 diff --git a/lib/hosted/node/plugin-host.js b/lib/hosted/node/plugin-host.js
 index 8e6a4d046f22022cdc606734ef0fc1af1f78aec4..c2d1817c64348b1591fd08be51795dcb1a929f40 100644
---- a/lib/hosted/node/plugin-host.js	
+--- a/lib/hosted/node/plugin-host.js
 +++ b/lib/hosted/node/plugin-host.js
 @@ -1,4 +1,9 @@
  "use strict";
@@ -162,7 +298,7 @@ index 8e6a4d046f22022cdc606734ef0fc1af1f78aec4..c2d1817c64348b1591fd08be51795dcb
  // Copyright (C) 2018 Red Hat, Inc. and others.
 diff --git a/lib/main/browser/view/plugin-view-registry.js b/lib/main/browser/view/plugin-view-registry.js
 index 316310138771498832e92105f5593697e0e59d3b..40f58360df901f5576615003c20b26abb3b971bd 100644
---- a/lib/main/browser/view/plugin-view-registry.js	
+--- a/lib/main/browser/view/plugin-view-registry.js
 +++ b/lib/main/browser/view/plugin-view-registry.js
 @@ -713,10 +713,13 @@ let PluginViewRegistry = class PluginViewRegistry {
              }
@@ -180,6 +316,148 @@ index 316310138771498832e92105f5593697e0e59d3b..40f58360df901f5576615003c20b26ab
              }
              this.registerWidgetPartEvents(widget, containerWidget);
          }
+diff --git a/lib/plugin/plugin-context.js b/lib/plugin/plugin-context.js
+index 35f5d9fdfed21304f66ce5c72fca37a8ea7ea353..95ce1279c5ec41900fe7b7eb812549699a3b08be 100644
+--- a/lib/plugin/plugin-context.js
++++ b/lib/plugin/plugin-context.js
+@@ -1309,8 +1309,9 @@ class Plugin {
+         this.packageJSON = plugin.rawModel;
+         this.pluginType = plugin.model.entryPoint.frontend ? 'frontend' : 'backend';
+         if (this.pluginType === 'frontend') {
+-            const { origin } = new endpoint_1.Endpoint();
+-            this.pluginUri = types_impl_1.URI.parse(origin + '/' + common_1.PluginPackage.toPluginUrl(plugin.model, ''));
++            // Resolved against the plugin worker, as plugin-manifest-loader resolves manifests, so an
++            // app served under a path keeps it (eclipse-theia/theia#18292).
++            this.pluginUri = types_impl_1.URI.parse(new endpoint_1.Endpoint().getRestUrl().parent.resolve(common_1.PluginPackage.toPluginUrl(plugin.model, '')).toString());
+         }
+         else {
+             this.pluginUri = types_impl_1.URI.parse(plugin.pluginUri);
+diff --git a/src/hosted/browser/plugin-worker.ts b/src/hosted/browser/plugin-worker.ts
+index 6948bedefa06fb6c77a29c5467c9ed3b836bf0ed..d25b6139ceaddf2a995088373e893ac78cc9ca46 100644
+--- a/src/hosted/browser/plugin-worker.ts
++++ b/src/hosted/browser/plugin-worker.ts
+@@ -41,10 +41,24 @@ export class PluginWorker {
+ 
+         this.rpc = new RPCProtocolImpl(channel);
+ 
+-        // eslint-disable-next-line arrow-body-style
+-        this.worker.onmessage = buffer => channel.onMessageEmitter.fire(() => {
+-            return new Uint8ArrayReadBuffer(buffer.data);
+-        });
++        // Workers an extension starts are started here and given a port to the plugin worker
++        // (see worker-main.ts), as VS Code's webWorkerExtensionHostIframe.html does (MIT).
++        const nestedWorkers = new Map<string, Worker>();
++        this.worker.onmessage = buffer => {
++            const data = buffer.data;
++            if (data?.type === '_newWorker') {
++                const { id, port, url, options } = data;
++                const nested = new Worker(url, options);
++                nested.postMessage(port, [port]);
++                nested.onerror = console.error.bind(console);
++                nestedWorkers.set(id, nested);
++            } else if (data?.type === '_terminateWorker') {
++                nestedWorkers.get(data.id)?.terminate();
++                nestedWorkers.delete(data.id);
++            } else {
++                channel.onMessageEmitter.fire(() => new Uint8ArrayReadBuffer(data));
++            }
++        };
+ 
+         this.worker.onerror = e => channel.onErrorEmitter.fire(e);
+     }
+diff --git a/src/hosted/browser/worker/worker-main.ts b/src/hosted/browser/worker/worker-main.ts
+index 5256f26fc1f8b2d5c3783fff9a976ff7ac06f564..a788ae8583d40565711f8887f8922d7308110c70 100644
+--- a/src/hosted/browser/worker/worker-main.ts
++++ b/src/hosted/browser/worker/worker-main.ts
+@@ -40,6 +40,88 @@ import { PLUGINS_BASE_PATH } from '@theia/plugin-utils/lib/common/constants';
+ 
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ const ctx = self as any;
++// Extensions start workers of their own, such as the markdown language server. Not every
++// browser loads a worker started inside another worker (Electron refuses it), so as VS Code's
++// web extension host does, the frontend starts the worker and hands it a port to this one.
++// Translated from microsoft/vscode src/vs/workbench/services/extensions/worker/polyfillNestedWorker.ts (MIT).
++const nestedWorkerBootstrap = (function (workerUrl: string): void {
++    const listener = (event: Event): void => {
++        globalThis.removeEventListener('message', listener);
++        const port = (event as MessageEvent<MessagePort>).data;
++        Object.defineProperties(globalThis, {
++            postMessage: {
++                value(data: unknown, transferOrOptions?: Transferable[]) {
++                    port.postMessage(data, transferOrOptions ?? []);
++                }
++            },
++            onmessage: {
++                get() {
++                    return port.onmessage;
++                },
++                set(value: MessagePort['onmessage']) {
++                    port.onmessage = value;
++                }
++            }
++        });
++        port.addEventListener('message', msg => {
++            globalThis.dispatchEvent(new MessageEvent('message', { data: msg.data, ports: msg.ports ? [...msg.ports] : undefined }));
++        });
++        port.start();
++        // eslint-disable-next-line @typescript-eslint/no-explicit-any
++        (globalThis as any).Worker = class {
++            constructor() {
++                throw new TypeError('Nested workers from within nested worker are NOT supported.');
++            }
++        };
++        // eslint-disable-next-line @typescript-eslint/no-explicit-any
++        (globalThis as any).importScripts(workerUrl);
++    };
++    globalThis.addEventListener('message', listener);
++}).toString();
++const nativePostMessage: (message: unknown, transfer?: Transferable[]) => void = ctx.postMessage.bind(ctx);
++ctx.Worker = class NestedWorker extends EventTarget {
++    readonly postMessage: MessagePort['postMessage'];
++    readonly terminate: () => void;
++    constructor(url: string | URL, options?: WorkerOptions) {
++        super();
++        // The bootstrap runs from a blob, so a relative URL is resolved here.
++        const workerUrl = new URL(String(url), ctx.location.href).href;
++        const bootstrap = `((${nestedWorkerBootstrap})(${JSON.stringify(workerUrl)}))`;
++        const blobUrl = URL.createObjectURL(new Blob([bootstrap], { type: 'application/javascript' }));
++        const channel = new MessageChannel();
++        // A blob URL is unique, so it serves as the id.
++        const id = blobUrl;
++        nativePostMessage({ type: '_newWorker', id, port: channel.port2, url: blobUrl, options }, [channel.port2]);
++        this.postMessage = channel.port1.postMessage.bind(channel.port1);
++        this.terminate = () => {
++            nativePostMessage({ type: '_terminateWorker', id });
++            URL.revokeObjectURL(blobUrl);
++            channel.port1.close();
++            channel.port2.close();
++        };
++        Object.defineProperties(this, {
++            onmessage: {
++                get() {
++                    return channel.port1.onmessage;
++                },
++                set(value: MessagePort['onmessage']) {
++                    channel.port1.onmessage = value;
++                }
++            },
++            onmessageerror: {
++                get() {
++                    return channel.port1.onmessageerror;
++                },
++                set(value: MessagePort['onmessageerror']) {
++                    channel.port1.onmessageerror = value;
++                }
++            }
++        });
++        channel.port1.addEventListener('messageerror', evt => this.dispatchEvent(new MessageEvent('messageerror', { data: evt.data })));
++        channel.port1.addEventListener('message', evt => this.dispatchEvent(new MessageEvent('message', { data: evt.data })));
++        channel.port1.start();
++    }
++};
+ 
+ const pluginsApiImpl = new Map<string, typeof theia>();
+ const pluginsModulesNames = new Map<string, Plugin>();
 diff --git a/node_modules/@theia/plugin-ext/src/hosted/node/bun-child-stdin-shim.ts b/src/hosted/node/bun-child-stdin-shim.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..07c68d2905f0b3f604c0a55c183878e6f0149258
@@ -319,7 +597,7 @@ index 0000000000000000000000000000000000000000..cf568bc6c107774bc2bf612673853db2
 +};
 diff --git a/src/hosted/node/plugin-host.ts b/src/hosted/node/plugin-host.ts
 index c7c4f8b07b64a12c110a323a5a987cda6b608c99..9dbb461c2470aa8f152cb03cc4e1aab5f63d6ae6 100644
---- a/src/hosted/node/plugin-host.ts	
+--- a/src/hosted/node/plugin-host.ts
 +++ b/src/hosted/node/plugin-host.ts
 @@ -13,6 +13,13 @@
  //
@@ -337,7 +615,7 @@ index c7c4f8b07b64a12c110a323a5a987cda6b608c99..9dbb461c2470aa8f152cb03cc4e1aab5
  import { Container } from '@theia/core/shared/inversify';
 diff --git a/src/main/browser/view/plugin-view-registry.ts b/src/main/browser/view/plugin-view-registry.ts
 index 01fc35a2d4a1dfe53bfa04d82c0193c5e5b935d0..b3a688055fe7ce0e3c1848a3fc78eb500dff4ba3 100644
---- a/src/main/browser/view/plugin-view-registry.ts	
+--- a/src/main/browser/view/plugin-view-registry.ts
 +++ b/src/main/browser/view/plugin-view-registry.ts
 @@ -832,10 +832,13 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
              }
@@ -354,4 +632,37 @@ index 01fc35a2d4a1dfe53bfa04d82c0193c5e5b935d0..b3a688055fe7ce0e3c1848a3fc78eb50
 +                widget.suppressUpdateViewVisibility = visibility === 'hidden';
              }
              this.registerWidgetPartEvents(widget, containerWidget);
+         }
+diff --git a/src/main/browser/webview/pre/host.js b/src/main/browser/webview/pre/host.js
+index c3182a1aa98d7531192d407f93668c6c67d184a7..11f69bf481e69fe7a8588caeb766c6a704d4b358 100644
+--- a/src/main/browser/webview/pre/host.js
++++ b/src/main/browser/webview/pre/host.js
+@@ -94,6 +94,12 @@
+             };
+             navigator.serviceWorker.addEventListener('message', versionHandler);
+             registration.active.postMessage({ channel: 'version' });
++        }).catch(error => {
++            // A browser that refuses the worker (Electron's, or one without service workers on
++            // this origin) would otherwise leave the webview blank: the content waits on this
++            // promise. Without the worker only workspace resources fail to load.
++            console.error('The webview service worker did not register; workspace resources will not load.', error);
++            resolveWorkerReady();
+         });
+ 
+         const forwardFromHostToWorker = (channel) => {
+diff --git a/src/plugin/plugin-context.ts b/src/plugin/plugin-context.ts
+index 186927c8facf613b35735abdbeea1162a22cc973..ec6acccfb8b0245f156801279c20b168c937151e 100644
+--- a/src/plugin/plugin-context.ts
++++ b/src/plugin/plugin-context.ts
+@@ -1686,8 +1686,9 @@ export class Plugin<T> implements theia.Plugin<T> {
+         this.pluginType = plugin.model.entryPoint.frontend ? 'frontend' : 'backend';
+ 
+         if (this.pluginType === 'frontend') {
+-            const { origin } = new Endpoint();
+-            this.pluginUri = URI.parse(origin + '/' + PluginPackage.toPluginUrl(plugin.model, ''));
++            // Resolved against the plugin worker, as plugin-manifest-loader resolves manifests, so an
++            // app served under a path keeps it (eclipse-theia/theia#18292).
++            this.pluginUri = URI.parse(new Endpoint().getRestUrl().parent.resolve(PluginPackage.toPluginUrl(plugin.model, '')).toString());
+         } else {
+             this.pluginUri = URI.parse(plugin.pluginUri);
          }

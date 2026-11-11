@@ -24,6 +24,7 @@ import { ReviewCard } from '@/components/review/review-card'
 import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
@@ -101,6 +102,20 @@ function ShellCompareStory() {
   return (
     <WithRuntime>
       <ChatShell projectId="project-theorem" threadId="thread-app-gallery" />
+    </WithRuntime>
+  )
+}
+
+/** The thread alone on the sheet: the reading column and the composer at desktop width. */
+/** The conversation as the chat mode shows it (ModeView): over the Life field, on the sheet's gradient. */
+function ConversationWideStory() {
+  return (
+    <WithRuntime>
+      <div className="bg-sheet h-dvh w-full">
+        <LifeBackdrop>
+          <Thread />
+        </LifeBackdrop>
+      </div>
     </WithRuntime>
   )
 }
@@ -299,6 +314,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'compare-pane': ComparePaneStory,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'conversation-wide': ConversationWideStory,
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
   'program-note': ProgramNoteStory,

@@ -175,7 +175,9 @@ function session({ password }: Config) {
   return getIronSession<Session>(
     { read: getCookie, write: setCookie },
     {
-      cookieName: 'theorem_session',
+      // Cookies are kept per host, not per port, so a local stack beside
+      // another on localhost names its own cookie (scripts/e2e/stack.mjs).
+      cookieName: process.env.THEOREM_SESSION_COOKIE || 'theorem_session',
       password,
       ttl: 30 * 24 * 60 * 60,
       cookieOptions: {

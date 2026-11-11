@@ -4,11 +4,24 @@
 // A result in the conversation: its card, then the artifact at the Preview
 // distance. Whether that preview is passive and whether the artifact offers
 // a live session here comes from its representation, never from its kind.
+//
+// Beside the chat's dock, Open and a working turn's artifacts go to its panel.
+// On a page whose conversation has no dock beside it (the IDE's), the artifact
+// stays in the message as it is written, and Open takes it to chat's larger
+// panel.
 import { useAuiState } from '@assistant-ui/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { followArtifact } from '@/components/ide/follow'
+import { useOpenMode } from '@/components/shell/modes'
 import { recordLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { kindLabel, useThreadArtifacts } from './artifact-model'
@@ -18,14 +31,22 @@ import { ArtifactView } from './artifact-renderers'
 import { ArtifactActions } from './artifact-actions'
 import { useArtifactView } from './artifact-view'
 
+/**
+ * Where a conversation's artifacts open: in the dock's panels beside it, or
+ * in the message itself when the conversation has no dock beside it.
+ */
+export const ArtifactPlacement = createContext<'panel' | 'inline'>('panel')
+
 export function ArtifactMessage({ artifact }: { artifact: TheoremArtifact }) {
   const artifacts = useThreadArtifacts()
+  const inline = useContext(ArtifactPlacement) === 'inline'
   const [interacting, setInteracting] = useState(false)
   const { open } = useArtifactView.getState()
+  const openMode = useOpenMode()
   const selected = useArtifactView(
     (s) => s.openId !== undefined && s.openId === artifact.artifactId,
   )
-  const { cardRef, launch } = useArtifactLaunch(artifact)
+  const { cardRef, launch } = useArtifactLaunch(artifact, !inline)
 
   const versions = artifacts.get(artifact.artifactId) ?? [artifact]
   const position = versions.findIndex((v) => v.revision === artifact.revision)
@@ -34,6 +55,8 @@ export function ArtifactMessage({ artifact }: { artifact: TheoremArtifact }) {
     setInteracting(false)
     launch()
     open(artifact.artifactId, latest ? undefined : artifact.revision)
+    // The dock is chat's; from a page the larger view is there.
+    if (inline) void openMode('chat')
   }
   // A live session here is offered only when the preview is not one already.
   const interactive =
@@ -170,7 +193,8 @@ function ArtifactMessageCard({
   )
 }
 
-function useArtifactLaunch(artifact: TheoremArtifact) {
+/** `follows`: an artifact the working turn writes opens in its panel as it does. */
+function useArtifactLaunch(artifact: TheoremArtifact, follows: boolean) {
   const live = useAuiState((s) => s.message.status?.type === 'running')
   const { artifactId, revision } = artifact
   // Following the Agent opens what it can show without a live session; a live
@@ -185,9 +209,9 @@ function useArtifactLaunch(artifact: TheoremArtifact) {
       )
   }, [artifactId])
   useEffect(() => {
-    if (!live || !passive) return
+    if (!follows || !live || !passive) return
     launch()
     followArtifact(artifactId)
-  }, [live, artifactId, revision, passive, launch])
+  }, [follows, live, artifactId, revision, passive, launch])
   return { cardRef, launch }
 }

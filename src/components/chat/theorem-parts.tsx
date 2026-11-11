@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, coss ui Collapsible (base-ui) for the activity line's details, and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, scene-part.tsx for the theorem-scene part
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, coss ui Collapsible (base-ui) for the activity line's details, and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, the terminal's openOf/pathOf and Follow's useRevealFile for the file a tool card opens in the IDE, scene-part.tsx for the theorem-scene part
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -39,6 +39,9 @@ import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
+import { useRevealFile } from '@/components/ide/follow'
+import { openOf, pathOf } from '@/components/terminal/terminal-code'
+import type { Open } from '@/components/terminal/terminal-code'
 import { askAbout } from '@/components/chat/composer-references'
 import {
   readScene,
@@ -459,6 +462,39 @@ const TheoremApprovalCard: FC<{
   )
 }
 
+/** A small bordered tag in the conversation: a source, a file. */
+const CHIP =
+  'inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted'
+
+/**
+ * The file a tool worked on, which opens in the IDE as its own tab with the
+ * lines it touched selected; from chat it takes the person to the IDE.
+ */
+function OpenInIde({ open }: { open: Open }) {
+  const reveal = useRevealFile()
+  const name = open.path.split('/').pop() || open.path
+  const lines =
+    open.start === undefined
+      ? ''
+      : open.end !== undefined && open.end !== open.start
+        ? `:${open.start}–${open.end}`
+        : `:${open.start}`
+  return (
+    <button
+      type="button"
+      title={`Open ${open.path} in the IDE`}
+      onClick={() => reveal(open.path, open.start, open.end)}
+      className={cn(CHIP, 'min-w-0 py-0.5 hover:bg-hover hover:text-ink')}
+    >
+      <Icon.File className="size-3 shrink-0" />
+      <span className="truncate font-mono">
+        {name}
+        {lines}
+      </span>
+    </button>
+  )
+}
+
 /** ToolFallback slot: artifact tools, plans, Theorem approvals, then the generic tool card. */
 export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
@@ -466,7 +502,8 @@ export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   const approval = readApproval(props)
   if (approval && props.result === undefined)
     return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
-  return <ToolFallback {...props} />
+  const open = openOf(pathOf(props.args), props.args, props.result)
+  return <ToolFallback {...props} aside={open && <OpenInIde open={open} />} />
 }
 
 /* ---------------------------------------------------------------- activity */
@@ -709,8 +746,7 @@ const CitationPart: DataMessagePartComponent = ({ data }) => {
   const url = citationUrl(provenance.url)
   const label = str(part.label) ?? (url && new URL(url).hostname) ?? 'Source'
   const title = str(provenance.excerpt) ?? url
-  const chip =
-    'me-1.5 mt-2 inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs text-ink-muted'
+  const chip = cn(CHIP, 'me-1.5 mt-2 align-top')
   const content = (
     <>
       <Icon.Link className="size-3 shrink-0" />

@@ -8,7 +8,7 @@ import {
 import { useMemo } from 'react'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
-import { mutate, mutateThread, theorem } from './client'
+import { mutate, mutateProject, mutateThread, theorem } from './client'
 import type { MutationHeaders, Theorem } from './client'
 import { isNotServed, theoremJson } from './passthrough'
 
@@ -75,6 +75,7 @@ export type Glyph =
   | 'research'
   | 'map'
   | 'chat'
+  | 'todo'
 
 export type ThreadEntry = {
   threadId: string
@@ -358,6 +359,61 @@ export function organizedViews(
       })),
     unsorted: threads.filter((thread) => thread.memberships.length === 0),
     byId: new Map(threads.map((thread) => [thread.threadId, thread])),
+  }
+}
+
+/** When a session last moved: its last message, else when it began. */
+export const lastMoved = (thread: ThreadEntry) =>
+  thread.lastMessageAtMs ?? thread.createdAtMs
+
+export type SessionLists = {
+  /** Projects the user made, each with its sessions, in the organization's order. */
+  sections: Array<{ project: ProjectEntry; threads: ThreadEntry[] }>
+  /** Every session in none of those sections, newest first. */
+  recent: ThreadEntry[]
+  /** Sessions waiting on a person's review or approval, newest first. */
+  review: ThreadEntry[]
+  /** Where each session's highlight sits: its primary section if the user made it, its first such section, else `recent`. */
+  home: ReadonlyMap<string, string>
+}
+
+/**
+ * The IDE's sidebar over the same views: the sections the user made, and the
+ * rest as Recent. Sections keep the tree's stable order; Recent is by when a
+ * session last moved, since that is what it lists.
+ */
+export function sessionLists(views: OrganizedViews): SessionLists {
+  const sections = views.projects.filter(
+    ({ project }) => project.createdBy === 'user',
+  )
+  const inSection = new Set(sections.map(({ project }) => project.projectId))
+  const threads = [...views.byId.values()]
+  const home = new Map<string, string>()
+  for (const thread of threads) {
+    const placed = thread.memberships
+      .map((m) => m.projectId)
+      .filter((projectId) => inSection.has(projectId))
+    const primary = primaryProjectId(thread)
+    home.set(
+      thread.threadId,
+      placed.includes(primary) ? primary : (placed[0] ?? 'recent'),
+    )
+  }
+  const newestFirst = (a: ThreadEntry, b: ThreadEntry) =>
+    lastMoved(b) - lastMoved(a)
+  return {
+    sections,
+    recent: threads
+      .filter((thread) => home.get(thread.threadId) === 'recent')
+      .sort(newestFirst),
+    review: threads
+      .filter((thread) =>
+        thread.attention.reasons.some(
+          (reason) => reason.kind === 'review' || reason.kind === 'approval',
+        ),
+      )
+      .sort(newestFirst),
+    home,
   }
 }
 
@@ -734,6 +790,43 @@ export function useProjectState() {
       ),
     onSettled: () => invalidate(client),
   })
+}
+
+/**
+ * A section's edits: a new title, or archiving its project, which takes the
+ * section away and sends its sessions back to Recent. Theorem has no way to
+ * delete a project, and archiving keeps it to restore.
+ */
+export function useProjectEdits() {
+  const client = useQueryClient()
+  const settled = () =>
+    Promise.all([
+      invalidate(client),
+      client.invalidateQueries({ queryKey: ['theorem', 'projects'] }),
+    ])
+  const update = (
+    projectId: string,
+    change: { title?: string; archived?: boolean },
+  ) =>
+    mutateProject(projectId, (headers) =>
+      theorem().chat.projects.update({ projectId, ...change, ...headers }),
+    )
+  return {
+    rename: useMutation({
+      mutationFn: ({
+        projectId,
+        title,
+      }: {
+        projectId: string
+        title: string
+      }) => update(projectId, { title }),
+      onSettled: settled,
+    }),
+    archive: useMutation({
+      mutationFn: (projectId: string) => update(projectId, { archived: true }),
+      onSettled: settled,
+    }),
+  }
 }
 
 /** The thread edits the sidebar's rows make, each followed by a fresh tree. */

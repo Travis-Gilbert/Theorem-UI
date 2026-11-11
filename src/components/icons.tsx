@@ -90,7 +90,6 @@ import {
 } from 'lucide-react'
 import PenroseTriangle from '@/assets/icons/rail/noun-penrose-triangle-881122.svg?react'
 import Projects from '@/assets/icons/rail/noun-projects-8375031.svg?react'
-import Shellfile from '@/assets/icons/rail/noun-shellfile-1517619.svg?react'
 import Archive from '@/assets/icons/records/noun-archive-8315826.svg?react'
 import Check from '@/assets/icons/records/noun-checkmark-8086058.svg?react'
 import Coding from '@/assets/icons/records/noun-coding-8259870.svg?react'
@@ -128,6 +127,8 @@ import SearchSquare from '@/assets/icons/streamline/streamline-search-square.png
 import SquareWireframe from '@/assets/icons/streamline/streamline-square-wireframe-3d.png'
 import ShareBox from '@/assets/icons/streamline/streamline-share-1.png'
 import XMark from '@/assets/icons/streamline/streamline-x.png'
+import AppWindowCode from '@/assets/icons/streamline/streamline-app-window-code.png'
+import ListEdit from '@/assets/icons/streamline/streamline-list-edit.png'
 
 import TreeFileMark from '@/assets/icons/tree/file.svg?react'
 import FolderMark from '@/assets/icons/tree/folder-closed.svg?react'
@@ -266,6 +267,8 @@ const FileEntry: SvgMark = ({ className, ...props }) => (
 )
 
 const Artifact = masked(SquareWireframe)
+const Ide = masked(AppWindowCode)
+const Todo = masked(ListEdit)
 const Copy = masked(CopyPaste)
 const Download = masked(DownloadBox)
 const TreeFile = solid(TreeFileMark)
@@ -463,7 +466,7 @@ export const Icon = {
   Fork,
   Grip,
   Hide,
-  Ide: Shellfile,
+  Ide,
   Key,
   Last,
   Layout,
@@ -533,6 +536,7 @@ export const Icon = {
   Sort,
   Theorem,
   TheoremVault,
+  Todo,
   TreeFile,
   Trusted,
   Untrusted,

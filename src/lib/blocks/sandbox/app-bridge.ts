@@ -4,7 +4,8 @@
 // and the graph databases it declared.
 // On a page, an app placed as a module also gets `theorem.module`: the values
 // it is handed, the actions routes reach, and the outputs and events it
-// declared.
+// declared. The host stylesheet ahead of the app's content follows the page's
+// look as the page sends it (theme.ts).
 import { CellContext } from './cell'
 import { connectToPage } from './connect'
 import { Databases } from './db'
@@ -21,7 +22,7 @@ import type {
   PageMethods,
   SandboxMethods,
 } from './protocol'
-import { THEME_EVENT, applyTheme } from './theme'
+import { THEME_EVENT, applyAppTheme, applyTheme } from './theme'
 
 type ModuleListener = (values: ModuleValues) => void
 let moduleValues: ModuleValues | undefined
@@ -59,10 +60,15 @@ const context = connectToPage().then((port) => {
       return null
     },
   )
-  // The page's tokens on this document's root; CSS and cells that read them follow.
   serve<SandboxMethods, 'theme.changed'>(rpc, 'theme.changed', (theme) => {
-    applyTheme(theme)
-    window.dispatchEvent(new Event(THEME_EVENT))
+    if ('scheme' in theme) {
+      // A hosted App's look follows into the host stylesheet, under the App's own.
+      applyAppTheme(theme)
+    } else {
+      // The page's tokens on this document's root; CSS and cells that read them follow.
+      applyTheme(theme)
+      window.dispatchEvent(new Event(THEME_EVENT))
+    }
     return null
   })
   // A page that never stops changing never settles into a snapshot, so the

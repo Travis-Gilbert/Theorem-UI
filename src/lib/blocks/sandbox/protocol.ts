@@ -10,7 +10,7 @@ import {
   JSONRPCServer,
   JSONRPCServerAndClient,
 } from 'json-rpc-2.0'
-import type { ThemeState } from './theme'
+import type { AppTheme, ThemeState } from './theme'
 
 /** How a file is read: its text, parsed JSON, CSV rows, or its bytes. */
 export type FileFormat = 'text' | 'json' | 'csv' | 'bytes'
@@ -175,8 +175,12 @@ export interface SandboxMethods {
   'module.inputs': { params: ModuleValues; result: null }
   /** A route reached one of a page module's declared actions. */
   'module.action': { params: { name: string; payload: unknown }; result: null }
-  /** The page's theme changed: its tokens, resolved, and its mode. */
-  'theme.changed': { params: ThemeState; result: null }
+  /**
+   * The page's theme changed. A notebook's frame is handed its tokens,
+   * resolved, and its mode, for its root; a hosted App's is handed its look
+   * (`scheme` tells them apart), for the host stylesheet under the App's own.
+   */
+  'theme.changed': { params: ThemeState | AppTheme; result: null }
   /**
    * The frame as it is now, without waiting for it to settle: what a snapshot
    * holds. Null when the copy is too large to send.

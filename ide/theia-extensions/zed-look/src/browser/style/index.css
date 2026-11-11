@@ -169,8 +169,30 @@
 .lm-TabBar.theia-app-centers .lm-TabBar-tab.lm-mod-current {
   box-shadow: none;
 }
-.lm-TabBar.theia-app-centers .lm-TabBar-tab:not(.lm-mod-current) {
-  border-bottom: var(--theia-border-width) solid var(--theia-editorGroupHeader-tabsBorder);
+/* A line runs under the editors' tab row, toolbar included, and breaks under the open tab so the tab reads
+   as part of its file. The editor area is see-through over the page's sheet (stone.css), so the open tab
+   cannot paint over a row-wide line: the other tabs, the row's empty end and the toolbar each draw their
+   part. Theia's own `#theia-main-content-panel` rule keeps every tab's bottom border transparent, so these
+   carry the id to outrank it. */
+#theia-main-content-panel .lm-TabBar.theia-app-centers .lm-TabBar-tab:not(.lm-mod-current) {
+  border-bottom-color: var(--theia-editorGroupHeader-tabsBorder);
+}
+#theia-main-content-panel .theia-tabBar-tab-row .lm-TabBar-content::after {
+  content: "";
+  flex: 1 0 0;
+}
+#theia-main-content-panel .theia-tabBar-tab-row .lm-TabBar-content::after,
+#theia-main-content-panel .theia-tabBar-tab-row .lm-TabBar-toolbar {
+  box-shadow: inset 0 calc(-1 * var(--theia-border-width)) 0 var(--theia-editorGroupHeader-tabsBorder);
+}
+/* Theia sizes a file icon's box on its own (the default file icon is 22px tall) and puts the glyph at the
+   box's top, so the glyph rides above the label. Centre it on the label's line instead. */
+.lm-TabBar[data-orientation="horizontal"] .lm-TabBar-tabIcon.file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--theia-content-line-height);
+  min-height: 0;
 }
 .lm-TabBar.theia-app-centers .lm-TabBar-tab .lm-TabBar-tabCloseIcon {
   visibility: hidden;

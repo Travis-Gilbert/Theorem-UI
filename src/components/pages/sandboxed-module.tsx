@@ -1,7 +1,8 @@
 // SOURCING: the block frame (../blocks/block-frame: a sandboxed iframe with
 // `allow-scripts` only, and its bridge over one MessagePort), the hosted App
 // document (src/lib/blocks/hosted-app.ts: the same restrictive policy a
-// conversation App gets, from a blob URL, so no local listener is needed),
+// conversation App gets, from a blob URL, so no local listener is needed,
+// and the page's look, which followTheme keeps current),
 // and the grants store, which keeps what the person allowed in this browser.
 // A module runs only with a grant for its exact files.
 import { Play, ShieldAlert, Square, Undo2 } from 'lucide-react'
@@ -10,7 +11,7 @@ import { BlockFrame } from '@/components/blocks/block-frame'
 import { BlockMessage } from '@/components/blocks/block-status'
 import { Button } from '@/components/ui/button'
 import type { BridgeHost, StateCollections } from '@/lib/blocks/bridge'
-import { hostedAppDocument } from '@/lib/blocks/hosted-app'
+import { followTheme, hostedAppDocument } from '@/lib/blocks/hosted-app'
 import type { Rpc } from '@/lib/blocks/sandbox/protocol'
 import { workspaceState } from '@/lib/blocks/state'
 import type { RequestedCapabilities } from '@/lib/modules/contract'
@@ -356,6 +357,7 @@ function ModuleFrameBody({
         className="h-full [&>iframe]:min-h-full"
         onConnection={(connection) => {
           let active = true
+          const unfollow = followTheme(connection)
           void connection.connected.then(
             (connected) => {
               if (!active) return
@@ -376,6 +378,7 @@ function ModuleFrameBody({
           )
           return () => {
             active = false
+            unfollow()
             rpc.current = null
           }
         }}

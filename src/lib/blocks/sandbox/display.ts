@@ -160,13 +160,16 @@ export function observeSnapshots(
   schedule()
 }
 
-/** Calls `report` with the document's height whenever it changes. */
+/**
+ * Calls `report` with the document's height whenever it changes. The page's
+ * box height keeps fractions, where scrollHeight rounds 186.4px down to 186
+ * and the frame would scroll for the rest. scrollHeight never reads less than
+ * the frame either, so a page that got shorter would keep its old height; it
+ * counts only when the page overflows its box.
+ */
 export function observeHeight(report: (height: number) => void): void {
   let last = -1
   const measure = () => {
-    // scrollHeight is never less than the frame itself, so a frame that was
-    // once tall could never shrink. Content that fits is measured by the root's
-    // own box instead, which follows the content down.
     const root = document.documentElement
     const height = Math.ceil(
       root.scrollHeight > window.innerHeight
