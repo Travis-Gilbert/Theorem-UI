@@ -122,7 +122,13 @@ export const STORIES: readonly StoryMeta[] = [
   ),
   {
     id: 'tool-pills',
-    title: 'Tool pills: done, failed and running',
+    title: 'Tool calls: done, failed and running',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  {
+    id: 'tool-calls-check',
+    title: 'Tool calls: an App check with its problems',
     lane: 'original',
     viewport: { width: 760, height: 560 },
   },

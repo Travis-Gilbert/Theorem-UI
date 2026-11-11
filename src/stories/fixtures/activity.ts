@@ -137,10 +137,55 @@ export function toolPillMessages(): Theorem.Message[] {
       said('pills-ask-text', 'What did we decide about graph memory?'),
     ]),
     message('pills-answer', 'assistant', ASKED_AT + 9_000, [
-      hostCall('search_memory', 'succeeded'),
-      hostCall('search_history', 'succeeded'),
+      hostCall('search_memory', 'resolved'),
+      hostCall('search_history', 'resolved'),
       hostCall('kit_gesture', 'failed'),
-      hostCall('read_note', 'pending'),
+      hostCall('read_document', 'pending'),
+    ]),
+  ]
+}
+
+/** A finished reply that searched, then checked the App it wrote and found two problems. */
+export function appCheckMessages(): Theorem.Message[] {
+  return [
+    message('check-ask', 'user', ASKED_AT, [
+      said('check-ask-text', 'Add a total row to the budget App.'),
+    ]),
+    message('check-answer', 'assistant', ASKED_AT + 9_000, [
+      hostCall('search_library', 'resolved'),
+      {
+        partId: 'check-app',
+        type: 'client_operation',
+        payload: {
+          operation: 'app.check',
+          state: 'answered',
+          receipt: {
+            outcome: 'applied',
+            result: {
+              built: true,
+              omitted: 0,
+              problems: [
+                {
+                  kind: 'type',
+                  file: 'App.tsx',
+                  line: 42,
+                  message: "Property 'total' does not exist on type 'Row'.",
+                },
+                {
+                  kind: 'type',
+                  file: 'rows.ts',
+                  line: 7,
+                  message: "Type 'string' is not assignable to type 'number'.",
+                },
+              ],
+            },
+          },
+        },
+      },
+      said(
+        'check-answer-text',
+        'The total row is in, with two type problems left to fix.',
+      ),
     ]),
   ]
 }

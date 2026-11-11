@@ -1,4 +1,4 @@
-// SOURCING: bun:test over what the chip for an App check says (theorem-parts.tsx).
+// SOURCING: bun:test over what the row for an App check says (theorem-parts.tsx).
 import { expect, test } from 'bun:test'
 import { appCheckSummary } from './theorem-parts'
 

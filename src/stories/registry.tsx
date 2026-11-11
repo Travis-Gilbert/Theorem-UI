@@ -32,6 +32,7 @@ import { useReview } from '@/lib/theorem/reviews'
 import {
   ACTIVITY_STATES,
   activityMessages,
+  appCheckMessages,
   toolPillMessages,
 } from './fixtures/activity'
 import type { ActivityState } from './fixtures/activity'
@@ -294,6 +295,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),
   'tool-pills': threadStory('working', toolPillMessages()),
+  'tool-calls-check': threadStory('finished', appCheckMessages()),
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,

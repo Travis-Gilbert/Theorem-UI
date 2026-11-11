@@ -48,6 +48,8 @@ import {
 import { SceneCard } from '@/components/chat/scene-part'
 import { useSceneTheme } from '@/components/chat/scene-theme'
 import { Icon } from '@/components/icons'
+import { ToolCallsSection } from '@/components/ui/tool-calls-section'
+import type { ToolCallEntry } from '@/components/ui/tool-calls-section'
 import {
   describeError,
   describeRunFailure,
@@ -56,7 +58,6 @@ import {
 } from '@/lib/theorem/client'
 import { uploadContentPath } from '@/lib/theorem/uploads'
 import { DRAFT_PLAN } from '@/lib/theorem/plans'
-import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { cn, humanize } from '@/lib/utils'
 
 type Json = Record<string, unknown>
@@ -124,14 +125,134 @@ const ArtifactToolCall: ToolCallMessagePartComponent<{
 
 const ARTIFACT_TOOLS = new Set(['create_artifact', 'update_artifact'])
 
+/* -------------------------------------------------------------- tool calls */
+
+/** A host call's state as its row says it: `HostCallState` in theorem-surface-contracts, read against the run. */
+export type CallState =
+  'running' | 'done' | 'failed' | 'interrupted' | 'awaiting'
+
 /**
- * A host function called by the native agent's program. Artifact calls defer
- * to the artifact card, which carries their result; the rest show as a chip.
+ * `pending` and `awaiting_approval` are live only while the run is: a call
+ * still in either once the run has stopped never finished, and is not done.
+ */
+export function hostCallState(
+  state: string | undefined,
+  running: boolean,
+): CallState {
+  if (state === 'resolved') return 'done'
+  if (state === 'failed') return 'failed'
+  if (!running) return 'interrupted'
+  return state === 'awaiting_approval' ? 'awaiting' : 'running'
+}
+
+/** A verb while the call runs, once it has, and after "Could not". */
+const VERBS = {
+  search: ['Searching', 'Searched', 'search'],
+  read: ['Reading', 'Read', 'read'],
+} as const
+
+/**
+ * The agent's own functions in words (the verb, then what it acts on) and
+ * the icon category their row wears. The catalog is open (a connector brings
+ * its own tools), so a name outside this table keeps its own name and its row
+ * says the state beside it.
+ */
+const CALLS: Record<
+  string,
+  readonly [keyof typeof VERBS, string, string] | undefined
+> = {
+  search_memory: ['search', 'memory', 'memory'],
+  search_history: ['search', 'conversation history', 'history'],
+  search_library: ['search', 'the Library', 'documents'],
+  search_web: ['search', 'the web', 'web'],
+  read_document: ['read', 'a document', 'documents'],
+  read_file: ['read', 'a file', 'documents'],
+}
+
+const STATE_NOTE = {
+  failed: 'failed',
+  interrupted: 'did not finish',
+  awaiting: 'waiting for your approval',
+} as const
+
+/** Kit's own moves. The fox on the stage shows them, so one that misses is a detail and never the run's news. */
+const isKitCall = (name: string) => /^kit[._]/.test(name)
+
+/** What a call's row says: "Searching memory…", "Searched memory", "Could not search memory". */
+export function callWords(name: string, state: CallState): string {
+  const known = CALLS[name]
+  if (!known) {
+    const own = humanize(name)
+    if (state === 'done') return own
+    return state === 'running' ? `${own}…` : `${own} · ${STATE_NOTE[state]}`
+  }
+  const [doing, did, bare] = VERBS[known[0]]
+  const what = known[1]
+  if (state === 'done') return `${did} ${what}`
+  if (state === 'failed') return `Could not ${bare} ${what}`
+  if (state === 'running') return `${doing} ${what}…`
+  return `${doing} ${what} · ${STATE_NOTE[state]}`
+}
+
+type DataPartLike = { type: string; name?: string; data?: unknown }
+
+/** The reply's host calls, less the artifact calls: their card is the reply's. */
+function hostCalls(
+  content: readonly DataPartLike[],
+  running: boolean,
+): Array<{ name: string; state: CallState }> {
+  return content.flatMap((part) => {
+    if (part.type !== 'data' || part.name !== 'theorem-host_call') return []
+    const call = object(part.data)
+    const name = str(call.name) ?? 'host call'
+    if (ARTIFACT_TOOLS.has(name)) return []
+    return [{ name, state: hostCallState(str(call.state), running) }]
+  })
+}
+
+/**
+ * A reply's routine work as the tool-calls section lists it: each host call
+ * in words that follow its state, and each check of an App with the problems
+ * it found as the row's output.
+ */
+export function toolCallEntries(
+  content: readonly DataPartLike[],
+  running: boolean,
+): ToolCallEntry[] {
+  return content.flatMap((part): ToolCallEntry[] => {
+    if (part.type !== 'data') return []
+    if (part.name === 'theorem-host_call')
+      return hostCalls([part], running).map(({ name, state }) => ({
+        tool_name: name,
+        tool_category:
+          CALLS[name]?.[2] ?? (isKitCall(name) ? 'kit' : 'unknown'),
+        message: callWords(name, state),
+        show_category: false,
+      }))
+    if (part.name !== 'theorem-client_operation') return []
+    const check = appCheckSummary(part.data, running)
+    if (!check) return []
+    const problems = appCheckProblems(part.data)
+    return [
+      {
+        tool_name: 'app.check',
+        tool_category: 'development',
+        message: check.words,
+        show_category: false,
+        ...(problems && { output: problems }),
+      },
+    ]
+  })
+}
+
+/**
+ * A host function called by the native agent's program. An artifact call is
+ * drawn here, by the artifact card that carries its result; every other call
+ * is a row of the tool-calls section under the activity line.
  */
 const HostCallPart: DataMessagePartComponent = ({ data }) => {
   const call = object(data)
   const name = str(call.name) ?? 'host call'
-  const state = str(call.state) ?? 'pending'
   const running = useAuiState((s) => s.message.status?.type === 'running')
   // The agent retries a failed artifact call; once one lands, the miss is noise.
   const produced = useAuiState((s) =>
@@ -139,51 +260,16 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
       (part) => part.type === 'data' && part.name === ARTIFACT_PART,
     ),
   )
-  const pending = state === 'pending' && running
-  if (ARTIFACT_TOOLS.has(name)) {
-    if (pending) return <ArtifactPendingCard toolName={name} />
-    if (state === 'failed' && !produced)
-      return <ArtifactToolFailed toolName={name} />
-    return null
-  }
-  const failed = state === 'failed'
-  const StateIcon = pending
-    ? Icon.ToolRunning
-    : failed
-      ? Icon.Close
-      : Icon.ToolDone
-  return (
-    <span
-      className={cn(
-        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
-        liveEnter,
-        failed ? 'text-error-ink' : 'text-ink-muted',
-      )}
-    >
-      <StateIcon
-        className={cn(
-          'shrink-0',
-          failed ? 'size-3' : 'size-4',
-          // Each state is its own icon, so the settled one pops in.
-          pending
-            ? 'animate-pulse motion-reduce:animate-none'
-            : 'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-30 in-data-live:-spin-in-45',
-        )}
-      />
-      <span>{humanize(name)}</span>
-      {failed && ' · failed'}
-      {state === 'pending' && !running && ' · did not finish'}
-    </span>
-  )
+  if (!ARTIFACT_TOOLS.has(name)) return null
+  const state = hostCallState(str(call.state), running)
+  if (state === 'running') return <ArtifactPendingCard toolName={name} />
+  if (state === 'failed' && !produced)
+    return <ArtifactToolFailed toolName={name} />
+  return null
 }
 
 /**
- * A check the agent asked this page to make of an App: that it is being
- * made, and what it found. Kit's operations draw nothing here; the fox on
- * the stage shows what they did.
- */
-/**
- * What the chip for an `app.check` request says, or null for any other
+ * What the row for an `app.check` request says, or null for any other
  * operation. `wrong` is anything short of a check that was made and found
  * nothing: a type check that could not be made found nothing either, and says
  * so with its `reason`.
@@ -218,37 +304,27 @@ export function appCheckSummary(
   return { words, pending, wrong, reason }
 }
 
-const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
-  const running = useAuiState((s) => s.message.status?.type === 'running')
-  const summary = appCheckSummary(data, running)
-  if (!summary) return null
-  const { words, pending, wrong, reason } = summary
-  const StateIcon = pending
-    ? Icon.ToolRunning
-    : wrong
-      ? Icon.Close
-      : Icon.ToolDone
-  return (
-    <span
-      data-slot="app-check"
-      title={reason}
-      className={cn(
-        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
-        liveEnter,
-        wrong ? 'text-error-ink' : 'text-ink-muted',
-      )}
-    >
-      <StateIcon
-        className={cn(
-          'shrink-0',
-          wrong ? 'size-3' : 'size-4',
-          pending && 'animate-pulse motion-reduce:animate-none',
-        )}
-      />
-      <span>{words}</span>
-    </span>
-  )
+/** The problems an App check listed, one to a line, each after where it is when the check says. */
+export function appCheckProblems(data: unknown): string | undefined {
+  const { problems } = object(object(object(data).receipt).result)
+  if (!Array.isArray(problems)) return undefined
+  const lines = problems.flatMap((entry) => {
+    const problem = object(entry)
+    const message = str(problem.message)
+    if (!message) return []
+    const file = str(problem.file)
+    const line = typeof problem.line === 'number' ? `:${problem.line}` : ''
+    return [file ? `${file}${line}  ${message}` : message]
+  })
+  return lines.length > 0 ? lines.join('\n') : undefined
 }
+
+/**
+ * Something the agent asked this page to do. Nothing draws here: a check of
+ * an App is a row of the tool-calls section, and the fox on the stage shows
+ * what Kit's operations did.
+ */
+const ClientOperationPart: DataMessagePartComponent = () => null
 
 /* ------------------------------------------------------------------ approvals */
 
@@ -539,16 +615,28 @@ export const Activity: FC<{
   work?: ReactNode
 }> = ({ speaker, work }) => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
-  const awaiting = useAuiState((s) =>
-    s.message.content.some((part) => {
-      if (part.type !== 'tool-call' || part.result !== undefined) return false
-      const approval = readApproval(part)
-      return approval !== undefined && approvalOutcome(approval) === 'awaiting'
-    }),
-  )
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
+  const calls = useMemo(() => hostCalls(content, running), [content, running])
+  const toolCalls = useMemo(
+    () => toolCallEntries(content, running),
+    [content, running],
+  )
+  const awaiting =
+    useAuiState((s) =>
+      s.message.content.some((part) => {
+        if (part.type !== 'tool-call' || part.result !== undefined) return false
+        const approval = readApproval(part)
+        return (
+          approval !== undefined && approvalOutcome(approval) === 'awaiting'
+        )
+      }),
+    ) || calls.some(({ state }) => state === 'awaiting')
+  // What the agent's program is doing now, when no progress event says more.
+  const calling = calls.findLast(
+    ({ name, state }) => state === 'running' && !isKitCall(name),
+  )
   const labels = useMemo(() => progressLabels(content), [content])
   const progress = useMemo(() => {
     const last = content.findLast(
@@ -583,7 +671,8 @@ export const Activity: FC<{
             ? 'Waiting for your approval'
             : ((LIVE_STATUSES.has(status ?? '')
                 ? str(progress.label)
-                : undefined) ?? 'Thinking')
+                : undefined) ??
+              (calling ? callWords(calling.name, 'running') : 'Thinking'))
         }
         orb={awaiting ? 'breathing' : 'working'}
       />
@@ -613,7 +702,18 @@ export const Activity: FC<{
         </CollapsibleTrigger>,
       )
   }
-  if (!speaker && notes.length === 0) return null
+  const tools = (
+    <ToolCallsSection
+      toolCalls={toolCalls}
+      className="px-2"
+      renderContent={(output) => (
+        <pre className="font-mono whitespace-pre-wrap text-ink-muted">
+          {String(output)}
+        </pre>
+      )}
+    />
+  )
+  if (!speaker && notes.length === 0) return tools
 
   return (
     <Collapsible
@@ -662,6 +762,7 @@ export const Activity: FC<{
           </div>
         </CollapsiblePanel>
       )}
+      {tools}
     </Collapsible>
   )
 }
