@@ -1,42 +1,12 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "tw-shimmer";
-@import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource-variable/ibm-plex-sans/wght-italic.css";
-@import "@fontsource-variable/jetbrains-mono";
-@import "dockview-react/dist/styles/dockview.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'tw-shimmer';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource-variable/ibm-plex-sans/wght-italic.css';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'dockview-react/dist/styles/dockview.css';
+@import './palettes.css';
 @plugin "@tailwindcss/typography";
-
-/* Libron ships 400 and 700 with italics only; never synthesize other weights.
-   Licensed under the SIL OFL 1.1 (src/assets/fonts/libron/OFL.txt). */
-@font-face {
-  font-family: "Libron";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Bold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-Italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Libron";
-  font-style: italic;
-  font-weight: 700;
-  font-display: swap;
-  src: url("./assets/fonts/libron/Libron-BoldItalic.woff2") format("woff2");
-}
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -49,57 +19,19 @@
    the shell's shape: the sheet's vertical gradient on a rail, lifted by a
    shadow in light and a two-hue glow in dark.
 
+   The colours themselves are in palettes.css, placed by the rules in
+   scripts/palettes.ts. What follows here is what is not a colour token.
+
    GitHub Sharp is the default, after joaomoreno's VS Code theme: crisp white
    surfaces, GitHub ink and hairlines, the theme's blue for the accent and
    GitHub green for success. */
 :root {
-  --surface-neutral: #f3f3f3;
-  --surface-sidebar: #f3f3f3;
-  --surface-frame: #e6e6e6;
-  --surface-raised: #ffffff;
-  --surface-hover: #eaeff5;
-  --surface-selected: #d0e2f0;
-  --surface-composer: #ffffff;
-  --surface-artifact: #f9f9f9;
   /* The rail is the base the sheet sits on; the active row is cut from it. */
-  --surface-rail: #e9ebee;
   --surface-pill: var(--surface-rail);
-  /* The sheet's vertical field, painted once across its full height. */
-  --sheet-from: #ffffff;
-  --sheet-to: #eef0f2;
-  /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
-  --ink-faint-top: #6a737d;
-  --ink-faint-bottom: #5f6770;
   /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
   --glow-opacity: 0;
   --glow-from: transparent;
   --glow-to: transparent;
-
-  --ink: #24292e;
-  --ink-muted: #586069;
-  --ink-faint: #5f6770;
-  --focus: #2e78b8;
-  --line-control: #c8ccd1;
-  --line-separator: #e1e4e8;
-
-  /* "redwood" is the accent's role name; each palette fills it its own way. */
-  --redwood: #3f77a6;
-  --redwood-hover: #36699a;
-  --redwood-pressed: #2d5a85;
-  --on-redwood: #ffffff;
-  --redwood-container: #d0e2f0;
-  --redwood-ink: #1f4f7a;
-
-  --teal: #22863a;
-  --teal-container: #dcf0e0;
-  --teal-ink: #165c27;
-
-  --ochre: #b08800;
-  --ochre-container: #f5e9b8;
-  --ochre-ink: #735c0f;
-
-  --error-container: #ffeef0;
-  --error-ink: #b31d28;
 
   --shadow-tint: 36 41 46;
 
@@ -108,7 +40,6 @@
   --foreground: var(--ink);
   --card: var(--surface-raised);
   --card-foreground: var(--ink);
-  --popover: var(--surface-raised);
   --popover-foreground: var(--ink);
   --primary: var(--redwood);
   --primary-foreground: var(--on-redwood);
@@ -119,194 +50,84 @@
   --accent: var(--surface-selected);
   --accent-foreground: var(--ink);
   --destructive: var(--error-ink);
-  --destructive-foreground: var(--error-container);
+  --destructive-foreground: var(--error-ink);
+  /* The coss kit's status colours, named onto the palette's hues. */
+  --info: var(--link);
+  --info-foreground: var(--link);
+  --success: var(--teal);
+  --success-foreground: var(--teal-ink);
+  --warning: var(--ochre);
+  --warning-foreground: var(--ochre-ink);
   --border: var(--line-separator);
   --input: var(--line-control);
   --ring: var(--focus);
-  --link: var(--teal-ink);
-
-  --radius: 0.5rem;
-  --link: #005cc5;
 
   --radius: 0.5rem;
 
-  /* The Vault's graph (vault-graph.tsx), after Obsidian's: neutral notes,
-     green tags, yellow attachments; from Theorem, teal plans and violet
-     agents' documents. Plain colours, since WebGL reads them. */
-  --graph-note: #4a4b46;
-  --graph-plan: #2c7a72;
-  --graph-agent: #6b5ba6;
-  --graph-tag: #4f7d2c;
-  --graph-attachment: #a8841a;
-  --graph-unresolved: #85827d;
-  --graph-link: #9a9590;
+  /* The Vault's graph (vault-graph.tsx) marks the open note in the accent. */
   --graph-active: var(--redwood);
-  --graph-label: var(--ink);
 }
 
 /* GitHub Sharp Dark: the activity bar's near-black for the rail, the editor's
    charcoal for the sheet. The glow takes the theme's two signal hues, the
    orange of its active tab and the blue of its terminal. */
 .dark {
-  --surface-neutral: #1c1d1e;
-  --surface-sidebar: #1c1d1e;
-  --surface-frame: #121213;
-  --surface-raised: #24282a;
-  --surface-hover: #232627;
-  --surface-selected: #2a3538;
-  --surface-composer: #232627;
-  --surface-artifact: #1f2121;
-  --surface-rail: #121213;
   --surface-pill: var(--surface-rail);
-  --sheet-from: #262a2a;
-  --sheet-to: #1a1b1c;
-  --ink-faint-top: #8f9396;
-  --ink-faint-bottom: #84888b;
   /* A shadow cannot show on the near-black rail, so the sheet glows instead. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(227 98 9 / 0.32);
   --glow-to: rgb(53 132 185 / 0.38);
 
-  --ink: #c3c6c9;
-  --ink-muted: #a1a5a8;
-  --ink-faint: #84888b;
-  --focus: #2e78b8;
-  --line-control: #454647;
-  --line-separator: #2d2d2d;
-
-  --redwood: #5790be;
-  --redwood-hover: #6a9fc9;
-  --redwood-pressed: #4a80ab;
-  --on-redwood: #0e1114;
-  --redwood-container: #1a3f60;
-  --redwood-ink: #91afd1;
-
-  --teal: #60976d;
-  --teal-container: #1d2e22;
-  --teal-ink: #8fc79a;
-  --ochre: #ddc912;
-  --ochre-container: #3a3415;
-  --ochre-ink: #e4d571;
-  --error-container: #3b1d1f;
-  --error-ink: #e08a8f;
-
   --shadow-tint: 0 0 0;
-  --popover: var(--surface-raised);
-  --link: #7ea8d6;
-
-  --graph-note: #c9c9c9;
-  --graph-plan: #5fc2b5;
-  --graph-agent: #a898e6;
-  --graph-tag: #79c05a;
-  --graph-attachment: #e2c048;
-  --graph-unresolved: #5e5e5e;
-  --graph-link: #4a4a4a;
-  --graph-label: #d6d6d6;
 }
 
 /* Stone (DESIGN.md), the warm palette the app was authored in. */
-[data-palette="stone"] {
-  --surface-neutral: #b4b0ac;
-  --surface-sidebar: #b0aca8;
-  --surface-frame: #a9a4a1;
-  --surface-raised: #c2bebb;
-  --surface-hover: #bcb7b3;
-  --surface-selected: #a49e9a;
-  --surface-composer: #c2bebb;
-  --surface-artifact: #bab6b2;
-  /* The rail is the base the sheet sits on; the active row is cut from it. */
-  --surface-rail: #dbd7d4;
+[data-palette='stone'] {
   --surface-pill: var(--surface-rail);
-  /* The sheet's vertical field, painted once across its full height. */
-  --sheet-from: #d0ccc9;
-  --sheet-to: #aeaaa6;
-  /* Faint text on the sheet runs against its gradient (text-ink-faint-sheet). */
-  --ink-faint-top: #575652;
-  --ink-faint-bottom: #3a3936;
-  /* Light lifts the sheet with --shadow-sheet; the glow is dark's. */
   --glow-opacity: 0;
   --glow-from: transparent;
   --glow-to: transparent;
 
-  --ink: #30312d;
-  --ink-muted: #3f403c;
-  --ink-faint: #5b5a56;
-  --focus: #194d60;
-  --line-control: #524e4b;
-  --line-separator: #9e9995;
-
-  --redwood: #8f3f49;
-  --redwood-hover: #7d3440;
-  --redwood-pressed: #6c2c36;
-  --on-redwood: #f5f0ed;
-  --redwood-container: #cdb8b6;
-  --redwood-ink: #672b35;
-
-  --teal: #24685f;
-  --teal-container: #b8c8c1;
-  --teal-ink: #143c35;
-
-  --ochre: #a17b28;
-  --ochre-container: #cfbf9b;
-  --ochre-ink: #5e4411;
-
-  --error-container: #d3b7ba;
-  --error-ink: #762633;
-
   --shadow-tint: 48 49 45;
-  --popover: var(--surface-raised);
-  --link: var(--teal-ink);
 }
 
 /* Stone's dark. */
-.dark[data-palette="stone"] {
-  --surface-neutral: #121314;
-  --surface-sidebar: #181919;
-  --surface-frame: #0b0c0d;
-  --surface-raised: #1f2020;
-  --surface-hover: #1b1c1d;
-  --surface-selected: #26282a;
-  --surface-composer: #1e1f20;
-  --surface-artifact: #18191a;
-  --surface-rail: #0b0c0d;
+.dark[data-palette='stone'] {
   --surface-pill: var(--surface-rail);
-  --sheet-from: #232425;
-  --sheet-to: #151617;
-  --ink-faint-top: #8c8c8c;
-  --ink-faint-bottom: #808080;
   /* A shadow cannot show on the near-black rail, so the sheet glows instead:
      the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
      read against the rail, warm at the top and teal at the bottom. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(205 78 24 / 0.36);
   --glow-to: rgb(25 142 169 / 0.36);
 
-  --ink: #cccccc;
-  --ink-muted: #959595;
-  --ink-faint: #7a7a7a;
-  --focus: #3ca6a8;
-  --line-control: #3a3a3a;
-  --line-separator: #303030;
+  --shadow-tint: 0 0 0;
+}
 
-  --redwood: #26b0d7;
-  --redwood-hover: #3dbde1;
-  --redwood-pressed: #1c95b8;
-  --on-redwood: #0b0c0d;
-  --redwood-container: #1d3a44;
-  --redwood-ink: #7fd3ea;
+/* Vitesse (Anthony Fu's, MIT): Vitesse Light's white and its ink #393a34
+   for the shadow. */
+[data-palette='vitesse'] {
+  --surface-pill: var(--surface-rail);
+  --glow-opacity: 0;
+  --glow-from: transparent;
+  --glow-to: transparent;
 
-  --teal-container: #183230;
-  --teal-ink: #8fd0c4;
-  --ochre-container: #3a2f17;
-  --ochre-ink: #e0c27e;
-  --error-container: #3b1d22;
-  --error-ink: #f0a3ad;
+  --shadow-tint: 57 58 52;
+}
+
+/* Vitesse Dark, after franmc01's JetBrains theme: the #121212 rail takes a
+   glow in the theme's green accent (#4d9375) at the top and its blue
+   (#6394bf) at the bottom. */
+.dark[data-palette='vitesse'] {
+  --surface-pill: var(--surface-rail);
+  --shadow-sheet: 0 0 #0000;
+  --glow-opacity: 0.7;
+  --glow-from: rgb(77 147 117 / 0.34);
+  --glow-to: rgb(99 148 191 / 0.3);
 
   --shadow-tint: 0 0 0;
-  --popover: #202122;
-  --link: #8fd0c4;
 }
 
 /* Dock theme. Structure follows dockview's light theme; colours map to the
@@ -315,7 +136,11 @@
   --dv-paneview-active-outline-color: var(--focus);
   --dv-tabs-and-actions-container-font-size: 13px;
   --dv-tabs-and-actions-container-height: 36px;
-  --dv-drag-over-background-color: color-mix(in srgb, var(--focus) 22%, transparent);
+  --dv-drag-over-background-color: color-mix(
+    in srgb,
+    var(--focus) 22%,
+    transparent
+  );
   --dv-drag-over-border-color: transparent;
   --dv-edge-dock-indicator-color: var(--focus);
   --dv-tabs-container-scrollbar-color: var(--line-control);
@@ -337,7 +162,9 @@
   --dv-drag-over-border: none;
   --dv-floating-group-dragging-opacity: 0.5;
   --dv-floating-titlebar-height: 22px;
-  --dv-floating-titlebar-background-color: var(--dv-tabs-and-actions-container-background-color);
+  --dv-floating-titlebar-background-color: var(
+    --dv-tabs-and-actions-container-background-color
+  );
   --dv-floating-titlebar-border-bottom: var(--dv-floating-border);
   --dv-floating-box-shadow: var(--shadow-popover);
   --dv-floating-border: 1px solid var(--line-separator);
@@ -371,7 +198,11 @@
   --dv-inactivegroup-hiddenpanel-tab-color: var(--ink-faint);
   --dv-separator-border: var(--line-separator);
   --dv-paneview-header-border-color: var(--line-separator);
-  --dv-scrollbar-background-color: color-mix(in srgb, var(--ink) 25%, transparent);
+  --dv-scrollbar-background-color: color-mix(
+    in srgb,
+    var(--ink) 25%,
+    transparent
+  );
 }
 
 .dockview-theme-theorem .dv-resize-container {
@@ -380,8 +211,27 @@
 
 /* The sheet's split (chat-shell.tsx) draws its divider on the dock's edge;
    with the panel closed the dock meets the rail, and the divider goes too. */
-.sheet-split > .dv-split-view-container > .dv-view-container > .dv-view:not(.visible) + .dv-view::before {
+.sheet-split
+  > .dv-split-view-container
+  > .dv-view-container
+  > .dv-view:not(.visible)
+  + .dv-view::before {
   display: none;
+}
+
+/* A folder takes the palette's primary, so it follows the theme. A folder of
+   what agents wrote takes that colour's complement: the hue turned half way
+   round in OKLCH, its lightness and chroma kept, so it holds the same weight
+   beside the person's folders in every palette, light or dark. The palette
+   and dark classes sit on the root, so the complement is taken there. An
+   engine without relative colours (Servo 0.7) shows the palette's ochre. */
+:root {
+  --folder-agent: var(--ochre);
+}
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --folder-agent: oklch(from var(--redwood) l c calc(h + 180));
+  }
 }
 
 @theme inline {
@@ -402,11 +252,26 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-attention: var(--attention);
+  --color-attention-ink: var(--attention-ink);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
   --color-sidebar: var(--surface-sidebar);
+  --color-sidebar-foreground: var(--ink);
+  --color-sidebar-primary: var(--focus);
+  --color-sidebar-primary-foreground: var(--surface-sidebar);
+  --color-sidebar-accent: var(--surface-hover);
+  --color-sidebar-accent-foreground: var(--ink);
+  --color-sidebar-border: var(--line-separator);
+  --color-sidebar-ring: var(--focus);
   --color-frame: var(--surface-frame);
   --color-rail: var(--surface-rail);
   --color-pill: var(--surface-pill);
@@ -419,9 +284,13 @@
   --color-ink-muted: var(--ink-muted);
   --color-ink-faint: var(--ink-faint);
   --color-focus: var(--focus);
+  /* The quiet action colour: the focus hue held back over a raised surface. */
+  --color-action: color-mix(in oklab, var(--focus) 42%, var(--surface-raised));
   --color-separator: var(--line-separator);
   --color-control: var(--line-control);
   --color-redwood: var(--redwood);
+  --color-folder: var(--redwood);
+  --color-folder-agent: var(--folder-agent);
   --color-redwood-hover: var(--redwood-hover);
   --color-redwood-pressed: var(--redwood-pressed);
   --color-on-redwood: var(--on-redwood);
@@ -437,22 +306,28 @@
   --color-error-ink: var(--error-ink);
   --color-link: var(--link);
 
-  /* The terminal surfaces (file explorer, agent terminal) keep pi's dark
-     slate in every palette and mode, the way a terminal keeps its own scheme. */
-  --color-term: #202733;
-  --color-term-raised: #273042;
-  --color-term-tool: #273227;
-  --color-term-line: #3a4458;
-  --color-term-ink: #c8d0d8;
-  --color-term-bright: #e4eaee;
-  --color-term-muted: #6c747c;
-  --color-term-sage: #8aa8a0;
-  --color-term-gold: #d6bc8a;
-  --color-term-error: #e08a8f;
+  /* The terminal surfaces (file explorer, agent terminal) relate to the
+     palette around them as pi's slate relates to GitHub Sharp
+     (components/terminal/terminal-theme.ts): palettes.css carries each
+     mode's, and the page sets them again when a person's own colours change. */
+  --color-term: var(--term-bg);
+  --color-term-raised: var(--term-raised);
+  --color-term-line: var(--term-line);
+  --color-term-ink: var(--term-ink);
+  --color-term-bright: var(--term-bright);
+  --color-term-muted: var(--term-muted);
+  --color-term-sage: var(--term-sage);
+  --color-term-gold: var(--term-gold);
+  --color-term-error: var(--term-error);
 
-  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Libron", ui-serif, Georgia, serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans:
+    'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui,
+    sans-serif;
+  /* Titles share the sans; weight and size carry the hierarchy. */
+  --font-heading: var(--font-sans);
+  --font-mono:
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular,
+    monospace;
 
   /* Geometry: control/row 6, popover 8, sheet 12, artifact 14, frame/composer 16. */
   --radius-sm: 4px;
@@ -462,28 +337,46 @@
   --radius-artifact: 14px;
   --radius-2xl: 16px;
 
-  --shadow-composer: 0 1px 3px rgb(var(--shadow-tint) / 0.1), 0 6px 18px rgb(var(--shadow-tint) / 0.07);
+  --shadow-composer:
+    0 1px 3px rgb(var(--shadow-tint) / 0.1),
+    0 6px 18px rgb(var(--shadow-tint) / 0.07);
   --shadow-popover: 0 4px 12px rgb(var(--shadow-tint) / 0.12);
-  --shadow-pill: 0 1px 2px rgb(var(--shadow-tint) / 0.14), 0 2px 8px rgb(var(--shadow-tint) / 0.08);
+  --shadow-pill:
+    0 1px 2px rgb(var(--shadow-tint) / 0.14),
+    0 2px 8px rgb(var(--shadow-tint) / 0.08);
   /* The sheet sits on the rail; the junction's tab casts the same shadow. */
-  --shadow-sheet: 0 1px 2px rgb(var(--shadow-tint) / 0.12), 0 4px 16px rgb(var(--shadow-tint) / 0.16);
+  --shadow-sheet:
+    0 1px 2px rgb(var(--shadow-tint) / 0.12),
+    0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
   --spacing-rail: 44px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
-  --spacing-reading: 720px;
+  /* The reading column of a conversation, an artifact and the highlights:
+     wide enough that an agent's answer, its tables and code, read without
+     the column closing in on them. */
+  --spacing-reading: 1080px;
+  /* An immersive artifact in a reply: wider than the reading column, centred
+     on it, reaching 160px past it on each side. */
+  --spacing-artifact: 1400px;
 
   @keyframes collapsible-down {
     from {
       height: 0;
     }
     to {
-      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
     }
   }
   @keyframes collapsible-up {
     from {
-      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
     }
     to {
       height: 0;
@@ -495,8 +388,13 @@
    familiar steps here keeps one rhythm across every component instead of
    restating sizes in markup. */
 @theme {
+  /* Carbon's tracking for Plex Sans: +0.32px at 12px (label-01), +0.16px at
+     14px (body-01), none from 16px; 13px sits between the two. */
+  --text-xs--letter-spacing: 0.32px;
   --text-sm: 13px;
+  --text-sm--letter-spacing: 0.24px;
   --text-base: 15px;
+  --text-md: 16px;
   /* A note's reading column (max-w-note): about 75 characters of body text,
      shared by the properties above it so both start on one edge. */
   --container-note: 42rem;
@@ -589,7 +487,7 @@
 
   html {
     color-scheme: light;
-    /* Inherited by every scroller; the thread viewport always shows its track. */
+    /* Inherited by every scroller. A scroller draws its bar only while it overflows. */
     scrollbar-color: var(--line-control) transparent;
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
@@ -605,23 +503,22 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    /* Codex's crispness is a treatment, not a family: the font's own kerning
-       and standard ligatures stay on at every size, and IBM Plex Sans's looser
-       default spacing is pulled in to the platform's rhythm. */
+    /* The font's own kerning and standard ligatures stay on at every size.
+       Plex Sans is spaced for reading at its native tracking: IBM's Carbon
+       type sets never tighten it, and open it slightly below 16px (the
+       --text-*--letter-spacing tokens below), so nothing here pulls it in. */
     font-kerning: normal;
     font-variant-ligatures: common-ligatures contextual;
-    letter-spacing: -0.01em;
   }
 
-  /* Titles keep the serif. It ships only 400 and 700, so the weight axis is
-     spent on the sans and the hierarchy here comes from size and tracking. */
+  /* Titles are the sans at a heavier weight; size and weight carry the
+     hierarchy, and the tracking stays at the font's own. */
   h1,
   h2,
   h3,
   h4 {
     font-family: var(--font-heading);
-    font-weight: 400;
-    letter-spacing: -0.015em;
+    font-weight: 600;
   }
 
   /* Noun icons are bare filled contours; Lucide-derived ones declare fill="none" and stroke. */
@@ -662,7 +559,7 @@
   }
 
   button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
+  [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
 
@@ -670,17 +567,17 @@
      ease-* or duration-* utility on the element still wins. Matched by
      substring so variant forms like data-open:animate-in count too. A popup
      that carries both takes the exit curve only while it is closing. */
-  [class*="animate-in"] {
+  [class*='animate-in'] {
     --tw-ease: var(--ease-snap);
     --tw-duration: var(--duration-snap);
   }
 
-  [class*="animate-out"]:not([class*="animate-in"]),
-  [class*="animate-out"]:is(
-      [data-state="closed"],
-      [data-closed],
-      [data-ending-style]
-    ) {
+  [class*='animate-out']:not([class*='animate-in']),
+  [class*='animate-out']:is(
+    [data-state='closed'],
+    [data-closed],
+    [data-ending-style]
+  ) {
     --tw-ease: var(--ease-exit);
     --tw-duration: var(--duration-exit);
   }
@@ -697,15 +594,180 @@
   }
 }
 
-/* The sheet's gradient, sized to the whole sheet (--sheet-h, set by the
-   shell) so every element that paints it samples one field. An element below
-   the sheet's top aligns it with bg-bottom when it sits on the sheet's bottom
-   edge, or with an explicit background position. */
+/* The sheet's field: four layers down the sheet's height, each with its own
+   falloff, listed top layer first.
+   - The lower vignette: nothing above the middle, then it deepens toward the
+     composer and holds --sheet-shade along the bottom edge.
+   - The coloured light: a soft band of --sheet-light between the other two,
+     the palette's own warm container colour, so it follows every palette.
+   - The broad gradient: starts just under the sheet's top edge and carries
+     --sheet-fall of the way to --sheet-to by the bottom.
+   - The base, --sheet-from: the reading plane.
+   Every layer runs top to bottom only, so an element of any width that paints
+   the field (the rail's tab, the composer's footer) samples the same colours
+   at the same height. Light never goes past --sheet-to, the darkest sheet the
+   palette's inks are placed against; dark has room below it, where a darker
+   sheet only adds contrast, and its light stays under --sheet-from. */
+:root {
+  --sheet-fall: 42%;
+  --sheet-shade: var(--sheet-to);
+  --sheet-light: color-mix(in srgb, var(--ochre-container) 24%, transparent);
+  --sheet-field:
+    linear-gradient(to bottom, transparent 52%, 76%, var(--sheet-shade) 94%),
+    linear-gradient(
+      to bottom,
+      transparent 12%,
+      color-mix(in srgb, var(--sheet-light) 15%, transparent) 19%,
+      color-mix(in srgb, var(--sheet-light) 50%, transparent) 26%,
+      color-mix(in srgb, var(--sheet-light) 85%, transparent) 33%,
+      var(--sheet-light) 40%,
+      color-mix(in srgb, var(--sheet-light) 85%, transparent) 47%,
+      color-mix(in srgb, var(--sheet-light) 50%, transparent) 54%,
+      color-mix(in srgb, var(--sheet-light) 15%, transparent) 61%,
+      transparent 68%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 6%,
+      color-mix(in srgb, var(--sheet-to) var(--sheet-fall), transparent)
+    ),
+    linear-gradient(var(--sheet-from), var(--sheet-from));
+}
+
+.dark {
+  --sheet-fall: 70%;
+  --sheet-shade: color-mix(in srgb, var(--sheet-to), #000 22%);
+  --sheet-light: color-mix(in srgb, var(--ochre-container) 14%, transparent);
+}
+
+/* The field, sized to the whole sheet (--sheet-h, set by the shell) so every
+   element that paints it samples one field. An element below the sheet's top
+   aligns it with bg-bottom when it sits on the sheet's bottom edge, or with an
+   explicit background position. */
 @utility bg-sheet {
-  background-color: var(--sheet-to);
-  background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+  background-color: var(--sheet-shade);
+  background-image: var(--sheet-field);
   background-size: 100% var(--sheet-h, 100dvh);
   background-repeat: no-repeat;
+}
+
+/* Paper: a smooth sheet whose texture shows when you look for it.
+   surface-paper is the composer's, at full strength; surface-paper-subtle is
+   for panels that open in the conversation (an opened activity disclosure, an
+   artifact frame, a review candidate). The grain is Paper Design's
+   PaperTexture baked once per page into
+   --paper-texture (lib/paper-texture.ts) and painted through it in the
+   palette's ink, under the content, so text stays crisp and no surface holds
+   a WebGL context. Each sits a step off its surroundings with a soft shadow
+   and a faintly lit top edge, both a pixel soft so neither reads as a drawn
+   line. surface-paper keeps the element's own border (the composer's follows
+   focus; give it --paper-edge at rest); surface-paper-subtle draws its own
+   edge, so add none. Plain bg-*, shadow-* and position utilities override either. */
+:root {
+  /* Masks the grain out until the bake lands. */
+  --paper-texture: linear-gradient(transparent, transparent);
+  --paper-texture-size: 512px;
+  --paper-grain-opacity: 0.1;
+  --paper-depth: 1;
+  --paper-highlight: rgb(255 255 255 / 0.34);
+  --paper-edge: color-mix(in oklab, var(--line-separator) 60%, transparent);
+}
+
+/* The grain is one continuous tone that varies either sheet by a level or two
+   of sRGB. Black shadows need more weight to read on a dark sheet, and the lit
+   edge is the ink's. */
+.dark {
+  --paper-depth: 2.5;
+  --paper-highlight: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+@utility surface-paper {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--surface-composer);
+  box-shadow:
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 2px var(--paper-edge),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.07 * var(--paper-depth))),
+    0 8px 24px -8px rgb(var(--shadow-tint) / calc(0.16 * var(--paper-depth)));
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--ink);
+    opacity: var(--paper-grain-opacity);
+    mask-image: var(--paper-texture);
+    mask-size: var(--paper-texture-size);
+  }
+
+  /* Without CSS masks (Servo 0.7) the grain would be a solid wash. */
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+@utility surface-paper-subtle {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
+  box-shadow:
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 1.5px 0.5px var(--paper-edge),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.05 * var(--paper-depth))),
+    0 4px 14px -6px rgb(var(--shadow-tint) / calc(0.1 * var(--paper-depth)));
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--ink);
+    opacity: calc(0.55 * var(--paper-grain-opacity));
+    mask-image: var(--paper-texture);
+    mask-size: var(--paper-texture-size);
+  }
+
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+/* The chat panel's rows answer the pointer (organized-panel.tsx): what a row
+   holds lifts a pixel and its mark tips, on the snap spring. */
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button'])
+      > * {
+      transition:
+        translate var(--duration-snap) var(--ease-snap),
+        rotate var(--duration-snap) var(--ease-snap),
+        scale var(--duration-snap) var(--ease-snap);
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > * {
+      translate: 0 -1px;
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > :is(svg, .rail-mark) {
+      rotate: -8deg;
+      scale: 1.1;
+    }
+  }
 }
 
 /* Streamline marks (icons.tsx): the ink is painted through the PNG's alpha,
@@ -732,6 +794,114 @@
   }
 }
 
+/* Rail icons (rail-marks.tsx): stacked masks painted from the theme around
+   them. A theme gives the rail two facts it already has, its accent (--redwood)
+   and the ground the rail sits on (--surface-rail). Nothing here names a
+   palette or a mode, so a palette, a mode, or a person's own colours set on the
+   root, or on any element above the rail, move the icons with them, with no
+   script.
+
+   - Hue: each icon is the accent turned its own equal share of the OKLCH wheel
+     (--rail-shift, set per icon), so no two coincide in any theme. Home is the
+     accent's own hue.
+   - Lightness: the accent's. The theme chose it for its ground, so every icon
+     holds the contrast the accent does.
+   - Chroma: the accent's, up to what sRGB shows at that lightness in every hue
+     (min(0.17 L, 0.48 (1 - L)); rail-colors.test.ts checks it against the
+     gamut). No icon is louder than another, and turning the hue never clips.
+   - Fills: the icon's colour taken toward the rail's ground for lightness,
+     then given back a share of the accent's chroma. A plain mix loses chroma
+     with lightness and leaves a grey ground with grey fills. */
+@layer components {
+  /* The tunables are read with fallbacks and never declared here, so a value a
+     theme sets on the root or on any element above the rail reaches the icons:
+     a declaration on .rail-mark itself would beat what it inherits.
+       --rail-ground          what the fills are taken toward (--surface-rail)
+       --rail-chroma-slope    chroma cap per unit of lightness
+       --rail-chroma-top      chroma cap per unit of (1 - lightness)
+       --rail-tint-mix        share of the icon colour in the tint
+       --rail-tint-boost      chroma given back to the tint
+       --rail-paper-mix, --rail-paper-boost   the same for the paper
+     --rail-shift is each icon's own turn of the wheel, set on the element.
+     --rail-base, --rail-tint and --rail-paper are derived here, on the element,
+     so what they read is what the element inherits. Do not set them. */
+  .rail-mark {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    transition: opacity 100ms;
+
+    /* Without relative colours every icon is the accent itself. */
+    --rail-base: var(--redwood);
+    --rail-tint-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-tint-mix, 45%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-paper-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-paper-mix, 12%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-tint: var(--rail-tint-mixed);
+    --rail-paper: var(--rail-paper-mixed);
+  }
+
+  @supports (color: oklch(from red l c h)) {
+    .rail-mark {
+      --rail-base: oklch(
+        from var(--redwood) l
+          min(
+            c,
+            var(--rail-chroma-slope, 0.17) * l,
+            var(--rail-chroma-top, 0.48) * (1 - l)
+          )
+          calc(h + var(--rail-shift, 0))
+      );
+      --rail-tint: oklch(
+        from var(--rail-tint-mixed) l calc(c * var(--rail-tint-boost, 1.25)) h
+      );
+      --rail-paper: oklch(
+        from var(--rail-paper-mixed) l calc(c * var(--rail-paper-boost, 1.7)) h
+      );
+    }
+  }
+
+  .rail-mark > .icon-mask {
+    position: absolute;
+    inset: 0;
+  }
+
+  .rail-mark > [data-layer='line'] {
+    background-color: var(--ink);
+  }
+
+  .rail-mark > [data-layer='accent'] {
+    background-color: var(--rail-base);
+  }
+
+  .rail-mark > [data-layer='tint'] {
+    background-color: var(--rail-tint);
+  }
+
+  .rail-mark > [data-layer='paper'] {
+    background-color: var(--rail-paper);
+  }
+
+  /* Without CSS masks (Servo 0.7) each layer's colour would fill its whole box.
+     Drop the colour fills and show the outline layer alone, as the plain
+     .icon-mask fallback does. */
+  @supports not (mask-image: none) {
+    .rail-mark > .icon-mask {
+      background-color: transparent;
+    }
+
+    .rail-mark > .icon-mask:not([data-layer='line']) {
+      display: none;
+    }
+  }
+}
+
 /* Faint text on the sheet. Its fill is a gradient fixed to the viewport and
    clipped to the glyphs, running against the sheet's own, so a label recolours
    as it scrolls and keeps at least 4.5:1 over whatever stretch of the sheet is
@@ -740,7 +910,11 @@
    A hover or state colour set with text-* still paints over the fill. */
 @utility text-ink-faint-sheet {
   color: transparent;
-  background-image: linear-gradient(to bottom, var(--ink-faint-top), var(--ink-faint-bottom));
+  background-image: linear-gradient(
+    to bottom,
+    var(--ink-faint-top),
+    var(--ink-faint-bottom)
+  );
   background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
@@ -777,7 +951,7 @@
    within the rail; registering it lets the tab and its corners slide as one,
    each re-sampling the gradient at its own height as it moves. */
 @property --rail-y {
-  syntax: "<length>";
+  syntax: '<length>';
   inherits: true;
   initial-value: 0px;
 }
@@ -792,13 +966,20 @@
   /* The tab is part of the sheet, so it casts the sheet's shadow onto the
      rail. The clip stops at the sheet's edge, where the sheet paints its own. */
   filter: drop-shadow(0 2px 6px rgb(var(--shadow-tint) / 0.18))
-    drop-shadow(0 0 5px color-mix(in srgb, var(--glow-from), var(--glow-to) calc(var(--rail-t, 0) * 100%)));
+    drop-shadow(
+      0 0 5px
+        color-mix(
+          in srgb,
+          var(--glow-from),
+          var(--glow-to) calc(var(--rail-t, 0) * 100%)
+        )
+    );
   clip-path: inset(-24px 0 -24px -24px);
 
   & > * {
     position: absolute;
     right: 0;
-    background-image: linear-gradient(to bottom, var(--sheet-from), var(--sheet-to));
+    background-image: var(--sheet-field);
     background-size: 100% var(--sheet-h, 100dvh);
     background-repeat: no-repeat;
   }
@@ -824,13 +1005,25 @@
 }
 
 .box-rim {
-  clip-path: polygon(evenodd, 50% -4%, 104% 23%, 50% 48%, -4% 23%, 50% -4%, 50% 6%, 10% 23%, 50% 40%, 90% 23%, 50% 6%);
+  clip-path: polygon(
+    evenodd,
+    50% -4%,
+    104% 23%,
+    50% 48%,
+    -4% 23%,
+    50% -4%,
+    50% 6%,
+    10% 23%,
+    50% 40%,
+    90% 23%,
+    50% 6%
+  );
 }
 
 /* --flap is how far the flaps have turned up about their hinges, 0deg shut.
    Both carry the seam's stroke, so neither opens to a bare edge. */
 @property --flap {
-  syntax: "<angle>";
+  syntax: '<angle>';
   inherits: true;
   initial-value: 0deg;
 }
@@ -845,7 +1038,9 @@
   transition-property: --flap;
   transform: matrix(
     calc(0.5 + 0.5 * cos(var(--flap))),
-    calc(0.2292 * (cos(var(--flap)) - 1) - 0.55 * var(--side) * sin(var(--flap))),
+    calc(
+      0.2292 * (cos(var(--flap)) - 1) - 0.55 * var(--side) * sin(var(--flap))
+    ),
     calc(1.0909 * (cos(var(--flap)) - 1)),
     calc(0.5 + 0.5 * cos(var(--flap)) - 1.2 * var(--side) * sin(var(--flap))),
     0,
@@ -853,12 +1048,12 @@
   );
 }
 
-.box-flap[data-flap="back"] {
+.box-flap[data-flap='back'] {
   clip-path: polygon(50% -4%, 82.2% 12.1%, 27% 37.4%, -4% 23%);
   transform-origin: 2% 23%;
 }
 
-.box-flap[data-flap="front"] {
+.box-flap[data-flap='front'] {
   --side: -1;
   clip-path: polygon(74.1% 8%, 104% 23%, 50% 48%, 18.6% 33.5%);
   transform-origin: 50% 44%;
@@ -872,7 +1067,7 @@
 
 /* The first destination's tab meets the sheet's top edge: it has no upper
    corner, and the sheet squares its own corner to continue into the tab. */
-.rail-junction[data-flush] .rail-junction-corner[data-edge="top"] {
+.rail-junction[data-flush] .rail-junction-corner[data-edge='top'] {
   display: none;
 }
 
@@ -888,16 +1083,26 @@
   width: var(--junction-corner);
   height: var(--junction-corner);
 
-  &[data-edge="top"] {
+  &[data-edge='top'] {
     top: calc(var(--rail-y) - var(--junction-corner));
-    background-position: 0 calc(var(--sheet-inset) - var(--rail-y) + var(--junction-corner));
-    mask: radial-gradient(circle at 0 0, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
+    background-position: 0
+      calc(var(--sheet-inset) - var(--rail-y) + var(--junction-corner));
+    mask: radial-gradient(
+      circle at 0 0,
+      transparent calc(var(--junction-corner) - 0.5px),
+      #000 calc(var(--junction-corner) + 0.5px)
+    );
   }
 
-  &[data-edge="bottom"] {
+  &[data-edge='bottom'] {
     top: calc(var(--rail-y) + var(--junction-item));
-    background-position: 0 calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
-    mask: radial-gradient(circle at 0 100%, transparent calc(var(--junction-corner) - 0.5px), #000 calc(var(--junction-corner) + 0.5px));
+    background-position: 0
+      calc(var(--sheet-inset) - var(--rail-y) - var(--junction-item));
+    mask: radial-gradient(
+      circle at 0 100%,
+      transparent calc(var(--junction-corner) - 0.5px),
+      #000 calc(var(--junction-corner) + 0.5px)
+    );
   }
 
   /* Without CSS masks (Servo 0.7) a corner would paint as a square. */
@@ -931,8 +1136,7 @@
 
   & :where(h1, h2, h3, h4):not(:where(.not-prose *)) {
     font-family: var(--font-heading);
-    font-weight: 400;
-    letter-spacing: -0.015em;
+    font-weight: 600;
   }
 
   & a {
@@ -968,6 +1172,13 @@
 
   --crepe-shadow-1: 0 1px 3px rgb(var(--shadow-tint) / 0.18);
   --crepe-shadow-2: 0 4px 12px rgb(var(--shadow-tint) / 0.22);
+}
+
+/* Crepe draws toolbar icons in its outline colour, a separator's faintness
+   here; they take the muted ink, and the redwood once active. */
+.theorem-note .milkdown .milkdown-toolbar .toolbar-item:not(.active) svg {
+  color: var(--ink-muted);
+  fill: var(--ink-muted);
 }
 
 /* A page of prose: one centred reading column at the panel's width, with
@@ -1015,42 +1226,75 @@
 /* A heading that opens the note already has the editor's padding above it.
    Crepe puts its widget and, once focused, its virtual cursor ahead of the
    first block, so the first block is the first child that is neither. */
-.theorem-note .milkdown .ProseMirror
+.theorem-note
+  .milkdown
+  .ProseMirror
   > :first-child:not(.ProseMirror-widget, .prosemirror-virtual-cursor),
-.theorem-note .milkdown .ProseMirror
+.theorem-note
+  .milkdown
+  .ProseMirror
   > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
   + :not(.ProseMirror-widget, .prosemirror-virtual-cursor),
-.theorem-note .milkdown .ProseMirror
+.theorem-note
+  .milkdown
+  .ProseMirror
   > :is(.ProseMirror-widget, .prosemirror-virtual-cursor):first-child
   + :is(.ProseMirror-widget, .prosemirror-virtual-cursor)
   + * {
   margin-top: 0;
 }
 
-/* Canvas cards: a denser editor that fits a small node. */
+/* Hidden until first hovered, the block handle sits past the end of the note
+   and adds to the scroll height, which drops when it first moves. */
+.theorem-note .milkdown .milkdown-block-handle {
+  inset-block-start: 0;
+}
+
+/* Canvas cards: writing keeps the type and place of reading, so a double-click
+   doesn't move the text. A card is too narrow for the block handle's gutter;
+   the slash menu still adds blocks. Values follow prose-sm in NoteExcerpt. */
 .theorem-note-card .milkdown {
   --crepe-base-font-size: 13px;
 }
 
+.theorem-note-card .milkdown .milkdown-block-handle {
+  display: none;
+}
+
 .theorem-note-card .milkdown .ProseMirror {
   max-width: none;
-  padding: 12px 16px 12px 40px;
+  padding: 12px;
+  letter-spacing: inherit;
 }
 
 .theorem-note-card .milkdown .ProseMirror :is(p, li) {
-  line-height: 1.5;
+  line-height: 20px;
+}
+
+.theorem-note-card .milkdown .ProseMirror p {
+  margin-block: 1.25em;
+}
+
+.theorem-note-card .milkdown .ProseMirror :is(h1, h2, h3) {
+  font-weight: 600;
 }
 
 .theorem-note-card .milkdown .ProseMirror h1 {
-  font-size: 1.75em;
+  font-size: 2.25em;
+  line-height: 1.111;
+  margin-block: 0 0.889em;
 }
 
 .theorem-note-card .milkdown .ProseMirror h2 {
   font-size: 1.5em;
+  line-height: 1.333;
+  margin-block: 2em 1em;
 }
 
 .theorem-note-card .milkdown .ProseMirror h3 {
   font-size: 1.25em;
+  line-height: 1.4;
+  margin-block: 1.6em 0.6em;
 }
 
 /* An embed fence renders as a card; its language picker and copy bar would
@@ -1091,6 +1335,45 @@
   font-family: var(--font-sans);
   font-weight: 500;
   color: var(--ink);
+}
+
+/* What a note holds: the same card in the editor, a read-only note and on the
+   canvas. Crepe's reset outranks utilities inside the editor. */
+.theorem-block-card,
+.theorem-note .milkdown .theorem-block-card {
+  padding: 10px 12px;
+  border: 1px solid var(--line-separator);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--surface-raised);
+  transition: background-color 150ms;
+}
+
+:is(a, button).theorem-block-card:hover,
+.theorem-note .milkdown :is(a, button).theorem-block-card:hover {
+  background: var(--surface-hover);
+}
+
+.theorem-note .milkdown .theorem-block a {
+  text-decoration: none;
+}
+
+.theorem-data-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.theorem-data-table :is(th, td) {
+  padding: 4px 8px;
+  border: 1px solid var(--line-separator);
+  text-align: start;
+  color: var(--ink);
+}
+
+.theorem-data-table th {
+  font-weight: 500;
+  background: var(--surface-hover);
 }
 
 /* Folder notes: wikilinks, ![[embeds]] and Obsidian callouts. */
@@ -1159,19 +1442,44 @@
   background: rgb(var(--callout) / 0.1);
 }
 
-.theorem-callout:is([data-callout='abstract'], [data-callout='summary'], [data-callout='tldr'], [data-callout='tip'], [data-callout='hint'], [data-callout='important']) {
+.theorem-callout:is(
+  [data-callout='abstract'],
+  [data-callout='summary'],
+  [data-callout='tldr'],
+  [data-callout='tip'],
+  [data-callout='hint'],
+  [data-callout='important']
+) {
   --callout: 0 191 188;
 }
 
-.theorem-callout:is([data-callout='success'], [data-callout='check'], [data-callout='done']) {
+.theorem-callout:is(
+  [data-callout='success'],
+  [data-callout='check'],
+  [data-callout='done']
+) {
   --callout: 8 185 78;
 }
 
-.theorem-callout:is([data-callout='question'], [data-callout='help'], [data-callout='faq'], [data-callout='warning'], [data-callout='caution'], [data-callout='attention']) {
+.theorem-callout:is(
+  [data-callout='question'],
+  [data-callout='help'],
+  [data-callout='faq'],
+  [data-callout='warning'],
+  [data-callout='caution'],
+  [data-callout='attention']
+) {
   --callout: 236 117 0;
 }
 
-.theorem-callout:is([data-callout='failure'], [data-callout='fail'], [data-callout='missing'], [data-callout='danger'], [data-callout='error'], [data-callout='bug']) {
+.theorem-callout:is(
+  [data-callout='failure'],
+  [data-callout='fail'],
+  [data-callout='missing'],
+  [data-callout='danger'],
+  [data-callout='error'],
+  [data-callout='bug']
+) {
   --callout: 233 49 71;
 }
 
@@ -1219,7 +1527,11 @@
   cursor: pointer;
 }
 
-.theorem-note .milkdown .theorem-callout-title button[aria-expanded='false'] svg {
+.theorem-note
+  .milkdown
+  .theorem-callout-title
+  button[aria-expanded='false']
+  svg {
   transform: rotate(-90deg);
 }
 
@@ -1231,6 +1543,117 @@
   margin-bottom: 0;
 }
 
+/* The document screen's asks. The passage asked about is underlined in ochre,
+   stronger while its note is read; the agent's comments and edits take teal,
+   its highlights a wash of ochre. */
+.theorem-note .milkdown .theorem-ask-passage {
+  background: color-mix(in oklab, var(--ochre-container) 45%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--ochre) 60%, transparent);
+}
+.theorem-note .milkdown .theorem-ask-passage.is-active {
+  background: var(--ochre-container);
+  border-bottom-color: var(--ochre);
+}
+.theorem-note .milkdown .theorem-mark-comment {
+  border-bottom: 2px solid color-mix(in oklab, var(--teal) 70%, transparent);
+  cursor: pointer;
+}
+.theorem-note .milkdown .theorem-mark-highlight {
+  background: var(--ochre-container);
+}
+.theorem-note .milkdown .theorem-mark-edit {
+  background: var(--teal-container);
+  text-decoration: underline dotted var(--teal);
+  text-underline-offset: 3px;
+}
+
+/* Beside a margin the prose column narrows and pads less; the notes sit in
+   the space the frame keeps on its right. */
+.theorem-markup-frame {
+  position: relative;
+}
+.theorem-markup-frame.has-margin .milkdown .ProseMirror {
+  padding-inline: 32px;
+}
+.theorem-margin {
+  position: absolute;
+  inset-block: 0;
+  right: 16px;
+}
+.theorem-margin-slot {
+  position: absolute;
+  left: 0;
+  transition: top 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theorem-margin-slot {
+    transition: none;
+  }
+}
+
+/* A note paints at the sizes margin-layout.ts measures it at: 13px type on a
+   20px line, its padding and border set from the same numbers. */
+.theorem-margin-note {
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--line-separator);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: 400 13px / 20px var(--font-sans);
+  letter-spacing: normal;
+  overflow-wrap: break-word;
+  box-shadow: 0 1px 3px rgb(var(--shadow-tint) / 0.12);
+}
+.theorem-margin-note[data-active] {
+  border-color: var(--ochre);
+}
+.theorem-margin-note.is-comment {
+  /* An inset rule, not a wider border: the text keeps its measured width. */
+  box-shadow:
+    inset 2px 0 0 var(--teal),
+    0 1px 3px rgb(var(--shadow-tint) / 0.12);
+}
+.theorem-margin-note h3 {
+  margin: 0;
+  font: 600 13px / 20px var(--font-sans);
+  /* Headings track tighter; the note's question is measured untracked. */
+  letter-spacing: normal;
+}
+.theorem-margin-note p {
+  margin: 0;
+}
+.theorem-margin-note p.is-status,
+.theorem-margin-note .theorem-note-summary {
+  color: var(--ink-muted);
+}
+.theorem-margin-note .theorem-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline: -8px;
+}
+
+/* Without room for a margin, a note sits under the block it is about. */
+.theorem-note .milkdown .theorem-inline-note {
+  margin-block: 8px 16px;
+}
+.theorem-note .milkdown .ProseMirror .theorem-margin-note :is(p, h3) {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: normal;
+}
+.theorem-note .milkdown .ProseMirror .theorem-margin-note h3 {
+  font-weight: 600;
+}
+
+/* The canvas draws its lines and dots to be read, as Obsidian Canvas does. */
+.theorem-canvas .react-flow {
+  --xy-edge-stroke-width: 1.5;
+  --xy-background-pattern-color: var(--line-control);
+}
+
 /* React Flow, re-pointed at the Stone tokens. */
 .react-flow {
   --xy-background-color: var(--surface-neutral);
@@ -1240,10 +1663,18 @@
   --xy-connectionline-stroke: var(--focus);
   --xy-handle-background-color: var(--surface-raised);
   --xy-handle-border-color: var(--line-control);
-  --xy-selection-background-color: color-mix(in srgb, var(--focus) 10%, transparent);
+  --xy-selection-background-color: color-mix(
+    in srgb,
+    var(--focus) 10%,
+    transparent
+  );
   --xy-selection-border: 1px dotted var(--focus);
   --xy-minimap-background-color: var(--surface-raised);
-  --xy-minimap-mask-background-color: color-mix(in srgb, var(--surface-frame) 60%, transparent);
+  --xy-minimap-mask-background-color: color-mix(
+    in srgb,
+    var(--surface-frame) 60%,
+    transparent
+  );
   --xy-minimap-node-background-color: var(--surface-selected);
   --xy-minimap-node-stroke-color: transparent;
   --xy-controls-button-background-color: var(--surface-raised);
@@ -1276,4 +1707,89 @@
 .vault-graph .css-label--label {
   font-weight: 400;
   text-shadow: 0 0 3px var(--surface-artifact);
+}
+
+/* Theo, the agent's face: glowing matter on a dark visor, as the reference
+   robot's screen is (docs/plans/theo-face.md). The plate is the same in both
+   themes; the screen is the face's own, not the page's. Whether the visor is
+   there is a setting (lib/figures): without it the eyes are light against a
+   dark page and ink against a light one. */
+/* The hue of Theo's matter follows the theme. A palette may name one here;
+   one that does not gives the hue of its ground when that is tinted, else of
+   its accent (lib/face/tint), as a theme someone makes will. GitHub Sharp's
+   is the cyan the face was first drawn in. Stone's is the warm hue all its
+   surfaces lean to (OKLCH 68), named because a lean that faint cannot be told
+   from a grey by measuring. Vitesse's ground is a true grey, so it takes its
+   green by the rule. */
+:root:where(:not([data-palette]), [data-palette='github-sharp']) {
+  --face-hue: 205;
+}
+[data-palette='stone'] {
+  --face-hue: 68;
+}
+.face-plate,
+.face-mark {
+  --face-plate: oklch(0.17 0.012 255);
+  --face-eye: oklch(0.9 0.11 205);
+}
+.face-plate {
+  border-radius: 21.6px;
+  background: var(--face-plate);
+  box-shadow:
+    inset 0 0 0 1.5px oklch(1 0 0 / 0.1),
+    0 3px 10px rgb(0 0 0 / 0.28);
+  overflow: hidden;
+}
+/* Bare: no plate, and matter that reaches the edge of its canvas thins out
+   there, where the plate's rim would have cut it. */
+.face-plate[data-visor='off'] {
+  background: none;
+  box-shadow: none;
+  mask-image:
+    linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+    linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+/* What Theo points at (components/face/things): its own colour, as an
+   outline with a restrained fill around a whole thing, a wash with a rule
+   under some words, and a wash with a bar before a line. The stroke leans to
+   the ink so it reads on a light page as on a dark one. */
+.face-point {
+  --face-point-stroke: color-mix(in oklch, var(--face-point) 62%, var(--ink));
+  box-sizing: content-box;
+  border-radius: 6px;
+  opacity: 0;
+  background: color-mix(in oklch, var(--face-point) 12%, transparent);
+  transition: opacity var(--duration-exit) linear;
+}
+.face-point[data-on] {
+  opacity: 1;
+  transition-duration: var(--duration-glide);
+}
+.face-point[data-kind='whole'] {
+  margin: -4px;
+  padding: 3px;
+  border: 1px solid var(--face-point-stroke);
+  background: color-mix(in oklch, var(--face-point) 7%, transparent);
+}
+.face-point[data-kind='text'] {
+  margin: -1px -3px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--face-point) 22%, transparent);
+  box-shadow: 0 2px 0 -0.5px var(--face-point-stroke);
+}
+.face-point[data-kind='line'] {
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--face-point) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--face-point-stroke);
+}
+.face-mark-plate {
+  fill: var(--face-plate);
+}
+.face-mark-eye {
+  fill: var(--face-eye);
+}
+.face-mark-eye[data-ink] {
+  fill: color-mix(in srgb, var(--face-eye) 20%, black);
 }

@@ -1,4 +1,4 @@
-import { beforeEach, expect, mock, test } from 'bun:test'
+import { afterAll, beforeEach, expect, mock, test } from 'bun:test'
 import { sealData } from 'iron-session'
 
 const ISSUER = 'https://issuer.test'
@@ -15,6 +15,10 @@ mock.module('@tanstack/react-start/server', () => ({
 }))
 
 let tokenResponse: () => Response
+const realFetch = globalThis.fetch
+afterAll(() => {
+  globalThis.fetch = realFetch
+})
 globalThis.fetch = (async (input: RequestInfo | URL) => {
   const url = new URL(input instanceof Request ? input.url : input)
   if (url.pathname === '/.well-known/oauth-authorization-server')
@@ -26,7 +30,11 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
   return tokenResponse()
 }) as typeof fetch
 
-const { personBearer, safeReturnTo } = await import('./theorem-auth')
+const { personBearer } = await import('./theorem-auth')
+const { safeReturnTo } = await import('../lib/theorem/auth-navigation')
+
+const GRANTED =
+  'run:read run:write models:invoke graph:read graph:write agency:approve'
 
 // A successful refresh is shared for a minute, so each test has its own token.
 let session = 0
@@ -38,11 +46,29 @@ beforeEach(async () => {
       {
         accessToken: 'old',
         refreshToken: `refresh-${++session}`,
+        scope: GRANTED,
         expiresAt: 1,
       },
       { password: PASSWORD },
     ),
   )
+})
+
+test('a session from before a scope was added signs in again', async () => {
+  jar.set(
+    'theorem_session',
+    await sealData(
+      {
+        accessToken: 'old',
+        refreshToken: `refresh-${++session}`,
+        scope: 'run:read run:write models:invoke',
+        expiresAt: 1,
+      },
+      { password: PASSWORD },
+    ),
+  )
+  expect(await personBearer()).toBeUndefined()
+  expect(jar.get('theorem_session')).toBeUndefined()
 })
 
 test('an unreachable Theorem keeps the session, and the next request refreshes it', async () => {
@@ -68,7 +94,6 @@ test('a refused refresh token signs out and leaves the cookie alone', async () =
 })
 
 test('sign-in returns only to paths on this origin', () => {
-  const request = new Request('https://theorem.rs/auth/sign-in')
   for (const [value, kept] of [
     ['/c/thread?x=1#end', '/c/thread?x=1#end'],
     ['//evil.example', '/'],
@@ -77,5 +102,5 @@ test('sign-in returns only to paths on this origin', () => {
     ['https://evil.example', '/'],
     [null, '/'],
   ] as const)
-    expect(safeReturnTo(value, request)).toBe(kept)
+    expect(safeReturnTo(value)).toBe(kept)
 })

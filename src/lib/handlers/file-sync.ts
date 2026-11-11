@@ -51,6 +51,14 @@ const touches = (event: WorkspaceEvent, path: string) =>
   ((event.type === 'changed' || event.type === 'created') &&
     event.entry.path === path)
 
+/** Where `path` is after `from` moved to `to`, if the move took it along. */
+const movedPath = (path: string, from: string, to: string) =>
+  path === from
+    ? to
+    : path.startsWith(`${from}/`)
+      ? to + path.slice(from.length)
+      : undefined
+
 type TextData = { text: string; hash: string }
 
 type SyncState = {
@@ -61,32 +69,91 @@ type SyncState = {
   saveFailed: boolean
 }
 
-/** The open views' syncs. A closing view stays until its last write is done. */
-const syncs = new Set<TextFileSync>()
+/**
+ * One sync per file, shared by every view of it, so two views or two layouts
+ * never hold two sets of edits. A file is its entry, so a rename keeps it; a
+ * view without an entry falls back to the path. A sync no view shows stays
+ * until its last write is done.
+ */
+const syncs = new Map<string, TextFileSync>()
+const syncKey = (
+  client: WorkspaceClient,
+  path: string,
+  entry?: WorkspaceEntry,
+) => `${client.workspace.id}\u0000${entry?.id ?? path}`
+
+function syncFor(
+  client: WorkspaceClient,
+  path: string,
+  entry: WorkspaceEntry | undefined,
+  queryClient: QueryClient,
+) {
+  const key = syncKey(client, path, entry)
+  let sync = syncs.get(key)
+  if (!sync || sync.client !== client) {
+    sync = new TextFileSync(client, path, queryClient)
+    syncs.set(key, sync)
+  }
+  return { key, sync }
+}
 
 /** Whether an open view has edits not yet written. */
 export const useUnsavedFiles = create<{ unsaved: boolean }>()(() => ({
   unsaved: false,
 }))
 
-const updateUnsaved = () =>
+/** Told whenever any sync's state changes, or a sync comes or goes. */
+const saveListeners = new Set<() => void>()
+
+const updateUnsaved = () => {
   useUnsavedFiles.setState({
-    unsaved: [...syncs].some((sync) => sync.state.draft !== null),
+    unsaved: [...syncs.values()].some((sync) => sync.state.draft !== null),
   })
+  for (const listener of saveListeners) listener()
+}
+
+/** Where a file's edits stand: being written, all written, or stopped. */
+export type SaveState = 'saving' | 'saved' | 'stopped'
+
+const saveStateOf = (sync: TextFileSync | undefined): SaveState | null => {
+  if (!sync) return null
+  if (sync.state.conflict || sync.state.saveFailed) return 'stopped'
+  return sync.state.draft === null ? 'saved' : 'saving'
+}
+
+/**
+ * The save state of the file at `entry`, as the views that edit it as text
+ * share it; null while none does.
+ */
+export function useSaveState(
+  client: WorkspaceClient,
+  entry: WorkspaceEntry | undefined,
+): SaveState | null {
+  const snapshot = () =>
+    entry ? saveStateOf(syncs.get(syncKey(client, entry.path, entry))) : null
+  return useSyncExternalStore(
+    (onChange) => {
+      saveListeners.add(onChange)
+      return () => void saveListeners.delete(onChange)
+    },
+    snapshot,
+    snapshot,
+  )
+}
 
 /** Starts every scheduled write now, for a page that is going away. */
 export function flushTextFiles() {
-  for (const sync of syncs) sync.save.flush()
+  for (const sync of syncs.values()) sync.save.flush()
 }
 
-/** One view's edits to one file, and what it does about changes on disk. */
+/** The edits to one file, and what its views do about changes on disk. */
 class TextFileSync {
   state: SyncState = { draft: null, conflict: null, saveFailed: false }
-  /** A view shows this sync. */
-  open = false
+  /** How many views show this sync. */
+  views = 0
   private readonly listeners = new Set<() => void>()
   private readonly mutex = new Mutex()
-  /** Hashes this view wrote, so their change events are not taken as news. */
+  /** Hashes this sync wrote, so their change events are not taken as news. */
   private readonly written = new Set<string>()
   readonly save = debounce(() => void this.write(), SAVE_DELAY_MS, {
     maxWait: SAVE_MAX_WAIT_MS,
@@ -94,12 +161,45 @@ class TextFileSync {
 
   constructor(
     readonly client: WorkspaceClient,
-    readonly path: string,
+    /** Where the file is now; its views say when it moves. */
+    public path: string,
     private readonly queryClient: QueryClient,
   ) {}
 
   get queryKey() {
     return fileTextKey(this.client.workspace.id, this.path)
+  }
+
+  /**
+   * Counts a view under `key`. The function it returns uncounts it; the last
+   * view out writes what waits and lets the sync go.
+   */
+  attach(key: string) {
+    this.views++
+    syncs.set(key, this)
+    updateUnsaved()
+    return () => {
+      if (--this.views > 0) return
+      this.save.cancel()
+      void this.write().finally(() => {
+        if (this.views > 0) return
+        if (syncs.get(key) === this) syncs.delete(key)
+        updateUnsaved()
+      })
+    }
+  }
+
+  /**
+   * The file was renamed or moved: its text is the same, now under `path`.
+   * Running it again for the same path changes nothing. The rename event says
+   * so first, so a change at the new path that follows it is not missed; the
+   * view says so again as it renders, and each view reads the path.
+   */
+  moveTo(path: string) {
+    if (path === this.path) return
+    const data = this.current()
+    this.path = path
+    if (data) this.queryClient.setQueryData<TextData>(this.queryKey, data)
   }
 
   private current() {
@@ -170,6 +270,12 @@ class TextFileSync {
   }
 
   onEvent = async (event: WorkspaceEvent) => {
+    // Before any await, so the events after it are read at the new path.
+    if (event.type === 'renamed') {
+      const moved = movedPath(this.path, event.from, event.to)
+      if (moved) this.moveTo(moved)
+      return
+    }
     if (!touches(event, this.path)) return
     // Our own write's event can overtake the write's reply.
     await this.mutex.waitForUnlock()
@@ -230,11 +336,9 @@ export interface TextFile {
 
 export function useTextFile({ client, path, entry }: FileRef): TextFile {
   const queryClient = useQueryClient()
-  const [sync, setSync] = useState(
-    () => new TextFileSync(client, path, queryClient),
-  )
-  if (sync.client !== client || sync.path !== path)
-    setSync(new TextFileSync(client, path, queryClient))
+  const { key, sync } = syncFor(client, path, entry, queryClient)
+  // The view's path is where the workspace's tree has the file now.
+  sync.moveTo(path)
   const state = useSyncExternalStore(
     sync.subscribe,
     sync.getSnapshot,
@@ -242,7 +346,7 @@ export function useTextFile({ client, path, entry }: FileRef): TextFile {
   )
   const query = useQuery({
     queryKey: sync.queryKey,
-    queryFn: (): Promise<TextData> => client.readText(path),
+    queryFn: (): Promise<TextData> => client.readText(sync.path),
     staleTime: Infinity,
     retry: false,
   })
@@ -251,21 +355,9 @@ export function useTextFile({ client, path, entry }: FileRef): TextFile {
     () => client.subscribe((event) => void sync.onEvent(event)),
     [client, sync],
   )
-  // Edits still waiting when the view closes are written then; edits held by
-  // a conflict are dropped with the view.
-  useEffect(() => {
-    sync.open = true
-    syncs.add(sync)
-    return () => {
-      sync.open = false
-      sync.save.cancel()
-      void sync.write().finally(() => {
-        if (sync.open) return
-        syncs.delete(sync)
-        updateUnsaved()
-      })
-    }
-  }, [sync])
+  // Edits still waiting when the last view closes are written then; edits
+  // held by a conflict are dropped with it.
+  useEffect(() => sync.attach(key), [key, sync])
 
   const text = state.draft ?? query.data?.text
   const readOnly = entry?.theorem?.readOnly ?? false

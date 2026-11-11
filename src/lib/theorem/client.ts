@@ -1,19 +1,26 @@
 // SOURCING: @theoremharness/sdk (TheoremClient, adopted as-is; same-origin cookie mode behind the server proxy)
 import { Theorem, TheoremClient, TheoremError } from '@theoremharness/sdk'
-import { createSendRecovery } from './send-recovery'
+import {
+  RefusedSend,
+  createSendRecovery,
+  modelCannotStart,
+} from './send-recovery'
 
 let client: TheoremClient | undefined
 let sendRecovery: ReturnType<typeof createSendRecovery> | undefined
-
 /** Browser client. Requests go to this origin; the server route injects the bearer. */
 export function theorem(): TheoremClient {
   sendRecovery ??= createSendRecovery(
     window.sessionStorage,
-    window.fetch.bind(window),
+    Object.assign(
+      (input: RequestInfo | URL, init?: RequestInit) =>
+        window.fetch(input, init),
+      { preconnect: window.fetch.preconnect },
+    ),
   )
   client ??= new TheoremClient({
     fetch: sendRecovery.fetch,
-    baseUrl: window.location.origin,
+    baseUrl: () => window.location.origin,
     auth: false,
     // Fern's default is 60s; model turns with tools can hold a send longer.
     timeoutInSeconds: 600,
@@ -29,7 +36,7 @@ export async function recoverPendingSend(
 ) {
   theorem()
   if (!sendRecovery?.has(threadId)) return undefined
-  const session = await theorem().session.bootstrap({ abortSignal })
+  const session = await theorem().session.bootstrap({}, { abortSignal })
   return sendRecovery.resume(
     threadId,
     window.location.origin,
@@ -37,6 +44,23 @@ export async function recoverPendingSend(
     text,
     abortSignal,
   )
+}
+
+/** The idempotency key of the send saved for recovery on this thread, if any. */
+export function pendingSendKey(threadId: string) {
+  theorem()
+  return sendRecovery?.pendingKey(threadId)
+}
+
+/** Keeps a refused send's text under its thread until that chat can take it. */
+export function holdRefusedText(threadId: string, text: string) {
+  theorem()
+  sendRecovery?.holdRefused(threadId, text)
+}
+
+export function takeRefusedText(threadId: string) {
+  theorem()
+  return sendRecovery?.takeRefused(threadId)
 }
 
 /** Only public event descriptions reach the UI; raw diagnostics stay server-side. */
@@ -50,6 +74,13 @@ export function describeRunFailure(payload: Record<string, unknown>): string {
     ? `${message} Reference: ${reference}`
     : message
 }
+
+/** The events a run's event stream ends on. */
+export const TERMINAL_RUN_EVENTS: ReadonlySet<string> = new Set([
+  'RUN.CLOSED',
+  'RUN.FAILED',
+  'RUN.CANCELLED',
+])
 
 let bootstrapPromise: Promise<Theorem.Bootstrap> | undefined
 
@@ -113,6 +144,45 @@ export async function mutateThread<T>(
   }
 }
 
+/** The project, read from every page of the list until it turns up. */
+async function findProject(projectId: string) {
+  let cursor: string | undefined
+  do {
+    const page = await theorem().chat.projects.list({ limit: 100, cursor })
+    const project = page.items.find((item) => item.projectId === projectId)
+    if (project) return project
+    cursor = page.nextCursor
+  } while (cursor)
+  return undefined
+}
+
+/**
+ * As mutateThread, for a project. Projects have no single read, so the
+ * revision comes from the list.
+ */
+export async function mutateProject<T>(
+  projectId: string,
+  run: (headers: MutationHeaders & { 'If-Match': string }) => Promise<T>,
+): Promise<T> {
+  const attempt = async () => {
+    const project = await findProject(projectId)
+    if (!project) throw new Error('That section is no longer there')
+    return mutate((headers) =>
+      run({ ...headers, 'If-Match': String(project.revision) }),
+    )
+  }
+  try {
+    return await attempt()
+  } catch (error) {
+    if (
+      error instanceof Theorem.ConflictError ||
+      error instanceof Theorem.PreconditionError
+    )
+      return attempt()
+    throw error
+  }
+}
+
 /** The proxy answers 401 when nobody is signed in or the session has lapsed. */
 export const isSignedOut = (error: unknown) =>
   error instanceof TheoremError && error.statusCode === 401
@@ -124,8 +194,31 @@ export function hasStatus(error: unknown, ...codes: number[]): boolean {
     codes.includes(error.statusCode)
   )
 }
+/** This public store error identifies capacity exhaustion, not commit status. */
+function explainStorageCapacity(
+  code: unknown,
+  detail: string | undefined,
+): string | undefined {
+  if (
+    code === 'chat_store_error' &&
+    detail?.startsWith('tenant_memory_quota_exceeded:')
+  ) {
+    return 'The chat store reached its configured memory budget. The server operator must restore capacity before this request can succeed.'
+  }
+  if (
+    code === 'chat_store_error' &&
+    detail?.startsWith('chunk_store_journal_io:') &&
+    detail.includes('No space left on device (os error 28)')
+  ) {
+    return 'The server ran out of storage while processing this request. Retry after server storage capacity is restored. Code: chat_store_error / chunk_store_journal_io.'
+  }
+  return detail
+}
 
-export function describeError(error: unknown): string {
+export function describeError(
+  error: unknown,
+  service: 'chat' | 'document' = 'chat',
+): string {
   if (error instanceof TheoremError) {
     const body =
       error.body && typeof error.body === 'object'
@@ -133,11 +226,19 @@ export function describeError(error: unknown): string {
         : undefined
     const text = (value: unknown) =>
       typeof value === 'string' && value.trim() ? value.trim() : undefined
-    const detail = text(body?.detail)
-    let message = detail ?? text(body?.title)
-    if (body?.code === 'chat_run_start_pending') {
-      message =
-        'Your message was saved, but its response could not start. Reload this conversation to resume it.'
+    const detail = explainStorageCapacity(body?.code, text(body?.detail))
+    let message =
+      detail ?? text(body?.title) ?? text(body?.message) ?? text(body?.error)
+    if (error instanceof RefusedSend) {
+      // The title, as the detail talks in revision numbers.
+      const reason = text(body?.title) ?? detail
+      message = reason
+        ? `Your message was not sent. ${reason}`
+        : 'Your message was not sent.'
+    } else if (body?.code === 'chat_run_start_pending') {
+      message = modelCannotStart(body)
+        ? 'Your message was saved, but its model could not start. Fix the model or pick another, then send it again.'
+        : 'Your message was saved, but its response could not start. Reload this conversation to resume it.'
       if (detail) message += ` ${detail}`
     }
     if (!message) {
@@ -149,7 +250,10 @@ export function describeError(error: unknown): string {
           message = 'You do not have permission to perform this action.'
           break
         case 413:
-          message = 'The message or attachment is too large.'
+          message =
+            service === 'document'
+              ? 'The document is too large.'
+              : 'The message or attachment is too large.'
           break
         case 429:
           message = 'Too many requests. Try again shortly.'
@@ -157,12 +261,12 @@ export function describeError(error: unknown): string {
         case 502:
         case 503:
         case 504:
-          message = 'The chat service is unavailable. Try again shortly.'
+          message = `The ${service} service is unavailable. Try again shortly.`
           break
         default:
           message = error.statusCode
-            ? `The request could not be completed (HTTP ${error.statusCode}).`
-            : 'The chat service could not be reached. Check your connection.'
+            ? 'The request could not be completed.'
+            : `The ${service} service could not be reached. Check your connection.`
       }
     }
     const reference = text(body?.correlationId)
@@ -172,3 +276,13 @@ export function describeError(error: unknown): string {
 }
 
 export { Theorem }
+
+/**
+ * A backend message without the machine code it can lead with:
+ * "agent_iteration_limit: worker reached its step limit" reads
+ * "Worker reached its step limit".
+ */
+export function withoutCode(message: string): string {
+  const plain = message.replace(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)+:\s+/, '')
+  return plain.charAt(0).toUpperCase() + plain.slice(1)
+}

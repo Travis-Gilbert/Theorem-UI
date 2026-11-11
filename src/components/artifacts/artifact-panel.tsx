@@ -1,14 +1,17 @@
-// SOURCING: ui/button (ghost icon buttons) for header actions, useCopyToClipboard hook; content renders through artifact-renderers
+// SOURCING: ui/button (ghost icon buttons) for header actions, useCopyToClipboard hook; bodies render through the registry (artifact-renderers' ArtifactView)
 import { useLayoutEffect, useRef } from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { flyGhost, takeLaunch } from '@/lib/motion'
 import { cn } from '@/lib/utils'
-import { fileNameFor, kindLabel, useThreadArtifacts } from './artifact-model'
+import { kindLabel, useThreadArtifacts } from './artifact-model'
 import type { TheoremArtifact } from './artifact-model'
-import { ArtifactBody } from './artifact-renderers'
+import { ArtifactActions } from './artifact-actions'
+import { ArtifactView } from './artifact-renderers'
 import { useArtifactView } from './artifact-view'
+import { thingProps } from '@/lib/face/things'
+
+export { download } from './artifact-actions'
 
 export function ArtifactKindIcon({
   kind,
@@ -25,18 +28,6 @@ export function ArtifactKindIcon({
         : Icon.Article
   return <Glyph className={className} />
 }
-
-/** Saves the artifact revision as a file. */
-export function download(artifact: TheoremArtifact) {
-  const type = artifact.kind === 'document' ? 'text/markdown' : 'text/plain'
-  const url = URL.createObjectURL(new Blob([artifact.content], { type }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileNameFor(artifact)
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
 /** Canvas for one artifact: header actions, revision switcher, rendered body. */
 export function ArtifactPanel({
   artifactId,
@@ -55,7 +46,6 @@ export function ArtifactPanel({
   const artifacts = useThreadArtifacts()
   const revision = useArtifactView((s) => s.revisions[artifactId])
   const select = useArtifactView((s) => s.select)
-  const { isCopied, copyToClipboard } = useCopyToClipboard()
   const sectionRef = useRef<HTMLElement>(null)
 
   // Opened from a chat card, the canvas grows out of that card. The frame
@@ -73,14 +63,11 @@ export function ArtifactPanel({
 
   const versions = artifacts.get(artifactId)
   if (!versions?.length) return null
-  const index = Math.max(
-    0,
-    revision === undefined
-      ? versions.length - 1
-      : versions.findIndex((v) => v.revision === revision),
-  )
-  const artifact = versions[index] ?? versions[versions.length - 1]
-  if (!artifact) return null
+  const index = selectedArtifactIndex(versions, revision)
+  const newest = versions[versions.length - 1]
+  const artifact = versions[index] ?? newest
+  if (!artifact || !newest) return null
+  const latest = artifact === newest
   const goTo = (next: number) =>
     select(
       artifactId,
@@ -91,100 +78,141 @@ export function ArtifactPanel({
     <section
       ref={sectionRef}
       aria-label={`Artifact: ${artifact.title}`}
+      // The whole of what the conversation's card shows an excerpt of: Theo
+      // points here while it is open.
+      {...thingProps('artifact', artifactId, {
+        label: artifact.title,
+        whole: true,
+      })}
       className={cn('flex h-full min-w-0 flex-col bg-artifact', className)}
     >
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-separator px-3">
-        <ArtifactKindIcon
-          kind={artifact.kind}
-          className="size-4 shrink-0 text-ink-muted"
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <h2 className="truncate font-heading text-[16px] font-normal leading-tight tracking-tight">
-            {artifact.title}
-          </h2>
-          <p className="truncate text-xs text-ink-faint">
-            {kindLabel(artifact)}
-          </p>
-        </div>
-
-        {versions.length > 1 && (
-          <div className="flex items-center text-xs text-ink-muted">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Previous version"
-              className="size-7 p-1.5"
-              disabled={index === 0}
-              onClick={() => goTo(index - 1)}
-            >
-              <Icon.Previous className="size-3.5" />
-            </Button>
-            <span className="min-w-12 text-center tabular-nums">
-              v{index + 1} of {versions.length}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Next version"
-              className="size-7 p-1.5"
-              disabled={index === versions.length - 1}
-              onClick={() => goTo(index + 1)}
-            >
-              <Icon.Next className="size-3.5" />
-            </Button>
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={isCopied ? 'Copied' : 'Copy'}
-          className="size-8 p-1.5"
-          onClick={() => copyToClipboard(artifact.content)}
-        >
-          {isCopied ? (
-            <Icon.Copied className="size-4 animate-in fade-in zoom-in-30 -spin-in-20 ease-lift duration-(--duration-lift)" />
-          ) : (
-            <Icon.Copy className="size-4 animate-in fade-in zoom-in-75" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Download"
-          className="size-8 p-1.5"
-          onClick={() => download(artifact)}
-        >
-          <Icon.Download className="size-4" />
-        </Button>
-        {onExpandedChange && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={expanded ? 'Restore layout' : 'Expand'}
-            className={cn('size-8 p-1.5', expanded && 'bg-selected')}
-            aria-pressed={expanded}
-            onClick={() => onExpandedChange(!expanded)}
-          >
-            <Icon.Expand className="size-4" />
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Close"
-          className="size-8 p-1.5"
-          onClick={onClose}
-        >
-          <Icon.X className="size-4" />
-        </Button>
-      </header>
+      <ArtifactPanelHeader
+        artifact={artifact}
+        index={index}
+        versionCount={versions.length}
+        goTo={goTo}
+        expanded={expanded}
+        onExpandedChange={onExpandedChange}
+        onClose={onClose}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-(--spacing-reading) px-6 py-6">
-          <ArtifactBody key={artifact.revision} artifact={artifact} />
+          {/* The newest revision stays mounted while an older one is shown,
+              so a live session and an unsaved edit outlast a look back. */}
+          <div hidden={!latest}>
+            <ArtifactView artifact={newest} distance="interactive" latest />
+          </div>
+          {!latest && (
+            <ArtifactView
+              key={artifact.revision}
+              artifact={artifact}
+              distance="interactive"
+              latest={false}
+            />
+          )}
         </div>
       </div>
     </section>
+  )
+}
+function ArtifactPanelHeader({
+  artifact,
+  index,
+  versionCount,
+  goTo,
+  expanded,
+  onExpandedChange,
+  onClose,
+}: {
+  artifact: TheoremArtifact
+  index: number
+  versionCount: number
+  goTo: (index: number) => void
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
+  onClose: () => void
+}) {
+  return (
+    <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-separator px-3">
+      <ArtifactKindIcon
+        kind={artifact.kind}
+        className="size-4 shrink-0 text-ink-muted"
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <h2 className="truncate font-heading text-[16px] font-semibold leading-tight">
+          {artifact.title}
+        </h2>
+        <p className="truncate text-xs text-ink-faint">{kindLabel(artifact)}</p>
+      </div>
+
+      {versionCount > 1 && (
+        <div className="flex items-center text-xs text-ink-muted">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Previous version"
+            className="size-7 p-1.5"
+            disabled={index === 0}
+            onClick={() => goTo(index - 1)}
+          >
+            <Icon.Previous className="size-3.5" />
+          </Button>
+          <span className="min-w-12 text-center tabular-nums">
+            v{index + 1} of {versionCount}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Next version"
+            className="size-7 p-1.5"
+            disabled={index === versionCount - 1}
+            onClick={() => goTo(index + 1)}
+          >
+            <Icon.Next className="size-3.5" />
+          </Button>
+        </div>
+      )}
+
+      <ArtifactActions
+        key={artifact.revision}
+        artifact={artifact}
+        latest={index === versionCount - 1}
+        copy
+      />
+      {onExpandedChange && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={expanded ? 'Restore layout' : 'Expand'}
+          className={cn('size-8 p-1.5', expanded && 'bg-selected')}
+          aria-pressed={expanded}
+          onClick={() => onExpandedChange(!expanded)}
+        >
+          <Icon.Expand className="size-4" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Close"
+        className="size-8 p-1.5"
+        onClick={onClose}
+      >
+        <Icon.X className="size-4" />
+      </Button>
+    </header>
+  )
+}
+
+function selectedArtifactIndex(
+  versions: readonly TheoremArtifact[],
+  revision?: string,
+) {
+  return Math.max(
+    0,
+    revision === undefined
+      ? versions.length - 1
+      : versions.findIndex((v) => v.revision === revision),
   )
 }

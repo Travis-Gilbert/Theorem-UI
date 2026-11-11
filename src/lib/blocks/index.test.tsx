@@ -63,11 +63,11 @@ test('a new tool or app declares nothing, and declares it without errors', () =>
   expect(tool.extension).toBe('tsx')
   expect(app.extension).toBe('html')
   expect(parseCodeDeclarations(tool.initial())).toEqual({
-    capabilities: { read: [], write: [], state: [], net: [], run: [] },
+    capabilities: { read: [], write: [], state: [], net: [], run: [], db: [] },
     errors: [],
   })
   expect(appDeclarations(app.initial())).toEqual({
-    capabilities: { read: [], write: [], state: [], net: [], run: [] },
+    capabilities: { read: [], write: [], state: [], net: [], run: [], db: [] },
     errors: [],
   })
 })

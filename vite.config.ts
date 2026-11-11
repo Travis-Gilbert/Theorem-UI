@@ -32,8 +32,21 @@ const loroForWorkers: Plugin = {
       return this.resolve('loro-crdt/bundler', importer, { skipSelf: true })
   },
 }
+const serverOnlyPackages = ['trash', '@rustyreddb/node']
+
+// The personal Theorem serves the API and is its OAuth issuer; it grants the
+// theorem-ui client models:invoke.
+const theoremVars = {
+  THEOREM_API_URL: 'https://travis-theorem-personal.fly.dev',
+  THEOREM_OAUTH_CLIENT_ID: 'theorem-ui',
+}
 
 const config = defineConfig({
+  // The dev server's client dependency scan follows the route tree into the
+  // desktop routes, and cannot pre-bundle these for the browser: rolldown
+  // cannot load a .node file, and trash's globby needs unicorn-magic's Node
+  // build. The client never imports them, so they are left out.
+  optimizeDeps: { exclude: serverOnlyPackages },
   resolve: {
     tsconfigPaths: true,
     alias: cloudflare
@@ -77,15 +90,26 @@ const config = defineConfig({
           routes: [{ pattern: 'theorem.rs', custom_domain: true }],
           // Also reachable at theorem-ui.<account>.workers.dev.
           workers_dev: true,
-          // The personal Theorem serves the API and is its OAuth issuer; it
-          // grants the theorem-ui client models:invoke.
-          vars: {
-            THEOREM_API_URL: 'https://travis-theorem-personal.fly.dev',
-            THEOREM_OAUTH_CLIENT_ID: 'theorem-ui',
-          },
+          vars: theoremVars,
+          // Workers Builds deploys other branches with `wrangler preview`,
+          // which takes its vars from here; Previews talk to the same Theorem.
+          previews: { vars: theoremVars },
         },
       },
       publicAssets: [
+        // The page a webview (the markdown preview) runs in, which Theia's
+        // build puts beside the frontend for a backend to serve at /webview.
+        // It comes before /theia, which dev otherwise answers with a 404.
+        {
+          baseURL: '/theia/webview',
+          dir: fileURLToPath(
+            new URL(
+              './ide/applications/browser/lib/webview/pre',
+              import.meta.url,
+            ),
+          ),
+          maxAge: 0,
+        },
         {
           baseURL: '/theia',
           dir: fileURLToPath(
@@ -116,10 +140,9 @@ const config = defineConfig({
             method: 'GET',
           },
         },
-        // trash runs a helper binary and @rustyreddb/node loads a native addon,
-        // each sitting beside its module; copied whole so the binary ships
-        // with it instead of being lost to bundling.
-        traceDeps: ['trash*', '@rustyreddb/node*'],
+        // Copied whole so each binary ships beside its module instead of
+        // being lost to bundling.
+        traceDeps: serverOnlyPackages.map((name) => `${name}*`),
       }),
     }),
     viteReact(),

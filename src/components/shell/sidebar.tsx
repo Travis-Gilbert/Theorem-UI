@@ -1,33 +1,38 @@
-// SOURCING: assistant-ui ThreadList element parts (restyled), the shell's Explorer (headless-tree), Base UI Menu (project switcher), ui/dialog over Base UI Dialog (new project), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list)
+// SOURCING: the organized thread tree and the IDE's sessions panel (components/organize), the shell's Explorer (headless-tree), Base UI Menu (project switcher), @tanstack/react-query via the shell's project and tenant hooks, FoldersSection (@headless-tree/react, desktop only), SpaceNotes (the canvas's note list), the Index panel, the Notes panel
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import {
-  ThreadListItems,
-  ThreadListNew,
-  ThreadListRoot,
-  ThreadListSearch,
-} from '@/components/assistant-ui/elements/thread-list.aui'
+import { Suspense, lazy, useState } from 'react'
 import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
+import { IndexPanel } from '@/components/index/index-panel'
+import { NewProjectDialog } from '@/components/organize/new-project-dialog'
+import { OrganizedPanel } from '@/components/organize/organized-panel'
+import { SessionsPanel } from '@/components/organize/sessions-panel'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { FoldersSection } from '@/components/workspace/folders'
-import { describeError } from '@/lib/theorem/client'
-import { useShellMode } from './modes'
-import { useActiveProject, useCreateProject, useTenant } from './projects'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarProvider,
+} from '@/components/coss/sidebar'
+import { filesUnderPanel, hasOwnView, useShellMode } from './modes'
+import { useActiveProject, useTenant } from './projects'
 import { useShell } from './shell-state'
 
 import { Explorer } from './explorer'
+
+import { PagesPanel } from '@/components/pages/pages-panel'
+import { NotesPanel } from '@/components/notes/notes-panel'
+
+// Canvas's graph list loads with the canvas, not with every panel that imports this file.
+const ProgramsPanel = lazy(() =>
+  import('@/components/program/programs-panel').then((module) => ({
+    default: module.ProgramsPanel,
+  })),
+)
 
 export const menuItem =
   'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
@@ -35,81 +40,23 @@ export const menuItem =
 export const menuPopup =
   'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-(--duration-snap) ease-snap data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
 
-function NewProjectDialog({
-  open,
-  onOpenChange,
-  onCreated,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onCreated: () => void
-}) {
-  const create = useCreateProject()
-  const [title, setTitle] = useState('')
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const next = title.trim()
-    if (!next) return
-    create.mutate(next, {
-      onSuccess: () => {
-        setTitle('')
-        onOpenChange(false)
-        onCreated()
-      },
-    })
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-lg font-normal tracking-tight">
-              New project
-            </DialogTitle>
-            <DialogDescription>
-              Projects keep related chats together.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            autoFocus
-            aria-label="Project name"
-            placeholder="Project name"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-          {create.error && (
-            <p role="alert" className="text-sm text-error-ink">
-              {describeError(create.error)}
-            </p>
-          )}
-          <DialogFooter>
-            <Button
-              type="submit"
-              disabled={!title.trim() || create.isPending}
-              className="bg-redwood text-on-redwood hover:bg-redwood-hover"
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function ProjectSwitcher() {
+/**
+ * The project menu. Threads belong to a project, so switching starts a new
+ * chat in the new one: in chat at /, and with `stay` beside the page it is on.
+ */
+function ProjectSwitcher({ stay = false }: { stay?: boolean }) {
   const { projects, project } = useActiveProject()
   const tenant = useTenant()
-  const setProjectId = useShell((s) => s.setProjectId)
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
-  // Threads belong to a project, so switching starts a new chat in the new one.
+  const open = (projectId: string) => {
+    const shell = useShell.getState()
+    shell.setProjectId(projectId)
+    if (stay) shell.setChatThreadId(undefined)
+    else void navigate({ to: '/' })
+  }
   const switchTo = (projectId: string) => {
-    if (projectId === project?.projectId) return
-    setProjectId(projectId)
-    void navigate({ to: '/' })
+    if (projectId !== project?.projectId) open(projectId)
   }
 
   return (
@@ -176,35 +123,9 @@ function ProjectSwitcher() {
       <NewProjectDialog
         open={creating}
         onOpenChange={setCreating}
-        onCreated={() => void navigate({ to: '/' })}
+        onCreated={open}
       />
     </>
-  )
-}
-
-/** Chat's panel: the project, then search, New chat, the conversations and the project's files. */
-function ChatPanel() {
-  const [search, setSearch] = useState('')
-
-  return (
-    <ThreadListRoot className="flex h-full flex-col">
-      <div className="flex h-12 shrink-0 items-center px-1.5">
-        <ProjectSwitcher />
-      </div>
-      <div className="flex shrink-0 flex-col gap-px px-2 pb-1">
-        <div className="pb-1">
-          <ThreadListSearch value={search} onValueChange={setSearch} />
-        </div>
-        <ThreadListNew className="w-full" />
-      </div>
-      <nav
-        aria-label="Chats"
-        className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
-      >
-        <ThreadListItems searchQuery={search} />
-      </nav>
-      <Explorer />
-    </ThreadListRoot>
   )
 }
 
@@ -216,42 +137,79 @@ function SpacesPanel() {
       <div className="flex h-12 shrink-0 items-center px-1.5">
         <ProjectSwitcher />
       </div>
-      <nav
-        aria-label="Notes on the canvas"
-        className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
-      >
-        <p className="px-2 pt-2 pb-1 text-xs text-ink-faint-sheet">Notes</p>
-        {project && (
-          <SpaceNotes
-            key={project.projectId}
-            projectId={project.projectId}
-            title={project.title}
-          />
-        )}
-      </nav>
+      <SidebarContent role="navigation" aria-label="Notes on the canvas">
+        <SidebarGroup>
+          <SidebarGroupLabel>Notes</SidebarGroupLabel>
+          <SidebarGroupContent>
+            {project && (
+              <SpaceNotes
+                key={project.projectId}
+                projectId={project.projectId}
+                title={project.title}
+              />
+            )}
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
     </div>
   )
 }
 
 /**
- * The panel beside the rail belongs to the active mode. Theia covers it in
- * IDE mode, so Chat's panel stays under it. Chat's panel stays mounted behind
- * Spaces, so its search, scroll and open branches survive a switch. The
- * desktop app's folders sit below every mode's panel.
+ * The navigator beside the rail: the active mode's list above the files. The
+ * IDE has its sessions, and Theia its own explorer, so the folders show there
+ * only when the rail's Files control reveals them. Chat's panel stays mounted
+ * behind the IDE, Index, Notes, Pages, Spaces, Canvas and the revealed files,
+ * so its search, scroll and open branches survive a switch. The rail's Files
+ * control reveals the files over the mode's list.
  */
 export function ContextPanel() {
   const mode = useShellMode()
+  const filesShown = useShell((s) => s.filesShown)
+  const threads = !hasOwnView(mode) && mode !== 'ide'
   return (
-    <div className="on-sheet flex h-full flex-col">
-      <div hidden={mode === 'spaces'} className="min-h-0 flex-1">
-        <ChatPanel />
-      </div>
-      {mode === 'spaces' && (
-        <div className="min-h-0 flex-1">
-          <SpacesPanel />
+    <SidebarProvider className="on-sheet h-full min-h-0">
+      <Sidebar collapsible="none" className="w-full bg-transparent">
+        <div hidden={filesShown || !threads} className="min-h-0 flex-1">
+          <OrganizedPanel footer={<Explorer />} />
         </div>
-      )}
-      <FoldersSection />
-    </div>
+        {mode === 'ide' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <SessionsPanel switcher={<ProjectSwitcher stay />} />
+          </div>
+        )}
+        {mode === 'index' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <IndexPanel />
+          </div>
+        )}
+        {mode === 'spaces' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <SpacesPanel />
+          </div>
+        )}
+        {mode === 'notes' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <NotesPanel />
+          </div>
+        )}
+        {mode === 'pages' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <PagesPanel />
+          </div>
+        )}
+        {mode === 'canvas' && (
+          <div hidden={filesShown} className="min-h-0 flex-1">
+            <Suspense>
+              <ProgramsPanel />
+            </Suspense>
+          </div>
+        )}
+        {/* Beside the threads the folders fold into the panel's one Files row. */}
+        {(filesShown || filesUnderPanel(mode)) && (
+          <FoldersSection fill={filesShown} />
+        )}
+      </Sidebar>
+    </SidebarProvider>
   )
 }

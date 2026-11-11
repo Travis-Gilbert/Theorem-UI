@@ -8,20 +8,25 @@
 import '../../src/browser/style/index.css';
 
 import { ContainerModule } from '@theia/core/shared/inversify';
-import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { ApplicationShell, FrontendApplicationContribution } from '@theia/core/lib/browser';
 import { MenuContribution } from '@theia/core/lib/common';
 import { SidePanelHandler } from '@theia/core/lib/browser/shell/side-panel-handler';
 import { BrowserMenuBarContribution } from '@theia/core/lib/browser/menu/browser-menu-plugin';
+import { StatusBarImpl } from '@theia/core/lib/browser/status-bar';
 import { ScmContribution } from '@theia/scm/lib/browser/scm-contribution';
+import { ZedApplicationShell } from './zed-application-shell';
 import { ZedDockButtons } from './zed-dock-buttons';
 import { ZedExplorer } from './zed-explorer';
 import { ZedSidePanelHandler } from './zed-side-panel-handler';
+import { ZedStatusBar } from './zed-status-bar';
 import { ZedThemeContribution } from './zed-theme-contribution';
 import { ZedTitleBar } from './zed-title-bar';
 import { ZedScmContribution, ZedTitleBarContribution } from './zed-title-bar-contribution';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
+    rebind(ApplicationShell).to(ZedApplicationShell).inSingletonScope();
     rebind(SidePanelHandler).to(ZedSidePanelHandler);
+    rebind(StatusBarImpl).to(ZedStatusBar).inSingletonScope();
     bind(ZedTitleBar).toSelf().inSingletonScope();
     rebind(BrowserMenuBarContribution).to(ZedTitleBarContribution).inSingletonScope();
     rebind(ScmContribution).to(ZedScmContribution).inSingletonScope();

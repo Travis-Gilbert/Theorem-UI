@@ -240,8 +240,6 @@ them: same style, same line weight, and where possible the same creator.
 | Control | File | Icon | Digest | Creator | Rendition | Chosen by |
 |---|---|---|---|---|---|---|
 | Microphone, idle and capturing | `composer/noun-microphone-8216254.svg` | Microphone (8216254) | `4e6cdaa318bf1d49ff204fa8834a491789fe651ca222091601edda9fc199be03` | Jagat Kreasi | line 8 | Travis |
-| Canvas | `composer/noun-draft-8216278.svg` | draft (8216278) | `336d36918969f8504ace8d9677f677f5cfc519624e1e8be5ce273b64c0d5879f` | Jagat Kreasi | line 8 | Travis |
-| Attach | `composer/noun-attachment-8184735.svg` | Attachment (8184735) | `f2ecf1c68efa226f5747cb07605b979dd0396b7d8258ed939d4ca10c3a50d566` | Angel Yuta | line 7 | Travis |
 | Finish dictation, Stop generation | `composer/noun-stop-8086088.svg` | Stop (8086088) | `ef1f97b09c8f441bf3b98809f02b12601622883619ec3519c9e9334479aa220d` | Jagat Kreasi | line 8 | matched |
 | Remove | `composer/noun-close-8086061.svg` | Close (8086061) | `7222bb2f11dce56ef8c8b86b0be2b90b4afe7735265b8e973fd0dc8f8d4509b9` | Jagat Kreasi | line 8 | matched |
 | Retry | `composer/noun-refresh-8086048.svg` | Refresh (8086048) | `ec0b1e2d68207b399efed91bf3bfe227130941f4b04f6920603594e18a9260d8` | Jagat Kreasi | line 8 | matched |
@@ -361,6 +359,16 @@ owner's selections are.
 | `rail/noun-pages-8285393.svg` | `387d4d95fa53ed650caade86d4fe5f7c8f63c48e4966b14c8e37ab6b773001f9` | Not recorded | Subscription, as above | Never recorded here. Removed 2026-10-22 with the other Noun files nothing in Theorem UI imports. |
 | `tree/noun-file-8434068.svg` | `1e6655aa7a4755809bc860867e533dcce5a51cc73b45c476ad020beb5824f6be` | El Hikami / Noun Project, asset 8434068 | Subscription, as above | Drew the Projects tree's child rows. Removed 2026-10-22 with the other Noun files nothing in Theorem UI imports. |
 | `composer/noun-web-8223212.svg` | `3286f48751a00c75407f02c1691729a6980717825fb9fdbea4f0b3a9ac763372` | Dierys Design, web (8223212) | Subscription, as above | Drew Search until 2026-10-22; replaced by `streamline/streamline-cross-region-data-delivery-2.png`. |
+| `records/noun-add-8086054.svg` | `f21760efeeb1a5769100af2a85c7a922932c3bd1bfd1764f6e8bda9c57494cee` | Noun Project asset 8086054; creator as recorded above | Subscription, as above | Drew Add until 2026-11-05; replaced by Lucide Plus. |
+| `records/noun-file-8259863.svg` | `b254f092adcd62e50b828024ef216f30ae97a24b52857eb489a755977d30ab5d` | Noun Project asset 8259863; creator as recorded above | Subscription, as above | Drew File until 2026-11-05; replaced by `streamline/streamline-common-file-double.png`. |
+| `composer/noun-draft-8216278.svg` | `336d36918969f8504ace8d9677f677f5cfc519624e1e8be5ce273b64c0d5879f` | Jagat Kreasi / Noun Project, asset 8216278 | Subscription, as above | Drew Draft (the goal card) until 2026-11-06; replaced by `streamline/streamline-common-file-text-edit.png`. |
+| `records/noun-article-8259879.svg` | `a9dfb8e8dde770060cca7f135801c30a5b93ab028da23d7e66cf33e7d116300b` | article, Dierys Design (asset 8259879) | Subscription, as above | Drew Article (documents, notes, skills, the slash menu's Embed note) until 2026-11-06; replaced by `streamline/streamline-office-file-text.png`. |
+| `records/noun-layout-8176268.svg` | `75fd929a467cd32dad81c264f8185d70a516740c5b1b6911b847a7d646827990` | Layout, Dierys Design (asset 8176268) | Subscription, as above | Drew Layout (the sidebar toggle, Colors) until 2026-11-06; replaced by `streamline/streamline-browser-page-layout.png`. |
+| `composer/noun-attachment-8184735.svg` | `f2ecf1c68efa226f5747cb07605b979dd0396b7d8258ed939d4ca10c3a50d566` | Angel Yuta / Noun Project, asset 8184735 | Subscription, as above | Drew Attach and an uploaded file until 2026-11-10; replaced by the colored `streamline/control/source/streamline-folder-image-1.png` on the composer and `streamline-common-file-upload.png` for uploads. |
+| `streamline/streamline-send-email-1.png` | `f8f28286ecb00457a400fb6dfd2bc15d0c66c71f2fd4e58d37c0bc5b03e32d17` | Streamline Ultimate Light, Send Email 1 | The owner's Streamline plan | Drew Send until 2026-11-10; replaced by the colored style of the same mark, `streamline/control/source/streamline-send-email-1.png`. |
+| `streamline/streamline-ui-webpage-bullets.png` | `b2672570fdbe15028a0f18287e63ac33dd6e2f5a8ae303557f0d496cc1d15d2d` | Streamline Ultimate Light, Ui Webpage Bullets | The owner's Streamline plan | Drew Plan until 2026-11-10; replaced by the colored `streamline/control/source/streamline-task-list-quill.png`. |
+| `streamline/streamline-file-open.png` | `e62ed40466af24caa37dc1b970e9e24d3f76073ebc877701ddda7c8ecf6a637a` | Streamline Ultimate Light, File Open | The owner's Streamline plan | Drew an open folder (an open project, the Files panel) until 2026-11-10; folders now draw Lucide's Folder as the notes tree does, with no open state. |
+| `streamline/streamline-pencil-write-2.png` | `c6a0c709cb22bb6c5e1d4f5fd75494a6546461196d7b368cf7fbc0526f761bf8` | Streamline Ultimate Light, Pencil Write 2 | The owner's Streamline plan | Drew NewChat until 2026-11-10; replaced by the colored `streamline/control/source/streamline-pencil-write.png`. |
 
 The Lucide files the kit bundles are no longer reached from this surface. They
 remain in `gpui-component`'s own asset bundle for every other surface that
@@ -389,12 +397,11 @@ are Jagat Kreasi's and 23 are Dierys Design's. Every file is upstream's bytes
 unaltered, retrieved once at authoring time; the app never calls the API.
 The license basis is the one recorded under License above.
 
-Reused from the families already admitted, with no new file: `composer/noun-attachment-8184735.svg` (field Files); `composer/noun-close-8086061.svg` (control Close); `composer/noun-settings-8086044.svg` (control Options); `rail/noun-chat-8216252.svg` (control Discuss, retired 2026-10-23); `rail/noun-nodes-138240.svg` (control Data); `rail/noun-note-8327985.svg` (object Note).
+Reused from the families already admitted, with no new file: `composer/noun-attachment-8184735.svg` (field Files, retired 2026-11-10); `composer/noun-close-8086061.svg` (control Close); `composer/noun-settings-8086044.svg` (control Options); `rail/noun-chat-8216252.svg` (control Discuss, retired 2026-10-23); `rail/noun-nodes-138240.svg` (control Data); `rail/noun-note-8327985.svg` (object Note).
 
 | File | Draws | Term, creator and asset | Style | SHA-256 |
 | --- | --- | --- | --- | --- |
 | `records/noun-add-8086054.svg` | control Add | add, Jagat Kreasi (asset 8086054) | line 9 | `f21760efeeb1a5769100af2a85c7a922932c3bd1bfd1764f6e8bda9c57494cee` |
-| `records/noun-article-8259879.svg` | field RichText | article, Dierys Design (asset 8259879) | line 8 | `a9dfb8e8dde770060cca7f135801c30a5b93ab028da23d7e66cf33e7d116300b` |
 | `records/noun-checkmark-8086058.svg` | field Boolean | checkmark, Jagat Kreasi (asset 8086058) | line 8 | `e8862eada7d2b77515052928c431114bf2054f78902f9d066631cea4e0313e08` |
 | `records/noun-coding-8259870.svg` | field RawJson | coding, Dierys Design (asset 8259870) | line 8 | `33e0a160465156606072a83287ad90ebdc2c3895500add65574dd9a4742c05a9` |
 | `records/noun-expand-8086092.svg` | control Expand | expand, Jagat Kreasi (asset 8086092) | line 9 | `ea84fb04d755d2779822ad12e05e486b07fa07b57987642a08a2a5b05d18f65f` |
@@ -403,7 +410,6 @@ Reused from the families already admitted, with no new file: `composer/noun-atta
 | `records/noun-menu-8086045.svg` | field Array, control List | menu, Jagat Kreasi (asset 8086045) | line 8 | `3778c1de67f89fb06c00dd446d37d6f52f33b07af5315d404913063bf00d3e47` |
 | `records/noun-archive-8315826.svg` | control Archive | archive, Dierys Design (asset 8315826) | line 8 | `360f451f05cf79f01886688f5db93f8f92f58a7ab688cf6fe9d28af98ffc642d` |
 | `records/noun-eye-8086063.svg` | control Unread | Eye, Jagat Kreasi (asset 8086063) | line 8 | `34f002e915ec846d0892446e012c1d05db82d366008a677204bde5db2853c873` |
-| `records/noun-layout-8176268.svg` | control BoardView | Layout, Dierys Design (asset 8176268) | line 7 | `75fd929a467cd32dad81c264f8185d70a516740c5b1b6911b847a7d646827990` |
 
 The record sheet folds its sections without a disclosure mark. Neither the
 Jagat Kreasi set nor Dierys Design draws a chevron, and a chevron from a
@@ -463,25 +469,23 @@ band, so no correction is recorded and the 1x heavy flag remains.
 
 ## Streamline Ultimate Light marks
 
-These thirteen PNGs are from the owner's Streamline downloads, "streamline-ultimate-light--48x48-PNG.zip"
+Thirteen PNGs came from the owner's Streamline downloads, "streamline-ultimate-light--48x48-PNG.zip"
 (Streamline Ultimate, Light style, 48 x 48, black ink on a transparent ground).
 Each was copied byte for byte and renamed in lowercase with a `streamline-`
 prefix. The app paints them as CSS masks (`.icon-mask` in `styles.css`), so the
 bytes are unchanged and the ink follows `currentColor`. The license is whatever
 covers the owner's Streamline plan. Streamline's free tier requires attribution;
 a paid plan does not.
+Ten remain; Send Email 1, File Open and Pencil Write 2 are under Retired.
 
 | Registry name | File | Streamline name | SHA-256 |
 |---|---|---|---|
 | Copy | `streamline/streamline-copy-paste-1.png` | Copy Paste 1 | `9700385580df9e3fe93d3e16bc22a54d029ed999d28528c0f00ee073473da8fc` |
-| NewChat | `streamline/streamline-pencil-write-2.png` | Pencil Write 2 | `c6a0c709cb22bb6c5e1d4f5fd75494a6546461196d7b368cf7fbc0526f761bf8` |
 | Search | `streamline/streamline-search-square.png` | Search Square | `df992de155819ffba277e44c678ef72058103fe1dbb1b1918c797108a15379f2` |
-| Send | `streamline/streamline-send-email-1.png` | Send Email 1 | `f8f28286ecb00457a400fb6dfd2bc15d0c66c71f2fd4e58d37c0bc5b03e32d17` |
 | Share | `streamline/streamline-share-1.png` | Share 1 | `6dce180df4d355ff4a0597747ac74474aeadc7355ae08c0f312f0ec762586776` |
 | Web | `streamline/streamline-cross-region-data-delivery-2.png` | Amazon Web Service Cross Region Data Delivery 2 | `bf2af3fedbfe2ef27e2326eefa76bc188a32bd7b2f02fb483e1e412cc0fdaeb5` |
-| Diagram | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
-| Folder | `streamline/streamline-folder.png` | Folder | `f2c5c9fd0f6f8ad25bf7ef6c61879d89ad68211c06734c68bd4bdc613c8d926e` |
-| FolderOpen | `streamline/streamline-file-open.png` | File Open | `e62ed40466af24caa37dc1b970e9e24d3f76073ebc877701ddda7c8ecf6a637a` |
+| Diagram, Canvas | `streamline/streamline-code-write-1.png` | Code Write 1 | `7108b54d95e8fd3989dfa09beabab4801dcb5413090db1919eed87a89a70289f` |
+| Speaker (the mark beside Theorem's replies; a folder until 2026-11-10, when folders took Lucide's as the notes tree draws it) | `streamline/streamline-folder.png` | Folder | `f2c5c9fd0f6f8ad25bf7ef6c61879d89ad68211c06734c68bd4bdc613c8d926e` |
 | Artifact | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
 | Open | `streamline/streamline-shipment-upload.png` | Shipment Upload (drawn as two masks, lid and body, so the lid can open) | `b0f971ba54602d9521a4a4dda64aaa75f088b6330aef9c31f101b076db25a006` |
 | Download | `streamline/streamline-download-box.png` | Download Box | `883be4b139f91501a74541687e04b8dc8ca85b46aa5ffe7ae501c24046beda97` |
@@ -501,18 +505,191 @@ way, for the Vault view.
 | Trusted | `streamline/streamline-zip-file-lock.png` | Zip File Lock | `d52444fa4c197a78539428b736187268e8cc512fd9656529ccbb87f87e5072c1` |
 | Untrusted | `streamline/streamline-zip-file-warning.png` | Zip File Warning | `12f856713874d0409829cee132357eacf3b4b2f53ef34b47a6630dd9d963020d` |
 
-Two more mark what comes from Theorem in the Vault, from the downloads
-"streamline-ultimate-light--48x48-PNG(3).zip" and "(5).zip", copied and
-renamed the same way.
+Two more came from the downloads "streamline-ultimate-light--48x48-PNG(3).zip"
+and "(5).zip", copied and renamed the same way, to mark what comes from Theorem
+in the Vault. One remains; Ui Webpage Bullets, which also drew Plan, is under
+Retired.
 
 | Registry name | File | Streamline name | SHA-256 |
 |---|---|---|---|
-| Plan | `streamline/streamline-ui-webpage-bullets.png` | Ui Webpage Bullets | `b2672570fdbe15028a0f18287e63ac33dd6e2f5a8ae303557f0d496cc1d15d2d` |
 | TheoremVault | `streamline/streamline-square-wireframe-3d.png` | Square Wireframe 3d | `5313347162b22d924dcefd3d9a981385da0b4f2a26448563fc315f0c0ddab4b7` |
 
-Outline and Graph have no owned mark yet; Lucide's TableOfContents and
-Waypoints stand in, as Lucide's trash does for Delete. Nor do an agent's
-document and a skill: Lucide's Bot and GraduationCap stand in the same way,
-and Lucide's BellOff for muting a link suggestion.
+Twenty more came from the owner's downloads of 2026-11-05,
+"streamline-ultimate-light--graphs and git.zip", "streamline-ultimate-light-notes.zip",
+"streamline-ultimate-light.zip" and "streamline-ultimate-light--48x48-PNG(16).zip",
+copied and renamed the same way. Common File Double and Pencil Write 2 were in
+those downloads too, byte-identical to the files listed above at the time.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Organize | `streamline/streamline-hierarchy-5-organize.png` | Hierarchy 5 Organize | `6ab526d41fd2dbba1cfc107ddcad2e233653ccde15a7491f10fcf6aa679c9bae` |
+| compound node kind | `streamline/streamline-hierarchy-6.png` | Hierarchy 6 | `9813ab25dbd8fb36c9877e8be6a99100242b9e3138be0deb164241b92b8328bc` |
+| Graph | `streamline/streamline-astronomy-constellation.png` | Astronomy Constellation | `f3052892c7d375a4cd5d5cc3ed7a9aab301adef981e258dc8cfc13053794d83b` |
+| Fork | `streamline/streamline-workflow-branch.png` | Workflow Branch | `0de93aaa3827eaf1f17744817975f82cf0d16ffe9c0814e781c2b18b0a4d529f` |
+| Proposal | `streamline/streamline-workflow-pull-request.png` | Workflow Pull Request | `df6abce092d33f5726bda4015a33db49e95087161716610b96136b38bb6d1f01` |
+| Draft | `streamline/streamline-common-file-text-edit.png` | Common File Text Edit | `29e8a30b59d9542763f7a37ca7ea0560402890f2c8e97d536ee38f1ffbcc9b00` |
+| Article | `streamline/streamline-office-file-text.png` | Office File Text | `fedbb8d674c68477946e8ed9f5d551c8857366306303dfe1db0904c79378906f` |
+| Note | `streamline/streamline-pencil-write-1.png` | Pencil Write 1 | `efcdfbb43332464cae8e66bb92c9fdfd98c2bf3ab734ac7f268acbee1fe1bde3` |
+| Agent | `streamline/streamline-ai-file-robot.png` | Ai File Robot | `4526790a1bff823de8c9e32d1ce60c1190b370a6f6360751ec1a275fb98329aa` |
+| Skill, stochastic node kind | `streamline/streamline-ai-science-spark.png` | Ai Science Spark | `ab6c4ffcecdb3329cf714d923cbc7b2f1394217e506a677d7720e2c071af8bfb` |
+| Sink, sink node kind | `streamline/streamline-travel-paper-plane.png` | Travel Paper Plane | `a38d362623d1a982edb9b1bc37b5abf36db941a95cc4f85f38fc12f15ec270ac` |
+| Panels | `streamline/streamline-browser-page-layout.png` (from "graph and layout.zip") | Browser Page Layout | `7dccfde413cb043f8d0ff7e1745a657afb5e9e813b96d3edd430d7e7ed76425a` |
+| Follow | `streamline/streamline-agent-software-cursor-bot-2.png` | Agent Software Cursor Bot 2 | `1b8d517f16c6fa3c97715a4c15450d3e42f8173d4730dfc3815e9a9a46c7788a` |
+| AddNode | `streamline/streamline-hierarchy-5.png` | Hierarchy 5 | `4fd570f8b7aeae87fb02840c8bdd4c868e5f990813ac934c7bd9b5c10ca02053` |
+| NewGraph | `streamline/streamline-design-file-select.png` | Design File Select | `2d59eeb844b160ffc211c87bb773531224e10614856dc315d4a5114634243659` |
+| Outline | `streamline/streamline-hierarchy-2.png` | Hierarchy 2 | `39089aabb50f744069c7cae7ed01f1c915fbb594561584453ef2d2c617520f4e` |
+| Model | `streamline/streamline-ai-generate-variation-robot.png` | Ai Generate Variation Robot | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
+| Mail | `streamline/streamline-paginate-filter-mail.png` | Paginate Filter Mail | `bf97bc644288a2bf074560d3586bd74df90ca92b88aac30d7519a325c8e02cbb` |
+| Reject | `streamline/streamline-workflow-request-closed.png` | Workflow Request Closed | `5a70587c8f65d678f39597a21419bf8460a1a49ba11d689b9ce6c69e346b7917` |
+| Route | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
+| Layout | `streamline/streamline-browser-page-layout.png` | Browser Page Layout | `7dccfde413cb043f8d0ff7e1745a657afb5e9e813b96d3edd430d7e7ed76425a` |
+| Delegate | `streamline/streamline-ai-routing-agent-direction-1.png` | Ai Routing Agent Direction 1 | `85166ab56762760f2165ef7fe65bc0d41f2ec91c278375b766ab6933698131a9` |
+
+One more came on 2026-11-06 as a PNG the owner attached in conversation (48 x
+48, black ink on a transparent ground, the same Light style), copied byte for
+byte. Its Streamline name was matched by shape against Streamline's catalogue,
+where the Fill style of the same mark is "Ai Robot Generate Variation"; the
+attachment itself carried no name. It marks Theorem's own model choice in the
+composer's model switch, the command palette and AI settings, where Spaces's
+Penrose triangle stood in before.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Theorem | `streamline/streamline-ai-robot-generate-variation.png` | Ai Robot Generate Variation (by shape) | `0680b8bfe17c5bc960c4bffade845e1b0c50ea72d1fadc10cc0c84ee30744465` |
+
+One more came on 2026-11-08 as a loose download in the same Light style,
+"Descending-Sort-Filter-2--Streamline-Ultimate.png" (48 x 48), copied byte for
+byte and renamed the same way. It opens the Notes panel's sort menu.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Sort | `streamline/streamline-descending-sort-filter-2.png` | Descending Sort Filter 2 | `a5097120a673269d387f8017df4a0a4dd70a6b52bbf7887a85fe76cd1dedab18` |
+
+Two more came the same day. Common File Add is from
+"streamline-ultimate-light--48x48-PNG (3).zip". The AI file is a PNG the owner
+attached in conversation (48 x 48, the same Light style); it carried no name and
+none was matched, so its file name describes the shape. Both were copied byte
+for byte.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| NewNote | `streamline/streamline-common-file-add.png` | Common File Add | `9a25b0adc52b53bd08017f59930028c4a10c06d8b889c55c4291f32872695816` |
+| AgentNote | `streamline/streamline-ai-file-sparkle.png` | (owner attachment, unnamed: a file with a four-point sparkle) | `184dc83fc9f69ed94c92ea7d03ece38f546f0968381af5bf5b8b29ed160450f1` |
+
+The rest of those downloads is kept in `streamline/library/`. Nothing imports
+those files, so they do not ship; they are there to reach for. Dzone Logo and
+Tripit Logo draw real companies' marks, so check before using either as an
+interface glyph. Share is a different drawing from the Share 1 the registry uses.
+
+| File | Streamline name | SHA-256 |
+|---|---|---|
+| `streamline/library/streamline-hierarchy-9.png` | Hierarchy 9 | `c368623653bd006579eb8a7e2e15fbeb65a12e8829a09d30aea18ddecb842517` |
+| `streamline/library/streamline-dzone-logo.png` | Dzone Logo | `71012ba44e63309339d57d40ab6fb2bff508da391739f5cac2033b1122b6b709` |
+| `streamline/library/streamline-hierarchy-files.png` | Hierarchy Files | `26d15f7cffd146df723d2e5a02dfa886aa13b9eff3ee28de9e7acc26669624b6` |
+| `streamline/library/streamline-rotate-3d.png` | Rotate 3d | `e655ce10aeb6e81d0b36846a6ffe5ebce175beef521141237e8c498cae8c3119` |
+| `streamline/library/streamline-scale-3d.png` | Scale 3d | `1123f94ff8bf46dad98d151e6a40e96234841f841444077ad302f09ccf95de2f` |
+| `streamline/library/streamline-share.png` | Share | `ff7948a797a0e3bcf074c9e66cfdbd29f15e4bf928675c4429edc27a7ea1bb0b` |
+| `streamline/library/streamline-tripit-logo.png` | Tripit Logo | `ef8a4fc89fdcf6bd93ac46fb5fd3de6b4f89f27ed7374b30ef8b09cc3d65bebd` |
+| `streamline/library/streamline-workflow-exit-door.png` | Workflow Exit Door | `bad924ee9a0e88036e14e49add8dc7cc78885f71a97ea0d66b0417e2c0d2d227` |
+| `streamline/library/streamline-workflow-request-draft.png` | Workflow Request Draft | `c3b14b30f117989226f49c29e7d154cbb28a9679470ff5b28bb5df22e1807ea0` |
+| `streamline/library/streamline-ai-folder-spark.png` | Ai Folder Spark | `ae9fcb01649b48af25b34cec8cfc1623e9419179ddcd91b0bacab1f6a428459e` |
+
+None of those downloads draws a plus, so Lucide's stands in for Add, as Lucide's
+trash does for Delete and Lucide's BellOff for muting a link suggestion. File
+reuses Common File Double.
 
 The files they replace in the registry are listed under Retired.
+
+Two more came as owner attachments on 2026-11-08, "App-Window-Code--Streamline-Ultimate.png"
+and "List-Edit--Streamline-Ultimate.png" (48 x 48, the same set), copied and
+renamed the same way. App Window Code replaced the Shellfile rendition as
+`Icon.Ide`; `rail/noun-shellfile-1517619.svg` stays in the tree, unused. Since the
+coloured rail marks below, the rail draws the IDE with File Code, and `Icon.Ide`
+draws the IDE's glyph in chat cards and the code handler.
+
+| Registry name | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Ide | `streamline/streamline-app-window-code.png` | App Window Code | `fac43b13b5cad8cb4c84a43a1f0b7f63190d156fb13d95dd74741f664a1f3f8b` |
+| Todo (the `todo` section glyph) | `streamline/streamline-list-edit.png` | List Edit | `1ffaf8ff236e8e122027931d17ae736e8d3b8c45aad90912b8c4d28162fe8a9c` |
+
+## Rail marks in colour (Streamline Ultimate, colored style)
+
+The outer rail's marks are Streamline Ultimate colored icons, from the owner's
+downloads "replace chat.zip", "new index.zip", "canvas.zip" and "IDE and file
+folder.zip", plus the Vault's zipped folder (an image the owner sent in chat).
+Each was copied byte for byte and renamed in lowercase with a
+`streamline-` prefix, into `streamline/rail/source/`. The license is whatever
+covers the owner's Streamline plan. Dzone Logo draws a real company's mark;
+the owner chose it for Spaces.
+
+| Rail role | File | Streamline name | SHA-256 |
+|---|---|---|---|
+| Home (the chat mode) | `streamline/rail/source/streamline-house-1.png` | House 1 | `bd37c1ab27ccbd703475a1f44ca9412f7bfc2964d271eb5120562b7766709c4e` |
+| Index | `streamline/rail/source/streamline-drawer-file.png` | Drawer File (colored) | `f479a5a678b58c4bf83200e2bd1eacdaab92ee6158fbd7e82408caf679ac4f34` |
+| Canvas | `streamline/rail/source/streamline-design-file-vector.png` | Design File Vector | `6dd5a2f2cdf27dd744d1061019f101448aa8994823e3a34d47ce3ff8933f1e42` |
+| Spaces | `streamline/rail/source/streamline-dzone-logo.png` | Dzone Logo | `34ebf6a16486df7d10d222ef39e9168178e6babe0540263838dc57b51556097c` |
+| IDE | `streamline/rail/source/streamline-file-code.png` | File Code | `504bc7985dc8207cdbabf266ac008edf3b5470f890d7931c43499d822032ddb8` |
+| Vault | `streamline/rail/source/streamline-folder-zip.png` | Folder Zip (colored; name inferred from the image) | `09a2592d12b09cceb6a241a673c8a1b361b792331931848a5d6973f8fc97eeb7` |
+| Files control at the rail's foot | `streamline/rail/source/streamline-hierarchy-files-1.png` | Hierarchy Files 1 | `88dd557e71a8a6eca831706aa9cd5105a9415eb93d53db20cf636690fab0aad1` |
+
+Pages reuses the Light-style Browser Page Layout PNG, and Notes the Light-style
+Common File Stack PNG listed above. Both are black ink on transparent, so the
+generator fills each enclosed region itself.
+
+The colour comes from `scripts/rail-icons.mjs`, which splits every source into
+up to four alpha masks by luma and chroma (line, accent, tint, paper) and writes
+them to `streamline/rail/layers/`. `.rail-mark` in `styles.css` paints each mask
+from a palette token, so the rail follows the palette and light or dark mode with
+no script at run time. `scripts/rail-icons.test.ts` fails when the committed
+layers differ from what the generator writes.
+
+The monochrome rail marks `Icon.Chat`, `Archive`, `Layout`, `Vault`, `Spaces`,
+`Canvas` and `Ide`, and the folder `Icon.Files` at the rail's foot, no longer
+draw the rail. They stay in the registry for the surfaces that still use them.
+
+## Control marks in colour (Streamline Ultimate, colored style)
+
+Ten marks for the sidebar, the composer and the tool rows, from the owner's
+downloads of 2026-11-10: "chat.zip", "Chat-search.zip", "send and upload.zip",
+"Plan icon.zip", "Tool call complete.zip", "web search.zip", "new chat (1).zip"
+and the loose "plans.png". Each was copied byte for byte and
+renamed in lowercase with a `streamline-` prefix, into
+`streamline/control/source/`. The license is whatever covers the owner's
+Streamline plan.
+
+| Registry name | Draws | File | Streamline name | SHA-256 |
+|---|---|---|---|---|
+| Thread | A chat in the sidebar with no icon from the Librarian | `streamline/control/source/streamline-messages-bubble-text-1.png` | Messages Bubble Text 1 | `ec4d1ecc5ca3d42792e86cdb6f903e49b36f66b14a3fc9c49bab1cfb57dd442b` |
+| ChatSearch | The sidebar's search button | `streamline/control/source/streamline-messages-bubble-search.png` | Messages Bubble Search | `c0738f5c056f36d120f912b1a1b0291939fe4137a10d2f9c39726a30cd22c881` |
+| Send | The composer's send button | `streamline/control/source/streamline-send-email-1.png` | Send Email 1 | `e6a579771d9cddb57779139ddd1f9ca5bfdd0bd8c4a06b63570bd9e789005470` |
+| Attachment | An uploaded file: the sidebar's outputs, a message's attachment, Import | `streamline/control/source/streamline-common-file-upload.png` | Common File Upload | `4a6466ea74e63671f226aecb0b04c21bcd2c495677362d54071f26259ea59ff2` |
+| AttachFolder | The composer's attach button | `streamline/control/source/streamline-folder-image-1.png` | Folder Image 1 | `74d71e79c46fb27cd299b26114b7e0681892ded3d45d3864bc434235aa67a694` |
+| Plan | The composer's Plan toggle, a plan card, a workspace's plan entry | `streamline/control/source/streamline-task-list-quill.png` | Not carried by the file ("plans.png"); a task list with a quill, so the file name describes the shape | `02346fd5f38dc7aece311047950d9abfb19fca5bf557cf00c06961510c272960` |
+| WebSearch | The composer's Web toggle | `streamline/control/source/streamline-network-search.png` | Network Search | `58fccf0874e5c6fc45b0735d8e10d4f5727496669f19dd926ec0cbd2d3806968` |
+| NewChat | New thread and new chat, wherever they are offered | `streamline/control/source/streamline-pencil-write.png` | Pencil Write | `db2e92915632cfc26b574bc0eea63fa530d0cd211955663cc707aa50ab6d8e3c` |
+| ToolRunning | A tool call in progress | `streamline/control/source/streamline-list-edit.png` | List Edit | `1b15161b5a241c1a7da50c572ea7cb28e676adb920f5d4a0c79503aa042bae3f` |
+| ToolDone | A finished tool call | `streamline/control/source/streamline-task-list-multiple.png` | Task List Multiple | `142f46f61810fa491aa90b40f084f74f059fffa6d8700255b6010eb988de5288` |
+
+"Plan icon.zip" also held Hierarchy 2, Data File Bars Edit and Performance
+Presentation Graph, and "new chat.zip" held Common File Edit. The owner chose
+the quill for Plan over Hierarchy 2; none of the four is placed and none is in
+this directory. Web keeps its Light-style mark on every surface but the
+composer.
+
+They are painted the way the rail's marks are: `scripts/rail-icons.mjs` splits
+each source into line, accent, tint and paper masks, written to
+`streamline/control/layers/`, and `.rail-mark` in `styles.css` paints each mask
+from the palette. At a control's size each fill takes the next lighter colour
+(`painted(..., soft)` in `components/icons.tsx`), so the outline stays legible.
+`scripts/rail-icons.test.ts` covers these layers too.
+
+Since 2026-11-10 these ten layers are vector outlines, not PNG alpha. The
+sources are the same 48px PNGs, byte for byte; no SVG export came with the
+downloads. The generator reads each icon's own flat colours, takes every
+anti-aliased pixel as a blend of two of them to get each layer's coverage,
+enlarges that eight times (jimp, bicubic) and traces it (potrace), then
+shortens the paths (svgo). A traced mark is sharp at any size and holds no
+detail the 48px source did not. The rail's layers are still PNG alpha.
+
+A failed tool call and one waiting on the user keep the Noun close mark; no
+replacement came with these downloads.

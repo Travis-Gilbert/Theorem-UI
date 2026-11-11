@@ -221,3 +221,33 @@ b * 10`)
     channel.port2.close()
   })
 })
+
+test('App selection stays bounded and is delivered as context without executing an action', async () => {
+  const selections: unknown[] = []
+  const channel = new MessageChannel()
+  const host = {client,capabilities:noCapabilities(),state:memoryState(),
+    run:()=>Promise.reject(new Error('must not execute')),onSelection:(value:unknown)=>selections.push(value)}
+  const stop = serveBridge(rpcOver(channel.port1),host)
+  const frame = rpcOver(channel.port2)
+  try {
+    await call<PageMethods,'frame.selection'>(frame,'frame.selection',{text:'Firefox',rowId:'firefox',field:'privacy'})
+    expect(selections).toEqual([{text:'Firefox',rowId:'firefox',field:'privacy'}])
+    const refused = await call<PageMethods,'frame.selection'>(frame,'frame.selection',{text:'x'.repeat(4097)}).then(()=>false,()=>true)
+    expect(refused).toBe(true)
+    expect(selections).toHaveLength(1)
+    await call<PageMethods,'frame.selection'>(frame,'frame.selection',{text:'',entityId:'gpu-lane-7',entityLabel:'GPU lane 7'})
+    expect(selections[1]).toEqual({text:'',entityId:'gpu-lane-7',entityLabel:'GPU lane 7'})
+  } finally { stop();channel.port1.close();channel.port2.close() }
+})
+
+test('a rejected App state save reaches the sandbox as a failure',async()=>{
+  const channel=new MessageChannel()
+  const state=memoryState()
+  state.set=()=>Promise.reject(new Error('Document store unavailable'))
+  const stop=serveBridge(rpcOver(channel.port1),{client,state,capabilities:{...noCapabilities(),state:['rows']},run:async()=>{throw new Error('unused')}})
+  const frame=rpcOver(channel.port2)
+  try {
+    const result=await call<PageMethods,'state.set'>(frame,'state.set',{name:'rows',key:'one',value:'edit'}).then(()=> 'saved',error=>error.message)
+    expect(result).toContain('Document store unavailable')
+  } finally {stop();channel.port1.close();channel.port2.close()}
+})

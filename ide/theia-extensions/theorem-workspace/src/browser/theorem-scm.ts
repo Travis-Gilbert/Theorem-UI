@@ -30,11 +30,15 @@ import { ScmRepository } from '@theia/scm/lib/browser/scm-repository';
 import { ScmService } from '@theia/scm/lib/browser/scm-service';
 import { ScmTreeWidget } from '@theia/scm/lib/browser/scm-tree-widget';
 import { ScmWidget } from '@theia/scm/lib/browser/scm-widget';
-import type { ScmChange, ScmStatus, WorkspaceScm } from '@theoremharness/sdk';
+import type { ScmBranch, ScmChange, ScmStatus, WorkspaceScm } from '@theoremharness/sdk';
 import { TheoremConnection } from './theorem-connection';
 
 /** The provider id, which is also the scheme of its revision URIs (`ScmRepository.toUriAtRef`). */
 const PROVIDER_ID = 'theorem-scm';
+/** `uri`'s text at `ref`, the shape `ScmRepository.toUriAtRef` gives and the resolver below reads. */
+export const revisionUri = (uri: URI, ref: string): URI =>
+    uri.withScheme(PROVIDER_ID).withQuery(JSON.stringify({ path: uri.path.fsPath(), ref }));
+
 /** Writes in the checkout settle for this long before status is read again. */
 const REFRESH_DELAY_MS = 300;
 
@@ -51,6 +55,9 @@ export namespace TheoremScmCommands {
     export const SWITCH_BRANCH: Command = { id: 'theorem.scm.switchBranch', label: 'Switch Branch...', category };
     export const FETCH: Command = { id: 'theorem.scm.fetch', label: 'Fetch', category };
     export const PUSH: Command = { id: 'theorem.scm.push', label: 'Push', category };
+    export const MERGE: Command = { id: 'theorem.scm.merge', label: 'Merge Branch...', category };
+    export const KEEP_OURS: Command = { id: 'theorem.scm.keepOurs', label: 'Keep Ours', category };
+    export const KEEP_THEIRS: Command = { id: 'theorem.scm.keepTheirs', label: 'Keep Theirs', category };
 }
 
 type GroupId = 'merge' | 'index' | 'workingTree';
@@ -324,6 +331,13 @@ export class TheoremScmContribution implements FrontendApplicationContribution, 
         registry.registerCommand(TheoremScmCommands.SWITCH_BRANCH, { execute: () => this.switchBranch() });
         registry.registerCommand(TheoremScmCommands.FETCH, { execute: () => this.run('Fetch', scm => scm.fetch()) });
         registry.registerCommand(TheoremScmCommands.PUSH, { execute: () => this.run('Push', scm => scm.push()) });
+        registry.registerCommand(TheoremScmCommands.MERGE, { execute: () => this.mergeBranch() });
+        registry.registerCommand(TheoremScmCommands.KEEP_OURS, {
+            execute: (...resources: TheoremScmResource[]) => this.resolveConflicts(paths(resources), 'ours'),
+        });
+        registry.registerCommand(TheoremScmCommands.KEEP_THEIRS, {
+            execute: (...resources: TheoremScmResource[]) => this.resolveConflicts(paths(resources), 'theirs'),
+        });
     }
 
     registerMenus(menus: MenuModelRegistry): void {
@@ -336,6 +350,8 @@ export class TheoremScmContribution implements FrontendApplicationContribution, 
         resource(TheoremScmCommands.DISCARD.id, 'discard', inGroup('workingTree'), '1');
         resource(TheoremScmCommands.STAGE.id, 'add', inGroup('workingTree', 'merge'), '2');
         resource(TheoremScmCommands.UNSTAGE.id, 'remove', inGroup('index'), '2');
+        resource(TheoremScmCommands.KEEP_OURS.id, 'arrow-left', inGroup('merge'), '0');
+        resource(TheoremScmCommands.KEEP_THEIRS.id, 'arrow-right', inGroup('merge'), '1');
         const group = (commandId: string, icon: string, when: string) => {
             menus.registerMenuAction(ScmTreeWidget.RESOURCE_GROUP_INLINE_MENU, { commandId, icon: codicon(icon), when });
             menus.registerMenuAction(ScmTreeWidget.RESOURCE_GROUP_CONTEXT_MENU, { commandId, when });
@@ -350,7 +366,7 @@ export class TheoremScmContribution implements FrontendApplicationContribution, 
         registry.registerItem({ id: TheoremScmCommands.REFRESH.id, command: TheoremScmCommands.REFRESH.id, tooltip: 'Refresh', icon: codicon('refresh'), isVisible });
         for (const [command, order] of [
             [TheoremScmCommands.FETCH, '1'], [TheoremScmCommands.PUSH, '2'],
-            [TheoremScmCommands.CREATE_BRANCH, '3'], [TheoremScmCommands.SWITCH_BRANCH, '4'],
+            [TheoremScmCommands.CREATE_BRANCH, '3'], [TheoremScmCommands.SWITCH_BRANCH, '4'], [TheoremScmCommands.MERGE, '5'],
         ] as const) {
             registry.registerItem({ id: command.id, command: command.id, text: command.label, group: 'theorem-scm', order, isVisible });
         }
@@ -449,12 +465,21 @@ export class TheoremScmContribution implements FrontendApplicationContribution, 
     }
 
     protected async switchBranch(): Promise<void> {
-        let branches;
+        const branch = await this.pickBranch('Select a branch to switch to');
+        if (branch) {
+            // A remote branch's own name checks out a local branch tracking it.
+            const name = branch.remote ? branch.name.slice(branch.name.indexOf('/') + 1) : branch.name;
+            await this.run('Switch Branch', scm => scm.branch(name));
+        }
+    }
+
+    protected async pickBranch(placeholder: string): Promise<ScmBranch | undefined> {
+        let branches: ScmBranch[];
         try {
             branches = await (await this.connection.scm()).branches();
         } catch (error) {
             this.messages.error(`Git: Listing branches failed: ${error instanceof Error ? error.message : String(error)}`);
-            return;
+            return undefined;
         }
         const picked = await this.quickInput.showQuickPick(
             branches.filter(branch => !branch.current).map(branch => ({
@@ -462,12 +487,36 @@ export class TheoremScmContribution implements FrontendApplicationContribution, 
                 description: branch.remote ? 'Remote branch' : branch.upstream ?? undefined,
                 branch,
             })),
-            { placeholder: 'Select a branch to switch to' },
+            { placeholder },
         );
-        if (picked) {
-            // A remote branch's own name checks out a local branch tracking it.
-            const name = picked.branch.remote ? picked.branch.name.slice(picked.branch.name.indexOf('/') + 1) : picked.branch.name;
-            await this.run('Switch Branch', scm => scm.branch(name));
+        return picked?.branch;
+    }
+
+    /** The host merges without committing, so the result can be read and the merge commit is written as any other. */
+    protected async mergeBranch(): Promise<void> {
+        const branch = await this.pickBranch('Select a branch to merge into the current one');
+        if (!branch) {
+            return;
         }
+        let state: string | undefined;
+        let conflicts = 0;
+        await this.run('Merge', async () => {
+            const merged = await this.connection.operate<{ state: string; conflicts?: unknown[] }>('scm.merge', { ref: branch.name });
+            state = merged.state;
+            conflicts = merged.conflicts?.length ?? 0;
+        });
+        if (state === 'conflict') {
+            this.messages.warn(`Merging ${branch.name} left ${conflicts === 1 ? 'a conflict' : `${conflicts} conflicts`}. Resolve ${conflicts === 1 ? 'it' : 'them'} under Merge Changes, then commit.`);
+        } else if (state) {
+            this.messages.info(`Merged ${branch.name}. Commit to finish the merge.`);
+        }
+    }
+
+    protected async resolveConflicts(paths: string[], take: 'ours' | 'theirs'): Promise<void> {
+        await this.run('Resolve', async () => {
+            for (const path of paths) {
+                await this.connection.operate('scm.resolve', { path, take });
+            }
+        });
     }
 }

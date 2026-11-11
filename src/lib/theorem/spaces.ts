@@ -1,7 +1,7 @@
 // SOURCING: @theoremharness/sdk spaces client (Theorem Spaces v1), @tanstack/react-query (space server state), zustand (save status)
 //
-// Each project has one Space. The canvas edits it optimistically through
-// small edits keyed by placement and connection id. Saves PUT the whole
+// Each project has one Space, and a canvas placed on a Space is a Space of its
+// own. The canvas edits one optimistically through small edits keyed by id. Saves PUT the whole
 // record against the last confirmed revision; a stale revision reloads and
 // replays the unsaved edits onto the newer record, which is the rebase.
 import { useQuery } from '@tanstack/react-query'
@@ -29,31 +29,49 @@ export const spaceIdFor = (projectId: string) => `space:project:${projectId}`
 export const spaceKey = (spaceId: string) =>
   ['theorem', 'space', spaceId] as const
 
-function emptySpace(spaceId: string, projectId: string, title: string) {
+/** What a Space is when Theorem has not stored it yet. */
+export type SpaceSeed =
+  | { kind: 'project'; spaceId: string; projectId: string; title: string }
+  | { kind: 'custom'; spaceId: string; parent?: string; title: string }
+
+export const projectSeed = (projectId: string, title: string): SpaceSeed => ({
+  kind: 'project',
+  spaceId: spaceIdFor(projectId),
+  projectId,
+  title,
+})
+
+function emptySpace(seed: SpaceSeed): Theorem.SpaceRecord {
+  const common = {
+    format: FORMAT,
+    id: seed.spaceId,
+    title: seed.title,
+    placements: [],
+    connections: [],
+  }
   return {
     schema: SCHEMA,
     revision: 0,
-    space: {
-      role: 'project',
-      format: FORMAT,
-      id: spaceId,
-      title,
-      project: { kind: 'project', id: projectId },
-      placements: [],
-      connections: [],
-    },
-  } satisfies Theorem.SpaceRecord
+    space:
+      seed.kind === 'project'
+        ? {
+            role: 'project',
+            ...common,
+            project: { kind: 'project', id: seed.projectId },
+          }
+        : {
+            role: 'custom',
+            ...common,
+            ...(seed.parent ? { parent: seed.parent } : {}),
+          },
+  }
 }
 
-async function fetchSpace(
-  spaceId: string,
-  projectId: string,
-  title: string,
-): Promise<Theorem.SpaceRecord> {
+async function fetchSpace(seed: SpaceSeed): Promise<Theorem.SpaceRecord> {
   try {
-    return await theorem().spaces.get({ spaceId })
+    return await theorem().spaces.get({ spaceId: seed.spaceId })
   } catch (error) {
-    if (hasStatus(error, 404)) return emptySpace(spaceId, projectId, title)
+    if (hasStatus(error, 404)) return emptySpace(seed)
     throw error
   }
 }
@@ -71,8 +89,7 @@ export const useSpaceStatus = create<{
 }))
 
 type SpaceSync = {
-  projectId: string
-  title: string
+  seed: SpaceSeed
   /** The last record the server confirmed. */
   confirmed: Theorem.SpaceRecord
   /** Edits not yet confirmed, oldest first. */
@@ -109,7 +126,7 @@ async function flush(queryClient: QueryClient, spaceId: string) {
       break
     } catch (error) {
       if (hasStatus(error, 409, 412) && attempt + 1 < REBASE_ATTEMPTS) {
-        sync.confirmed = await fetchSpace(spaceId, sync.projectId, sync.title)
+        sync.confirmed = await fetchSpace(sync.seed)
         continue
       }
       // Keep the edits so the next change retries them.
@@ -158,23 +175,54 @@ export async function settleSpace(queryClient: QueryClient, spaceId: string) {
   await sync.saving
 }
 
-export function useSpace(projectId: string, title: string) {
-  const spaceId = spaceIdFor(projectId)
+export function useSpaceRecord(seed: SpaceSeed) {
+  const { spaceId } = seed
   return useQuery({
     queryKey: spaceKey(spaceId),
     queryFn: async () => {
-      const confirmed = await fetchSpace(spaceId, projectId, title)
+      const confirmed = await fetchSpace(seed)
       const sync = syncs.get(spaceId)
       if (sync) {
         sync.confirmed = confirmed
         return { ...confirmed, space: replay(confirmed.space, sync.pending) }
       }
-      syncs.set(spaceId, { projectId, title, confirmed, pending: [] })
+      syncs.set(spaceId, { seed, confirmed, pending: [] })
       return confirmed
     },
     // The canvas edits this entry optimistically; a refetch replays pending edits.
     staleTime: 30_000,
   })
+}
+
+export const useSpace = (projectId: string, title: string) =>
+  useSpaceRecord(projectSeed(projectId, title))
+
+/**
+ * A new canvas inside another. It is stored at once, so its title exists
+ * wherever it is shown, whatever happens to the placement that points at it.
+ */
+export async function createChildSpace(
+  queryClient: QueryClient,
+  parent: string,
+  title: string,
+) {
+  const seed: SpaceSeed = {
+    kind: 'custom',
+    spaceId: `space:canvas:${crypto.randomUUID()}`,
+    parent,
+    title,
+  }
+  const confirmed = await mutate((headers) =>
+    theorem().spaces.save({
+      ...headers,
+      spaceId: seed.spaceId,
+      'If-Match': '0',
+      body: emptySpace(seed),
+    }),
+  )
+  syncs.set(seed.spaceId, { seed, confirmed, pending: [] })
+  queryClient.setQueryData(spaceKey(seed.spaceId), confirmed)
+  return seed.spaceId
 }
 
 // Edits, each keyed by id so a replay onto a newer revision lands on the same object.
@@ -230,6 +278,68 @@ export const removeConnections =
     ...space,
     connections: (space.connections ?? []).filter((c) => !ids.has(c.id)),
   })
+
+/** Placements keep their position on the canvas, so a group's move carries them along. */
+export const moveGroup =
+  (id: string, rect: Theorem.SpaceRect): SpaceEdit =>
+  (space) => {
+    const group = space.groups?.find((g) => g.id === id)
+    if (!group) return space
+    const dx = rect.x - group.rect.x
+    const dy = rect.y - group.rect.y
+    return {
+      ...space,
+      groups: space.groups?.map((g) => (g.id === id ? { ...g, rect } : g)),
+      placements: (space.placements ?? []).map((p) =>
+        p.group === id
+          ? { ...p, rect: { ...p.rect, x: p.rect.x + dx, y: p.rect.y + dy } }
+          : p,
+      ),
+    }
+  }
+
+/** Resizing a group leaves what is in it where it is. */
+export const resizeGroup =
+  (id: string, rect: Theorem.SpaceRect): SpaceEdit =>
+  (space) => ({
+    ...space,
+    groups: space.groups?.map((g) => (g.id === id ? { ...g, rect } : g)),
+  })
+
+export const upsertGroup =
+  (group: Theorem.SpaceGroup): SpaceEdit =>
+  (space) => ({
+    ...space,
+    groups: [...(space.groups ?? []).filter((g) => g.id !== group.id), group],
+  })
+
+/** Removes groups; what they held stays on the canvas. */
+export const removeGroups =
+  (ids: ReadonlySet<string>): SpaceEdit =>
+  (space) => ({
+    ...space,
+    groups: (space.groups ?? []).filter((g) => !ids.has(g.id)),
+    placements: (space.placements ?? []).map((p) => {
+      if (!p.group || !ids.has(p.group)) return p
+      const { group: _group, ...rest } = p
+      return rest
+    }),
+  })
+
+export const setPlacementGroup =
+  (id: string, group: string | undefined): SpaceEdit =>
+  (space) => ({
+    ...space,
+    placements: (space.placements ?? []).map((p) => {
+      if (p.id !== id) return p
+      const { group: _group, ...rest } = p
+      return group ? { ...rest, group } : rest
+    }),
+  })
+
+export const renameSpace =
+  (title: string): SpaceEdit =>
+  (space) => ({ ...space, title })
 
 export const userAuthorship: Theorem.PlacementAuthorship = {
   placed_by: { actor: 'user' },

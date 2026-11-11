@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-query via lib/theorem/observe (one turn's trace, re-read while it runs), @tanstack/react-router Link (back to the conversation), the settings page primitives. References studied on Mobbin for anatomy only: fal's request page (a phase strip over key and value rows), OpenAI Platform's trace rows.
+// SOURCING: @tanstack/react-query via lib/theorem/observe (one turn's trace, re-read while it runs), @tanstack/react-router Link (back to the conversation), the settings frame (SettingsPage, SettingsSection, SettingsBox). References studied on Mobbin for anatomy only: fal's request page (a phase strip over key and value rows), OpenAI Platform's trace rows.
 import { Link } from '@tanstack/react-router'
 import type { CSSProperties, ReactNode } from 'react'
 import { buttonVariants } from '@/components/ui/button'
@@ -18,31 +18,18 @@ import type {
   TraceStep,
 } from '@/lib/theorem/observe'
 import { cn } from '@/lib/utils'
-import {
-  EmptyRow,
-  Row,
-  RowGroup,
-  Section,
-  SettingsPage,
-  State,
-} from '../settings-page'
-import type { Crumb, Tone } from '../settings-page'
+import { SettingsBox, SettingsPage, SettingsSection } from '../settings-frame'
+import { Count, EmptyRow, Row, State } from './rows'
+import type { Tone } from './rows'
 import { Freshness, Outcome, ReadFailure, clock, num, td, th } from './parts'
 
 export function RunPage({ runId }: { runId: string }) {
   const { data, error, isFetching, refetch } = useRunReport(runId)
-  const trail: Array<Crumb> = [
-    { label: 'Workspace' },
-    { label: 'Observe', link: { to: '/settings/observe' } },
-    { label: `Turn ${shortRunId(runId)}` },
-  ]
   return (
     <SettingsPage
-      wide
-      trail={trail}
       title={`Turn ${shortRunId(runId)}`}
       description={data ? headline(data) : undefined}
-      actions={
+      action={
         <>
           {data?.threadId && (
             <Link
@@ -114,18 +101,18 @@ function Report({ data }: { data: RunReport }) {
       {trace.failure && <FailureSection failure={trace.failure} />}
       <LiveSection data={data} />
       <StepsSection trace={trace} now={now} ended={data.terminal} />
-      <Section
+      <SettingsSection
         title="Not in this trace"
         description="A gap between steps is time the record does not account for. It is not evidence that nothing happened."
       >
-        <RowGroup>
+        <SettingsBox>
           {trace.notRecorded.map((gap) => (
             <p key={gap} className="px-3 py-1.5 text-sm text-ink-muted">
               {gap}
             </p>
           ))}
-        </RowGroup>
-      </Section>
+        </SettingsBox>
+      </SettingsSection>
     </>
   )
 }
@@ -145,12 +132,12 @@ function PhaseSection({ trace, now }: { trace: RunTrace; now: number }) {
   }))
   const total = phases.reduce((sum, phase) => sum + phase.span, 0)
   return (
-    <Section
+    <SettingsSection
       title="Where the time went"
       description="From the moment the node admitted the turn to the event that ended it."
-      aside={total ? formatSpan(total) : undefined}
+      action={total ? <Count>{formatSpan(total)}</Count> : undefined}
     >
-      <RowGroup>
+      <SettingsBox>
         {phases.length === 0 || total === 0 ? (
           <EmptyRow>No times were recorded for this turn.</EmptyRow>
         ) : (
@@ -192,8 +179,8 @@ function PhaseSection({ trace, now }: { trace: RunTrace; now: number }) {
             </dl>
           </div>
         )}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -202,8 +189,8 @@ function TurnSection({ data }: { data: RunReport }) {
   const model = describeModel(trace)
   const { usage } = trace
   return (
-    <Section title="Turn">
-      <RowGroup>
+    <SettingsSection title="Turn">
+      <SettingsBox>
         <Row label="Run">
           <span className="font-mono text-xs break-all select-all">
             {data.runId}
@@ -253,8 +240,8 @@ function TurnSection({ data }: { data: RunReport }) {
             </span>
           )}
         </Row>
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -264,8 +251,8 @@ function FailureSection({
   failure: NonNullable<RunTrace['failure']>
 }) {
   return (
-    <Section title="Failure">
-      <RowGroup>
+    <SettingsSection title="Failure">
+      <SettingsBox>
         <Row label="Code">
           <span className="font-mono text-xs">{failure.code}</span>
         </Row>
@@ -277,17 +264,17 @@ function FailureSection({
             </span>
           </Row>
         )}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
 function LiveSection({ data }: { data: RunReport }) {
   const { live } = data
   return (
-    <Section title="As this process saw it" description={data.liveNote}>
+    <SettingsSection title="As this process saw it" description={data.liveNote}>
       {live && (
-        <RowGroup>
+        <SettingsBox>
           {!data.terminal && (
             <Row label="Waiting for">{describeWaiting(live.waiting)}</Row>
           )}
@@ -313,9 +300,9 @@ function LiveSection({ data }: { data: RunReport }) {
               drew it.
             </p>
           </Row>
-        </RowGroup>
+        </SettingsBox>
       )}
-    </Section>
+    </SettingsSection>
   )
 }
 
@@ -396,12 +383,14 @@ function StepsSection({
       'This turn has more events than a trace reads at once, so its middle is missing here. The beginning and the ending are complete.',
   ].filter(Boolean)
   return (
-    <Section
+    <SettingsSection
       title="Steps"
       description="In the order the turn recorded them. Names, states and times only: arguments, results and answer text are not part of a trace."
-      aside={trace.steps.length ? String(trace.steps.length) : undefined}
+      action={
+        trace.steps.length ? <Count>{trace.steps.length}</Count> : undefined
+      }
     >
-      <RowGroup>
+      <SettingsBox>
         {trace.steps.length === 0 ? (
           <EmptyRow>The turn recorded no steps.</EmptyRow>
         ) : (
@@ -495,7 +484,7 @@ function StepsSection({
             {note}
           </p>
         ))}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }

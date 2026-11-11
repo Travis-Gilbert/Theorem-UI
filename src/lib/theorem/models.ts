@@ -1,0 +1,400 @@
+// SOURCING: zustand + zustand/middleware persist (the person's starred and picked models, as lib/palette keeps the palette), @tanstack/react-query (the model list Theorem serves at /api/chat/v1/models, OpenRouter's fields passed through)
+import type { Theorem } from './client'
+import { create } from 'zustand'
+import { describeError, hasStatus, mutate } from './client'
+import { readGeneration, useGenerationDefaults } from './generation'
+import { isNotServed, theoremJson } from './passthrough'
+import { persist } from 'zustand/middleware'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
+
+/**
+ * One model the person can pick. `ref` is Theorem's catalog reference,
+ * `<provider>/<model>`, e.g. `openrouter/anthropic/claude-sonnet-4.5`; the
+ * provider is everything before the first slash.
+ */
+export type ModelOption = {
+  ref: string
+  name: string
+  /** The model's maker, from the model id's first segment (`anthropic`). */
+  vendor: string
+  description?: string
+  contextLength?: number
+  /** US dollars per million tokens. */
+  promptPrice?: number
+  completionPrice?: number
+  /** A row of Theorem's own catalog, or a model from OpenRouter's live list. */
+  source: 'catalog' | 'openrouter'
+  /** What a turn can send it: text, image, file, audio. */
+  inputs: readonly string[]
+  /** Provider-native tool calling; Theorem can also execute program-based tools. */
+  tools: boolean
+  /** It can think before answering. */
+  reasoning: boolean
+  /**
+   * The reasoning effort levels a turn can ask this model for, as Theorem
+   * lists them: only the levels its provider route sends. Empty when it takes
+   * none.
+   */
+  effortLevels: readonly string[]
+  /** The level Theorem's catalog names as the model's own default. */
+  effortDefault?: string
+  /** The most tokens one reply can hold. */
+  maxOutput?: number
+  /** When OpenRouter added it. */
+  addedAtMs?: number
+  /** The date OpenRouter retires it, when one is set. */
+  expiresOn?: string
+}
+
+const PER_MILLION = 1_000_000
+
+/** A price per token as OpenRouter writes it ("0.000003"), in dollars per million tokens. */
+function perMillion(value: unknown): number | undefined {
+  const n = typeof value === 'string' || typeof value === 'number' ? Number(value) : NaN
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * PER_MILLION * 1e6) / 1e6 : undefined
+}
+
+const record = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
+
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+
+/**
+ * One catalog entry as Theorem serves it, which passes OpenRouter's model
+ * fields through (`id`, `name`, `context_length`, `pricing`). An entry that
+ * already carries Theorem's `ref` keeps it; a bare OpenRouter id is an
+ * OpenRouter model. Anything without an id is dropped.
+ */
+export function parseModelEntry(raw: unknown): ModelOption | undefined {
+  const entry = record(raw)
+  const ref =
+    typeof entry?.ref === 'string'
+      ? entry.ref
+      : typeof entry?.id === 'string'
+        ? `openrouter/${entry.id}`
+        : undefined
+  if (!entry || !ref) return undefined
+  const model = resolvedModel(ref).model
+  const pricing = record(entry.pricing)
+  const architecture = record(entry.architecture)
+  const topProvider = record(entry.top_provider)
+  const parameters = strings(entry.supported_parameters)
+  // A catalog row's name is its model id, whose maker the vendor mark already says.
+  const name =
+    typeof entry.name === 'string' && entry.name !== model
+      ? entry.name
+      : (model.split('/').at(-1) ?? model)
+  const option: ModelOption = {
+    ref,
+    // OpenRouter prefixes names with the maker ("Anthropic: Claude"); the vendor mark says that already.
+    name: name.replace(/^[^:]+:\s*/, ''),
+    vendor: model.split('/')[0] ?? '',
+    source: entry.source === 'catalog' ? 'catalog' : 'openrouter',
+    inputs: strings(architecture?.input_modalities),
+    tools: parameters.includes('tools'),
+    reasoning: parameters.includes('reasoning'),
+    effortLevels: strings(entry.effort_levels),
+  }
+  if (typeof entry.effort_default === 'string') option.effortDefault = entry.effort_default
+  const maxOutput = topProvider?.max_completion_tokens
+  if (typeof maxOutput === 'number') option.maxOutput = maxOutput
+  if (typeof entry.created === 'number') option.addedAtMs = entry.created * 1000
+  if (typeof entry.expiration_date === 'string') option.expiresOn = entry.expiration_date
+  if (typeof entry.description === 'string') option.description = entry.description
+  if (typeof entry.context_length === 'number') option.contextLength = entry.context_length
+  const prompt = perMillion(pricing?.prompt)
+  const completion = perMillion(pricing?.completion)
+  if (prompt !== undefined) option.promptPrice = prompt
+  if (completion !== undefined) option.completionPrice = completion
+  return option
+}
+
+/** An option for a ref the list does not carry (yet): starred earlier, or Theorem's default. */
+export function modelStub(ref: string, name?: string): ModelOption {
+  const model = ref ? resolvedModel(ref).model : ''
+  return {
+    ref,
+    name: name ?? (model.split('/').at(-1) || ref),
+    vendor: model.split('/')[0] ?? '',
+    source: 'catalog',
+    inputs: [],
+    tools: false,
+    reasoning: false,
+    effortLevels: [],
+  }
+}
+
+export type ModelList = {
+  /** What a turn with no picked model runs on; absent when Theorem does not say. */
+  defaultRef?: string
+  defaultError?: { code: string; message: string }
+  models: ModelOption[]
+  /** Whether OpenRouter's list is fresh, served from Theorem's cache, or missing. */
+  openrouter: 'live' | 'cached' | 'unavailable'
+  /** Explicit discovery failure; absence is not evidence of an outage. */
+  openrouterError?: string
+}
+
+function parseDefaultError(raw: unknown): ModelList['defaultError'] {
+  const error = record(raw)
+  if (typeof error?.code !== 'string' || typeof error.message !== 'string') return undefined
+  return { code: error.code, message: error.message }
+}
+
+/** Shared feedback for the settings, picker and command palette. */
+export function modelCatalogIssue(list: ModelList | undefined, error: unknown): string | undefined {
+  if (error) return `Could not load models. ${describeError(error)} Check AI settings and retry the model list.`
+  const failure = list?.defaultError
+  if (failure) return `${failure.message} Choose an available model or correct the default in Theorem's configuration.`
+  if (list?.openrouterError && list.openrouter === 'unavailable') {
+    return "OpenRouter's model list is unavailable. Showing configured models only. Retry the model list to load more choices."
+  }
+  return undefined
+}
+
+export function defaultModelDescription(catalog: readonly ModelOption[], ref?: string): string {
+  if (!ref) return 'Theorem has not reported its configured default model.'
+  const name = catalog.find((model) => model.ref === ref)?.name
+  return name ? `${name} (${ref})` : ref
+}
+
+function parseModelOptions(raw: unknown): ModelOption[] {
+  return (Array.isArray(raw) ? raw : []).flatMap((entry) => {
+    const option = parseModelEntry(entry)
+    return option ? [option] : []
+  })
+}
+/** The body of `GET /api/chat/v1/models`, parsed once where it enters. */
+export function parseModelList(raw: unknown): ModelList {
+  const body = record(raw) ?? {}
+  const status = record(body.openrouter)?.status
+  const list: ModelList = {
+    models: parseModelOptions(body.models),
+    openrouter: status === 'live' || status === 'cached' ? status : 'unavailable',
+  }
+  if (status === 'unavailable') {
+    list.openrouterError = 'unavailable'
+  }
+  if (typeof body.defaultRef === 'string') list.defaultRef = body.defaultRef
+  const defaultError = parseDefaultError(body.defaultError)
+  if (defaultError) list.defaultError = defaultError
+  return list
+}
+
+export const modelListQuery = queryOptions({
+  queryKey: ['theorem', 'models'],
+  queryFn: async () => parseModelList(await theoremJson('/api/chat/v1/models')),
+  // Theorem caches OpenRouter's list for an hour; a few minutes here is plenty.
+  staleTime: 5 * 60_000,
+  retry: (count, error) => !isNotServed(error) && count < 2,
+})
+
+/** Every model Theorem can run, with its default. */
+export function useModelCatalog() {
+  const query = useQuery(modelListQuery)
+  return { ...query, data: query.data?.models, list: query.data }
+}
+
+/** A context window as the picker shows it: 200K, 1M. */
+export function formatContext(tokens: number): string {
+  return tokens >= PER_MILLION
+    ? `${Math.round(tokens / PER_MILLION)}M`
+    : `${Math.round(tokens / 1000)}K`
+}
+
+const dollars = (n: number) =>
+  `$${n >= 1 ? (Number.isInteger(n) ? n : n.toFixed(2)) : n.toPrecision(2)}`
+
+/** Input and output price per million tokens, or Free, or undefined when unknown. */
+export function formatPrice({
+  promptPrice,
+  completionPrice,
+}: Pick<ModelOption, 'promptPrice' | 'completionPrice'>): string | undefined {
+  if (promptPrice === undefined || completionPrice === undefined) return undefined
+  if (promptPrice === 0 && completionPrice === 0) return 'Free'
+  return `${dollars(promptPrice)} / ${dollars(completionPrice)} per M`
+}
+
+/** Theorem's catalog reference split into the shape a send carries. */
+export function resolvedModel(ref: string): Theorem.ResolvedModel {
+  const slash = ref.indexOf('/')
+  return { provider: ref.slice(0, slash), model: ref.slice(slash + 1) }
+}
+
+type PickedModelsState = {
+  /** Models shown in the composer's picker, in the order they were starred. */
+  starred: readonly string[]
+  /** The model the next turn runs on; undefined leaves it to Theorem's default. */
+  selected: string | undefined
+  setStarred: (refs: readonly string[]) => void
+  toggleStar: (ref: string) => void
+  select: (ref: string | undefined) => void
+}
+
+export const usePickedModels = create<PickedModelsState>()(
+  persist(
+    (set) => ({
+      starred: [],
+      selected: undefined,
+      setStarred: (starred) => set({ starred }),
+      toggleStar: (ref) =>
+        set(({ starred }) => ({
+          starred: starred.includes(ref)
+            ? starred.filter((r) => r !== ref)
+            : [...starred, ref],
+        })),
+      select: (selected) => set({ selected }),
+    }),
+    {
+      name: 'theorem-ui:models',
+      partialize: ({ starred, selected }) => ({ starred, selected }),
+    },
+  ),
+)
+
+/** The picked model as a send carries it; undefined leaves it to Theorem's default. */
+export function pickedModel(): Theorem.ResolvedModel | undefined {
+  const ref = usePickedModels.getState().selected
+  return ref ? resolvedModel(ref) : undefined
+}
+
+/**
+ * Turn options that carry the picked model. The SDK's chat adapter spreads its
+ * turn options into every send, retry and edit, so the getter reads the pick
+ * at send time and a thread's adapter never needs rebuilding. The reasoning
+ * effort and the response limits travel with `generationTurnOptions`.
+ */
+export const modelTurnOptions = {
+  get model(): Theorem.ResolvedModel | undefined {
+    return pickedModel()
+  },
+}
+type Preferences = {
+  starredModels: string[]
+  defaultModel: string | null
+  /** The response defaults; a Theorem that does not keep them sends none. */
+  generation?: unknown
+  revision: number
+}
+
+const preferencesKey = ['theorem', 'preferences'] as const
+
+/**
+ * Keeps the starred and picked models, and the response defaults, in step with
+ * the person's Theorem preferences, so they follow the person across
+ * browsers. A Theorem that refuses the defaults still takes the models, and
+ * the defaults stay on this browser. Theorem's copy wins
+ * when it loads and when this browser comes back to the front; after that each
+ * local change is written back with If-Match, one write at a time. Where Theorem
+ * does not serve preferences, the local store stands alone.
+ */
+export function usePreferencesSync() {
+  const { data, isError } = useQuery({
+    queryKey: preferencesKey,
+    queryFn: () => theoremJson<Preferences>('/api/chat/v1/preferences'),
+    staleTime: Infinity,
+    refetchOnWindowFocus: 'always',
+    retry: false,
+  })
+  const queryClient = useQueryClient()
+  const revision = useRef<number | undefined>(undefined)
+  const applying = useRef(false)
+
+  const { mutate: save } = useMutation({
+    scope: { id: 'theorem-preferences' },
+    mutationFn: async () => {
+      const { starred, selected } = usePickedModels.getState()
+      const models = { starredModels: starred, defaultModel: selected ?? null }
+      const put = (body: object) =>
+        mutate((headers) =>
+          theoremJson<Preferences>('/api/chat/v1/preferences', {
+            method: 'PUT',
+            headers: { ...headers, 'If-Match': String(revision.current) },
+            body,
+          }),
+        )
+      const { defaults, onServer } = useGenerationDefaults.getState()
+      // A Theorem that has not held the defaults this session is not asked again.
+      if (onServer === false) return put(models)
+      try {
+        const saved = await put({ ...models, generation: defaults })
+        // Theorem holds exactly what was sent: turns stop carrying the
+        // defaults until a later change makes the two differ again. A change
+        // made while this write was on its way is not what got saved, so it
+        // keeps riding with the turns until its own save confirms it.
+        useGenerationDefaults.setState({
+          onServer: saved.generation !== undefined,
+          saved: saved.generation !== undefined ? defaults : undefined,
+        })
+        return saved
+      } catch (error) {
+        // A Theorem that does not know the field refuses the whole write.
+        if (!hasStatus(error, 400, 422)) throw error
+        const saved = await put(models)
+        useGenerationDefaults.setState({ onServer: false, saved: undefined })
+        return saved
+      }
+    },
+    onSuccess: (saved) => {
+      revision.current = saved.revision
+      queryClient.setQueryData(preferencesKey, saved)
+    },
+    // A stale revision means another browser wrote first: take its copy.
+    onError: () => void queryClient.invalidateQueries({ queryKey: preferencesKey }),
+  })
+
+  useEffect(() => {
+    if (!data || data.revision === revision.current) return
+    revision.current = data.revision
+    // Nothing saved yet: this browser's stars go up with its next change.
+    if (data.revision === 0) return
+    // Theorem's own copy isn't a change to write back: that would move the
+    // revision and leave every other open browser's next write stale.
+    applying.current = true
+    usePickedModels.setState({
+      starred: data.starredModels,
+      selected: data.defaultModel ?? undefined,
+    })
+    const generation = readGeneration(data.generation)
+    if (generation)
+      useGenerationDefaults.setState({
+        defaults: generation,
+        onServer: true,
+        saved: generation,
+      })
+    applying.current = false
+  }, [data])
+
+  // Without preferences from Theorem the defaults have nowhere else to live.
+  useEffect(() => {
+    if (isError) useGenerationDefaults.setState({ onServer: false })
+  }, [isError])
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const later = () => {
+      if (applying.current || revision.current === undefined) return
+      clearTimeout(timer)
+      timer = setTimeout(() => save(), 400)
+    }
+    const stopModels = usePickedModels.subscribe((state, previous) => {
+      if (state.starred !== previous.starred || state.selected !== previous.selected) later()
+    })
+    const stopGeneration = useGenerationDefaults.subscribe((state, previous) => {
+      if (state.defaults !== previous.defaults) later()
+    })
+    return () => {
+      clearTimeout(timer)
+      stopModels()
+      stopGeneration()
+    }
+  }, [save])
+}
+
+/** Mount once per layout to run the preferences sync. */
+export function PreferencesSync() {
+  usePreferencesSync()
+  return null
+}

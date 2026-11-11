@@ -2,6 +2,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { bootstrap, isSignedOut, mutate, theorem } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
+import { inboxOf, organizationKey } from '@/lib/theorem/organization'
+import type { OrganizationRead } from '@/lib/theorem/organization'
 import { useShell } from './shell-state'
 
 const PROJECTS = ['theorem', 'projects'] as const
@@ -26,12 +28,16 @@ export function useProjects() {
   })
 }
 
-/** The remembered project, or the first one when the remembered id is gone. */
+/**
+ * The remembered project, or the inbox: a chat nobody placed starts unsorted, so
+ * the Librarian can file it. A project it starts in counts as chosen.
+ */
 export function useActiveProject() {
   const query = useProjects()
   const projectId = useShell((s) => s.projectId)
   const projects = query.data ?? []
-  const project = projects.find((p) => p.projectId === projectId) ?? projects[0]
+  const project =
+    projects.find((p) => p.projectId === projectId) ?? inboxOf(projects)
   return { ...query, projects, project }
 }
 
@@ -48,17 +54,52 @@ export function useCreateProject() {
         ...prev,
         record,
       ])
+      // The sidebar's tree reads the organization, so the project shows there at once.
+      queryClient.setQueryData<OrganizationRead>(organizationKey, (prev) =>
+        prev && !prev.projects.some((p) => p.projectId === record.projectId)
+          ? {
+              ...prev,
+              projects: [
+                ...prev.projects,
+                {
+                  projectId: record.projectId,
+                  title: record.title,
+                  isInbox: false,
+                  createdBy: 'user' as const,
+                  threadCount: 0,
+                  outputCount: 0,
+                  brief: false,
+                },
+              ].sort((a, b) =>
+                a.title.localeCompare(b.title, undefined, {
+                  sensitivity: 'base',
+                }),
+              ),
+            }
+          : prev,
+      )
+      void queryClient.invalidateQueries({ queryKey: organizationKey })
       setProjectId(record.projectId)
     },
   })
 }
 
-/** The signed-in tenant, from the session bootstrap the client already holds. */
-export function useTenant() {
-  const { data } = useQuery({
+const useBootstrap = () =>
+  useQuery({
     queryKey: ['theorem', 'bootstrap'],
     queryFn: () => bootstrap(),
     staleTime: Infinity,
   })
-  return data?.tenantId
+/** The signed-in tenant, from the session bootstrap the client already holds. */
+export function useTenant() {
+  return useBootstrap().data?.tenantId
+}
+
+/**
+ * Whether the session is still being read, and whether Theorem answered that
+ * no one is signed in. Any other failure says neither.
+ */
+export function useSessionState() {
+  const { isPending, error } = useBootstrap()
+  return { isPending, signedOut: isSignedOut(error) }
 }

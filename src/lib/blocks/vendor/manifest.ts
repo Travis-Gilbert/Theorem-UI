@@ -8,31 +8,379 @@ export const importMap = {
     "react/jsx-runtime": "/vendor/react@19.3.1/es2022/jsx-runtime.mjs",
     "react-dom/client": "/vendor/react-dom@19.3.1/es2022/client.mjs",
     "json-rpc-2.0": "/vendor/json-rpc-2.0@1.8.1/es2022/json-rpc-2.0.mjs",
-    "object-inspect": "/vendor/object-inspect@1.13.4/es2022/object-inspect.mjs"
+    "object-inspect": "/vendor/object-inspect@1.13.4/es2022/object-inspect.mjs",
+    "d3": "/vendor/d3@7.9.0/es2022/d3.mjs",
+    "d3-dsv": "/vendor/d3-dsv@3.0.2/es2022/d3-dsv.mjs",
+    "htl": "/vendor/htl@1.0.0/es2022/htl.mjs",
+    "@observablehq/plot": "/vendor/@observablehq/plot@0.6.19/X-ZGQzQDcuOS4w/es2022/plot.mjs",
+    "@observablehq/inputs": "/vendor/@observablehq/inputs@0.12.0/es2022/inputs.mjs",
+    "@observablehq/runtime": "/vendor/@observablehq/runtime@6.1.0/es2022/runtime.mjs",
+    "@observablehq/notebook-kit/runtime": "/vendor/@observablehq/notebook-kit@2.7.1/es2022/runtime.mjs"
   },
   "integrity": {
+    "/vendor/@lezer/common@1.5.5/es2022/common.mjs": "sha384-TawV/rqlb4Xbc7aRNNfcQGwvtwtOxBEWsaXdDfgmmmF8iZcYYXlM/lqTH2k2YbvS",
+    "/vendor/@lezer/css@1.3.9/es2022/css.mjs": "sha384-IclnP7uhLgigef+x7+GrlpGY22hw2xpPMNu6LZhKZMwIhgdZ04SDF9fGw3BS+bBx",
+    "/vendor/@lezer/highlight@1.2.5/es2022/highlight.mjs": "sha384-zuBUeuMG2Zv300ErvkUMBPmpm442ohMwD37M/PsTi9VWC0RGmTAUUz/52I48rY26",
+    "/vendor/@lezer/html@1.3.13/es2022/html.mjs": "sha384-IaFvKjmv+GNtCMBbhehJNpNt+qiLD7w3g4zINYVa/p6rB0WbTYVydv09uPTxK59f",
+    "/vendor/@lezer/javascript@1.5.6/es2022/javascript.mjs": "sha384-SBI9cncBigBuNEWx5gwQ2zXthAlTblYUkq0vV2tw3ujkh/J+6Swc40e68K0k8KDz",
+    "/vendor/@lezer/lr@1.4.12/es2022/lr.mjs": "sha384-cLK465FcbvmlCKKWnoDRh520GIi34Exf9OHN6U/r2KTnRWFpHC4xR10SPwZR9aOE",
+    "/vendor/@lezer/markdown@1.8.1/es2022/markdown.mjs": "sha384-RAbZQGfuGaSDUFUvmhgI0znJ+ka4bfP0pq/J4xracixPaFJzXWHN4QeBggFaIr+9",
+    "/vendor/@lezer/python@1.1.19/es2022/python.mjs": "sha384-qFdLJxoT0P7DptEZBgWS3AOH+mzSy+butVwJvj52Bk7Pf3ZX5uB0E8FNcYZrb7gc",
+    "/vendor/@observablehq/inputs@0.12.0/es2022/inputs.mjs": "sha384-Npi79wOmhIYYtON94kB8b47B6E+dZsWEEYflsepLSISufjLdkUEeT1ZsJgPwKV01",
+    "/vendor/@observablehq/inspector@5.0.1/es2022/inspector.mjs": "sha384-kbyehT3dQzH9EG+l//5UI5UpvoIx/BVZTLJ2BeKFTcCTlzA+XzQl/EHemq6s5Na9",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/lib/hash.mjs": "sha384-6iAo+ScAIqCX/hbTnoRa7p4OSskTx0sj6YpalFTfD4dLPcD5bc++ZgqW9fZLDk0q",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/lib/interpreters.mjs": "sha384-IlXon1TWzEtHC6hV8K/36fF+nGeoQ+KT/6QHPxoRg87P1Sc4Z+bDSdWKnZIhxgNH",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/assets.mjs": "sha384-STeVJHLvwMQaZtqGa+3sNGPQOyw3UJJBT1d7Z14LWDaWxBa+MJrFsnqc9J5zqJy5",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/highlight.mjs": "sha384-mZOKFf4lbrRBq8FYHSQU2k9RmNE7X7DLspRaJsIcJyo+k5grRxTjR8UiUQ7ILjUu",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/inputs.mjs": "sha384-JmmHEofItOlUDnyziEUTGCBkRbmEG1SBmx9+9NRIudHHKOpQWkhQeH1LaZLBJuyP",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/md.mjs": "sha384-RcGzv4zByA0YNxSSsvliVO2KK3iyvbQEEYYcYvho9U3Gqz4Ay8UFYqwFe2GM61i2",
+    "/vendor/@observablehq/notebook-kit@2.7.1/es2022/runtime.mjs": "sha384-Ifs2G9r701UahmhHjBuSbSawS8HbjQ/JYf8wbgnC2oaNtTfogfy8khg9O8KpAeuY",
+    "/vendor/@observablehq/plot@0.6.19/X-ZGQzQDcuOS4w/es2022/plot.mjs": "sha384-lqPb/wtJgFK8fYVOlRtKoNg7vrB5ByR154mRQPrB2ab3/rmtvzDBvVCdi1qQOpOT",
+    "/vendor/@observablehq/runtime@6.1.0/es2022/runtime.mjs": "sha384-iK3ILD2naTUlWweU17ZYcKkB9dbb5ghd8TPnGa93qUA9Lot7HZmwHC/20bXugCK4",
+    "/vendor/@sindresorhus/slugify@2.2.1/es2022/slugify.mjs": "sha384-lwG8R/I2S83USMpUyYahUc42WNuqFB0q8kA4FIvxbAXv65kab9IJDhHNPWFcvOI5",
+    "/vendor/@sindresorhus/transliterate@1.6.0/es2022/transliterate.mjs": "sha384-L59P7RgD/ru2mMQyu57JFpGyJhoBDow6awDwNKlizp3XRjDH7uB226EsCSAcQxMQ",
+    "/vendor/d3-array@3.2.5/es2022/d3-array.mjs": "sha384-sbbkFzIuJs6PI9DSzSPSXo/ij7ttTcVekyRkek5s16YzpydivFzR7C32vNodflmV",
+    "/vendor/d3-axis@3.0.1/es2022/d3-axis.mjs": "sha384-iGwkEgnzOMrOPDkzrWZ9nxE5BBlMOBEiH8yvePl4GLrzlZMgoXh1LkYjllo/inz7",
+    "/vendor/d3-brush@3.0.1/es2022/d3-brush.mjs": "sha384-SWB0bZQWPCOZ17DXbvfHoki6OOc4e4UndsFQ6kYwBOjY42TWH1ogUkVN8TZxjlOI",
+    "/vendor/d3-chord@3.0.2/es2022/d3-chord.mjs": "sha384-5+pM5VgnbQSx2SlHJaQge57iA0Ff44KTCnsLU9cJ/lma8/sMmohO+u6yUnmNo+ba",
+    "/vendor/d3-color@3.1.1/es2022/d3-color.mjs": "sha384-EHoZQLCtCiSwmykoVWd5XzVJ44wQfmTxQwZTGBZ3eVn4oPw8zqH3rQhbnh8G9Iet",
+    "/vendor/d3-contour@4.0.3/es2022/d3-contour.mjs": "sha384-nnZnJXVhtf/+emBcoiv9vakXMfk809dzdZ5ZdvXAgMI0OseXn/VJ+NkA6GGrl38/",
+    "/vendor/d3-delaunay@6.0.6/es2022/d3-delaunay.mjs": "sha384-D9+ATLb3O0B5afRa8BUnGMxMQzqkm+vCTRhmMZHMrdMJhCjxStIxGPqTs5wM9161",
+    "/vendor/d3-dispatch@3.0.2/es2022/d3-dispatch.mjs": "sha384-xXYOUm7fAA7pkILa7JZMIR7bsx+xePFUH+hqDS0+ExG5u9e6xXWFgXMPS00VJv5e",
+    "/vendor/d3-drag@3.0.1/es2022/d3-drag.mjs": "sha384-Px3dfgxgPQXv4GhIg2Y1MJcYftQpKi58490uQ/gnkCgjfyG9K5meiwiIWjXmoVMr",
+    "/vendor/d3-dsv@3.0.2/es2022/d3-dsv.mjs": "sha384-5j9Q0D7+abfAjqa69UpG4r+ojUY6rxrREkKptZ/SZjIylGB91aG8wB31Q93DbRbM",
+    "/vendor/d3-ease@3.0.2/es2022/d3-ease.mjs": "sha384-xrEEA2zvtBcDYT8cKyIr1pTWPnR1xnm3ohK98WY4003FOKDOGhye1tfAk8bN7WNM",
+    "/vendor/d3-fetch@3.0.2/es2022/d3-fetch.mjs": "sha384-o/ji0fiGdK8oQP7l81eVVuVfa/j4Pxy4QYkDdbhuI0feYl9WF9yv5ykdtGKJ07jN",
+    "/vendor/d3-force@3.0.1/es2022/d3-force.mjs": "sha384-PsN7C8I2wTvZmF/qL+hUkNEmkjISeLoz9uhbafC/o1hSD3K98le5qJxecSNFEa/B",
+    "/vendor/d3-format@3.1.3/es2022/d3-format.mjs": "sha384-DSFjLxBqExQ0e2JK+f6dX/5YwDN2YtvQdSDhajFh4+FxuxWiMU33PAVXGIiG0h6j",
+    "/vendor/d3-geo@3.1.2/es2022/d3-geo.mjs": "sha384-QF3gikOP422oGAzuBA4wQ1EE+Nznzn7Fb0y7FkmfFpDPqiY8euOU+lXGagoKNzIA",
+    "/vendor/d3-hierarchy@3.1.3/es2022/d3-hierarchy.mjs": "sha384-hcBbroKQ9RhodqFvFliTY8Z4RHfdbZ1fqB6bwUybMk8izI33Z51P/ieGF8VPk3gH",
+    "/vendor/d3-interpolate@3.0.2/es2022/d3-interpolate.mjs": "sha384-/KJw1yJ0JIQ6xJpeBJ6uJU3ck+jTPDXmVCZXgmPYnj+IhSUuyJYC8wUryptLV16Y",
+    "/vendor/d3-path@3.1.1/es2022/d3-path.mjs": "sha384-9bP6zdH3F+13YGvjrIvFOuAImDfeTPd1iXv+9qg3Ouad+vXAIhjYfLRujw8BiBBq",
+    "/vendor/d3-polygon@3.0.2/es2022/d3-polygon.mjs": "sha384-uW0aPIbK4JQL1PBA1kRB3BCyMO3CvXwaGodMM3nAwPGqvW62gfGbVkE/IdcRg3M8",
+    "/vendor/d3-quadtree@3.0.2/es2022/d3-quadtree.mjs": "sha384-WhydlZMeXOUwyKA6RTml4I01klnzBwYEgOkq7mZ1fs9MV/pc/j7RvGiWbgy7Y0ll",
+    "/vendor/d3-random@3.0.2/es2022/d3-random.mjs": "sha384-DLCoiyn0UvzBEZioxtC1x/oH5YEQ+w1eotrNjo+wGB54v2ykYEQ4F3Xy6FJP1Hlw",
+    "/vendor/d3-scale-chromatic@3.1.1/es2022/d3-scale-chromatic.mjs": "sha384-JQ2urtrmBj+ezGrGmtfETdT9L/sMKSINcnWL1Og43/u/yIIXzFxTFf0f+JgjGey+",
+    "/vendor/d3-scale@4.0.3/es2022/d3-scale.mjs": "sha384-JvM1tpOtrnE9QEXyMRoUVlXLJiJiuH4MF2FCQrfs3Dx1yeV3cfSxwwm8tvj2AFcd",
+    "/vendor/d3-selection@3.0.1/es2022/d3-selection.mjs": "sha384-K6JrVl5yutJBgnEK8Jd4nON46qfyx3HtMOhridYkOTeQpbGGmA4EU33Ot+Kdm/TS",
+    "/vendor/d3-shape@3.2.1/es2022/d3-shape.mjs": "sha384-qX3Wtjhyt2wDC296wBBzkdGYfscUf6GA63/69bAz5SOtjKRNUqqgtPhHggpiupUH",
+    "/vendor/d3-time-format@4.1.1/es2022/d3-time-format.mjs": "sha384-tFPz9nTvrmvWaYUmoqp5GNdnm4vkjwJUk3dffPECXGVrRyHg0bhUzWm2LBeHhMg+",
+    "/vendor/d3-time@3.1.1/es2022/d3-time.mjs": "sha384-t64RBzoDf6Rd1nvF1EvRIerabTnlryyJ8jT/a4KXwxa3xyi79oDNPr2HS/L5DD09",
+    "/vendor/d3-timer@3.0.2/es2022/d3-timer.mjs": "sha384-4TaaVgFVNph01OyRxsaorfvOeQNz8gG0rG4bL4lTBra30gBqlsqLQDwItYETPB4r",
+    "/vendor/d3-transition@3.0.2/es2022/d3-transition.mjs": "sha384-EstXvHcVWnlmIg2AYKWuMxngngRYsoaiZfKOuNqix5FAOPDHRAwQSQki881ANYPk",
+    "/vendor/d3-zoom@3.0.1/es2022/d3-zoom.mjs": "sha384-5KbJeu9KkYIYJjBej5N3R8dB+An5+6WBZ0ddz9sQg6v3rwn89Vpan6sdQyOMPRfy",
+    "/vendor/d3@7.9.0/es2022/d3.mjs": "sha384-xEm3GqH8NwDFjfneDxGRNvow3UoMb2YaS2lkKBguDwyGxeLSxyZgYRcivrmtrlGK",
+    "/vendor/entities@4.5.0/es2022/entities.mjs": "sha384-JUFzeZ+Fs+u9YhWPFL+sPFjAqw0Ly/6+HNiQFr1O/hWGBj19anf1clmk5/YyS7bj",
+    "/vendor/entities@4.5.0/es2022/lib/decode.mjs": "sha384-91iMV643bxYctaF1k8puWbMqf+9VPApDtDJGoTPvxNyUOUpk9LBJ2cbHb2hiICqd",
+    "/vendor/entities@4.5.0/es2022/lib/escape.mjs": "sha384-7T8s5nQ/FpggoNaf0ey6zw+/n+YDjZaeehdl9hMJ60o2iF7wSqTsu3rlFNLBTxaa",
+    "/vendor/escape-string-regexp@5.0.0/es2022/escape-string-regexp.mjs": "sha384-ypH3t5XmTVUtNoe2Jz4rW0bfgdDJmqBFvULXP62F1Xg196VgFCPUo+g3g1R2Mc2c",
+    "/vendor/htl@0.3.1/es2022/htl.mjs": "sha384-uEaDAM/a3Jv5SfE4dae4WfZssLjS3TfmHTfOKKlzfgrVRO6zsSvaaYjU66rxpU2c",
+    "/vendor/htl@1.0.0/es2022/htl.mjs": "sha384-g339VB885QrhK7eyNGyuj+JFbxN97yS4Fw6kswFsg7/omib7hvZf7JPvZkVD8vjQ",
+    "/vendor/isoformat@0.2.1/es2022/isoformat.mjs": "sha384-JpTfdsJHie1c5ycN8d92vjXPTiywObGm7ziQDx+JAl0YTZxdxyx/XoPfahcMPIob",
     "/vendor/json-rpc-2.0@1.8.1/es2022/json-rpc-2.0.mjs": "sha384-p7qbggTNfSkg2eLW/GhYJpvyXbl4sWvrjZDSRRH5KuXQwBYiH4cn441OptdyYuqm",
+    "/vendor/linkify-it@5.0.2/es2022/linkify-it.mjs": "sha384-knLaVnK78lVJJNb3j20c6N2vCIjTrp/VMnhI6VMw7dMyqWGMinUhlL9mD96NRbmV",
+    "/vendor/markdown-it-anchor@9.2.1/es2022/markdown-it-anchor.mjs": "sha384-F9iERaoKDKgQ3Mob8EGSVF145nLqQLtwk+ocLLTzrxFpDmIbvOpl0Gg5ZJKvhEn3",
+    "/vendor/markdown-it@14.3.3/es2022/markdown-it.mjs": "sha384-EYL38hZEpMvj5Jo1lbersaT9qE4fXfDWx9eWMgfnb1jdawSVQjt3DCzJr6qF1dXG",
+    "/vendor/mdurl@2.1.0/es2022/mdurl.mjs": "sha384-jLdthAlFitbuTME/GJ/PRQNODhdU6t8Kv1cxEGpbJCdK1Im8vpvCG9jvUSdBF7Ym",
+    "/vendor/node/async_hooks.mjs": "sha384-hZODh/PQnvY3IF4FtNJuW8kv34D4KD12zn8PxDV/msb6KqlrEKUpEeiC2EfP9ezY",
+    "/vendor/node/events.mjs": "sha384-B/GXH4uZgUwKwerGoDTuYoV7LvojwddGIzic2DKzmEUF1g4yztxGf4OpR+Mk3qzD",
+    "/vendor/node/process.mjs": "sha384-7WIklAnwy1IIClV0+BI7Dzjq1+bg4h78pJgwJz8UlEBYWVHmoPXfzY/74Jbd/Co1",
+    "/vendor/node/tty.mjs": "sha384-DR5Ni3oJ346E4ymxfySw8VOMWcxgxPCo7jnsB+WzPi0LWP8PHqsttFCylJsUOH4g",
     "/vendor/object-inspect@1.13.4/es2022/object-inspect.mjs": "sha384-YPc7QZoPKpBX4/AX1itSpmPx/vgxg0cMPYVAkTpJLzDwmJezJ3RX7cnnMwSRUd8n",
+    "/vendor/punycode.js@2.3.1/es2022/punycode.mjs": "sha384-uBfc6LuYK7URYIpVBqhG/bZT4UYOkNN27PY5ovFXaVCGVIxsQ4WD/+eFxyhcDDvG",
     "/vendor/react-dom@19.3.1/es2022/client.mjs": "sha384-26SaBItC06IRSSps9BUzPosKb3hs94uFWvatWoewOGPEGNEM3v+UxupK/jcyaP+3",
     "/vendor/react-dom@19.3.1/es2022/react-dom.mjs": "sha384-M2Np/18Tf+fCowrjWOS/Cu1lq0mLvAr5DSDWafrcO/O5QcnYSf463ujCJ75DkYc7",
     "/vendor/react@19.3.1/es2022/jsx-runtime.mjs": "sha384-gh8xw1wmcir9SHUqXziDr2z4Oz0Kyy0SrQ8ZhX/0UyjVAHiQnKjEs0ePh4PDo5o2",
     "/vendor/react@19.3.1/es2022/react.mjs": "sha384-Psq5WJvVF357tIF0zhz8ailHVmWVJLwyWH6vLzhozGkNMdVwvi/q4PAofRwgDYt6",
-    "/vendor/scheduler@0.28.0/es2022/scheduler.mjs": "sha384-VTqzDxK+Nfu62ZqrHojPSgKqkcLx9wWONGvOJwFQqD00uvRqQKGsX4stOJmJsauz"
+    "/vendor/scheduler@0.28.0/es2022/scheduler.mjs": "sha384-VTqzDxK+Nfu62ZqrHojPSgKqkcLx9wWONGvOJwFQqD00uvRqQKGsX4stOJmJsauz",
+    "/vendor/uc.micro@2.1.0/es2022/uc.micro.mjs": "sha384-UXo0NrVz6gpif++GD26++Csu0tSAm8RFkF/AIlm0Ha+R5tBiDD3D+lYindzvD1kh"
   }
 }
 
 /** SHA-256 of the import map; part of every compile cache key. */
-export const importMapHash = '2aba7e5ce9b08708c272f79d11cb928948ed698c86bd1f459c5e0fafc619f824'
+export const importMapHash = 'a43f10e5e628b2198a6b827d7419605ba065bcc21c15896006794060da8a3359'
 
 /** The esm.sh build each served file was vendored from, and its integrity there. */
 export const vendorSources: Record<string, { url: string; integrity: string }> = {
+  "/vendor/@lezer/common@1.5.5/es2022/common.mjs": {
+    "url": "https://esm.sh/@lezer/common@1.5.5/es2022/common.mjs",
+    "integrity": "sha384-TawV/rqlb4Xbc7aRNNfcQGwvtwtOxBEWsaXdDfgmmmF8iZcYYXlM/lqTH2k2YbvS"
+  },
+  "/vendor/@lezer/css@1.3.9/es2022/css.mjs": {
+    "url": "https://esm.sh/@lezer/css@1.3.9/es2022/css.mjs",
+    "integrity": "sha384-V9rp6Kw2TaWk7FStpKIkFgarXqXMjMOq63c4K9G87PuIOkzf/2Jl9Xpa7ZWJ32gW"
+  },
+  "/vendor/@lezer/highlight@1.2.5/es2022/highlight.mjs": {
+    "url": "https://esm.sh/@lezer/highlight@1.2.5/es2022/highlight.mjs",
+    "integrity": "sha384-sMvwCcnq0dNI636JtYGNuKl4wA0JKVpRno2PPLPqrdYMImIf2cvbP5HW65/fp8Qb"
+  },
+  "/vendor/@lezer/html@1.3.13/es2022/html.mjs": {
+    "url": "https://esm.sh/@lezer/html@1.3.13/es2022/html.mjs",
+    "integrity": "sha384-lwFsZjz2xuILKr5OuuuruuG2KoNmnYqJ/Xt2BwRRnD9uQcBIRdi5yKV6enw57ukP"
+  },
+  "/vendor/@lezer/javascript@1.5.6/es2022/javascript.mjs": {
+    "url": "https://esm.sh/@lezer/javascript@1.5.6/es2022/javascript.mjs",
+    "integrity": "sha384-hUlWldWHnrm4/J+HRvrXE0v5gRHRf9SJRY9QA+50Ua3xU6IHyQyuAfnXRC9IvG/S"
+  },
+  "/vendor/@lezer/lr@1.4.12/es2022/lr.mjs": {
+    "url": "https://esm.sh/@lezer/lr@1.4.12/es2022/lr.mjs",
+    "integrity": "sha384-shxyN161QWh3+TzCkE7Wu0HYybfbuYXQCvh5iQas+pyla4+KctT3p3Ej20ORJLIT"
+  },
+  "/vendor/@lezer/markdown@1.8.1/es2022/markdown.mjs": {
+    "url": "https://esm.sh/@lezer/markdown@1.8.1/es2022/markdown.mjs",
+    "integrity": "sha384-HBAOFU6LFyW5GwQgrcRW6KMrAEi93rIV2bh6r5pg9hR2C6krQACiSnTmjFH8LkCD"
+  },
+  "/vendor/@lezer/python@1.1.19/es2022/python.mjs": {
+    "url": "https://esm.sh/@lezer/python@1.1.19/es2022/python.mjs",
+    "integrity": "sha384-SyTa7JzOUKQmphWFVC2c1oHpkhb/h/AgfTY2v5WXyD4CxKlv6KDiHKetAn4PFyHS"
+  },
+  "/vendor/@observablehq/inputs@0.12.0/es2022/inputs.mjs": {
+    "url": "https://esm.sh/@observablehq/inputs@0.12.0/es2022/inputs.mjs",
+    "integrity": "sha384-16sOnJhZ8HBlsBTpYfcW5XzKo4OZRJ1yK/L1SUmPlxql2QYv/J8dk2n+YoHGLiN9"
+  },
+  "/vendor/@observablehq/inspector@5.0.1/es2022/inspector.mjs": {
+    "url": "https://esm.sh/@observablehq/inspector@5.0.1/es2022/inspector.mjs",
+    "integrity": "sha384-EsqmhuywTAz6eq4mPArUCiXTCAQpD6WCN7jUetLBW/1P0ZMfoXx7p9+FQ58aqnZT"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/lib/hash.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/dist/src/lib/hash.mjs",
+    "integrity": "sha384-6iAo+ScAIqCX/hbTnoRa7p4OSskTx0sj6YpalFTfD4dLPcD5bc++ZgqW9fZLDk0q"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/lib/interpreters.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/dist/src/lib/interpreters.mjs",
+    "integrity": "sha384-IlXon1TWzEtHC6hV8K/36fF+nGeoQ+KT/6QHPxoRg87P1Sc4Z+bDSdWKnZIhxgNH"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/assets.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/assets.mjs",
+    "integrity": "sha384-STeVJHLvwMQaZtqGa+3sNGPQOyw3UJJBT1d7Z14LWDaWxBa+MJrFsnqc9J5zqJy5"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/highlight.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/highlight.mjs",
+    "integrity": "sha384-g18i0hx0DK5S5OrkjgLPD5FHlIWWcRWoIpIbFhufqF0CiuG7FDTbF/tFTZ29nTI0"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/inputs.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/inputs.mjs",
+    "integrity": "sha384-uVAgJvbhBvpl8sFcU7Laa/2xH3Ot+brliQRFWcLUlNkopJWp6QuOIOk2R+OdhghE"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/md.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/dist/src/runtime/stdlib/md.mjs",
+    "integrity": "sha384-6xQQ4am1JWg/gDHy60Sny7armL25jQvacZ1i1M8+BBtUOtF+euLXsjPrgmbhTMYO"
+  },
+  "/vendor/@observablehq/notebook-kit@2.7.1/es2022/runtime.mjs": {
+    "url": "https://esm.sh/@observablehq/notebook-kit@2.7.1/es2022/runtime.mjs",
+    "integrity": "sha384-uDFovwjcIJK4DVEkKttpSYqDR+MRZ2MO0TviwMsMVlbI4jR3L71l1K4VUSONDuny"
+  },
+  "/vendor/@observablehq/plot@0.6.19/X-ZGQzQDcuOS4w/es2022/plot.mjs": {
+    "url": "https://esm.sh/@observablehq/plot@0.6.19/X-ZGQzQDcuOS4w/es2022/plot.mjs",
+    "integrity": "sha384-TAGBy/RYErzsTaqC1WtwEZ4Rd1GUVKbv48VhapFw6D5ha9GJdklpSUbOc7b5AfnG"
+  },
+  "/vendor/@observablehq/runtime@6.1.0/es2022/runtime.mjs": {
+    "url": "https://esm.sh/@observablehq/runtime@6.1.0/es2022/runtime.mjs",
+    "integrity": "sha384-iK3ILD2naTUlWweU17ZYcKkB9dbb5ghd8TPnGa93qUA9Lot7HZmwHC/20bXugCK4"
+  },
+  "/vendor/@sindresorhus/slugify@2.2.1/es2022/slugify.mjs": {
+    "url": "https://esm.sh/@sindresorhus/slugify@2.2.1/es2022/slugify.mjs",
+    "integrity": "sha384-GT8kBHRkxJywrog/zXueSa9aO3tfbfEMsDdz4K0+SHGFbSFGIat1uoOxO4Rk2uaM"
+  },
+  "/vendor/@sindresorhus/transliterate@1.6.0/es2022/transliterate.mjs": {
+    "url": "https://esm.sh/@sindresorhus/transliterate@1.6.0/es2022/transliterate.mjs",
+    "integrity": "sha384-0hmQfzKjGG6geq4pDiEdWWJEzu0KejhflZtUIUZgpD9Gtcgrq4Cj2pHEyX/12dcE"
+  },
+  "/vendor/d3-array@3.2.5/es2022/d3-array.mjs": {
+    "url": "https://esm.sh/d3-array@3.2.5/es2022/d3-array.mjs",
+    "integrity": "sha384-sbbkFzIuJs6PI9DSzSPSXo/ij7ttTcVekyRkek5s16YzpydivFzR7C32vNodflmV"
+  },
+  "/vendor/d3-axis@3.0.1/es2022/d3-axis.mjs": {
+    "url": "https://esm.sh/d3-axis@3.0.1/es2022/d3-axis.mjs",
+    "integrity": "sha384-iGwkEgnzOMrOPDkzrWZ9nxE5BBlMOBEiH8yvePl4GLrzlZMgoXh1LkYjllo/inz7"
+  },
+  "/vendor/d3-brush@3.0.1/es2022/d3-brush.mjs": {
+    "url": "https://esm.sh/d3-brush@3.0.1/es2022/d3-brush.mjs",
+    "integrity": "sha384-+k+8l489KaY3k7GPVZdD/37Vol2lbmxQHnzQ537gxrgD5h70EjTjMWG/N7Lv5X8P"
+  },
+  "/vendor/d3-chord@3.0.2/es2022/d3-chord.mjs": {
+    "url": "https://esm.sh/d3-chord@3.0.2/es2022/d3-chord.mjs",
+    "integrity": "sha384-kL7taLxaFfgKawjDl6Uh3m5B7vae/UbFu1pt9ImvM/mskuvZRYjXcjTcfZpzcrKd"
+  },
+  "/vendor/d3-color@3.1.1/es2022/d3-color.mjs": {
+    "url": "https://esm.sh/d3-color@3.1.1/es2022/d3-color.mjs",
+    "integrity": "sha384-EHoZQLCtCiSwmykoVWd5XzVJ44wQfmTxQwZTGBZ3eVn4oPw8zqH3rQhbnh8G9Iet"
+  },
+  "/vendor/d3-contour@4.0.3/es2022/d3-contour.mjs": {
+    "url": "https://esm.sh/d3-contour@4.0.3/es2022/d3-contour.mjs",
+    "integrity": "sha384-JBLjkg3v07uaM/2F3jGiby+USckCkxjv0SgS7TaaySnvscEy1iMMovLi4jY/cp6r"
+  },
+  "/vendor/d3-delaunay@6.0.6/es2022/d3-delaunay.mjs": {
+    "url": "https://esm.sh/d3-delaunay@6.0.6/es2022/d3-delaunay.mjs",
+    "integrity": "sha384-D9+ATLb3O0B5afRa8BUnGMxMQzqkm+vCTRhmMZHMrdMJhCjxStIxGPqTs5wM9161"
+  },
+  "/vendor/d3-dispatch@3.0.2/es2022/d3-dispatch.mjs": {
+    "url": "https://esm.sh/d3-dispatch@3.0.2/es2022/d3-dispatch.mjs",
+    "integrity": "sha384-xXYOUm7fAA7pkILa7JZMIR7bsx+xePFUH+hqDS0+ExG5u9e6xXWFgXMPS00VJv5e"
+  },
+  "/vendor/d3-drag@3.0.1/es2022/d3-drag.mjs": {
+    "url": "https://esm.sh/d3-drag@3.0.1/es2022/d3-drag.mjs",
+    "integrity": "sha384-qohWCF59hNnMTVxRMi15DrVyKgV+OrfvXZb1OaVOOkp7AwqjDiyPKR9Iyv8vJqkN"
+  },
+  "/vendor/d3-dsv@3.0.2/es2022/d3-dsv.mjs": {
+    "url": "https://esm.sh/d3-dsv@3.0.2/es2022/d3-dsv.mjs",
+    "integrity": "sha384-5j9Q0D7+abfAjqa69UpG4r+ojUY6rxrREkKptZ/SZjIylGB91aG8wB31Q93DbRbM"
+  },
+  "/vendor/d3-ease@3.0.2/es2022/d3-ease.mjs": {
+    "url": "https://esm.sh/d3-ease@3.0.2/es2022/d3-ease.mjs",
+    "integrity": "sha384-xrEEA2zvtBcDYT8cKyIr1pTWPnR1xnm3ohK98WY4003FOKDOGhye1tfAk8bN7WNM"
+  },
+  "/vendor/d3-fetch@3.0.2/es2022/d3-fetch.mjs": {
+    "url": "https://esm.sh/d3-fetch@3.0.2/es2022/d3-fetch.mjs",
+    "integrity": "sha384-6Wn0IWTPVll1KPA5HzADmA/XsE1GWolFusP2T9TRTXS5gDoURRN4czl4DPHp5+SR"
+  },
+  "/vendor/d3-force@3.0.1/es2022/d3-force.mjs": {
+    "url": "https://esm.sh/d3-force@3.0.1/es2022/d3-force.mjs",
+    "integrity": "sha384-3V2BdVz4pgQ9yqkXQd4Ucr1bi/XJ9I7kitu0N9hnf30uxHar71PAez7iNo0D60al"
+  },
+  "/vendor/d3-format@3.1.3/es2022/d3-format.mjs": {
+    "url": "https://esm.sh/d3-format@3.1.3/es2022/d3-format.mjs",
+    "integrity": "sha384-DSFjLxBqExQ0e2JK+f6dX/5YwDN2YtvQdSDhajFh4+FxuxWiMU33PAVXGIiG0h6j"
+  },
+  "/vendor/d3-geo@3.1.2/es2022/d3-geo.mjs": {
+    "url": "https://esm.sh/d3-geo@3.1.2/es2022/d3-geo.mjs",
+    "integrity": "sha384-PocyY+HjaBhawBYISbukzzfTtU+BNC5qkkNX4MsfgHtR5bDnYIrLs1wDV+CdLf3s"
+  },
+  "/vendor/d3-hierarchy@3.1.3/es2022/d3-hierarchy.mjs": {
+    "url": "https://esm.sh/d3-hierarchy@3.1.3/es2022/d3-hierarchy.mjs",
+    "integrity": "sha384-hcBbroKQ9RhodqFvFliTY8Z4RHfdbZ1fqB6bwUybMk8izI33Z51P/ieGF8VPk3gH"
+  },
+  "/vendor/d3-interpolate@3.0.2/es2022/d3-interpolate.mjs": {
+    "url": "https://esm.sh/d3-interpolate@3.0.2/es2022/d3-interpolate.mjs",
+    "integrity": "sha384-AUGLGFKxg4/YCgJENuFqWBRfkYTvHfKshBSa/N9j+Dn0mhhysySXCL3dZjN0DJD4"
+  },
+  "/vendor/d3-path@3.1.1/es2022/d3-path.mjs": {
+    "url": "https://esm.sh/d3-path@3.1.1/es2022/d3-path.mjs",
+    "integrity": "sha384-9bP6zdH3F+13YGvjrIvFOuAImDfeTPd1iXv+9qg3Ouad+vXAIhjYfLRujw8BiBBq"
+  },
+  "/vendor/d3-polygon@3.0.2/es2022/d3-polygon.mjs": {
+    "url": "https://esm.sh/d3-polygon@3.0.2/es2022/d3-polygon.mjs",
+    "integrity": "sha384-uW0aPIbK4JQL1PBA1kRB3BCyMO3CvXwaGodMM3nAwPGqvW62gfGbVkE/IdcRg3M8"
+  },
+  "/vendor/d3-quadtree@3.0.2/es2022/d3-quadtree.mjs": {
+    "url": "https://esm.sh/d3-quadtree@3.0.2/es2022/d3-quadtree.mjs",
+    "integrity": "sha384-WhydlZMeXOUwyKA6RTml4I01klnzBwYEgOkq7mZ1fs9MV/pc/j7RvGiWbgy7Y0ll"
+  },
+  "/vendor/d3-random@3.0.2/es2022/d3-random.mjs": {
+    "url": "https://esm.sh/d3-random@3.0.2/es2022/d3-random.mjs",
+    "integrity": "sha384-DLCoiyn0UvzBEZioxtC1x/oH5YEQ+w1eotrNjo+wGB54v2ykYEQ4F3Xy6FJP1Hlw"
+  },
+  "/vendor/d3-scale-chromatic@3.1.1/es2022/d3-scale-chromatic.mjs": {
+    "url": "https://esm.sh/d3-scale-chromatic@3.1.1/es2022/d3-scale-chromatic.mjs",
+    "integrity": "sha384-r73cs/n6mXq97/a5i05I+Bfl4mavp/DtWpo5UAkA0jeBbUPSzj9zeq8/Gs1+Ps3i"
+  },
+  "/vendor/d3-scale@4.0.3/es2022/d3-scale.mjs": {
+    "url": "https://esm.sh/d3-scale@4.0.3/es2022/d3-scale.mjs",
+    "integrity": "sha384-Va7oh/sqvIVSIE+7Nhe5ZquRDgDqCUlJP2L4SSmILyv2x68I91qMvUzY5wJpFozg"
+  },
+  "/vendor/d3-selection@3.0.1/es2022/d3-selection.mjs": {
+    "url": "https://esm.sh/d3-selection@3.0.1/es2022/d3-selection.mjs",
+    "integrity": "sha384-K6JrVl5yutJBgnEK8Jd4nON46qfyx3HtMOhridYkOTeQpbGGmA4EU33Ot+Kdm/TS"
+  },
+  "/vendor/d3-shape@3.2.1/es2022/d3-shape.mjs": {
+    "url": "https://esm.sh/d3-shape@3.2.1/es2022/d3-shape.mjs",
+    "integrity": "sha384-+VUYTKcCiCW0/F+6GvKOF65OZ0n/FZyFjEc7O+b7uIK0Fx2kGp/2u2B4d2wH+HPU"
+  },
+  "/vendor/d3-time-format@4.1.1/es2022/d3-time-format.mjs": {
+    "url": "https://esm.sh/d3-time-format@4.1.1/es2022/d3-time-format.mjs",
+    "integrity": "sha384-ZHsecX4l+2LZhPUIqhrYNVBuqEtt2E/z01p4IYNCh+bYM/Jg/m/xvEc42SMYrwDf"
+  },
+  "/vendor/d3-time@3.1.1/es2022/d3-time.mjs": {
+    "url": "https://esm.sh/d3-time@3.1.1/es2022/d3-time.mjs",
+    "integrity": "sha384-5glZNhb91E/JSbWzth3za1vTM5xs8XOLcfMfa355754SVrfaCZuKagKY1CNLC4bU"
+  },
+  "/vendor/d3-timer@3.0.2/es2022/d3-timer.mjs": {
+    "url": "https://esm.sh/d3-timer@3.0.2/es2022/d3-timer.mjs",
+    "integrity": "sha384-4TaaVgFVNph01OyRxsaorfvOeQNz8gG0rG4bL4lTBra30gBqlsqLQDwItYETPB4r"
+  },
+  "/vendor/d3-transition@3.0.2/es2022/d3-transition.mjs": {
+    "url": "https://esm.sh/d3-transition@3.0.2/es2022/d3-transition.mjs",
+    "integrity": "sha384-18FUWgu5uL/jOpTeW/zYR7UhgYCEzSe7H00Eu4ajvSYc5ZXqm3ru0DVaK39Yl2rD"
+  },
+  "/vendor/d3-zoom@3.0.1/es2022/d3-zoom.mjs": {
+    "url": "https://esm.sh/d3-zoom@3.0.1/es2022/d3-zoom.mjs",
+    "integrity": "sha384-MwKJGddaDUKn/JloInMLd3LPWZUo2Vx1NsGHUR5Z69F2Ik/lptH3pDDBnRP8NKP2"
+  },
+  "/vendor/d3@7.9.0/es2022/d3.mjs": {
+    "url": "https://esm.sh/d3@7.9.0/es2022/d3.mjs",
+    "integrity": "sha384-VUL0BfRGXr/2MoSVsUFwVXmgu8GZujDN/K4Jk7VGmltrYwGvZRScodM7OJjRYXxN"
+  },
+  "/vendor/entities@4.5.0/es2022/entities.mjs": {
+    "url": "https://esm.sh/entities@4.5.0/es2022/entities.mjs",
+    "integrity": "sha384-iyOU36ZFZ0EvD6W1oFH+XQNJxyX9E3s50GEcHKwNrynmSPfN75jH7iM3Hcur/rwD"
+  },
+  "/vendor/entities@4.5.0/es2022/lib/decode.mjs": {
+    "url": "https://esm.sh/entities@4.5.0/es2022/lib/decode.mjs",
+    "integrity": "sha384-91iMV643bxYctaF1k8puWbMqf+9VPApDtDJGoTPvxNyUOUpk9LBJ2cbHb2hiICqd"
+  },
+  "/vendor/entities@4.5.0/es2022/lib/escape.mjs": {
+    "url": "https://esm.sh/entities@4.5.0/es2022/lib/escape.mjs",
+    "integrity": "sha384-7T8s5nQ/FpggoNaf0ey6zw+/n+YDjZaeehdl9hMJ60o2iF7wSqTsu3rlFNLBTxaa"
+  },
+  "/vendor/escape-string-regexp@5.0.0/es2022/escape-string-regexp.mjs": {
+    "url": "https://esm.sh/escape-string-regexp@5.0.0/es2022/escape-string-regexp.mjs",
+    "integrity": "sha384-ypH3t5XmTVUtNoe2Jz4rW0bfgdDJmqBFvULXP62F1Xg196VgFCPUo+g3g1R2Mc2c"
+  },
+  "/vendor/htl@0.3.1/es2022/htl.mjs": {
+    "url": "https://esm.sh/htl@0.3.1/es2022/htl.mjs",
+    "integrity": "sha384-uEaDAM/a3Jv5SfE4dae4WfZssLjS3TfmHTfOKKlzfgrVRO6zsSvaaYjU66rxpU2c"
+  },
+  "/vendor/htl@1.0.0/es2022/htl.mjs": {
+    "url": "https://esm.sh/htl@1.0.0/es2022/htl.mjs",
+    "integrity": "sha384-g339VB885QrhK7eyNGyuj+JFbxN97yS4Fw6kswFsg7/omib7hvZf7JPvZkVD8vjQ"
+  },
+  "/vendor/isoformat@0.2.1/es2022/isoformat.mjs": {
+    "url": "https://esm.sh/isoformat@0.2.1/es2022/isoformat.mjs",
+    "integrity": "sha384-JpTfdsJHie1c5ycN8d92vjXPTiywObGm7ziQDx+JAl0YTZxdxyx/XoPfahcMPIob"
+  },
   "/vendor/json-rpc-2.0@1.8.1/es2022/json-rpc-2.0.mjs": {
     "url": "https://esm.sh/json-rpc-2.0@1.8.1/es2022/json-rpc-2.0.mjs",
     "integrity": "sha384-p7qbggTNfSkg2eLW/GhYJpvyXbl4sWvrjZDSRRH5KuXQwBYiH4cn441OptdyYuqm"
   },
+  "/vendor/linkify-it@5.0.2/es2022/linkify-it.mjs": {
+    "url": "https://esm.sh/linkify-it@5.0.2/es2022/linkify-it.mjs",
+    "integrity": "sha384-JABd/XPxwzODj2PpP8tk3LM8Fu1fsVXb3XqJ4rU+rtV+pCxEBuVSsbUA7ewMCJB7"
+  },
+  "/vendor/markdown-it-anchor@9.2.1/es2022/markdown-it-anchor.mjs": {
+    "url": "https://esm.sh/markdown-it-anchor@9.2.1/es2022/markdown-it-anchor.mjs",
+    "integrity": "sha384-cPwTc+p9dZifBZesmmCxrmBlIIt807IOISAp//Lf/qwlLo8UDhXvT83jnUF/Q5k0"
+  },
+  "/vendor/markdown-it@14.3.3/es2022/markdown-it.mjs": {
+    "url": "https://esm.sh/markdown-it@14.3.3/es2022/markdown-it.mjs",
+    "integrity": "sha384-9ONDOZYduAAs38mDjTmqqv40Z0TmnJor6IPc9VUhDEn3N9GCf2WV+sKHGk0Ds++4"
+  },
+  "/vendor/mdurl@2.1.0/es2022/mdurl.mjs": {
+    "url": "https://esm.sh/mdurl@2.1.0/es2022/mdurl.mjs",
+    "integrity": "sha384-jLdthAlFitbuTME/GJ/PRQNODhdU6t8Kv1cxEGpbJCdK1Im8vpvCG9jvUSdBF7Ym"
+  },
+  "/vendor/node/async_hooks.mjs": {
+    "url": "https://esm.sh/node/async_hooks.mjs",
+    "integrity": "sha384-hZODh/PQnvY3IF4FtNJuW8kv34D4KD12zn8PxDV/msb6KqlrEKUpEeiC2EfP9ezY"
+  },
+  "/vendor/node/events.mjs": {
+    "url": "https://esm.sh/node/events.mjs",
+    "integrity": "sha384-dwszbvTvRSGJ4nBlT4YJ6JG+pkZTOkgDTmChKqVSVRZ3kWt8IGUwM3TLfQcUEojH"
+  },
+  "/vendor/node/process.mjs": {
+    "url": "https://esm.sh/node/process.mjs",
+    "integrity": "sha384-rSvZxzbQlvnecvHZ7q2RoZAz4OR+c4t5H4NC7JNLYb6YxMjWbwnfBKxYC3H1N5tK"
+  },
+  "/vendor/node/tty.mjs": {
+    "url": "https://esm.sh/node/tty.mjs",
+    "integrity": "sha384-DR5Ni3oJ346E4ymxfySw8VOMWcxgxPCo7jnsB+WzPi0LWP8PHqsttFCylJsUOH4g"
+  },
   "/vendor/object-inspect@1.13.4/es2022/object-inspect.mjs": {
     "url": "https://esm.sh/object-inspect@1.13.4/es2022/object-inspect.mjs",
     "integrity": "sha384-YPc7QZoPKpBX4/AX1itSpmPx/vgxg0cMPYVAkTpJLzDwmJezJ3RX7cnnMwSRUd8n"
+  },
+  "/vendor/punycode.js@2.3.1/es2022/punycode.mjs": {
+    "url": "https://esm.sh/punycode.js@2.3.1/es2022/punycode.mjs",
+    "integrity": "sha384-uBfc6LuYK7URYIpVBqhG/bZT4UYOkNN27PY5ovFXaVCGVIxsQ4WD/+eFxyhcDDvG"
   },
   "/vendor/react-dom@19.3.1/es2022/client.mjs": {
     "url": "https://esm.sh/react-dom@19.3.1/es2022/client.mjs",
@@ -53,5 +401,9 @@ export const vendorSources: Record<string, { url: string; integrity: string }> =
   "/vendor/scheduler@0.28.0/es2022/scheduler.mjs": {
     "url": "https://esm.sh/scheduler@0.28.0/es2022/scheduler.mjs",
     "integrity": "sha384-VTqzDxK+Nfu62ZqrHojPSgKqkcLx9wWONGvOJwFQqD00uvRqQKGsX4stOJmJsauz"
+  },
+  "/vendor/uc.micro@2.1.0/es2022/uc.micro.mjs": {
+    "url": "https://esm.sh/uc.micro@2.1.0/es2022/uc.micro.mjs",
+    "integrity": "sha384-UXo0NrVz6gpif++GD26++Csu0tSAm8RFkF/AIlm0Ha+R5tBiDD3D+lYindzvD1kh"
   }
 }

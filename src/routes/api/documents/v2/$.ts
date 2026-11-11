@@ -1,4 +1,4 @@
-// SOURCING: none — TanStack Start server route that delegates to the Theorem proxy
+// SOURCING: none — TanStack Start server route that delegates to the Theorem proxy (documents, collections and filing)
 import { createFileRoute } from '@tanstack/react-router'
 import { proxyHandlers } from '@/server/theorem-proxy'
 

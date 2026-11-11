@@ -1,7 +1,9 @@
 // SOURCING: @headless-tree/react + @headless-tree/core (tree state, keyboard
 // navigation, selection, the tree ARIA roles, renaming on F2, and dragging
-// entries or Finder's files onto a folder), rows styled like the sidebar's
-// chat list; Base UI ContextMenu (the right-click menu, as the chat list has
+// entries or Finder's files onto a folder), each entry drawn by the
+// filesystem-item component (its marks, and a subtree that slides open), its
+// row styled like the sidebar's chat list; Base UI ContextMenu (the
+// right-click menu, as the chat list has
 // one); entries from useWorkspaceTree (react-query, live); new notes and
 // folders from lib/workspace/notes.ts; zustand (a new entry waiting to be
 // named, and what last failed, so the folder's own menu can ask too). In the
@@ -19,9 +21,14 @@ import type { ItemInstance } from '@headless-tree/core'
 import { useTree } from '@headless-tree/react'
 import { basename, extname, join } from 'pathe'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { create } from 'zustand'
 import { Icon } from '@/components/icons'
 import { menuItem, menuPopup } from '@/components/shell/sidebar'
+import {
+  FilesystemItem,
+  FilesystemMarks,
+} from '@/components/ui/filesystem-item'
 import { writeNewFile } from '@/lib/handlers/file-sync'
 import { hostActions } from '@/lib/handlers/actions'
 import { WorkspaceRequestError } from '@/lib/workspace/desktop-client'
@@ -44,7 +51,7 @@ import { cn } from '@/lib/utils'
 import { theoremMark } from './entry-mark'
 
 const ROOT = 'root'
-const INDENT = 12
+const INDENT = 24
 
 interface TreeNode {
   name: string
@@ -276,7 +283,8 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
     },
     onPrimaryAction: (item) => {
       const { folder, path } = item.getItemData()
-      if (!folder) openWorkspaceFile({ workspaceId, path })
+      if (!folder)
+        openWorkspaceFile({ workspaceId, entryId: item.getId(), path })
     },
     onRename: (item, value) => void rename(item, value),
     hotkeys: {
@@ -380,6 +388,67 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
     )
   }
 
+  /**
+   * An entry's row, and while it is open the entries in it. The level comes
+   * from here, not the tree: a closing folder's entries have left the tree's
+   * list while they slide shut.
+   */
+  const entry = (item: ItemInstance<TreeNode>, level: number): ReactNode => {
+    const node = item.getItemData()
+    const expanded = item.isExpanded()
+    const source = theoremMark(node.theorem)
+    const marks = (
+      <FilesystemMarks
+        folder={node.folder}
+        open={expanded}
+        empty={node.children.length === 0}
+        icon={
+          source && (
+            <source.Mark
+              className="size-6 shrink-0 text-ink-muted"
+              strokeWidth={1.75}
+            />
+          )
+        }
+      />
+    )
+    const shared = {
+      ...item.getProps(),
+      style: { paddingInlineStart: 8 + level * INDENT },
+      onContextMenu: () => setMenu((m) => ({ ...m, target: item.getId() })),
+      'data-active': item.isSelected() || undefined,
+      'data-drop-target': dropInto === item.getId() || undefined,
+      'data-menu-target':
+        (menu.open && menu.target === item.getId()) || undefined,
+      className:
+        'flex h-8 w-full shrink-0 items-center gap-1.5 rounded-md pe-2 text-start text-sm transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill data-menu-target:bg-hover data-drop-target:bg-hover data-drop-target:outline-1 data-drop-target:-outline-offset-1 data-drop-target:outline-focus',
+    }
+    const row = item.isRenaming() ? (
+      <div {...shared}>
+        {marks}
+        <input
+          {...item.getRenameInputProps()}
+          aria-label={`Rename ${node.name}`}
+          spellCheck={false}
+          // A name is kept when the field loses focus, as in Finder.
+          onBlur={() => tree.isRenamingItem() && tree.completeRenaming()}
+          onClick={(event) => event.stopPropagation()}
+          className="h-6.5 min-w-0 flex-1 rounded-sm bg-background px-1 text-sm outline-1 outline-focus"
+        />
+      </div>
+    ) : (
+      <button {...shared} type="button" title={source?.label}>
+        {marks}
+        <span className="min-w-0 truncate">{node.name}</span>
+      </button>
+    )
+    return (
+      <FilesystemItem key={item.getId()} row={row} open={expanded}>
+        {expanded && item.getChildren().map((child) => entry(child, level + 1))}
+      </FilesystemItem>
+    )
+  }
+
   return (
     <>
       <ContextMenu.Root
@@ -390,77 +459,13 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
           // Rows name themselves the target as the event bubbles up to here.
           onContextMenuCapture={() => setMenu((m) => ({ ...m, target: ROOT }))}
           data-drop-target={dropInto === ROOT || undefined}
-          className="flex min-h-7 flex-col gap-px rounded-md outline-none data-drop-target:bg-hover"
+          className="flex min-h-8 flex-col rounded-md outline-none data-drop-target:bg-hover"
         >
           {nodes.get(ROOT)?.children.length ? (
-            tree.getItems().map((item) => {
-              const node = item.getItemData()
-              const expanded = item.isExpanded()
-              const source = theoremMark(node.theorem)
-              const Mark = node.folder
-                ? expanded
-                  ? Icon.TreeFolderOpen
-                  : Icon.TreeFolder
-                : (source?.Mark ?? Icon.TreeFile)
-              const marks = (
-                <>
-                  <Icon.Next
-                    aria-hidden="true"
-                    className={cn(
-                      'size-2.5 shrink-0 text-ink-faint transition-transform duration-150',
-                      expanded && 'rotate-90',
-                      !node.folder && 'invisible',
-                    )}
-                  />
-                  <Mark
-                    className="size-4 shrink-0 text-ink-faint"
-                    strokeWidth={1.75}
-                  />
-                </>
-              )
-              const shared = {
-                ...item.getProps(),
-                style: {
-                  paddingInlineStart: 8 + item.getItemMeta().level * INDENT,
-                },
-                onContextMenu: () =>
-                  setMenu((m) => ({ ...m, target: item.getId() })),
-                'data-active': item.isSelected() || undefined,
-                'data-drop-target': dropInto === item.getId() || undefined,
-                'data-menu-target':
-                  (menu.open && menu.target === item.getId()) || undefined,
-                className:
-                  'flex h-7 w-full items-center gap-1.5 rounded-md pe-2 text-start text-sm transition-colors duration-100 outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus data-active:bg-pill data-active:shadow-pill data-menu-target:bg-hover data-drop-target:bg-hover data-drop-target:outline-1 data-drop-target:-outline-offset-1 data-drop-target:outline-focus',
-              }
-              if (item.isRenaming())
-                return (
-                  <div key={item.getId()} {...shared}>
-                    {marks}
-                    <input
-                      {...item.getRenameInputProps()}
-                      aria-label={`Rename ${node.name}`}
-                      spellCheck={false}
-                      // A name is kept when the field loses focus, as in Finder.
-                      onBlur={() =>
-                        tree.isRenamingItem() && tree.completeRenaming()
-                      }
-                      onClick={(event) => event.stopPropagation()}
-                      className="h-5.5 min-w-0 flex-1 rounded-sm bg-background px-1 text-sm outline-1 outline-focus"
-                    />
-                  </div>
-                )
-              return (
-                <button
-                  key={item.getId()}
-                  {...shared}
-                  type="button"
-                  title={source?.label}
-                >
-                  {marks}
-                  <span className="min-w-0 truncate">{node.name}</span>
-                </button>
-              )
-            })
+            tree
+              .getRootItem()
+              .getChildren()
+              .map((item) => entry(item, 0))
           ) : (
             <p className="px-1.5 py-1 text-sm text-ink-faint-sheet">
               This folder is empty.
@@ -478,7 +483,7 @@ export function WorkspaceTree({ client }: { client: WorkspaceClient }) {
                 className={menuItem}
                 onClick={() => makeIn('note')}
               >
-                <Icon.Add className="size-4" />
+                <Icon.NewNote className="size-4" />
                 New note
               </ContextMenu.Item>
               <ContextMenu.Item

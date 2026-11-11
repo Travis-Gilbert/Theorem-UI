@@ -1,12 +1,18 @@
 // SOURCING: NoteEditor (Milkdown Crepe), ui/button, @tanstack/react-query via useNote and the Space cache
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useComposer, quoteRange } from '@/components/canvas/composer-state'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import type { CanvasSource } from '@/lib/theorem/canvas-agent'
 import type { Theorem } from '@/lib/theorem/client'
-import { reloadNote, useNote, useNoteStatus } from '@/lib/theorem/notes'
+import {
+  noteKey,
+  reloadNote,
+  useNote,
+  useNoteStatus,
+} from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
 import { NoteEditor } from './note-editor'
@@ -62,11 +68,10 @@ export function noteSource(
     documentId: note.documentId,
     title: note.title,
     markdown: note.markdown,
+    savedMarkdown: note.savedMarkdown,
+    revision: { ...note.revision },
     placementId,
-    selection:
-      quote && range
-        ? { quote, ...range, revision: String(note.revision.position) }
-        : undefined,
+    selection: quote ? { quote, range } : undefined,
   }
 }
 
@@ -89,7 +94,13 @@ export function selectedTextIn(container: Element): string | undefined {
   return selection.toString().trim() || undefined
 }
 
-function Banner({ note }: { note: Note }) {
+function Banner({
+  note,
+  readOnlyNotice,
+}: {
+  note: Note
+  readOnlyNotice?: ReactNode
+}) {
   const queryClient = useQueryClient()
   const status = useNoteStatus((s) => s.status[note.documentId])
   const [reloading, setReloading] = useState(false)
@@ -116,9 +127,13 @@ function Banner({ note }: { note: Note }) {
     )
   if (!note.editable)
     return (
-      <div className="border-b border-separator bg-frame px-4 py-2 text-xs text-ink-muted">
-        Read only. This document has a block structure the Markdown editor would
-        flatten, or Theorem marks it read-only.
+      <div className="flex items-center gap-2 border-b border-separator bg-frame px-4 py-2 text-xs text-ink-muted">
+        {readOnlyNotice ?? (
+          <span>
+            Read only. This document has a block structure the Markdown editor
+            would flatten, or Theorem marks it read-only.
+          </span>
+        )}
       </div>
     )
   return null
@@ -128,10 +143,16 @@ function Banner({ note }: { note: Note }) {
 export function NotePanel({
   documentId,
   onClose,
+  actions,
+  readOnlyNotice,
   className,
 }: {
   documentId: string
   onClose?: () => void
+  /** Controls in the header, before Close: Notes mode's Trash and Restore. */
+  actions?: ReactNode
+  /** Replaces the read-only notice, for a note the person can still make editable. */
+  readOnlyNotice?: ReactNode
   className?: string
 }) {
   const queryClient = useQueryClient()
@@ -139,11 +160,13 @@ export function NotePanel({
   const openComposer = useComposer((s) => s.open)
 
   const ask = (anchor: { x: number; y: number }, quote?: string) => {
-    if (!note.data) return
+    // The editor flushes immediately before Ask, ahead of React's next render.
+    const current = queryClient.getQueryData<Note>(noteKey(documentId))
+    if (!current) return
     openComposer({
       anchor,
       sources: [
-        noteSource(note.data, placementOf(queryClient, documentId), quote),
+        noteSource(current, placementOf(queryClient, documentId), quote),
       ],
     })
   }
@@ -156,6 +179,7 @@ export function NotePanel({
           {note.data?.title ?? 'Note'}
         </h2>
         <NoteStatus documentId={documentId} />
+        {actions}
         {onClose && (
           <Button
             variant="ghost"
@@ -173,7 +197,7 @@ export function NotePanel({
         <p className="p-6 text-sm text-ink-muted">This note is unavailable.</p>
       ) : (
         <>
-          <Banner note={note.data} />
+          <Banner note={note.data} readOnlyNotice={readOnlyNotice} />
           <div
             className="min-h-0 flex-1 overflow-y-auto"
             onContextMenu={(event) => {

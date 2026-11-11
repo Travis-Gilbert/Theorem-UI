@@ -1,4 +1,4 @@
-// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, NotePanel (Milkdown Crepe), WorkspaceFilePanel, the IDE frame (browser-only Theia), Base UI Menu (the panels menu that opens the terminal drawers), zustand stores for artifact view, note view, workspace file view, saved layouts and the drawers
+// SOURCING: dockview-react (docking layout: tabs, splits, floating and edge groups, maximize, serialization, always-rendered panels), the shell's ModeView (assistant-ui Thread in chat mode), FilePanel, NotePanel (Milkdown Crepe), WorkspaceFilePanel, the inspector's panels (the graph via React.lazy, so cosmos.gl loads only when it opens), the arrangements, the IDE frame (browser-only Theia), Base UI Menu (the panels menu: arrangements, the inspector, the terminal drawers), zustand stores for artifact view, note view, workspace file view, the inspected file, saved layouts and the drawers
 import { useAuiState } from '@assistant-ui/react'
 import { Menu } from '@base-ui/react/menu'
 import { DockviewDefaultTab, DockviewReact } from 'dockview-react'
@@ -10,13 +10,27 @@ import type {
   IDockviewPanelHeaderProps,
   IDockviewPanelProps,
 } from 'dockview-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useThreadArtifacts } from '@/components/artifacts/artifact-model'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Icon } from '@/components/icons'
+import {
+  LinksPanel,
+  OutlinePanel,
+} from '@/components/inspector/inspector-panels'
+import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
+import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
+import { ThreadHeader } from '@/components/organize/thread-header'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,8 +41,24 @@ import {
 import { useNote } from '@/lib/theorem/notes'
 import { useFileDock } from '@/lib/theorem/project-files'
 import { useWorkspaceFileView } from '@/lib/workspace/open'
+import {
+  ARRANGEMENTS,
+  THREAD,
+  addInspector,
+  arrange,
+  followFront,
+  holdsPanelsMenu,
+} from './arrangements'
+import type { Arrangement } from './arrangements'
 import { FilePanel } from './file-panel'
-import { ModeView, modeLabel, useShellMode } from './modes'
+import {
+  hasOwnView,
+  ModeView,
+  modeLabel,
+  navigatorMode,
+  useShellMode,
+} from './modes'
+import type { ShellMode } from './modes'
 import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
@@ -38,16 +68,33 @@ import { IdeFrame } from '@/components/ide/ide-frame'
 import { flyGhost, popIn } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
-const THREAD = 'thread'
+import { DelegationPanel } from '@/components/chat/delegation-panel'
+import { ComparePane } from '@/components/review/compare-pane'
+import { useDelegationDock, useThreadDelegation } from '@/lib/theorem/delegations'
+import { useReview, useReviewDock } from '@/lib/theorem/reviews'
+
 const ARTIFACT = 'artifact:'
 const NOTE = 'note-panel:'
-
 const artifactPanelId = (artifactId: string) => `${ARTIFACT}${artifactId}`
 const artifactIdOf = (panelId: string) =>
   panelId.startsWith(ARTIFACT) ? panelId.slice(ARTIFACT.length) : undefined
 const FILE = 'file:'
 const filePanelId = (path: string) => `${FILE}${path}`
 const isFilePanel = (panelId: string) => panelId.startsWith(FILE)
+const DELEGATION = 'delegation:'
+
+const delegationPanelId = (delegationId: string) =>
+  `${DELEGATION}${delegationId}`
+const isDelegationPanel = (panelId: string) => panelId.startsWith(DELEGATION)
+const REVIEW = 'review:'
+const reviewPanelId = (reviewId: string) => `${REVIEW}${reviewId}`
+const isReviewPanel = (panelId: string) => panelId.startsWith(REVIEW)
+
+/** Panels that open beside the conversation and share its side group. */
+const isSidePanel = (panelId: string) =>
+  Boolean(artifactIdOf(panelId)) ||
+  isFilePanel(panelId) ||
+  isDelegationPanel(panelId)
 /** Colours come from the palette tokens, which already switch per palette and mode. */
 const theme: DockviewTheme = {
   name: 'theorem',
@@ -62,18 +109,42 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
   }
 }
 
-/** The main panel: the conversation, or the mode's view in Spaces. Theia covers the dock in IDE mode. */
-function ThreadPanel({ api }: IDockviewPanelProps) {
+/** The main panel: the conversation, or the mode's view in the Index, Pages, Spaces and the canvas. Theia covers the dock in IDE mode. */
+function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
   const title = useAuiState((s) => s.threadListItem.title)
   const mode = useShellMode()
   useEffect(
     () =>
-      api.setTitle(mode === 'spaces' ? modeLabel(mode) : title || 'New chat'),
+      api.setTitle(
+        hasOwnView(mode)
+          ? modeLabel(mode)
+          : title || 'New chat',
+      ),
     [api, mode, title],
   )
+  // Chat's breadcrumb stands in for the tab while the conversation is
+  // alone in its group; a tab dropped beside it brings the tab bar back.
+  const inChat = mode === 'chat'
+  const alone = useSyncExternalStore(
+    subscribe(api.group.api.onDidActivePanelChange),
+    () => api.group.panels.length === 1,
+  )
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- dockview's header takes this as a setter, and has no method for it.
+    api.group.header.hidden = inChat && alone
+  }, [api, inChat, alone])
   return (
-    <div className="h-full">
-      <ModeView docked />
+    <div className="flex h-full flex-col">
+      {inChat && (
+        <ThreadHeader
+          actions={
+            alone ? <GroupActions group={api.group} containerApi={containerApi} /> : undefined
+          }
+        />
+      )}
+      <div className="relative min-h-0 flex-1">
+        <ModeView docked />
+      </div>
     </div>
   )
 }
@@ -141,14 +212,90 @@ function NoteDockPanel({
   return <NotePanel documentId={params.documentId} />
 }
 
+function DelegationDockPanel({
+  api,
+  params,
+}: IDockviewPanelProps<{ delegationId: string }>) {
+  const roleLabel = useThreadDelegation(params.delegationId)?.roleLabel
+  useEffect(() => {
+    if (roleLabel) api.setTitle(roleLabel)
+  }, [api, roleLabel])
+  return <DelegationPanel delegationId={params.delegationId} />
+}
+
+/** Compare draws its own header, with a way out of the window and back. */
+function ReviewDockPanel({
+  api,
+  containerApi,
+  params,
+}: IDockviewPanelProps<{ reviewId: string }>) {
+  const { reviewId } = params
+  const count = useReview(reviewId).data?.options.length
+  useEffect(() => {
+    if (count) api.setTitle(`Compare ${count}`)
+  }, [api, count])
+  const location = useSyncExternalStore(
+    subscribe(api.onDidLocationChange),
+    () => api.location.type,
+  )
+  const close = () => {
+    const panel = containerApi.getPanel(api.id)
+    if (panel) containerApi.removePanel(panel)
+  }
+  const detach = async () => {
+    const panel = containerApi.getPanel(api.id)
+    if (!panel) return
+    if (location !== 'grid') {
+      const thread = containerApi.getPanel(THREAD)
+      if (thread) panel.api.moveTo({ group: thread.group, position: 'right' })
+      return
+    }
+    // A blocked popup still lets the pane float clear of the conversation.
+    const opened = await containerApi.addPopoutGroup(panel.group)
+    if (!opened)
+      containerApi.addFloatingGroup(panel, { width: 520, height: 720 })
+  }
+  return (
+    <ComparePane
+      reviewId={reviewId}
+      onClose={close}
+      onDetach={() => void detach()}
+      detached={location !== 'grid'}
+    />
+  )
+}
+
+const GraphPanel = lazy(() =>
+  import('@/components/inspector/graph-panel').then((module) => ({
+    default: module.GraphPanel,
+  })),
+)
+
+/** The inspector's panels draw on the surface the files beside them do. */
+const inspector = (Panel: React.ComponentType) =>
+  function InspectorPanel() {
+    return (
+      <div className="relative h-full bg-artifact">
+        <Suspense>
+          <Panel />
+        </Suspense>
+      </div>
+    )
+  }
+
 const components = {
   thread: ThreadPanel,
+  outline: inspector(OutlinePanel),
+  links: inspector(LinksPanel),
+  graph: inspector(GraphPanel),
   // Layouts saved while the IDE was a dock panel name it; restoreLayout drops it.
-  ide: IdeFrame,
+  ide: () => <IdeFrame />,
   artifact: ArtifactDockPanel,
   note: NoteDockPanel,
   [WORKSPACE_FILE_COMPONENT]: WorkspaceFileDockPanel,
   file: FileDockPanel,
+  delegation: DelegationDockPanel,
+  review: ReviewDockPanel,
 }
 
 const tabComponents = {
@@ -169,16 +316,56 @@ function FollowToggle() {
       onClick={following ? pause : resume}
       className={cn('size-7 p-1.5', !following && 'text-ink-faint')}
     >
-      <Icon.Eye className="size-4" />
+      <Icon.Follow className="size-4" />
     </TooltipIconButton>
   )
 }
+
+/** Lays the dock out as `arrangement` and opens, closes or fills the navigator. */
+export function arrangeWorkspace(
+  api: DockviewApi,
+  arrangement: Arrangement,
+  mode: ShellMode,
+) {
+  const { navigator } = arrange(api, arrangement)
+  const shell = useShell.getState()
+  shell.setPanelOpen(navigatorMode(mode), navigator !== 'closed')
+  if (navigator === 'files') shell.setFilesShown(true)
+}
+
+/** Which inspector panels the dock holds, kept current with its layout. */
+function useShownInspector(api: DockviewApi) {
+  const shown = useSyncExternalStore(subscribe(api.onDidLayoutChange), () =>
+    (Object.keys(INSPECTOR_TOOLS) as Array<InspectorTool>)
+      .filter((id) => api.getPanel(id))
+      .join(' '),
+  )
+  return new Set(shown.split(' '))
+}
+
 /**
- * Opens a drawer beside the conversation: the terminal, on the right or at
- * the bottom, and later other tools. New chat lives in the sidebar.
+ * The conversation's panels menu: the arrangements, the inspector beside the
+ * files, and the terminal drawers. New chat lives in the sidebar.
  */
-function GroupActions({ panels }: IDockviewHeaderActionsProps) {
-  if (!panels.some((panel) => panel.id === THREAD)) return null
+function GroupActions({
+  group,
+  containerApi,
+}: Pick<IDockviewHeaderActionsProps, 'group' | 'containerApi'>) {
+  const holds = useSyncExternalStore(
+    subscribe(containerApi.onDidMaximizedGroupChange),
+    () => holdsPanelsMenu(group),
+  )
+  return holds ? <PanelsMenu api={containerApi} /> : null
+}
+
+function PanelsMenu({ api }: { api: DockviewApi }) {
+  const mode = useShellMode()
+  const shown = useShownInspector(api)
+  const toggle = (tool: InspectorTool) => {
+    const panel = api.getPanel(tool)
+    if (panel) api.removePanel(panel)
+    else addInspector(api, tool)
+  }
   return (
     <div className="flex h-full items-center pe-1">
       <FollowToggle />
@@ -196,6 +383,46 @@ function GroupActions({ panels }: IDockviewHeaderActionsProps) {
         <Menu.Portal>
           <Menu.Positioner align="end" sideOffset={6} className="z-50">
             <Menu.Popup className={`min-w-52 ${menuPopup}`}>
+              <Menu.Group>
+                <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                  Arrange
+                </Menu.GroupLabel>
+                {(Object.keys(ARRANGEMENTS) as Array<Arrangement>).map(
+                  (arrangement) => (
+                    <Menu.Item
+                      key={arrangement}
+                      className={menuItem}
+                      onClick={() => arrangeWorkspace(api, arrangement, mode)}
+                    >
+                      {ARRANGEMENTS[arrangement]}
+                    </Menu.Item>
+                  ),
+                )}
+              </Menu.Group>
+              <Menu.Separator className="my-1 h-px bg-separator" />
+              <Menu.Group>
+                <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                  Inspector
+                </Menu.GroupLabel>
+                {(Object.keys(INSPECTOR_TOOLS) as Array<InspectorTool>).map(
+                  (tool) => (
+                    <Menu.CheckboxItem
+                      key={tool}
+                      className={menuItem}
+                      checked={shown.has(tool)}
+                      onCheckedChange={() => toggle(tool)}
+                    >
+                      <span className="flex size-4 items-center justify-center">
+                        <Menu.CheckboxItemIndicator>
+                          <Icon.Check className="size-3.5" />
+                        </Menu.CheckboxItemIndicator>
+                      </span>
+                      {INSPECTOR_TOOLS[tool]}
+                    </Menu.CheckboxItem>
+                  ),
+                )}
+              </Menu.Group>
+              <Menu.Separator className="my-1 h-px bg-separator" />
               <Menu.Item
                 className={menuItem}
                 onClick={() => useShell.getState().setSideDrawer('terminal')}
@@ -269,9 +496,7 @@ function openSide(
     return
   }
   const sized = { ...options, minimumWidth: 400 }
-  const sibling = api.panels.find(
-    (panel) => artifactIdOf(panel.id) || isFilePanel(panel.id),
-  )
+  const sibling = api.panels.find((panel) => isSidePanel(panel.id))
   if (sibling) {
     api.addPanel({ ...sized, position: { referenceGroup: sibling.group } })
     return
@@ -285,6 +510,49 @@ function openArtifact(api: DockviewApi, artifactId: string) {
     params: { artifactId },
     title: 'Artifact',
   })
+}
+
+function openDelegation(api: DockviewApi, delegationId: string, title: string) {
+  openSide(api, {
+    id: delegationPanelId(delegationId),
+    component: 'delegation',
+    params: { delegationId },
+    title,
+  })
+}
+/**
+ * Compare opens in a column of its own, with its own header in place of the
+ * tab, and a quiet open leaves the keyboard in the conversation.
+ */
+function openReviewPanel(
+  api: DockviewApi,
+  reviewId: string,
+  quiet: boolean | undefined,
+) {
+  const id = reviewPanelId(reviewId)
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  openBeside(
+    api,
+    {
+      id,
+      component: 'review',
+      params: { reviewId },
+      title: 'Compare',
+      minimumWidth: 340,
+    },
+    THREAD,
+    0.4,
+  )
+  const panel = api.getPanel(id)
+  if (panel && panel.group.panels.length === 1) panel.group.header.hidden = true
+  if (quiet) api.getPanel(THREAD)?.api.setActive()
+  // Dockview can keep an always-rendered panel at its old width when a column
+  // opens mid-frame, until the next layout. Lay out once the frame has settled.
+  requestAnimationFrame(() => api.layout(api.width, api.height, true))
 }
 
 /** Files belong to the project, so they stay open across conversations. */
@@ -361,7 +629,6 @@ function openNote(api: DockviewApi, documentId: string) {
   }
   openBeside(api, options, THREAD, 0.4)
 }
-
 /**
  * Desktop dock: the conversation and each open artifact, note and file as dock panels. Panels render always, so moving or hiding one
  * keeps its React state, scroll position and focus target. The layout is saved
@@ -421,6 +688,13 @@ export function DockShell({
       },
     })
     useFileDock.setState({ open: (path) => openFile(dock, projectId, path) })
+    useDelegationDock.setState({
+      open: (delegationId, title) => openDelegation(dock, delegationId, title),
+    })
+    useReviewDock.setState({
+      open: (reviewId, options) =>
+        openReviewPanel(dock, reviewId, options?.quiet),
+    })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
         const artifactId = panel && artifactIdOf(panel.id)
@@ -431,6 +705,7 @@ export function DockShell({
         if (artifactId) useArtifactView.getState().closed(artifactId)
       }),
       dock.onDidLayoutChange(save),
+      { dispose: followFront(dock) },
       ...springMaximize(dock),
     ]
     return () => {
@@ -439,10 +714,12 @@ export function DockShell({
       useNoteView.setState({ dock: undefined })
       useWorkspaceFileView.setState({ dock: undefined })
       useFileDock.setState({ open: undefined })
+      useDelegationDock.setState({ open: undefined })
+      useReviewDock.setState({ open: undefined })
     }
   }, [dock, projectId])
 
-  // A different conversation starts without the previous one's artifacts. A
+  // A different conversation starts without the previous one's artifacts and delegations. A
   // new chat gaining its first id is the same conversation, so it keeps them.
   useEffect(() => {
     if (!dock || layoutThread.current === threadId) return
@@ -450,7 +727,12 @@ export function DockShell({
     layoutThread.current = threadId
     if (previous !== undefined) {
       for (const panel of dock.panels)
-        if (artifactIdOf(panel.id)) dock.removePanel(panel)
+        if (
+          artifactIdOf(panel.id) ||
+          isDelegationPanel(panel.id) ||
+          isReviewPanel(panel.id)
+        )
+          dock.removePanel(panel)
       useArtifactView.getState().reset()
     }
     useShell.getState().saveLayout(projectId, {

@@ -1,0 +1,390 @@
+diff --git a/dist/assistant-ui.cjs b/dist/assistant-ui.cjs
+index 631df4f..6cbd388 100644
+--- a/dist/assistant-ui.cjs
++++ b/dist/assistant-ui.cjs
+@@ -1,4 +1,6 @@
+ "use strict";
++const sendWithBackgroundRetry = require("./background-send-retry.cjs");
++const waitForRunRelease = require("./run-release.cjs");
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+ var __getOwnPropNames = Object.getOwnPropertyNames;
+@@ -132,13 +134,28 @@ function createHeadlessTheoremChatAdapter(options) {
+ function object(value) {
+   return value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
+ }
++// What a text part says about its place in the run. The renderer reads it
++// from providerMetadata.theorem: assistant-ui overwrites a part's own status.
++function textMeta(part) {
++  const meta = {};
++  if (part.purpose === "commentary" || part.purpose === "answer") meta.purpose = part.purpose;
++  if (typeof part.segment === "number") meta.segment = part.segment;
++  if (part.status === "running" || part.status === "complete" || part.status === "incomplete") meta.status = part.status;
++  return Object.keys(meta).length ? meta : void 0;
++}
++var AWAITING_APPROVAL_STATUSES = /* @__PURE__ */ new Set(["requires_action", "pending", "open"]);
++function awaitsDecision(approval) {
++  return typeof approval.status !== "string" || AWAITING_APPROVAL_STATUSES.has(approval.status);
++}
+ var MessageParts = class {
+   parts = /* @__PURE__ */ new Map();
+   put(partId, type, payload) {
+     const part = object(payload);
+     if (type === "text" || type === "reasoning") {
+-      if (typeof part.text === "string")
+-        this.parts.set(partId, { type, id: partId, text: part.text });
++      if (typeof part.text === "string") {
++        const theorem = type === "text" ? textMeta(part) : void 0;
++        this.parts.set(partId, theorem ? { type, id: partId, text: part.text, providerMetadata: { theorem } } : { type, id: partId, text: part.text });
++      }
+     } else if (type === "tool_call" || type === "tool_result" || type === "tool_approval") {
+       if (typeof part.toolCallId !== "string") return;
+       const key = `tool:${part.toolCallId}`;
+@@ -156,7 +173,10 @@ var MessageParts = class {
+           interrupt: void 0,
+           isError: part.status === "failed"
+         } : {},
+-        ...type === "tool_approval" ? { interrupt: { type: "human", payload: part } } : {}
++        ...type === "tool_approval" ? {
++          artifact: { theoremApproval: part },
++          interrupt: awaitsDecision(part) ? { type: "human", payload: part } : void 0
++        } : {}
+       });
+     } else {
+       this.parts.set(partId, {
+@@ -238,10 +258,18 @@ function createTheoremChatAdapter(options) {
+       try {
+         const bootstrap = await client.session.bootstrap({}, { abortSignal });
+         csrfToken = bootstrap.csrfToken;
+-        const snapshot = await client.chat.threads.get(
++        let snapshot = await client.chat.threads.get(
+           { threadId },
+           { abortSignal }
+         );
++        if (snapshot.liveRun) {
++          const existing = await client.chat.runs.get(
++            { runId: snapshot.liveRun.runId },
++            { abortSignal }
++          );
++          if (existing.terminal)
++            snapshot = await waitForRunRelease(client, threadId, existing.runId, abortSignal);
++        }
+         if (snapshot.liveRun)
+           throw new Error(
+             "This Theorem thread has an active run; resume or cancel it before sending"
+@@ -275,13 +303,13 @@ function createTheoremChatAdapter(options) {
+             ...requestTurnOptions
+           });
+         } else {
+-          turn = await client.chat.messages.send({
++          turn = await sendWithBackgroundRetry(client, {
+             threadId,
+             branchId: snapshot.thread.selectedBranchId,
+             text,
+             ...headers,
+             ...requestTurnOptions
+-          });
++          }, snapshot, abortSignal);
+         }
+         run = turn.run;
+         const record = "message" in turn.record ? turn.record.message : turn.record;
+@@ -314,6 +342,7 @@ function createTheoremChatAdapter(options) {
+             event.sourceEventType
+           )) {
+             terminal = true;
++            await waitForRunRelease(client, threadId, run.runId, abortSignal);
+             const status = event.sourceEventType === "RUN.CANCELLED" ? { type: "incomplete", reason: "cancelled" } : event.sourceEventType === "RUN.FAILED" || interrupted ? {
+               type: "incomplete",
+               reason: "error",
+diff --git a/dist/assistant-ui.js b/dist/assistant-ui.js
+index 1953a5a..c6a5c7a 100644
+--- a/dist/assistant-ui.js
++++ b/dist/assistant-ui.js
+@@ -1,3 +1,5 @@
++import sendWithBackgroundRetry from "./background-send-retry.cjs";
++import waitForRunRelease from "./run-release.cjs";
+ import "./chunk-U67V476Y.js";
+ 
+ // src/assistant-ui.ts
+@@ -108,13 +110,28 @@ function createHeadlessTheoremChatAdapter(options) {
+ function object(value) {
+   return value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
+ }
++// What a text part says about its place in the run. The renderer reads it
++// from providerMetadata.theorem: assistant-ui overwrites a part's own status.
++function textMeta(part) {
++  const meta = {};
++  if (part.purpose === "commentary" || part.purpose === "answer") meta.purpose = part.purpose;
++  if (typeof part.segment === "number") meta.segment = part.segment;
++  if (part.status === "running" || part.status === "complete" || part.status === "incomplete") meta.status = part.status;
++  return Object.keys(meta).length ? meta : void 0;
++}
++var AWAITING_APPROVAL_STATUSES = /* @__PURE__ */ new Set(["requires_action", "pending", "open"]);
++function awaitsDecision(approval) {
++  return typeof approval.status !== "string" || AWAITING_APPROVAL_STATUSES.has(approval.status);
++}
+ var MessageParts = class {
+   parts = /* @__PURE__ */ new Map();
+   put(partId, type, payload) {
+     const part = object(payload);
+     if (type === "text" || type === "reasoning") {
+-      if (typeof part.text === "string")
+-        this.parts.set(partId, { type, id: partId, text: part.text });
++      if (typeof part.text === "string") {
++        const theorem = type === "text" ? textMeta(part) : void 0;
++        this.parts.set(partId, theorem ? { type, id: partId, text: part.text, providerMetadata: { theorem } } : { type, id: partId, text: part.text });
++      }
+     } else if (type === "tool_call" || type === "tool_result" || type === "tool_approval") {
+       if (typeof part.toolCallId !== "string") return;
+       const key = `tool:${part.toolCallId}`;
+@@ -132,7 +149,10 @@ var MessageParts = class {
+           interrupt: void 0,
+           isError: part.status === "failed"
+         } : {},
+-        ...type === "tool_approval" ? { interrupt: { type: "human", payload: part } } : {}
++        ...type === "tool_approval" ? {
++          artifact: { theoremApproval: part },
++          interrupt: awaitsDecision(part) ? { type: "human", payload: part } : void 0
++        } : {}
+       });
+     } else {
+       this.parts.set(partId, {
+@@ -214,10 +234,18 @@ function createTheoremChatAdapter(options) {
+       try {
+         const bootstrap = await client.session.bootstrap({}, { abortSignal });
+         csrfToken = bootstrap.csrfToken;
+-        const snapshot = await client.chat.threads.get(
++        let snapshot = await client.chat.threads.get(
+           { threadId },
+           { abortSignal }
+         );
++        if (snapshot.liveRun) {
++          const existing = await client.chat.runs.get(
++            { runId: snapshot.liveRun.runId },
++            { abortSignal }
++          );
++          if (existing.terminal)
++            snapshot = await waitForRunRelease(client, threadId, existing.runId, abortSignal);
++        }
+         if (snapshot.liveRun)
+           throw new Error(
+             "This Theorem thread has an active run; resume or cancel it before sending"
+@@ -251,13 +279,13 @@ function createTheoremChatAdapter(options) {
+             ...requestTurnOptions
+           });
+         } else {
+-          turn = await client.chat.messages.send({
++          turn = await sendWithBackgroundRetry(client, {
+             threadId,
+             branchId: snapshot.thread.selectedBranchId,
+             text,
+             ...headers,
+             ...requestTurnOptions
+-          });
++          }, snapshot, abortSignal);
+         }
+         run = turn.run;
+         const record = "message" in turn.record ? turn.record.message : turn.record;
+@@ -290,6 +318,7 @@ function createTheoremChatAdapter(options) {
+             event.sourceEventType
+           )) {
+             terminal = true;
++            await waitForRunRelease(client, threadId, run.runId, abortSignal);
+             const status = event.sourceEventType === "RUN.CANCELLED" ? { type: "incomplete", reason: "cancelled" } : event.sourceEventType === "RUN.FAILED" || interrupted ? {
+               type: "incomplete",
+               reason: "error",
+diff --git a/dist/background-send-retry.cjs b/dist/background-send-retry.cjs
+new file mode 100644
+index 0000000..e598bb6
+--- /dev/null
++++ b/dist/background-send-retry.cjs
+@@ -0,0 +1,62 @@
++const { dequal: equal } = require("dequal");
++
++// Only delivery lifecycle fields may differ. Titles, branch and all unknown
++// thread/snapshot scope metadata remain part of the exact comparison.
++function stableScope(snapshot) {
++  const { messages, liveRun, thread, ...scope } = snapshot;
++  const { revision, updatedAtMs, lastMessageAtMs, activeRunCursor, lastRun, ...identity } = thread;
++  return { ...scope, thread: identity };
++}
++
++function idle(snapshot) {
++  return !snapshot.liveRun && !snapshot.thread.activeRunId && !snapshot.thread.pendingTurn;
++}
++
++function completionChain(messages, parentId) {
++  return messages.every((message) => {
++    if (message.role !== "assistant" || message.parentMessageId !== parentId ||
++        typeof message.runId !== "string" || !message.runId) return false;
++    parentId = message.messageId;
++    return true;
++  });
++}
++
++function onlyCompletionAppend(before, after) {
++  const count = before.messages.length;
++  const parent = before.messages.at(-1);
++  return parent?.role === "assistant" && after.messages.length > count &&
++    equal(before.messages, after.messages.slice(0, count)) &&
++    completionChain(after.messages.slice(count), parent.messageId);
++}
++
++function safeBackgroundAdvance(before, after) {
++  return idle(before) && idle(after) && after.thread.revision > before.thread.revision &&
++    equal(stableScope(before), stableScope(after)) && onlyCompletionAppend(before, after);
++}
++
++// The SDK's native send is the only caller: this exact problem code denotes a
++// precommit revision refusal, unlike transport failures or a pending run start.
++function revisionRefused(error) {
++  return error?.statusCode === 409 && error?.body?.code === "chat_revision_conflict";
++}
++
++async function sendWithBackgroundRetry(client, request, snapshot, abortSignal) {
++  try {
++    return await client.chat.messages.send(request);
++  } catch (error) {
++    if (!revisionRefused(error)) throw error;
++    abortSignal.throwIfAborted();
++    const current = await client.chat.threads.get({ threadId: request.threadId }, { abortSignal });
++    abortSignal.throwIfAborted();
++    if (!safeBackgroundAdvance(snapshot, current)) throw error;
++    // expectedRevision participates in the durable idempotency hash. A refused
++    // attempt needs a new key; ambiguous sends still use normal saved replay.
++    return client.chat.messages.send({
++      ...request,
++      "If-Match": String(current.thread.revision),
++      "Idempotency-Key": crypto.randomUUID(),
++    });
++  }
++}
++
++module.exports = sendWithBackgroundRetry;
+diff --git a/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts b/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts
+index b8e368d..717183c 100644
+--- a/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts
++++ b/dist/types/generated/api/resources/chat/resources/messages/client/requests/EditMessage.d.ts
+@@ -22,6 +22,20 @@ export interface EditMessage {
+     spaceContext?: unknown;
+     regime?: Theorem.RunRegime;
+     capabilityScope?: string[];
++    /** Request research without replacing the other admitted tools. */
++    webResearch?: boolean;
++    planning?: boolean;
++    /** How deep the answer goes. Guidance to the model; it never truncates what is written. */
++    responseDetail?: "concise" | "balanced" | "thorough";
++    /** Reasoning effort; a level the model does not list is mapped or dropped and the limits part says so. */
++    effort?: string;
++    /** Maximum output tokens for one model call. */
++    maxOutputTokens?: number;
++    /** Allowance for the whole run, children included. */
++    runBudget?: {
++        maxOutputTokens?: number;
++        maxSteps?: number;
++    };
+     startingGeneration?: number;
+     plan?: Theorem.PlanBinding;
+     contextReferences?: Theorem.ChatContextReference[];
+diff --git a/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts b/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts
+index ef1187c..7e7ceb6 100644
+--- a/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts
++++ b/dist/types/generated/api/resources/chat/resources/messages/client/requests/RetryMessage.d.ts
+@@ -20,6 +20,20 @@ export interface RetryMessage {
+     spaceContext?: unknown;
+     regime?: Theorem.RunRegime;
+     capabilityScope?: string[];
++    /** Request research without replacing the other admitted tools. */
++    webResearch?: boolean;
++    planning?: boolean;
++    /** How deep the answer goes. Guidance to the model; it never truncates what is written. */
++    responseDetail?: "concise" | "balanced" | "thorough";
++    /** Reasoning effort; a level the model does not list is mapped or dropped and the limits part says so. */
++    effort?: string;
++    /** Maximum output tokens for one model call. */
++    maxOutputTokens?: number;
++    /** Allowance for the whole run, children included. */
++    runBudget?: {
++        maxOutputTokens?: number;
++        maxSteps?: number;
++    };
+     startingGeneration?: number;
+     plan?: Theorem.PlanBinding;
+     contextReferences?: Theorem.ChatContextReference[];
+diff --git a/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts b/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts
+index 7736fef..49e6f4b 100644
+--- a/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts
++++ b/dist/types/generated/api/resources/chat/resources/messages/client/requests/SendMessage.d.ts
+@@ -25,6 +25,20 @@ export interface SendMessage {
+     spaceContext?: unknown;
+     regime?: Theorem.RunRegime;
+     capabilityScope?: string[];
++    /** Request research without replacing the other admitted tools. */
++    webResearch?: boolean;
++    planning?: boolean;
++    /** How deep the answer goes. Guidance to the model; it never truncates what is written. */
++    responseDetail?: "concise" | "balanced" | "thorough";
++    /** Reasoning effort; a level the model does not list is mapped or dropped and the limits part says so. */
++    effort?: string;
++    /** Maximum output tokens for one model call. */
++    maxOutputTokens?: number;
++    /** Allowance for the whole run, children included. */
++    runBudget?: {
++        maxOutputTokens?: number;
++        maxSteps?: number;
++    };
+     startingGeneration?: number;
+     plan?: Theorem.PlanBinding;
+     contextReferences?: Theorem.ChatContextReference[];
+diff --git a/dist/types/src/assistant-ui.d.ts b/dist/types/src/assistant-ui.d.ts
+index 200ab96..03db575 100644
+--- a/dist/types/src/assistant-ui.d.ts
++++ b/dist/types/src/assistant-ui.d.ts
+@@ -5,7 +5,7 @@ export interface TheoremChatAdapterOptions {
+     client: TheoremClient;
+     /** Bind one adapter instance to one durable Theorem thread. */
+     threadId: string;
+-    turnOptions?: Pick<Theorem.chat.SendMessage, "model" | "executionMode" | "regime" | "workspaceId" | "capabilityScope" | "leaseId" | "startingGeneration" | "plan" | "contextReferences" | "spaceContext" | "acpBinding">;
++    turnOptions?: Pick<Theorem.chat.SendMessage, "model" | "executionMode" | "regime" | "workspaceId" | "capabilityScope" | "webResearch" | "planning" | "responseDetail" | "effort" | "maxOutputTokens" | "runBudget" | "leaseId" | "startingGeneration" | "plan" | "contextReferences" | "spaceContext" | "acpBinding">;
+     /** Receives every native event, including artifacts and approval requests. */
+     onEvent?: (event: Theorem.RunEvent) => void;
+ }
+diff --git a/dist/run-release.cjs b/dist/run-release.cjs
+new file mode 100644
+index 0000000..ad9da8f
+--- /dev/null
++++ b/dist/run-release.cjs
+@@ -0,0 +1,33 @@
++// Keep in sync with packages/theorem-sdk/src/assistant-ui.ts.
++// A terminal event is committed before its thread link is cleared.
++module.exports = async function waitForRunRelease(client, threadId, runId, abortSignal) {
++  const deadline = new AbortController();
++  const expired = new Error("The completed Theorem run is still settling; reconnect to the thread before sending");
++  const timeout = setTimeout(() => deadline.abort(expired), 30000);
++  const signal = AbortSignal.any([abortSignal, deadline.signal]);
++  try {
++    while (true) {
++      signal.throwIfAborted();
++      const snapshot = await client.chat.threads.get(
++        { threadId }, { abortSignal: signal, maxRetries: 0 }
++      );
++      if (snapshot.thread.activeRunId !== runId && snapshot.liveRun?.runId !== runId)
++        return snapshot;
++      await new Promise((resolve) => {
++        const finish = () => {
++          clearTimeout(timer);
++          signal.removeEventListener("abort", finish);
++          resolve();
++        };
++        const timer = setTimeout(finish, 250);
++        signal.addEventListener("abort", finish, { once: true });
++        if (signal.aborted) finish();
++      });
++    }
++  } catch (error) {
++    if (deadline.signal.aborted && !abortSignal.aborted) throw expired;
++    throw error;
++  } finally {
++    clearTimeout(timeout);
++  }
++};

@@ -7,22 +7,73 @@
 import { getCookie, setCookie } from '@tanstack/react-start/server'
 import { getIronSession } from 'iron-session'
 import * as oauth from 'oauth4webapi'
+import { loginFailureHref, safeReturnTo } from '../lib/theorem/auth-navigation'
 
 type Session = {
   accessToken?: string
   refreshToken?: string
+  /** The scopes this session was granted, space separated. */
+  scope?: string
   /** Seconds since the epoch. */
   expiresAt?: number
   /** The sign-in in progress, between the redirect out and the callback. */
-  pending?: { state: string; verifier: string; returnTo: string }
+  pending?: {
+    state: string
+    verifier: string
+    returnTo: string
+    startedAt?: number
+  }
+  /**
+   * A sign-in with a code in progress: this browser polls while the person
+   * approves the code in another browser. The device code never leaves here.
+   */
+  device?: {
+    deviceCode: string
+    returnTo: string
+    /** Milliseconds since the epoch. */
+    expiresAt: number
+    /** Seconds between polls. */
+    interval: number
+  }
 }
+
+/** A way to sign in that Theorem's issuer offers, such as GitHub or email. */
+export type IdentityProvider = { id: string; name: string }
+
+export type SignInOptions = {
+  providers: IdentityProvider[]
+  /** Whether Theorem's issuer offers sign-in with a code. */
+  codeSignIn: boolean
+}
+
+export type CodeSignIn = {
+  userCode: string
+  verificationUri: string
+  verificationUriComplete?: string
+  /** Milliseconds since the epoch. */
+  expiresAt: number
+  /** Seconds between polls. */
+  interval: number
+}
+
+export type CodeSignInStatus =
+  | { status: 'pending'; interval: number }
+  | { status: 'signed_in'; returnTo: string }
+  | { status: 'denied' | 'expired' }
+  // Theorem could not be reached. The code is kept, so polling goes on at
+  // the interval, when this poll got far enough to know it.
+  | { status: 'unavailable'; interval?: number }
 
 /**
  * Chat and run routes accept run:read and run:write in place of tenant:read
  * and tenant:write; starting a run also needs models:invoke, which Theorem
- * grants only to clients configured with it.
+ * grants only to clients configured with it. The canvas calls native tools,
+ * which sit behind graph:read, and programs and life doors write under
+ * graph:write.
  */
-const SCOPE = 'run:read run:write models:invoke'
+const SCOPE =
+  'run:read run:write models:invoke graph:read graph:write agency:approve'
+const SCOPES = SCOPE.split(' ')
 
 /** Refresh this long before the access token expires. */
 const REFRESH_MARGIN_SECONDS = 60
@@ -79,6 +130,44 @@ function authorizationServer({ issuer }: Config) {
 const resourceOf = (as: oauth.AuthorizationServer) =>
   `${as.issuer.replace(/\/$/, '')}/mcp`
 
+/** An issuer from before it named its providers signs in with GitHub only. */
+const GITHUB: IdentityProvider = { id: 'github', name: 'GitHub' }
+
+/**
+ * The ways in Theorem's metadata offers, in its order. The list is Theorem's
+ * own `theorem_identity_providers` member; anything malformed in it is skipped.
+ */
+function identityProvidersOf(as: oauth.AuthorizationServer) {
+  const listed = as.theorem_identity_providers
+  if (!Array.isArray(listed)) return [GITHUB]
+  const providers = listed.flatMap((entry) =>
+    entry &&
+    typeof entry === 'object' &&
+    !Array.isArray(entry) &&
+    typeof entry.id === 'string' &&
+    typeof entry.name === 'string'
+      ? [{ id: entry.id, name: entry.name }]
+      : [],
+  )
+  return providers.length ? providers : [GITHUB]
+}
+
+export async function signInOptions(): Promise<SignInOptions> {
+  const settings = config()
+  if (typeof settings === 'string')
+    return { providers: [GITHUB], codeSignIn: false }
+  try {
+    const as = await authorizationServer(settings)
+    return {
+      providers: identityProvidersOf(as),
+      codeSignIn: Boolean(as.device_authorization_endpoint),
+    }
+  } catch {
+    // Sign-in reports the outage when it is chosen.
+    return { providers: [GITHUB], codeSignIn: false }
+  }
+}
+
 const callbackUrl = (request: Request) =>
   new URL('/auth/callback', request.url).href
 
@@ -86,7 +175,9 @@ function session({ password }: Config) {
   return getIronSession<Session>(
     { read: getCookie, write: setCookie },
     {
-      cookieName: 'theorem_session',
+      // Cookies are kept per host, not per port, so a local stack beside
+      // another on localhost names its own cookie (scripts/e2e/stack.mjs).
+      cookieName: process.env.THEOREM_SESSION_COOKIE || 'theorem_session',
       password,
       ttl: 30 * 24 * 60 * 60,
       cookieOptions: {
@@ -101,28 +192,34 @@ function session({ password }: Config) {
 
 function keep(target: Session, tokens: oauth.TokenEndpointResponse) {
   target.accessToken = tokens.access_token
+  target.scope = tokens.scope ?? target.scope ?? SCOPE
   if (tokens.refresh_token) target.refreshToken = tokens.refresh_token
   target.expiresAt = tokens.expires_in
     ? Math.floor(Date.now() / 1000) + tokens.expires_in
     : undefined
 }
 
-/**
- * Only paths on this origin; anything else returns to the start. The path is
- * resolved rather than matched, because browsers read `/\host` and a path with
- * a tab after its slash as `//host`.
- */
-export function safeReturnTo(value: string | null, request: Request) {
-  const origin = new URL(request.url).origin
-  if (!value?.startsWith('/')) return '/'
-  const target = new URL(value, origin)
-  return target.origin === origin
-    ? target.pathname + target.search + target.hash
-    : '/'
-}
-
 const redirect = (location: string) =>
-  new Response(null, { status: 302, headers: { location } })
+  new Response(null, {
+    status: 302,
+    headers: {
+      location,
+      'cache-control': 'no-store',
+      'referrer-policy': 'no-referrer',
+    },
+  })
+
+/** Upgrade before writing a Secure cookie or deriving the registered callback. */
+function requireSecureAuth(request: Request): Response | undefined {
+  const url = new URL(request.url)
+  if (
+    url.protocol === 'http:' &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  ) {
+    url.protocol = 'https:'
+    return redirect(url.href)
+  }
+}
 
 function unconfigured(detail: string) {
   return Response.json(
@@ -132,45 +229,69 @@ function unconfigured(detail: string) {
 }
 
 export async function signIn(request: Request) {
+  const upgrade = requireSecureAuth(request)
+  if (upgrade) return upgrade
+  const query = new URL(request.url).searchParams
+  const returnTo = safeReturnTo(query.get('returnTo'))
   const settings = config()
-  if (typeof settings === 'string') return unconfigured(settings)
-  const as = await authorizationServer(settings)
-  const verifier = oauth.generateRandomCodeVerifier()
-  const state = oauth.generateRandomState()
-  const current = await session(settings)
-  current.pending = {
-    state,
-    verifier,
-    returnTo: safeReturnTo(
-      new URL(request.url).searchParams.get('returnTo'),
-      request,
-    ),
-  }
-  await current.save()
+  if (typeof settings === 'string')
+    return redirect(loginFailureHref('configuration', returnTo))
+  try {
+    const as = await authorizationServer(settings)
+    // Only a provider the issuer offers is passed on; anything else signs in
+    // with the issuer's first.
+    const chosen = query.get('identity_provider')
+    const provider = identityProvidersOf(as).find(({ id }) => id === chosen)
+    const verifier = oauth.generateRandomCodeVerifier()
+    const state = oauth.generateRandomState()
+    const current = await session(settings)
+    current.pending = {
+      state,
+      verifier,
+      returnTo,
+      startedAt: Date.now(),
+    }
+    await current.save()
 
-  const authorize = new URL(as.authorization_endpoint!)
-  authorize.search = new URLSearchParams({
-    response_type: 'code',
-    client_id: settings.client.client_id,
-    redirect_uri: callbackUrl(request),
-    scope: SCOPE,
-    state,
-    code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
-    code_challenge_method: 'S256',
-    resource: resourceOf(as),
-  }).toString()
-  return redirect(authorize.href)
+    const authorize = new URL(as.authorization_endpoint!)
+    authorize.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: settings.client.client_id,
+      redirect_uri: callbackUrl(request),
+      scope: SCOPE,
+      state,
+      code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
+      code_challenge_method: 'S256',
+      resource: resourceOf(as),
+      ...(provider && { identity_provider: provider.id }),
+    }).toString()
+    return redirect(authorize.href)
+  } catch {
+    return redirect(loginFailureHref('unavailable', returnTo))
+  }
 }
 
 export async function signInCallback(request: Request) {
+  const upgrade = requireSecureAuth(request)
+  if (upgrade) return upgrade
   const settings = config()
-  if (typeof settings === 'string') return unconfigured(settings)
-  const as = await authorizationServer(settings)
+  if (typeof settings === 'string')
+    return redirect(loginFailureHref('configuration'))
   const current = await session(settings)
   const pending = current.pending
-  if (!pending) return redirect('/?signin_error=expired')
+  if (!pending) return redirect(loginFailureHref('expired'))
   current.pending = undefined
+  if (pending.startedAt && Date.now() - pending.startedAt > 10 * 60 * 1000) {
+    await current.save()
+    return redirect(loginFailureHref('expired', pending.returnTo))
+  }
+  // Check before discovery so an invalid callback cannot consume a token code.
+  if (new URL(request.url).searchParams.get('state') !== pending.state) {
+    await current.save()
+    return redirect(loginFailureHref('state_mismatch', pending.returnTo))
+  }
   try {
+    const as = await authorizationServer(settings)
     const parameters = oauth.validateAuthResponse(
       as,
       settings.client,
@@ -204,10 +325,20 @@ export async function signInCallback(request: Request) {
       error instanceof oauth.ResponseBodyError
         ? error.error
         : 'failed'
-    return redirect(`/?signin_error=${encodeURIComponent(code)}`)
+    // Only known protocol codes become UI state; never echo provider details.
+    const publicCode = [
+      'access_denied',
+      'invalid_grant',
+      'invalid_client',
+      'unauthorized_client',
+      'invalid_scope',
+    ].includes(code)
+      ? code
+      : 'failed'
+    return redirect(loginFailureHref(publicCode, pending.returnTo))
   }
   await current.save()
-  return redirect(pending.returnTo)
+  return redirect(safeReturnTo(pending.returnTo))
 }
 
 export async function signOut() {
@@ -215,6 +346,108 @@ export async function signOut() {
   if (typeof settings === 'string') return unconfigured(settings)
   ;(await session(settings)).destroy()
   return new Response(null, { status: 204 })
+}
+
+/**
+ * Starts a sign-in with a code (RFC 8628) for a browser that cannot sign in
+ * itself, such as an agent's. The person opens the code's page in a browser
+ * where they can sign in; this browser keeps the device code in its sealed
+ * cookie and polls with it.
+ */
+export async function startCodeSignIn(
+  returnToRequested: string | undefined,
+): Promise<CodeSignIn | undefined> {
+  const settings = config()
+  if (typeof settings === 'string') return undefined
+  const as = await authorizationServer(settings)
+  if (!as.device_authorization_endpoint) return undefined
+  const granted = await oauth.processDeviceAuthorizationResponse(
+    as,
+    settings.client,
+    await oauth.deviceAuthorizationRequest(
+      as,
+      settings.client,
+      settings.clientAuth,
+      { scope: SCOPE, resource: resourceOf(as) },
+      httpOptions(new URL(as.device_authorization_endpoint)),
+    ),
+  )
+  const expiresAt = Date.now() + granted.expires_in * 1000
+  const interval = granted.interval ?? 5
+  const current = await session(settings)
+  current.device = {
+    deviceCode: granted.device_code,
+    returnTo: safeReturnTo(returnToRequested),
+    expiresAt,
+    interval,
+  }
+  await current.save()
+  return {
+    userCode: granted.user_code,
+    verificationUri: granted.verification_uri,
+    verificationUriComplete: granted.verification_uri_complete,
+    expiresAt,
+    interval,
+  }
+}
+
+/** One poll of the sign-in with a code this browser started. */
+export async function pollCodeSignIn(): Promise<CodeSignInStatus> {
+  const settings = config()
+  if (typeof settings === 'string') return { status: 'unavailable' }
+  const current = await session(settings)
+  const device = current.device
+  if (!device || device.expiresAt <= Date.now()) {
+    if (device) {
+      current.device = undefined
+      await current.save()
+    }
+    return { status: 'expired' }
+  }
+  let tokens: oauth.TokenEndpointResponse
+  try {
+    const as = await authorizationServer(settings)
+    tokens = await oauth.processDeviceCodeResponse(
+      as,
+      settings.client,
+      await oauth.deviceCodeGrantRequest(
+        as,
+        settings.client,
+        settings.clientAuth,
+        device.deviceCode,
+        {
+          additionalParameters: { resource: resourceOf(as) },
+          ...httpOptions(new URL(as.token_endpoint!)),
+        },
+      ),
+    )
+  } catch (error) {
+    if (
+      !(error instanceof oauth.ResponseBodyError) ||
+      error.status >= 500 ||
+      error.error === 'temporarily_unavailable'
+    )
+      return { status: 'unavailable', interval: device.interval }
+    switch (error.error) {
+      case 'authorization_pending':
+        return { status: 'pending', interval: device.interval }
+      case 'slow_down':
+        device.interval += 5
+        current.device = device
+        await current.save()
+        return { status: 'pending', interval: device.interval }
+      default:
+        current.device = undefined
+        await current.save()
+        return {
+          status: error.error === 'access_denied' ? 'denied' : 'expired',
+        }
+    }
+  }
+  current.device = undefined
+  keep(current, tokens)
+  await current.save()
+  return { status: 'signed_in', returnTo: device.returnTo }
 }
 
 // Theorem rotates refresh tokens, so two requests refreshing with the same
@@ -261,6 +494,13 @@ export async function personBearer(): Promise<string | undefined> {
   if (typeof settings === 'string') throw new Error(settings)
   const current = await session(settings)
   if (!current.accessToken) return undefined
+  // A session from before a scope was added cannot gain it by refreshing; a
+  // sign-in grants the whole set.
+  const granted = current.scope?.split(' ') ?? []
+  if (!SCOPES.every((scope) => granted.includes(scope))) {
+    current.destroy()
+    return undefined
+  }
   const now = Math.floor(Date.now() / 1000)
   if (!current.expiresAt || current.expiresAt - REFRESH_MARGIN_SECONDS > now)
     return current.accessToken

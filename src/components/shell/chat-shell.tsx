@@ -6,9 +6,8 @@ import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
 import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
-import { IdeFrame } from '@/components/ide/ide-frame'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
-import { ModeView, modeLabel, useShellMode } from './modes'
+import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
 import { PANEL_WIDTH, useShell } from './shell-state'
 import { Rail } from './rail'
@@ -27,18 +26,25 @@ import {
   useEffect,
   useState,
 } from 'react'
+import { ComparePane } from '@/components/review/compare-pane'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { useReviewDock } from '@/lib/theorem/reviews'
 import { useCanvasView } from '@/components/canvas/canvas-view'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { useNoteView } from '@/components/notes/note-view'
+import { useParams } from '@tanstack/react-router'
 
-const iconButton = 'size-9 p-2'
+import { ModePage } from '@/components/pages/mode-page'
+import { IdePageShown, OnIdePage } from '@/components/ide/ide-page'
+import { IdeStatusBar } from '@/components/ide/ide-status-bar'
 
 const VaultWorkspace = lazy(() =>
   import('@/components/vault/vault-workspace').then((module) => ({
     default: module.VaultWorkspace,
   })),
 )
+
+const iconButton = 'size-9 p-2'
 
 function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const title = useAuiState((s) => s.threadListItem.title)
@@ -73,17 +79,19 @@ function PhoneShell() {
   const close = useArtifactView((s) => s.close)
   const noteId = useNoteView((s) => s.openId)
   const closeNote = useNoteView((s) => s.close)
+  const reviewId = useReviewDock((s) => s.phoneReviewId)
 
   // A different conversation starts with the artifact closed.
   const threadId = useAuiState((s) => s.threadListItem.id)
   useEffect(() => useArtifactView.getState().reset(), [threadId])
 
-  // The drawer belongs to the thread, mode, open note and canvas focus it was
-  // opened from, so picking a chat, a mode or a note in it closes it without
-  // an effect.
+  // The drawer belongs to the thread, mode, open note (beside a chat, or the
+  // route's in Notes mode) and canvas focus it was opened from, so picking a
+  // chat, a mode or a note in it closes it without an effect.
   const mode = useShellMode()
   const focusCount = useCanvasView((s) => s.focusCount)
-  const view = `${mode}:${threadId}:${noteId}:${focusCount}`
+  const { documentId } = useParams({ strict: false })
+  const view = `${mode}:${threadId}:${noteId}:${documentId}:${focusCount}`
   const [drawerView, setDrawerView] = useState<string | null>(null)
   const drawerOpen = drawerView === view
   const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
@@ -135,6 +143,14 @@ function PhoneShell() {
         />
       )}
 
+      {reviewId && (
+        <ComparePane
+          reviewId={reviewId}
+          onClose={() => useReviewDock.setState({ phoneReviewId: undefined })}
+          className="fixed inset-0 z-40"
+        />
+      )}
+
       <WorkspaceFileOverlay />
     </>
   )
@@ -144,10 +160,46 @@ function PhoneShell() {
 type DockRoute = { projectId: string; threadId: string | undefined }
 const DockRouteContext = createContext<DockRoute | null>(null)
 
+/**
+ * A layer kept mounted while another shows. Dockview's views set visibility:
+ * visible on themselves, which shows through a hidden parent, so the layer is
+ * transparent as well as hidden.
+ */
+const HIDDEN_LAYER = 'invisible opacity-0'
+
+/**
+ * The column beside the panel: the dock, and in IDE mode the IDE's page over
+ * it (by default the conversation with Theia beside it). The page loads on
+ * its first visit and then stays, hidden, so Theia's editors and layout
+ * survive a switch; the dock stays mounted under it for the same reason, and
+ * hides while the page shows so the sheet's gradient shows through the page.
+ */
 function DockView() {
   const route = useContext(DockRouteContext)
   if (!route) throw new Error('DockView renders inside the desktop sheet')
-  return <DockShell projectId={route.projectId} threadId={route.threadId} />
+  const ide = useShellMode() === 'ide'
+  const [ideLoaded, setIdeLoaded] = useState(ide)
+  if (ide && !ideLoaded) setIdeLoaded(true)
+  return (
+    <div className="relative h-full">
+      {/* Dockview layers its panels with z-index; isolate keeps them under the page. */}
+      <div inert={ide} className={cn('isolate h-full', ide && HIDDEN_LAYER)}>
+        <DockShell projectId={route.projectId} threadId={route.threadId} />
+      </div>
+      {ideLoaded && (
+        <div
+          inert={!ide}
+          className={cn('absolute inset-0', !ide && HIDDEN_LAYER)}
+        >
+          <OnIdePage value>
+            <IdePageShown value={ide}>
+              <ModePage mode="ide" />
+            </IdePageShown>
+          </OnIdePage>
+        </div>
+      )}
+    </div>
+  )
 }
 const PANEL = 'panel'
 
@@ -162,10 +214,9 @@ const splitComponents = {
  * closes per mode from the rail.
  */
 function SheetSplit(route: DockRoute) {
-  const mode = useShellMode()
-  // Theia and the Vault cover the split, and the rail's button drives their
-  // own side panels, so the split underneath keeps Chat's panel.
-  const panelMode = mode === 'ide' || mode === 'vault' ? 'chat' : mode
+  // The Vault covers the split, and the rail's button drives its own side
+  // panel, so the split underneath keeps Chat's panel.
+  const panelMode = navigatorMode(useShellMode())
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
 
@@ -223,17 +274,16 @@ function SheetSplit(route: DockRoute) {
  * Desktop shell: the rail is the base, and one rounded sheet sits on it,
  * inset by --sheet-inset from the window, holding the panel and the dock.
  * The sheet lifts off the rail by a shadow in light and a glow in dark.
- * In IDE mode Theia fills the sheet, and in Vault mode the Vault does. Each
- * loads on its first visit and then stays, hidden, so its editors and layout
- * survive a switch; the panel and dock stay mounted under them for the same
- * reason.
+ * In IDE mode the IDE's page takes the dock's place beside the IDE's panel,
+ * and Theia's status bar runs along the bottom of the whole sheet.
+ * In Vault mode the Vault fills the sheet; it loads on its first visit and
+ * then stays, hidden, so its editors and layout survive a switch, and the
+ * panel and dock stay mounted under it for the same reason.
  */
 function DesktopShell(route: DockRoute) {
   const mode = useShellMode()
-  const ide = mode === 'ide'
   const vault = mode === 'vault'
-  const [ideLoaded, setIdeLoaded] = useState(ide)
-  if (ide && !ideLoaded) setIdeLoaded(true)
+  const ide = mode === 'ide'
   const [vaultLoaded, setVaultLoaded] = useState(vault)
   if (vault && !vaultLoaded) setVaultLoaded(true)
   return (
@@ -242,24 +292,19 @@ function DesktopShell(route: DockRoute) {
       <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
         <div aria-hidden="true" className="lift-glow" />
         <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
-          {/* Dockview layers its panels with z-index; isolate keeps them under Theia and the Vault. */}
-          <div inert={ide || vault} className="isolate h-full">
-            <SheetSplit {...route} />
-          </div>
-          {ideLoaded && (
-            <div
-              inert={!ide}
-              className={cn('absolute inset-0', !ide && 'invisible')}
-            >
-              <IdeFrame />
+          {/* Dockview layers its panels with z-index; isolate keeps them under the Vault. */}
+          <div inert={vault} className="isolate flex h-full flex-col">
+            <div className="min-h-0 flex-1">
+              <SheetSplit {...route} />
             </div>
-          )}
+            {ide && <IdeStatusBar />}
+          </div>
           {vaultLoaded && (
             <div
               inert={!vault}
               className={cn(
                 'absolute inset-0 isolate bg-sheet',
-                !vault && 'invisible',
+                !vault && HIDDEN_LAYER,
               )}
             >
               <Suspense>
@@ -306,9 +351,7 @@ export function ShellStatus({
 }) {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-2 bg-background px-6 text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
-        {title}
-      </p>
+      <p className="font-heading text-[20px] font-medium">{title}</p>
       {detail && <p className="max-w-md text-sm text-ink-muted">{detail}</p>}
     </div>
   )

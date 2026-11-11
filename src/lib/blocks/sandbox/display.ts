@@ -8,7 +8,14 @@ import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { Root } from 'react-dom/client'
 import type { Display } from './cell'
-import { MAX_SNAPSHOT } from './protocol'
+import { outlineOf } from './outline'
+import {
+  MAX_PAGE_ATTRIBUTES,
+  MAX_SNAPSHOT,
+  PAGE_ATTRIBUTE,
+  TRANSPARENT,
+} from './protocol'
+import type { PageAttributes } from './protocol'
 
 /** Shows displayed values in `container`, each in its own element. */
 export function createDisplay(container: HTMLElement): Display {
@@ -82,15 +89,61 @@ export function snapshotHtml(): string {
 }
 
 /**
+ * The page as it is now: a snapshot and its outline, or null when the copy is
+ * too large to send. The outline is read from the live page, which knows what
+ * a copy cannot: what is hidden, what a field holds, what is checked.
+ */
+export function lookNow(): {
+  html: string
+  outline: string
+  page: PageAttributes
+} | null {
+  const html = snapshotHtml()
+  if (html.length > MAX_SNAPSHOT) return null
+  return { html, outline: outlineOf(document.body), page: pageAttributes() }
+}
+
+function carried(element: Element): Record<string, string> {
+  const attributes: Record<string, string> = {}
+  for (const { name, value } of element.attributes)
+    if (PAGE_ATTRIBUTE.test(name)) attributes[name] = value
+  return attributes
+}
+
+/**
+ * What the root and the body carry that CSS reads. Left empty when it is more
+ * than a page takes, so the copy is still sent.
+ */
+export function pageAttributes(): PageAttributes {
+  const painted = (element: Element) => {
+    const colour = getComputedStyle(element).backgroundColor
+    return colour && !TRANSPARENT.test(colour) ? colour : undefined
+  }
+  const background = painted(document.documentElement)
+    ? undefined
+    : painted(document.body)
+  const page: PageAttributes = {
+    root: carried(document.documentElement),
+    body: carried(document.body),
+    ...(background ? { background } : {}),
+  }
+  return JSON.stringify(page).length > MAX_PAGE_ATTRIBUTES
+    ? { root: {}, body: {} }
+    : page
+}
+
+/**
  * Calls `report` with a snapshot of the page once it settles after a change,
  * for the page to show where a live frame would cost too much (a canvas card
  * far out).
  */
-export function observeSnapshots(report: (html: string) => void): void {
+export function observeSnapshots(
+  report: (html: string, outline: string) => void,
+): void {
   let timer: ReturnType<typeof setTimeout> | undefined
   const take = () => {
-    const html = snapshotHtml()
-    if (html.length <= MAX_SNAPSHOT) report(html)
+    const seen = lookNow()
+    if (seen) report(seen.html, seen.outline)
   }
   const schedule = () => {
     clearTimeout(timer)
@@ -107,13 +160,36 @@ export function observeSnapshots(report: (html: string) => void): void {
   schedule()
 }
 
-/** Calls `report` with the document's height whenever it changes. */
+/**
+ * Calls `report` with the document's height whenever it changes. The page's
+ * box height keeps fractions, where scrollHeight rounds 186.4px down to 186
+ * and the frame would scroll for the rest. scrollHeight never reads less than
+ * the frame either, so a page that got shorter would keep its old height; it
+ * counts only when the page overflows its box.
+ */
 export function observeHeight(report: (height: number) => void): void {
   let last = -1
   const measure = () => {
-    const height = Math.ceil(document.documentElement.scrollHeight)
+    const root = document.documentElement
+    const height = Math.ceil(
+      root.scrollHeight > window.innerHeight
+        ? root.scrollHeight
+        : root.getBoundingClientRect().height,
+    )
     if (height !== last) report((last = height))
   }
   new ResizeObserver(measure).observe(document.documentElement)
   measure()
+}
+
+/**
+ * Marks the cell a selection names, and only that one, so the highlight shows
+ * what the page will refer to. A selection outside every cell marks none.
+ */
+export function markSelectedCell(cell: Element | null | undefined): void {
+  for (const marked of document.querySelectorAll(
+    '[data-cell-id][data-selected]',
+  ))
+    if (marked !== cell) marked.removeAttribute('data-selected')
+  cell?.setAttribute('data-selected', '')
 }

@@ -279,6 +279,8 @@ export function useGlideHighlight(
 ) {
   const edges = useRef<Edges | null>(null)
   const glide = useRef<JSAnimation | null>(null)
+  // The entrance, so a hide that lands while it runs is not undone when it ends.
+  const entrance = useRef<JSAnimation | null>(null)
 
   const place = useCallback((motion: 'glide' | 'follow') => {
     const container = containerRef.current
@@ -291,6 +293,8 @@ export function useGlideHighlight(
       target && frame instanceof HTMLElement && edgesWithin(target, frame)
     if (!next) {
       glide.current?.cancel()
+      entrance.current?.cancel()
+      highlight.style.removeProperty('transform')
       highlight.style.opacity = '0'
       edges.current = null
       return
@@ -309,7 +313,7 @@ export function useGlideHighlight(
       paint()
       if (!from) {
         highlight.style.removeProperty('opacity')
-        popIn(highlight, { from: 0.96, ease: 'settle' })
+        entrance.current = popIn(highlight, { from: 0.96, ease: 'settle' })
       }
       return
     }

@@ -16,7 +16,7 @@ The web frontend for the Theorem agent. It provides a chat interface, artifacts 
 | Styling                                    | Tailwind CSS v4 `src/styles.css`                                                                                              |
 | Runtime and hosting                        | Bun: installs, scripts, dev server, and the production server built by Nitro's `bun` preset, run beside the Theorem authority |
 
-Type: IBM Plex Sans for prose, Libron for titles and headings, JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
+Type: IBM Plex Sans for prose and titles (titles at a heavier weight, tracked as IBM's Carbon type sets track Plex), JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`. Palettes other than Stone and GitHub Sharp, their syntax themes and the paper material credit their sources in `docs/themes/PROVENANCE.md`.
 
 ## Setup
 
@@ -32,6 +32,8 @@ Fill in `.env`:
 - `THEOREM_API_URL`: the Theorem authority. The default is `http://127.0.0.1:8082`.
 - `THEOREM_API_TOKEN`: a bearer with `tenant:read`, `tenant:write` and `models:invoke` scopes.
 
+The Explorer reads one project folder from the Theorem server, which binds it from `THEOREMWEB_PROJECT_ROOT` and `THEOREMWEB_PROJECT_ID`. Without them, the Explorer says no project folder is connected.
+
 The token stays on the server. Browser requests go to this origin, and `src/server/theorem-proxy.ts` forwards `/api/chat/v1/*` and `/v1/theorem/agent/stream/*` with the bearer attached. Never put a token in client code. Bun loads `.env` into `process.env` for both the dev and production servers.
 
 ```bash
@@ -44,7 +46,9 @@ bun run lint
 
 ### Cloudflare
 
-`bun run deploy:cloudflare` builds Theia for production, builds the app with Nitro's `cloudflare_module` preset and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain, `THEOREM_API_URL` and OAuth client id are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB.
+`bun run build:cloudflare` installs the IDE's locked dependencies, builds the terminal WebAssembly and Theia for production, then builds the app with Nitro's `cloudflare_module` preset. `bun run deploy:cloudflare` runs that complete build and deploys the `theorem-ui` Worker on `theorem.rs`. The Worker's name, domain, `THEOREM_API_URL` and OAuth client id are in `vite.config.ts`. Theia's source maps are left out, because Workers cap a static asset at 25 MiB.
+
+For Workers Builds, use `bun run build` as the build command and `bunx wrangler deploy` as the deploy command. Cloudflare's `WORKERS_CI=1` selects the complete Worker build automatically. The root `packageManager` field pins Bun 1.4.3 for Workers Builds and both lockfiles; do not override it with an older `BUN_VERSION`. In Workers CI the build provisions the pinned Rust toolchain and the wasm-bindgen CLI version declared in `terminal/Cargo.toml`; local builds use the installed tools. The generated Worker config is discovered through `.wrangler/deploy/config.json`.
 
 People sign in at the personal Theorem (`travis-theorem-personal.fly.dev`), which lists the `theorem-ui` client with its redirect URIs and the extra `models:invoke` scope in `RUSTY_RED_OAUTH_CLIENTS_JSON` on its store. Set the session secret once:
 
@@ -65,32 +69,28 @@ src/
     _chat/c.$threadId.tsx /c/:thread   existing chat
     api/chat/v1/$.ts      proxy to the Theorem chat API
     v1/theorem/agent/stream/$.ts  proxy to the agent event stream
-    settings.tsx          layout: the settings shell (client-only)
-    settings/observe/     /settings/observe and /settings/observe/runs/:run
+    api/scene/v1/$.ts     proxy to the page that draws a reply's scene
     api/observe/v1/$.ts   proxy to the node's turn observations (read only)
+    settings/observe/     /settings/observe and /settings/observe/runs/:run
   lib/theorem/
     client.ts             SDK client, CSRF bootstrap, idempotent mutations
     runtime.tsx           assistant-ui runtime over Theorem threads, history and live-run resume
     observe.ts            the observe API's responses parsed with zod, polling queries, span and wait wording
   components/
     shell/                rail, context panel, project switcher, sheet and dock layout
-    settings/             settings shell and page primitives; observe/ holds the Observe page and a turn's trace
-    chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, approvals, progress, citations, errors)
+    chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, scenes, approvals, progress, citations, errors)
+    chat/scene-part.tsx   a reply's interactive scene, framed inline and expandable
     artifacts/            artifact model, view state, panel, renderers
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
 
 `ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The rail's IDE mode shows it in the sheet, served at `/theia`. Until `ide/` is built, `/theia` answers 503 with the build command. `patches/` carries nitro's merged dev fix (nitrojs/nitro#4159), which stops the dev server brotli-compressing Theia's bundle on every load. Drop it once a nitro release includes that fix.
 
-## Settings and Observe
+## Observe
 
-Settings opens from the account menu and takes the whole window: its list of pages sits where the rail and panel were, and the page is the sheet. The anatomy follows Twenty's settings (a grouped list with the way out at its head, a breadcrumb, titled sections of bordered rows), studied from screenshots; none of its code is used.
-
-`/settings/observe` shows what the Theorem node observed of the signed-in identity's turns: whether the node is serving, the alert rules as they stand, what each running turn is waiting for, and how recent turns ended. `/settings/observe/runs/:run` shows one turn's trace: where its time went and each step with its state. Both read `/api/observe/v1` every five seconds while open, and a turn that has ended is read once.
+`/settings/observe` is a section of Settings. It shows what the Theorem node observed of the signed-in identity's turns: whether the node is serving, the alert rules as they stand, what each running turn is waiting for, and how recent turns ended. `/settings/observe/runs/:run` shows one turn's trace: where its time went and each step with its state. Both read `/api/observe/v1` every five seconds while open, and a turn that has ended is read once.
 
 The pages show what the node reports and label what it does not record. A value that was never measured is a dash, a state that was not observed is a hollow mark, and each page ends with the limits of what it can tell you. The node does not learn whether a page drew what a stream delivered, so "sent" is never shown as "seen".
-
-The proxy logs one JSON line, `theorem_proxy.stream_upstream_dropped`, when an event stream's upstream fails mid-stream. The browser sees an ordinary end of stream in that case, so the line is the only record on this side.
 
 ## Artifacts
 
@@ -100,3 +100,12 @@ The agent creates artifacts with `create_artifact` and revises them with `update
 - Renderers are chosen by `rendererId`: `theorem-document` renders Markdown, `theorem-code` renders highlighted source and `theorem-diagram` renders Mermaid.
 - Any other renderer shows a named fallback that explains what is missing and displays the part's `fallbackText`.
 - Artifact content is declarative text. Nothing in this app executes it.
+
+## Scenes
+
+A question that an interactive diagram explains better than prose (the first is "How does a CPU work?") can get one inline in the answer. Theorem's `show_scene` tool validates the scene package and writes it to the reply as a `scene` part ahead of the text. The model reads back only a receipt. The part arrives here as `theorem-scene` with `contractVersion: "theorem-scene-v1"`.
+
+- `chat/scene-part.tsx` draws it in a frame of the authority's scene page (`/api/scene/v1/host`, forwarded with the bearer). The frame is sandboxed to `allow-scripts`, so it runs in an opaque origin. The page's own policy forbids any network and allows only this origin to frame it.
+- The card posts the package to the page once the page says it is ready. It reads back only the page's `host-ready`, `mounted` and `dismiss` messages (`chat/scene-model.ts`). A page that cannot draw the package, or does not answer within 20 seconds, is replaced by the part's `fallbackText`.
+- Expand shows the card's `<dialog>` modal, so the scene fills the window from the top layer. The frame stays where it is, so the scene keeps its state. Escape, in the frame or on the page, collapses it. The card opens in the reply without taking focus from the composer.
+- `scene-os-web/web/test/embed-browser.mjs` in the Theorem repository checks the page under that policy in a browser.

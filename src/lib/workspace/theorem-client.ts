@@ -79,8 +79,8 @@ function toEntry(entry: Theorem.FilesEntry): WorkspaceEntry {
     id: entry.entryId,
     path: entry.path,
     kind: entry.kind,
-    size: entry.size,
-    mtimeMs: entry.mtimeMs,
+    size: Number(entry.size),
+    mtimeMs: Number(entry.mtimeMs),
     theorem: {
       backing: entry.backing,
       readOnly: entry.readOnly,
@@ -127,7 +127,7 @@ const toLink = (link: Theorem.FilesLink): WorkspaceLink => ({
   kind: link.kind,
   heading: link.heading,
   block: link.block,
-  line: link.line,
+  line: Number(link.line),
   receiptId: link.receiptId,
 })
 
@@ -141,27 +141,40 @@ const sleep = (ms: number, signal: AbortSignal) =>
   })
 
 /**
- * Whether a refusal means there is no vault to show: nobody is signed in, the
- * backend is unconfigured, or it does not serve the Files API. An outage is
- * not one of these, so a vault already shown stays while Theorem is down.
+ * Why there is no Theorem vault to show: nobody is signed in, the account may
+ * not open it, the backend does not serve the Files API, or the backend is
+ * unconfigured.
  */
-function noVault(error: TheoremError): boolean {
+export type VaultAbsence =
+  'signed-out' | 'forbidden' | 'unsupported' | 'unconfigured'
+
+/**
+ * The absence a refusal means, if it means one. An outage is not one, so a
+ * vault already shown stays while Theorem is down.
+ */
+function absence(error: TheoremError): VaultAbsence | undefined {
   const { code } = (error.body ?? {}) as Partial<Theorem.FilesProblem>
   switch (error.statusCode) {
     case 401:
+      return 'signed-out'
     case 403:
+      return 'forbidden'
     case 404:
     case 501:
-      return true
+      return 'unsupported'
     case 503:
-      return code === 'theorem_unconfigured'
+      return String(code) === 'theorem_unconfigured'
+        ? 'unconfigured'
+        : undefined
     default:
-      return false
+      return undefined
   }
 }
 
-/** The person's Theorem vault, or null when there is none to show. */
-export async function getTheoremVault(): Promise<WorkspaceSummary | null> {
+/** The person's Theorem vault, or why there is none to show. */
+export async function getTheoremVault(): Promise<
+  WorkspaceSummary | VaultAbsence
+> {
   try {
     const vault = await theorem().files.vault({ schema: SCHEMA })
     return {
@@ -172,7 +185,8 @@ export async function getTheoremVault(): Promise<WorkspaceSummary | null> {
       policy: 'ConnectedLive',
     }
   } catch (error) {
-    if (error instanceof TheoremError && noVault(error)) return null
+    const why = error instanceof TheoremError ? absence(error) : undefined
+    if (why) return why
     throw error
   }
 }
@@ -199,10 +213,11 @@ export function createTheoremWorkspaceClient(
     while (!stopped()) {
       try {
         if (position === null) {
-          ;({ position } = await files().vault(
+          const vault = await files().vault(
             { schema: SCHEMA },
             { abortSignal: signal },
-          ))
+          )
+          position = Number(vault.position)
           // Whatever changed before the loop started, or while it was down,
           // was not seen; a view that fetched in that gap refetches.
           dispatch({ type: 'resync' })
@@ -212,7 +227,7 @@ export function createTheoremWorkspaceClient(
           { abortSignal: signal },
         )
         failures = 0
-        position = page.position
+        position = Number(page.position)
         if (page.resync) dispatch({ type: 'resync' })
         else if (page.events.length) {
           for (const event of page.events) dispatch(toEvent(event))
@@ -333,7 +348,8 @@ export function createTheoremWorkspaceClient(
       return page.hits
     },
     async tags() {
-      return (await call(() => files().tags({ schema: SCHEMA }))).tags
+      const page = await call(() => files().tags({ schema: SCHEMA }))
+      return page.tags.map((tag) => ({ ...tag, count: Number(tag.count) }))
     },
     async properties(path) {
       const page = await call(() =>
@@ -420,7 +436,7 @@ export function createTheoremWorkspaceClient(
         return {
           fileName: bundle.fileName,
           bytes: fromBase64(bundle.bytesBase64),
-          conceptCount: bundle.conceptCount,
+          conceptCount: Number(bundle.conceptCount),
         }
       },
       importOkf: (path, { fileName, bytes }, { dryRun } = {}) =>

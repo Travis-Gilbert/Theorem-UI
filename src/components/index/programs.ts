@@ -1,0 +1,225 @@
+// SOURCING: none — the Index's built-in view definitions as OpenUI Lang programs over the library in ./library; they are data, written in the language the library renders
+import { workProgramFor } from '@/components/work/programs'
+import { isWorkView } from '@/components/work/route'
+import type { IndexView, Operation, Scope, ViewRevision } from './contract'
+
+const OPERATIONS: Operation[] = [
+  'open_item',
+  'file_item',
+  'correct_filing',
+  'undo_correction',
+  'ask_theorem',
+  'pin_view',
+  'set_preference',
+]
+
+const HOME = `$q = ""
+root = Stack([search, results, shelves])
+search = SearchField("Search the Index", $q)
+found = Query("items", {q: $q}, {items: [], total: 0})
+results = Section("Recent", [list])
+list = ItemList(found.items, "list", "none", "Nothing matches yet.")
+cols = Query("collections", {}, {collections: []})
+shelves = Section("Collections", [grid])
+grid = CollectionGrid(cols.collections)`
+
+const COLLECTION = `$q = ""
+root = Stack([search, results])
+search = SearchField("Search this collection", $q)
+found = Query("items", {q: $q}, {items: [], total: 0})
+results = ItemList(found.items, "list", "kind", "This collection is empty.")`
+
+const ATLAS = `$overlay = "density"
+root = Stack([overlay, map])
+overlay = Choice("Shade by", ["density", "boundary", "quantization_error", "activity"], $overlay)
+m = Query("map", {overlay: $overlay}, {snapshot: null})
+map = Atlas(m.snapshot, $overlay)`
+
+export const DEFAULT_PREFIX = 'default:'
+export const ATLAS_VIEW_ID = 'default:atlas'
+export const RECORDS_PREFIX = 'default:records:'
+export const DATA_MODEL_VIEW_ID = 'default:data-model'
+
+export const recordsViewId = (nameSingular: string) =>
+  `${RECORDS_PREFIX}${nameSingular}`
+/** The data model, or one object in it. */
+export const dataModelViewId = (focus?: string) =>
+  focus ? `${DATA_MODEL_VIEW_ID}:${focus}` : DATA_MODEL_VIEW_ID
+
+/** Programs that draw tables, diagrams or the work tracker's screens take the view's full width. */
+export const isWideProgram = (program: string) =>
+  /\b(RecordTable|DataModel|Work(View|List|Board|ViewBar|Inbox|Item|Projects|Project))\(/.test(
+    program,
+  )
+export const isDefaultView = (viewId: string) =>
+  viewId.startsWith(DEFAULT_PREFIX)
+
+function revision(
+  fields: Pick<ViewRevision, 'title' | 'purpose' | 'program' | 'bindings'>,
+): ViewRevision {
+  return {
+    revision: 0,
+    createdAtMs: 0,
+    author: { kind: 'engine' },
+    operations: OPERATIONS,
+    note: 'Built into Theorem UI.',
+    ...fields,
+  }
+}
+
+function defaultView(
+  viewId: string,
+  scope: Scope,
+  current: ViewRevision,
+): IndexView {
+  return {
+    viewId,
+    scope,
+    origin: 'default',
+    pinned: false,
+    archived: false,
+    createdAtMs: 0,
+    updatedAtMs: 0,
+    current,
+  }
+}
+
+/** The view a scope opens with before anything is saved or learned. */
+export function defaultViewFor(
+  scope: Scope,
+  collectionName?: string,
+): IndexView {
+  if (scope.kind === 'home')
+    return defaultView(
+      'default:home',
+      scope,
+      revision({
+        title: 'Everything',
+        purpose:
+          'Search everything filed, newest first, and the collections it is in.',
+        program: HOME,
+        bindings: {
+          items: { kind: 'items', query: { sort: 'updated' } },
+          collections: { kind: 'collections' },
+        },
+      }),
+    )
+  return defaultView(
+    `default:collection:${scope.collectionId}`,
+    scope,
+    revision({
+      title: collectionName ?? 'Collection',
+      purpose: 'Everything filed in this collection, grouped by kind.',
+      program: COLLECTION,
+      bindings: {
+        items: {
+          kind: 'items',
+          query: { collectionId: scope.collectionId, sort: 'updated' },
+        },
+      },
+    }),
+  )
+}
+
+export const atlasView = (): IndexView =>
+  defaultView(
+    ATLAS_VIEW_ID,
+    { kind: 'home' },
+    revision({
+      title: 'Atlas',
+      purpose:
+        'Where the material sits by meaning. A way to look, never a way to file.',
+      program: ATLAS,
+      bindings: { map: { kind: 'map', overlay: 'density' } },
+    }),
+  )
+
+/** One declared object's records, as a table to sort, filter and edit. */
+export const recordsView = (nameSingular: string, labelPlural?: string) =>
+  defaultView(
+    recordsViewId(nameSingular),
+    { kind: 'home' },
+    revision({
+      title: labelPlural ?? nameSingular,
+      purpose: `Every ${(labelPlural ?? nameSingular).toLowerCase()} record, to sort, filter and edit in place.`,
+      program: `root = RecordTable(${JSON.stringify(nameSingular)})`,
+      bindings: {},
+    }),
+  )
+
+/** The schema: what objects there are, how they relate, and what is not declared yet. */
+export const dataModelView = (focus?: string, labelPlural?: string) =>
+  defaultView(
+    dataModelViewId(focus),
+    { kind: 'home' },
+    revision({
+      title: focus ? `${labelPlural ?? focus} · Data model` : 'Data model',
+      purpose: focus
+        ? `The fields and relations of ${(labelPlural ?? focus).toLowerCase()}, and what their records carry beyond them.`
+        : 'The objects Theorem holds, how they relate, and what records carry that is not declared yet.',
+      program: focus
+        ? `root = DataModel(${JSON.stringify(focus)})`
+        : 'root = DataModel()',
+      bindings: {},
+    }),
+  )
+
+/**
+ * The revision on screen. A built-in view is rebuilt in this page, so a
+ * collection name that arrives after the first paint replaces "Collection".
+ * A stored view keeps the revision this tab opened or last saved.
+ */
+export function revisionOnScreen(
+  view: IndexView,
+  held: ViewRevision | undefined,
+): ViewRevision {
+  if (view.origin === 'default') return view.current
+  return held ?? view.current
+}
+
+/** A work tracker screen: the program is one component that reads the tracker itself. */
+function workView(viewId: string): IndexView | undefined {
+  const screen = workProgramFor(viewId)
+  return (
+    screen &&
+    defaultView(
+      viewId,
+      { kind: 'home' },
+      revision({
+        title: screen.title,
+        purpose: screen.purpose,
+        program: screen.program,
+        bindings: {},
+      }),
+    )
+  )
+}
+
+/** Every built-in view, for tests and for resolving a default id from the URL. */
+export function resolveDefaultView(
+  viewId: string,
+  collectionName?: (collectionId: string) => string | undefined,
+  objectLabel?: (nameSingular: string) => string | undefined,
+): IndexView | undefined {
+  if (viewId === ATLAS_VIEW_ID) return atlasView()
+  if (viewId.startsWith(RECORDS_PREFIX)) {
+    const name = viewId.slice(RECORDS_PREFIX.length)
+    return name ? recordsView(name, objectLabel?.(name)) : undefined
+  }
+  if (viewId === DATA_MODEL_VIEW_ID) return dataModelView()
+  if (viewId.startsWith(`${DATA_MODEL_VIEW_ID}:`)) {
+    const name = viewId.slice(DATA_MODEL_VIEW_ID.length + 1)
+    return dataModelView(name, objectLabel?.(name))
+  }
+  if (isWorkView(viewId)) return workView(viewId)
+  if (viewId === 'default:home') return defaultViewFor({ kind: 'home' })
+  const prefix = 'default:collection:'
+  if (viewId.startsWith(prefix)) {
+    const collectionId = viewId.slice(prefix.length)
+    return defaultViewFor(
+      { kind: 'collection', collectionId },
+      collectionName?.(collectionId),
+    )
+  }
+  return undefined
+}

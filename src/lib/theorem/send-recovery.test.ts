@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test'
-import { TheoremClient } from '@theoremharness/sdk'
+import { TheoremClient, TheoremError } from '@theoremharness/sdk'
 import { createTheoremChatAdapter } from '@theoremharness/sdk/assistant-ui'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
-import { createSendRecovery } from './send-recovery'
+import { RefusedSend, createSendRecovery } from './send-recovery'
 
 function storageFixture() {
   const values = new Map<string, string>()
@@ -28,6 +28,7 @@ const options = {
     },
   ],
   abortSignal: new AbortController().signal,
+  runConfig: {},
 } as unknown as ChatModelRunOptions
 
 test('the real SDK adapter keeps a partial send replayable after reload', async () => {
@@ -221,4 +222,138 @@ test('aborting recovery preserves its identity for the next reload', async () =>
   controller.abort()
   await expect(pending).rejects.toThrow()
   expect(recovery.has('thread-1')).toBe(true)
+})
+
+const sendHello = (recovery: ReturnType<typeof createSendRecovery>) =>
+  recovery.fetch('https://example.test/api/chat/v1/threads/thread-1/messages', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': 'stable-key', 'If-Match': '1' },
+    body: JSON.stringify({ text: 'Hello', branchId: 'branch-1' }),
+  })
+
+/** A send whose run did not start, so it stays saved; `answer` answers its replay. */
+async function savedSend(answer: () => Response) {
+  let reply = () =>
+    Response.json({ code: 'chat_run_start_pending' }, { status: 503 })
+  const recovery = createSendRecovery(
+    storageFixture(),
+    Object.assign(async () => reply(), { preconnect: fetch.preconnect }),
+  )
+  await sendHello(recovery)
+  expect(recovery.has('thread-1')).toBe(true)
+  reply = answer
+  return recovery
+}
+
+const replayed = (recovery: ReturnType<typeof createSendRecovery>) =>
+  recovery
+    .resume('thread-1', 'https://example.test', 'csrf')
+    .catch((error: unknown) => error)
+
+test.each([
+  [409, 'chat_revision_conflict'],
+  [409, 'chat_idempotency_conflict'],
+  [409, 'chat_turn_superseded'],
+  [404, 'chat_resource_not_found'],
+  [410, 'chat_retention_expired'],
+  [422, 'invalid_chat_field'],
+  [503, 'chat_model_credential_missing'],
+])('a replay refused with %i %s ends the send', async (status, code) => {
+  const recovery = await savedSend(() => Response.json({ code }, { status }))
+
+  const error = await replayed(recovery)
+
+  expect(error).toBeInstanceOf(RefusedSend)
+  expect((error as RefusedSend).text).toBe('Hello')
+  expect(recovery.has('thread-1')).toBe(false)
+})
+
+test.each([
+  [401, 'authentication_required'],
+  [403, 'csrf_token_refused'],
+  [408, 'request_timeout'],
+  [425, 'too_early'],
+  [429, 'rate_limited'],
+  [500, 'internal_error'],
+  [422, 'chat_run_start_pending'],
+  [503, 'chat_run_start_pending'],
+])('a replay answered %i %s stays saved', async (status, code) => {
+  const recovery = await savedSend(() => Response.json({ code }, { status }))
+
+  const error = await replayed(recovery)
+
+  expect(error).toBeInstanceOf(TheoremError)
+  expect(error).not.toBeInstanceOf(RefusedSend)
+  expect(recovery.has('thread-1')).toBe(true)
+})
+
+test('a 4xx that is not a Theorem problem says nothing about the send', async () => {
+  const recovery = await savedSend(
+    () => new Response('<h1>Not found</h1>', { status: 404 }),
+  )
+
+  const error = await replayed(recovery)
+
+  expect(error).toBeInstanceOf(TheoremError)
+  expect(error).not.toBeInstanceOf(RefusedSend)
+  expect((error as TheoremError).statusCode).toBe(404)
+  expect(recovery.has('thread-1')).toBe(true)
+})
+
+const modelCannotStart = () =>
+  Response.json(
+    {
+      code: 'chat_run_start_pending',
+      detail: 'chat_model_credential_missing: no key for this model',
+    },
+    { status: 503 },
+  )
+
+test('a replay whose model cannot start ends the send, whose message went in', async () => {
+  const recovery = await savedSend(modelCannotStart)
+
+  const error = await replayed(recovery)
+
+  expect(error).toBeInstanceOf(TheoremError)
+  expect(error).not.toBeInstanceOf(RefusedSend)
+  expect(recovery.has('thread-1')).toBe(false)
+})
+
+test('a first send whose model cannot start leaves nothing saved', async () => {
+  const recovery = createSendRecovery(
+    storageFixture(),
+    Object.assign(async () => modelCannotStart(), {
+      preconnect: fetch.preconnect,
+    }),
+  )
+
+  await sendHello(recovery)
+
+  expect(recovery.has('thread-1')).toBe(false)
+})
+
+test('a refused text outlives a reload and is given back once', () => {
+  const storage = storageFixture()
+  const transport = Object.assign(async () => new Response(), {
+    preconnect: fetch.preconnect,
+  })
+  createSendRecovery(storage, transport).holdRefused('thread-1', 'Hello')
+
+  const reloaded = createSendRecovery(storage, transport)
+
+  expect(reloaded.takeRefused('thread-2')).toBeUndefined()
+  expect(reloaded.takeRefused('thread-1')).toBe('Hello')
+  expect(reloaded.takeRefused('thread-1')).toBeUndefined()
+})
+
+test('two refused texts held for one thread are both kept', () => {
+  const recovery = createSendRecovery(
+    storageFixture(),
+    Object.assign(async () => new Response(), { preconnect: fetch.preconnect }),
+  )
+
+  recovery.holdRefused('thread-1', 'First')
+  recovery.holdRefused('thread-1', 'Second')
+
+  expect(recovery.takeRefused('thread-1')).toBe('First\n\nSecond')
 })

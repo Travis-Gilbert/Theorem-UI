@@ -25,12 +25,17 @@
           "terminal.integrated.fontFamily": "'Zed Mono', Lilex, Menlo, monospace",
           "terminal.integrated.fontSize": 15,
           "terminal.integrated.lineHeight": 1.618,
-          "workbench.tree.indent": 20
+          "workbench.tree.indent": 20,
+          "ai-features.chat.defaultChatAgent": "Theorem",
+          "ai-features.chat.persistedSessionLimit": 0
         }
       }
     }
   },
   "dependencies": {
+    "@theia/ai-chat": "1.76.0",
+    "@theia/ai-chat-ui": "1.76.0",
+    "@theia/ai-core": "1.76.0",
     "@theia/bulk-edit": "1.76.0",
     "@theia/callhierarchy": "1.76.0",
     "@theia/console": "1.76.0",
@@ -40,7 +45,6 @@
     "@theia/editor-preview": "1.76.0",
     "@theia/file-search": "1.76.0",
     "@theia/filesystem": "1.76.0",
-    "@theia/getting-started": "1.76.0",
     "@theia/keymaps": "1.76.0",
     "@theia/markers": "1.76.0",
     "@theia/messages": "1.76.0",
@@ -74,9 +78,15 @@
   "devDependencies": {
     "@theia/cli": "1.76.0"
   },
+  "theiaPluginsDir": "plugins",
+  "theiaPlugins": {
+    "vscode.markdown": "https://github.com/eclipse-theia/vscode-builtin-extensions/releases/download/1.108.2/vscode.markdown.vsix",
+    "vscode.markdown-language-features": "https://github.com/eclipse-theia/vscode-builtin-extensions/releases/download/1.108.2/vscode.markdown-language-features.vsix"
+  },
   "scripts": {
-    "build": "theia build --app-target=browser-only --mode development",
-    "build:prod": "theia build --app-target=browser-only",
+    "download:plugins": "theia download:plugins --rate-limit=15 --parallel=false",
+    "build": "bun run download:plugins && theia build --app-target=browser-only --mode development",
+    "build:prod": "bun run download:plugins && theia build --app-target=browser-only",
     "start": "theia start"
   }
 }

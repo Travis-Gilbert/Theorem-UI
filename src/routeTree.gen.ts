@@ -10,22 +10,47 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as GraphqlRouteImport } from './routes/graphql'
 import { Route as InstallRouteImport } from './routes/install'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StoriesDotjsonRouteImport } from './routes/stories[.]json'
+import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
+import { Route as ChatCanvasRouteImport } from './routes/_chat/canvas'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
+import { Route as ChatNotesRouteImport } from './routes/_chat/notes'
+import { Route as ChatPagesRouteImport } from './routes/_chat/pages'
 import { Route as ChatSpacesRouteImport } from './routes/_chat/spaces'
 import { Route as ChatVaultRouteImport } from './routes/_chat/vault'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthConsentRouteImport } from './routes/auth/consent'
+import { Route as AuthEmailRouteImport } from './routes/auth/email'
 import { Route as AuthSignInRouteImport } from './routes/auth/sign-in'
 import { Route as AuthSignOutRouteImport } from './routes/auth/sign-out'
+import { Route as LoginCodeRouteImport } from './routes/login_.code'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsAiRouteImport } from './routes/settings/ai'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsConnectionsRouteImport } from './routes/settings/connections'
+import { Route as SettingsImportRouteImport } from './routes/settings/import'
+import { Route as SettingsKeysRouteImport } from './routes/settings/keys'
+import { Route as SettingsWorkRouteImport } from './routes/settings/work'
+import { Route as StoryIdRouteImport } from './routes/story.$id'
 import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
+import { Route as ChatNotesDocumentIdRouteImport } from './routes/_chat/notes.$documentId'
+import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
+import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
+import { Route as ApiConnectionsSplatRouteImport } from './routes/api/connections/$'
+import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
+import { Route as ApiWorkSplatRouteImport } from './routes/api/work/$'
+import { Route as AuthNeonSplatRouteImport } from './routes/auth/neon.$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
 import { Route as SettingsObserveIndexRouteImport } from './routes/settings/observe/index'
+import { Route as ApiArtifactsV1SplatRouteImport } from './routes/api/artifacts/v1/$'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
@@ -33,6 +58,7 @@ import { Route as ApiEnvironmentV1SplatRouteImport } from './routes/api/environm
 import { Route as ApiFilesV1SplatRouteImport } from './routes/api/files/v1/$'
 import { Route as ApiObserveV1SplatRouteImport } from './routes/api/observe/v1/$'
 import { Route as ApiProjectFilesV1SplatRouteImport } from './routes/api/project-files/v1/$'
+import { Route as ApiSceneV1SplatRouteImport } from './routes/api/scene/v1/$'
 import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
 import { Route as DesktopWorkspaceWorkspaceIdIndexRouteImport } from './routes/desktop/workspace/$workspaceId/index'
 import { Route as DesktopWorkspaceWorkspaceIdBacklinksRouteImport } from './routes/desktop/workspace/$workspaceId/backlinks'
@@ -60,9 +86,19 @@ const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GraphqlRoute = GraphqlRouteImport.update({
+  id: '/graphql',
+  path: '/graphql',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
   path: '/install',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -70,14 +106,39 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoriesDotjsonRoute = StoriesDotjsonRouteImport.update({
+  id: '/stories.json',
+  path: '/stories.json',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatChar91indexChar93Route = ChatChar91indexChar93RouteImport.update({
+  id: '/index',
+  path: '/index',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatCanvasRoute = ChatCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatIdeRoute = ChatIdeRouteImport.update({
   id: '/ide',
   path: '/ide',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatNotesRoute = ChatNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatPagesRoute = ChatPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatSpacesRoute = ChatSpacesRouteImport.update({
@@ -95,6 +156,16 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthConsentRoute = AuthConsentRouteImport.update({
+  id: '/auth/consent',
+  path: '/auth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthEmailRoute = AuthEmailRouteImport.update({
+  id: '/auth/email',
+  path: '/auth/email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/auth/sign-in',
   path: '/auth/sign-in',
@@ -105,10 +176,50 @@ const AuthSignOutRoute = AuthSignOutRouteImport.update({
   path: '/auth/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginCodeRoute = LoginCodeRouteImport.update({
+  id: '/login_/code',
+  path: '/login/code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAiRoute = SettingsAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsImportRoute = SettingsImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsKeysRoute = SettingsKeysRouteImport.update({
+  id: '/keys',
+  path: '/keys',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsWorkRoute = SettingsWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const StoryIdRoute = StoryIdRouteImport.update({
+  id: '/story/$id',
+  path: '/story/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TheiaSplatRoute = TheiaSplatRouteImport.update({
   id: '/theia/$',
@@ -119,6 +230,41 @@ const ChatCThreadIdRoute = ChatCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
   getParentRoute: () => ChatRoute,
+} as any)
+const ChatNotesDocumentIdRoute = ChatNotesDocumentIdRouteImport.update({
+  id: '/$documentId',
+  path: '/$documentId',
+  getParentRoute: () => ChatNotesRoute,
+} as any)
+const ChatPagesPageIdRoute = ChatPagesPageIdRouteImport.update({
+  id: '/$pageId',
+  path: '/$pageId',
+  getParentRoute: () => ChatPagesRoute,
+} as any)
+const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
+  id: '/api/artifacts/$',
+  path: '/api/artifacts/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConnectionsSplatRoute = ApiConnectionsSplatRouteImport.update({
+  id: '/api/connections/$',
+  path: '/api/connections/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIndexSplatRoute = ApiIndexSplatRouteImport.update({
+  id: '/api/index/$',
+  path: '/api/index/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkSplatRoute = ApiWorkSplatRouteImport.update({
+  id: '/api/work/$',
+  path: '/api/work/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthNeonSplatRoute = AuthNeonSplatRouteImport.update({
+  id: '/auth/neon/$',
+  path: '/auth/neon/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DesktopBlocksIndexRoute = DesktopBlocksIndexRouteImport.update({
   id: '/desktop/blocks/',
@@ -139,6 +285,11 @@ const SettingsObserveIndexRoute = SettingsObserveIndexRouteImport.update({
   id: '/observe/',
   path: '/observe/',
   getParentRoute: () => SettingsRoute,
+} as any)
+const ApiArtifactsV1SplatRoute = ApiArtifactsV1SplatRouteImport.update({
+  id: '/api/artifacts/v1/$',
+  path: '/api/artifacts/v1/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCapabilitiesV1SplatRoute = ApiCapabilitiesV1SplatRouteImport.update({
   id: '/api/capabilities/v1/$',
@@ -173,6 +324,11 @@ const ApiObserveV1SplatRoute = ApiObserveV1SplatRouteImport.update({
 const ApiProjectFilesV1SplatRoute = ApiProjectFilesV1SplatRouteImport.update({
   id: '/api/project-files/v1/$',
   path: '/api/project-files/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSceneV1SplatRoute = ApiSceneV1SplatRouteImport.update({
+  id: '/api/scene/v1/$',
+  path: '/api/scene/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSpacesV1SplatRoute = ApiSpacesV1SplatRouteImport.update({
@@ -309,21 +465,46 @@ const V1TheoremAgentStreamSplatRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/stories.json': typeof StoriesDotjsonRoute
+  '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
+  '/index': typeof ChatChar91indexChar93Route
+  '/notes': typeof ChatNotesRouteWithChildren
+  '/pages': typeof ChatPagesRouteWithChildren
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/email': typeof AuthEmailRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/login/code': typeof LoginCodeRoute
+  '/settings/ai': typeof SettingsAiRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
+  '/settings/import': typeof SettingsImportRoute
+  '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
+  '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/settings/': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/notes/$documentId': typeof ChatNotesDocumentIdRoute
+  '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
+  '/api/connections/$': typeof ApiConnectionsSplatRoute
+  '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
+  '/auth/neon/$': typeof AuthNeonSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
   '/settings/observe/': typeof SettingsObserveIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -331,6 +512,7 @@ export interface FileRoutesByFullPath {
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
   '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
+  '/api/scene/v1/$': typeof ApiSceneV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
   '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
@@ -355,21 +537,46 @@ export interface FileRoutesByFullPath {
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
 export interface FileRoutesByTo {
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
+  '/stories.json': typeof StoriesDotjsonRoute
+  '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
+  '/index': typeof ChatChar91indexChar93Route
+  '/notes': typeof ChatNotesRouteWithChildren
+  '/pages': typeof ChatPagesRouteWithChildren
   '/spaces': typeof ChatSpacesRoute
   '/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/email': typeof AuthEmailRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/login/code': typeof LoginCodeRoute
+  '/settings/ai': typeof SettingsAiRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
+  '/settings/import': typeof SettingsImportRoute
+  '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
+  '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/': typeof ChatIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/c/$threadId': typeof ChatCThreadIdRoute
+  '/notes/$documentId': typeof ChatNotesDocumentIdRoute
+  '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
+  '/api/connections/$': typeof ApiConnectionsSplatRoute
+  '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
+  '/auth/neon/$': typeof AuthNeonSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
   '/settings/observe': typeof SettingsObserveIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -377,6 +584,7 @@ export interface FileRoutesByTo {
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
   '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
+  '/api/scene/v1/$': typeof ApiSceneV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
   '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
@@ -403,22 +611,47 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/graphql': typeof GraphqlRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/stories.json': typeof StoriesDotjsonRoute
+  '/_chat/canvas': typeof ChatCanvasRoute
   '/_chat/ide': typeof ChatIdeRoute
+  '/_chat/index': typeof ChatChar91indexChar93Route
+  '/_chat/notes': typeof ChatNotesRouteWithChildren
+  '/_chat/pages': typeof ChatPagesRouteWithChildren
   '/_chat/spaces': typeof ChatSpacesRoute
   '/_chat/vault': typeof ChatVaultRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/email': typeof AuthEmailRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
+  '/login_/code': typeof LoginCodeRoute
+  '/settings/ai': typeof SettingsAiRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
+  '/settings/import': typeof SettingsImportRoute
+  '/settings/keys': typeof SettingsKeysRoute
+  '/settings/work': typeof SettingsWorkRoute
+  '/story/$id': typeof StoryIdRoute
   '/theia/$': typeof TheiaSplatRoute
   '/_chat/': typeof ChatIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
+  '/_chat/notes/$documentId': typeof ChatNotesDocumentIdRoute
+  '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/api/artifacts/$': typeof ApiArtifactsSplatRoute
+  '/api/connections/$': typeof ApiConnectionsSplatRoute
+  '/api/index/$': typeof ApiIndexSplatRoute
+  '/api/work/$': typeof ApiWorkSplatRoute
+  '/auth/neon/$': typeof AuthNeonSplatRoute
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
   '/settings/observe/': typeof SettingsObserveIndexRoute
+  '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
@@ -426,6 +659,7 @@ export interface FileRoutesById {
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
   '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
+  '/api/scene/v1/$': typeof ApiSceneV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
   '/desktop/workspace/$workspaceId/backlinks': typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
   '/desktop/workspace/$workspaceId/compiled': typeof DesktopWorkspaceWorkspaceIdCompiledRoute
@@ -453,21 +687,46 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/graphql'
     | '/install'
+    | '/login'
     | '/settings'
+    | '/stories.json'
+    | '/canvas'
     | '/ide'
+    | '/index'
+    | '/notes'
+    | '/pages'
     | '/spaces'
     | '/vault'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/email'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/login/code'
+    | '/settings/ai'
+    | '/settings/appearance'
+    | '/settings/connections'
+    | '/settings/import'
+    | '/settings/keys'
+    | '/settings/work'
+    | '/story/$id'
     | '/theia/$'
     | '/settings/'
     | '/c/$threadId'
+    | '/notes/$documentId'
+    | '/pages/$pageId'
+    | '/api/artifacts/$'
+    | '/api/connections/$'
+    | '/api/index/$'
+    | '/api/work/$'
+    | '/auth/neon/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
     | '/settings/observe/'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -475,6 +734,7 @@ export interface FileRouteTypes {
     | '/api/files/v1/$'
     | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
+    | '/api/scene/v1/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
     | '/desktop/workspace/$workspaceId/compiled'
@@ -499,21 +759,46 @@ export interface FileRouteTypes {
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/graphql'
     | '/install'
+    | '/login'
+    | '/stories.json'
+    | '/canvas'
     | '/ide'
+    | '/index'
+    | '/notes'
+    | '/pages'
     | '/spaces'
     | '/vault'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/email'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/login/code'
+    | '/settings/ai'
+    | '/settings/appearance'
+    | '/settings/connections'
+    | '/settings/import'
+    | '/settings/keys'
+    | '/settings/work'
+    | '/story/$id'
     | '/theia/$'
     | '/'
     | '/settings'
     | '/c/$threadId'
+    | '/notes/$documentId'
+    | '/pages/$pageId'
+    | '/api/artifacts/$'
+    | '/api/connections/$'
+    | '/api/index/$'
+    | '/api/work/$'
+    | '/auth/neon/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
     | '/settings/observe'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -521,6 +806,7 @@ export interface FileRouteTypes {
     | '/api/files/v1/$'
     | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
+    | '/api/scene/v1/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
     | '/desktop/workspace/$workspaceId/compiled'
@@ -546,22 +832,47 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_chat'
+    | '/graphql'
     | '/install'
+    | '/login'
     | '/settings'
+    | '/stories.json'
+    | '/_chat/canvas'
     | '/_chat/ide'
+    | '/_chat/index'
+    | '/_chat/notes'
+    | '/_chat/pages'
     | '/_chat/spaces'
     | '/_chat/vault'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/email'
     | '/auth/sign-in'
     | '/auth/sign-out'
+    | '/login_/code'
+    | '/settings/ai'
+    | '/settings/appearance'
+    | '/settings/connections'
+    | '/settings/import'
+    | '/settings/keys'
+    | '/settings/work'
+    | '/story/$id'
     | '/theia/$'
     | '/_chat/'
     | '/settings/'
     | '/_chat/c/$threadId'
+    | '/_chat/notes/$documentId'
+    | '/_chat/pages/$pageId'
+    | '/api/artifacts/$'
+    | '/api/connections/$'
+    | '/api/index/$'
+    | '/api/work/$'
+    | '/auth/neon/$'
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
     | '/settings/observe/'
+    | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
@@ -569,6 +880,7 @@ export interface FileRouteTypes {
     | '/api/files/v1/$'
     | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
+    | '/api/scene/v1/$'
     | '/api/spaces/v1/$'
     | '/desktop/workspace/$workspaceId/backlinks'
     | '/desktop/workspace/$workspaceId/compiled'
@@ -595,15 +907,28 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  GraphqlRoute: typeof GraphqlRoute
   InstallRoute: typeof InstallRoute
+  LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  StoriesDotjsonRoute: typeof StoriesDotjsonRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthConsentRoute: typeof AuthConsentRoute
+  AuthEmailRoute: typeof AuthEmailRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignOutRoute: typeof AuthSignOutRoute
+  LoginCodeRoute: typeof LoginCodeRoute
+  StoryIdRoute: typeof StoryIdRoute
   TheiaSplatRoute: typeof TheiaSplatRoute
+  ApiArtifactsSplatRoute: typeof ApiArtifactsSplatRoute
+  ApiConnectionsSplatRoute: typeof ApiConnectionsSplatRoute
+  ApiIndexSplatRoute: typeof ApiIndexSplatRoute
+  ApiWorkSplatRoute: typeof ApiWorkSplatRoute
+  AuthNeonSplatRoute: typeof AuthNeonSplatRoute
   DesktopBlocksAppTokenRoute: typeof DesktopBlocksAppTokenRoute
   DesktopBlocksIndexRoute: typeof DesktopBlocksIndexRoute
   DesktopWorkspaceIndexRoute: typeof DesktopWorkspaceIndexRoute
+  ApiArtifactsV1SplatRoute: typeof ApiArtifactsV1SplatRoute
   ApiCapabilitiesV1SplatRoute: typeof ApiCapabilitiesV1SplatRoute
   ApiChatV1SplatRoute: typeof ApiChatV1SplatRoute
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
@@ -611,6 +936,7 @@ export interface RootRouteChildren {
   ApiFilesV1SplatRoute: typeof ApiFilesV1SplatRoute
   ApiObserveV1SplatRoute: typeof ApiObserveV1SplatRoute
   ApiProjectFilesV1SplatRoute: typeof ApiProjectFilesV1SplatRoute
+  ApiSceneV1SplatRoute: typeof ApiSceneV1SplatRoute
   ApiSpacesV1SplatRoute: typeof ApiSpacesV1SplatRoute
   DesktopWorkspaceWorkspaceIdBacklinksRoute: typeof DesktopWorkspaceWorkspaceIdBacklinksRoute
   DesktopWorkspaceWorkspaceIdCompiledRoute: typeof DesktopWorkspaceWorkspaceIdCompiledRoute
@@ -643,11 +969,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/graphql': {
+      id: '/graphql'
+      path: '/graphql'
+      fullPath: '/graphql'
+      preLoaderRoute: typeof GraphqlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/install': {
       id: '/install'
       path: '/install'
       fullPath: '/install'
       preLoaderRoute: typeof InstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -657,6 +997,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stories.json': {
+      id: '/stories.json'
+      path: '/stories.json'
+      fullPath: '/stories.json'
+      preLoaderRoute: typeof StoriesDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_chat/index': {
+      id: '/_chat/index'
+      path: '/index'
+      fullPath: '/index'
+      preLoaderRoute: typeof ChatChar91indexChar93RouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/': {
       id: '/_chat/'
       path: '/'
@@ -664,11 +1018,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/canvas': {
+      id: '/_chat/canvas'
+      path: '/canvas'
+      fullPath: '/canvas'
+      preLoaderRoute: typeof ChatCanvasRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/ide': {
       id: '/_chat/ide'
       path: '/ide'
       fullPath: '/ide'
       preLoaderRoute: typeof ChatIdeRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/notes': {
+      id: '/_chat/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof ChatNotesRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/pages': {
+      id: '/_chat/pages'
+      path: '/pages'
+      fullPath: '/pages'
+      preLoaderRoute: typeof ChatPagesRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/spaces': {
@@ -692,6 +1067,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/consent': {
+      id: '/auth/consent'
+      path: '/auth/consent'
+      fullPath: '/auth/consent'
+      preLoaderRoute: typeof AuthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/email': {
+      id: '/auth/email'
+      path: '/auth/email'
+      fullPath: '/auth/email'
+      preLoaderRoute: typeof AuthEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/sign-in': {
       id: '/auth/sign-in'
       path: '/auth/sign-in'
@@ -706,12 +1095,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignOutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login_/code': {
+      id: '/login_/code'
+      path: '/login/code'
+      fullPath: '/login/code'
+      preLoaderRoute: typeof LoginCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
       id: '/settings/'
       path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/settings/ai': {
+      id: '/settings/ai'
+      path: '/ai'
+      fullPath: '/settings/ai'
+      preLoaderRoute: typeof SettingsAiRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/connections': {
+      id: '/settings/connections'
+      path: '/connections'
+      fullPath: '/settings/connections'
+      preLoaderRoute: typeof SettingsConnectionsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/import': {
+      id: '/settings/import'
+      path: '/import'
+      fullPath: '/settings/import'
+      preLoaderRoute: typeof SettingsImportRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/keys': {
+      id: '/settings/keys'
+      path: '/keys'
+      fullPath: '/settings/keys'
+      preLoaderRoute: typeof SettingsKeysRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/work': {
+      id: '/settings/work'
+      path: '/work'
+      fullPath: '/settings/work'
+      preLoaderRoute: typeof SettingsWorkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/story/$id': {
+      id: '/story/$id'
+      path: '/story/$id'
+      fullPath: '/story/$id'
+      preLoaderRoute: typeof StoryIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/theia/$': {
       id: '/theia/$'
@@ -726,6 +1171,55 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$threadId'
       preLoaderRoute: typeof ChatCThreadIdRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/_chat/notes/$documentId': {
+      id: '/_chat/notes/$documentId'
+      path: '/$documentId'
+      fullPath: '/notes/$documentId'
+      preLoaderRoute: typeof ChatNotesDocumentIdRouteImport
+      parentRoute: typeof ChatNotesRoute
+    }
+    '/_chat/pages/$pageId': {
+      id: '/_chat/pages/$pageId'
+      path: '/$pageId'
+      fullPath: '/pages/$pageId'
+      preLoaderRoute: typeof ChatPagesPageIdRouteImport
+      parentRoute: typeof ChatPagesRoute
+    }
+    '/api/artifacts/$': {
+      id: '/api/artifacts/$'
+      path: '/api/artifacts/$'
+      fullPath: '/api/artifacts/$'
+      preLoaderRoute: typeof ApiArtifactsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/$': {
+      id: '/api/connections/$'
+      path: '/api/connections/$'
+      fullPath: '/api/connections/$'
+      preLoaderRoute: typeof ApiConnectionsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/index/$': {
+      id: '/api/index/$'
+      path: '/api/index/$'
+      fullPath: '/api/index/$'
+      preLoaderRoute: typeof ApiIndexSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/work/$': {
+      id: '/api/work/$'
+      path: '/api/work/$'
+      fullPath: '/api/work/$'
+      preLoaderRoute: typeof ApiWorkSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/neon/$': {
+      id: '/auth/neon/$'
+      path: '/auth/neon/$'
+      fullPath: '/auth/neon/$'
+      preLoaderRoute: typeof AuthNeonSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/desktop/blocks/': {
       id: '/desktop/blocks/'
@@ -754,6 +1248,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/observe/'
       preLoaderRoute: typeof SettingsObserveIndexRouteImport
       parentRoute: typeof SettingsRoute
+    }
+    '/api/artifacts/v1/$': {
+      id: '/api/artifacts/v1/$'
+      path: '/api/artifacts/v1/$'
+      fullPath: '/api/artifacts/v1/$'
+      preLoaderRoute: typeof ApiArtifactsV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/capabilities/v1/$': {
       id: '/api/capabilities/v1/$'
@@ -802,6 +1303,13 @@ declare module '@tanstack/react-router' {
       path: '/api/project-files/v1/$'
       fullPath: '/api/project-files/v1/$'
       preLoaderRoute: typeof ApiProjectFilesV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/scene/v1/$': {
+      id: '/api/scene/v1/$'
+      path: '/api/scene/v1/$'
+      fullPath: '/api/scene/v1/$'
+      preLoaderRoute: typeof ApiSceneV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/spaces/v1/$': {
@@ -961,8 +1469,36 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ChatNotesRouteChildren {
+  ChatNotesDocumentIdRoute: typeof ChatNotesDocumentIdRoute
+}
+
+const ChatNotesRouteChildren: ChatNotesRouteChildren = {
+  ChatNotesDocumentIdRoute: ChatNotesDocumentIdRoute,
+}
+
+const ChatNotesRouteWithChildren = ChatNotesRoute._addFileChildren(
+  ChatNotesRouteChildren,
+)
+
+interface ChatPagesRouteChildren {
+  ChatPagesPageIdRoute: typeof ChatPagesPageIdRoute
+}
+
+const ChatPagesRouteChildren: ChatPagesRouteChildren = {
+  ChatPagesPageIdRoute: ChatPagesPageIdRoute,
+}
+
+const ChatPagesRouteWithChildren = ChatPagesRoute._addFileChildren(
+  ChatPagesRouteChildren,
+)
+
 interface ChatRouteChildren {
+  ChatCanvasRoute: typeof ChatCanvasRoute
   ChatIdeRoute: typeof ChatIdeRoute
+  ChatChar91indexChar93Route: typeof ChatChar91indexChar93Route
+  ChatNotesRoute: typeof ChatNotesRouteWithChildren
+  ChatPagesRoute: typeof ChatPagesRouteWithChildren
   ChatSpacesRoute: typeof ChatSpacesRoute
   ChatVaultRoute: typeof ChatVaultRoute
   ChatIndexRoute: typeof ChatIndexRoute
@@ -970,7 +1506,11 @@ interface ChatRouteChildren {
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatCanvasRoute: ChatCanvasRoute,
   ChatIdeRoute: ChatIdeRoute,
+  ChatChar91indexChar93Route: ChatChar91indexChar93Route,
+  ChatNotesRoute: ChatNotesRouteWithChildren,
+  ChatPagesRoute: ChatPagesRouteWithChildren,
   ChatSpacesRoute: ChatSpacesRoute,
   ChatVaultRoute: ChatVaultRoute,
   ChatIndexRoute: ChatIndexRoute,
@@ -980,12 +1520,24 @@ const ChatRouteChildren: ChatRouteChildren = {
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 interface SettingsRouteChildren {
+  SettingsAiRoute: typeof SettingsAiRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsConnectionsRoute: typeof SettingsConnectionsRoute
+  SettingsImportRoute: typeof SettingsImportRoute
+  SettingsKeysRoute: typeof SettingsKeysRoute
+  SettingsWorkRoute: typeof SettingsWorkRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsObserveIndexRoute: typeof SettingsObserveIndexRoute
   SettingsObserveRunsRunIdRoute: typeof SettingsObserveRunsRunIdRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAiRoute: SettingsAiRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsConnectionsRoute: SettingsConnectionsRoute,
+  SettingsImportRoute: SettingsImportRoute,
+  SettingsKeysRoute: SettingsKeysRoute,
+  SettingsWorkRoute: SettingsWorkRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsObserveIndexRoute: SettingsObserveIndexRoute,
   SettingsObserveRunsRunIdRoute: SettingsObserveRunsRunIdRoute,
@@ -997,15 +1549,28 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  GraphqlRoute: GraphqlRoute,
   InstallRoute: InstallRoute,
+  LoginRoute: LoginRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  StoriesDotjsonRoute: StoriesDotjsonRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthConsentRoute: AuthConsentRoute,
+  AuthEmailRoute: AuthEmailRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignOutRoute: AuthSignOutRoute,
+  LoginCodeRoute: LoginCodeRoute,
+  StoryIdRoute: StoryIdRoute,
   TheiaSplatRoute: TheiaSplatRoute,
+  ApiArtifactsSplatRoute: ApiArtifactsSplatRoute,
+  ApiConnectionsSplatRoute: ApiConnectionsSplatRoute,
+  ApiIndexSplatRoute: ApiIndexSplatRoute,
+  ApiWorkSplatRoute: ApiWorkSplatRoute,
+  AuthNeonSplatRoute: AuthNeonSplatRoute,
   DesktopBlocksAppTokenRoute: DesktopBlocksAppTokenRoute,
   DesktopBlocksIndexRoute: DesktopBlocksIndexRoute,
   DesktopWorkspaceIndexRoute: DesktopWorkspaceIndexRoute,
+  ApiArtifactsV1SplatRoute: ApiArtifactsV1SplatRoute,
   ApiCapabilitiesV1SplatRoute: ApiCapabilitiesV1SplatRoute,
   ApiChatV1SplatRoute: ApiChatV1SplatRoute,
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
@@ -1013,6 +1578,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFilesV1SplatRoute: ApiFilesV1SplatRoute,
   ApiObserveV1SplatRoute: ApiObserveV1SplatRoute,
   ApiProjectFilesV1SplatRoute: ApiProjectFilesV1SplatRoute,
+  ApiSceneV1SplatRoute: ApiSceneV1SplatRoute,
   ApiSpacesV1SplatRoute: ApiSpacesV1SplatRoute,
   DesktopWorkspaceWorkspaceIdBacklinksRoute:
     DesktopWorkspaceWorkspaceIdBacklinksRoute,

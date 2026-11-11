@@ -35,6 +35,21 @@ function loadRenderer() {
   return rendererLoad;
 }
 
+const DIAGRAM_COLORS = {
+  bg: "var(--background)",
+  fg: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  border: "var(--border)",
+  accent: "var(--foreground)",
+  transparent: true,
+};
+
+/** A diagram as SVG markup, for a view that only takes markup, such as Crepe's preview. */
+export async function renderMermaidSvg(code: string): Promise<string> {
+  const render = await loadRenderer();
+  return render(code, DIAGRAM_COLORS);
+}
+
 function useRenderer() {
   const [state, setState] = useState<{
     render?: RenderMermaidSVG;
@@ -440,14 +455,7 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
     if (renderer.error) return { svg: null, error: renderer.error };
     if (streaming || !renderer.render) return null;
     try {
-      const svg = renderer.render(code, {
-        bg: "var(--background)",
-        fg: "var(--foreground)",
-        muted: "var(--muted-foreground)",
-        border: "var(--border)",
-        accent: "var(--foreground)",
-        transparent: true,
-      });
+      const svg = renderer.render(code, DIAGRAM_COLORS);
       if (isIncompleteDiagram(code, svg)) {
         throw new Error("Incomplete mermaid diagram");
       }

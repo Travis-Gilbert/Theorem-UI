@@ -1,0 +1,78 @@
+import { afterEach, expect, test } from 'bun:test'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
+import { ModelPicker } from './model-picker'
+import { CommandPalette, useCommandPalette } from '../shell/command-palette'
+import { modelListQuery, parseModelList, pickedModel, usePickedModels } from '@/lib/theorem/models'
+import { catalogQuery } from '@/lib/theorem/catalog'
+import { cleanup, click, render, waitFor } from '../../../test/blocks/render'
+
+const clients: QueryClient[] = []
+afterEach(async () => {
+  await cleanup()
+  clients.splice(0).forEach((client) => client.clear())
+  usePickedModels.setState({ selected: undefined, starred: [] })
+  useCommandPalette.setState({ open: false })
+})
+
+async function models(palette: boolean, defaultRef?: string) {
+  const client = new QueryClient()
+  clients.push(client)
+  client.setQueryData(modelListQuery.queryKey, parseModelList({
+    models: [{ ref: 'provider/vendor/available', name: 'Available', context_length: 100000 }],
+    defaultError: { code: 'invalid_default', message: 'The configured default is missing.' },
+    ...(defaultRef ? { defaultRef } : {}),
+  }))
+  client.setQueryData(catalogQuery.queryKey, { plugins: [], skills: [] })
+  const route = createRootRoute({ component: () => <QueryClientProvider client={client}>{palette ? <CommandPalette /> : <ModelPicker />}</QueryClientProvider> })
+  const router = createRouter({ routeTree: route, history: createMemoryHistory({ initialEntries: ['/'] }) })
+  await router.load()
+  return render(<RouterProvider router={router} />)
+}
+
+test('picker exposes invalid default and selecting a starred model sends the exact provider/model', async () => {
+  usePickedModels.getState().setStarred(['provider/vendor/available'])
+  const { container } = await models(false)
+  await click(container.querySelector('[aria-label="Model"]')!)
+  await waitFor(() => document.querySelector('[role="alert"]'))
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain('The configured default is missing.')
+  const option = await waitFor(() => [...document.querySelectorAll('[role="option"]')].find((item) => item.textContent.includes('Available')))
+  await click(option)
+  expect(pickedModel()).toEqual({ provider: 'provider', model: 'vendor/available' })
+  expect(container.textContent).toContain('Available')
+})
+
+test('command palette exposes invalid default while keeping available model selection', async () => {
+  useCommandPalette.setState({ open: true })
+  await models(true)
+  await waitFor(() => document.querySelector('[role="alert"]'))
+  // The cause in words, not the backend's code for it.
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain('The configured default is missing.')
+  expect(document.querySelector('[role="alert"]')?.textContent).not.toContain('invalid_default')
+  const option = await waitFor(() => [...document.querySelectorAll('[role="option"]')].find((item) => item.textContent.includes('Available')))
+  await click(option)
+  expect(pickedModel()).toEqual({ provider: 'provider', model: 'vendor/available' })
+  expect(useCommandPalette.getState().open).toBe(false)
+})
+
+// The mark itself is not asserted: other suites mock the icon set to render
+// nothing, and bun shares module mocks across files in one run.
+test('the fallback is a default model choice, not a special Theorem agent', async () => {
+  const { container } = await models(false)
+
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Default model')
+})
+
+test('a picked model shows its own name', async () => {
+  usePickedModels.getState().setStarred(['provider/vendor/available'])
+  usePickedModels.getState().select('provider/vendor/available')
+  const { container } = await models(false)
+
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Available')
+})
+
+test('the default trigger names the model without changing an unpinned send', async () => {
+  const { container } = await models(false, 'provider/vendor/available')
+  expect(container.querySelector('[aria-label="Model"]')?.textContent).toBe('Available (default)')
+  expect(pickedModel()).toBeUndefined()
+})

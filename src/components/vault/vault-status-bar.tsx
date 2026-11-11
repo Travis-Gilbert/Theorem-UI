@@ -185,7 +185,7 @@ export function VaultStatusBar({
         disabled={!client}
         onClick={() => client && void createNote(client)}
       >
-        <Icon.Add className="size-4" />
+        <Icon.NewNote className="size-4" />
       </TooltipIconButton>
       <TooltipIconButton
         side="top"

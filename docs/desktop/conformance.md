@@ -122,7 +122,7 @@ JSONC file and 512 random bytes, opened file by file from the tree.
 | `.ts` | CodeMirror | works |
 | `.csv` | table | works |
 | `.jsonc` | tree | works |
-| `.pdf` | react-pdf | pages draw after fix E; no text layer (gap 12) |
+| `.pdf` | react-pdf | pages draw in the PDF's own fonts (gap 11); no text layer (gap 12) |
 | `.png` | `img` | works |
 | `.wav`, `.mp4` | `audio`, `video` | elements mount; playback not driven |
 | `.bin` | file info with "Open with" | works |
@@ -199,6 +199,8 @@ Fixed in this pass:
   and in Servo those fonts never reach canvas text (gap 11). The PDF
   handler sets pdf.js's `disableFontFace`, so glyphs are drawn as paths.
   Rechecked in Servo: the fixture's text reads correctly.
+  Reverted once the host turned on `dom_fontface_enabled` (gap 11): pdf.js
+  is back on its default path and loads each PDF's fonts through `FontFace`.
 - **F. Quitting lost an edit made within the save delay** (host). Quitting
   stopped the local server, and the page never received `beforeunload` or a
   hidden `visibilitychange`: Servo's `request_unload` allows every unload
@@ -308,8 +310,9 @@ fails (gap 14).
 
     Vendor pseudo-elements (`::-webkit-scrollbar`, the date field parts) are
     dropped too. They only style Chrome's own controls, so nothing is lost.
-11. **PDF fonts drew as boxes.** pdf.js draws text in the PDF's embedded
-    fonts, and in Servo those glyphs came out as boxes until fix E.
+11. **PDF fonts drew as boxes.** Fixed in the host. pdf.js draws text in the
+    PDF's embedded fonts, and in Servo those glyphs came out as boxes until
+    fix E.
     - **Likely cause, measured at `87ac5a3`.** `FontFace` exists in the page,
       but `document.fonts` has no `add` or `load`. Both sit behind Servo's
       `dom_fontface_enabled` setting, which defaults to false and which the
@@ -317,8 +320,17 @@ fails (gap 14).
       the document.
     - **What the fork showed.** With that setting on, the fork's Ahem probe
       draws loaded fonts in canvas, from a URL and from an `ArrayBuffer`.
-    - **Next step.** Turning the setting on and dropping `disableFontFace`
-      (fix E) needs a PDF check first.
+    - **Fix.** The host turns on `dom_fontface_enabled` in `engine.rs`, and
+      the PDF handler no longer sets `disableFontFace`, so fix E is gone.
+      Checked with `THEOREM_DRIVE` and an isolated profile. `document.fonts.add`
+      and `load` exist. `field-notes.pdf` (a Monaco subset) and a second PDF
+      with Georgia Bold, Helvetica Neue, Times New Roman Italic and Menlo
+      subsets draw every line in its own font, accents included. pdf.js's
+      faces (`g_d0_f1`, `g_d1_f1` to `g_d1_f4`) report `loaded`, and
+      `document.fonts.ready` resolves.
+    - **Still off.** The page's CSS `@font-face` faces (IBM Plex Sans,
+      JetBrains Mono, Libron, KaTeX) report `loading` in `document.fonts`
+      while they draw normally. Nothing in Theorem UI reads their status.
     - **Fixed separately at `87ac5a3`:** `measureText` reported 0 for
       `fontBoundingBoxAscent` and `fontBoundingBoxDescent`, because Servo
       passed glyph and font bounds in each other's places (2 of 2 WPT

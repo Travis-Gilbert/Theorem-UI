@@ -17,7 +17,7 @@ import { MonacoToProtocolConverter } from '@theia/monaco/lib/browser/monaco-to-p
 import { ProtocolToMonacoConverter } from '@theia/monaco/lib/browser/protocol-to-monaco-converter';
 import * as monaco from '@theia/monaco-editor-core';
 import {
-    isDocumentSpan, rangeIn, type DocumentPosition, type DocumentRef, type LanguageCodeAction, type LanguageCompletionItem,
+    isDocumentSpan, rangeIn, TheoremError, type DocumentPosition, type DocumentRef, type LanguageCodeAction, type LanguageCompletionItem,
     type LanguageLocation, type LanguagePlan, type LanguageSymbol, type NavigationKind, type Ranged, type WorkspaceLanguage
 } from '@theoremharness/sdk';
 import { TheoremConnection } from './theorem-connection';
@@ -26,6 +26,24 @@ export const APPLY_CODE_ACTION: Command = { id: 'theorem.applyCodeAction' };
 
 /** Every workspace document is a `file` model; models outside the workspace root are skipped per call. */
 const SELECTOR: monaco.languages.LanguageSelector = { scheme: 'file' };
+
+const CONTENT_MODIFIED_RETRIES = 5;
+const CONTENT_MODIFIED_DELAY_MS = 1000;
+const contentModified = (error: unknown): boolean =>
+    error instanceof TheoremError && /"code":\s*-32801/.test(String((error.body as { message?: unknown } | undefined)?.message));
+
+/** The `language.*` answers `WorkspaceLanguage` has no method for. */
+interface HostInlayHint {
+    kind?: number;
+    label: string | { value: string }[];
+    position: { line: number; character: number };
+    paddingLeft?: boolean;
+    paddingRight?: boolean;
+}
+interface HostCodeLens { range: Range; command?: { title: string } }
+interface HostDocumentLink { range: Range; target?: string; tooltip?: string }
+interface HostLinkedEditing { ranges: Range[]; wordPattern?: string | null }
+interface Range { start: { line: number; character: number }; end: { line: number; character: number } }
 
 /** One workspace document a request is about. */
 interface Target extends DocumentRef {
@@ -72,7 +90,7 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
 
     onStart(): void {
         const navigate = (kind: NavigationKind) => (model: monaco.editor.ITextModel, position: monaco.Position) =>
-            this.ask(model, async target => this.locations(await target.api.navigate(kind, this.at(target, position))));
+            this.ask(model, async target => this.locations(await target.api.navigate(kind, this.at(target, position)), target.resourceId));
         const { languages } = monaco;
         this.toDispose.pushAll([
             languages.registerCompletionItemProvider(SELECTOR, {
@@ -121,7 +139,7 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
             languages.registerImplementationProvider(SELECTOR, { provideImplementation: navigate('implementation') }),
             languages.registerReferenceProvider(SELECTOR, {
                 provideReferences: (model, position, context) => this.ask(model, async target =>
-                    this.locations(await target.api.references(this.at(target, position), context.includeDeclaration))),
+                    this.locations(await target.api.references(this.at(target, position), context.includeDeclaration), target.resourceId)),
             }),
             languages.registerDocumentSymbolProvider(SELECTOR, {
                 displayName: 'Theorem',
@@ -201,6 +219,55 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
                     return { edits: [] };
                 },
             }),
+            languages.registerInlayHintsProvider(SELECTOR, {
+                provideInlayHints: (model, range) => this.ask(model, async target => {
+                    const { hints } = await this.connection.operate<{ hints?: HostInlayHint[] }>('language.inlayHints', {
+                        ...this.document(target),
+                        range: this.m2p.asRange(range),
+                    });
+                    return {
+                        hints: (hints ?? []).map(({ kind, label, position, paddingLeft, paddingRight }) => ({
+                            kind,
+                            label: typeof label === 'string' ? label : label.map(part => part.value).join(''),
+                            position: this.p2m.asPosition(position),
+                            paddingLeft,
+                            paddingRight,
+                        })),
+                        dispose: () => undefined,
+                    };
+                }),
+            }),
+            languages.registerCodeLensProvider(SELECTOR, {
+                // Shown as labels: the commands behind them belong to extensions this frame does not run.
+                provideCodeLenses: model => this.ask(model, async target => {
+                    const { lenses } = await this.connection.operate<{ lenses?: HostCodeLens[] }>('language.codeLenses', this.document(target));
+                    return {
+                        lenses: (lenses ?? []).flatMap(({ range, command }) => command
+                            ? [{ range: this.p2m.asRange(range), command: { id: '', title: command.title } }]
+                            : []),
+                        dispose: () => undefined,
+                    };
+                }),
+            }),
+            languages.registerLinkProvider(SELECTOR, {
+                provideLinks: model => this.ask(model, async target => {
+                    const { links } = await this.connection.operate<{ links?: HostDocumentLink[] }>('language.documentLinks', this.document(target));
+                    const mapped = await Promise.all((links ?? []).map(async ({ range, target: url, tooltip }) => {
+                        // A file the server names is a host path; one beyond the workspace cannot be opened here.
+                        const file = url?.startsWith('file:') ? await this.connection.fromHostUri(url, target.resourceId) : undefined;
+                        return url?.startsWith('file:') && !file ? [] : [{ range: this.p2m.asRange(range), url: file?.toString() ?? url, tooltip }];
+                    }));
+                    return { links: mapped.flat() };
+                }),
+            }),
+            languages.registerLinkedEditingRangeProvider(SELECTOR, {
+                provideLinkedEditingRanges: (model, position) => this.ask(model, async target => {
+                    const { ranges, wordPattern } = await this.connection.operate<HostLinkedEditing>('language.linkedEditing', this.documentAt(this.at(target, position)));
+                    return ranges?.length
+                        ? { ranges: ranges.map(range => this.p2m.asRange(range)), wordPattern: wordPattern ? new RegExp(wordPattern) : undefined }
+                        : undefined;
+                }),
+            }),
         ]);
     }
 
@@ -210,15 +277,22 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
 
     /**
      * Run a request about `model`'s document once its pending edits are sent.
-     * A failed request reads as no answer, as when no provider handles the language.
+     * A failed request reads as no answer, as when no provider handles the language. One the server
+     * dropped because it was still analysing is asked again, as LSP's ContentModified expects.
      */
     protected async ask<T>(model: monaco.editor.ITextModel, run: (target: Target) => Promise<T>): Promise<T | undefined> {
-        try {
-            const target = await this.target(model);
-            return target && await run(target);
-        } catch (error) {
-            this.logger.debug(`Language request for ${model.uri.toString()} failed`, error);
-            return undefined;
+        for (let attempt = 0; ; attempt++) {
+            try {
+                const target = await this.target(model);
+                return target && await run(target);
+            } catch (error) {
+                if (attempt < CONTENT_MODIFIED_RETRIES && contentModified(error) && !model.isDisposed()) {
+                    await new Promise(resolve => setTimeout(resolve, CONTENT_MODIFIED_DELAY_MS));
+                    continue;
+                }
+                this.logger.debug(`Language request for ${model.uri.toString()} failed`, error);
+                return undefined;
+            }
         }
     }
 
@@ -258,6 +332,14 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
 
     protected at(target: Target, position: monaco.IPosition): DocumentPosition {
         return { resourceId: target.resourceId, language: target.language, revision: target.revision, ...this.m2p.asPosition(position.lineNumber, position.column) };
+    }
+
+    protected document({ resourceId, language, revision }: DocumentRef): Record<string, unknown> {
+        return { resource_id: resourceId, language, revision };
+    }
+
+    protected documentAt(position: DocumentPosition): Record<string, unknown> {
+        return { ...this.document(position), line: position.line, character: position.character };
     }
 
     /** A plan applies through the authority; with no plan there is nothing to change, unless `missing` says otherwise. */
@@ -309,8 +391,11 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
         return suggestion;
     }
 
-    /** Monaco locations of host results; spans in other documents are read against those documents' text. */
-    protected async locations(found: LanguageLocation[]): Promise<monaco.languages.Location[]> {
+    /**
+     * Monaco locations of host results; spans in other documents are read against those documents' text.
+     * Files beyond the workspace, such as a standard library's, are left out: the frame cannot open them.
+     */
+    protected async locations(found: LanguageLocation[], resourceId: string): Promise<monaco.languages.Location[]> {
         const texts = new Map<string, Promise<string>>();
         const textOf = (uri: URI) => {
             const key = uri.toString();
@@ -322,19 +407,15 @@ export class TheoremLanguageFeatures implements FrontendApplicationContribution,
             }
             return text;
         };
-        return Promise.all(found.map(async location => {
+        const located = await Promise.all(found.map(async location => {
             if (isDocumentSpan(location)) {
                 const uri = this.connection.toUri(location.document.resource_id);
                 const range = rangeIn(await textOf(uri), { location })!;
                 return this.p2m.asLocation({ uri: uri.toString(), range });
             }
-            return this.p2m.asLocation({ uri: this.workspaceUri(location.uri).toString(), range: location.range });
+            const uri = await this.connection.fromHostUri(location.uri, resourceId);
+            return uri && this.p2m.asLocation({ uri: uri.toString(), range: location.range });
         }));
-    }
-
-    /** A host file URI: as given inside the workspace root, else its path read as a workspace path. */
-    protected workspaceUri(raw: string): URI {
-        const uri = new URI(raw);
-        return this.connection.toPath(uri) !== undefined ? uri : this.connection.toUri(uri.path.toString().replace(/^\/+/, ''));
+        return located.filter(location => !!location);
     }
 }

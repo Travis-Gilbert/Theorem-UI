@@ -1,14 +1,17 @@
-// SOURCING: @tanstack/react-router file routes (a layout route owns the settings shell; each page is a child route)
-import { Outlet, createFileRoute } from '@tanstack/react-router'
-import { SettingsShell } from '@/components/settings/settings-shell'
+// SOURCING: @tanstack/react-router file routes (settings is its own layout beside the chat shell, as Twenty's settings replace the app's panel), the ⌘K palette and the model preferences sync, mounted here as in the chat layout
+import { createFileRoute, Outlet } from '@tanstack/react-router'
+import { SettingsLayout } from '@/components/settings/settings-frame'
+import { CommandPalette } from '@/components/shell/command-palette'
+import { PreferencesSync } from '@/lib/theorem/models'
 
 export const Route = createFileRoute('/settings')({
-  // Settings read the signed-in session through this origin, in the browser.
+  // Settings read the person's Theorem through the browser client.
   ssr: false,
-  head: () => ({ meta: [{ title: 'Settings · Theorem' }] }),
   component: () => (
-    <SettingsShell>
+    <SettingsLayout>
+      <CommandPalette />
+      <PreferencesSync />
       <Outlet />
-    </SettingsShell>
+    </SettingsLayout>
   ),
 })

@@ -9,8 +9,8 @@ import { shortRunId } from '@/lib/theorem/observe'
 import type { ObservedRun } from '@/lib/theorem/observe'
 import { signInHref } from '@/lib/theorem/sign-in'
 import { cn } from '@/lib/utils'
-import { Notice, State } from '../settings-page'
-import type { Tone } from '../settings-page'
+import { Notice, State } from './rows'
+import type { Tone } from './rows'
 
 /** A moment as a clock time, with its date when it is not today. */
 export function clock(ms: number | null | undefined): string {

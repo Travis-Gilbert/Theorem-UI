@@ -1,26 +1,27 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, coss ui Collapsible (base-ui) for the activity line's details, and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, the terminal's openOf/pathOf and Follow's useRevealFile for the file a tool card opens in the IDE, scene-part.tsx for the theorem-scene part
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
 // renders them per the theorem-chat-v1 contract, renders Theorem's tool
 // approvals (decided through runs.command, since Theorem owns approvals), and
-// gives the artifact tools a pending card while they run.
+// gives the artifact tools a pending card while they run. Delegated work has
+// its own cards in delegation-parts.
 import { useAui, useAuiState, useAssistantDataUI } from '@assistant-ui/react'
 import { CatchBoundary } from '@tanstack/react-router'
 import type {
+  AssistantState,
   DataMessagePartComponent,
   ToolCallMessagePartComponent,
-  ToolCallMessagePartProps,
 } from '@assistant-ui/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FC } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import type { FC, ReactNode } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
 import {
-  CollapsibleContent,
-  CollapsibleRoot,
+  Collapsible,
+  CollapsiblePanel,
   CollapsibleTrigger,
-} from '@/components/assistant-ui/elements/collapsible-root'
+} from '@/components/coss/collapsible'
 import {
   ReasoningContent,
   ReasoningRoot,
@@ -29,21 +30,40 @@ import {
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
+import { thingProps, toolState } from '@/lib/face/things'
 import {
   ARTIFACT_PART,
-  kindLabel,
   readArtifact,
-  useThreadArtifacts,
 } from '@/components/artifacts/artifact-model'
-import { download } from '@/components/artifacts/artifact-panel'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { follow } from '@/components/ide/follow'
+import { ArtifactMessage } from '@/components/artifacts/artifact-message'
+import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
+import { ProgramPart } from '@/components/chat/program-part'
+import { CompletionFooter } from '@/components/chat/run-footer'
+import { NoteImage } from '@/components/notes/kinds/embed-block'
+import { ReviewAnswerCard } from '@/components/review/review-card'
+import { PlanToolCall } from '@/components/chat/plan-graph'
+import { useRevealFile } from '@/components/ide/follow'
+import { openOf, pathOf } from '@/components/terminal/terminal-code'
+import type { Open } from '@/components/terminal/terminal-code'
+import { askAbout } from '@/components/chat/composer-references'
+import {
+  readScene,
+  repairRequest,
+  SCENE_PART,
+} from '@/components/chat/scene-model'
+import { SceneCard } from '@/components/chat/scene-part'
+import { useSceneTheme } from '@/components/chat/scene-theme'
 import { Icon } from '@/components/icons'
-import { Button } from '@/components/ui/button'
-import { describeError, describeRunFailure, mutate, theorem } from '@/lib/theorem/client'
+import {
+  describeError,
+  describeRunFailure,
+  mutate,
+  theorem,
+} from '@/lib/theorem/client'
+import { uploadContentPath } from '@/lib/theorem/uploads'
+import { DRAFT_PLAN } from '@/lib/theorem/plans'
 import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
-import { recordLaunch } from '@/lib/motion'
-import { cn } from '@/lib/utils'
+import { cn, humanize } from '@/lib/utils'
 
 type Json = Record<string, unknown>
 
@@ -61,103 +81,13 @@ function str(value: unknown): string | undefined {
 
 const ArtifactPart: DataMessagePartComponent = ({ data }) => {
   const artifact = readArtifact(data)
-  const artifacts = useThreadArtifacts()
-  const { open } = useArtifactView.getState()
-  const selected = useArtifactView(
-    (s) => s.openId !== undefined && s.openId === artifact?.artifactId,
-  )
-  const live = useAuiState((s) => s.message.status?.type === 'running')
-  const artifactId = artifact?.artifactId
-  const revision = artifact?.revision
-  const cardRef = useRef<HTMLDivElement>(null)
-  // The panel an artifact opens in flies out of this card.
-  const launch = () => {
-    if (cardRef.current && artifactId)
-      recordLaunch(
-        cardRef.current.getBoundingClientRect(),
-        `artifact:${artifactId}`,
-      )
-  }
-
-  // A revision produced by the run in progress opens beside the conversation,
-  // unless the person paused Follow the Agent.
-  useEffect(() => {
-    if (!live || !artifactId) return
-    if (cardRef.current)
-      recordLaunch(
-        cardRef.current.getBoundingClientRect(),
-        `artifact:${artifactId}`,
-      )
-    follow({ resource: { kind: 'artifact', artifactId, revision } })
-  }, [live, artifactId, revision])
-
-  if (!artifact)
-    return <PartNotice name="theorem-artifact" note="could not be read" />
-  const versions = artifacts.get(artifact.artifactId) ?? [artifact]
-  const position = versions.findIndex((v) => v.revision === artifact.revision)
-  const latest = position === versions.length - 1
-  const show = () => {
-    launch()
-    open(artifact.artifactId, latest ? undefined : artifact.revision)
-  }
-
-  return (
-    <div
-      ref={cardRef}
-      data-slot="theorem-artifact-card"
-      data-artifact-id={artifact.artifactId}
-      data-selected={selected || undefined}
-      className={cn(
-        'my-3 flex w-full max-w-md items-center gap-3 rounded-artifact border border-separator bg-artifact p-4',
-        'transition-colors duration-100',
-        selected && 'bg-selected outline outline-1 outline-redwood-ink',
-      )}
-    >
-      <button
-        type="button"
-        onClick={show}
-        className="flex min-w-0 flex-1 items-center gap-3 text-start"
-        aria-label={`Open ${artifact.title}`}
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
-          <Icon.Artifact className="size-5 animate-float motion-reduce:animate-none" />
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span
-            className={cn(
-              'truncate text-sm',
-              selected ? 'font-semibold' : 'font-medium',
-            )}
-          >
-            {artifact.title}
-          </span>
-          <span className="truncate text-xs text-ink-faint">
-            {kindLabel(artifact)}
-            {versions.length > 1 && ` · v${position + 1}`}
-          </span>
-        </span>
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Open"
-          className="group/open size-8 p-1.5"
-          onClick={show}
-        >
-          <Icon.Open className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Download"
-          className="size-8 p-1.5"
-          onClick={() => download(artifact)}
-        >
-          <Icon.Download className="size-4" />
-        </Button>
-      </div>
-    </div>
+  return artifact ? (
+    <ArtifactMessage
+      key={`${artifact.artifactId}:${artifact.rendererId}:${artifact.documentId ?? ''}`}
+      artifact={artifact}
+    />
+  ) : (
+    <PartNotice name="theorem-artifact" />
   )
 }
 
@@ -223,7 +153,11 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     return null
   }
   const failed = state === 'failed'
-  const StateIcon = pending ? Icon.Code : failed ? Icon.Close : Icon.Check
+  const StateIcon = pending
+    ? Icon.ToolRunning
+    : failed
+      ? Icon.Close
+      : Icon.ToolDone
   return (
     <span
       className={cn(
@@ -234,16 +168,90 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     >
       <StateIcon
         className={cn(
-          'size-3 shrink-0',
+          'shrink-0',
+          failed ? 'size-3' : 'size-4',
           // Each state is its own icon, so the settled one pops in.
           pending
             ? 'animate-pulse motion-reduce:animate-none'
             : 'in-data-live:animate-in in-data-live:fade-in in-data-live:zoom-in-30 in-data-live:-spin-in-45',
         )}
       />
-      <span className="font-mono">{name}</span>
+      <span>{humanize(name)}</span>
       {failed && ' · failed'}
       {state === 'pending' && !running && ' · did not finish'}
+    </span>
+  )
+}
+
+/**
+ * A check the agent asked this page to make of an App: that it is being
+ * made, and what it found. Kit's operations draw nothing here; the fox on
+ * the stage shows what they did.
+ */
+/**
+ * What the chip for an `app.check` request says, or null for any other
+ * operation. `wrong` is anything short of a check that was made and found
+ * nothing: a type check that could not be made found nothing either, and says
+ * so with its `reason`.
+ */
+export function appCheckSummary(
+  data: unknown,
+  running: boolean,
+): { words: string; pending: boolean; wrong: boolean; reason?: string } | null {
+  const call = object(data)
+  if (str(call.operation) !== 'app.check') return null
+  const state = str(call.state) ?? 'pending'
+  const receipt = object(call.receipt)
+  const result = object(receipt.result)
+  const problems = Array.isArray(result.problems) ? result.problems.length : 0
+  const found =
+    problems + (typeof result.omitted === 'number' ? result.omitted : 0)
+  const pending = state === 'pending' && running
+  const checked = state === 'answered' && str(receipt.outcome) === 'applied'
+  const reason = checked ? str(result.typeCheckError) : undefined
+  const wrong = !pending && (!checked || found > 0 || reason !== undefined)
+  const words = pending
+    ? 'Checking the App'
+    : !checked
+      ? 'The App was not checked'
+      : result.built === false
+        ? 'The App does not build'
+        : found > 0
+          ? `Checked the App: ${found === 1 ? '1 problem' : `${found} problems`}`
+          : reason !== undefined
+            ? 'Checked the App: its types could not be checked'
+            : 'Checked the App: no problems'
+  return { words, pending, wrong, reason }
+}
+
+const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
+  const running = useAuiState((s) => s.message.status?.type === 'running')
+  const summary = appCheckSummary(data, running)
+  if (!summary) return null
+  const { words, pending, wrong, reason } = summary
+  const StateIcon = pending
+    ? Icon.ToolRunning
+    : wrong
+      ? Icon.Close
+      : Icon.ToolDone
+  return (
+    <span
+      data-slot="app-check"
+      title={reason}
+      className={cn(
+        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
+        liveEnter,
+        wrong ? 'text-error-ink' : 'text-ink-muted',
+      )}
+    >
+      <StateIcon
+        className={cn(
+          'shrink-0',
+          wrong ? 'size-3' : 'size-4',
+          pending && 'animate-pulse motion-reduce:animate-none',
+        )}
+      />
+      <span>{words}</span>
     </span>
   )
 }
@@ -258,14 +266,42 @@ export type TheoremApproval = {
   risk: string
   status: string
   approved: boolean | undefined
+  /** The host's words for an approval that settled unanswered: expired or replaced. */
+  reason: string | undefined
   options: Array<{ optionId: string; name: string; kind: string }>
 }
 
-export function readApproval(
-  interrupt: ToolCallMessagePartProps['interrupt'],
-): TheoremApproval | undefined {
-  if (interrupt?.type !== 'human') return undefined
-  const part = object(interrupt.payload)
+/** What became of an approval, as `ApprovalPart::outcome` in theorem-surface-contracts collapses it. */
+export type ApprovalOutcome =
+  'awaiting' | 'approved' | 'declined' | 'failed' | 'unanswered'
+
+const AWAITING_STATUSES = new Set(['requires_action', 'pending', 'open'])
+
+/**
+ * An approval is awaited only while its status says so. An expired or
+ * replaced request settles `incomplete` with `approved` still unset, so an
+ * unset decision alone is not a question anyone can answer.
+ */
+export function approvalOutcome(
+  approval: Pick<TheoremApproval, 'status' | 'approved'>,
+): ApprovalOutcome {
+  if (AWAITING_STATUSES.has(approval.status)) return 'awaiting'
+  if (approval.approved === true) return 'approved'
+  if (approval.approved === false) return 'declined'
+  return approval.status === 'failed' ? 'failed' : 'unanswered'
+}
+
+/**
+ * The approval a tool call carries, settled or not. The SDK keeps the latest
+ * `tool_approval` snapshot on the part's `artifact.theoremApproval` and sets
+ * its human `interrupt` only while the approval awaits a decision, so an
+ * answered, expired or replaced approval is read here without holding the
+ * message in requires-action.
+ */
+export function readApproval(toolCall: {
+  readonly artifact?: unknown
+}): TheoremApproval | undefined {
+  const part = object(object(toolCall.artifact).theoremApproval)
   const approvalId = str(part.approvalId)
   const toolCallId = str(part.toolCallId)
   if (!approvalId || !toolCallId) return undefined
@@ -291,22 +327,64 @@ export function readApproval(
     risk: str(part.risk) ?? 'unknown',
     status: str(part.status) ?? 'pending',
     approved: typeof part.approved === 'boolean' ? part.approved : undefined,
+    reason: str(part.reason),
     options,
   }
 }
 
-/** Pending Theorem approvals render standalone so they are never folded into a tool group. */
+type ApprovalChoice = { optionId: string } | { decision: 'allow' | 'deny' }
+
+/** The tool, and its risk when Theorem marks it above low. */
+function approvalSubtitle({ toolName, risk }: TheoremApproval) {
+  const elevated = risk === 'medium' || risk === 'high'
+  return elevated ? `${humanize(toolName)} · ${risk} risk` : humanize(toolName)
+}
+
+/** What a plain allow or deny sends: allow once, or reject; a bare decision when the approval offers no options. */
+export function approvalChoice(
+  options: TheoremApproval['options'],
+  allow: boolean,
+): ApprovalChoice | undefined {
+  if (!options.length) return { decision: allow ? 'allow' : 'deny' }
+  const byKind = (kind: string) => options.find((o) => o.kind === kind)
+  const option = allow
+    ? byKind('allow_once')
+    : (byKind('reject_once') ?? byKind('reject_always'))
+  return option && { optionId: option.optionId }
+}
+
+/** Sends a decision to the run that asked for the approval. */
+export function sendApprovalDecision(
+  runId: string,
+  approval: Pick<TheoremApproval, 'approvalId' | 'toolCallId'>,
+  choice: ApprovalChoice,
+) {
+  return mutate((headers) =>
+    theorem().chat.runs.command({
+      runId,
+      command: 'approval',
+      approvalId: approval.approvalId,
+      toolCallId: approval.toolCallId,
+      ...choice,
+      ...headers,
+    }),
+  )
+}
+
+/** Pending Theorem approvals, artifacts and plans render standalone so they are never folded into a tool group. */
 export function isStandaloneToolCall(part: {
   type: string
   toolName?: string
-  interrupt?: unknown
+  artifact?: unknown
 }) {
   if (part.type !== 'tool-call') return false
-  if (part.toolName && ARTIFACT_TOOLS.has(part.toolName)) return true
-  const approval = readApproval(
-    part.interrupt as ToolCallMessagePartProps['interrupt'],
+  if (
+    part.toolName &&
+    (ARTIFACT_TOOLS.has(part.toolName) || part.toolName === DRAFT_PLAN)
   )
-  return approval !== undefined && approval.approved === undefined
+    return true
+  const approval = readApproval(part)
+  return approval !== undefined && approvalOutcome(approval) === 'awaiting'
 }
 
 const TheoremApprovalCard: FC<{
@@ -325,11 +403,12 @@ const TheoremApprovalCard: FC<{
         : 'denied',
   )
   const [error, setError] = useState<string>()
+  // The part can settle while the card is open; a request nobody answered
+  // offers no buttons, and the host's reason says why.
+  const outcome = approvalOutcome(approval)
+  const unanswered = outcome === 'unanswered' || outcome === 'failed'
 
-  const decide = async (
-    option: { optionId?: string; decision?: 'allow' | 'deny' },
-    granted: boolean,
-  ) => {
+  const decide = async (choice: ApprovalChoice, granted: boolean) => {
     if (!runId) {
       setError('This approval belongs to a run that is no longer live.')
       return
@@ -337,16 +416,7 @@ const TheoremApprovalCard: FC<{
     setError(undefined)
     setState(granted ? 'running' : 'denied')
     try {
-      await mutate((headers) =>
-        theorem().chat.runs.command({
-          runId,
-          command: 'approval',
-          approvalId: approval.approvalId,
-          toolCallId: approval.toolCallId,
-          ...option,
-          ...headers,
-        }),
-      )
+      await sendApprovalDecision(runId, approval, choice)
     } catch (failure) {
       setState('request')
       setError(describeError(failure))
@@ -357,24 +427,25 @@ const TheoremApprovalCard: FC<{
   const allowOnce = byKind('allow_once')
   const allowAlways = byKind('allow_always')
   const reject = byKind('reject_once') ?? byKind('reject_always')
-  const offered = approval.options.length > 0
+  const allow = approvalChoice(approval.options, true)
+  const deny = approvalChoice(approval.options, false)
 
   return (
     <div className="my-3 flex flex-col gap-2">
       <ApprovalCard
-        state={state}
+        state={unanswered ? 'denied' : state}
+        statusLabel={
+          unanswered
+            ? (approval.reason ??
+              (outcome === 'failed' ? 'The request failed' : 'Not answered'))
+            : undefined
+        }
         title={approval.summary}
-        subtitle={`${approval.toolName} · risk: ${approval.risk.replace(/_/g, ' ')}`}
+        subtitle={approvalSubtitle(approval)}
         command={argsText || undefined}
         icon={<Icon.Settings className="size-4" />}
         className="max-w-md rounded-artifact border-separator bg-artifact"
-        onAllowOnce={
-          !offered
-            ? () => decide({ decision: 'allow' }, true)
-            : allowOnce
-              ? () => decide({ optionId: allowOnce.optionId }, true)
-              : undefined
-        }
+        onAllowOnce={allow && (() => decide(allow, true))}
         allowOnceLabel={allowOnce?.name ?? 'Allow once'}
         onAlwaysAllow={
           allowAlways
@@ -382,13 +453,7 @@ const TheoremApprovalCard: FC<{
             : undefined
         }
         alwaysAllowLabel={allowAlways?.name ?? 'Always allow'}
-        onDeny={
-          !offered
-            ? () => decide({ decision: 'deny' }, false)
-            : reject
-              ? () => decide({ optionId: reject.optionId }, false)
-              : undefined
-        }
+        onDeny={deny && (() => decide(deny, false))}
         denyLabel={reject?.name ?? 'Deny'}
       />
       {error && (
@@ -400,16 +465,51 @@ const TheoremApprovalCard: FC<{
   )
 }
 
-/** ToolFallback slot: artifact tools, Theorem approvals, then the generic tool card. */
-export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
-  if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
-  const approval = readApproval(props.interrupt)
-  if (approval && props.result === undefined)
-    return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
-  return <ToolFallback {...props} />
+/** A small bordered tag in the conversation: a source, a file. */
+const CHIP =
+  'inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted'
+
+/**
+ * The file a tool worked on, which opens in the IDE as its own tab with the
+ * lines it touched selected; from chat it takes the person to the IDE.
+ */
+function OpenInIde({ open }: { open: Open }) {
+  const reveal = useRevealFile()
+  const name = open.path.split('/').pop() || open.path
+  const lines =
+    open.start === undefined
+      ? ''
+      : open.end !== undefined && open.end !== open.start
+        ? `:${open.start}–${open.end}`
+        : `:${open.start}`
+  return (
+    <button
+      type="button"
+      title={`Open ${open.path} in the IDE`}
+      onClick={() => reveal(open.path, open.start, open.end)}
+      className={cn(CHIP, 'min-w-0 py-0.5 hover:bg-hover hover:text-ink')}
+    >
+      <Icon.File className="size-3 shrink-0" />
+      <span className="truncate font-mono">
+        {name}
+        {lines}
+      </span>
+    </button>
+  )
 }
 
-/* ------------------------------------------------------------ progress strip */
+/** ToolFallback slot: artifact tools, plans, Theorem approvals, then the generic tool card. */
+export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
+  if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
+  if (props.toolName === DRAFT_PLAN) return <PlanToolCall {...props} />
+  const approval = readApproval(props)
+  if (approval && props.result === undefined)
+    return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
+  const open = openOf(pathOf(props.args), props.args, props.result)
+  return <ToolFallback {...props} aside={open && <OpenInIde open={open} />} />
+}
+
+/* ---------------------------------------------------------------- activity */
 
 const LIVE_STATUSES = new Set([
   'running',
@@ -437,85 +537,205 @@ function progressLabels(
   })
 }
 
-/**
- * Theorem publishes answer text at turn end, so a running turn needs a visible
- * state: the latest progress label, or "Thinking", beside a thinking orb.
- */
-export const RunningIndicator: FC = () => {
-  const running = useAuiState((s) => s.message.status?.type === 'running')
-  const awaiting = useAuiState((s) =>
-    s.message.content.some(
-      (part) =>
-        part.type === 'tool-call' &&
-        part.result === undefined &&
-        readApproval(part.interrupt)?.approved === undefined &&
-        readApproval(part.interrupt) !== undefined,
-    ),
-  )
-  const label = useAuiState((s) => {
-    const last = s.message.content.findLast(
-      (part) => part.type === 'data' && part.name === 'theorem-progress',
-    )
-    const data = last?.type === 'data' ? object(last.data) : {}
-    return LIVE_STATUSES.has(str(data.status) ?? '')
-      ? str(data.label)
-      : undefined
-  })
-  if (!running) return null
-  return (
-    <ThinkingIndicator
-      className="my-2"
-      label={awaiting ? 'Waiting for your approval' : (label ?? 'Thinking')}
-      orb={awaiting ? 'breathing' : 'working'}
-    />
-  )
+/** How long the person waited for this reply: from their message to its arrival. */
+const waitedSeconds = (s: AssistantState) => {
+  const { messages } = s.thread
+  const at = messages.findIndex((message) => message.id === s.message.id)
+  const asked = messages
+    .slice(0, Math.max(at, 0))
+    .findLast((message) => message.role === 'user')
+  const replied = messages[at]
+  if (!asked || !replied) return undefined
+  // A live reply is stamped when its run begins; its timing says when it settled.
+  const timing =
+    replied.role === 'assistant' ? replied.metadata.timing : undefined
+  const settled =
+    timing?.totalStreamTime === undefined
+      ? replied.createdAt.getTime()
+      : timing.streamStartTime + timing.totalStreamTime
+  return Math.round((settled - asked.createdAt.getTime()) / 1000)
 }
 
-/** One strip per message summarizing the run's progress steps, shown once the turn settles. */
-const ProgressPart: DataMessagePartComponent = ({ data }) => {
-  const settled = useAuiState((s) => s.message.status?.type !== 'running')
+const spokenSeconds = (seconds: number) =>
+  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+
+const ACTIVITY_CONTROL =
+  '-mx-1 cursor-pointer rounded-sm px-1 outline-offset-2 outline-focus transition-colors duration-(--duration-snap) ease-snap hover:bg-hover hover:text-ink focus-visible:outline-2 data-panel-open:bg-hover data-panel-open:text-ink'
+
+/**
+ * What the agent is doing, then what it did, as one unboxed line by its name:
+ * the live step while it works ("Theorem · Checking the examples"), and once
+ * it settles how long the reply took and a Details control ("Theorem · 42s ·
+ * Details"). Theorem publishes answer text at turn end, so the live step is
+ * the running turn's visible state. Either opens the steps, the reasoning and
+ * the tool calls on a small sheet of paper; until then the work takes no room
+ * of its own. A run that stopped or did not finish says so on the line, and an
+ * approval still to give keeps its card in the reply.
+ */
+export const Activity: FC<{
+  /** Whose line this is. A specialist's run in a delegation panel has no name to sit by. */
+  speaker?: string | undefined
+  /** The reply's reasoning and tool calls as the thread draws them, when it has any. */
+  work?: ReactNode
+}> = ({ speaker, work }) => {
+  const running = useAuiState((s) => s.message.status?.type === 'running')
+  const awaiting = useAuiState((s) =>
+    s.message.content.some((part) => {
+      if (part.type !== 'tool-call' || part.result !== undefined) return false
+      const approval = readApproval(part)
+      return approval !== undefined && approvalOutcome(approval) === 'awaiting'
+    }),
+  )
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
   const labels = useMemo(() => progressLabels(content), [content])
-  const isLast = useAuiState((s) => {
-    const last = s.message.content.findLast(
+  const progress = useMemo(() => {
+    const last = content.findLast(
       (part) => part.type === 'data' && part.name === 'theorem-progress',
     )
-    return last?.type === 'data' && last.data === data
-  })
+    return last?.type === 'data' ? object(last.data) : {}
+  }, [content])
+  const status = str(progress.status)
   // Labels are what the run was doing while live ("Working"), even on the
-  // step that completes, so the strip names the outcome from the statuses: the
+  // step that completes, so the line names the outcome from the statuses: the
   // message's, then the last step's.
   const outcome = useAuiState((s) =>
-    s.message.status?.type !== 'incomplete'
-      ? undefined
-      : s.message.status.reason === 'cancelled'
-        ? 'Stopped'
-        : 'Did not finish',
+    s.message.status?.type === 'complete'
+      ? 'Done'
+      : s.message.status?.type === 'incomplete'
+        ? s.message.status.reason === 'cancelled'
+          ? 'Stopped'
+          : 'Did not finish'
+        : undefined,
   )
-  const finished = DONE_STATUSES.has(str(object(data).status) ?? 'complete')
-  if (!settled || !isLast || labels.length === 0) return null
-  const result = outcome ?? (finished ? 'Done' : 'Did not finish')
-  const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
+  const seconds = useAuiState(waitedSeconds)
+  const [open, setOpen] = useState(false)
+  // The tool calls folded away here, as one string so the selector hands back
+  // the same value until one of them changes.
+  const folded = useAuiState((s) =>
+    s.message.parts
+      .flatMap((part) =>
+        part.type === 'tool-call' && !isStandaloneToolCall(part)
+          ? [
+              [
+                part.toolCallId,
+                part.toolName,
+                toolState(part.status, part.isError) ?? '',
+              ].join('\t'),
+            ]
+          : [],
+      )
+      .join('\n'),
+  )
+
+  const steps = labels.length > 1
+  const openable = steps || Boolean(work)
+  const notes: ReactNode[] = []
+  if (running) {
+    const doing = (
+      <ThinkingIndicator
+        label={
+          awaiting
+            ? 'Waiting for your approval'
+            : ((LIVE_STATUSES.has(status ?? '')
+                ? str(progress.label)
+                : undefined) ?? 'Thinking')
+        }
+        orb={awaiting ? 'breathing' : 'working'}
+      />
+    )
+    notes.push(
+      openable ? (
+        <CollapsibleTrigger
+          nativeButton={false}
+          render={doing}
+          className={ACTIVITY_CONTROL}
+        />
+      ) : (
+        doing
+      ),
+    )
+  } else if (labels.length > 0 || work) {
+    const result =
+      outcome ??
+      (DONE_STATUSES.has(status ?? 'complete') ? 'Done' : 'Did not finish')
+    if (result !== 'Done') notes.push(result)
+    if (seconds)
+      notes.push(<span className="tabular-nums">{spokenSeconds(seconds)}</span>)
+    if (openable)
+      notes.push(
+        <CollapsibleTrigger className={ACTIVITY_CONTROL}>
+          Details
+        </CollapsibleTrigger>,
+      )
+  }
+  if (!speaker && notes.length === 0) return null
+
   return (
-    <CollapsibleRoot className="my-1 text-sm text-ink-faint">
-      <CollapsibleTrigger className="flex items-center gap-1.5 py-1 hover:text-ink">
-        <StatusIcon className="size-3.5" />
-        {labels.length > 1
-          ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
-          : result}
-      </CollapsibleTrigger>
-      {labels.length > 1 && (
-        <CollapsibleContent>
-          <ol className="ms-5 list-decimal py-1 text-sm leading-6">
-            {labels.map((label, index) => (
-              <li key={index}>{label}</li>
-            ))}
-          </ol>
-        </CollapsibleContent>
+    <Collapsible
+      data-slot="activity"
+      // Theo points here for a tool call that is folded away inside.
+      data-face-holder=""
+      className="mb-1.5"
+      open={open}
+      onOpenChange={setOpen}
+    >
+      {!open && folded !== '' && (
+        // Closed, the calls are not drawn: these stand for them by name.
+        <span hidden>
+          {folded.split('\n').map((call) => {
+            const [id = '', name = '', state] = call.split('\t')
+            return (
+              <span
+                key={id}
+                {...thingProps('tool', id, { label: humanize(name), state })}
+              />
+            )
+          })}
+        </span>
       )}
-    </CollapsibleRoot>
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2 px-2">
+        {speaker && <span className="font-medium text-ink">{speaker}</span>}
+        {notes.length > 0 && (
+          <span
+            data-slot="activity-line"
+            className="flex min-w-0 items-center gap-x-2 text-sm text-ink-muted"
+          >
+            {notes.map((note, index) => (
+              <Fragment key={index}>
+                {(speaker || index > 0) && (
+                  <span aria-hidden className="text-ink-faint">
+                    ·
+                  </span>
+                )}
+                {note}
+              </Fragment>
+            ))}
+          </span>
+        )}
+      </div>
+      {openable && (
+        <CollapsiblePanel>
+          {/* Room for the sheet's shadow inside the panel's clip. */}
+          <div className="px-2 pt-2 pb-3">
+            <div
+              data-slot="activity-details"
+              className="surface-paper-subtle rounded-xl px-3 py-2 text-sm"
+            >
+              {steps && (
+                <ol className="ms-5 list-decimal py-1 leading-6 text-ink-muted">
+                  {labels.map((label, index) => (
+                    <li key={index}>{label}</li>
+                  ))}
+                </ol>
+              )}
+              {work}
+            </div>
+          </div>
+        </CollapsiblePanel>
+      )}
+    </Collapsible>
   )
 }
 
@@ -526,7 +746,7 @@ const ReasoningSummaryPart: DataMessagePartComponent = ({ data }) => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   if (!text) return null
   return (
-    <ReasoningRoot streaming={running}>
+    <ReasoningRoot streaming={running} variant="ghost" className="mb-1">
       <ReasoningTrigger active={running} />
       <ReasoningContent>
         <ReasoningText>
@@ -537,14 +757,32 @@ const ReasoningSummaryPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/** External evidence links must name an absolute web URL; never infer a destination. */
+function citationUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Sources a web search or page read retrieved. Each result arrived as its own
+ * citation and drew a tag, eight to a search, crowding the answer; the answer
+ * links what it uses and the tool call keeps every result, so these draw none.
+ */
+const RETRIEVED_SOURCES = new Set<unknown>(['web_search', 'web_read'])
+
 const CitationPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
+  if (RETRIEVED_SOURCES.has(part.sourceKind)) return null
   const provenance = object(part.provenance)
-  const label = str(part.label) ?? str(part.sourceId) ?? 'Source'
-  const url = str(provenance.url)
-  const excerpt = str(provenance.excerpt)
-  const chip =
-    'me-1.5 mt-2 inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs text-ink-muted'
+  const url = citationUrl(provenance.url)
+  const label = str(part.label) ?? (url && new URL(url).hostname) ?? 'Source'
+  const title = str(provenance.excerpt) ?? url
+  const chip = cn(CHIP, 'me-1.5 mt-2 align-top')
   const content = (
     <>
       <Icon.Link className="size-3 shrink-0" />
@@ -556,13 +794,13 @@ const CitationPart: DataMessagePartComponent = ({ data }) => {
       href={url}
       target="_blank"
       rel="noreferrer"
-      title={excerpt ?? url}
+      title={title}
       className={cn(chip, 'hover:text-ink')}
     >
       {content}
     </a>
   ) : (
-    <span title={excerpt} className={chip}>
+    <span title={title} className={chip}>
       {content}
     </span>
   )
@@ -575,41 +813,130 @@ const ErrorPart: DataMessagePartComponent = ({ data }) => {
       role="alert"
       className="my-3 max-w-md rounded-lg bg-error-container px-4 py-3 text-sm text-error-ink"
     >
-      <p className="font-medium">
-        {describeRunFailure(part)}
-      </p>
-      <p className="mt-0.5 font-mono text-xs opacity-80">
-        {str(part.code) ?? 'error'}
-      </p>
+      <p className="font-medium">{describeRunFailure(part)}</p>
     </div>
   )
 }
 
+/** Upload states worth a word; a ready attachment needs none. */
+const ATTACHMENT_STATES: Partial<Record<string, string>> = {
+  pending: 'uploading',
+  uploading: 'uploading',
+  failed: 'failed',
+  refused: 'refused',
+}
+
 const AttachmentPart: DataMessagePartComponent = ({ data }) => {
   const part = object(data)
+  const uploadId = str(part.uploadId)
+  if (uploadId && str(part.mediaType)?.startsWith('image/'))
+    return (
+      <NoteImage
+        src={uploadContentPath(uploadId)}
+        alt={str(part.name) ?? 'Attachment'}
+        className="me-1.5 mt-2 inline-block max-h-40 rounded-md border border-separator"
+      />
+    )
   return (
     <span className="me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted">
       <Icon.Attachment className="size-3" />
       {str(part.name) ?? 'Attachment'}
-      {str(part.state) &&
-        str(part.state) !== 'ready' &&
-        ` · ${str(part.state)}`}
+      {ATTACHMENT_STATES[str(part.state) ?? 'ready'] &&
+        ` · ${ATTACHMENT_STATES[str(part.state) ?? 'ready']}`}
     </span>
+  )
+}
+
+/** Where a run did not take what the person sent while it worked. */
+const INPUT_REFUSALS: Record<string, string> = {
+  run_ended: 'the run ended first',
+  run_cancelled: 'the run was stopped',
+  run_input_unsupported: 'this run takes no input',
+  answer_final: 'its answer was already final',
+  report_captured: 'its answer was already final',
+}
+
+/**
+ * What the person sent while the run worked, drawn where the run took it in;
+ * dim with its state until it did.
+ */
+const UserInputPart: DataMessagePartComponent = ({ data }) => {
+  const part = object(data)
+  const text = str(part.text)
+  if (!text) return null
+  const status = str(part.status)
+  const reason = str(part.reason)
+  const note =
+    status === 'delivered'
+      ? undefined
+      : status === 'not_delivered'
+        ? `not delivered${reason && INPUT_REFUSALS[reason] ? `: ${INPUT_REFUSALS[reason]}` : ''}`
+        : 'queued for its next step'
+  return (
+    <p
+      data-slot="theorem-user-input"
+      data-status={status}
+      className={`my-2 border-s-2 border-separator ps-3 text-sm whitespace-pre-wrap ${status === 'delivered' ? 'text-ink' : 'text-ink-muted'}`}
+    >
+      {text}
+      {note && <span className="ms-2 text-xs text-ink-faint">· {note}</span>}
+    </p>
+  )
+}
+
+/* --------------------------------------------------------------------- scenes */
+
+/**
+ * A reply's interactive scene (scene-part.tsx), drawn above its text. Fix
+ * sends the failure to the agent as the next turn; a pick becomes a
+ * reference to this reply, with what was picked as its excerpt.
+ */
+const ScenePart: DataMessagePartComponent = ({ data }) => {
+  const aui = useAui()
+  const theme = useSceneTheme()
+  const threadId = useAuiState((s) => s.threadListItem.remoteId)
+  const messageId = useAuiState((s) => s.message.id)
+  const scene = readScene(data)
+  if (!scene) return <PartNotice name={SCENE_PART} />
+  return (
+    <SceneCard
+      scene={scene}
+      theme={theme}
+      onRepair={(error) => aui.thread.append(repairRequest(scene.title, error))}
+      onAsk={
+        threadId
+          ? (entity) =>
+              askAbout({
+                label: `${scene.title ?? 'Scene'}: ${entity.label ?? entity.id}`,
+                excerpt: JSON.stringify({
+                  scene: { sceneId: scene.sceneId, title: scene.title },
+                  entity,
+                }),
+                location: {
+                  resource: { kind: 'message', threadId, messageId },
+                },
+              })
+          : undefined
+      }
+    />
   )
 }
 
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
-/** Named placeholder for a part this client cannot draw. */
-const PartNotice: FC<{ name: string; note: string }> = ({ name, note }) => (
-  <p className="my-2 inline-flex items-center gap-1.5 rounded-md border border-dashed border-separator px-2 py-1 font-mono text-xs text-ink-faint">
-    {name.replace(/^theorem-/, '')} part · {note}
+/** Placeholder for a part this client cannot draw; the part's name stays in the DOM for debugging. */
+const PartNotice: FC<{ name: string }> = ({ name }) => (
+  <p
+    data-part={name}
+    className="my-2 inline-flex items-center gap-1.5 rounded-md border border-dashed border-separator px-2 py-1 text-xs text-ink-faint"
+  >
+    This content can't be shown here.
   </p>
 )
 
 const FallbackPart: DataMessagePartComponent = ({ name }) => (
-  <PartNotice name={name} note="not rendered by Theorem UI yet" />
+  <PartNotice name={name} />
 )
 
 /** Keeps a part that throws inside its own slot instead of unmounting the chat. */
@@ -617,9 +944,7 @@ function guarded(
   name: string,
   Render: DataMessagePartComponent,
 ): DataMessagePartComponent {
-  const errorComponent = () => (
-    <PartNotice name={name} note="could not be rendered" />
-  )
+  const errorComponent = () => <PartNotice name={name} />
   return (props) => (
     <CatchBoundary
       getResetKey={() => props.data}
@@ -630,15 +955,26 @@ function guarded(
   )
 }
 
+/** The answer's message carries which review it answered, so its card can reopen it. */
+const ReviewAnswerPart: DataMessagePartComponent = ({ data }) => {
+  const reviewId = str(object(data).reviewId)
+  return reviewId ? <ReviewAnswerCard reviewId={reviewId} /> : null
+}
+
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
-    ['theorem-progress', ProgressPart],
+    [SCENE_PART, ScenePart],
+    ['theorem-review_answer', ReviewAnswerPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
     ['theorem-error', ErrorPart],
     ['theorem-attachment', AttachmentPart],
     ['theorem-host_call', HostCallPart],
+    ['theorem-user_input', UserInputPart],
+    // A run's completion: why it stopped, and the way back up when a limit stopped it.
+    ['theorem-completion', CompletionFooter],
+    ...DELEGATION_RENDERERS,
   ] satisfies Array<[string, DataMessagePartComponent]>
 )
   .map(([name, render]): [string, DataMessagePartComponent] => [
@@ -646,12 +982,16 @@ const RENDERERS = (
     guarded(name, render),
   ])
   .concat([
+    // The run's steps are drawn once per message by Activity.
+    ['theorem-progress', Inert],
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],
-    // The native agent's program: what it does shows up as its host calls
-    // and their artifacts, and its stored source is not the full program.
-    ['theorem-program', Inert],
+    // The page's client operations: a check of an App shows as a chip.
+    ['theorem-client_operation', ClientOperationPart],
+    // A TypeScript program the agent wrote is shown as one, closed, with its
+    // source inside. What it did shows up as its calls and their artifacts.
+    ['theorem-program', ProgramPart],
   ])
 
 function DataRenderer({

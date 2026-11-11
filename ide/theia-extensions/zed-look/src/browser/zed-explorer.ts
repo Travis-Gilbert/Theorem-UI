@@ -6,12 +6,13 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { FrontendApplicationContribution, ViewContainer, WidgetManager } from '@theia/core/lib/browser';
+import { ApplicationShell, FrontendApplicationContribution, ViewContainer, WidgetManager } from '@theia/core/lib/browser';
 import { MenuContribution, MenuModelRegistry, nls } from '@theia/core/lib/common';
 import { FileNavigatorCommands, NavigatorContextMenu, NAVIGATOR_CONTEXT_MENU } from '@theia/navigator/lib/browser/navigator-contribution';
 import { EXPLORER_VIEW_CONTAINER_ID } from '@theia/navigator/lib/browser/navigator-widget-factory';
 import { OpenEditorsWidget } from '@theia/navigator/lib/browser/open-editors-widget/navigator-open-editors-widget';
 import { TimelineWidget } from '@theia/timeline/lib/browser/timeline-widget';
+import { EMBEDDED } from './zed-embedded';
 
 const VIEWS_SUBMENU = [...NAVIGATOR_CONTEXT_MENU, '8_views'];
 
@@ -24,6 +25,8 @@ const VIEWS_SUBMENU = [...NAVIGATOR_CONTEXT_MENU, '8_views'];
  *
  * The title row's actions move to the tree's context menu, which already has New File, New Folder and
  * Collapse All: Refresh Explorer, and a Views submenu linking the container's own view toggles.
+ *
+ * Embedded, the page's sidebar has the files, so the side panel starts closed.
  */
 @injectable()
 export class ZedExplorer implements FrontendApplicationContribution, MenuContribution {
@@ -33,6 +36,9 @@ export class ZedExplorer implements FrontendApplicationContribution, MenuContrib
 
     @inject(MenuModelRegistry)
     protected readonly menus: MenuModelRegistry;
+
+    @inject(ApplicationShell)
+    protected readonly shell: ApplicationShell;
 
     initialize(): void {
         this.widgetManager.onDidCreateWidget(({ widget }) => {
@@ -52,6 +58,12 @@ export class ZedExplorer implements FrontendApplicationContribution, MenuContrib
                 widget.disposed.connect(() => link.dispose());
             }
         });
+    }
+
+    onDidInitializeLayout(): void {
+        if (EMBEDDED) {
+            void this.shell.collapsePanel('left');
+        }
     }
 
     registerMenus(menus: MenuModelRegistry): void {

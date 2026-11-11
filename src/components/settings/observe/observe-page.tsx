@@ -1,4 +1,4 @@
-// SOURCING: @tanstack/react-query via lib/theorem/observe (the node's overview, read again every few seconds), @tanstack/react-table v9 (the recent turns' columns and sorting), the settings page primitives. References studied on Mobbin for anatomy only: Snowflake's summary figures above a filtered table, OpenAI Platform's trace log rows.
+// SOURCING: @tanstack/react-query via lib/theorem/observe (the node's overview, read again every few seconds), @tanstack/react-table v9 (the recent turns' columns and sorting), the settings frame (SettingsPage, SettingsSection, SettingsBox). References studied on Mobbin for anatomy only: Snowflake's summary figures above a filtered table, OpenAI Platform's trace log rows.
 import {
   createSortedRowModel,
   rowSortingFeature,
@@ -21,15 +21,9 @@ import type {
   ObservedRun,
 } from '@/lib/theorem/observe'
 import { cn } from '@/lib/utils'
-import {
-  EmptyRow,
-  Row,
-  RowGroup,
-  Section,
-  SettingsPage,
-  State,
-} from '../settings-page'
-import type { Tone } from '../settings-page'
+import { SettingsBox, SettingsPage, SettingsSection } from '../settings-frame'
+import { Count, EmptyRow, Row, State } from './rows'
+import type { Tone } from './rows'
 import {
   Freshness,
   Outcome,
@@ -41,17 +35,13 @@ import {
   th,
 } from './parts'
 
-const TRAIL = [{ label: 'Workspace' }, { label: 'Observe' }]
-
 export function ObservePage() {
   const { data, error, isFetching, refetch } = useObserveOverview()
   return (
     <SettingsPage
-      wide
-      trail={TRAIL}
       title="Observe"
       description="What this node saw of your turns: what is running and what it waits for, how recent turns went, and what the node cannot tell you."
-      actions={
+      action={
         <Freshness
           readAtMs={data?.generatedAtMs}
           reading={isFetching}
@@ -98,8 +88,8 @@ function NodeSection({ data }: { data: ObserveOverview }) {
     .join(' · ')
   const builtAt = Number(node.builtAtUnix) * 1_000
   return (
-    <Section title="Node">
-      <RowGroup>
+    <SettingsSection title="Node">
+      <SettingsBox>
         <Row label="Serving">
           {node.status === 'ready' ? (
             <State tone="ok">Ready</State>
@@ -127,8 +117,8 @@ function NodeSection({ data }: { data: ObserveOverview }) {
             process started
           </span>
         </Row>
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -152,7 +142,7 @@ function alertState(alert: ObserveAlert): ReactNode {
     case 'insufficient_data':
       return (
         <State tone="quiet" hollow>
-          Too few turns to judge
+          Too little to judge
         </State>
       )
     case 'unavailable':
@@ -170,12 +160,12 @@ function AlertsSection({ alerts }: { alerts: Array<ObserveAlert> }) {
     (a, b) => ALERT_ORDER[a.state] - ALERT_ORDER[b.state],
   )
   return (
-    <Section
+    <SettingsSection
       title="Alerts"
       description="Each rule is judged when this page reads it. Nothing is sent anywhere when one fires."
-      aside={firing ? `${firing} firing` : 'None firing'}
+      action={<Count>{firing ? `${firing} firing` : 'None firing'}</Count>}
     >
-      <RowGroup>
+      <SettingsBox>
         {ordered.map((alert) => (
           <div key={alert.id} className="px-3 py-2 text-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-0.5">
@@ -196,8 +186,8 @@ function AlertsSection({ alerts }: { alerts: Array<ObserveAlert> }) {
             )}
           </div>
         ))}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -227,7 +217,7 @@ function TurnsSection({ data }: { data: ObserveOverview }) {
       ? `95th percentile ${formatSpan(q.p95Ms)} · ${q.sample} ${q.sample === 1 ? 'turn' : 'turns'}`
       : `No turn ended in the last ${window}`
   return (
-    <Section
+    <SettingsSection
       title="Your turns"
       description={`Figures for turns that ended in the last ${window}. A turn runs from the moment the node admits it to the event that ends it, whether or not a page is still listening.`}
     >
@@ -255,7 +245,7 @@ function TurnsSection({ data }: { data: ObserveOverview }) {
           {spread(turns.duration)}
         </Figure>
       </div>
-    </Section>
+    </SettingsSection>
   )
 }
 
@@ -274,12 +264,12 @@ function RunningSection({
   now: number
 }) {
   return (
-    <Section
+    <SettingsSection
       title="Running now"
       description="What each turn in progress is waiting for, as the code that owns the wait reports it."
-      aside={runs.length ? String(runs.length) : undefined}
+      action={runs.length ? <Count>{runs.length}</Count> : undefined}
     >
-      <RowGroup>
+      <SettingsBox>
         {runs.length === 0 ? (
           <EmptyRow>Nothing of yours is running.</EmptyRow>
         ) : (
@@ -329,8 +319,8 @@ function RunningSection({
             </table>
           </div>
         )}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -422,12 +412,12 @@ function RecentSection({
 }) {
   const table = useTable({ features, columns: RECENT, data: runs })
   return (
-    <Section
+    <SettingsSection
       title="Recent turns"
       description="Turns of yours that have ended, newest first. Open one to see where its time went."
-      aside={runs.length ? String(runs.length) : undefined}
+      action={runs.length ? <Count>{runs.length}</Count> : undefined}
     >
-      <RowGroup>
+      <SettingsBox>
         {runs.length === 0 ? (
           <EmptyRow>
             No turn of yours has ended since this process started at{' '}
@@ -505,8 +495,8 @@ function RecentSection({
             </table>
           </div>
         )}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -517,11 +507,11 @@ function TotalsSection({
 }) {
   const ended = totals.completed + totals.failed + totals.cancelled
   return (
-    <Section
+    <SettingsSection
       title="Whole node"
       description="Counts for every turn this process admitted, whoever started it. You see them because you hold operator access; no other identity's turns are listed."
     >
-      <RowGroup>
+      <SettingsBox>
         <Row label="Turns admitted">
           <span className="tabular-nums">{totals.admitted}</span>
         </Row>
@@ -549,8 +539,8 @@ function TotalsSection({
             </span>
           </span>
         </Row>
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
@@ -580,11 +570,11 @@ function SignalsSection({
   telemetry: ObserveOverview['telemetry']
 }) {
   return (
-    <Section
+    <SettingsSection
       title="Signals"
       description="Which kinds of evidence this node keeps, and which it does not."
     >
-      <RowGroup>
+      <SettingsBox>
         {SIGNALS.flatMap(({ key, label }) => {
           const signal = telemetry[key]
           if (!signal) return []
@@ -602,18 +592,18 @@ function SignalsSection({
             </Row>
           )
         })}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }
 
 function LimitsSection({ limits }: { limits: ObserveOverview['limits'] }) {
   return (
-    <Section
+    <SettingsSection
       title="What this page cannot tell you"
       description="An empty list here means nothing was seen within these limits, not that nothing happened."
     >
-      <RowGroup>
+      <SettingsBox>
         <Row label="Kept in memory">
           <span className="tabular-nums">
             {limits.retained} of {limits.capacity} turns
@@ -644,7 +634,7 @@ function LimitsSection({ limits }: { limits: ObserveOverview['limits'] }) {
             {note}
           </p>
         ))}
-      </RowGroup>
-    </Section>
+      </SettingsBox>
+    </SettingsSection>
   )
 }

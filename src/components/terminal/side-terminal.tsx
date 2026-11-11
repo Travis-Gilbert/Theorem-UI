@@ -1,5 +1,6 @@
 // SOURCING: Base UI Drawer (swipeDirection right) is the right-hand drawer; anime.js createDraggable drags its edge (1:1 tracking, resistance past the width range, spring back on release) and Base UI useMediaQuery keeps that to desktop; the tabbed terminal and each tab's agent are terminal-screen's (Ratzilla with ratatui Tabs over assistant-ui runtimes); zustand shell state keeps the tabs per project
 import { Drawer } from '@base-ui/react/drawer'
+import type { TheoremContextReference } from '@theoremharness/sdk'
 import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
 import { createDraggable } from 'animejs'
 import { useEffect, useRef } from 'react'
@@ -9,10 +10,11 @@ import { useShell } from '@/components/shell/shell-state'
 import {
   TerminalAgent,
   TerminalScreen,
+  addReference,
   restartSession,
-  runSessionAction,
   stopSession,
   useCloseOnOutsideDoubleClick,
+  useSessionAction,
 } from './terminal-screen'
 import type { TerminalAction } from './terminal-screen'
 
@@ -66,35 +68,29 @@ function WidthHandle({ popup }: { popup: RefObject<HTMLDivElement | null> }) {
 }
 
 /**
- * The right-hand drawer, a terminal with tabs: each tab its own agent thread,
- * all running while the drawer is closed. A project's first open starts it
- * with one tab.
+ * The active project's terminal tabs, each its own agent thread, and what
+ * their actions do. The right drawer and the IDE's docked terminal show the
+ * same tabs. A project shown with none starts with one.
  */
-export function SideTerminal() {
-  const open = useShell((s) => s.sideDrawer === 'terminal')
-  const setSideDrawer = useShell((s) => s.setSideDrawer)
-  const width = useShell((s) => s.sideWidth)
-  const desktop = useMediaQuery('(min-width: 768px)', { noSsr: true })
-  const popup = useRef<HTMLDivElement>(null)
+export function useTerminalTabs(shown: boolean, close: () => void) {
   const { project } = useActiveProject()
   const projectId = project?.projectId
   const entry = useShell((s) =>
     projectId ? s.terminalTabs[projectId] : undefined,
   )
-  const tabs = entry?.tabs ?? []
-  useCloseOnOutsideDoubleClick(open, () => setSideDrawer(undefined))
+  const runAction = useSessionAction()
 
   useEffect(() => {
-    if (open && projectId && !entry?.tabs.length)
+    if (shown && projectId && !entry?.tabs.length)
       useShell.getState().openTerminalTab(projectId)
-  }, [open, projectId, entry])
+  }, [shown, projectId, entry])
 
   const onAction = (action: TerminalAction) => {
-    if (runSessionAction(action) || !projectId) return
+    if (runAction(action) || !projectId) return
     const shell = useShell.getState()
     switch (action.type) {
       case 'close':
-        shell.setSideDrawer(undefined)
+        close()
         return
       case 'new':
         restartSession(action.tab, projectId, action.tab)
@@ -111,6 +107,44 @@ export function SideTerminal() {
         return
     }
   }
+  return {
+    project,
+    tabs: entry?.tabs ?? [],
+    active: entry?.active ?? '',
+    onAction,
+  }
+}
+
+/**
+ * Opens the right-hand terminal with `reference` on its active tab's next
+ * turn, starting a tab when the project has none.
+ */
+export function attachToSideTerminal(
+  projectId: string,
+  reference: TheoremContextReference,
+) {
+  const shell = useShell.getState()
+  if (!shell.terminalTabs[projectId]?.tabs.length)
+    shell.openTerminalTab(projectId)
+  const tab = useShell.getState().terminalTabs[projectId]?.active
+  if (tab) addReference(tab, reference)
+  shell.setSideDrawer('terminal')
+}
+
+/**
+ * The right-hand drawer, a terminal with tabs: each tab its own agent thread,
+ * all running while the drawer is closed.
+ */
+export function SideTerminal() {
+  const open = useShell((s) => s.sideDrawer === 'terminal')
+  const setSideDrawer = useShell((s) => s.setSideDrawer)
+  const width = useShell((s) => s.sideWidth)
+  const desktop = useMediaQuery('(min-width: 768px)', { noSsr: true })
+  const popup = useRef<HTMLDivElement>(null)
+  const { project, tabs, active, onAction } = useTerminalTabs(open, () =>
+    setSideDrawer(undefined),
+  )
+  useCloseOnOutsideDoubleClick(open, () => setSideDrawer(undefined))
 
   return (
     <>
@@ -156,7 +190,7 @@ export function SideTerminal() {
                   hostId={HOST_ID}
                   tabbed
                   tabs={tabs}
-                  active={entry?.active ?? ''}
+                  active={active}
                   onAction={onAction}
                 />
               </div>

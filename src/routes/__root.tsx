@@ -1,3 +1,5 @@
+import '@/lib/openui-devtools-off'
+
 import {
   HeadContent,
   Link,
@@ -9,6 +11,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
+import { SignInReturn } from '@/components/connections/sign-in-return'
 import { MotionRoot } from '@/components/motion'
 import { getDesktopHost, isDesktopDocument } from '@/lib/desktop/host'
 import { reportUnsaved } from '@/lib/desktop/unsaved'
@@ -46,7 +49,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function NotFound() {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-background text-center">
-      <p className="font-heading text-[20px] font-normal tracking-tight">
+      <p className="font-heading text-[20px] font-medium">
         Nothing here
       </p>
       <Link to="/" className="text-sm text-link underline underline-offset-2">
@@ -61,6 +64,15 @@ function RootDocument({ children }: { children: ReactNode }) {
   useEffect(() => {
     const host = getDesktopHost()
     return host ? reportUnsaved(host) : undefined
+  }, [])
+  // The terminal surfaces follow colours a person sets on the root; each
+  // built-in palette's own are already in palettes.css for the first paint.
+  useEffect(() => {
+    void import('@/components/terminal/live-terminal-theme')
+  }, [])
+  // The paper surfaces' grain, baked once and shared (lib/paper-texture.ts).
+  useEffect(() => {
+    void import('@/lib/paper-texture').then(({ applyPaperTexture }) => applyPaperTexture())
   }, [])
   return (
     // next-themes sets the .dark class and paletteScript sets data-palette before paint, so the server markup differs by design.
@@ -83,6 +95,8 @@ function RootDocument({ children }: { children: ReactNode }) {
           disableTransitionOnChange
         >
           <MotionRoot />
+          {/* A sign-in the person was sent back from is finished on whatever page they return to. */}
+          <SignInReturn />
           {children}
         </ThemeProvider>
         <Scripts />

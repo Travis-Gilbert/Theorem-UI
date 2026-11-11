@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 
 export type UseCopyToClipboardOptions = {
   copiedDuration?: number;
+  onError?: (error: unknown) => void;
 };
 
 export const useCopyToClipboard = ({
   copiedDuration = 3000,
+  onError,
 }: UseCopyToClipboardOptions = {}) => {
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -18,8 +20,6 @@ export const useCopyToClipboard = ({
   useEffect(
     () => () => {
       scopeGenerationRef.current += 1;
-      if (copiedTimerRef.current === undefined) return;
-
       clearTimeout(copiedTimerRef.current);
       copiedTimerRef.current = undefined;
       setIsCopied(false);
@@ -27,28 +27,42 @@ export const useCopyToClipboard = ({
     [],
   );
 
-  const copyToClipboard = (value: string) => {
+  const resetCopied = () => {
+    clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = undefined;
+    setIsCopied(false);
+  };
+
+  const copyToClipboard = async (value: string) => {
+    resetCopied();
     if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
+      onError?.(
+        new Error(
+          value
+            ? "Clipboard access is unavailable in this browser."
+            : "There is no content to copy.",
+        ),
+      );
       return;
     }
 
     const scopeGeneration = scopeGenerationRef.current;
-    navigator.clipboard.writeText(value).then(
+    await navigator.clipboard.writeText(value).then(
       () => {
         if (scopeGeneration !== scopeGenerationRef.current) return;
 
-        if (copiedTimerRef.current !== undefined) {
-          clearTimeout(copiedTimerRef.current);
-        }
+        clearTimeout(copiedTimerRef.current);
         setIsCopied(true);
         copiedTimerRef.current = setTimeout(() => {
           copiedTimerRef.current = undefined;
           setIsCopied(false);
         }, copiedDuration);
       },
-      () => {},
+      (error: unknown) => {
+        onError?.(error);
+      },
     );
   };
 
-  return { isCopied, copyToClipboard };
+  return { isCopied, copyToClipboard, resetCopied };
 };

@@ -1,19 +1,34 @@
-// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams)
+// SOURCING: react-markdown + remark-gfm + @tailwindcss/typography (documents), the installed react-shiki SyntaxHighlighter (code), the installed beautiful-mermaid MermaidDiagram (diagrams), notebook-artifact (Observable and marimo notebooks in the hosted frame), OpenUI's Renderer over theorem-artifacts (openui/renderer)
 //
-// Renderers are chosen by the part's rendererId. Anything without a renderer
-// gets a named fallback that says what it is and shows the part's fallbackText;
-// artifacts are declarative text, so nothing here executes artifact content.
-import { isValidElement } from 'react'
+// The renderers this build mounts. Which one shows an artifact at a distance
+// is the registry's answer (artifact-registry: contributions + resolve); a
+// representation with no mounted renderer gets the Theorem card, which says
+// what the artifact is and shows its fallbackText.
+import { createElement, isValidElement } from 'react'
 import type { FC, ReactElement, ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { MermaidDiagram } from '@/components/assistant-ui/elements/mermaid-diagram'
 import { SyntaxHighlighter } from '@/components/assistant-ui/elements/shiki-highlighter'
+import { DocumentApp } from '@/components/blocks/document-app'
 import { cn } from '@/lib/utils'
+import type { Distance } from '@/lib/artifacts/contributions'
 import type { TheoremArtifact } from './artifact-model'
-
-type RendererProps = { artifact: TheoremArtifact }
+import { AppPreview } from './app-revision-frame'
+import { AppRevision } from './app-history'
+import {
+  MarimoNotebookView,
+  ObservableNotebookView,
+  UnreadableNotebook,
+} from './notebook-artifact'
+import { OpenUIArtifact } from './openui/renderer'
+import {
+  mountRenderers,
+  rendererFor,
+  representationOf,
+} from './artifact-registry'
+import type { RendererProps } from './artifact-registry'
 
 const codeSurface =
   '[&_pre]:rounded-lg! [&_pre]:border! [&_pre]:border-separator! [&_pre]:bg-raised!'
@@ -52,12 +67,25 @@ const documentComponents: Components = {
   },
 }
 
-const DocumentArtifact: FC<RendererProps> = ({ artifact }) => (
-  <article className="prose prose-theorem max-w-none text-base leading-6">
+/** Markdown as Theorem documents read, in artifacts and the Index alike. */
+export const MarkdownDocument: FC<{ content: string; className?: string }> = ({
+  content,
+  className,
+}) => (
+  <article
+    className={cn(
+      'prose prose-theorem max-w-none text-base leading-6',
+      className,
+    )}
+  >
     <Markdown remarkPlugins={[remarkGfm]} components={documentComponents}>
-      {artifact.content}
+      {content}
     </Markdown>
   </article>
+)
+
+const DocumentArtifact: FC<RendererProps> = ({ artifact }) => (
+  <MarkdownDocument content={artifact.content} />
 )
 
 const CodeArtifact: FC<RendererProps> = ({ artifact }) => (
@@ -72,25 +100,78 @@ const DiagramArtifact: FC<RendererProps> = ({ artifact }) => (
   <MermaidDiagram code={artifact.content} className="rounded-lg bg-raised" />
 )
 
-const RENDERERS: Record<string, FC<RendererProps>> = {
+/** A short opening of a long document, for the conversation. */
+const DocumentExcerpt: FC<RendererProps> = ({ artifact }) => (
+  <div className="max-h-64 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]">
+    <MarkdownDocument content={artifact.content} className="text-sm" />
+  </div>
+)
+
+const CodeExcerpt: FC<RendererProps> = ({ artifact }) => (
+  <div className="max-h-64 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]">
+    <CodeArtifact artifact={artifact} latest />
+  </div>
+)
+
+/** The App's workspace body: the live App for its newest revision, the pinned source for an older one. */
+const AppArtifact: FC<RendererProps> = ({ artifact, latest }) =>
+  !latest ? (
+    <AppRevision artifact={artifact} />
+  ) : artifact.documentId ? (
+    <DocumentApp
+      key={artifact.documentId}
+      documentId={artifact.documentId}
+      pinnedPosition={artifact.documentPosition}
+      initiallyRunning
+    />
+  ) : (
+    <p role="alert">This App couldn't be opened.</p>
+  )
+
+const AppPreviewArtifact: FC<RendererProps> = ({ artifact }) => (
+  <AppPreview artifact={artifact} />
+)
+
+const ObservableArtifact: FC<RendererProps> = ({ artifact }) =>
+  artifact.notebook?.form === 'observable' ? (
+    <ObservableNotebookView artifact={artifact} notebook={artifact.notebook} />
+  ) : (
+    <UnreadableNotebook artifact={artifact} />
+  )
+
+const MarimoArtifact: FC<RendererProps> = ({ artifact }) =>
+  artifact.notebook?.form === 'marimo' ? (
+    <MarimoNotebookView artifact={artifact} notebook={artifact.notebook} />
+  ) : (
+    <UnreadableNotebook artifact={artifact} />
+  )
+
+mountRenderers({
+  'theorem-document.excerpt': DocumentExcerpt,
   'theorem-document': DocumentArtifact,
+  'theorem-code.excerpt': CodeExcerpt,
   'theorem-code': CodeArtifact,
   'theorem-diagram': DiagramArtifact,
-}
+  'theorem-app.preview': AppPreviewArtifact,
+  'theorem-app': AppArtifact,
+  'theorem-observable': ObservableArtifact,
+  'theorem-marimo': MarimoArtifact,
+  'theorem-openui': OpenUIArtifact,
+})
 
-export function hasRenderer(artifact: TheoremArtifact): boolean {
-  return artifact.rendererId in RENDERERS
-}
-
-/** Named fallback: says which renderer is missing and shows the part's text summary. */
-const UnsupportedArtifact: FC<RendererProps> = ({ artifact }) => (
-  <div className="flex flex-col gap-3">
+/** The Theorem card: what the artifact is, its summary, and why no renderer showed it. */
+const TheoremCard: FC<{ artifact: TheoremArtifact; reason?: string }> = ({
+  artifact,
+  reason,
+}) => (
+  <div
+    data-renderer={artifact.rendererId}
+    data-contract={artifact.contractVersion}
+    data-reason={reason}
+    className="flex flex-col gap-3"
+  >
     <p className="text-sm text-ink-muted">
-      Theorem UI has no renderer for{' '}
-      <span className="font-mono text-[13px] text-ink">
-        {artifact.rendererId}
-      </span>{' '}
-      ({artifact.kind}, {artifact.contractVersion}). Showing its text summary.
+      A preview isn't available for this result. Showing its summary.
     </p>
     <p className="whitespace-pre-wrap rounded-lg border border-separator bg-raised p-4 text-sm leading-6">
       {artifact.fallbackText}
@@ -98,7 +179,21 @@ const UnsupportedArtifact: FC<RendererProps> = ({ artifact }) => (
   </div>
 )
 
-export const ArtifactBody: FC<RendererProps> = ({ artifact }) => {
-  const Renderer = RENDERERS[artifact.rendererId] ?? UnsupportedArtifact
-  return <Renderer artifact={artifact} />
+/** Shows an artifact at a distance through whichever renderer the registry resolves. */
+export const ArtifactView: FC<RendererProps & { distance: Distance }> = ({
+  artifact,
+  distance,
+  latest,
+}) => {
+  const representation = representationOf(artifact, distance)
+  const Renderer = rendererFor(representation)
+  if (!Renderer)
+    return (
+      <TheoremCard
+        artifact={artifact}
+        reason={representation.passed.map((p) => p.reason).join('; ')}
+      />
+    )
+  // The mount table is fixed at module load; the renderer is looked up, not made here.
+  return createElement(Renderer, { artifact, latest })
 }

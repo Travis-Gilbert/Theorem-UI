@@ -18,7 +18,8 @@ import {
   render,
   waitFor,
 } from '../../../../test/workspace'
-import { CsvCard, CsvPanel, parseDelimited } from './csv-handler'
+import { parseDelimited } from './delimited'
+import { CsvCard, CsvPanel } from './csv-handler'
 
 const RUNS = `name,loss,epochs
 beta,0.31,10
