@@ -529,7 +529,7 @@ const TheoremApprovalCard: FC<{
         subtitle={approvalSubtitle(approval)}
         command={argsText || undefined}
         variant={approval.risk === 'high' ? 'destructive' : 'default'}
-        icon={<Icon.Settings aria-hidden />}
+        icon={<Icon.Approval aria-hidden />}
         className="max-w-md"
         onAllowOnce={allow && (() => decide(allow, true))}
         allowOnceLabel={allowOnce?.name ?? 'Allow once'}

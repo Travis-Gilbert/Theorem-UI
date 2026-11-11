@@ -86,7 +86,7 @@ export function ApprovalCard({
       aria-describedby={description ? descriptionId : undefined}
       className={cn("max-w-sm", liveEnter, className)}
     >
-      {/* The Alert places a direct <svg> child; every mark passed here is one. */}
+      {/* The Alert places a direct <svg> or painted mark child; every mark passed here is one. */}
       {icon ?? <Icon.Key aria-hidden />}
       <AlertTitle id={titleId} className="text-sm font-medium">
         {title}

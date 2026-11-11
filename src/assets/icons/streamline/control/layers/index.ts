@@ -38,6 +38,10 @@ import memoryLine from './memory-line.svg'
 import memoryAccent from './memory-accent.svg'
 import memoryTint from './memory-tint.svg'
 import memoryPaper from './memory-paper.svg'
+import approvalLine from './approval-line.svg'
+import approvalAccent from './approval-accent.svg'
+import approvalTint from './approval-tint.svg'
+import approvalPaper from './approval-paper.svg'
 
 /** Each control mark's masks: the SVG's shape is the layer. */
 export const CONTROL_LAYERS = {
@@ -52,6 +56,7 @@ export const CONTROL_LAYERS = {
   toolRunning: { line: toolRunningLine, accent: toolRunningAccent, tint: toolRunningTint, paper: toolRunningPaper },
   toolDone: { line: toolDoneLine, tint: toolDoneTint, paper: toolDonePaper },
   memory: { line: memoryLine, accent: memoryAccent, tint: memoryTint, paper: memoryPaper },
+  approval: { line: approvalLine, accent: approvalAccent, tint: approvalTint, paper: approvalPaper },
 } as const
 
 export type ControlIcon = keyof typeof CONTROL_LAYERS

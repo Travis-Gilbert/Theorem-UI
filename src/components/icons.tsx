@@ -403,6 +403,7 @@ const NewChat = painted(CONTROL_LAYERS.newChat, 45, true)
 const ToolRunning = painted(CONTROL_LAYERS.toolRunning, 45, true)
 const ToolDone = painted(CONTROL_LAYERS.toolDone, 135, true)
 const Memory = painted(CONTROL_LAYERS.memory, 180, true)
+const Approval = painted(CONTROL_LAYERS.approval, 0, true)
 
 export const Icon = {
   Group: SquareDashed,
@@ -505,6 +506,7 @@ export const Icon = {
   Terminal,
   Thread,
   Memory,
+  Approval,
   ToolDone,
   ToolRunning,
   Unpin,

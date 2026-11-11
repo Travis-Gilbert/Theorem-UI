@@ -5,14 +5,18 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-xl shadow-[3px_3px_0_0_var(--alert-edge)] font-heading border-2 border-(--alert-edge) p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:size-4",
+  // The edge and the fill are the variant's ink and container, each taken a
+  // third of the way toward what it sits on, so the prompt is quieter than a
+  // full container. A painted mark (icons.tsx) is placed like the <svg> and
+  // drawn in the variant's own ink over its fill.
+  "relative w-full rounded-xl shadow-[3px_3px_0_0_var(--alert-edge)] font-heading border-2 border-(--alert-edge) bg-(--alert-fill) text-ink p-4 [--alert-edge:color-mix(in_oklab,var(--alert-ink)_65%,var(--alert-tone))] [--alert-fill:color-mix(in_oklab,var(--alert-tone)_65%,var(--sheet-from))] [&>:is(svg,.rail-mark)~*]:pl-7 [&>:is(svg,.rail-mark)+div]:translate-y-[-3px] [&>:is(svg,.rail-mark)]:absolute [&>:is(svg,.rail-mark)]:left-4 [&>:is(svg,.rail-mark)]:top-4 [&>:is(svg,.rail-mark)]:size-4 [&>svg]:text-(--alert-ink) [&>.rail-mark]:[--redwood:var(--alert-ink)] [&>.rail-mark]:[--rail-ground:var(--alert-fill)]",
   {
     variants: {
       variant: {
         default:
-          "[--alert-edge:var(--color-ochre-ink)] bg-ochre-container text-ink [&>svg]:text-ochre-ink",
+          "[--alert-ink:var(--color-ochre-ink)] [--alert-tone:var(--color-ochre-container)]",
         destructive:
-          "[--alert-edge:var(--color-error-ink)] bg-error-container text-ink [&>svg]:text-error-ink",
+          "[--alert-ink:var(--color-error-ink)] [--alert-tone:var(--color-error-container)]",
       },
     },
     defaultVariants: { variant: "default" },
