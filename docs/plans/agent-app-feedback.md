@@ -112,8 +112,9 @@ a TypeScript program the agent wrote is a row in the owner's conversation,
 closed by default, that opens to its source highlighted as TypeScript. A
 Monty program is not drawn: most are compiled from the model's tool calls,
 and the server keeps those out of the conversation. A visitor to a shared
-conversation is not shown a program. Not observed: the row in a browser, or
-with a live model.
+conversation is not shown a program. Seen in Chromium, closed and open, in
+light and dark, over a committed part (`/story/chat-program`). Not observed:
+the row in a conversation with a live model.
 
 ## Step 4: writing the App is the App (Theorem repo and this repo)
 
