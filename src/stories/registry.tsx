@@ -39,6 +39,7 @@ import type { ActivityState } from './fixtures/activity'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
+import { PROGRAM_PART } from './fixtures/program'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -236,7 +237,15 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
       ],
     },
   ]
-  return function OpenUIArtifactStory() {
+  return partsStory(messages)
+}
+
+/**
+ * Finished messages drawn by the thread's own part renderers, at the thread's
+ * reading width.
+ */
+function partsStory(messages: ThreadMessageLike[]) {
+  return function PartsStory() {
     const runtime = useExternalStoreRuntime({
       messages,
       isRunning: false,
@@ -253,6 +262,16 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
     )
   }
 }
+
+/** A program the agent wrote, as the row the conversation draws for it. */
+const programStory = partsStory([
+  {
+    id: 'message-program',
+    role: 'assistant',
+    status: { type: 'complete', reason: 'stop' },
+    content: [{ type: 'data', name: 'theorem-program', data: PROGRAM_PART }],
+  },
+])
 
 const ACTIVITY_STATUS: Record<ActivityState, ThreadMessageLike['status']> = {
   working: { type: 'running' },
@@ -302,6 +321,7 @@ function threadStory(
 
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
+  'chat-program': programStory,
   ...Object.fromEntries(
     ACTIVITY_STATES.map((state) => [`activity-${state}`, threadStory(state)]),
   ),

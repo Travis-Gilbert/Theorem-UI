@@ -122,6 +122,12 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     viewport: { width: 760, height: 560 },
   },
+  {
+    id: 'chat-program',
+    title: 'A program the agent wrote',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
   ...ACTIVITY_STATES.map(
     (state): StoryMeta => ({
       id: `activity-${state}`,
