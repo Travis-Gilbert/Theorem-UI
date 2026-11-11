@@ -150,11 +150,14 @@ the accessibility tree, by vision, or by the harness's visual perceiver.
      browser, as `{type: "image", mediaType, data, width, height}`. PNG, or
      JPEG where the PNG is over 1 MiB of base64. A real Chromium draws the
      fixture's layout and its canvas (`bun run e2e:app-ts`).
-   - Theorem (being built): a receipt's result is JSON, and JSON is text to a model, so the
-     turn takes a picture of that shape out of a result and gives it to the
-     model as an image after the result. It is kept out of what the run saves.
-     Only a model the catalog records as reading images is sent one; OpenRouter's
-     directory says which do, and the model list can show it.
+   - Theorem (built, pull request 1013, stacked on 1012): a receipt's result
+     is JSON, and JSON is text to a model, so the turn takes a picture of
+     that shape out of a result and gives it to the model as an image after
+     the result. It is kept out of what the run saves. Only a model the
+     catalog records as reading images is sent one; OpenRouter's directory
+     says which do, and the model list the interface reads now reports it.
+     A chat-route test shows the picture in the model's next request as an
+     image and absent from the thread.
 3. **The visual perceiver on that picture** (`perception_visual`, reached
    through `THEOREM_OMNIPARSER_URL`), for a model without vision and for what
    is drawn on a canvas, which has no tree.
@@ -192,7 +195,9 @@ the accessibility tree, by vision, or by the harness's visual perceiver.
    pull request.
 3. A picture: a real browser draws the fixture App's layout and canvas into
    the check's result. Observed: `bun run e2e:app-ts`, 21 of 21, the picture
-   24,760 bytes of base64. Not observed: a model being shown one.
+   about 25 KB of base64. Theorem's chat-route test
+   (`picture_flow_tests`) shows a scripted model's next request carrying a
+   receipt's picture as an image. Not observed: a live model shown one.
 4. A live turn: the front model writes a TypeScript program whose
    `app.write` returns the page's findings, and repairs a type error without
    the person. Needs the deployed stack.
