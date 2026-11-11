@@ -247,6 +247,29 @@ test('Enter picks the highlighted tool, and the message names it for the turn', 
   expect(sentText(sent[0]!)).toBe(':tool[recall] what did we decide')
 })
 
+test('a slash typed at the end of bold text still lists and picks a tool', async () => {
+  const { container } = await mount(<Harness text="**hello**" sent={[]} />)
+  const input = inputOf(container)
+  const bold = await waitFor(() => input.querySelector('strong'))
+  await act(async () => {
+    bold.firstChild!.textContent = 'hello /rec'
+    window.getSelection()!.collapse(bold.firstChild, 'hello /rec'.length)
+    input.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' /rec' }),
+    )
+    await Bun.sleep(10)
+  })
+  // The caret sits before the closing marks, so the search is "rec", not "rec**".
+  expect(composerText()).toBe('**hello /rec**')
+  await waitFor(() => options().length)
+  expect(options()[0]!.textContent).toStartWith('recall')
+  await press(input, 'Enter')
+  await waitFor(() => !options().length)
+  expect(composerText()).toContain(':tool[recall]')
+  expect(composerText()).not.toContain('/rec')
+  expect(input.querySelector('strong')!.textContent).toStartWith('hello :tool[recall]')
+})
+
 test('a slash that names no tool stays text, and Enter sends it', async () => {
   const sent: AppendMessage[] = []
   const { container } = await mount(<Harness text="" sent={sent} />)

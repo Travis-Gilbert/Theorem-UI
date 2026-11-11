@@ -60,15 +60,24 @@ const link: Handle = (node: Link, parent, state, info) => {
   return bare ? only.value : defaultHandlers.link(node, parent, state, info)
 }
 
+/** Stands where the caret is while the document is written out; nobody types it. */
+const CARET = ''
+
 /**
- * Where the caret is in the composer's text: the Markdown of the document up
- * to it, as far as that agrees with the text. Cutting a document at the caret
- * closes whatever was open there (a mark, a fence), so the two part exactly
- * where the caret is.
+ * Where the caret is in the composer's text. The document is written out with
+ * a stand-in typed at the caret, which lands where the next character would:
+ * inside a mark the caret is at the end of, ahead of the marks that close it.
+ * What precedes the stand-in is the text before the caret, as far as it agrees
+ * with the composer's text.
  */
 function caretOffset(view: EditorView, serialize: Serializer, text: string) {
-  const { doc, selection } = view.state
-  const before = asText(serialize(doc.cut(0, selection.head)))
+  const { doc, selection, tr } = view.state
+  const marked = serialize(tr.insertText(CARET, selection.head).doc)
+  const found = marked.indexOf(CARET)
+  const before =
+    found < 0
+      ? asText(serialize(doc.cut(0, selection.head)))
+      : marked.slice(0, found)
   let at = 0
   while (at < before.length && before[at] === text[at]) at++
   return at
