@@ -82,19 +82,12 @@ const record = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {}
 
-/**
- * The App requests pending in the conversation's live turn: the last
- * assistant message, while it runs.
- */
-export function appRequestsOf(
-  messages: readonly ThreadMessage[],
-  running: boolean,
+/** The App requests still pending among one run's message parts. */
+function pendingAppRequests(
+  runId: string,
+  content: ThreadMessage['content'],
 ): Array<AppRequest> {
-  const last = messages.at(-1)
-  if (!running || last?.role !== 'assistant') return []
-  const runId = record(last.metadata.custom).theoremRunId
-  if (typeof runId !== 'string') return []
-  return last.content.flatMap((part) => {
+  return content.flatMap((part) => {
     if (part.type !== 'data' || part.name !== 'theorem-client_operation')
       return []
     const data = record(part.data)
@@ -117,6 +110,35 @@ export function appRequestsOf(
       },
     ]
   })
+}
+
+/**
+ * The App requests pending in the conversation's live turn: the last
+ * assistant message, while it runs.
+ */
+export function appRequestsOf(
+  messages: readonly ThreadMessage[],
+  running: boolean,
+): Array<AppRequest> {
+  const last = messages.at(-1)
+  if (!running || last?.role !== 'assistant') return []
+  const runId = record(last.metadata.custom).theoremRunId
+  if (typeof runId !== 'string') return []
+  return pendingAppRequests(runId, last.content)
+}
+
+/**
+ * The App requests pending in a specialist's run. A builder is handed the
+ * page's check when the turn that started it was sent from a page, and asks on
+ * its own run, which is not a message of the conversation: the page follows
+ * that run by its id while the specialist works.
+ */
+export function appRequestsOfRun(
+  runId: string,
+  message: ThreadMessage | undefined,
+): Array<AppRequest> {
+  if (message?.status?.type !== 'running') return []
+  return pendingAppRequests(runId, message.content)
 }
 
 type Outcome = 'applied' | 'rejected' | 'failed'
@@ -255,6 +277,16 @@ interface ThreadSource {
     }
     subscribe: (callback: () => void) => () => void
   }
+}
+
+/** Serves the App requests of one specialist's run for as long as it is mounted. */
+export function useSpecialistAppRequests(
+  runId: string,
+  message: ThreadMessage | undefined,
+) {
+  useEffect(() => {
+    void serveAppRequests(appRequestsOfRun(runId, message))
+  }, [runId, message])
 }
 
 /** Serves App requests from one conversation for as long as it is mounted. */

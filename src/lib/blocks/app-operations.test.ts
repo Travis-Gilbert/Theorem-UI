@@ -11,6 +11,7 @@ import {
   APP_OPERATIONS,
   answerAppRequest,
   appRequestsOf,
+  appRequestsOfRun,
   serveAppRequests,
 } from './app-operations'
 import type { AppOperationHost, AppReceipt, AppRequest } from './app-operations'
@@ -127,6 +128,40 @@ describe('reading requests off a conversation', () => {
     ])
     // A turn that has ended has nobody waiting for an answer.
     expect(appRequestsOf(messages, false)).toEqual([])
+  })
+
+  test("a specialist's run is read by its own run id, while it works", () => {
+    const working = {
+      ...assistant(
+        operation({
+          operation: 'app.check',
+          requestRef: 'w',
+          args: { html: '<p>Built</p>' },
+        }),
+        operation({
+          operation: 'app.check',
+          requestRef: 'x',
+          state: 'expired',
+        }),
+      ),
+      status: { type: 'running' },
+    } as ThreadMessage
+    expect(appRequestsOfRun('worker-run', working)).toEqual([
+      {
+        runId: 'worker-run',
+        requestRef: 'w',
+        operation: 'app.check',
+        args: { html: '<p>Built</p>' },
+        expectedRevision: 0,
+      },
+    ])
+    // A run that has ended, or one not read yet, has nothing to answer.
+    const ended = {
+      ...working,
+      status: { type: 'complete', reason: 'stop' },
+    } as ThreadMessage
+    expect(appRequestsOfRun('worker-run', ended)).toEqual([])
+    expect(appRequestsOfRun('worker-run', undefined)).toEqual([])
   })
 })
 

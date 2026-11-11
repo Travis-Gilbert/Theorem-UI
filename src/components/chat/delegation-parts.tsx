@@ -37,7 +37,9 @@ import {
   useDelegationContent,
   useDelegationDock,
   useLiveDelegation,
+  useSpecialistRun,
 } from '@/lib/theorem/delegations'
+import { useSpecialistAppRequests } from '@/lib/blocks/app-operations'
 import type {
   ChangeAdmission,
   ChangeSetEntry,
@@ -425,7 +427,8 @@ const Notes: FC<{ title: string; items: string[] }> = ({ title, items }) =>
 
 function workProblems({ receipt, problem }: DelegationPart): string[] {
   const terminal = receipt?.terminal
-  const workerFailure = terminal?.kind === 'failed' ? terminal.message : undefined
+  const workerFailure =
+    terminal?.kind === 'failed' ? terminal.message : undefined
   return [
     workerFailure && withoutCode(workerFailure),
     problem && problem !== workerFailure
@@ -495,7 +498,10 @@ export const DelegationBody: FC<{
             )}
           </p>
           <p
-            className={cn('text-sm text-ink-muted', !detailed && 'line-clamp-3')}
+            className={cn(
+              'text-sm text-ink-muted',
+              !detailed && 'line-clamp-3',
+            )}
             title={detailed ? undefined : objective}
           >
             {objective}
@@ -667,6 +673,31 @@ export const DelegationBody: FC<{
   )
 }
 
+/**
+ * Follows a specialist's run while it works, so what it asks of this page is
+ * answered: a builder checks the App it is writing in the person's browser,
+ * as the conversation's own turn does. It draws nothing while it follows the
+ * run; once the run's stream has given up, it says that its checks are no
+ * longer answered here.
+ */
+function SpecialistPage({
+  runId,
+  roleLabel,
+}: {
+  runId: string
+  roleLabel: string
+}) {
+  const { message, error } = useSpecialistRun(runId)
+  useSpecialistAppRequests(runId, message)
+  if (!error) return null
+  return (
+    <p role="alert" className="px-4 pb-4 text-xs text-error-ink">
+      This page stopped following the {roleLabel.toLowerCase()}’s run, so its
+      App checks are not answered here. {error.message}
+    </p>
+  )
+}
+
 const DelegationCard: DataMessagePartComponent = ({ data }) => {
   const delegation = useLiveDelegation(readDelegation(data))
   if (!delegation) return null
@@ -677,6 +708,13 @@ const DelegationCard: DataMessagePartComponent = ({ data }) => {
       className={cn(card, liveEnter)}
     >
       <DelegationBody delegation={delegation} />
+      {LIVE_DELEGATION_STATES.has(delegation.state) &&
+        delegation.childRunId && (
+          <SpecialistPage
+            runId={delegation.childRunId}
+            roleLabel={delegation.roleLabel}
+          />
+        )}
     </article>
   )
 }
