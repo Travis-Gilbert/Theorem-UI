@@ -79,13 +79,16 @@ function LibrarianFooterStory() {
 
 function ComparePaneStory() {
   return (
-    <div className="h-dvh w-[423px]">
-      <ComparePane
-        reviewId="review-app-gallery"
-        onClose={() => undefined}
-        onDetach={() => undefined}
-      />
-    </div>
+    <WithRuntime>
+      <div className="h-dvh w-[380px]">
+        <ComparePane
+          reviewId="review-app-gallery"
+          onClose={() => undefined}
+          onDetach={() => undefined}
+          onExpandedChange={() => undefined}
+        />
+      </div>
+    </WithRuntime>
   )
 }
 

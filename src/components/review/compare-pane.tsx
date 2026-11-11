@@ -1,49 +1,30 @@
-// SOURCING: coss ui (Base UI checkbox, menu, textarea, input, badge) and ui/button, lib/theorem/reviews for the durable review, lib/motion's springs. Hand-rolled layout because nothing upstream models a review of options; its behaviour (several picks, None as an answer, one reply box, arrow keys through options and shots, a reference that cannot be picked, no silent cropping) is translated from mikecann/threadbear@78b77e1 docs/options-review-design and app ReviewWindow (MIT, Mike Cann).
+// SOURCING: coss ui (Base UI checkbox, menu, badge) and ui/button, lib/theorem/reviews for the durable review, review-target for sending it, the thread's own Composer where the conversation is not beside the pane, lib/motion's springs. Hand-rolled layout because nothing upstream models a review of options; its behaviour (several picks, None as an answer, arrow keys through options and shots, a reference that cannot be picked, no silent cropping) is translated from mikecann/threadbear@78b77e1 docs/options-review-design and app ReviewWindow (MIT, Mike Cann). Looking at an option and choosing it are separate here, and the reply is written in the conversation's composer.
+import { useAui } from '@assistant-ui/react'
 import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { CheckboxPrimitive } from '@/components/coss/checkbox'
+import { Composer } from '@/components/assistant-ui/elements/thread.aui'
+import { focusComposer } from '@/components/chat/composer-references'
 import { Badge } from '@/components/coss/badge'
-import { Input } from '@/components/coss/input'
-import {
-  Menu,
-  MenuItem,
-  MenuPopup,
-  MenuSub,
-  MenuSubPopup,
-  MenuSubTrigger,
-  MenuTrigger,
-} from '@/components/coss/menu'
-import { Textarea } from '@/components/coss/textarea'
+import { CheckboxPrimitive } from '@/components/coss/checkbox'
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/coss/menu'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { popIn } from '@/lib/motion'
 import { describeError } from '@/lib/theorem/client'
 import {
   EMPTY_RESPONSE,
-  canSubmit,
   optionLetter,
+  selectionSummary,
   useCancelReview,
   useReview,
-  useReviewDraft,
   useReviewPresence,
+  useReviewTarget,
   useShotUrl,
-  useSubmitReview,
 } from '@/lib/theorem/reviews'
-import type {
-  ObservationKind,
-  Review,
-  ReviewObservation,
-  ReviewOption,
-  ReviewResponse,
-} from '@/lib/theorem/reviews'
+import type { Review, ReviewOption } from '@/lib/theorem/reviews'
 import { cn } from '@/lib/utils'
-
-const KIND_LABEL: Record<ObservationKind, string> = {
-  preference: 'Preference',
-  test_result: 'Test result',
-  bug_report: 'Bug',
-}
+import { KIND_LABEL, useSendReview } from './review-target'
 
 const paneButton =
   'flex size-7 shrink-0 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover'
@@ -54,11 +35,14 @@ function ShotStage({
   option,
   shot,
   onShot,
+  className,
 }: {
   reviewId: string
   option: ReviewOption
   shot: number
   onShot: (index: number) => void
+  /** How tall the stage may stand. */
+  className: string
 }) {
   const current = option.shots[shot]
   const { url, error } = useShotUrl(reviewId, current?.shotId)
@@ -70,14 +54,13 @@ function ShotStage({
       ? `${current.width} / ${current.height}`
       : '16 / 10'
   return (
-    <figure
-      className="group/stage relative overflow-hidden rounded-lg border border-separator bg-rail"
-      onClick={(event) => event.stopPropagation()}
-    >
+    <figure className="group/stage relative overflow-hidden rounded-lg border border-separator bg-rail">
       <div
         className={cn(
-          'max-h-[420px]',
-          actual ? 'overflow-auto' : 'flex justify-center overflow-hidden',
+          className,
+          actual
+            ? 'overflow-auto'
+            : 'mx-auto flex justify-center overflow-hidden',
         )}
         style={actual ? undefined : { aspectRatio: shape }}
       >
@@ -139,163 +122,197 @@ function ShotStage({
   )
 }
 
-function OptionCard({
-  reviewId,
-  option,
-  index,
-  picked,
-  readOnly,
-  shot,
-  onShot,
+function PickBox({
+  label,
+  checked,
+  disabled,
   onToggle,
-  onFocus,
 }: {
-  reviewId: string
-  option: ReviewOption
-  index: number
-  picked: boolean
-  readOnly: boolean
-  shot: number
-  onShot: (index: number) => void
+  label: string
+  checked: boolean
+  disabled: boolean
   onToggle: () => void
-  onFocus: () => void
 }) {
-  const pickable = !option.reference && !readOnly
-  const label = `${optionLetter(index)} · ${option.title}`
   return (
-    <article
-      data-option={option.id}
-      tabIndex={-1}
+    <CheckboxPrimitive.Root
       aria-label={label}
-      onFocus={onFocus}
-      onClick={pickable ? onToggle : undefined}
-      className={cn(
-        'flex flex-col gap-3 rounded-xl border bg-raised/40 p-3.5 outline-none transition-[border-color,background-color,box-shadow] duration-(--duration-snap) ease-snap',
-        picked ? 'border-focus ring-1 ring-focus' : 'border-separator',
-        pickable && !picked && 'hover:border-control',
-        pickable && 'cursor-pointer',
-      )}
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={onToggle}
+      className="flex size-4.5 shrink-0 items-center justify-center rounded-[5px] border border-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-checked:border-focus data-checked:bg-focus data-disabled:opacity-60"
     >
-      <header className="flex items-center gap-2">
-        <h3 className="min-w-0 flex-1 truncate text-md font-semibold">
-          {label}
-        </h3>
-        {option.baseline && <Badge size="sm" variant="outline">Baseline</Badge>}
-        {option.reference ? (
-          <Badge size="sm" variant="outline">Reference</Badge>
-        ) : (
-          <CheckboxPrimitive.Root
-            aria-label={`Pick ${label}`}
-            checked={picked}
-            disabled={readOnly}
-            onCheckedChange={onToggle}
-            onClick={(event) => event.stopPropagation()}
-            className="flex size-5.5 shrink-0 items-center justify-center rounded-full border border-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-checked:border-focus data-checked:bg-focus data-disabled:opacity-60"
-          >
-            <CheckboxPrimitive.Indicator className="text-white">
-              <Check aria-hidden className="size-3.5" strokeWidth={3} />
-            </CheckboxPrimitive.Indicator>
-          </CheckboxPrimitive.Root>
-        )}
-      </header>
-      <ShotStage
-        reviewId={reviewId}
-        option={option}
-        shot={shot}
-        onShot={onShot}
-      />
+      <CheckboxPrimitive.Indicator className="text-white">
+        <Check aria-hidden className="size-3" strokeWidth={3.5} />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
+}
+
+const optionLabel = (option: ReviewOption, index: number) =>
+  `${optionLetter(index)} · ${option.title}`
+
+function OptionBadges({ option }: { option: ReviewOption }) {
+  return (
+    <>
+      {option.baseline && (
+        <Badge size="sm" variant="outline">
+          Baseline
+        </Badge>
+      )}
+      {option.reference && (
+        <Badge size="sm" variant="outline">
+          Reference
+        </Badge>
+      )}
+    </>
+  )
+}
+
+function OptionNotes({ option }: { option: ReviewOption }) {
+  return (
+    <>
       {option.note && <p className="text-sm text-ink-muted">{option.note}</p>}
       {option.url && (
         <a
           href={option.url}
           target="_blank"
           rel="noreferrer"
-          onClick={(event) => event.stopPropagation()}
           className="flex items-center gap-1 self-start rounded-sm text-sm text-link underline-offset-2 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-focus"
         >
           Open live
           <Icon.Open className="size-3.5" />
         </a>
       )}
-    </article>
+    </>
   )
 }
 
-/** Separate lines for what is preference, what was tested and what is broken. */
-function Observations({
-  review,
-  observations,
-  onChange,
+/** One option in the docked pane: a line to choose it by, and a way to look at it. */
+function OptionRow({
+  option,
+  index,
+  picked,
+  viewing,
+  readOnly,
+  onToggle,
+  onView,
 }: {
-  review: Review
-  observations: readonly ReviewObservation[]
-  onChange: (next: ReviewObservation[]) => void
+  option: ReviewOption
+  index: number
+  picked: boolean
+  viewing: boolean
+  readOnly: boolean
+  onToggle: () => void
+  onView: () => void
 }) {
-  const letter = (optionId: string | undefined) => {
-    const at = review.options.findIndex((option) => option.id === optionId)
-    return at < 0 ? undefined : optionLetter(at)
-  }
-  const add = (kind: ObservationKind, optionId?: string) =>
-    onChange([...observations, { kind, optionId, text: '' }])
+  const label = optionLabel(option, index)
   return (
-    <>
-      {observations.map((observation, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <span className="w-24 shrink-0 truncate text-xs text-ink-muted">
-            {KIND_LABEL[observation.kind]}
-            {letter(observation.optionId) &&
-              ` on ${letter(observation.optionId)}`}
-          </span>
-          <Input
-            size="sm"
-            autoFocus={observation.text === ''}
-            aria-label={KIND_LABEL[observation.kind]}
-            value={observation.text}
-            onChange={(event) =>
-              onChange(
-                observations.map((other, at) =>
-                  at === index ? { ...other, text: event.target.value } : other,
-                ),
-              )
-            }
+    <li
+      data-option={option.id}
+      className="flex h-10 items-center gap-2 border-b border-separator"
+    >
+      <label
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-2.5 self-stretch',
+          !option.reference && !readOnly && 'cursor-pointer',
+        )}
+      >
+        {option.reference ? (
+          <span aria-hidden className="size-4.5 shrink-0" />
+        ) : (
+          <PickBox
+            label={`Pick ${label}`}
+            checked={picked}
+            disabled={readOnly}
+            onToggle={onToggle}
           />
-          <button
-            type="button"
-            aria-label={`Remove ${KIND_LABEL[observation.kind]}`}
-            className={paneButton}
-            onClick={() =>
-              onChange(observations.filter((_, at) => at !== index))
-            }
-          >
-            <Icon.X className="size-3.5" />
-          </button>
-        </div>
-      ))}
-      <Menu>
-        <MenuTrigger className="flex items-center gap-1 self-start rounded-sm text-xs text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-focus">
-          <Icon.Add className="size-3" />
-          Add a test result or a bug
-        </MenuTrigger>
-        <MenuPopup align="start" side="top" className="min-w-44">
-          {(['test_result', 'bug_report', 'preference'] as const).map((kind) => (
-            <MenuSub key={kind}>
-              <MenuSubTrigger>{KIND_LABEL[kind]}</MenuSubTrigger>
-              <MenuSubPopup className="min-w-32">
-                <MenuItem onClick={() => add(kind)}>Overall</MenuItem>
-                {review.options.map((option, at) => (
-                  <MenuItem
-                    key={option.id}
-                    onClick={() => add(kind, option.id)}
-                  >
-                    On {optionLetter(at)}
-                  </MenuItem>
-                ))}
-              </MenuSubPopup>
-            </MenuSub>
-          ))}
-        </MenuPopup>
-      </Menu>
-    </>
+        )}
+        <span className="min-w-0 truncate text-md">{label}</span>
+      </label>
+      <OptionBadges option={option} />
+      <button
+        type="button"
+        aria-pressed={viewing}
+        aria-label={`Preview ${label}`}
+        onClick={onView}
+        className={cn(
+          'h-7 shrink-0 rounded-md border px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-focus',
+          viewing
+            ? 'border-control text-ink'
+            : 'border-transparent text-ink-muted hover:bg-hover hover:text-ink',
+        )}
+      >
+        {viewing ? 'Viewing' : 'Preview'}
+      </button>
+    </li>
+  )
+}
+
+/** One option in the expanded pane, where every option's image stands side by side. */
+function OptionCard({
+  reviewId,
+  option,
+  index,
+  picked,
+  viewing,
+  readOnly,
+  shot,
+  onShot,
+  onToggle,
+  onView,
+}: {
+  reviewId: string
+  option: ReviewOption
+  index: number
+  picked: boolean
+  viewing: boolean
+  readOnly: boolean
+  shot: number
+  onShot: (index: number) => void
+  onToggle: () => void
+  onView: () => void
+}) {
+  const label = optionLabel(option, index)
+  return (
+    <article
+      data-option={option.id}
+      aria-label={label}
+      onFocus={onView}
+      onPointerDown={onView}
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border bg-raised/40 p-3.5 transition-[border-color,box-shadow] duration-(--duration-snap) ease-snap',
+        picked ? 'border-focus ring-1 ring-focus' : 'border-separator',
+        viewing && !picked && 'border-control',
+      )}
+    >
+      <header className="flex items-center gap-2">
+        <label
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2.5',
+            !option.reference && !readOnly && 'cursor-pointer',
+          )}
+        >
+          {!option.reference && (
+            <PickBox
+              label={`Pick ${label}`}
+              checked={picked}
+              disabled={readOnly}
+              onToggle={onToggle}
+            />
+          )}
+          <h3 className="min-w-0 truncate text-md font-semibold">{label}</h3>
+        </label>
+        <OptionBadges option={option} />
+      </header>
+      <ShotStage
+        reviewId={reviewId}
+        option={option}
+        shot={shot}
+        onShot={onShot}
+        className="max-h-[70dvh]"
+      />
+      <OptionNotes option={option} />
+    </article>
   )
 }
 
@@ -304,16 +321,12 @@ function Answered({ review }: { review: Review }) {
   const { answer } = review
   if (!answer)
     return <p className="text-sm text-ink-muted">Closed without an answer.</p>
-  const picks = answer.pickedIds
-    .map((id) => {
-      const at = review.options.findIndex((option) => option.id === id)
-      return at < 0 ? undefined : `${optionLetter(at)} · ${review.options[at]!.title}`
-    })
-    .filter(Boolean)
   return (
     <div className="flex flex-col gap-1.5 text-sm">
       <p className="font-medium">
-        {answer.none ? 'None of these' : picks.join(' + ') || 'Replied'}
+        {answer.none || answer.pickedIds.length
+          ? selectionSummary(review, answer)
+          : 'Replied'}
       </p>
       {answer.reply && (
         <p className="whitespace-pre-wrap text-ink-muted">{answer.reply}</p>
@@ -327,82 +340,31 @@ function Answered({ review }: { review: Review }) {
   )
 }
 
-function ReplyForm({
-  review,
-  response,
-  onChange,
-  submit,
-  saveError,
-}: {
-  review: Review
-  response: ReviewResponse
-  onChange: (next: ReviewResponse) => void
-  submit: {
-    send: (response: ReviewResponse) => void
-    pending: boolean
-    error: unknown
-  }
-  saveError: unknown
-}) {
-  return (
-    <>
-      <Textarea
-        aria-label="Feedback"
-        placeholder="What should change, or what should they combine?"
-        value={response.reply ?? ''}
-        onChange={(event) =>
-          onChange({ ...response, reply: event.target.value })
-        }
-        className="min-h-20 text-md sm:text-md"
-      />
-      <Observations
-        review={review}
-        observations={response.observations}
-        onChange={(observations) => onChange({ ...response, observations })}
-      />
-      {(submit.error || saveError) && (
-        <p role="alert" className="text-xs text-error-ink">
-          {describeError(submit.error ?? saveError)}
-        </p>
-      )}
-      <Button
-        className="h-10 w-full border border-control bg-action text-md text-ink hover:bg-action/80"
-        disabled={submit.pending || !canSubmit(response)}
-        onClick={() => submit.send(response)}
-      >
-        Send feedback
-      </Button>
-      <button
-        type="button"
-        disabled={submit.pending}
-        onClick={() =>
-          submit.send({ ...response, pickedIds: [], none: true })
-        }
-        className="self-center rounded-sm px-2 py-1 text-md text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-60"
-      >
-        None of these
-      </button>
-    </>
-  )
+const instruction = (review: Review) => {
+  const pickable = review.options.filter((option) => !option.reference).length
+  if (pickable === 1) return 'Select it, or none'
+  return pickable === 2 ? 'Select one or both' : 'Select one or more'
 }
 
 function Loaded({
   review,
-  onClose,
+  standalone,
+  expanded,
 }: {
   review: Review
-  onClose?: () => void
+  standalone: boolean
+  expanded: boolean
 }) {
+  const { reviewId } = review
   const open = review.status === 'open'
-  useReviewPresence(review.reviewId, open)
-  const { response, change, saveError } = useReviewDraft(review)
+  useReviewPresence(reviewId, open)
+  const aui = useAui()
+  const { response, change, canSend, send, error } = useSendReview(review)
   const shown = open ? response : (review.answer ?? EMPTY_RESPONSE)
-  const submit = useSubmitReview(review.reviewId)
-  const send = (next: ReviewResponse) =>
-    submit.mutate(next, { onSuccess: () => onClose?.() })
 
   const [shots, setShots] = useState<Readonly<Record<string, number>>>({})
-  const [active, setActive] = useState(0)
+  const [viewed, setViewed] = useState(0)
+  const viewing = review.options[viewed] ?? review.options[0]
   const root = useRef<HTMLDivElement>(null)
 
   const toggle = (option: ReviewOption) =>
@@ -414,90 +376,182 @@ function Loaded({
         : [...response.pickedIds, option.id],
     })
 
+  /** The composer answers this review, starting from a reply drafted earlier. */
+  const address = () => {
+    useReviewTarget.setState({ reviewId })
+    const composer = aui.composer()
+    if (!composer.getState().text && response.reply)
+      composer.setText(response.reply)
+  }
+  // Away from the conversation the pane carries the composer, already answering.
+  const carriesComposer = open && standalone
+  useEffect(() => {
+    if (carriesComposer) address()
+    // Once per surface: taking the target off there is the person's choice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carriesComposer, reviewId])
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      if (open && canSubmit(response) && !submit.isPending) send(response)
+      if (open && canSend) send()
       return
     }
     const typing = (event.target as HTMLElement).closest(
-      'input, textarea, [role="menu"]',
+      'input, textarea, [contenteditable], [role="menu"]',
     )
     if (typing) return
-    const option = review.options[active]
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      const next = active + (event.key === 'ArrowDown' ? 1 : -1)
+      const next = viewed + (event.key === 'ArrowDown' ? 1 : -1)
       const target = review.options[next]
       if (!target) return
-      setActive(next)
-      const card = root.current?.querySelector<HTMLElement>(
-        `[data-option="${CSS.escape(target.id)}"]`,
-      )
-      card?.focus({ preventScroll: true })
-      card?.scrollIntoView({ block: 'nearest' })
-    }
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && option) {
       event.preventDefault()
-      const at = shots[option.id] ?? 0
+      setViewed(next)
+      root.current
+        ?.querySelector(`[data-option="${CSS.escape(target.id)}"]`)
+        ?.scrollIntoView({ block: 'nearest' })
+    }
+    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && viewing) {
+      event.preventDefault()
+      const at = shots[viewing.id] ?? 0
       const next = at + (event.key === 'ArrowRight' ? 1 : -1)
-      if (next >= 0 && next < option.shots.length)
-        setShots({ ...shots, [option.id]: next })
+      if (next >= 0 && next < viewing.shots.length)
+        setShots({ ...shots, [viewing.id]: next })
     }
   }
+
+  const none = (
+    <label
+      className={cn(
+        'flex h-10 items-center gap-2.5 text-md text-ink-muted',
+        open && 'cursor-pointer',
+      )}
+    >
+      <PickBox
+        label="None of these"
+        checked={shown.none}
+        disabled={!open}
+        onToggle={() =>
+          change({ ...response, none: !response.none, pickedIds: [] })
+        }
+      />
+      None of these
+    </label>
+  )
 
   return (
     <div
       ref={root}
+      tabIndex={-1}
       onKeyDown={onKeyDown}
-      className="@container flex min-h-0 flex-1 flex-col"
+      className="flex min-h-0 flex-1 flex-col outline-none"
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-5">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-xl font-semibold">{review.title}</h2>
-          {review.note && (
-            <p className="text-md text-ink-muted">{review.note}</p>
-          )}
-        </div>
-        <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-2">
-          {review.options.map((option, index) => (
-            <OptionCard
-              key={option.id}
-              reviewId={review.reviewId}
-              option={option}
-              index={index}
-              readOnly={!open}
-              picked={shown.pickedIds.includes(option.id)}
-              shot={shots[option.id] ?? 0}
-              onShot={(shot) => setShots({ ...shots, [option.id]: shot })}
-              onToggle={() => toggle(option)}
-              onFocus={() => setActive(index)}
-            />
-          ))}
-        </div>
-        <footer className="sticky bottom-0 -mx-4 flex flex-col gap-2.5 bg-artifact px-4 pt-3 pb-4">
-          {open ? (
-            <ReplyForm
-              review={review}
-              response={response}
-              onChange={change}
-              saveError={saveError}
-              submit={{ send, pending: submit.isPending, error: submit.error }}
-            />
-          ) : (
-            <Answered review={review} />
-          )}
-        </footer>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+        <p className="text-sm text-ink-muted">
+          {review.note}
+          {review.note && open && ' · '}
+          {open && instruction(review)}
+        </p>
+        {expanded ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-2 @6xl:grid-cols-3">
+              {review.options.map((option, index) => (
+                <OptionCard
+                  key={option.id}
+                  reviewId={reviewId}
+                  option={option}
+                  index={index}
+                  readOnly={!open}
+                  picked={shown.pickedIds.includes(option.id)}
+                  viewing={index === viewed}
+                  shot={shots[option.id] ?? 0}
+                  onShot={(shot) => setShots({ ...shots, [option.id]: shot })}
+                  onToggle={() => toggle(option)}
+                  onView={() => setViewed(index)}
+                />
+              ))}
+            </div>
+            {none}
+          </>
+        ) : (
+          <>
+            <ul className="-mt-1 flex flex-col">
+              {review.options.map((option, index) => (
+                <OptionRow
+                  key={option.id}
+                  option={option}
+                  index={index}
+                  readOnly={!open}
+                  picked={shown.pickedIds.includes(option.id)}
+                  viewing={index === viewed}
+                  onToggle={() => toggle(option)}
+                  onView={() => setViewed(index)}
+                />
+              ))}
+              <li>{none}</li>
+            </ul>
+            {viewing && (
+              <section aria-label="Preview" className="flex flex-col gap-2">
+                <div>
+                  <p className="text-xs text-ink-muted">
+                    Previewing {optionLetter(review.options.indexOf(viewing))}
+                  </p>
+                  <h3 className="text-md font-semibold">{viewing.title}</h3>
+                </div>
+                <ShotStage
+                  key={viewing.id}
+                  reviewId={reviewId}
+                  option={viewing}
+                  shot={shots[viewing.id] ?? 0}
+                  onShot={(shot) => setShots({ ...shots, [viewing.id]: shot })}
+                  className="max-h-55"
+                />
+                <OptionNotes option={viewing} />
+              </section>
+            )}
+          </>
+        )}
+        {!open && <Answered review={review} />}
+        {open && !standalone && (
+          <footer className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1">
+            <Button
+              variant="outline"
+              className="h-8 border-control px-3 text-md"
+              onClick={() => {
+                address()
+                focusComposer()
+              }}
+            >
+              Write feedback
+            </Button>
+            <span className="text-sm text-ink-muted">
+              {selectionSummary(review, response)}
+            </span>
+            {Boolean(error) && (
+              <p role="alert" className="basis-full text-xs text-error-ink">
+                {describeError(error)}
+              </p>
+            )}
+          </footer>
+        )}
       </div>
+      {carriesComposer && (
+        <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-3 [--composer-padding:12px] [--composer-radius:16px]">
+          <Composer autoFocus={false} />
+        </div>
+      )}
     </div>
   )
 }
 
-/** The Compare pane: options side by side, then one reply that goes into the conversation. */
+/** The Compare pane: options to look at and choose among. The reply is written in the conversation's composer. */
 export function ComparePane({
   reviewId,
   onClose,
   onDetach,
   detached = false,
+  onExpandedChange,
+  expanded = false,
+  standalone = false,
   className,
 }: {
   reviewId: string
@@ -505,6 +559,11 @@ export function ComparePane({
   /** Offered where the pane can leave the window. */
   onDetach?: () => void
   detached?: boolean
+  /** Offered where the pane can take the whole workspace, every option side by side. */
+  onExpandedChange?: (expanded: boolean) => void
+  expanded?: boolean
+  /** The conversation is not beside the pane, so the pane carries its composer. */
+  standalone?: boolean
   className?: string
 }) {
   const { data: review, error } = useReview(reviewId)
@@ -513,20 +572,26 @@ export function ComparePane({
   useEffect(() => {
     if (shell.current) popIn(shell.current, { from: 0.97, ease: 'settle' })
   }, [])
+  const count = review?.options.length
 
   return (
     <div
       ref={shell}
-      className={cn('flex h-full flex-col bg-artifact text-ink', className)}
+      className={cn(
+        '@container flex h-full flex-col bg-artifact text-ink',
+        className,
+      )}
     >
-      <header className="flex h-13 shrink-0 items-center gap-2 border-b border-separator ps-4 pe-2">
-        <span className="text-md font-semibold">Compare</span>
-        {review && (
-          <span className="rounded-full bg-raised px-2 text-base text-ink tabular-nums">
-            {review.options.length}
+      <header className="flex h-11 shrink-0 items-center gap-0.5 ps-4 pe-2">
+        <h2 className="text-md font-semibold">Compare</h2>
+        <span className="min-w-0 flex-1 truncate ps-2 text-md text-ink-muted">
+          {review?.title}
+        </span>
+        {count !== undefined && (
+          <span className="shrink-0 px-1.5 text-sm text-ink-muted tabular-nums">
+            {count} {count === 1 ? 'option' : 'options'}
           </span>
         )}
-        <span className="flex-1" />
         {review?.status === 'open' && (
           <Menu>
             <MenuTrigger aria-label="More" className={paneButton}>
@@ -542,6 +607,18 @@ export function ComparePane({
               </MenuItem>
             </MenuPopup>
           </Menu>
+        )}
+        {onExpandedChange && (
+          <button
+            type="button"
+            aria-label={expanded ? 'Restore layout' : 'Compare side by side'}
+            title={expanded ? 'Restore layout' : 'Compare side by side'}
+            aria-pressed={expanded}
+            className={cn(paneButton, expanded && 'bg-selected')}
+            onClick={() => onExpandedChange(!expanded)}
+          >
+            <Icon.Expand className="size-4" />
+          </button>
         )}
         {onDetach && (
           <button
@@ -567,7 +644,7 @@ export function ComparePane({
         )}
       </header>
       {review ? (
-        <Loaded review={review} onClose={onClose} />
+        <Loaded review={review} standalone={standalone} expanded={expanded} />
       ) : (
         error && (
           <p role="alert" className="p-4 text-sm text-error-ink">

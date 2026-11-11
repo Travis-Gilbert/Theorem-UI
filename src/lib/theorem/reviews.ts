@@ -116,11 +116,21 @@ export function useThreadReviews(threadId: string | undefined) {
   })
 }
 
-export function useReview(reviewId: string) {
+export function useReview(reviewId: string | undefined) {
   return useQuery({
-    queryKey: reviewKey(reviewId),
-    queryFn: () => theoremJson<Review>(reviewPath(reviewId)),
+    queryKey: reviewKey(reviewId ?? ''),
+    enabled: Boolean(reviewId),
+    queryFn: () => theoremJson<Review>(reviewPath(reviewId!)),
   })
+}
+
+/** What is chosen so far, as the pane and the composer's target say it. */
+export function selectionSummary(review: Review, response: ReviewResponse) {
+  if (response.none) return 'None of these'
+  const letters = review.options.flatMap((option, index) =>
+    response.pickedIds.includes(option.id) ? [optionLetter(index)] : [],
+  )
+  return letters.length ? `${letters.join(' + ')} selected` : 'Nothing selected'
 }
 
 /**
@@ -202,32 +212,38 @@ async function writeDraft(
   }
 }
 
-/** The response being written: kept locally, saved as a draft shortly after each change. */
+/**
+ * Responses being written here, by review. The pane (the choice) and the
+ * composer (test results and bugs) write the same one, and what was chosen
+ * here is never overwritten by a saved draft that lags it.
+ */
+const useDrafts = create<Readonly<Record<string, ReviewResponse | undefined>>>(
+  () => ({}),
+)
+
+/** The response being written: kept here, saved as a draft shortly after each change. */
 export function useReviewDraft(review: Review | undefined) {
   const client = useQueryClient()
   const put = usePutReview()
-  const [response, setResponse] = useState<ReviewResponse>(
-    review?.draft ?? EMPTY_RESPONSE,
+  const reviewId = review?.reviewId
+  const written = useDrafts((drafts) =>
+    reviewId ? drafts[reviewId] : undefined,
   )
+  const response = written ?? review?.draft ?? EMPTY_RESPONSE
   const [saveError, setSaveError] = useState<unknown>()
-  const [seeded, setSeeded] = useState(review !== undefined)
-  // A late-loading review seeds the form once, and never overwrites typing.
-  if (!seeded && review) {
-    setSeeded(true)
-    if (review.draft) setResponse(review.draft)
-  }
 
   const revision = useRef(review?.revision)
   useEffect(() => {
     if (review) revision.current = review.revision
   }, [review])
-  const reviewId = review?.reviewId
-  const latest = useRef(response)
   const writes = useRef(Promise.resolve())
   const leaving = useRef(false)
   const saver = useDebouncer(
     (next: ReviewResponse) => {
       if (!reviewId) return
+      // An answer carries what was chosen: a draft saved after it says nothing.
+      const cached = client.getQueryData<Review>(reviewKey(reviewId))
+      if (cached && cached.status !== 'open') return
       // The page cannot wait for a write still out, or read a newer revision.
       if (leaving.current) {
         void putDraft(reviewId, next).catch(() => undefined)
@@ -239,7 +255,7 @@ export function useReviewDraft(review: Review | undefined) {
         .then((saved) => {
           revision.current = saved.revision
           setSaveError(undefined)
-          put({ ...saved, draft: latest.current })
+          put({ ...saved, draft: useDrafts.getState()[reviewId] ?? next })
         })
         .catch(setSaveError)
     },
@@ -257,14 +273,12 @@ export function useReviewDraft(review: Review | undefined) {
   }, [saver])
 
   const change = (next: ReviewResponse) => {
-    setResponse(next)
-    latest.current = next
-    // Detaching mounts the pane again, and it starts from here.
-    if (reviewId)
-      client.setQueryData<Review>(
-        reviewKey(reviewId),
-        (old) => old && { ...old, draft: next },
-      )
+    if (!reviewId) return
+    useDrafts.setState({ [reviewId]: next })
+    client.setQueryData<Review>(
+      reviewKey(reviewId),
+      (old) => old && { ...old, draft: next },
+    )
     saver.maybeExecute(next)
   }
   return { response, change, saveError }
@@ -276,19 +290,20 @@ export function answerBody(text: string) {
 }
 
 /** Sends the answer: Theorem writes it and the queued reply together, once, however often this retries. */
-export function useSubmitReview(reviewId: string) {
+export function useSubmitReview(reviewId: string | undefined) {
   const put = usePutReview()
   const client = useQueryClient()
   return useMutation({
     mutationFn: (response: ReviewResponse) =>
       mutate((headers) =>
-        theoremJson<Review>(`${reviewPath(reviewId)}/submit`, {
+        theoremJson<Review>(`${reviewPath(reviewId!)}/submit`, {
           method: 'POST',
           body: response,
           headers,
         }),
       ),
     onSuccess: (review) => {
+      useDrafts.setState({ [review.reviewId]: undefined })
       put(review)
       void client.invalidateQueries({ queryKey: organizationKey })
     },
@@ -339,6 +354,7 @@ export function useShotUrl(reviewId: string, shotId: string | undefined) {
 export const useReviewDock = create<{
   /** Set while the desktop dock is mounted. */
   open?: (reviewId: string, options?: { quiet?: boolean }) => void
+  close?: (reviewId: string) => void
   /** The review shown full screen when there is no dock. */
   phoneReviewId?: string
 }>(() => ({}))
@@ -348,3 +364,18 @@ export function openReview(reviewId: string) {
   if (open) open(reviewId)
   else useReviewDock.setState({ phoneReviewId: reviewId })
 }
+
+/** Puts the review's pane away, wherever it is open. */
+export function closeReview(reviewId: string) {
+  const { close, phoneReviewId } = useReviewDock.getState()
+  close?.(reviewId)
+  if (phoneReviewId === reviewId)
+    useReviewDock.setState({ phoneReviewId: undefined })
+}
+
+/**
+ * The review the composer's next send answers. It is set by "Write feedback"
+ * and stays until it is sent, removed or the review closes: opening another
+ * panel does not move it.
+ */
+export const useReviewTarget = create<{ reviewId?: string }>(() => ({}))
