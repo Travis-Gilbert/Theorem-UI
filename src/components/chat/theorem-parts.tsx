@@ -17,6 +17,8 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { FC, ReactNode } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
+import { CodeHeader } from '@/components/assistant-ui/elements/markdown-text'
+import { SyntaxHighlighter } from '@/components/assistant-ui/elements/shiki-highlighter'
 import {
   Collapsible,
   CollapsiblePanel,
@@ -175,6 +177,9 @@ const STATE_NOTE = {
   awaiting: 'waiting for your approval',
 } as const
 
+/** Memory's functions that keep their own names in a row and still wear memory's mark. */
+const MEMORY_CALLS = new Set(['recall', 'encode'])
+
 /** Kit's own moves. The fox on the stage shows them, so one that misses is a detail and never the run's news. */
 const isKitCall = (name: string) => /^kit[._]/.test(name)
 
@@ -192,6 +197,14 @@ export function callWords(name: string, state: CallState): string {
   if (state === 'failed') return `Could not ${bare} ${what}`
   if (state === 'running') return `${doing} ${what}…`
   return `${doing} ${what} · ${STATE_NOTE[state]}`
+}
+
+/** The icon category a call's row wears. */
+function callCategory(name: string): string {
+  const known = CALLS[name]
+  if (known) return known[2]
+  if (isKitCall(name)) return 'kit'
+  return MEMORY_CALLS.has(name) ? 'memory' : 'unknown'
 }
 
 type DataPartLike = { type: string; name?: string; data?: unknown }
@@ -224,8 +237,7 @@ export function toolCallEntries(
     if (part.name === 'theorem-host_call')
       return hostCalls([part], running).map(({ name, state }) => ({
         tool_name: name,
-        tool_category:
-          CALLS[name]?.[2] ?? (isKitCall(name) ? 'kit' : 'unknown'),
+        tool_category: callCategory(name),
         message: callWords(name, state),
         show_category: false,
       }))
@@ -516,8 +528,9 @@ const TheoremApprovalCard: FC<{
         title={approval.summary}
         subtitle={approvalSubtitle(approval)}
         command={argsText || undefined}
-        icon={<Icon.Settings className="size-4" />}
-        className="max-w-md rounded-artifact border-separator bg-artifact"
+        variant={approval.risk === 'high' ? 'destructive' : 'default'}
+        icon={<Icon.Settings aria-hidden />}
+        className="max-w-md"
         onAllowOnce={allow && (() => decide(allow, true))}
         allowOnceLabel={allowOnce?.name ?? 'Allow once'}
         onAlwaysAllow={
@@ -549,6 +562,18 @@ export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
 }
 
 /* ---------------------------------------------------------------- activity */
+
+/** What a call returned, as the reply's own code block: its header, copy and palette. */
+const ToolOutput: FC<{ text: string }> = ({ text }) => (
+  <div className="min-w-0 [&_.aui-code-header-root]:mt-0">
+    <CodeHeader language="text" code={text} />
+    <SyntaxHighlighter
+      code={text}
+      language="text"
+      className="[&_pre]:max-h-60 [&_pre]:overflow-y-auto [&_pre]:break-words [&_pre]:whitespace-pre-wrap"
+    />
+  </div>
+)
 
 const LIVE_STATUSES = new Set([
   'running',
@@ -709,11 +734,7 @@ export const Activity: FC<{
     <ToolCallsSection
       toolCalls={toolCalls}
       className="px-2"
-      renderContent={(output) => (
-        <pre className="max-h-60 overflow-y-auto font-mono whitespace-pre-wrap text-ink-muted">
-          {String(output)}
-        </pre>
-      )}
+      renderContent={(output) => <ToolOutput text={String(output)} />}
     />
   )
   if (!speaker && notes.length === 0) return tools

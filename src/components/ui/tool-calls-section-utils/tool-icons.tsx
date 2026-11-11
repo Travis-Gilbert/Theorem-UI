@@ -1,7 +1,7 @@
 import type { IconSvgElement } from "@hugeicons/react";
-import type { ImgHTMLAttributes } from "react";
+import type { ComponentType, CSSProperties, ImgHTMLAttributes } from "react";
+import { Icon } from "@/components/icons";
 import {
-	Brain02Icon,
 	BubbleChatIcon,
 	CheckListIcon,
 	AlarmClockIcon,
@@ -35,7 +35,8 @@ export interface IconProps {
 
 // Category-specific icons with colors
 export interface IconConfig {
-	icon: IconSvgElement | string;
+	// Theorem: a component draws one of the app's own painted marks.
+	icon: IconSvgElement | string | ComponentType<{ style?: CSSProperties }>;
 	bgColor: string;
 	bgColorLight?: string; // Light mode background
 	iconColor: string;
@@ -188,7 +189,8 @@ const iconConfigs: Record<string, IconConfig> = {
 		iconColor: "text-cyan-400",
 	},
 	memory: {
-		icon: Brain02Icon,
+		// Theorem: the owner's Streamline mark for memory, not Brain02Icon.
+		icon: Icon.Memory,
 		bgColor: "bg-indigo-500/20 backdrop-blur",
 		bgColorLight: "bg-indigo-500/20",
 		iconColor: "text-indigo-400",
@@ -349,6 +351,14 @@ export const getToolCategoryIcon = (
 			height={defaultProps.height}
 			className={`${restProps.className || ""} aspect-square object-contain`}
 			src={config.icon as string}
+		/>
+	) : typeof config.icon === "function" ? (
+		<config.icon
+			style={{
+				display: "block",
+				width: defaultProps.size,
+				height: defaultProps.size,
+			}}
 		/>
 	) : (
 		<HugeiconsIcon

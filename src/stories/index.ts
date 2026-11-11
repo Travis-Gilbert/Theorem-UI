@@ -121,6 +121,12 @@ export const STORIES: readonly StoryMeta[] = [
     }),
   ),
   {
+    id: 'activity-approval-high',
+    title: 'Activity line: an approval Theorem marks high risk',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  {
     id: 'tool-pills',
     title: 'Tool calls: done, failed and running',
     lane: 'original',

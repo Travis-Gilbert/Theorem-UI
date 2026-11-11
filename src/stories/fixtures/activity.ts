@@ -65,7 +65,10 @@ const result = (
 })
 
 /** The question, then the reply that arrived 42 seconds later, as far as it got in `state`. */
-export function activityMessages(state: ActivityState): Theorem.Message[] {
+export function activityMessages(
+  state: ActivityState,
+  risk = 'medium',
+): Theorem.Message[] {
   const live = state === 'working' || state === 'approval'
   const build = { command: 'bun run build:examples' }
   return [
@@ -104,7 +107,7 @@ export function activityMessages(state: ActivityState): Theorem.Message[] {
                 toolCallId: 'activity-build',
                 toolName: 'bash',
                 summary: 'Allow bash to build the examples?',
-                risk: 'medium',
+                risk,
                 status: 'requires_action',
               },
             } satisfies Theorem.StoredPart,

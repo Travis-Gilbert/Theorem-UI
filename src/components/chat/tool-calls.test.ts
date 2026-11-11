@@ -62,6 +62,18 @@ test('each routine call is a row, and an artifact call is left to its card', () 
   ])
 })
 
+test("memory calls outside the wording table still wear memory's mark", () => {
+  const entries = toolCallEntries(
+    [call('recall', 'resolved'), call('encode', 'resolved')],
+    false,
+  )
+  expect(entries.map((entry) => entry.tool_category)).toEqual([
+    'memory',
+    'memory',
+  ])
+  expect(entries.map(({ message }) => message)).toEqual(['Recall', 'Encode'])
+})
+
 test('an App check is a row whose output is the problems it found', () => {
   const check = (problems: unknown[]) => ({
     type: 'data',

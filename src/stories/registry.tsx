@@ -294,6 +294,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   ...Object.fromEntries(
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),
+  'activity-approval-high': threadStory('approval', activityMessages('approval', 'high')),
   'tool-pills': threadStory('working', toolPillMessages()),
   'tool-calls-check': threadStory('finished', appCheckMessages()),
   'organized-sidebar': OrganizedSidebarStory,
