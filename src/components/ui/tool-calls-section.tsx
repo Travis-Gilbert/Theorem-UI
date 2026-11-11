@@ -149,7 +149,7 @@ export function ToolCallsSection({
     );
     return (
       icon || (
-        <div className="p-1 min-w-8 min-h-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400 backdrop-blur">
+        <div className="p-1 min-w-8 min-h-8 bg-raised rounded-lg text-ink-muted">
           <HugeiconsIcon icon={ToolsIcon} size={size} />
         </div>
       )
@@ -196,7 +196,7 @@ export function ToolCallsSection({
           </div>
         ))}
         {uniqueIcons.length > maxIconsToShow && (
-          <div className="z-0 flex size-7 min-h-7 min-w-7 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-700/60 text-xs text-zinc-600 dark:text-zinc-500 font-normal">
+          <div className="z-0 flex size-7 min-h-7 min-w-7 items-center justify-center rounded-lg bg-raised text-xs text-ink-muted font-normal">
             +{uniqueIcons.length - maxIconsToShow}
           </div>
         )}
@@ -211,7 +211,7 @@ export function ToolCallsSection({
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
-        className="flex items-center gap-2 hover:text-zinc-900 dark:hover:text-white text-zinc-500 cursor-pointer py-2"
+        className="flex items-center gap-2 hover:text-ink text-ink-muted cursor-pointer py-2"
       >
         {renderStackedIcons()}
         <span className="text-xs font-medium transition-all duration-200">
@@ -249,7 +249,7 @@ export function ToolCallsSection({
                     {iconRenderer(call, iconSize)}
                   </div>
                   {index < toolCalls.length - 1 && (
-                    <div className="w-px flex-1 bg-zinc-300 dark:bg-zinc-700 min-h-4" />
+                    <div className="w-px flex-1 bg-separator min-h-4" />
                   )}
                 </div>
 
@@ -268,9 +268,9 @@ export function ToolCallsSection({
                   >
                     <p
                       className={cn(
-                        "text-xs text-zinc-600 dark:text-zinc-400 font-medium",
+                        "text-xs text-ink-muted font-medium",
                         hasDetails &&
-                          "group-hover/parent:text-zinc-900 dark:group-hover/parent:text-white",
+                          "group-hover/parent:text-ink",
                       )}
                     >
                       {call.message || formatToolName(call.tool_name)}
@@ -281,7 +281,7 @@ export function ToolCallsSection({
                   </button>
 
                   {hasCategoryText && (
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 capitalize">
+                    <p className="text-[11px] text-ink-faint capitalize">
                       {getIntegrationName(call) ||
                         call.tool_category
                           .replace(/_/g, " ")
@@ -296,10 +296,10 @@ export function ToolCallsSection({
                   )}
 
                   {isCallExpanded && hasDetails && (
-                    <div className="mt-2 space-y-2 text-[11px] bg-zinc-100 dark:bg-zinc-800/50 rounded-xl p-3 mb-3 w-fit">
+                    <div className="mt-2 space-y-2 text-[11px] mb-3 w-fit">
                       {call.inputs && Object.keys(call.inputs).length > 0 && (
                         <div className="flex flex-col">
-                          <span className="text-zinc-400 dark:text-zinc-500 font-medium mb-1">
+                          <span className="text-ink-muted font-medium mb-1">
                             Input
                           </span>
                           {contentRenderer(call.inputs)}
@@ -307,7 +307,7 @@ export function ToolCallsSection({
                       )}
                       {call.output && (
                         <div className="flex flex-col">
-                          <span className="text-zinc-400 dark:text-zinc-500 font-medium mb-1">
+                          <span className="text-ink-muted font-medium mb-1">
                             Output
                           </span>
                           {contentRenderer(call.output)}

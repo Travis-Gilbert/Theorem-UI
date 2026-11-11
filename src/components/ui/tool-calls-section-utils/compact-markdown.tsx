@@ -48,7 +48,7 @@ const normalizeValue = (content: unknown): { data: unknown; isStructured: boolea
 export function CompactMarkdown({ content, className = "" }: CompactMarkdownProps) {
 	const { data, isStructured } = normalizeValue(content);
 
-	const baseClasses = "bg-zinc-900/50 rounded-xl p-3 max-h-60 overflow-y-auto text-xs text-zinc-400 w-fit max-w-[32rem]";
+	const baseClasses = "bg-raised rounded-xl p-3 max-h-60 overflow-y-auto text-xs text-ink-muted w-fit max-w-[32rem]";
 
 	// For structured data, render as preformatted text
 	if (isStructured) {
