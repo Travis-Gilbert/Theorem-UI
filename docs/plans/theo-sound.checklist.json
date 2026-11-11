@@ -95,13 +95,19 @@
       "id": "adapter",
       "item": "assistant-ui's speech adapter over the seam: starting until audio is on its way, running, ended; one at a time; cancel",
       "status": "done",
-      "evidence": "src/lib/speech/adapter.ts, wired in src/lib/theorem/runtime.tsx; adapter.test.ts (5)"
+      "evidence": "src/lib/speech/adapter.ts, wired in src/lib/theorem/runtime.tsx; adapter.test.ts (6)"
     },
     {
       "id": "button",
       "item": "Read aloud on an assistant message, saying when the voice is being fetched, and Stop reading while it reads",
       "status": "done",
       "evidence": "src/components/chat/read-aloud.tsx, thread.aui.tsx, icons.tsx; evidence/theo-sound/reading.png; Stop reading silenced the voice and Theo was at rest within 0.5 s"
+    },
+    {
+      "id": "failure-said",
+      "item": "A reading that fails says so beside the button of the reply it was asked for, until something is read again",
+      "status": "done",
+      "evidence": "useVoice asked/failed in src/lib/speech/adapter.ts, read-aloud.tsx; adapter.test.ts; evidence/theo-sound/could-not-read.png (the model's host blocked in the browser)"
     },
     {
       "id": "operations",
@@ -124,8 +130,8 @@
     {
       "id": "deployed",
       "item": "The voice heard from the deployed build",
-      "status": "todo",
-      "evidence": "Not run. The build finishes; the voice has been heard only from the development server"
+      "status": "partial",
+      "evidence": "Workers preview of 538f74f: the voice's chunk, worker and four WebAssembly files are served and are byte-identical (SHA-256) to the local production build, which fetched the model and spoke 4.08 s of audio when served from localhost. On the preview's own origin the model could not be fetched: Hugging Face answers 404 to any Referer on workers.dev. theorem.rs is not refused, but Read aloud has not been pressed in the signed-in app there"
     }
   ]
 }

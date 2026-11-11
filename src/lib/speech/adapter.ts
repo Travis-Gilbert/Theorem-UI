@@ -7,11 +7,20 @@ import { phonon } from './phonon'
 import type { Fetching, SpeechProvider } from './provider'
 import { speakable } from './speakable'
 
-/** What the page shows of its voice: who speaks, and how far a fetch of the voice has come. */
+/** What the page shows of its voice: who speaks, how far a fetch of the voice has come, and which reply it could not read. */
 export const useVoice = create<{
   provider: SpeechProvider
   fetching: Fetching | undefined
-}>(() => ({ provider: phonon, fetching: undefined }))
+  /** The reply whose Read aloud was pressed, until the reading that press asked for begins. */
+  asked: string | undefined
+  /** The reply that could not be read aloud, until something is read again. */
+  failed: string | undefined
+}>(() => ({
+  provider: phonon,
+  fetching: undefined,
+  asked: undefined,
+  failed: undefined,
+}))
 
 type Status = SpeechSynthesisAdapter.Status
 
@@ -47,6 +56,9 @@ export function speechAdapter(
   return {
     speak(text) {
       current?.()
+      // Whose reading this is, so a failure can be said where it was asked for.
+      const { asked } = useVoice.getState()
+      useVoice.setState({ asked: undefined, failed: undefined })
       const listeners = new Set<() => void>()
       const abort = new AbortController()
       const utterance: SpeechSynthesisAdapter.Utterance = {
@@ -70,6 +82,8 @@ export function speechAdapter(
         error?: unknown,
       ) => {
         if (current === utterance.cancel) current = undefined
+        if (reason === 'error' && utterance.status.type !== 'ended')
+          useVoice.setState({ failed: asked })
         set({
           type: 'ended',
           reason,

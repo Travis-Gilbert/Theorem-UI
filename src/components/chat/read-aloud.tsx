@@ -15,19 +15,23 @@ function waitingWords(
 
 /**
  * Reads a reply aloud, and stops reading it. It is the person's to press:
- * nothing is read unasked. Where the thread has no voice it does not show.
+ * nothing is read unasked. Where the thread has no voice it does not show;
+ * where the voice fails, it says so beside the button.
  */
 export function ReadAloud() {
   const can = useAuiState((s) => s.thread.capabilities.speech)
   const starting = useAuiState(
     (s) => s.message.speech?.status.type === 'starting',
   )
+  const id = useAuiState((s) => s.message.id)
   const fetching = useVoice((voice) => voice.fetching)
+  const failed = useVoice((voice) => voice.failed === id)
   if (!can) return null
   return (
     <>
       <AuiIf condition={(s) => s.message.speech == null}>
         <ActionBarPrimitive.Speak
+          onClick={() => useVoice.setState({ asked: id })}
           render={<TooltipIconButton tooltip="Read aloud" />}
         >
           <Icon.ReadAloud />
@@ -46,6 +50,14 @@ export function ReadAloud() {
           <Icon.Stop />
         </ActionBarPrimitive.StopSpeaking>
       </AuiIf>
+      {failed ? (
+        <span
+          role="alert"
+          className="text-muted-foreground self-center px-1 text-xs"
+        >
+          This could not be read aloud.
+        </span>
+      ) : null}
     </>
   )
 }

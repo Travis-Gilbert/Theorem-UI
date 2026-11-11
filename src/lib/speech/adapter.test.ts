@@ -176,6 +176,49 @@ describe('reading a reply aloud', () => {
     }
   })
 
+  test('a reading that fails is said of the reply it was asked for, until something is read again', async () => {
+    const failing: SpeechProvider = {
+      id: 'broken',
+      name: 'Broken',
+      keyed: false,
+      speak: () => Promise.reject(new Error('No voice.')),
+    }
+    const warn = console.warn
+    console.warn = () => {}
+    try {
+      // The button says which reply it is on, then the runtime asks the adapter.
+      useVoice.setState({ asked: 'reply-1' })
+      speechAdapter(() => failing, player().play).speak('Hi.')
+      expect(useVoice.getState().asked).toBeUndefined()
+      await tick()
+      await tick()
+      expect(useVoice.getState().failed).toBe('reply-1')
+
+      // A voice that breaks off part way is the same failure.
+      const { speaker, gates } = provider()
+      const adapter = speechAdapter(() => speaker, player().play)
+      useVoice.setState({ asked: 'reply-2' })
+      adapter.speak('A reply.')
+      expect(useVoice.getState().failed).toBeUndefined()
+      await tick()
+      gates[0]?.block()
+      gates[0]?.fail(new Error('Cut off.'))
+      await tick()
+      await tick()
+      expect(useVoice.getState().failed).toBe('reply-2')
+
+      // Stopping one is not a failure.
+      useVoice.setState({ asked: 'reply-3' })
+      const stopped = adapter.speak('Another reply.')
+      await tick()
+      stopped.cancel()
+      await tick()
+      expect(useVoice.getState().failed).toBeUndefined()
+    } finally {
+      console.warn = warn
+    }
+  })
+
   test('a reply with nothing to read ends at once, and the provider is not asked', async () => {
     const { speaker, asked } = provider()
     const utterance = speechAdapter(() => speaker, player().play).speak(

@@ -186,7 +186,20 @@ code named and not read, a link by its words, at most 4,000 characters.
 The Read aloud button (`src/components/chat/read-aloud.tsx`) sits after
 Copy on an assistant message. While the voice is being fetched it says so,
 with a percentage when the size is known; while it reads it is Stop
-reading.
+reading. A reading that fails, because the voice could not be fetched or
+broke off, says "This could not be read aloud." beside the button until
+something is read again. The button tells the adapter which reply it is
+on (`asked`), and the adapter names that reply when it fails (`failed`).
+
+**Hugging Face refuses pages on `workers.dev`.** A request whose `Referer`
+is any `workers.dev` address is answered 404 with no CORS header, for the
+model's listing and for its files; other hosts tried (`theorem.rs`,
+`pages.dev`, `vercel.app`, `example.com`, `localhost`) are answered. So the
+voice cannot be fetched on a Workers preview or on the
+`theorem-ui.<account>.workers.dev` address, and Read aloud there ends in
+the message above. `theorem.rs` is not refused. Serving the model from
+Theorem's own origin would end the dependence; that is the owner's call
+(see Not yet).
 
 ## Decisions
 
@@ -258,16 +271,18 @@ src/lib/speech src/stories`):
   when nothing is left; a beat that dies away; a jump that is loud once;
   a sound loud from its start that is not a jump; a long frame;
 - the read-aloud text (10, `lib/speech/speakable.test.ts`);
-- the adapter (5, `lib/speech/adapter.test.ts`, with a provider and a
+- the adapter (6, `lib/speech/adapter.test.ts`, with a provider and a
   player the test supplies): starting until audio is on its way; stopped;
-  one at a time; a provider that fails; nothing to read;
+  one at a time; a provider that fails; a failure named for the reply it
+  was asked for, a voice that breaks off part way being one and a stop
+  not; nothing to read;
 - the story's fake API (1 added, `stories/fake-theorem.test.ts`): another
   host's `/api/` is passed on.
 
 The whole list (`src/lib/face src/lib/kit src/lib/figures.test.ts
 src/lib/world.test.ts src/lib/sound src/lib/speech src/components/face
 src/components/kit src/components/chat src/components/artifacts
-src/stories`) is 547 tests in 45 files.
+src/stories`) is 548 tests in 45 files.
 
 **Built.** `NITRO_PRESET=cloudflare_module bun --bun vite build` finishes.
 The voice package's worker and four WebAssembly files (about 4.4 MB each,
@@ -287,6 +302,7 @@ WebAssembly.
 | `in-shell.png`       | the story `face-in-shell`: the form at its full three times, where the gutter has room                  |
 | `reading.png`        | the real voice reading the reply: the form held, the button now Stop reading                            |
 | `page.png`           | the whole story page                                                                                    |
+| `could-not-read.png` | the model's host unreachable: the button back to Read aloud, and the words beside it                    |
 
 With the real voice in that browser: pressing Read aloud fetched
 65,049,306 bytes, the first audio came after about five seconds, the form
@@ -294,13 +310,28 @@ was held for the whole reading including its silent gaps, and Theo was two
 eyes again at the end. Pressing Stop reading two and a half seconds in
 silenced it at once and Theo was at rest within half a second.
 
+**Deployed** (the Workers preview of commit `538f74f`). Stories are left
+out of a production build, and the app wants a sign-in, so Read aloud
+itself was not pressed there. What was checked:
+
+- the preview serves the voice's chunk, its worker and the four
+  WebAssembly files, the WebAssembly as `application/wasm`, and each is
+  byte for byte the file of the local production build (SHA-256);
+- that chunk, loaded in a page on the preview's origin, could not fetch
+  the model: Hugging Face answered 404 (see Where the voice comes from);
+- the same chunk served from `localhost` fetched the model and spoke: 4.08
+  seconds of audio at 24 kHz, the first of it 4.6 seconds after the load
+  began.
+
 ## Not seen
 
 - A person's ears and eyes on it. Whether the voice is good, whether the
   loudspeaker reads as one at this size, and whether the mouth is worth
   keeping are judgements nobody has made.
-- The deployed build. The build finishes; the voice has been heard only
-  from the development server.
+- Read aloud pressed in the deployed app, signed in, on `theorem.rs`. The
+  deployed files speak when served from `localhost`, and Hugging Face
+  answers a request that names `theorem.rs`; nobody has pressed the button
+  there.
 - Threads. Phonon uses several only on a cross-origin isolated page, which
   this is not, so it runs on one.
 - A phone, and a slow machine. Five seconds to first audio was on this
@@ -315,6 +346,10 @@ silenced it at once and Theo was at rest within half a second.
 - **A provider with a key.** The seam has `keyed`; no keyed provider is
   built. Where a person's key is kept is an open decision for the owner
   and comes first.
+- **The model served from Theorem's own origin**, so that the voice does
+  not depend on what Hugging Face will answer, and works on a Workers
+  preview. The model is Apache-2.0. Where it would be kept is the owner's
+  decision.
 - Choosing a voice, and a setting for which provider speaks.
 - Reading a reply as it streams. Read aloud is pressed on a finished one.
 - Word timings from a provider, for a mouth that shapes vowels.
