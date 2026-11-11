@@ -223,9 +223,10 @@ export function ToolCallsSection({
 
       {/* Collapsible Content */}
       <div
+        inert={!isExpanded}
         className={cn(
           "overflow-hidden transition-all duration-200",
-          isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0",
+          isExpanded ? "opacity-100" : "max-h-0 opacity-0",
         )}
       >
         <div className="space-y-0 pt-1">

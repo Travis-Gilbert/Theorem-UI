@@ -91,6 +91,32 @@ test('an App check is a row whose output is the problems it found', () => {
   const [clean] = toolCallEntries([check([])], false)
   expect(clean?.message).toBe('Checked the App: no problems')
   expect(clean?.output).toBeUndefined()
+  const [unchecked] = toolCallEntries(
+    [
+      {
+        type: 'data',
+        name: 'theorem-client_operation',
+        data: {
+          operation: 'app.check',
+          state: 'answered',
+          receipt: {
+            outcome: 'applied',
+            result: {
+              built: true,
+              omitted: 0,
+              problems: [],
+              typeCheckError: 'The type checker could not start',
+            },
+          },
+        },
+      },
+    ],
+    false,
+  )
+  expect(unchecked).toMatchObject({
+    message: 'Checked the App: its types could not be checked',
+    output: 'The type checker could not start',
+  })
   // Kit's operations are the fox's to show.
   expect(
     toolCallEntries(

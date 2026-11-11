@@ -232,14 +232,17 @@ export function toolCallEntries(
     if (part.name !== 'theorem-client_operation') return []
     const check = appCheckSummary(part.data, running)
     if (!check) return []
-    const problems = appCheckProblems(part.data)
+    // Why the check fell short, then what it found.
+    const output = [check.reason, appCheckProblems(part.data)]
+      .filter(Boolean)
+      .join('\n')
     return [
       {
         tool_name: 'app.check',
         tool_category: 'development',
         message: check.words,
         show_category: false,
-        ...(problems && { output: problems }),
+        ...(output && { output }),
       },
     ]
   })
@@ -707,7 +710,7 @@ export const Activity: FC<{
       toolCalls={toolCalls}
       className="px-2"
       renderContent={(output) => (
-        <pre className="font-mono whitespace-pre-wrap text-ink-muted">
+        <pre className="max-h-60 overflow-y-auto font-mono whitespace-pre-wrap text-ink-muted">
           {String(output)}
         </pre>
       )}
