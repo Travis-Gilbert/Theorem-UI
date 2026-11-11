@@ -3,7 +3,7 @@ import { useAui, useAuiState } from '@assistant-ui/react'
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useDraggable } from '@dnd-kit/core'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { format, isToday, isTomorrow } from 'date-fns'
+import { format, intlFormatDistance, isToday, isTomorrow } from 'date-fns'
 import { useContext, createContext, useEffect, useRef, useState } from 'react'
 import {
   OriginMark,
@@ -59,6 +59,8 @@ export type TreeContext = {
   projects: readonly ProjectEntry[]
   views: OrganizedViews
   served: boolean
+  /** When the tree was last read: the clock a row measures its age against. */
+  readAtMs: number
 }
 
 export const OrganizeTree = createContext<TreeContext | null>(null)
@@ -81,7 +83,7 @@ const wakeLabel = (later: Later, views: OrganizedViews) => {
   return format(at, 'MMM d')
 }
 
-/** The row's compact status. Its width is the only thing that changes when it does. */
+/** The row's compact status, or when it last heard a message. Its width is the only thing that changes when it does. */
 function StatusMark({
   thread,
   running,
@@ -121,7 +123,24 @@ function StatusMark({
         <span className="sr-only">, running</span>
       </span>
     )
-  return null
+  const at = thread.lastMessageAtMs ?? thread.createdAtMs
+  return <Age at={at} />
+}
+
+function Age({ at }: { at: number }) {
+  const { readAtMs } = useTree()
+  return (
+    <time
+      dateTime={new Date(at).toISOString()}
+      title={format(at, 'PPp')}
+      className="shrink-0 text-xs text-ink-muted tabular-nums group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
+    >
+      {intlFormatDistance(at, Math.max(at, readAtMs), {
+        style: 'narrow',
+        numeric: 'always',
+      })}
+    </time>
+  )
 }
 
 function RenameField({
@@ -331,7 +350,13 @@ export function ThreadRow({
                     className="text-ink-muted"
                   />
                 )}
-                <span className="min-w-0 flex-1 truncate">
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate',
+                    // A reply being written shows where it is.
+                    running && 'shimmer motion-reduce:animate-none',
+                  )}
+                >
                   {title}
                   {thread.origin && (
                     <span className="sr-only">

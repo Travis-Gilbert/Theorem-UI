@@ -100,7 +100,11 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     [`GET ${BASE}/threads/:threadId`]: ({ threadId = '' }) => ({
       thread: threadOf(threadId),
       project: projects[0],
-      branches: [branch(threadId)],
+      // One thread carries a fork, so the sidebar shows a branch under its thread.
+      branches:
+        threadId === 'thread-graph-memory'
+          ? [branch(threadId), { ...branch(threadId), branchId: 'branch-fork', parentBranchId: 'branch-main' }]
+          : [branch(threadId)],
       selectedBranch: branch(threadId),
       messages: threadId === 'thread-app-gallery' ? threadMessages(now) : [],
     }),

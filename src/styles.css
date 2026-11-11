@@ -696,6 +696,34 @@
   }
 }
 
+/* The chat panel's rows answer the pointer (organized-panel.tsx): what a row
+   holds lifts a pixel and its mark tips, on the snap spring. */
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button'])
+      > * {
+      transition:
+        translate var(--duration-snap) var(--ease-snap),
+        rotate var(--duration-snap) var(--ease-snap),
+        scale var(--duration-snap) var(--ease-snap);
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > * {
+      translate: 0 -1px;
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > :is(svg, .rail-mark) {
+      rotate: -8deg;
+      scale: 1.1;
+    }
+  }
+}
+
 /* Streamline marks (icons.tsx): the ink is painted through the PNG's alpha,
    so the mark follows currentColor. Sizing comes from the caller. */
 @layer components {
