@@ -238,6 +238,30 @@ export function perchLines(): PerchLine[] {
     .filter((line): line is PerchLine => line !== undefined)
 }
 
+/**
+ * The surface whose box holds the point (x, y), the composer first: a person
+ * who sets Kit down on the composer or a message aims at its box, not at the
+ * line along its top. Inside a scroller marked `data-kit-clip`, only the part
+ * of the box the scroller shows counts. The floor has no box.
+ */
+export function surfaceAround(x: number, y: number): PerchLine | undefined {
+  return perchLines().find((line) => {
+    if (line.name === 'floor') return false
+    const element = perchElement(line.name)
+    if (!element) return false
+    const rect = element.getBoundingClientRect()
+    const view = element
+      .closest<HTMLElement>('[data-kit-clip]')
+      ?.getBoundingClientRect()
+    return (
+      x >= Math.max(rect.left, view?.left ?? -Infinity) &&
+      x <= Math.min(rect.right, view?.right ?? Infinity) &&
+      y >= Math.max(rect.top, view?.top ?? -Infinity) &&
+      y <= Math.min(rect.bottom, view?.bottom ?? Infinity)
+    )
+  })
+}
+
 /** The surfaces on screen as the scene names them, with their labels. */
 export function surfacesOf(lines: readonly PerchLine[]): KitSurface[] {
   return lines.map(({ name }) => {
