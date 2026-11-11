@@ -117,7 +117,7 @@
     },
     {
       "id": "book",
-      "item": "A book of named performances with immutable versions, each use saved by version; Theo's own are never lost; one in use cannot be removed; 64 added versions at most, kept in localStorage",
+      "item": "A book of named performances with immutable versions, each use saved by version; Theo's own are never lost; one in use cannot be removed, and a single version can be; 64 added versions at most, kept in localStorage",
       "status": "done",
       "evidence": "src/lib/face/book.ts (26 to start); src/lib/face/face.test.ts 'book'"
     },

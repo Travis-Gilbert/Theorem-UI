@@ -86,7 +86,7 @@ export const FACE_OPERATIONS = [
   {
     name: FACE_DEFINE,
     description:
-      'Teaches Theo something that lasts on this device. Pass `name` and `program` (and a `note` saying what it is for) to save a performance to the book: saving a name again adds a version, and earlier versions keep meaning what they meant. Pass `rule` to add or replace a reaction: {id, on:"person.poke" or a list of event kinds in order, when?:{streak:[4,99], arousal:[0.5,1]}, do:"name" or a program, weight?, cooldown?, intensity?}; Theo then does it by itself when that happens, drawn against the other rules that fit. Pass `remove` as {performance:"name"} or {rule:"id"} to take one you added away. The program or rule is checked first; a wrong one is refused with the path and the reason.',
+      'Teaches Theo something that lasts on this device. Pass `name` and `program` (and a `note` saying what it is for) to save a performance to the book: saving a name again adds a version, and earlier versions keep meaning what they meant. Pass `rule` to add or replace a reaction: {id, on:"person.poke" or a list of event kinds in order, when?:{streak:[4,99], arousal:[0.5,1]}, do:"name" or a program, weight?, cooldown?, intensity?}; Theo then does it by itself when that happens, drawn against the other rules that fit. Pass `remove` as {performance:"name"}, {performance:"name@2"} for one version, or {rule:"id"} to take one you added away; a version another performance uses stays until that one goes. The program or rule is checked first; a wrong one is refused with the path and the reason.',
     effect: 'presentation',
     inputSchema: {
       type: 'object',

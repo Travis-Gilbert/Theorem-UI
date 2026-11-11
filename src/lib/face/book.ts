@@ -585,20 +585,27 @@ export class Book {
   }
 
   /**
-   * Removes every added version of a name. The face's own performances stay,
-   * and so does a version another added performance uses.
+   * Removes every added version of a name, or one version given as
+   * `name@version`. The face's own performances stay, and so does a version
+   * another added performance uses. A version can only use versions saved
+   * before it, so there is always one nothing uses to start from.
    */
-  remove(name: string): { ok: true } | { ok: false; reason: string } {
+  remove(reference: string): { ok: true } | { ok: false; reason: string } {
+    const [name = '', version] = reference.split('@')
     const versions = this.entries.get(name) ?? []
-    const going = versions.filter((entry) => entry.by !== 'theo')
+    const going = versions.filter(
+      (entry) =>
+        entry.by !== 'theo' &&
+        (version === undefined || entry.version === Number(version)),
+    )
     if (going.length === 0)
       return {
         ok: false,
-        reason: `Nothing added is named "${name}"; Theo’s own performances stay.`,
+        reason: `Nothing added is named "${reference}"; Theo’s own performances stay.`,
       }
     const users = new Set<string>()
     for (const entry of this.defined()) {
-      if (entry.name === name) continue
+      if (going.includes(entry)) continue
       eachUse(entry.program.steps, (step) => {
         const used = this.get(step.name)
         if (used && going.includes(used))
@@ -608,9 +615,9 @@ export class Book {
     if (users.size > 0)
       return {
         ok: false,
-        reason: `"${name}" is used by ${[...users].join(', ')}; remove ${users.size === 1 ? 'it' : 'them'} first.`,
+        reason: `"${reference}" is used by ${[...users].join(', ')}; remove ${users.size === 1 ? 'that version' : 'those versions'} first.`,
       }
-    const kept = versions.filter((entry) => entry.by === 'theo')
+    const kept = versions.filter((entry) => !going.includes(entry))
     if (kept.length > 0) this.entries.set(name, kept)
     else this.entries.delete(name)
     this.save()

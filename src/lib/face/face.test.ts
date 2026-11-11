@@ -506,6 +506,32 @@ describe('book', () => {
     expect(book.get('part')).toBeUndefined()
   })
 
+  test('performances that use each other’s versions can still be taken away', () => {
+    const book = new Book()
+    const save = (name: string, program: unknown) => {
+      const saved = book.define(name, program, '', 'agent', channels())
+      if (!saved.ok) throw new Error(saved.reason)
+    }
+    save('alpha', blink)
+    save('beta', { op: 'use', name: 'alpha' })
+    save('alpha', { op: 'use', name: 'beta' })
+    // Neither name can go whole: each has a version the other uses.
+    const alpha = book.remove('alpha')
+    const beta = book.remove('beta')
+    if (alpha.ok || beta.ok) throw new Error('removed')
+    expect(alpha.reason).toContain('beta@1')
+    expect(beta.reason).toContain('alpha@2')
+    // A version nothing uses goes by itself, and the rest follow.
+    const used = book.remove('alpha@1')
+    expect(used.ok).toBe(false)
+    expect(book.remove('alpha@2').ok).toBe(true)
+    expect(book.get('alpha')?.version).toBe(1)
+    expect(book.remove('beta').ok).toBe(true)
+    expect(book.remove('alpha').ok).toBe(true)
+    expect(book.get('alpha')).toBeUndefined()
+    expect(book.remove('alpha@1').ok).toBe(false)
+  })
+
   test('versions count toward what the book may hold', () => {
     const book = new Book()
     for (let index = 0; index < BOOK_LIMITS.entries; index++) {

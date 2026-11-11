@@ -199,7 +199,11 @@ and when one is saved every `use` in it is written down by version
 (`blink` becomes `blink@1`), so revising `blink` later does not change what
 an older performance plays. The book holds 64 added performances with each
 version counted, and one that another added performance uses cannot be
-removed until its user is.
+removed until its user is. Removal takes a name, for every added version of
+it, or `name@version` for one. Two names can each hold a version the other
+uses, so neither goes whole; a version only ever uses versions saved before
+it, so there is always one nothing uses, and taking the versions away in
+that order empties the pair.
 
 A feature a program adds leaves when the last performance that put it there
 lets go. The player keeps that account itself: a performance played again
@@ -439,7 +443,7 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-79 tests):
+80 tests):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;
@@ -456,7 +460,8 @@ without a jump, and reads back that it was interrupted.
   compiles;
 - the book: versions, persistence, Theo's own are never lost; a saved version
   plays the same after what it uses is revised; a performance in use cannot
-  be removed; versions count toward the limit;
+  be removed; two that use each other's versions come away a version at a
+  time; versions count toward the limit;
 - the face: a performance moves it and lets go; a program nobody named plays
   and its added feature is taken away after; played again before its features
   have gone, it still takes them away; a feature two performances use stays
