@@ -100,9 +100,12 @@ afterEach(async () => {
   usePickedModels.setState({ selected: undefined, starred: [] })
 })
 
+/** The text the composer holds, which is what a send carries. */
+let composerText = () => ''
 function Draft({ text }: { text: string }) {
   const aui = useAui()
   useEffect(() => {
+    composerText = () => aui.composer.getState().text
     aui.composer.setText(text)
     aui.composer.setRunConfig({
       custom: {
@@ -145,6 +148,7 @@ function Harness({
 /** Renders, then lets the page's queries settle, as they have by the time a person types. */
 async function mount(harness: ReactNode) {
   const view = await render(harness)
+  await waitFor(() => view.container.querySelector('.ProseMirror'))
   await waitFor(() => !client.isFetching())
   // Query results reach React on the next tick, after the cache has settled.
   await act(() => new Promise((resolve) => setTimeout(resolve)))
@@ -157,22 +161,23 @@ const sentText = (message: AppendMessage) =>
     .join('\n')
 
 const inputOf = (container: HTMLElement) =>
-  container.querySelector<HTMLTextAreaElement>('[aria-label="Message input"]')!
+  container.querySelector<HTMLElement>('[aria-label="Message input"]')!
 
-/** Types into the textarea as a person does: the value changes and the caret ends up after it. */
-async function type(input: HTMLTextAreaElement, value: string) {
-  const { set } = Object.getOwnPropertyDescriptor(
-    Object.getPrototypeOf(input) as object,
-    'value',
-  )!
+/** Types into the editor as a person does: its line holds the text and the caret ends up after it. */
+async function type(input: HTMLElement, value: string) {
   await act(async () => {
-    set!.call(input, value)
-    input.setSelectionRange(value.length, value.length)
-    input.dispatchEvent(new Event('input', { bubbles: true }))
+    const line = input.querySelector('p')!
+    line.textContent = value
+    window.getSelection()!.collapse(line.firstChild, value.length)
+    input.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }),
+    )
+    // The editor reads what was typed from the page a moment later.
+    await Bun.sleep(10)
   })
 }
 
-const press = (input: HTMLTextAreaElement, key: string) =>
+const press = (input: HTMLElement, key: string) =>
   act(async () => {
     input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
   })
@@ -233,9 +238,10 @@ test('Enter picks the highlighted tool, and the message names it for the turn', 
   await waitFor(() => options().length === 1)
   await press(input, 'Enter')
   await waitFor(() => !options().length)
-  expect(input.value).toStartWith(':tool[recall]')
+  expect(composerText()).toStartWith(':tool[recall]')
+  expect(input.textContent).toStartWith(':tool[recall]')
   expect(sent).toHaveLength(0)
-  await type(input, `${input.value.trimEnd()} what did we decide`)
+  await type(input, `${composerText().trimEnd()} what did we decide`)
   await press(input, 'Enter')
   await waitFor(() => sent.length)
   expect(sentText(sent[0]!)).toBe(':tool[recall] what did we decide')
@@ -309,33 +315,58 @@ for (const method of ['click', 'Enter'] as const) {
       },
     })
     expect(sentText(sent[0]!)).toBe('Compare Chrome and Firefox')
-    expect(input.value).toBe('')
+    expect(composerText()).toBe('')
+    expect(input.textContent).toBe('')
   })
 }
 
-test('blank composer stays disabled and Shift+Enter does not send or alter the draft', async () => {
+test('blank composer stays disabled, and Shift+Enter starts a new line without sending', async () => {
   const sent: AppendMessage[] = []
-  const { container, rerender } = await mount(<Harness text="" sent={sent} />)
+  const { container } = await mount(<Harness text="" sent={sent} />)
   expect(
     container.querySelector<HTMLButtonElement>('[aria-label="Send message"]')!
       .disabled,
   ).toBe(true)
-  await press(inputOf(container), 'Enter')
-  expect(sent).toHaveLength(0)
-  expect(inputOf(container).value).toBe('')
-  await rerender(<Harness text="Draft" sent={sent} />)
   const input = inputOf(container)
-  await act(() =>
+  await press(input, 'Enter')
+  expect(sent).toHaveLength(0)
+  expect(composerText()).toBe('')
+  expect(input.textContent).toBe('')
+  await type(input, 'Draft')
+  await act(async () => {
     input.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'Enter',
         shiftKey: true,
         bubbles: true,
       }),
-    ),
-  )
+    )
+  })
   expect(sent).toHaveLength(0)
-  expect(input.value).toBe('Draft')
+  // The line break is in the editor; an empty last line is not part of the message.
+  expect(input.querySelector('p br')).not.toBeNull()
+  expect(composerText()).toBe('Draft')
+})
+
+test('the arrow keys move through the tools, and Escape closes the list and keeps the text', async () => {
+  const { container } = await mount(<Harness text="" sent={[]} />)
+  const input = inputOf(container)
+  await type(input, '/')
+  await waitFor(() => options().length === 4)
+  expect(input.getAttribute('aria-expanded')).toBe('true')
+  const first = input.getAttribute('aria-activedescendant')
+  await press(input, 'ArrowDown')
+  await waitFor(() => input.getAttribute('aria-activedescendant') !== first)
+  await press(input, 'Enter')
+  await waitFor(() => !options().length)
+  expect(composerText()).toStartWith(':tool[recall]')
+
+  await type(input, 'see /')
+  await waitFor(() => options().length === 4)
+  await press(input, 'Escape')
+  await waitFor(() => !options().length)
+  expect(input.hasAttribute('aria-expanded')).toBe(false)
+  expect(composerText()).toBe('see /')
 })
 
 test('the Web chip requests research without restricting the other tools', async () => {

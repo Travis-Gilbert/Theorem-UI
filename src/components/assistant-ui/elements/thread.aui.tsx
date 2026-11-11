@@ -24,6 +24,7 @@ import {
   isStandaloneToolCall,
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
+import { ComposerEditor } from '@/components/chat/composer-editor'
 import { ModelPicker } from '@/components/chat/model-picker'
 import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
@@ -449,7 +450,7 @@ const SpokenActionBar: FC = () => {
 }
 
 const FOCUSABLE_SELECTOR =
-  "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1']):not([disabled])"
+  "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [contenteditable='true'], [tabindex]:not([tabindex='-1']):not([disabled])"
 
 const nextFocusable = (start: Element) => {
   for (
@@ -557,7 +558,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const recordLaunches = () => {
     const shell = shellRef.current
     if (!shell || !aui.composer.getState().canSend) return
-    const input = shell.querySelector('textarea') ?? shell
+    const input = shell.querySelector('.aui-composer-input') ?? shell
     recordLaunch(input.getBoundingClientRect())
     const footer = shell.closest('.aui-thread-viewport-footer')
     if (footer) recordLaunch(footer.getBoundingClientRect(), 'composer-dock')
@@ -594,13 +595,11 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
         >
           <ComposerReferences />
           <ComposerAttachments />
-          <ComposerPrimitive.Input
+          <ComposerEditor
+            label="Message input"
             placeholder="Message Theorem, / for tools"
-            className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-96 min-h-[5.5rem] w-full resize-none bg-transparent px-2 pt-1 pb-2 text-[1rem] leading-7 outline-none focus-visible:outline-none"
-            rows={1}
+            className="aui-composer-input w-full"
             autoFocus={autoFocus}
-            enterKeyHint="send"
-            aria-label="Message input"
             onFocus={() => attendKit(true)}
             onBlur={() => attendKit(false)}
           />
@@ -1172,8 +1171,9 @@ const EditComposer: FC = () => {
         <ComposerPrimitive.TriggerPopoverRoot>
           <ComposerPrimitive.Root className="aui-edit-composer-root border-(color:--paper-edge) focus-within:border-control surface-paper flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100">
             <ComposerToolTrigger />
-            <ComposerPrimitive.Input
-              className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
+            <ComposerEditor
+              label="Edit message"
+              className="aui-edit-composer-input w-full"
               autoFocus
             />
             <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
