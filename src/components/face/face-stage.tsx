@@ -8,6 +8,8 @@ import { FaceDriver, VISOR_PX } from './driver'
 import { eyeColour, useFaceHue, useFaceLook } from './look'
 
 const VISOR_HEIGHT = (VISOR_PX * THEO.height) / THEO.width
+/** Three arcs a side: the left ones, then the right. */
+const WAVES = ['l0', 'l1', 'l2', 'r0', 'r1', 'r2'] as const
 
 /**
  * Theo on the page: the agent's face. It rests in the gutter of the live
@@ -21,6 +23,7 @@ export function FaceStage() {
   const plate = useRef<HTMLDivElement | null>(null)
   const screen = useRef<HTMLDivElement | null>(null)
   const mark = useRef<HTMLDivElement | null>(null)
+  const waves = useRef<SVGSVGElement | null>(null)
   const driving = useRef<FaceDriver | undefined>(undefined)
   const look = useFaceLook()
   const hue = useFaceHue()
@@ -29,7 +32,13 @@ export function FaceStage() {
   const expression = useKit((state) => state.expression)
 
   useEffect(() => {
-    if (!holder.current || !plate.current || !screen.current || !mark.current)
+    if (
+      !holder.current ||
+      !plate.current ||
+      !screen.current ||
+      !mark.current ||
+      !waves.current
+    )
       return
     const driver = new FaceDriver(
       theFace(),
@@ -37,6 +46,7 @@ export function FaceStage() {
       plate.current,
       screen.current,
       mark.current,
+      [...waves.current.querySelectorAll('path')],
       (state) => {
         if (state.words !== undefined) setWords(state.words)
         if (state.painter) useFaceStage.setState({ painter: state.painter })
@@ -101,6 +111,19 @@ export function FaceStage() {
         >
           <div ref={screen} className="size-full" />
         </div>
+        {/* The arcs that leave Theo's sides while it sounds. They are outside the visor, which clips its matter; the driver draws them. */}
+        <svg
+          ref={waves}
+          data-slot="face-waves"
+          aria-hidden
+          viewBox={`0 0 ${VISOR_PX} ${VISOR_HEIGHT}`}
+          className="face-waves pointer-events-none absolute inset-0 size-full overflow-visible"
+          style={{ '--face-wave': eyeColour(hue) } as CSSProperties}
+        >
+          {WAVES.map((wave) => (
+            <path key={wave} style={{ opacity: 0 }} />
+          ))}
+        </svg>
       </div>
       <span role="status" className="sr-only">
         Theo is {words}

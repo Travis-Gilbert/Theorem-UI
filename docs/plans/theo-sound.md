@@ -1,0 +1,322 @@
+# Theo and sound
+
+Theo's face (`theo-face.md`) could be moved by a program, by the person's
+hands and by the run. This plan lets it hear what the page plays: a reply
+read aloud turns Theo into a small retro loudspeaker for as long as the
+voice is really sounding, and the page gets a voice to read replies with.
+
+Three things are added, each usable without the other two:
+
+- **Signals.** Live numbers the page measures. A program ties a channel to
+  one with a new step, `follow`.
+- **Forms.** A rule that says what ends it gives the face a form: a
+  performance held from one event until another, under whatever else the
+  face does.
+- **A voice.** One sound graph for the page, a meter on it, a provider seam
+  (text in, audio out) with a model that runs in the browser behind it, and
+  a Read aloud button on a reply.
+
+The checklist in `theo-sound.checklist.json` tracks this spec item by item.
+
+## Source
+
+Agreed with the owner in the session that built it, on 2026-11-11. In their
+words: no "animation for listening" but "the ability to react to sound and
+the ability to draw self a mouth and speak"; "Theo is sort of already boom
+box shaped ... instead of showing Theo talking it's Theo turning into boom
+box speakers with sound waves emitting from the sides"; "just a retro boom
+box design"; "pair its activities with transforming into electronic
+devices"; "wire up phonon", the 31M model; and people may "bring their own
+ElevenLabs or similar provider keys". It is not a file, so it has no hash.
+
+Two limits were agreed with it and are kept here:
+
+- Theo never opens the microphone and never starts speech to text by
+  itself. The sound graph has outputs only; every sound signal is measured
+  from audio the page is playing.
+- Nothing is inferred about the person from a voice. The meter reads level
+  and timing.
+
+## Signals and `follow`
+
+A signal is a named number between bounds that the page measures as it
+happens (`src/lib/face/signals.ts`):
+
+| Signal        | Is                                                               |
+| ------------- | ---------------------------------------------------------------- |
+| `sound.level` | how loud what the page is playing is, now; 0 while nothing plays |
+| `sound.low`   | the low end of it: the body of a voice, a bass                   |
+| `sound.mid`   | the middle: vowels                                               |
+| `sound.high`  | the top: consonants, hiss                                        |
+| `sound.beat`  | 1 when a sound sets in (a syllable, a beat), dying away after    |
+| `body.speed`  | how fast the figure is moving on the page                        |
+
+A program cannot set one. It ties a channel to one:
+
+```json
+{ "op": "follow", "channel": "mouth.h", "signal": "sound.level", "amp": 6 }
+```
+
+Each frame the channel is `amp` times the signal away from wherever it
+otherwise is. With `for` the tie lasts that many milliseconds; without, as
+long as the performance holds, which with `keep` is until something lets
+go. A tie comes in and goes out over 140 ms.
+
+This is the whole of how a face speaks. Nothing says "speaking": the mouth
+opens because the level is above nothing, and it is above nothing only
+while audio is going out of the loudspeaker. A pause in a sentence shuts
+it.
+
+With motion reduced nothing follows.
+
+## Forms
+
+A reaction rule may now say what ends it:
+
+```json
+{
+  "id": "sound-boombox",
+  "on": "sound.start",
+  "until": "sound.stop",
+  "do": "boombox"
+}
+```
+
+A rule with `until` gives the face a **form**. A form plays on its own
+layer, between the mood and the reactions (`mood`, `form`, `reaction`,
+`performance`, `hand`), and is held from the `on` event until the `until`
+event. So the face still blinks at a poke, still performs what the agent
+asks, and is a loudspeaker again after.
+
+- A form is drawn by weight among the rules that fit, and is never left
+  out by chance: doing nothing is not a candidate.
+- While a form is held the face does not fall asleep, and does not smile
+  at the person with eyes that are now something else.
+- `face.read` reports it in the state as `form: {name, until}`, with the
+  signals that are away from nothing.
+
+Three rules come with Theo: `sound-boombox` (weight 3) and `sound-speak`
+(weight 1) are forms for a sound from start to stop, and `sound-thump` is
+an ordinary reaction to a sound getting loud.
+
+## The loudspeaker
+
+`boombox` is the first device. It is made of the face's own matter, with
+two additions to what a feature can be (`src/lib/face/feature.ts`):
+
+- `rings`: the matter gathered into that many rings from the middle out.
+  Three is a loudspeaker cone.
+- `slats`: the matter gathered into that many bars. Seven, turned a
+  quarter, is a tuner strip.
+
+The eyes become two ringed speakers and move apart; a `deck` (a hollow
+box) with two `reel`s sits between them and a `dial` above. The speakers
+swell with `sound.low` and `sound.beat`, the dial with `sound.high`.
+
+What leaves the sides is not matter. Matter is clipped to the visor, so
+the arcs are drawn by the page outside it (`.face-waves`, three arcs a
+side) from two channels, `emit.left` and `emit.right`, which the form ties
+to `sound.level`. A quiet sound's arcs die close by; a loud one's reach
+the end. Their colour is the eyes' leaned toward the page's ink, so they
+show on a light page.
+
+A form is larger than Theo at rest: three times, or as much of that as
+fits between the window's edge and the words it perches beside, never less
+than twice. Once it has emitted it keeps room for its arcs until it lets
+go, so a pause does not slide it about.
+
+With motion reduced the form is taken and does not pump. Two arcs a side
+are drawn still for as long as there is sound, and go when there is none.
+
+`speak` is the other form: a `mouth` feature whose height follows
+`sound.level` and whose width narrows with `sound.mid`. `thump` is a short
+kick for a sudden loud sound.
+
+Later devices are meant to be built the same way: features, rings and
+bars, and ties to signals.
+
+## The page's sound
+
+`src/lib/sound/graph.ts` is one Web Audio graph for the page. Everything
+the page plays goes through it to the loudspeaker and past an analyser, so
+whatever speaks is heard by the same meter and the face never needs to
+know who is talking. It plays raw audio as it arrives, block after block
+with no gap, and an audio file. Nothing is made until something is played.
+
+`src/lib/sound/meter.ts` reads the analyser's latest block once a frame
+into the five sound signals and three events:
+
+| Event         | When                                                             |
+| ------------- | ---------------------------------------------------------------- |
+| `sound.start` | the level is above the audible mark and was not                  |
+| `sound.stop`  | silence for 0.35 s with nothing left to play                     |
+| `sound.loud`  | the level is near the top and well over where it has lately been |
+
+A pause while more is due is not a stop, so a form is held through the
+gaps in a sentence. A sound's own start is not a jump: `sound.loud` waits
+until the sound has been going a second.
+
+The driver feeds the signals to the face and gives it the events each
+frame (`src/components/face/driver.ts`, `hear`).
+
+## Where the voice comes from
+
+`SpeechProvider` (`src/lib/speech/provider.ts`) is the seam: `speak(text)`
+resolves to a stream of mono blocks at a sample rate. A provider plays
+nothing; playing is the graph's.
+
+One provider is built: **Phonon** (`src/lib/speech/phonon.ts`), Gradium's
+`phonon-tts`, with its default 31M English model. It runs in the browser
+in the package's own worker and needs no key. The model, about 65 MB, is
+fetched from its pinned Hugging Face commit the first time someone presses
+Read aloud and kept in the browser's cache; a page that never speaks never
+fetches it.
+
+`phonon-tts` is pinned at 0.6.0. 0.7.0 was two days old when this was
+built, inside the three days this repository waits before installing a
+release (`bunfig.toml`); its API differs from 0.6.0's only in comments.
+
+`speechAdapter` (`src/lib/speech/adapter.ts`) is assistant-ui's
+`SpeechSynthesisAdapter` over the seam. An utterance is `starting` until
+the first audio is handed to the graph, then `running`, then `ended` with
+how the playback ended. One thing is said at a time. What is spoken is the
+reply as it would be read aloud (`speakable.ts`): no marks, a block of
+code named and not read, a link by its words, at most 4,000 characters.
+
+The Read aloud button (`src/components/chat/read-aloud.tsx`) sits after
+Copy on an assistant message. While the voice is being fetched it says so,
+with a percentage when the size is known; while it reads it is Stop
+reading.
+
+## Decisions
+
+- **A tie, not a flag.** The face is given numbers, and a program decides
+  what they move. A talking state would have been simpler and would have
+  let the face lie.
+- **One graph.** A second player with its own context would be invisible
+  to the meter.
+- **Arcs outside the visor.** The visor is what Theo is; a device that
+  only showed inside it could not send anything out of its sides.
+- **The form is sized to the room.** In a narrow gutter a three-times
+  figure with arcs covered the reply's first words.
+- **No timings in the seam yet.** A provider could say when each word
+  falls; nothing reads that today, so it is not in the interface.
+- **The story's fake API answers only its own origin.** It answered every
+  host's `/api/` path with a 404, which stopped the model being fetched.
+
+## Files
+
+```
+src/lib/face/
+  signals.ts      the signals and their bounds
+  program.ts      the `follow` step
+  player.ts       ties laid each frame, kept with a kept performance; which signals a channel is tied to
+  layers.ts       the `form` layer
+  reactions.ts    `until`, and drawing a form; the three sound rules
+  engine.ts       feed, forms taken and let go, emitting, the manual's signals
+  feature.ts      rings and bars
+  channels.ts     `rings`, `slats`, `emit.left`, `emit.right`
+  book.ts         boombox, speak, thump
+  memory.ts       what a sound does to the mood
+  operations.ts   `follow` and `until` in the descriptions
+src/lib/sound/
+  graph.ts        the page's one audio graph
+  meter.ts        level, bands, beat; start, stop, loud
+src/lib/speech/
+  provider.ts     the seam
+  phonon.ts       Phonon in the browser
+  speakable.ts    a reply as it is read aloud
+  adapter.ts      assistant-ui's speech adapter over the seam
+src/components/face/
+  driver.ts       hears the graph each frame; sizes a form; draws the arcs
+  face-stage.tsx  the arcs' element
+src/components/chat/read-aloud.tsx   the button
+src/components/icons.tsx             the owner's read-aloud icon, now used
+src/lib/theorem/runtime.tsx          the adapter given to the runtime
+src/styles.css                       .face-waves
+src/stories/                         the story `face-sound`; the fake API's origin
+```
+
+## Tests and evidence
+
+**Execution correctness** (`bun test src/lib/face src/lib/sound
+src/lib/speech src/stories`):
+
+- signals, `follow`, forms, rings and bars (21, `lib/face/sound.test.ts`):
+  bounds; a tied channel moving with the signal and with nothing else;
+  `for`; a kept performance keeping its ties; refusals by path; nothing
+  following with motion reduced; the layer order; a form held from start
+  to stop and the face back to two eyes; never left out, and both forms
+  drawn; the loudspeaker's parts and what it emits; the steady arcs with
+  motion reduced; the mouth; a reaction over a form; no sleep while one is
+  held; a loud sound as a moment; the manual; the three performances
+  compiling without a note; rings in bands; bars in rows; a plain feature
+  unchanged;
+- the meter (9, `lib/sound/meter.test.ts`, tones the test makes): the
+  decibel scale; silence; one start and a level that follows loudness;
+  each band hearing its own pitch; a pause with more to come, and one stop
+  when nothing is left; a beat that dies away; a jump that is loud once;
+  a sound loud from its start that is not a jump; a long frame;
+- the read-aloud text (10, `lib/speech/speakable.test.ts`);
+- the adapter (5, `lib/speech/adapter.test.ts`, with a provider and a
+  player the test supplies): starting until audio is on its way; stopped;
+  one at a time; a provider that fails; nothing to read;
+- the story's fake API (1 added, `stories/fake-theorem.test.ts`): another
+  host's `/api/` is passed on.
+
+The whole list (`src/lib/face src/lib/kit src/lib/figures.test.ts
+src/lib/world.test.ts src/lib/sound src/lib/speech src/components/face
+src/components/kit src/components/chat src/components/artifacts
+src/stories`) is 547 tests in 45 files.
+
+**Built.** `NITRO_PRESET=cloudflare_module bun --bun vite build` finishes.
+The voice package's worker and four WebAssembly files (about 4.4 MB each,
+1.5 MB compressed) are emitted as public assets and fetched only on use;
+the server bundle carries 21 kB of its JavaScript and none of the
+WebAssembly.
+
+**Seen** (headless Chromium on software WebGL, the story `face-sound` at
+1280 by 800, 2x; renders in `evidence/theo-sound/`):
+
+| Render               | Shows                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `boombox.png`        | a speech-shaped test tone playing: two ringed speakers, deck, dial, arcs both sides, clear of the words |
+| `boombox-light.png`  | the same in the light theme, on the visor                                                               |
+| `speak.png`          | the mouth form under the same tone                                                                      |
+| `reduced-motion.png` | motion reduced: the form taken, two still arcs a side                                                   |
+| `in-shell.png`       | the story `face-in-shell`: the form at its full three times, where the gutter has room                  |
+| `reading.png`        | the real voice reading the reply: the form held, the button now Stop reading                            |
+| `page.png`           | the whole story page                                                                                    |
+
+With the real voice in that browser: pressing Read aloud fetched
+65,049,306 bytes, the first audio came after about five seconds, the form
+was held for the whole reading including its silent gaps, and Theo was two
+eyes again at the end. Pressing Stop reading two and a half seconds in
+silenced it at once and Theo was at rest within half a second.
+
+## Not seen
+
+- A person's ears and eyes on it. Whether the voice is good, whether the
+  loudspeaker reads as one at this size, and whether the mouth is worth
+  keeping are judgements nobody has made.
+- The deployed build. The build finishes; the voice has been heard only
+  from the development server.
+- Threads. Phonon uses several only on a cross-origin isolated page, which
+  this is not, so it runs on one.
+- A phone, and a slow machine. Five seconds to first audio was on this
+  container's network and processor.
+- Music, or any sound but speech and test tones. The meter's marks were
+  set against those.
+- In the shell the full-size form reaches over the sidebar's edge while it
+  plays (`in-shell.png`).
+
+## Not yet
+
+- **A provider with a key.** The seam has `keyed`; no keyed provider is
+  built. Where a person's key is kept is an open decision for the owner
+  and comes first.
+- Choosing a voice, and a setting for which provider speaks.
+- Reading a reply as it streams. Read aloud is pressed on a finished one.
+- Word timings from a provider, for a mouth that shapes vowels.
+- Other devices.
+- Speech to text. It will start only when the person starts it.

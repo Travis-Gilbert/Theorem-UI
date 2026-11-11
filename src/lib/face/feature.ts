@@ -1,4 +1,4 @@
-// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
+// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The rings and bars a feature's matter can be gathered into are this app's, for the devices the face turns into (docs/plans/theo-sound.md). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
 import { FEATURE_PARAMS, FEATURE_PARAM_NAMES } from './channels'
 import type { FeatureDef, FeatureParam } from './channels'
 
@@ -19,6 +19,8 @@ export interface Shape {
   lowTilt: number
   lowBow: number
   hollow: number
+  rings: number
+  slats: number
   turn: number
   scale: number
   alpha: number
@@ -46,6 +48,8 @@ export function restShape(side: -1 | 0 | 1 = 0): Shape {
     lowTilt: 0,
     lowBow: 0,
     hollow: 0,
+    rings: 0,
+    slats: 0,
     turn: 0,
     scale: 1,
     alpha: 1,
@@ -73,6 +77,8 @@ const TAU = Math.PI * 2
 const MEET = 0.3
 /** What is left of a cut grain's distance past the lid: a shut eye is a line with a little body. */
 const RESIDUE = 0.07
+/** How much of the gap between two rings, or two bars, the matter of one fills. */
+const BAND = 0.34
 
 /**
  * Where one grain sits in a feature, in face units. `theta` is its angle
@@ -101,9 +107,25 @@ export function seatPoint(
   const from = shape.gains[index] as number
   const gain = from + ((shape.gains[(index + 1) & 7] as number) - from) * smooth
   const hollow = shape.hollow
-  const radius = Math.sqrt(hollow * hollow + (1 - hollow * hollow) * u)
+  let radius = Math.sqrt(hollow * hollow + (1 - hollow * hollow) * u)
+  // Rings: each grain goes to the ring its depth falls in, the outermost on the rim.
+  const rings = Math.round(shape.rings)
+  if (rings >= 1) {
+    const depth = Math.min(rings - 1e-6, u * rings)
+    const ring = Math.floor(depth)
+    const outer = hollow + ((1 - hollow) * (ring + 1)) / rings
+    radius = outer - ((1 - hollow) / rings) * BAND * (1 - (depth - ring))
+  }
   let x = radius * rim * gain * shape.w * cos
   let y = radius * rim * gain * shape.h * sin
+  // Bars: each grain goes to the bar its height falls in.
+  const slats = Math.round(shape.slats)
+  if (slats >= 1 && shape.h > 0) {
+    const height = Math.max(-1, Math.min(1, y / shape.h))
+    const bar = Math.min(slats - 1, Math.floor(((height + 1) / 2) * slats))
+    const middle = -1 + (2 * bar + 1) / slats
+    y = (middle + (height - middle) * BAND) * shape.h
+  }
 
   // Lids. `across` runs -1 at the inner end to 1 at the outer.
   const h = shape.h

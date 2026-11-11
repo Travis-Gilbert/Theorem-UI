@@ -41,6 +41,8 @@ interface Playing {
   elapsed: number
   next: number
   readonly waves: Array<Extract<Cue, { kind: 'wave' }>>
+  /** Channels tied to a signal, for as long as each says or as long as this holds. */
+  readonly follows: Array<Extract<Cue, { kind: 'follow' }>>
   readonly held: Set<string>
   /** Features it put on the face, to be taken away when it lets go. */
   readonly added: Set<string>
@@ -49,6 +51,8 @@ interface Playing {
 
 const TAU = Math.PI * 2
 const HISTORY = 12
+/** How long a tie to a signal takes to come in and to go out, in milliseconds. */
+const FOLLOW_EDGE = 140
 
 /** Runs scores on the rig, one per layer, and remembers how each ended. */
 export class Player {
@@ -66,6 +70,8 @@ export class Player {
     private readonly rig: Rig,
     private readonly stage: Stage,
     private readonly clock: () => number = () => Date.now(),
+    /** Reads a signal the page measures (lib/face/signals); nothing is measured unless said. */
+    private readonly signal: (name: string) => number = () => 0,
   ) {
     this.own = new Set(rig.channels.features().map((feature) => feature.id))
   }
@@ -91,6 +97,7 @@ export class Player {
       elapsed: 0,
       next: 0,
       waves: [],
+      follows: [],
       held: new Set(),
       added: new Set(),
       settled: [],
@@ -119,6 +126,15 @@ export class Player {
   /** What holds a layer: what plays there, or what ended there and kept its hold. */
   holding(layer: Layer) {
     return (this.playing.get(layer) ?? this.kept.get(layer))?.invocation
+  }
+
+  /** The signals a channel is tied to by whatever plays or holds, on any layer. */
+  tied(channel: string): ReadonlyArray<string> {
+    const signals: Array<string> = []
+    for (const playing of [...this.playing.values(), ...this.kept.values()])
+      for (const cue of playing.follows)
+        if (cue.channel === channel) signals.push(cue.signal)
+    return signals
   }
 
   /** Ends what plays on a layer and lets go of everything held there, kept or not. */
@@ -161,7 +177,32 @@ export class Player {
 
   /** Moves every performance on by `ms` and lays this frame's waves over the rig. */
   tick(ms: number) {
+    // What ended and kept its hold keeps its ties too: a form follows the sound for as long as it is one.
+    const kept = [...this.kept.values()]
     for (const layer of [...this.playing.keys()]) this.advance(layer, ms)
+    for (const held of kept) {
+      held.elapsed += ms
+      this.follow(held)
+    }
+  }
+
+  /** Lays this frame's share of each signal a performance follows over the rig. */
+  private follow(playing: Playing) {
+    if (this.rig.still) return
+    for (let index = playing.follows.length - 1; index >= 0; index--) {
+      const cue = playing.follows[index] as Extract<Cue, { kind: 'follow' }>
+      if (cue.until !== undefined && playing.elapsed >= cue.until) {
+        playing.follows.splice(index, 1)
+        continue
+      }
+      const into = (playing.elapsed - cue.at) / FOLLOW_EDGE
+      const left =
+        cue.until === undefined
+          ? 1
+          : (cue.until - playing.elapsed) / FOLLOW_EDGE
+      const envelope = Math.max(0, Math.min(1, into, left))
+      this.rig.offset(cue.channel, cue.amp * envelope * this.signal(cue.signal))
+    }
   }
 
   private advance(layer: Layer, ms: number) {
@@ -200,6 +241,7 @@ export class Player {
         this.rig.offset(wave.channel, wave.amp * envelope * level)
       }
     }
+    this.follow(playing)
     if (playing.elapsed >= playing.score.ms && playing.next >= cues.length)
       this.finish(layer, playing, 'completed', playing.score.keep)
   }
@@ -221,6 +263,9 @@ export class Player {
       }
       case 'wave':
         playing.waves.push(cue)
+        return
+      case 'follow':
+        playing.follows.push(cue)
         return
       case 'look': {
         const gaze = this.stage.gazeAt(cue.place)

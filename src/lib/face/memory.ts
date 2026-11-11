@@ -70,6 +70,8 @@ const NUDGES: ReadonlyArray<readonly [string, Partial<Mood>]> = [
   ['env.offline', { valence: -0.15, arousal: 0.1 }],
   ['env.online', { valence: 0.12 }],
   ['env.', { arousal: 0.05 }],
+  ['sound.loud', { arousal: 0.1 }],
+  ['sound.start', { arousal: 0.06, focus: 0.05 }],
   ['body.bump', { arousal: 0.14, valence: -0.05 }],
   ['body.meet', { arousal: 0.12, valence: 0.03 }],
 ]

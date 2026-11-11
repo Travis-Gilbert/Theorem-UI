@@ -471,6 +471,166 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
       },
     ],
   }),
+  // What the face is while the page plays sound (docs/plans/theo-sound.md). Both keep, and both follow the
+  // sound itself: with nothing playing, nothing in them moves.
+  own(
+    'boombox',
+    'While sound plays: the eyes become ringed loudspeakers that throb with it, a cassette deck and a tuner open between them, and arcs leave its sides.',
+    {
+      keep: true,
+      steps: [
+        {
+          op: 'par',
+          steps: [
+            {
+              op: 'feature',
+              id: 'deck',
+              side: 'centre',
+              set: {
+                x: 0,
+                y: 9,
+                w: 9.5,
+                h: 6.5,
+                round: 6,
+                hollow: 0.74,
+                share: 0.34,
+              },
+            },
+            {
+              op: 'feature',
+              id: 'reel.left',
+              set: { x: 4.2, y: 9, w: 2, h: 2, round: 2, share: 0.07 },
+            },
+            {
+              op: 'feature',
+              id: 'reel.right',
+              set: { x: 4.2, y: 9, w: 2, h: 2, round: 2, share: 0.07 },
+            },
+            {
+              op: 'feature',
+              id: 'dial',
+              side: 'centre',
+              set: {
+                x: 0,
+                y: -12,
+                w: 2.6,
+                h: 10,
+                turn: 90,
+                round: 8,
+                slats: 7,
+                share: 0.24,
+              },
+            },
+            {
+              op: 'to',
+              set: {
+                'eyes.x': 27,
+                'eyes.y': 3,
+                'eyes.w': 13,
+                'eyes.h': 13,
+                'eyes.round': 2,
+                'eyes.rings': 3,
+                'eyes.lid': 0,
+                'eyes.low': 0,
+                'eyes.lidTilt': 0,
+                'eyes.lowBow': 0,
+                'gaze.x': 0,
+                'gaze.y': 0,
+                'matter.cohesion': 0.96,
+                'matter.drift': 0.03,
+                'auto.blink': 0,
+                'auto.saccade': 0,
+              },
+              over: 340,
+              bounce: 0.3,
+            },
+            // The cones move with the low end and jump with each onset; the arcs are as many as it is loud.
+            {
+              op: 'follow',
+              channel: 'eyes.scale',
+              signal: 'sound.low',
+              amp: 0.14,
+            },
+            {
+              op: 'follow',
+              channel: 'eyes.scale',
+              signal: 'sound.beat',
+              amp: 0.07,
+            },
+            {
+              op: 'follow',
+              channel: 'dial.h',
+              signal: 'sound.high',
+              amp: 2.4,
+            },
+            {
+              op: 'follow',
+              channel: 'emit.left',
+              signal: 'sound.level',
+              amp: 1,
+            },
+            {
+              op: 'follow',
+              channel: 'emit.right',
+              signal: 'sound.level',
+              amp: 1,
+            },
+          ],
+        },
+      ],
+    },
+  ),
+  own(
+    'speak',
+    'While sound plays: a mouth that opens as far as the sound is loud. The mouth is a feature this adds.',
+    {
+      keep: true,
+      steps: [
+        {
+          op: 'par',
+          steps: [
+            {
+              op: 'feature',
+              id: 'mouth',
+              side: 'centre',
+              set: { x: 0, y: 19, w: 6.5, h: 0.9, round: 2.4, share: 0.3 },
+            },
+            { op: 'to', set: { 'eyes.y': -5, 'eyes.h': 11.5 }, over: 260 },
+            {
+              op: 'follow',
+              channel: 'mouth.h',
+              signal: 'sound.level',
+              amp: 6,
+            },
+            {
+              op: 'follow',
+              channel: 'mouth.w',
+              signal: 'sound.mid',
+              amp: -1.6,
+            },
+            {
+              op: 'follow',
+              channel: 'face.dy',
+              signal: 'sound.beat',
+              amp: -0.8,
+            },
+          ],
+        },
+      ],
+    },
+  ),
+  own('thump', 'A jolt through the whole face, as at a loud sound.', {
+    steps: [
+      { op: 'burst', strength: { arg: 'kick', or: 50 } },
+      {
+        op: 'to',
+        set: { 'face.scale': 1.12, 'face.squash': -0.06, 'matter.jitter': 0.3 },
+        over: 70,
+        bounce: 0.6,
+        hold: 160,
+      },
+    ],
+  }),
 ]
 
 /** The channels a blink and the lids use, for layers that must let them go together. */

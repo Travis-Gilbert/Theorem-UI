@@ -12,7 +12,7 @@ export interface ChannelSpec {
  * What every feature of the face is made of. A feature is a filled shape of
  * particles: a superellipse (`w`, `h`, `round`) bent by eight radial gains
  * (`r0`..`r7`, clockwise from the outer side), cut by an upper and a lower
- * lid, placed and turned. Lengths are face units: the visor is 100 by 64.
+ * lid, gathered into rings or bars when asked, placed and turned. Lengths are face units: the visor is 100 by 64.
  */
 export const FEATURE_PARAMS = {
   x: {
@@ -75,6 +75,18 @@ export const FEATURE_PARAMS = {
     rest: 0,
     note: 'Empty middle: 0 filled, toward 1 a ring.',
   },
+  rings: {
+    min: 0,
+    max: 6,
+    rest: 0,
+    note: 'Its matter gathered into this many rings, from the middle out: 0 filled, 3 a loudspeaker.',
+  },
+  slats: {
+    min: 0,
+    max: 9,
+    rest: 0,
+    note: 'Its matter gathered into this many bars across: 0 filled, 5 a grille.',
+  },
   turn: {
     min: -180,
     max: 180,
@@ -96,7 +108,7 @@ export const FEATURE_PARAM_NAMES = Object.keys(
   FEATURE_PARAMS,
 ) as ReadonlyArray<FeatureParam>
 
-/** The channels that are not a feature's: the head, the gaze, the matter, what it does unasked. */
+/** The channels that are not a feature's: the head, the gaze, the matter, what leaves its sides, what it does unasked. */
 export const FACE_CHANNELS = {
   'face.tilt': { min: -40, max: 40, rest: 0, note: 'Head tilt in degrees.' },
   'face.scale': { min: 0.5, max: 1.6, rest: 1, note: 'Head size.' },
@@ -145,6 +157,18 @@ export const FACE_CHANNELS = {
     max: 180,
     rest: 0,
     note: 'Colour, in degrees away from its own.',
+  },
+  'emit.left': {
+    min: 0,
+    max: 1,
+    rest: 0,
+    note: 'Arcs leaving the left side of the face, as sound leaves a loudspeaker: 0 none, 1 all of them.',
+  },
+  'emit.right': {
+    min: 0,
+    max: 1,
+    rest: 0,
+    note: 'Arcs leaving the right side.',
   },
   'auto.blink': {
     min: 0,
@@ -203,6 +227,7 @@ export class Channels {
       def.id.startsWith('gaze') ||
       def.id.startsWith('matter') ||
       def.id.startsWith('auto') ||
+      def.id.startsWith('emit') ||
       def.id === 'eyes'
     )
       return `"${def.id}" is a reserved name.`

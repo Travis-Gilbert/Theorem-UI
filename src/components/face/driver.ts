@@ -1,4 +1,4 @@
-// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion; lib/world for the world that body is in, which is Kit's too, so a thrown Theo strikes Kit; lib/kit/driver and lib/kit/stage for where Kit is while it is in the air, which the eyes follow. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
+// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion; lib/world for the world that body is in, which is Kit's too, so a thrown Theo strikes Kit; lib/kit/driver and lib/kit/stage for where Kit is while it is in the air, which the eyes follow; lib/sound/graph for what the page's sound measures as, handed to the face each frame, and the arcs the face emits drawn beside it (docs/plans/theo-sound.md). Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
 import { BODY, FaceBody, releaseVelocity } from '@/lib/face/body'
 import type { Sample } from '@/lib/face/body'
 import { clamp } from '@/lib/face/channels'
@@ -11,6 +11,7 @@ import type { Standing } from '@/lib/face/things'
 import { kitDriver } from '@/lib/kit/driver'
 import { KIT_SIZE, useKitStage } from '@/lib/kit/stage'
 import { prefersReducedMotion } from '@/lib/motion'
+import { theSound } from '@/lib/sound/graph'
 import { enterWorld, leaveWorld, loadRapier, theWorld } from '@/lib/world'
 import { createPainter } from './painter'
 import type { Painter } from './painter'
@@ -45,6 +46,33 @@ const LEAD_FROM = 48
 const ARRIVED = 18
 /** How many times Rapier is asked for before the glide is accepted. */
 const BODY_TRIES = 3
+/** How big it is while it has a form (a loudspeaker, a mouth), unless told: there is more to make out than two eyes. */
+const FORM_SIZE = 3
+/**
+ * The arcs that leave a side of the face, in the canvas's own pixels: where
+ * they start from, how far they travel, how wide they open and how long one
+ * takes. They are drawn outside the visor, which clips its matter.
+ */
+const WAVE = {
+  from: { x: 44, y: 3 },
+  near: 20,
+  far: 52,
+  open: 0.66,
+  period: 1_150,
+} as const
+
+/** How far past a side of the face its arcs reach, as a share of the face's width. */
+const WAVE_REACH = (WAVE.from.x + WAVE.far - VISOR_PX / 2) / VISOR_PX
+/** The smallest a form is made to fit: below this there is nothing to make out. */
+const FORM_LEAST = 2
+
+const SILENT = {
+  'sound.level': 0,
+  'sound.low': 0,
+  'sound.mid': 0,
+  'sound.high': 0,
+  'sound.beat': 0,
+} as const
 
 /**
  * Theo on the page: where it is, how big, what the pointer does to it, and
@@ -92,6 +120,8 @@ export class FaceDriver {
   private pointingSince: number | undefined
   /** What the mark last showed, so the page is written to only when it changes. */
   private marked = ''
+  /** The form it has emits arcs past its sides, so it stands clear of the words by that much. */
+  private emits = false
 
   constructor(
     private readonly face: Face,
@@ -101,6 +131,8 @@ export class FaceDriver {
     private readonly host: HTMLElement,
     /** What is laid over the thing the figure points at. */
     private readonly mark: HTMLElement,
+    /** The arcs that leave the face's sides: the left ones first, then the right. */
+    private readonly waves: ReadonlyArray<SVGPathElement>,
     private readonly report: (state: {
       words?: string
       painter?: Painter['kind']
@@ -154,6 +186,10 @@ export class FaceDriver {
     this.face.attach(undefined)
     this.face.heading(undefined)
     this.face.watch(undefined)
+    // Whatever it had turned into for a sound, it does not stay that way with nobody measuring.
+    this.face.unform()
+    this.face.feed(SILENT)
+    for (const wave of this.waves) wave.style.opacity = '0'
     delete this.mark.dataset.on
     forget()
     if (this.body) {
@@ -337,8 +373,12 @@ export class FaceDriver {
     if (place === 'home' || place === 'text') {
       const perch = this.livePerch()
       if (perch) {
-        // Grown, it reaches into the margin, not over the words.
-        const centre = perch.left + perch.width / 2 - (width - REST_PX) / 2
+        // Grown, it reaches into the margin, not over the words; so do the arcs it emits.
+        const centre =
+          perch.left +
+          perch.width / 2 -
+          (width - REST_PX) / 2 -
+          this.spill(width)
         return {
           x: place === 'text' ? perch.right + width / 2 + 12 : centre,
           y: perch.top + perch.height / 2 + (height - REST_PX * 0.64) / 2,
@@ -357,6 +397,11 @@ export class FaceDriver {
     }
   }
 
+  /** How far past its sides the arcs it emits reach, at a width: nothing while it emits none. */
+  private spill(width: number) {
+    return this.emits ? WAVE_REACH * width + 4 : 0
+  }
+
   private dimensions() {
     const width = REST_PX * this.shown
     return {
@@ -368,12 +413,10 @@ export class FaceDriver {
   private target(): Point {
     const { width, height } = this.dimensions()
     const raw = this.free ?? this.pointOf(this.place, width, height)
+    // Its arcs stay on the page with it.
+    const side = MARGIN + width / 2 + this.spill(width)
     return {
-      x: clamp(
-        raw.x,
-        MARGIN + width / 2,
-        Math.max(MARGIN + width / 2, window.innerWidth - MARGIN - width / 2),
-      ),
+      x: clamp(raw.x, side, Math.max(side, window.innerWidth - side)),
       y: clamp(
         raw.y,
         MARGIN + height / 2,
@@ -411,9 +454,75 @@ export class FaceDriver {
     // Thrown, it stays the size it was carried at until it lands.
     if (this.press?.carried || this.physical()?.state === 'coasting') return 2
     const { player } = this.face
+    if (player.holding('form')) return this.formSize()
     if (player.active('performance')) return 2.4
     if (player.active('reaction') || player.active('hand')) return 1.8
     return 1
+  }
+
+  /** How big a form is: as big as forms are, or as big as fits between the edge of the page and the words, its arcs included. */
+  private formSize() {
+    const perch =
+      this.place === 'home' && !this.free ? this.livePerch() : undefined
+    if (!perch) return FORM_SIZE
+    const reach = this.emits ? 1 + 2 * WAVE_REACH : 1
+    const fits =
+      (perch.right - MARGIN - (this.emits ? 8 : 0)) / (REST_PX * reach)
+    return clamp(fits, FORM_LEAST, FORM_SIZE)
+  }
+
+  // Sound ---------------------------------------------------------------------
+
+  /** Hands the face what the page's sound measures as now, and what happened in it. */
+  private hear(now: number) {
+    const { signals, events } = theSound().measure(now)
+    this.face.feed({
+      'sound.level': signals.level,
+      'sound.low': signals.low,
+      'sound.mid': signals.mid,
+      'sound.high': signals.high,
+      'sound.beat': signals.beat,
+    })
+    for (const event of events) this.face.notice(event)
+  }
+
+  /** Draws the arcs leaving each side: more of them, and further, the more the face emits. Still, they stand where they are. */
+  private emit(now: number, still: boolean) {
+    const { left, right } = this.face.emitting()
+    // Once a form has emitted it keeps the room for it, so a pause in the sound does not slide the figure about.
+    if (!this.face.player.holding('form')) this.emits = false
+    else if (Math.max(left, right) > 0.02) this.emits = true
+    const each = this.waves.length / 2
+    this.waves.forEach((wave, index) => {
+      const side = index < each ? -1 : 1
+      const amount = side < 0 ? left : right
+      if (amount < 0.02) {
+        if (wave.style.opacity !== '0') wave.style.opacity = '0'
+        return
+      }
+      const turn = ((index % each) + 0.5) / each
+      const along = still ? turn : (now / WAVE.period + turn) % 1
+      const radius = WAVE.near + (WAVE.far - WAVE.near) * along
+      // A quiet sound's arcs die close by; a loud one's reach the end.
+      const reach = clamp((0.3 + 0.85 * amount - along) / 0.2, 0, 1)
+      const opacity =
+        Math.min(1, amount * 1.5) * Math.sin(Math.PI * along) ** 0.7 * reach
+      const centre = {
+        x: VISOR_PX / 2 + side * WAVE.from.x,
+        y: this.visorHeight / 2 + WAVE.from.y,
+      }
+      const across = centre.x + side * radius * Math.cos(WAVE.open)
+      const down = radius * Math.sin(WAVE.open)
+      wave.setAttribute(
+        'd',
+        `M${across.toFixed(1)} ${(centre.y - down).toFixed(1)}A${radius.toFixed(1)} ${radius.toFixed(1)} 0 0 ${side < 0 ? 0 : 1} ${across.toFixed(1)} ${(centre.y + down).toFixed(1)}`,
+      )
+      wave.style.opacity = opacity.toFixed(3)
+    })
+  }
+
+  private get visorHeight() {
+    return (VISOR_PX * this.face.identity.height) / this.face.identity.width
   }
 
   // The body ------------------------------------------------------------------
@@ -604,6 +713,7 @@ export class FaceDriver {
     this.lastDraw = now
 
     const still = face.still
+    this.hear(now)
     const wanted = this.wantedSize()
     this.shown = still
       ? wanted
@@ -664,7 +774,12 @@ export class FaceDriver {
     const halfHeight =
       (VISOR_PX * face.identity.height) / face.identity.width / 2
     this.holder.style.transform = `translate3d(${(x - half).toFixed(2)}px, ${(y - halfHeight).toFixed(2)}px, 0) scale(${scale.toFixed(4)})`
-    this.plate.style.transform = `translate(${(head.dx * unit).toFixed(2)}px, ${(head.dy * unit).toFixed(2)}px) rotate(${head.tilt.toFixed(2)}deg) scale(${(head.scale * (1 + head.squash)).toFixed(4)}, ${(head.scale * (1 - head.squash)).toFixed(4)})`
+    const headTransform = `translate(${(head.dx * unit).toFixed(2)}px, ${(head.dy * unit).toFixed(2)}px) rotate(${head.tilt.toFixed(2)}deg) scale(${(head.scale * (1 + head.squash)).toFixed(4)}, ${(head.scale * (1 - head.squash)).toFixed(4)})`
+    this.plate.style.transform = headTransform
+    // The arcs leave the head, so they lean and nod with it.
+    const sheet = this.waves[0]?.ownerSVGElement
+    if (sheet) sheet.style.transform = headTransform
+    this.emit(now, still)
 
     if (now - this.wordsAt > 300) {
       this.wordsAt = now

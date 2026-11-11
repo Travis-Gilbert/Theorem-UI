@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit) and reads replies aloud through lib/speech
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -71,6 +71,7 @@ import { Figures } from '@/components/face/figures'
 import { useKitRequests } from '@/lib/kit/operations'
 import { useAppRequests } from '@/lib/blocks/app-operations'
 import { useFaceRequests } from '@/lib/face/operations'
+import { speechAdapter } from '@/lib/speech/adapter'
 import { clientSurfaceTurnOptions } from './client-surface'
 
 type RemoteThreadMetadata = Awaited<
@@ -670,7 +671,9 @@ function useTheoremThreadRuntime() {
     }),
     [aui],
   )
-  const runtime = useLocalRuntime(adapter)
+  // Replies are read aloud by the page's own voice, when the person asks.
+  const speech = useMemo(() => speechAdapter(), [])
+  const runtime = useLocalRuntime(adapter, { adapters: { speech } })
   useEffect(() => bindRunInput(runtime, {
     threadKey: aui.threadListItem.getState().id,
     threadId: () => aui.threadListItem.getState().remoteId,
