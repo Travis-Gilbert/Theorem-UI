@@ -128,12 +128,37 @@ container images and `rustyred-thg-mcp`'s cell tests were not run.
   bound to the turn, and one more tool in the front role's policy.
 - With no page open, a write is saved and says it was not built.
 
+As built (Theorem pull requests 1010, merged, and 1018):
+
+- The operations are `read_app` and `write_app`, which a program calls as it
+  calls any operation (`tool("write_app", {...})` in TypeScript). There is no
+  `app` object. A write takes the whole App document as `html` and the
+  revision it read, and is refused when that revision is no longer the head.
+- With 1018 a write's result has `check`: what the page's `app.check` found
+  when it built that document, in the same call. With no page that offers the
+  check, or with `check: false`, `check` is null and `notChecked` says why.
+- Not built: `app.edit`, so a change is a read and a whole write; and a
+  `picture` on the write, which waits for 1013 and 1018 to both be on main.
+
 ## Step 5: a subagent gets the same feedback (Theorem repo)
 
 - A worker's program has the same `app`. Its builds are answered by the page
   of the conversation that started the work.
 - Starting a subagent stays a call (`start_work`), which is the exception the
   owner named.
+
+As built (Theorem pull request 1020 and this repo's 69):
+
+- A Builder is handed the operations the page declared on the turn that
+  started it, those that only read, so its run has `app__check` and its task
+  says to check the App before handing it back. It still submits the App
+  through `complete_work`; it has no `write_app`.
+- The Builder asks on its own run, which is not a message of the
+  conversation. While a specialist's card is live the page follows that run
+  by its id and answers its checks. A check waits 60 seconds for the page.
+- Tested at the seams: the Builder's catalog and task carry the check, and
+  the page reads pending requests off a specialist's run. Not observed: a
+  Builder calling the check and being answered.
 
 ## Seeing the App
 

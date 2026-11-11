@@ -82,8 +82,12 @@
     {
       "id": "app-write-is-the-app",
       "requirement": "A program's app.write and app.edit save a revision of the conversation's App with no publish step, and return what the page's build found (Theorem repo and this repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "Theorem pull request 1018: write_app's result has check, what the page's app.check found building that document; app_turn_flow_tests \"a_write_answers_with_what_the_page_found_when_it_built_the_app\" and \"a_write_that_asks_for_no_check_does_not_ask_the_page\" through the chat routes, with the test answering as the page",
+        "Built as the operations read_app and write_app called from a program, not an app object; not built: app.edit, and a picture on the write",
+        "Not observed: a real page answering a write's check; a live turn"
+      ]
     },
     {
       "id": "front-edits",
@@ -97,8 +101,13 @@
     {
       "id": "worker-feedback",
       "requirement": "A worker's program has the same app, built by the page of the conversation that started the work (Theorem repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "Theorem pull request 1020: a Builder's run is handed the page's read-only operations and its task says to check the App; conversation_work tests \"a_builder_is_handed_the_page_operations_that_only_read\" and \"a_builders_run_offers_the_pages_check_and_its_task_says_to_use_it\"",
+        "This repo, pull request 69: the page follows a live specialist's run by its id and serves its App requests; app-operations.test.ts \"a specialist's run is read by its own run id, while it works\"",
+        "A Builder still submits through complete_work and has no write_app",
+        "Not observed: a Builder calling app__check and being answered by a page"
+      ]
     },
     {
       "id": "live-program",
