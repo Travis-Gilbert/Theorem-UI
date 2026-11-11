@@ -73,6 +73,13 @@ type DefaultsState = {
    * kept on this browser only. Unknown until a save settles.
    */
   onServer: boolean | undefined
+  /**
+   * The exact defaults Theorem was confirmed to hold. A change made since
+   * that confirmation keeps riding along with the turns until a save
+   * confirms the new value, so a turn never runs on limits the account no
+   * longer has.
+   */
+  saved: Generation | undefined
   change: (change: GenerationChange) => void
 }
 
@@ -82,6 +89,7 @@ export const useGenerationDefaults = create<DefaultsState>()(
     (set) => ({
       defaults: {},
       onServer: undefined,
+      saved: undefined,
       change: (change) => set(({ defaults }) => ({ defaults: changed(defaults, change) })),
     }),
     { name: 'theorem-ui:generation-defaults', partialize: ({ defaults }) => ({ defaults }) },
@@ -183,13 +191,16 @@ export const useGenerationOverrides = create<OverridesState>()(
 
 /**
  * Turn options for a send, retry or edit in `thread`: whatever Theorem does
- * not already hold. The account defaults go along only until the account's
- * preferences hold them, and the conversation's override only until its
- * thread does, so that Theorem can say where each limit came from. Read at
- * send time, as the model pick is.
+ * not already hold. The account defaults go along until the account's
+ * preferences are confirmed to hold exactly them — a change made since the
+ * last confirmation rides with the turns while its save is on its way — and
+ * the conversation's override only until its thread does, so that Theorem
+ * can say where each limit came from. Read at send time, as the model pick
+ * is.
  */
 export function generationTurnOptions(thread: string = DRAFT): Generation {
-  const { defaults, onServer } = useGenerationDefaults.getState()
+  const { defaults, onServer, saved } = useGenerationDefaults.getState()
   const { byThread, unsaved } = useGenerationOverrides.getState()
-  return composed(onServer ? {} : defaults, unsaved[thread] ? byThread[thread] : undefined)
+  const held = onServer === true && same(defaults, saved)
+  return composed(held ? {} : defaults, unsaved[thread] ? byThread[thread] : undefined)
 }

@@ -54,12 +54,12 @@ beforeEach(() => {
   puts = []
   refusesGeneration = false
   dropsGeneration = false
-  useGenerationDefaults.setState({ defaults: {}, onServer: undefined })
+  useGenerationDefaults.setState({ defaults: {}, onServer: undefined, saved: undefined })
   usePickedModels.setState({ selected: undefined, starred: [] })
 })
 afterEach(async () => {
   await cleanup()
-  useGenerationDefaults.setState({ defaults: {}, onServer: undefined })
+  useGenerationDefaults.setState({ defaults: {}, onServer: undefined, saved: undefined })
   usePickedModels.setState({ selected: undefined, starred: [] })
 })
 
@@ -81,6 +81,8 @@ test('defaults Theorem holds replace the ones on this browser when preferences l
   expect(useGenerationDefaults.getState()).toMatchObject({
     defaults: { effort: 'high', maxOutputTokens: 4000 },
     onServer: true,
+    // Theorem's copy is the confirmed one, so turns stop carrying it.
+    saved: { effort: 'high', maxOutputTokens: 4000 },
   })
   // Theorem's own copy is not a change to write back.
   expect(puts).toEqual([])
@@ -99,6 +101,11 @@ test('a changed default is written back with the models and the revision it was 
     },
   })
   await waitFor(() => useGenerationDefaults.getState().onServer)
+  // The saved value is the one that was sent, so turns stop carrying it.
+  expect(useGenerationDefaults.getState().saved).toEqual({
+    responseDetail: 'concise',
+    effort: 'max',
+  })
 })
 
 test('a Theorem that refuses the field still takes the models, and the defaults stay on this browser', async () => {
@@ -110,6 +117,7 @@ test('a Theorem that refuses the field still takes the models, and the defaults 
   expect(puts[1]!.body).toEqual({ starredModels: [], defaultModel: null })
   await waitFor(() => useGenerationDefaults.getState().onServer === false)
   expect(useGenerationDefaults.getState().defaults).toEqual({ maxOutputTokens: 2000 })
+  expect(useGenerationDefaults.getState().saved).toBeUndefined()
 
   // It is not asked again this session: the next write names only the models.
   await act(async () => usePickedModels.setState({ starred: ['openrouter/a/b'] }))

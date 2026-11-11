@@ -10,7 +10,7 @@ import {
 } from './generation'
 
 afterEach(() => {
-  useGenerationDefaults.setState({ defaults: {}, onServer: undefined })
+  useGenerationDefaults.setState({ defaults: {}, onServer: undefined, saved: undefined })
   useGenerationOverrides.setState({ byThread: {}, unsaved: {} })
 })
 
@@ -84,11 +84,31 @@ test('defaults the account preferences hold are not repeated on a turn', () => {
   useGenerationOverrides.getState().change('t1', { effort: 'high' })
   expect(generationTurnOptions('t1')).toEqual({ responseDetail: 'concise', effort: 'high' })
   // Theorem took the defaults: it reads them itself and names them as the account's.
-  useGenerationDefaults.setState({ onServer: true })
+  useGenerationDefaults.setState({
+    onServer: true,
+    saved: { responseDetail: 'concise', effort: 'low' },
+  })
   expect(generationTurnOptions('t1')).toEqual({ effort: 'high' })
   // A Theorem that refused them is sent them with every turn.
-  useGenerationDefaults.setState({ onServer: false })
+  useGenerationDefaults.setState({ onServer: false, saved: undefined })
   expect(generationTurnOptions('t1')).toEqual({ responseDetail: 'concise', effort: 'high' })
+})
+
+test('a default changed since the save rode with the turns until the new value is confirmed', () => {
+  useGenerationDefaults.setState({
+    defaults: { effort: 'low' },
+    onServer: true,
+    saved: { effort: 'low' },
+  })
+  expect(generationTurnOptions('t1')).toEqual({})
+  // The change is made; its save waits on the debounce and the network.
+  useGenerationDefaults.getState().change({ effort: 'max' })
+  expect(generationTurnOptions('t1')).toEqual({ effort: 'max' })
+  // A confirmation of the older value does not settle the newer one.
+  useGenerationDefaults.setState({ saved: { effort: 'low' } })
+  expect(generationTurnOptions('t1')).toEqual({ effort: 'max' })
+  useGenerationDefaults.setState({ saved: { effort: 'max' } })
+  expect(generationTurnOptions('t1')).toEqual({})
 })
 
 test('an override goes with the turn only until its thread holds it', () => {

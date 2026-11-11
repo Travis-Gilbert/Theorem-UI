@@ -9,7 +9,7 @@ import { ResponsesSection } from './responses-section'
 
 afterEach(async () => {
   await cleanup()
-  useGenerationDefaults.setState({ defaults: {}, onServer: undefined })
+  useGenerationDefaults.setState({ defaults: {}, onServer: undefined, saved: undefined })
 })
 
 const defaults = () => useGenerationDefaults.getState().defaults

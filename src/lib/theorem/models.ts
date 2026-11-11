@@ -320,13 +320,20 @@ export function usePreferencesSync() {
       if (onServer === false) return put(models)
       try {
         const saved = await put({ ...models, generation: defaults })
-        useGenerationDefaults.setState({ onServer: saved.generation !== undefined })
+        // Theorem holds exactly what was sent: turns stop carrying the
+        // defaults until a later change makes the two differ again. A change
+        // made while this write was on its way is not what got saved, so it
+        // keeps riding with the turns until its own save confirms it.
+        useGenerationDefaults.setState({
+          onServer: saved.generation !== undefined,
+          saved: saved.generation !== undefined ? defaults : undefined,
+        })
         return saved
       } catch (error) {
         // A Theorem that does not know the field refuses the whole write.
         if (!hasStatus(error, 400, 422)) throw error
         const saved = await put(models)
-        useGenerationDefaults.setState({ onServer: false })
+        useGenerationDefaults.setState({ onServer: false, saved: undefined })
         return saved
       }
     },
@@ -351,7 +358,12 @@ export function usePreferencesSync() {
       selected: data.defaultModel ?? undefined,
     })
     const generation = readGeneration(data.generation)
-    if (generation) useGenerationDefaults.setState({ defaults: generation, onServer: true })
+    if (generation)
+      useGenerationDefaults.setState({
+        defaults: generation,
+        onServer: true,
+        saved: generation,
+      })
     applying.current = false
   }, [data])
 
