@@ -17,7 +17,7 @@ import { Field, GRAIN_STRIDE, oklch, shapesFor } from './particles'
 import type { Matter } from './particles'
 import { Player } from './player'
 import type { Ending, Invocation, Stage } from './player'
-import { LIMITS, STEP_MANUAL, compile } from './program'
+import { LIMITS, STEP_MANUAL, THING_MANUAL, compile, isThing } from './program'
 import type { Place, Program } from './program'
 import { Reactions } from './reactions'
 import { seeded } from './random'
@@ -190,6 +190,8 @@ export class Face {
       args?: Record<string, number>
       intensity?: number
       seed?: number
+      /** A thing the program names that is not on the page refuses it. */
+      strict?: boolean
     },
   ): Performed {
     let name: string | undefined
@@ -211,6 +213,8 @@ export class Face {
       seed: how.seed ?? this.nextSeed(),
       ...(how.args ? { args: how.args } : {}),
       ...(how.intensity === undefined ? {} : { intensity: how.intensity }),
+      ...(this.stage.thing ? { thing: this.stage.thing } : {}),
+      ...(how.strict ? { strict: true } : {}),
     })
     if (!checked.ok) return checked
     const layer = how.layer ?? 'performance'
@@ -670,10 +674,12 @@ export class Face {
    */
   /** What the face is doing and has lately done: the part of the manual that changes. */
   state() {
+    const pointing = this.stage.pointing?.()
     return {
       liveness: this.liveness,
       asleep: this.asleep,
       doing: this.words(),
+      ...(pointing ? { pointing } : {}),
       features: this.rig.channels
         .features()
         .map((feature) => ({ id: feature.id, side: feature.side })),
@@ -695,9 +701,15 @@ export class Face {
     }
   }
 
-  manual(part: 'all' | 'channels' | 'book' | 'state' = 'all') {
+  manual(part: 'all' | 'channels' | 'book' | 'page' | 'state' = 'all') {
     const state = this.state()
     if (part === 'state') return state
+    // What the page has named, read fresh: it changes as the conversation does.
+    const page = {
+      how: THING_MANUAL,
+      things: this.stage.things?.() ?? [],
+    }
+    if (part === 'page') return { page, state }
     const bounds = (
       specs: Record<
         string,
@@ -740,6 +752,7 @@ export class Face {
         'Theo is a face made of glowing matter: two eyes at rest, and anything else you add as a feature. A performance is a program of steps over time. Nothing limits you to the named performances: write new programs, add features, save what works.',
       channels,
       steps: STEP_MANUAL,
+      page,
       values:
         'A value is a number, {rand:[low,high]} for a fresh draw each play, or {arg:"name", or:number}.',
       limits: `A performance runs at most ${LIMITS.ms} ms and ${LIMITS.cues} cues. Values outside bounds are pulled in and reported as notes.`,
@@ -753,6 +766,7 @@ const round = (value: number) => Math.round(value * 100) / 100
 
 /** A place as a gaze when nothing on the page can say better. */
 export function plainGaze(place: Place): { x: number; y: number } | undefined {
+  if (isThing(place)) return undefined
   if (typeof place === 'object') return place
   if (place === 'centre' || place === 'person') return { x: 0, y: 0 }
   if (place === 'composer') return { x: 0.15, y: 0.75 }

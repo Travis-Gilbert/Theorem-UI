@@ -13,6 +13,8 @@ import type { ThreadMessageLike } from '@assistant-ui/react'
 import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
+import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
+import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
 import { FaceBench, FaceBook } from '@/components/face/face-bench'
@@ -42,6 +44,7 @@ import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
 import { PROGRAM_PART } from './fixtures/program'
+import { pointingMessages } from './fixtures/pointing'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -342,6 +345,44 @@ function threadStory(
   }
 }
 
+const POINTING_MESSAGES: ThreadMessageLike[] = toAssistantMessages(
+  pointingMessages(),
+)
+
+/**
+ * Theo on a conversation with things to be sent to: a tool call that failed,
+ * folded away among ones that did not; a worker's changed file and its diff;
+ * a document whose card shows an excerpt, with the larger view beside the
+ * conversation once it is opened, as the shell has it.
+ */
+function FacePointStory() {
+  const runtime = useExternalStoreRuntime({
+    messages: POINTING_MESSAGES,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  const openId = useArtifactView((s) => s.openId)
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <div className="flex h-dvh">
+        <div className="min-w-0 flex-1">
+          <Thread autoFocus={false} />
+        </div>
+        {openId && (
+          <ArtifactPanel
+            artifactId={openId}
+            onClose={() => useArtifactView.getState().closed(openId)}
+            className="border-separator w-[46%] shrink-0 border-s"
+          />
+        )}
+      </div>
+      <FaceStage />
+    </AssistantRuntimeProvider>
+  )
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
   'chat-program': programStory,
@@ -356,6 +397,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'face-book': FaceBook,
   'face-in-shell': ShellCompareStory,
   'face-visit': FaceVisitStory,
+  'face-point': FacePointStory,
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,

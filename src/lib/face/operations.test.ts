@@ -234,6 +234,83 @@ describe('answering', () => {
     expect(JSON.stringify(all.result).length).toBeLessThan(24_000)
   })
 
+  test('face.read lists what on the page the face can be sent to', async () => {
+    const { face } = theo()
+    const bare = await answerFaceRequest(
+      request(FACE_READ, { part: 'page' }),
+      face,
+    )
+    expect(result(bare).page).toMatchObject({ things: [] })
+    face.attach({
+      gazeAt: plainGaze,
+      go: () => {},
+      burst: () => {},
+      things: () => [
+        {
+          name: 'tool:call_1',
+          label: 'Run tests',
+          state: 'failed',
+          where: 'closed',
+        },
+        { name: 'message:m2', label: 'the reply', where: 'in view' },
+      ],
+      pointing: () => ({ thing: 'tool:call_1', where: 'closed' }),
+    })
+    const read = await answerFaceRequest(
+      request(FACE_READ, { part: 'page' }),
+      face,
+    )
+    const page = result(read).page as {
+      how: string
+      things: Array<{ name: string }>
+    }
+    expect(page.things.map((thing) => thing.name)).toEqual([
+      'tool:call_1',
+      'message:m2',
+    ])
+    expect(page.how).toContain('{thing:')
+    expect(result(read).state).toMatchObject({
+      pointing: { thing: 'tool:call_1', where: 'closed' },
+    })
+    const all = await answerFaceRequest(request(FACE_READ), face)
+    expect(Object.keys(result(all))).toContain('page')
+  })
+
+  test('sent to a thing, the face goes; to one the page does not have, the agent is told and nothing plays', async () => {
+    const { face, run } = theo()
+    const went: Array<unknown> = []
+    face.attach({
+      gazeAt: plainGaze,
+      go: (to) => void went.push(to),
+      burst: () => {},
+      thing: (thing) =>
+        thing.thing === 'tool:failed'
+          ? ['tool:call_1 is folded away; the face points at what holds it.']
+          : undefined,
+    })
+    const program = (thing: string) => ({
+      program: { steps: [{ op: 'go', to: { thing } }] },
+    })
+    const missing = await answerFaceRequest(
+      request(FACE_PERFORM, program('tool:nope')),
+      face,
+    )
+    expect(missing.outcome).toBe('rejected')
+    expect(missing.reason).toContain('steps[0].to.thing')
+    expect(missing.reason).toContain('tool:nope')
+    expect(face.player.active('performance')).toBeUndefined()
+    const sent = await answerFaceRequest(
+      request(FACE_PERFORM, program('tool:failed'), 'ref_2'),
+      face,
+    )
+    expect(sent.outcome).toBe('applied')
+    expect(result(sent).notes).toEqual([
+      'steps[0].to: tool:call_1 is folded away; the face points at what holds it.',
+    ])
+    run(100)
+    expect(went).toEqual([{ thing: 'tool:failed' }])
+  })
+
   test('face.perform starts a named performance and says so at once', async () => {
     const { face } = theo()
     const answer = await answerFaceRequest(

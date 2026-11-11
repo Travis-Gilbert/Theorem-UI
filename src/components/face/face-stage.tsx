@@ -1,10 +1,11 @@
 // SOURCING: components/kit/kit-stage.tsx for the layer (fixed over the whole shell, taking pointer events only in the figure itself, below popups) and for the status node a screen reader gets; lib/kit/store for the run's liveness and the agent's authored expression, which both figures read. The visor plate is this app's reading of the reference robot's dark screen; whether it is there is the person's setting (./look).
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { THEO } from '@/lib/face/identity'
 import { theFace, useFaceStage } from '@/lib/face/store'
 import { useKit } from '@/lib/kit/store'
 import { FaceDriver, VISOR_PX } from './driver'
-import { useFaceHue, useFaceLook } from './look'
+import { eyeColour, useFaceHue, useFaceLook } from './look'
 
 const VISOR_HEIGHT = (VISOR_PX * THEO.height) / THEO.width
 
@@ -19,6 +20,7 @@ export function FaceStage() {
   const holder = useRef<HTMLDivElement | null>(null)
   const plate = useRef<HTMLDivElement | null>(null)
   const screen = useRef<HTMLDivElement | null>(null)
+  const mark = useRef<HTMLDivElement | null>(null)
   const driving = useRef<FaceDriver | undefined>(undefined)
   const look = useFaceLook()
   const hue = useFaceHue()
@@ -27,12 +29,14 @@ export function FaceStage() {
   const expression = useKit((state) => state.expression)
 
   useEffect(() => {
-    if (!holder.current || !plate.current || !screen.current) return
+    if (!holder.current || !plate.current || !screen.current || !mark.current)
+      return
     const driver = new FaceDriver(
       theFace(),
       holder.current,
       plate.current,
       screen.current,
+      mark.current,
       (state) => {
         if (state.words !== undefined) setWords(state.words)
         if (state.painter) useFaceStage.setState({ painter: state.painter })
@@ -66,6 +70,14 @@ export function FaceStage() {
       data-press="off"
       className="pointer-events-none fixed inset-0 z-[44] overflow-hidden"
     >
+      {/* What Theo points at, marked in its own colour. The driver places it. */}
+      <div
+        ref={mark}
+        data-slot="face-point"
+        aria-hidden
+        className="face-point absolute top-0 left-0"
+        style={{ '--face-point': eyeColour(hue) } as CSSProperties}
+      />
       <div
         ref={holder}
         role="button"
