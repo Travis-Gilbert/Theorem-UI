@@ -3,6 +3,7 @@ import { BODY, FaceBody, releaseVelocity } from '@/lib/face/body'
 import type { Sample } from '@/lib/face/body'
 import { clamp } from '@/lib/face/channels'
 import type { Face } from '@/lib/face/engine'
+import { FEEL } from '@/lib/face/feel'
 import type { Place } from '@/lib/face/program'
 import { loadRapier } from '@/lib/kit/physics'
 import { prefersReducedMotion } from '@/lib/motion'
@@ -26,13 +27,10 @@ const NEAR = 280
 const CARRY_AFTER = 4
 /** How long after a performance away from home before it goes back. */
 const LINGER_MS = 3_500
-/** How long the eyes are on where it is going before the body sets off, and the shortest trip worth announcing, in pixels. */
-const LEAD_MS = 170
+/** The shortest trip, in pixels, the eyes announce by looking there first. */
 const LEAD_FROM = 48
 /** Within this many pixels of where it was going, the eyes let go of it. */
 const ARRIVED = 18
-/** How fast a poke pushes it, in pixels per second. */
-const RECOIL = 220
 /** How many times Rapier is asked for before the glide is accepted. */
 const BODY_TRIES = 3
 
@@ -183,7 +181,7 @@ export class FaceDriver {
       const from = body.position()
       const dx = after.x - from.x
       const dy = after.y - from.y
-      const lead = Math.hypot(dx, dy) > LEAD_FROM ? LEAD_MS : 0
+      const lead = Math.hypot(dx, dy) > LEAD_FROM ? FEEL.lead : 0
       this.leaving = { at: performance.now() + lead, over }
       if (lead > 0)
         this.face.heading({
@@ -417,7 +415,7 @@ export class FaceDriver {
     const far = Math.hypot(dx, dy)
     // Touched in the middle, it is pressed into the page: down.
     const away = far < 3 ? { x: 0, y: 1 } : { x: -dx / far, y: -dy / far }
-    body.nudge({ x: away.x * RECOIL, y: away.y * RECOIL })
+    body.nudge({ x: away.x * FEEL.recoil, y: away.y * FEEL.recoil })
   }
 
   // Frames --------------------------------------------------------------------

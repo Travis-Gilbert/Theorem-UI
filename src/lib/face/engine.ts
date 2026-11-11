@@ -5,6 +5,7 @@ import { Book } from './book'
 import type { Shelf } from './book'
 import { FACE_CHANNELS, FEATURE_PARAMS, clamp } from './channels'
 import { readShape, sideOf } from './feature'
+import { FEEL } from './feel'
 import type { Shape } from './feature'
 import { THEO } from './identity'
 import type { Identity } from './identity'
@@ -64,14 +65,12 @@ const SWAY = {
   /** How quickly the face takes up a change of motion, and how slowly the visor catches up with it, per second. */
   quick: 14,
   slow: 5,
-  /** Degrees of lean per unit of sideways speed. */
+  /** Degrees of lean per unit of sideways speed, before the person's setting. */
   lean: 0.011,
   /** Gaze per unit of speed. */
   ahead: 0.0004,
-  /** Face units of trailing per unit of change in speed. */
+  /** Face units of trailing per unit of change in speed, before the person's setting. */
   trail: 0.006,
-  /** How quickly a knock dies away, per second. */
-  recover: 7.5,
 } as const
 const noStage: Stage = {
   gazeAt: () => undefined,
@@ -441,20 +440,28 @@ export class Face {
     motion.slowX += (motion.vx - motion.slowX) * slow
     motion.slowY += (motion.vy - motion.slowY) * slow
     bound.weight += (bound.target - bound.weight) * (1 - Math.exp(-dt * 10))
-    const fade = Math.exp(-dt * SWAY.recover)
+    const fade = Math.exp(-dt * FEEL.recover)
     knock.x *= fade
     knock.y *= fade
     knock.squash *= fade
     knock.amount *= fade
     if (rig.still) return
     if (Math.abs(motion.vx) + Math.abs(motion.vy) > 0.5) {
-      rig.offset('face.tilt', clamp(motion.vx * SWAY.lean, -16, 16))
-      rig.offset('gaze.x', clamp(motion.vx * SWAY.ahead, -0.3, 0.3))
-      rig.offset('gaze.y', clamp(motion.vy * SWAY.ahead, -0.3, 0.3))
+      rig.offset('face.tilt', clamp(motion.vx * SWAY.lean * FEEL.lean, -16, 16))
+      rig.offset('gaze.x', clamp(motion.vx * SWAY.ahead * FEEL.lean, -0.3, 0.3))
+      rig.offset('gaze.y', clamp(motion.vy * SWAY.ahead * FEEL.lean, -0.3, 0.3))
     }
     // Speeding up, the visor is left a little behind; slowing, it runs a little on.
-    const lagX = clamp((motion.slowX - motion.vx) * SWAY.trail, -5, 5)
-    const lagY = clamp((motion.slowY - motion.vy) * SWAY.trail, -5, 5)
+    const lagX = clamp(
+      (motion.slowX - motion.vx) * SWAY.trail * FEEL.trail,
+      -5,
+      5,
+    )
+    const lagY = clamp(
+      (motion.slowY - motion.vy) * SWAY.trail * FEEL.trail,
+      -5,
+      5,
+    )
     if (
       Math.abs(lagX) + Math.abs(lagY) + Math.abs(knock.x) + Math.abs(knock.y) >
       0.02

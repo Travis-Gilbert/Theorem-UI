@@ -80,10 +80,16 @@
       "evidence": "driver.ts: the glide path is unchanged and is what runs until the body loads. Not seen with a load that fails in a browser"
     },
     {
+      "id": "tuning-panel",
+      "item": "The numbers that are a matter of taste are set from Settings, take hold at once, and are kept per browser",
+      "status": "done",
+      "evidence": "src/lib/face/feel.ts; src/components/face/face-feel.tsx on /settings/appearance; src/lib/figures.ts keeps what was changed. feel.test.ts (15). Browser: sliders by keyboard, in force after a reload, Reset; docs/plans/evidence/theo-body/tuning.png"
+    },
+    {
       "id": "verify-real-hand",
       "item": "A carry and a throw by a real hand on a real display, for feel",
       "status": "todo",
-      "evidence": "Not done here. The headless page ran at about 13 frames a second; throws were made with dispatched pointer events carrying set timestamps"
+      "evidence": "Not done here. The headless page ran at about 13 frames a second; throws were made with dispatched pointer events carrying set timestamps. The panel under Settings, Appearance is where a real hand sets what it finds"
     },
     {
       "id": "verify-desktop",
