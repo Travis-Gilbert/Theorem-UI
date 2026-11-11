@@ -18,6 +18,7 @@ function harness() {
     append: mock(() => {}),
     changed: mock(() => {}),
     describeError: (error) => error instanceof Error ? error.message : 'Request failed.',
+    attemptId: 'attempt-1',
     storage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => { storage.set(key, value) },
@@ -70,14 +71,17 @@ test('a chat that already has an id leaves input saved for a chat still being cr
   expect(h.storage.get('theorem.run-input.thread-1')).toContain('Stays with this chat')
 })
 
-test('input accepted while a new chat is being created survives reload and moves to its durable id', async () => {
+test('input accepted while a new chat is being created survives a remount of that chat and moves to its durable id', async () => {
   const h = harness()
   h.local.threadId = undefined
   h.local.runId = undefined
   expect(h.queue.submit('Use the smaller design')).toBe(true)
-  const saved = h.storage.get('theorem.run-input.pending:')
-  expect(saved).toBeDefined()
-  const pendingId = (JSON.parse(saved!) as Array<{ id: string; text: string }>)[0]
+  const saved = JSON.parse(h.storage.get('theorem.run-input.pending:')!) as {
+    attemptId: string
+    items: Array<{ id: string; text: string }>
+  }
+  expect(saved.attemptId).toBe('attempt-1')
+  const pendingId = saved.items[0]
   expect(pendingId?.text).toBe('Use the smaller design')
   expect(h.storage.has('theorem.run-input.thread-1')).toBe(false)
 
@@ -94,6 +98,39 @@ test('input accepted while a new chat is being created survives reload and moves
   expect(h.storage.has('theorem.run-input.pending:')).toBe(false)
   expect(h.storage.get('theorem.run-input.thread-1')).toContain('Use the smaller design')
   expect(h.host.send).toHaveBeenCalledWith('run-1', 'Use the smaller design', pendingId?.id)
+})
+
+test('a follow-up saved for one new chat is not sent when a later chat is created', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  expect(h.queue.submit('Use the smaller design')).toBe(true)
+  h.queue.dispose()
+
+  h.host.attemptId = 'attempt-2'
+  const later = createRunInputQueue(h.host)
+  later.observe()
+  const recovered = later.getSnapshot()[0]
+  expect(recovered?.text).toBe('Use the smaller design')
+  expect(recovered?.state).toBe('failed')
+  expect(recovered?.retryAsTurn).toBe(true)
+
+  h.local.threadId = 'thread-2'
+  h.local.runId = 'run-2'
+  h.durable.runId = 'run-2'
+  later.observe()
+  await settle()
+  expect(h.host.send).not.toHaveBeenCalled()
+  expect(h.host.append).not.toHaveBeenCalled()
+
+  h.local.isRunning = false
+  h.local.runId = undefined
+  h.durable.active = false
+  h.durable.runId = undefined
+  later.retry(recovered!.id)
+  await settle()
+  expect(h.host.send).not.toHaveBeenCalled()
+  expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
 })
 
 test('an ambiguous command response is not resent automatically and explicit retry keeps its identity', async () => {

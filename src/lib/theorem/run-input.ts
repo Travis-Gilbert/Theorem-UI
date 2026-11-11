@@ -67,17 +67,24 @@ export type RunInputHost = {
   append: (text: string) => void
   changed: (items: readonly PendingRunInput[]) => void
   describeError: (error: unknown) => string
+  /**
+   * The local chat this queue was opened for. Input accepted before a durable
+   * thread id exists stays with this attempt; a different chat can show it,
+   * but only an explicit retry sends it there.
+   */
+  attemptId?: string
   storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 }
 
 const storageKey = (threadId: string) => `theorem.run-input.${threadId}`
 /**
- * Input accepted while a new chat is still being created. The composer has
- * already cleared, and the durable thread id is not known yet, so a reload
- * can only find the text here. It moves to `storageKey` once that id arrives.
+ * Input accepted while a new chat is still being created. The record names
+ * that chat. The same chat moves it to `storageKey` when its thread id
+ * arrives; a later chat keeps the text for an explicit retry.
  */
 const PENDING_KEY = 'theorem.run-input.pending:'
 const TEMPORARY = 'temporary'
+const recoveredElsewhere = 'This message was kept from a chat that was still being created. Retry sends it with the next response.'
 const unknownDelivery = 'Could not confirm delivery. Retry checks this same message.'
 const stoppedMessage = 'The response stopped before this message was delivered.'
 
@@ -128,6 +135,7 @@ export function createRunInputQueue(host: RunInputHost) {
   let refreshing = false
   let disposed = false
   const inFlight = new Set<string>()
+  const attemptId = host.attemptId ?? crypto.randomUUID()
   const activeId = () => {
     const threadId = host.snapshot().threadId
     if (threadId) durableId = threadId
@@ -141,15 +149,40 @@ export function createRunInputQueue(host: RunInputHost) {
     ]
   }
 
+  const readPending = (): { attemptId?: string; items: PendingRunInput[] } | undefined => {
+    const raw = host.storage?.getItem(PENDING_KEY)
+    if (!raw) return
+    let parsed: unknown
+    try { parsed = JSON.parse(raw) } catch { return }
+    // A record with no attempt belongs to a chat we can no longer identify.
+    if (Array.isArray(parsed)) return { items: restoreItems(raw) }
+    if (!parsed || typeof parsed !== 'object' || !('items' in parsed)) return
+    const record = parsed as { attemptId?: unknown; items?: unknown }
+    return {
+      ...(typeof record.attemptId === 'string' ? { attemptId: record.attemptId } : {}),
+      items: restoreItems(JSON.stringify(record.items ?? [])),
+    }
+  }
+  const keptForRetry = (item: PendingRunInput): PendingRunInput => ({
+    ...item,
+    state: 'failed',
+    retryAsTurn: true,
+    error: recoveredElsewhere,
+    runId: undefined,
+    stopped: false,
+  })
   const publish = (next: readonly PendingRunInput[]) => {
     if (disposed) return
     const threadId = activeId()
     if (host.storage) {
-      const key = threadId ? storageKey(threadId) : PENDING_KEY
-      if (next.length) host.storage.setItem(key, JSON.stringify(next))
-      else host.storage.removeItem(key)
-      // The temporary copy has moved; a later new chat must not adopt it too.
-      if (threadId && restoredFor === TEMPORARY) host.storage.removeItem(PENDING_KEY)
+      if (threadId) {
+        if (next.length) host.storage.setItem(storageKey(threadId), JSON.stringify(next))
+        else host.storage.removeItem(storageKey(threadId))
+        // The temporary copy has moved; a later new chat must not adopt it too.
+        if (restoredFor === TEMPORARY) host.storage.removeItem(PENDING_KEY)
+      } else if (next.length) {
+        host.storage.setItem(PENDING_KEY, JSON.stringify({ attemptId, items: next }))
+      } else host.storage.removeItem(PENDING_KEY)
     }
     restoredFor = threadId ?? TEMPORARY
     items = next
@@ -162,10 +195,24 @@ export function createRunInputQueue(host: RunInputHost) {
     const threadId = activeId()
     const identity = threadId ?? TEMPORARY
     if (restoredFor === identity) return
-    const saved = host.storage?.getItem(threadId ? storageKey(threadId) : PENDING_KEY) ?? null
+    if (!threadId) {
+      const pending = readPending()
+      if (!pending?.items.length) {
+        restoredFor = TEMPORARY
+        if (items.length) publish(items)
+        return
+      }
+      const restored = pending.attemptId === attemptId ? pending.items : pending.items.map(keptForRetry)
+      publish([
+        ...restored.filter((item) => !items.some((existing) => existing.id === item.id)),
+        ...items,
+      ])
+      return
+    }
+    const saved = host.storage?.getItem(storageKey(threadId)) ?? null
     if (!saved && items.length === 0) {
-      if (threadId && restoredFor === TEMPORARY) host.storage?.removeItem(PENDING_KEY)
-      restoredFor = identity
+      if (restoredFor === TEMPORARY) host.storage?.removeItem(PENDING_KEY)
+      restoredFor = threadId
       return
     }
     publish(merge(saved, items))

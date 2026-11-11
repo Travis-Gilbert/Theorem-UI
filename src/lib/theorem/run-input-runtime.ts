@@ -79,6 +79,7 @@ export function bindRunInput(
     }),
     changed: (items) => useRunInputs.setState({ [threadKey]: items }),
     describeError,
+    attemptId: threadKey,
     storage: window.sessionStorage,
   })
   const unregister = registerRunInputQueue(threadKey, queue)
