@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { FaceBody } from '../face/body'
 import type { Bump, Point } from '../face/body'
-import { loadRapier, theWorld } from '../world'
+import { enterWorld, leaveWorld, loadRapier, theWorld } from '../world'
 import { KitDriver } from './driver'
 import { FEET, changeStage, resetKitStage, useKitStage } from './stage'
 
@@ -404,6 +404,43 @@ describe('Theo, thrown, and Kit', () => {
       expect(driver!.position()[0] + 16).toBe(kitAt.x)
     } finally {
       theo.destroy()
+    }
+  })
+
+  test('taken off the page while it ducks, Kit asks nothing more of a body that is gone', async () => {
+    const { theo, kitAt } = await both()
+    // Theo's body outlives Kit here, as it does when only Kit is switched off.
+    enterWorld(await loadRapier())
+    const ducks: Array<Promise<void>> = []
+    const kitDriver = driver as unknown as { duck: () => Promise<void> }
+    const duck = kitDriver.duck.bind(driver)
+    kitDriver.duck = () => {
+      const ducking = duck()
+      ducks.push(ducking)
+      return ducking
+    }
+    try {
+      theo.hold({
+        x: kitAt.x - 9 - 32 - 150,
+        y: kitAt.feet - 17 - SIZE.height / 2,
+      })
+      expect(theo.release({ x: 1200, y: 0 })).toBe(true)
+      let last = performance.now()
+      while (ducks.length === 0 && theo.state !== 'resting') {
+        await Bun.sleep(8)
+        const now = performance.now()
+        theo.advance((now - last) / 1000)
+        last = now
+      }
+      expect(ducks).toHaveLength(1)
+      expect(theo.state).not.toBe('resting')
+      driver!.destroy()
+      driver = undefined
+      await Bun.sleep(60)
+      expect(await ducks[0]).toBeUndefined()
+    } finally {
+      theo.destroy()
+      leaveWorld()
     }
   })
 })

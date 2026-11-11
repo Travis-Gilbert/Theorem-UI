@@ -438,7 +438,17 @@ export class FaceBody {
     const speed = Math.hypot(v.x, v.y) * PX
     if (this.mode === 'resting') {
       // Still at rest unless something in the world moved it: Kit, loose in the air. The tether brings it back.
-      if (speed < BODY.restBelow) return
+      if (speed < BODY.restBelow) {
+        // Too slight a touch to wake it, but it was moved: back to where it is drawn, or the next thing meets it somewhere else.
+        const t = this.body.translation()
+        if (
+          speed > 0 ||
+          Math.hypot(t.x * PX - this.anchorAt.x, t.y * PX - this.anchorAt.y) >
+            BODY.restWithin
+        )
+          this.place(this.anchorAt)
+        return
+      }
       this.before = { ...this.anchorAt }
       this.after = { ...this.anchorAt }
       this.tether()

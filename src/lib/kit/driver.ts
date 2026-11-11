@@ -604,16 +604,19 @@ export class KitDriver {
     if (this.squash) utils.set(this.squash, { scaleX: 1.2, scaleY: 0.58 })
     const began = performance.now()
     let clear = 0
-    while (generation === this.generation) {
+    for (;;) {
       await frame(this.clock)
+      // Stopped first (a grab, another move, Kit taken off the page): that has it now and has stood it up, and its body may be gone from the world.
+      if (generation !== this.generation) {
+        this.dodging = false
+        return
+      }
       const waited = performance.now() - began
       clear = world.coming() || world.overhead() ? 0 : clear + 1
       if ((waited >= DUCK.least && clear >= 3) || waited > DUCK.most) break
     }
     this.dodging = false
     world.duck(false)
-    // Stopped first (a grab, another move): that has it now.
-    if (generation !== this.generation) return
     if (this.squash)
       animate(this.squash, { scaleX: 1, scaleY: 1, ease: REBOUND })
     this.setMotion('still')

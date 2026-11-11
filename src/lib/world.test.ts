@@ -174,6 +174,26 @@ describe('the two meeting', () => {
     world.free()
   })
 
+  test('a touch too slight to wake a resting Theo leaves its body where it is drawn', () => {
+    const world = new FigureWorld(rapier)
+    const home = { x: 600, y: 400 }
+    const theo = theoAt(world, home)
+    const { body } = theo as unknown as {
+      body: {
+        setLinvel: (v: Point, wake: boolean) => void
+        translation: () => Point
+      }
+    }
+    // Slower than what wakes it.
+    body.setLinvel({ x: 4 / PX, y: 0 }, true)
+    for (let i = 0; i < 90; i++) world.step()
+    expect(theo.state).toBe('resting')
+    expect(theo.position()).toEqual(home)
+    const at = body.translation()
+    expect(Math.hypot(at.x * PX - home.x, at.y * PX - home.y)).toBeLessThan(0.1)
+    world.free()
+  })
+
   test('aimed at a surface, Kit passes a resting Theo by', () => {
     const world = new FigureWorld(rapier)
     const kit = kitOn(world, floor, 0.5)
