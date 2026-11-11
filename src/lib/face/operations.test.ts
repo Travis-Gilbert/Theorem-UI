@@ -419,6 +419,38 @@ describe('answering', () => {
 })
 
 describe('serving', () => {
+  // A face is served while it is on the page.
+  beforeEach(() => useFaceStage.setState({ mounted: true }))
+
+  test('a face switched off mid-run refuses, and the run still gets its receipt', async () => {
+    useFaceStage.setState({ mounted: false })
+    const { face } = theo()
+    const posted: Array<FaceReceipt> = []
+    const post = (_: FaceRequest, receipt: FaceReceipt) => {
+      posted.push(receipt)
+      return Promise.resolve()
+    }
+    await serveFaceRequests(
+      [
+        request(FACE_PERFORM, { use: 'blink' }, 'ref_off_1'),
+        request(
+          FACE_DEFINE,
+          { name: 'unseen', program: { op: 'use', name: 'blink' } },
+          'ref_off_2',
+        ),
+      ],
+      post,
+      face,
+    )
+    expect(posted.map((receipt) => receipt.outcome)).toEqual([
+      'rejected',
+      'rejected',
+    ])
+    expect(posted[0]?.revision).toBe(3)
+    expect(face.player.history).toHaveLength(0)
+    expect(face.book.get('unseen')).toBeUndefined()
+  })
+
   test('a request is answered once, with the revision the run expected', async () => {
     const { face } = theo()
     const posted: Array<[FaceRequest, FaceReceipt]> = []

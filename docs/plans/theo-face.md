@@ -194,6 +194,19 @@ startle, wince, dizzy, sigh, scan, melt, sparkle, skeptic, attend, focus, ask,
 sleep, wake, done). `use: "curious"` is a shortcut the agent may take; writing
 the steps is always allowed and needs no name.
 
+A saved performance is never changed. Defining a name again adds a version,
+and when one is saved every `use` in it is written down by version
+(`blink` becomes `blink@1`), so revising `blink` later does not change what
+an older performance plays. The book holds 64 added performances with each
+version counted, and one that another added performance uses cannot be
+removed until its user is.
+
+A feature a program adds leaves when the last performance that put it there
+lets go. The player keeps that account itself: a performance played again
+while its brows are still up, or still flowing out, takes them over and takes
+them away at its own end, and a mood that keeps a feature is not robbed of it
+by a passing performance that used the same one.
+
 A program is compiled before it starts: known steps, known channels (the
 nearest name is offered for a misspelt one), values clamped to bounds and the
 clamps reported in the receipt, at most 30 s, 600 cues, 10 levels of nesting,
@@ -266,7 +279,8 @@ operations of their own.
 | `face.define`  | `name` + `program` + `note`; or `rule`; or `remove`                         | `name@version` saved, the rule's id, or what was removed                                     |
 
 The face is declared only while it is on the page, so a turn is never offered
-a face it cannot move.
+a face it cannot move. A turn that was offered it and then had it switched
+off mid-run gets `rejected`, "Theo is not on screen", with its receipt.
 
 ### The person's hands
 
@@ -425,7 +439,7 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-73 tests):
+79 tests):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;
@@ -440,9 +454,13 @@ without a jump, and reads back that it was interrupted.
 - the compiler: timing of `seq`, `par` and `stagger`; refusals with a path and
   the nearest name; every limit; seeded draws; every performance in the book
   compiles;
-- the book: versions, persistence, Theo's own are never lost;
+- the book: versions, persistence, Theo's own are never lost; a saved version
+  plays the same after what it uses is revised; a performance in use cannot
+  be removed; versions count toward the limit;
 - the face: a performance moves it and lets go; a program nobody named plays
-  and its added feature is taken away after; a refused program changes
+  and its added feature is taken away after; played again before its features
+  have gone, it still takes them away; a feature two performances use stays
+  until the last lets go; a refused program changes
   nothing; interruption; the hand over a performance; ten pokes in a row do
   not repeat and end somewhere they did not start; different seeds differ and
   the same seed repeats; a finish straight after a failure is a sigh and a
@@ -453,7 +471,8 @@ without a jump, and reads back that it was interrupted.
   declared only when mounted; a pending request is read from the live turn and
   nothing in history is performed again; read, perform, wait, stop, define,
   remove, rules; refusals; a request is answered once; a receipt that fails
-  to post is sent again and the performance is not played again;
+  to post is sent again and the performance is not played again; a face
+  switched off mid-run refuses and still answers;
 - the visor: each setting in each mode gives the look in the table above, and
   eyes are ink only where nothing dark is behind them;
 - the hue: a colour's hue comes back from the colour made with it; a grey has

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { BUILT_IN, Book } from './book'
+import { BOOK_LIMITS, BUILT_IN, Book } from './book'
 import { Channels, FEATURE_PARAMS, MAX_FEATURES } from './channels'
 import { Face, SLEEP_AFTER_MS, plainGaze } from './engine'
 import { readShape, restShape, seatPoint } from './feature'
@@ -415,7 +415,7 @@ describe('book', () => {
   test('what Theo came with can be revised but never lost', () => {
     const book = new Book()
     const own = book.get('blink')
-    expect(book.remove('blink')).toBe(false)
+    expect(book.remove('blink').ok).toBe(false)
     const revised = book.define(
       'blink',
       { ...blink, over: 300 },
@@ -427,8 +427,96 @@ describe('book', () => {
     expect(revised.entry.version).toBe(2)
     expect(book.get('blink')?.by).toBe('agent')
     expect(book.get('blink@1')).toEqual(own)
-    expect(book.remove('blink')).toBe(true)
+    expect(book.remove('blink').ok).toBe(true)
     expect(book.get('blink')).toEqual(own)
+  })
+
+  test('a saved version keeps meaning what it meant when what it uses is revised', () => {
+    const book = new Book()
+    const hello = book.define(
+      'hello',
+      {
+        steps: [
+          { op: 'use', name: 'blink' },
+          {
+            op: 'par',
+            steps: [
+              { op: 'repeat', times: 2, step: { op: 'use', name: 'nod' } },
+            ],
+          },
+          { op: 'vary', of: [{ op: 'use', name: 'blink@1' }] },
+        ],
+      },
+      '',
+      'agent',
+      channels(),
+    )
+    if (!hello.ok) throw new Error(hello.reason)
+    const before = compile(hello.entry.program, {
+      channels: channels(),
+      lookup: book.lookup,
+      seed: 3,
+    })
+    const revised = book.define(
+      'blink',
+      { op: 'to', set: { 'eyes.lid': 1 }, over: 900, hold: 900 },
+      '',
+      'agent',
+      channels(),
+    )
+    if (!revised.ok) throw new Error(revised.reason)
+    expect(JSON.stringify(hello.entry.program)).toContain('"blink@1"')
+    expect(JSON.stringify(hello.entry.program)).toContain('"nod@1"')
+    const after = compile(book.get('hello@1')?.program, {
+      channels: channels(),
+      lookup: book.lookup,
+      seed: 3,
+    })
+    expect(after).toEqual(before)
+    // A new version of hello, written the same way, takes the new blink.
+    const again = book.define(
+      'hello',
+      { op: 'use', name: 'blink' },
+      '',
+      'agent',
+      channels(),
+    )
+    if (!again.ok) throw new Error(again.reason)
+    expect(JSON.stringify(again.entry.program)).toContain('"blink@2"')
+  })
+
+  test('a performance another one uses cannot be removed from under it', () => {
+    const book = new Book()
+    const part = book.define('part', blink, '', 'agent', channels())
+    const whole = book.define(
+      'whole',
+      { op: 'use', name: 'part' },
+      '',
+      'agent',
+      channels(),
+    )
+    if (!part.ok || !whole.ok) throw new Error('refused')
+    const refused = book.remove('part')
+    expect(refused.ok).toBe(false)
+    if (refused.ok) throw new Error('removed')
+    expect(refused.reason).toContain('whole@1')
+    expect(book.get('part')).toBeDefined()
+    expect(book.remove('whole').ok).toBe(true)
+    expect(book.remove('part').ok).toBe(true)
+    expect(book.get('part')).toBeUndefined()
+  })
+
+  test('versions count toward what the book may hold', () => {
+    const book = new Book()
+    for (let index = 0; index < BOOK_LIMITS.entries; index++) {
+      const saved = book.define('again', blink, '', 'agent', channels())
+      if (!saved.ok) throw new Error(saved.reason)
+    }
+    const over = book.define('again', blink, '', 'agent', channels())
+    expect(over.ok).toBe(false)
+    expect(book.get('again')?.version).toBe(BOOK_LIMITS.entries)
+    expect(book.remove('again').ok).toBe(true)
+    expect(book.define('again', blink, '', 'agent', channels()).ok).toBe(true)
   })
 
   test('a program that does not compile is not saved', () => {
@@ -462,6 +550,53 @@ describe('the face', () => {
     run(performed.invocation.ms + 1_500)
     expect(await face.ended(performed.invocation.id)).toBe('completed')
     expect(face.rig.read('eye.left.lidTilt')).toBeCloseTo(rest, 1)
+  })
+
+  test('a performance played again before its features have gone still takes them away', () => {
+    const { face, run } = theo()
+    const brows = () =>
+      face.rig.channels
+        .features()
+        .filter((feature) => feature.id.startsWith('brow.')).length
+    // Again while the first is still playing.
+    const first = face.perform('skeptic', { owner: 'test' })
+    if (!first.ok) throw new Error(first.reason)
+    run(200)
+    expect(brows()).toBe(2)
+    face.perform('skeptic', { owner: 'test' })
+    run(first.invocation.ms + 4_000)
+    expect(brows()).toBe(0)
+    // Again once it has ended, while the brows are still flowing out.
+    face.perform('skeptic', { owner: 'test' })
+    run(first.invocation.ms + 16)
+    expect(face.rig.isRetiring('brow.left')).toBe(true)
+    face.perform('skeptic', { owner: 'test' })
+    run(first.invocation.ms + 4_000)
+    expect(brows()).toBe(0)
+  })
+
+  test('a feature two performances use stays until the last of them lets go', () => {
+    const { face, run } = theo()
+    const mouth = {
+      op: 'feature',
+      id: 'mouth',
+      set: { x: 0, y: 20, w: 8, h: 2, share: 0.25 },
+    }
+    const kept = face.perform(
+      { keep: true, steps: [mouth] },
+      { layer: 'mood', owner: 'test' },
+    )
+    const passing = face.perform(
+      { steps: [mouth, { op: 'to', set: { 'mouth.w': 14 }, hold: 200 }] },
+      { owner: 'test' },
+    )
+    if (!kept.ok || !passing.ok) throw new Error('refused')
+    run(4_000)
+    expect(face.player.active('performance')).toBeUndefined()
+    expect(face.rig.channels.feature('mouth')).toBeDefined()
+    face.player.stop('mood')
+    run(4_000)
+    expect(face.rig.channels.feature('mouth')).toBeUndefined()
   })
 
   test('a program nobody named plays, and what it adds is taken away after', () => {

@@ -140,7 +140,7 @@ export interface Score {
   readonly seed: number
   /** Things the checker changed rather than refused, such as a value pulled into bounds. */
   readonly notes: ReadonlyArray<string>
-  /** Features the performance adds, so they can be taken away when it ends. */
+  /** Features the performance adds to the face as it stood when checked. The player keeps its own account of who put what there. */
   readonly adds: ReadonlyArray<string>
 }
 

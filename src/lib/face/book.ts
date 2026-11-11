@@ -459,17 +459,36 @@ export interface Shelf {
 }
 
 const SHELF_KEY = 'theorem-ui:theo:book'
-/** The most performances anyone may add, and the largest one, in characters of JSON. */
+/** The most added performances the book holds, every version counted, and the largest one, in characters of JSON. */
 export const BOOK_LIMITS = {
   entries: 64,
   size: 6000,
   name: /^[a-z][a-z0-9-]{1,31}$/,
 } as const
 
+/** Calls `visit` with every `use` step in a list of steps, however deep, read as loosely as a program is written. */
+function eachUse(
+  steps: unknown,
+  visit: (step: Record<string, unknown> & { name: string }) => void,
+  depth = 0,
+) {
+  if (!Array.isArray(steps) || depth > 32) return
+  for (const step of steps as Array<unknown>) {
+    if (typeof step !== 'object' || step === null) continue
+    const fields = step as Record<string, unknown>
+    if (fields.op === 'use' && typeof fields.name === 'string')
+      visit(fields as Record<string, unknown> & { name: string })
+    eachUse(fields.steps, visit, depth + 1)
+    eachUse(fields.of, visit, depth + 1)
+    if (fields.step !== undefined) eachUse([fields.step], visit, depth + 1)
+  }
+}
+
 /**
  * Every named performance: the built-in ones and those the agent or the
  * person defined. A definition is never changed: defining a name again adds
- * a version, and `name@2` still means what it meant.
+ * a version, and `name@2` still means what it meant, because what it uses is
+ * written down by version when it is saved.
  */
 export class Book {
   private readonly entries = new Map<string, Array<Entry>>()
@@ -540,14 +559,19 @@ export class Book {
     const checked = compile(program, { channels, lookup: this.lookup })
     if (!checked.ok) return checked
     const versions = this.entries.get(name) ?? []
-    if (versions.length === 0 && this.defined().length >= BOOK_LIMITS.entries)
+    if (this.defined().length >= BOOK_LIMITS.entries)
       return {
         ok: false,
         path: 'name',
-        reason: `The book holds at most ${BOOK_LIMITS.entries} added performances; remove one first.`,
+        reason: `The book holds at most ${BOOK_LIMITS.entries} added performances, each version counted; remove one first.`,
       }
     const saved = asProgram(JSON.parse(text))
     if (!saved) return { ok: false, path: '', reason: 'This is not a program.' }
+    // What it uses is the version there is today, so a later revision of that name does not change this one.
+    eachUse(saved.steps, (step) => {
+      const used = step.name.includes('@') ? undefined : this.get(step.name)
+      if (used) step.name = `${used.name}@${used.version}`
+    })
     const entry: Entry = {
       name,
       version: (versions.at(-1)?.version ?? 0) + 1,
@@ -560,16 +584,37 @@ export class Book {
     return { ok: true, entry }
   }
 
-  /** Removes every added version of a name. The face's own performances stay. */
-  remove(name: string) {
-    const versions = this.entries.get(name)
-    if (!versions) return false
+  /**
+   * Removes every added version of a name. The face's own performances stay,
+   * and so does a version another added performance uses.
+   */
+  remove(name: string): { ok: true } | { ok: false; reason: string } {
+    const versions = this.entries.get(name) ?? []
+    const going = versions.filter((entry) => entry.by !== 'theo')
+    if (going.length === 0)
+      return {
+        ok: false,
+        reason: `Nothing added is named "${name}"; Theo’s own performances stay.`,
+      }
+    const users = new Set<string>()
+    for (const entry of this.defined()) {
+      if (entry.name === name) continue
+      eachUse(entry.program.steps, (step) => {
+        const used = this.get(step.name)
+        if (used && going.includes(used))
+          users.add(`${entry.name}@${entry.version}`)
+      })
+    }
+    if (users.size > 0)
+      return {
+        ok: false,
+        reason: `"${name}" is used by ${[...users].join(', ')}; remove ${users.size === 1 ? 'it' : 'them'} first.`,
+      }
     const kept = versions.filter((entry) => entry.by === 'theo')
-    if (kept.length === versions.length) return false
     if (kept.length > 0) this.entries.set(name, kept)
     else this.entries.delete(name)
     this.save()
-    return true
+    return { ok: true }
   }
 
   private defined() {

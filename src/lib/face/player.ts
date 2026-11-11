@@ -35,6 +35,8 @@ interface Playing {
   next: number
   readonly waves: Array<Extract<Cue, { kind: 'wave' }>>
   readonly held: Set<string>
+  /** Features it put on the face, to be taken away when it lets go. */
+  readonly added: Set<string>
   readonly settled: Array<(ending: Ending) => void>
 }
 
@@ -48,12 +50,18 @@ export class Player {
   private readonly kept = new Map<Layer, Playing>()
   readonly history: Array<Invocation> = []
   private count = 0
+  /** The features the face came with: no performance adds them and none takes them away. */
+  private readonly own: ReadonlySet<string>
+  /** Who put each added feature there. It leaves when the last of them lets go. */
+  private readonly users = new Map<string, Set<Playing>>()
 
   constructor(
     private readonly rig: Rig,
     private readonly stage: Stage,
     private readonly clock: () => number = () => Date.now(),
-  ) {}
+  ) {
+    this.own = new Set(rig.channels.features().map((feature) => feature.id))
+  }
 
   /** Starts a score on a layer, ending whatever played there. */
   play(
@@ -77,6 +85,7 @@ export class Player {
       next: 0,
       waves: [],
       held: new Set(),
+      added: new Set(),
       settled: [],
     })
     this.history.push(invocation)
@@ -119,7 +128,14 @@ export class Player {
 
   private letGo(layer: Layer, playing: Playing) {
     this.rig.release(layer, [...playing.held], { over: 380 })
-    for (const id of playing.score.adds) this.rig.retireFeature(id)
+    for (const id of playing.added) {
+      const users = this.users.get(id)
+      users?.delete(playing)
+      if (users && users.size > 0) continue
+      this.users.delete(id)
+      this.rig.retireFeature(id)
+    }
+    playing.added.clear()
   }
 
   private finish(
@@ -212,8 +228,23 @@ export class Player {
         return
       }
       case 'feature':
-        if (cue.remove) this.rig.retireFeature(cue.id)
-        else this.rig.addFeature({ id: cue.id, side: cue.side })
+        if (cue.remove) {
+          // Said outright, it goes for everyone who had it.
+          for (const user of this.users.get(cue.id) ?? [])
+            user.added.delete(cue.id)
+          this.users.delete(cue.id)
+          this.rig.retireFeature(cue.id)
+          return
+        }
+        if (this.rig.addFeature({ id: cue.id, side: cue.side }) !== undefined)
+          return
+        // Whether the feature was already there or on its way out, this performance now has it too.
+        if (this.own.has(cue.id)) return
+        playing.added.add(cue.id)
+        this.users.set(
+          cue.id,
+          (this.users.get(cue.id) ?? new Set<Playing>()).add(playing),
+        )
         return
       case 'go':
         this.stage.go(cue.place, cue.size, cue.over)

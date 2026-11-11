@@ -269,12 +269,9 @@ export async function answerFaceRequest(
       const remove = record(args.remove)
       if (typeof remove.performance === 'string') {
         const gone = face.book.remove(remove.performance)
-        return gone
+        return gone.ok
           ? { outcome: 'applied', result: { removed: remove.performance } }
-          : refused(
-              'remove.performance',
-              `Nothing added is named "${remove.performance}"; Theo’s own performances stay.`,
-            )
+          : refused('remove.performance', gone.reason)
       }
       if (typeof remove.rule === 'string') {
         const gone = face.reactions.remove(remove.rule)
@@ -370,7 +367,10 @@ export function serveFaceRequests(
     served.add(request.requestRef)
     answered.push(
       (async () => {
-        const answer = await answerFaceRequest(request, face)
+        // A turn offered the face before it was switched off is told so; the run still gets its receipt.
+        const answer: FaceAnswer = useFaceStage.getState().mounted
+          ? await answerFaceRequest(request, face)
+          : { outcome: 'rejected', reason: 'Theo is not on screen.' }
         await new MutationObserver(receipts, {
           mutationFn: (receipt: FaceReceipt) => post(request, receipt),
           retry: (failures, error) =>
