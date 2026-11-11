@@ -238,24 +238,31 @@ export function useReviewDraft(review: Review | undefined) {
   }, [review])
   const writes = useRef(Promise.resolve())
   const leaving = useRef(false)
+  const later = useRef<(id: string, next: ReviewResponse) => void>(undefined)
   const saver = useDebouncer(
-    (next: ReviewResponse) => {
-      if (!reviewId) return
+    // The review is named with the write: the composer can stop answering it
+    // before the write goes out.
+    (id: string, next: ReviewResponse) => {
       // An answer carries what was chosen: a draft saved after it says nothing.
-      const cached = client.getQueryData<Review>(reviewKey(reviewId))
+      const cached = client.getQueryData<Review>(reviewKey(id))
       if (cached && cached.status !== 'open') return
       // The page cannot wait for a write still out, or read a newer revision.
       if (leaving.current) {
-        void putDraft(reviewId, next).catch(() => undefined)
+        void putDraft(id, next).catch(() => undefined)
+        return
+      }
+      // An answer on its way carries this too. Should it fail, save then.
+      if (submitting.has(id)) {
+        later.current?.(id, next)
         return
       }
       // One at a time: each needs the revision the last one answered with.
       writes.current = writes.current
-        .then(() => writeDraft(reviewId, next, revision.current))
+        .then(() => writeDraft(id, next, revision.current))
         .then((saved) => {
           revision.current = saved.revision
           setSaveError(undefined)
-          put({ ...saved, draft: useDrafts.getState()[reviewId] ?? next })
+          put({ ...saved, draft: useDrafts.getState()[id] ?? next })
         })
         .catch(setSaveError)
     },
@@ -263,6 +270,7 @@ export function useReviewDraft(review: Review | undefined) {
     { wait: 400, onUnmount: (debouncer) => debouncer.flush() },
   )
   useEffect(() => {
+    later.current = (id, next) => saver.maybeExecute(id, next)
     const flush = () => {
       leaving.current = true
       saver.flush()
@@ -279,9 +287,15 @@ export function useReviewDraft(review: Review | undefined) {
       reviewKey(reviewId),
       (old) => old && { ...old, draft: next },
     )
-    saver.maybeExecute(next)
+    saver.maybeExecute(reviewId, next)
   }
-  return { response, change, saveError }
+  /** The reply as the composer has it. Every composer on the page says the same, so only a new one is written. */
+  const writeReply = (reply: string | undefined) => {
+    if (!reviewId) return
+    const current = useDrafts.getState()[reviewId] ?? response
+    if (current.reply !== reply) change({ ...current, reply })
+  }
+  return { response, change, writeReply, saveError }
 }
 
 /** An answer's text without its first line, which tells the agent the review's id. */
@@ -289,19 +303,25 @@ export function answerBody(text: string) {
   return text.replace(/^Review: .*\n+/, '')
 }
 
+/** Reviews whose answer is on its way. */
+const submitting = new Set<string>()
+
 /** Sends the answer: Theorem writes it and the queued reply together, once, however often this retries. */
 export function useSubmitReview(reviewId: string | undefined) {
   const put = usePutReview()
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (response: ReviewResponse) =>
-      mutate((headers) =>
-        theoremJson<Review>(`${reviewPath(reviewId!)}/submit`, {
+    mutationFn: (response: ReviewResponse) => {
+      const id = reviewId!
+      submitting.add(id)
+      return mutate((headers) =>
+        theoremJson<Review>(`${reviewPath(id)}/submit`, {
           method: 'POST',
           body: response,
           headers,
         }),
-      ),
+      ).finally(() => submitting.delete(id))
+    },
     onSuccess: (review) => {
       useDrafts.setState({ [review.reviewId]: undefined })
       put(review)

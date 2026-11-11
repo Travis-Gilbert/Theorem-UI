@@ -48,7 +48,7 @@ const removeButton =
 export function useSendReview(review: Review | undefined) {
   const aui = useAui()
   const reviewId = review?.reviewId
-  const { response, change, saveError } = useReviewDraft(review)
+  const { response, change, writeReply, saveError } = useReviewDraft(review)
   const submit = useSubmitReview(reviewId)
   const targeted = useReviewTarget((s) => s.reviewId === reviewId)
   const text = useAuiState((s) => (targeted ? s.composer.text.trim() : ''))
@@ -58,19 +58,26 @@ export function useSendReview(review: Review | undefined) {
   return {
     response,
     change,
+    writeReply,
     error: submit.error ?? saveError,
     canSend: canSubmit(answer) && !submit.isPending,
-    send: () =>
+    send: () => {
+      const sent = aui.composer().getState().text
       submit.mutate(answer, {
         onSuccess: () => {
           if (!reviewId) return
           if (targeted) {
-            aui.composer().setText('')
-            useReviewTarget.setState({ reviewId: undefined })
+            // The composer stays open while the answer is on its way: what
+            // was written or addressed since is not this send's to clear.
+            const composer = aui.composer()
+            if (composer.getState().text === sent) composer.setText('')
+            if (useReviewTarget.getState().reviewId === reviewId)
+              useReviewTarget.setState({ reviewId: undefined })
           }
           closeReview(reviewId)
         },
-      }),
+      })
+    },
   }
 }
 
@@ -90,6 +97,13 @@ export function useComposerReview() {
     if (closed) useReviewTarget.setState({ reviewId: undefined })
   }, [closed])
   const sending = useSendReview(review)
+  // What is written is part of the draft, so a reload does not lose it.
+  const text = useAuiState((s) => (review ? s.composer.text.trim() : ''))
+  const { writeReply } = sending
+  useEffect(() => {
+    if (review) writeReply(text || undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review?.reviewId, text])
   return review ? { review, ...sending } : undefined
 }
 
@@ -145,7 +159,7 @@ function Observations({
  * what is chosen, removable, with test results and bugs added on demand.
  */
 export function ComposerReviewTarget({ target }: { target: ComposerReview }) {
-  const { review, response, change, error } = target
+  const { review, response, change, writeReply, error } = target
   const label = `${review.title} · Review · ${selectionSummary(review, response)}`
   const add = (kind: ObservationKind, optionId?: string) =>
     change({
@@ -164,7 +178,11 @@ export function ComposerReviewTarget({ target }: { target: ComposerReview }) {
             type="button"
             aria-label={`Stop answering ${review.title}`}
             title="Send an ordinary message instead"
-            onClick={() => useReviewTarget.setState({ reviewId: undefined })}
+            onClick={() => {
+              // The text stays as an ordinary message, so it leaves the draft.
+              writeReply(undefined)
+              useReviewTarget.setState({ reviewId: undefined })
+            }}
             className={cn(removeButton, 'size-4')}
           >
             <Icon.X className="size-3" />
