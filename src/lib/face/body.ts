@@ -1,16 +1,13 @@
-// SOURCING: @dimforge/rapier2d-compat 0.21 (a world without gravity on a fixed step; one rigid body for the whole figure, dynamic while it travels or is thrown; a spring joint from a kinematic pin for the tether's pull, with the body's linear damping to settle it; fixed walls at the window's edges; continuous collision detection; collision events for contact), loaded through lib/kit/physics's loadRapier so Theo and Kit share one WASM chunk and one scale; ./feel for the numbers that are the person's to set (drag, bounce, where a throw begins, pace, settle). Hand-rolled: the accumulator with bounded catch-up and the interpolation between steps (Rapier steps a world, it does not pace one against a display), and the release velocity read off the hand's last samples.
-import type RAPIER from '@dimforge/rapier2d-compat'
+// SOURCING: @dimforge/rapier2d-compat 0.21 (one rigid body for the whole figure, weightless, dynamic while it travels or is thrown; a spring joint from a kinematic pin for the tether's pull, with the body's linear damping to settle it; fixed walls at the window's edges; continuous collision detection; collision events for contact); lib/world for the world itself, which Kit's body is in too, its fixed step, its scale and what each collider in it is; ./feel for the numbers that are the person's to set (drag, bounce, where a throw begins, pace, settle). Hand-rolled: the accumulator with bounded catch-up and the interpolation between steps (Rapier steps a world, it does not pace one against a display), and the release velocity read off the hand's last samples.
 import type {
   Collider,
-  EventQueue,
   ImpulseJoint,
   RigidBody,
   World,
 } from '@dimforge/rapier2d-compat'
-import { PX, STEP } from '@/lib/kit/physics'
+import { FigureWorld, IS, PX, STEP, groups } from '@/lib/world'
+import type { Clock, Rapier } from '@/lib/world'
 import { FEEL, feelRevision } from './feel'
-
-type Rapier = typeof RAPIER
 
 export interface Point {
   x: number
@@ -19,10 +16,14 @@ export interface Point {
 
 export type Side = 'left' | 'right' | 'top' | 'bottom'
 
-/** The figure met an edge of the page, moving into it at `speed` pixels per second. */
+/**
+ * The figure met something on this side of it, closing at `speed` pixels per
+ * second: an edge of the page, or Kit when `against` says so.
+ */
 export interface Bump {
   readonly side: Side
   readonly speed: number
+  readonly against?: 'kit'
 }
 
 /**
@@ -58,9 +59,6 @@ export const BODY = {
 const WALL = 1
 /** The figure's mass. Fixed, so the figure growing does not change how the tether pulls. */
 const MASS = 1
-/** Collision groups: everything, and nothing. */
-const SOLID = 0xffff_ffff
-const GHOST = 0x0001_0000
 
 /** How fast the tether pulls, in radians per second, for a move meant to take about `over` milliseconds, at the pace the person set. */
 export const tetherRate = (over: number) =>
@@ -107,6 +105,10 @@ export interface Advanced {
 
 const NOTHING: Advanced = { bumps: [], landed: undefined }
 
+/** How fast something moving at (x, y) goes into this side. */
+const closing = (side: Side, x: number, y: number) =>
+  side === 'left' ? -x : side === 'right' ? x : side === 'top' ? -y : y
+
 /**
  * Theo's figure as one physical body on the page, in pixels. It owns where
  * the figure is; what the face inside it does is the rig's. The page calls
@@ -116,15 +118,26 @@ const NOTHING: Advanced = { bumps: [], landed: undefined }
  *
  * The edges of the window are solid to a thrown figure only. Deliberate
  * travel passes them by: its destinations are inside them already.
+ *
+ * Kit's body is in the same world (lib/world). A thrown figure strikes Kit
+ * where it stands; travelling or at rest the figure passes Kit by, but Kit
+ * loose in the air strikes it, and the tether brings it back. Given no
+ * world, it makes one of its own.
  */
 export class FaceBody {
+  private readonly shared: FigureWorld
+  private readonly own: boolean
   private readonly world: World
   private readonly body: RigidBody
   private readonly collider: Collider
   private readonly pin: RigidBody
   private readonly walls: Array<RigidBody> = []
   private readonly sides = new Map<number, Side>()
-  private readonly events: EventQueue
+  private readonly leave: () => void
+  private readonly clock: Clock = { lived: 0 }
+  /** What the steps since `advance` last answered met, and where a coast ended in them. */
+  private bumps: Array<Bump> = []
+  private landed: Point | undefined
   private joint: ImpulseJoint | undefined
   /** About how long the move under way was meant to take, in milliseconds. */
   private over = 620
@@ -145,9 +158,11 @@ export class FaceBody {
     private readonly rapier: Rapier,
     at: Point,
     size: { width: number; height: number },
+    shared?: FigureWorld,
   ) {
-    this.world = new rapier.World({ x: 0, y: 0 })
-    this.world.timestep = STEP
+    this.own = shared === undefined
+    this.shared = shared ?? new FigureWorld(rapier)
+    this.world = this.shared.world
     this.before = { ...at }
     this.after = { ...at }
     this.anchorAt = { ...at }
@@ -161,6 +176,8 @@ export class FaceBody {
     this.body = this.world.createRigidBody(
       rapier.RigidBodyDesc.dynamic()
         .setTranslation(at.x / PX, at.y / PX)
+        // The world has Kit's gravity; the figure floats in it.
+        .setGravityScale(0)
         .lockRotations()
         .setCcdEnabled(true)
         .setCanSleep(false),
@@ -170,26 +187,41 @@ export class FaceBody {
         .setMass(MASS)
         .setFriction(0)
         .setRestitution(FEEL.bounce)
-        .setCollisionGroups(GHOST)
         .setActiveEvents(rapier.ActiveEvents.COLLISION_EVENTS),
       this.body,
     )
     for (const side of ['left', 'right', 'top', 'bottom'] as const) {
       const wall = this.world.createRigidBody(rapier.RigidBodyDesc.fixed())
       const collider = this.world.createCollider(
-        rapier.ColliderDesc.cuboid(WALL, WALL).setFriction(0),
+        rapier.ColliderDesc.cuboid(WALL, WALL)
+          .setFriction(0)
+          .setCollisionGroups(groups(IS.edge, IS.theo)),
         wall,
       )
       this.walls.push(wall)
       this.sides.set(collider.handle, side)
     }
-    this.events = new rapier.EventQueue(true)
+    this.regroup()
     this.resize(size.width, size.height)
+    this.shared.name('theo', this.collider)
+    this.leave = this.shared.join({
+      after: () => this.stepped(),
+      met: (one, two) => this.met(one, two),
+    })
   }
 
   destroy() {
-    this.events.free()
-    this.world.free()
+    this.leave()
+    if (this.shared.figure('theo') === this.collider)
+      this.shared.name('theo', undefined)
+    if (this.own) {
+      this.shared.free()
+      return
+    }
+    // The world is someone else's too: only what the figure put in it goes. Its tether goes with its body.
+    this.world.removeRigidBody(this.body)
+    this.world.removeRigidBody(this.pin)
+    for (const wall of this.walls) this.world.removeRigidBody(wall)
   }
 
   get state(): BodyState {
@@ -288,7 +320,11 @@ export class FaceBody {
     if (this.mode === 'held' || (dx === 0 && dy === 0)) return
     this.anchorAt = { x: this.anchorAt.x + dx, y: this.anchorAt.y + dy }
     this.movePin()
-    if (this.mode === 'resting') return
+    if (this.mode === 'resting') {
+      // At rest nothing is simulated, but its body is still where Kit would strike it.
+      this.place(this.anchorAt)
+      return
+    }
     this.before = { x: this.before.x + dx, y: this.before.y + dy }
     this.after = { x: this.after.x + dx, y: this.after.y + dy }
     this.body.setTranslation(
@@ -303,6 +339,7 @@ export class FaceBody {
       this.untether()
       this.mode = 'held'
       this.owed = 0
+      this.regroup()
     }
     this.hand = { ...point }
   }
@@ -322,12 +359,13 @@ export class FaceBody {
     const scale = speed > BODY.throwAt ? BODY.throwAt / speed : 1
     this.place(this.hand)
     this.body.setLinearDamping(FEEL.drag)
-    this.collider.setCollisionGroups(SOLID)
     this.body.setLinvel(
       { x: (velocity.x * scale) / PX, y: (velocity.y * scale) / PX },
       true,
     )
     this.mode = 'coasting'
+    this.clock.lived = this.shared.steps
+    this.regroup()
     return true
   }
 
@@ -348,8 +386,8 @@ export class FaceBody {
   /** Puts the figure, still, at a point: no travel, no throw. */
   rest(point: Point) {
     this.untether()
-    this.collider.setCollisionGroups(GHOST)
     this.mode = 'resting'
+    this.regroup()
     this.owed = 0
     this.anchorAt = { ...point }
     this.movePin()
@@ -362,57 +400,120 @@ export class FaceBody {
    */
   advance(seconds: number): Advanced {
     if (this.feel !== feelRevision()) this.retune()
-    if (this.mode === 'resting' || this.mode === 'held') {
+    if (!this.simulated()) {
       this.owed = 0
-      return NOTHING
+      this.clock.lived = this.shared.steps
+      return this.since()
     }
     this.owed = Math.min(
       this.owed + Math.max(0, seconds),
       BODY.catchUp * STEP + STEP / 2,
     )
-    let bumps: Array<Bump> | undefined
-    let landed: Point | undefined
-    while (this.owed >= STEP) {
+    // A step Kit has already taken the world through is one the figure has lived too.
+    while (this.owed >= STEP && this.simulated()) {
       this.owed -= STEP
-      const into = this.body.linvel()
-      this.before = this.after
-      this.world.step(this.events)
-      const t = this.body.translation()
-      this.after = { x: t.x * PX, y: t.y * PX }
-      this.events.drainCollisionEvents((one, two, started) => {
-        if (!started) return
-        const side = this.sides.get(one) ?? this.sides.get(two)
-        if (!side) return
-        const speed =
-          (side === 'left'
-            ? -into.x
-            : side === 'right'
-              ? into.x
-              : side === 'top'
-                ? -into.y
-                : into.y) * PX
-        if (speed >= BODY.bumpFrom) (bumps ??= []).push({ side, speed })
-      })
-      const v = this.body.linvel()
-      const speed = Math.hypot(v.x, v.y) * PX
-      if (this.mode === 'coasting' && speed < BODY.coastBelow) {
-        landed = { ...this.after }
-        this.rest(landed)
-        break
-      }
-      if (
-        this.mode === 'tethered' &&
-        speed < BODY.restBelow &&
-        Math.hypot(
-          this.after.x - this.anchorAt.x,
-          this.after.y - this.anchorAt.y,
-        ) < BODY.restWithin
-      ) {
-        this.rest(this.anchorAt)
-        break
-      }
+      this.shared.pass(this.clock)
     }
-    return bumps || landed ? { bumps: bumps ?? [], landed } : NOTHING
+    return this.since()
+  }
+
+  /** Whether the simulation is what moves it now. */
+  private simulated() {
+    return this.mode === 'tethered' || this.mode === 'coasting'
+  }
+
+  /** What has been met and where a coast ended since this was last asked. */
+  private since(): Advanced {
+    if (this.bumps.length === 0 && !this.landed) return NOTHING
+    const out = { bumps: this.bumps, landed: this.landed }
+    this.bumps = []
+    this.landed = undefined
+    return out
+  }
+
+  /** The world stepped, whoever asked it to. */
+  private stepped() {
+    if (this.mode === 'held') return
+    const v = this.body.linvel()
+    const speed = Math.hypot(v.x, v.y) * PX
+    if (this.mode === 'resting') {
+      // Still at rest unless something in the world moved it: Kit, loose in the air. The tether brings it back.
+      if (speed < BODY.restBelow) {
+        // Too slight a touch to wake it, but it was moved: back to where it is drawn, or the next thing meets it somewhere else.
+        const t = this.body.translation()
+        if (
+          speed > 0 ||
+          Math.hypot(t.x * PX - this.anchorAt.x, t.y * PX - this.anchorAt.y) >
+            BODY.restWithin
+        )
+          this.place(this.anchorAt)
+        return
+      }
+      this.before = { ...this.anchorAt }
+      this.after = { ...this.anchorAt }
+      this.tether()
+      this.clock.lived = this.shared.steps
+    }
+    this.before = this.after
+    const t = this.body.translation()
+    this.after = { x: t.x * PX, y: t.y * PX }
+    if (this.mode === 'coasting' && speed < BODY.coastBelow) {
+      this.landed = { ...this.after }
+      this.rest(this.landed)
+    } else if (
+      this.mode === 'tethered' &&
+      speed < BODY.restBelow &&
+      Math.hypot(
+        this.after.x - this.anchorAt.x,
+        this.after.y - this.anchorAt.y,
+      ) < BODY.restWithin
+    )
+      this.rest(this.anchorAt)
+  }
+
+  /** Two colliders came into contact in the step just taken. */
+  private met(one: number, two: number) {
+    const mine = this.collider.handle
+    if (one !== mine && two !== mine) return
+    const other = one === mine ? two : one
+    const into = this.shared.into('theo')
+    const edge = this.sides.get(other)
+    if (edge) {
+      const speed = closing(edge, into.x, into.y) * PX
+      if (speed >= BODY.bumpFrom) this.bumps.push({ side: edge, speed })
+      return
+    }
+    if (this.shared.who(other) !== 'kit') return
+    const kit = this.shared.figure('kit')
+    if (!kit) return
+    // Which side of the figure Kit is on, measured against the figure's own shape.
+    const here = this.body.translation()
+    const there = kit.translation()
+    const dx = (there.x - here.x) / Math.max(1, this.size.width)
+    const dy = (there.y - here.y) / Math.max(1, this.size.height)
+    const side: Side =
+      Math.abs(dx) >= Math.abs(dy)
+        ? dx < 0
+          ? 'left'
+          : 'right'
+        : dy < 0
+          ? 'top'
+          : 'bottom'
+    const theirs = this.shared.into('kit')
+    const speed = closing(side, into.x - theirs.x, into.y - theirs.y) * PX
+    if (speed >= BODY.bumpFrom) this.bumps.push({ side, speed, against: 'kit' })
+  }
+
+  /** What the figure's body is and meets now. */
+  private regroup() {
+    const { theo, theoThrown, edge, kit, kitLoose } = IS
+    this.collider.setCollisionGroups(
+      this.mode === 'held'
+        ? groups(0, 0)
+        : this.mode === 'coasting'
+          ? groups(theo | theoThrown, edge | kit | kitLoose)
+          : groups(theo, kitLoose),
+    )
   }
 
   /** The person changed how it should feel: what is under way takes the new numbers up. */
@@ -451,9 +552,10 @@ export class FaceBody {
   }
 
   private tether() {
+    if (this.mode !== 'tethered') this.clock.lived = this.shared.steps
     this.mode = 'tethered'
     // Travel is not stopped by the edges: where it is sent is already inside them, and an arrival beside one should settle, not rattle.
-    this.collider.setCollisionGroups(GHOST)
+    this.regroup()
     // The joint is a spring along the line to the pin, so damping it would leave any sideways motion to orbit for ever. The body's own damping acts in every direction.
     this.body.setLinearDamping(2 * this.rate * FEEL.settle)
     if (this.joint) return

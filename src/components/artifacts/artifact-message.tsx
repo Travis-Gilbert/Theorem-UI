@@ -30,6 +30,7 @@ import { isLive, representationOf } from './artifact-registry'
 import { ArtifactView } from './artifact-renderers'
 import { ArtifactActions } from './artifact-actions'
 import { useArtifactView } from './artifact-view'
+import { OPENS_WHOLE, thingProps } from '@/lib/face/things'
 
 /**
  * Where a conversation's artifacts open: in the dock's panels beside it, or
@@ -128,6 +129,9 @@ function ArtifactMessageCard({
       ref={cardRef}
       data-slot="theorem-artifact-card"
       data-face-perch="artifact"
+      {...thingProps('artifact', artifact.artifactId, {
+        label: artifact.title,
+      })}
       data-artifact-id={artifact.artifactId}
       data-selected={selected || undefined}
       className={cn(
@@ -177,6 +181,8 @@ function ArtifactMessageCard({
             variant="ghost"
             size="icon"
             aria-label="Open in larger view"
+            // Theo presses this for a part the excerpt below cuts off.
+            {...OPENS_WHOLE}
             className="group/open size-8 p-1.5"
             onClick={show}
           >

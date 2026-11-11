@@ -17,6 +17,12 @@ import {
 import { organizationFixture } from './fixtures/organization'
 import { reviewFixture, reviewShots } from './fixtures/review'
 import { threadMessages } from './fixtures/thread'
+import {
+  POINTING_DELEGATION,
+  POINTING_PATCH,
+  POINTING_RUN,
+  pointingDelegation,
+} from './fixtures/pointing'
 
 const BASE = '/api/chat/v1'
 
@@ -174,6 +180,11 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     },
     [`POST ${BASE}/uploads/:uploadId/retain`]: () => ({ retained: true }),
     [`GET ${BASE}/organization`]: () => organization,
+    [`GET ${BASE}/runs/${POINTING_RUN}/delegations`]: () => ({
+      delegations: [pointingDelegation],
+    }),
+    [`GET ${BASE}/runs/${POINTING_RUN}/delegations/${POINTING_DELEGATION}/content`]:
+      () => new Response(POINTING_PATCH, { headers: { 'content-type': 'text/plain' } }),
     [`GET ${BASE}/librarian/history`]: () => ({
       items: organization.librarian.recent,
     }),

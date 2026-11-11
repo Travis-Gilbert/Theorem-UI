@@ -46,6 +46,7 @@ import type {
   ReviewVerdict,
 } from '@/lib/theorem/delegations'
 import { cn } from '@/lib/utils'
+import { thingProps } from '@/lib/face/things'
 
 const card =
   'my-3 flex w-full max-w-2xl flex-col rounded-artifact border border-separator bg-artifact'
@@ -215,6 +216,10 @@ const ChangeRow: FC<{ delegation: DelegationPart; change: ChangeSetEntry }> = ({
       open={open}
       onOpenChange={setOpen}
       className="border-t border-separator first:border-t-0"
+      // Named, so Theo can be sent to this file's diff and to a line of it.
+      {...thingProps('change', `${delegation.delegationId}/${change.path}`, {
+        label: change.path,
+      })}
     >
       <div className="flex items-center gap-2 px-4 py-1.5">
         <CollapsibleTrigger

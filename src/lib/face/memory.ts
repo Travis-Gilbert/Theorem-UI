@@ -4,7 +4,7 @@ import type { Shelf } from './book'
 
 /** Something that happened: the person did it, a run did it, the environment did, or it happened to the figure's own body. */
 export interface FaceEvent {
-  /** A dotted kind: `person.poke`, `run.tool.fail`, `env.resize`, `body.bump.left`. */
+  /** A dotted kind: `person.poke`, `run.tool.fail`, `env.resize`, `body.bump.left`, `body.meet.kit`. */
   readonly kind: string
   /** When, in milliseconds. */
   readonly at: number
@@ -71,6 +71,7 @@ const NUDGES: ReadonlyArray<readonly [string, Partial<Mood>]> = [
   ['env.online', { valence: 0.12 }],
   ['env.', { arousal: 0.05 }],
   ['body.bump', { arousal: 0.14, valence: -0.05 }],
+  ['body.meet', { arousal: 0.12, valence: 0.03 }],
 ]
 
 interface KindMemory {

@@ -1,14 +1,20 @@
-// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
+// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion; lib/world for the world that body is in, which is Kit's too, so a thrown Theo strikes Kit; lib/kit/driver and lib/kit/stage for where Kit is while it is in the air, which the eyes follow. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
 import { BODY, FaceBody, releaseVelocity } from '@/lib/face/body'
 import type { Sample } from '@/lib/face/body'
 import { clamp } from '@/lib/face/channels'
 import type { Face } from '@/lib/face/engine'
 import { FEEL } from '@/lib/face/feel'
-import type { Place } from '@/lib/face/program'
-import { loadRapier } from '@/lib/kit/physics'
+import { isThing } from '@/lib/face/program'
+import type { Place, Thing } from '@/lib/face/program'
+import { noteOf, stand } from '@/lib/face/things'
+import type { Standing } from '@/lib/face/things'
+import { kitDriver } from '@/lib/kit/driver'
+import { KIT_SIZE, useKitStage } from '@/lib/kit/stage'
 import { prefersReducedMotion } from '@/lib/motion'
+import { enterWorld, leaveWorld, loadRapier, theWorld } from '@/lib/world'
 import { createPainter } from './painter'
 import type { Painter } from './painter'
+import { forget, locate, reveal, thingsOnPage } from './things'
 
 /** The canvas's own width in CSS pixels; the face is scaled from this. */
 export const VISOR_PX = 120
@@ -27,6 +33,12 @@ const NEAR = 280
 const CARRY_AFTER = 4
 /** How long after a performance away from home before it goes back. */
 const LINGER_MS = 3_500
+/** Pointing at something, it stays longer: the person has to find it and read it. */
+const POINT_LINGER_MS = 9_000
+/** How big it is while it points, unless told. */
+const POINT_SIZE = 1.5
+/** While it points its eyes are on the thing, with a glance at the person this often and for this long, in milliseconds. */
+const GLANCE = { every: 3_400, for: 520 } as const
 /** The shortest trip, in pixels, the eyes announce by looking there first. */
 const LEAD_FROM = 48
 /** Within this many pixels of where it was going, the eyes let go of it. */
@@ -76,6 +88,10 @@ export class FaceDriver {
   private leaving: { at: number; over: number } | undefined
   /** Where the hand has lately been while it carries, for how fast it lets go. */
   private samples: Array<Sample> = []
+  /** When it got to the thing it points at; `undefined` while it is on its way or points at nothing. */
+  private pointingSince: number | undefined
+  /** What the mark last showed, so the page is written to only when it changes. */
+  private marked = ''
 
   constructor(
     private readonly face: Face,
@@ -83,6 +99,8 @@ export class FaceDriver {
     private readonly plate: HTMLElement,
     /** The element the canvas is put in. Each driver makes its own canvas: a WebGL context cannot be handed on. */
     private readonly host: HTMLElement,
+    /** What is laid over the thing the figure points at. */
+    private readonly mark: HTMLElement,
     private readonly report: (state: {
       words?: string
       painter?: Painter['kind']
@@ -96,6 +114,19 @@ export class FaceDriver {
       gazeAt: (place) => this.gazeAt(place),
       go: (place, size, over) => this.go(place, size, over),
       burst: () => {},
+      thing: (thing) => {
+        const found = locate(thing)
+        if (!found) return undefined
+        return noteOf(thing, found, this.standAt(found).where)
+      },
+      things: () => thingsOnPage(),
+      pointing: () => {
+        const thing = this.pointed()
+        const found = thing && locate(thing)
+        return found
+          ? { thing: found.name, where: this.standAt(found).where }
+          : undefined
+      },
     })
     const makeCanvas = () => {
       const canvas = document.createElement('canvas')
@@ -122,7 +153,13 @@ export class FaceDriver {
     for (const cleanup of this.cleanups) cleanup()
     this.face.attach(undefined)
     this.face.heading(undefined)
-    this.body?.destroy()
+    this.face.watch(undefined)
+    delete this.mark.dataset.on
+    forget()
+    if (this.body) {
+      this.body.destroy()
+      leaveWorld()
+    }
     this.body = undefined
     this.painter?.destroy()
     this.host.replaceChildren()
@@ -130,7 +167,7 @@ export class FaceDriver {
 
   // Where it is ---------------------------------------------------------------
 
-  /** Asks for the physical body. The first carry, poke or trip wants it; a page that never touches Theo never loads Rapier. */
+  /** Asks for the physical body. The first carry, poke or trip wants it, and so does Kit having one, so the two can meet; a page with no Kit that never touches Theo never loads Rapier. */
   private wantBody() {
     if (
       this.body ||
@@ -145,7 +182,12 @@ export class FaceDriver {
       (rapier) => {
         this.bodyLoading = false
         if (this.destroyed) return
-        this.body = new FaceBody(rapier, this.at, this.dimensions())
+        this.body = new FaceBody(
+          rapier,
+          this.at,
+          this.dimensions(),
+          enterWorld(rapier),
+        )
         this.anchored = undefined
       },
       () => {
@@ -172,8 +214,13 @@ export class FaceDriver {
     const before = this.target()
     this.free = undefined
     this.place = place
+    this.pointingSince = undefined
+    forget()
     this.size =
-      place === 'home' && size === undefined ? undefined : (size ?? this.size)
+      place === 'home' && size === undefined
+        ? undefined
+        : // Pointing, it is big enough to be found.
+          (size ?? (isThing(place) ? POINT_SIZE : this.size))
     this.awaySince = 0
     const after = this.target()
     const body = this.physical()
@@ -233,8 +280,32 @@ export class FaceDriver {
     )?.rect
   }
 
+  /** The thing the figure has been sent to, while nothing has taken it elsewhere. */
+  private pointed(): Thing | undefined {
+    return isThing(this.place) && !this.free ? this.place : undefined
+  }
+
+  /** Where the figure stands for a thing the page found, at the size it is. */
+  private standAt(found: NonNullable<ReturnType<typeof locate>>): Standing {
+    return stand(
+      found,
+      this.dimensions(),
+      { width: window.innerWidth, height: window.innerHeight },
+      MARGIN,
+    )
+  }
+
+  /** Where it stands to point at a thing; `undefined` when the page has nothing by that name. */
+  private standing(thing: Thing): Standing | undefined {
+    const found = locate(thing)
+    return found && this.standAt(found)
+  }
+
   /** Where a place is on the page, as the face's centre. */
   private pointOf(place: Place, width: number, height: number): Point {
+    if (isThing(place))
+      // Nothing by that name on the page: it stays where home is.
+      return this.standing(place)?.at ?? this.pointOf('home', width, height)
     if (typeof place === 'object')
       return { x: place.x * window.innerWidth, y: place.y * window.innerHeight }
     if (place === 'artifact') {
@@ -312,7 +383,11 @@ export class FaceDriver {
     if (place === 'person') return { x: 0, y: 0 }
     const { width, height } = this.dimensions()
     let point: Point
-    if (place === 'artifact') {
+    if (isThing(place)) {
+      const looks = this.standing(place)?.look
+      if (!looks) return undefined
+      point = looks
+    } else if (place === 'artifact') {
       const card = this.artifact()
       if (!card) return undefined
       point = {
@@ -388,7 +463,7 @@ export class FaceDriver {
     }
     const out = body.advance(dt)
     for (const bump of out.bumps)
-      face.bump(bump.side, bump.speed / BODY.throwAt)
+      face.bump(bump.side, bump.speed / BODY.throwAt, bump.against)
     if (out.landed && !this.leaving) {
       // Where a throw leaves it is where the person left it.
       this.free = out.landed
@@ -418,6 +493,108 @@ export class FaceDriver {
     body.nudge({ x: away.x * FEEL.recoil, y: away.y * FEEL.recoil })
   }
 
+  /**
+   * Lays the mark over what the figure points at and keeps its eyes there,
+   * with a glance at the person now and then. Returns whether its eyes are
+   * taken.
+   */
+  private point(now: number): boolean {
+    const thing = this.press?.carried ? undefined : this.pointed()
+    const standing = thing && this.standing(thing)
+    const mark = standing?.mark
+    const next = mark
+      ? `${mark.kind} ${mark.box.left.toFixed(1)} ${mark.box.top.toFixed(1)} ${(mark.box.right - mark.box.left).toFixed(1)} ${(mark.box.bottom - mark.box.top).toFixed(1)}`
+      : ''
+    if (next !== this.marked) {
+      this.marked = next
+      const { style, dataset } = this.mark
+      if (mark) {
+        dataset.kind = mark.kind
+        dataset.on = ''
+        style.transform = `translate3d(${mark.box.left.toFixed(1)}px, ${mark.box.top.toFixed(1)}px, 0)`
+        style.width = `${(mark.box.right - mark.box.left).toFixed(1)}px`
+        style.height = `${(mark.box.bottom - mark.box.top).toFixed(1)}px`
+      } else delete dataset.on
+    }
+    if (!standing) {
+      this.pointingSince = undefined
+      return false
+    }
+    const near =
+      Math.hypot(this.at.x - standing.at.x, this.at.y - standing.at.y) <
+      ARRIVED * 2
+    if (!near) {
+      this.pointingSince = undefined
+      return false
+    }
+    this.pointingSince ??= now
+    const since = now - this.pointingSince
+    const glancing =
+      !this.face.still &&
+      since > GLANCE.every / 2 &&
+      (since - GLANCE.every / 2) % GLANCE.every < GLANCE.for
+    this.face.watch(
+      glancing
+        ? undefined
+        : {
+            x: clamp((standing.look.x - this.at.x) / 220, -1, 1),
+            y: clamp((standing.look.y - this.at.y) / 220, -1, 1),
+          },
+    )
+    return true
+  }
+
+  /** What a screen reader hears of where it points. */
+  private pointingWords(): string | undefined {
+    const thing = this.pointed()
+    const found = thing && locate(thing)
+    if (!found) return undefined
+    const { where } = this.standAt(found)
+    const what = found.label ?? found.name
+    return where === 'in view'
+      ? `pointing at ${what}`
+      : `pointing at ${what}, which is ${where === 'closed' ? 'folded away' : `${where} what is showing`}; press it to bring that into view`
+  }
+
+  /**
+   * The person pressed it while it points at something they cannot see:
+   * that is brought to them. Returns whether it was.
+   */
+  private bring(): boolean {
+    const thing = this.pointed()
+    const found = thing && locate(thing)
+    if (!thing || !found) return false
+    const asked = thing.text !== undefined || thing.line !== undefined
+    if (
+      this.standAt(found).where === 'in view' &&
+      (!asked || found.part !== undefined)
+    )
+      return false
+    reveal(thing, !this.face.still)
+    this.awaySince = 0
+    this.face.rouse()
+    return true
+  }
+
+  /** Kit in the air has Theo's eye: a jump, a fall, a throw. */
+  private watchKit(pointing: boolean) {
+    const { mounted, motion } = useKitStage.getState()
+    const kit = mounted ? kitDriver() : undefined
+    if (
+      !kit ||
+      (motion !== 'air' && motion !== 'fall') ||
+      this.press?.carried
+    ) {
+      if (!pointing) this.face.watch(undefined)
+      return
+    }
+    const [x, y] = kit.position()
+    this.face.watch({
+      x: clamp((x + KIT_SIZE / 2 - this.at.x) / 220, -1, 1),
+      y: clamp((y + KIT_SIZE / 2 - this.at.y) / 220, -1, 1),
+    })
+  }
+
   // Frames --------------------------------------------------------------------
 
   private readonly frame = (now: number) => {
@@ -439,8 +616,16 @@ export class FaceDriver {
     if (this.place !== 'home' && !this.free) {
       if (face.player.active('performance')) this.awaySince = 0
       else if (this.awaySince === 0) this.awaySince = now
-      else if (now - this.awaySince > LINGER_MS) this.go('home', undefined)
+      else if (
+        now - this.awaySince >
+        (isThing(this.place) ? POINT_LINGER_MS : LINGER_MS)
+      )
+        this.go('home', undefined)
     }
+
+    // Kit has a body in the world: Theo's joins it, so the two can meet.
+    if (!this.body && theWorld()?.figure('kit')) this.wantBody()
+    this.watchKit(this.point(now))
 
     const target = this.target()
     const scale = (REST_PX * this.shown) / VISOR_PX
@@ -485,7 +670,7 @@ export class FaceDriver {
 
     if (now - this.wordsAt > 300) {
       this.wordsAt = now
-      const words = face.words()
+      const words = this.pointingWords() ?? face.words()
       if (words !== this.lastWords) {
         this.lastWords = words
         this.report({ words })
@@ -594,6 +779,8 @@ export class FaceDriver {
           ? releaseVelocity(this.samples, event.timeStamp)
           : { x: 0, y: 0 }
         this.samples = []
+        // Let go from where the hand is now, not where the last frame had it.
+        body?.hold(this.target())
         // A cancelled press is put down, never thrown.
         if (event.type === 'pointerup' && body?.release(velocity))
           face.toss(Math.hypot(velocity.x, velocity.y) / BODY.throwAt)
@@ -603,6 +790,8 @@ export class FaceDriver {
         }
         return
       }
+      // Pointing at something out of sight, a tap asks to see it.
+      if (this.bring()) return
       const dx = event.clientX - this.at.x
       const dy = event.clientY - this.at.y
       const perUnit = (REST_PX * this.shown) / face.identity.width
@@ -630,6 +819,7 @@ export class FaceDriver {
     this.on(holder, 'keydown', (event: KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
+        if (this.bring()) return
         face.poke()
         this.recoil(0, 0)
       } else if (event.key === 'Escape') this.go('home', undefined)

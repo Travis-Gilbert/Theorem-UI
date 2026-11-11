@@ -286,6 +286,66 @@ describe('compile', () => {
     expect(times.at(-1)).toBe(350)
   })
 
+  test('a thing on the page is a place to look at and to go to', () => {
+    const asked: Array<unknown> = []
+    const checked = compile(
+      {
+        steps: [
+          { op: 'look', at: { thing: 'tool:failed' } },
+          {
+            op: 'go',
+            to: { thing: 'change:d/a.ts', line: 12, text: '  const  ' },
+          },
+        ],
+      },
+      {
+        ...context(),
+        thing: (thing) => {
+          asked.push(thing)
+          return thing.line ? ['it is below what the person sees.'] : []
+        },
+      },
+    )
+    if (!checked.ok) throw new Error(checked.reason)
+    expect(asked).toEqual([
+      { thing: 'tool:failed' },
+      { thing: 'change:d/a.ts', line: 12, text: 'const' },
+    ])
+    expect(checked.score.notes).toEqual([
+      'steps[1].to: it is below what the person sees.',
+    ])
+  })
+
+  test('a thing that is not a name, or asks for a part wrongly, is refused', () => {
+    for (const [to, path] of [
+      [{ thing: 'failed' }, 'steps[0].to.thing'],
+      [{ thing: 'Tool:a' }, 'steps[0].to.thing'],
+      [{ thing: 'tool:a b' }, 'steps[0].to.thing'],
+      [{ thing: 7 }, 'steps[0].to.thing'],
+      [{ thing: 'tool:a', text: '  ' }, 'steps[0].to.text'],
+      [{ thing: 'tool:a', line: 0 }, 'steps[0].to.line'],
+      [{ thing: 'tool:a', line: 1.5 }, 'steps[0].to.line'],
+    ] as const)
+      expect(refusal({ steps: [{ op: 'go', to }] }).path).toBe(path)
+  })
+
+  test('a thing the page does not have is refused of the agent’s own program, and noted of a saved one', () => {
+    const steps = [{ op: 'go', to: { thing: 'tool:gone' } }]
+    const strict = compile(
+      { steps },
+      { ...context(), thing: () => undefined, strict: true },
+    )
+    if (strict.ok) throw new Error('compiled')
+    expect(strict.path).toBe('steps[0].to.thing')
+    expect(strict.reason).toContain('tool:gone')
+    expect(strict.reason).toContain('page')
+    const loose = compile({ steps }, { ...context(), thing: () => undefined })
+    if (!loose.ok) throw new Error(loose.reason)
+    expect(loose.score.notes.join(' ')).toContain('stays where it is')
+    // With no page to ask (a program checked before the face is on one) it stands.
+    expect(compile({ steps }, context()).ok).toBe(true)
+  })
+
   test('par runs its steps together; stagger offsets them', () => {
     const steps = [
       { op: 'to', set: { 'eye.left.lid': 1 }, over: 100 },
@@ -953,6 +1013,50 @@ describe('the body', () => {
     made.run(24)
     expect(made.face.head().dy).toBeLessThan(-3)
     expect(made.face.head().squash).toBeGreaterThan(0.05)
+  })
+
+  test('meeting Kit knocks the head as an edge does, and is remembered as a meeting, not a wall', () => {
+    const made = theo()
+    made.run(300)
+    made.face.bump('right', 0.8, 'kit')
+    made.run(24)
+    expect(made.face.head().dx).toBeLessThan(-3)
+    const events = made.face.state().recentEvents
+    expect(events).toContain('body.meet.kit')
+    expect(events).not.toContain('body.bump.right')
+    // It has something to say about it that a wall does not get.
+    expect(['startle', 'wince', 'curious', 'wink']).toContain(
+      plain(made.face.player.active('reaction')?.name),
+    )
+  })
+
+  test('the eyes follow what it is given to watch, over the pointer, and let go', () => {
+    const made = theo()
+    made.face.followPointer({ x: -1, y: 0 })
+    made.run(600)
+    const onPointer = made.face.rig.read('gaze.x')
+    expect(onPointer).toBeLessThan(-0.4)
+    // Kit, up and to the right.
+    made.face.watch({ x: 1, y: -0.8 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(0.5)
+    expect(made.face.rig.read('gaze.y')).toBeLessThan(-0.3)
+    made.face.watch(undefined)
+    made.run(900)
+    expect(made.face.rig.read('gaze.x')).toBeCloseTo(onPointer, 1)
+  })
+
+  test('bound for somewhere, where it is going wins over what it is watching', () => {
+    const made = theo()
+    made.face.watch({ x: -1, y: 0 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeLessThan(-0.5)
+    made.face.heading({ x: 1, y: 0 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(0.6)
+    made.face.heading(undefined)
+    made.run(900)
+    expect(made.face.rig.read('gaze.x')).toBeLessThan(-0.5)
   })
 
   test('a poke to one side closes that eye more than the other', () => {

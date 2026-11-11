@@ -89,6 +89,7 @@ import {
 } from './unseen-divider.aui'
 import { attendKit } from '@/lib/kit/store'
 import { messageLabel, messageSurface } from '@/lib/kit/stage'
+import { thingProps } from '@/lib/face/things'
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart
 
@@ -902,7 +903,12 @@ function useKitSurface() {
         .join(' '),
     ),
   )
-  return { 'data-kit-perch': messageSurface(id), 'data-kit-label': label }
+  return {
+    'data-kit-perch': messageSurface(id),
+    'data-kit-label': label,
+    // The same message, named for Theo to be sent to.
+    ...thingProps('message', id, { label }),
+  }
 }
 
 const AssistantMessage: FC = () => {

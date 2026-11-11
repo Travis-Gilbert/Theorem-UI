@@ -126,6 +126,28 @@ export const DEFAULT_RULES: ReadonlyArray<Rule> = [
     weight: 2,
     cooldown: 4_000,
   }),
+  // Meeting Kit: thrown into it, or struck by it. The knock is the engine's as
+  // with an edge; what the face makes of someone it knows is not what it
+  // makes of a wall.
+  rule('meet-startle', 'body.meet.kit', 'startle', {
+    weight: 2,
+    cooldown: 900,
+  }),
+  rule('meet-wince', 'body.meet.kit', 'wince', { cooldown: 900 }),
+  rule('meet-curious', 'body.meet.kit', 'curious', {
+    when: { arousal: [0, 0.6] },
+    cooldown: 1_500,
+  }),
+  rule('meet-wink', 'body.meet.kit', 'wink', {
+    when: { valence: [0.2, 1] },
+    weight: 2,
+    cooldown: 3_000,
+  }),
+  rule('meet-dizzy', 'body.meet.kit', 'dizzy', {
+    when: { streak: [3, 999] },
+    weight: 3,
+    cooldown: 4_000,
+  }),
   // The person sends, or comes back.
   rule('send-perk', 'person.send', 'perk', { intensity: 0.7 }),
   rule('send-nod', 'person.send', 'nod', { intensity: 0.8 }),

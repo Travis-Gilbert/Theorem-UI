@@ -9,6 +9,7 @@ import type { TheoremArtifact } from './artifact-model'
 import { ArtifactActions } from './artifact-actions'
 import { ArtifactView } from './artifact-renderers'
 import { useArtifactView } from './artifact-view'
+import { thingProps } from '@/lib/face/things'
 
 export { download } from './artifact-actions'
 
@@ -77,6 +78,12 @@ export function ArtifactPanel({
     <section
       ref={sectionRef}
       aria-label={`Artifact: ${artifact.title}`}
+      // The whole of what the conversation's card shows an excerpt of: Theo
+      // points here while it is open.
+      {...thingProps('artifact', artifactId, {
+        label: artifact.title,
+        whole: true,
+      })}
       className={cn('flex h-full min-w-0 flex-col bg-artifact', className)}
     >
       <ArtifactPanelHeader

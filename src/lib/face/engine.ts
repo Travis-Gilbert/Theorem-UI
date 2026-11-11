@@ -17,7 +17,7 @@ import { Field, GRAIN_STRIDE, oklch, shapesFor } from './particles'
 import type { Matter } from './particles'
 import { Player } from './player'
 import type { Ending, Invocation, Stage } from './player'
-import { LIMITS, STEP_MANUAL, compile } from './program'
+import { LIMITS, STEP_MANUAL, THING_MANUAL, compile, isThing } from './program'
 import type { Place, Program } from './program'
 import { Reactions } from './reactions'
 import { seeded } from './random'
@@ -115,6 +115,8 @@ export class Face {
   private follow = { x: 0, y: 0, weight: 0, target: 0 }
   /** Where the figure is about to go, as a gaze: the eyes get there first. */
   private bound = { x: 0, y: 0, weight: 0, target: 0 }
+  /** Something on the page that moved and has its eye: Kit in the air. */
+  private seen = { x: 0, y: 0, weight: 0, target: 0 }
   /** How the figure is moving on the page, in face units per second: as told this frame, smoothed, and smoothed slowly. */
   private readonly motion = {
     x: 0,
@@ -188,6 +190,8 @@ export class Face {
       args?: Record<string, number>
       intensity?: number
       seed?: number
+      /** A thing the program names that is not on the page refuses it. */
+      strict?: boolean
     },
   ): Performed {
     let name: string | undefined
@@ -209,6 +213,8 @@ export class Face {
       seed: how.seed ?? this.nextSeed(),
       ...(how.args ? { args: how.args } : {}),
       ...(how.intensity === undefined ? {} : { intensity: how.intensity }),
+      ...(this.stage.thing ? { thing: this.stage.thing } : {}),
+      ...(how.strict ? { strict: true } : {}),
     })
     if (!checked.ok) return checked
     const layer = how.layer ?? 'performance'
@@ -328,6 +334,21 @@ export class Face {
     this.follow.target = 1
   }
 
+  /**
+   * Something on the page is moving and worth a look: Kit, jumping. The eyes
+   * go with it, over the pointer but not over where the figure itself is
+   * bound. A gaze, -1..1; `undefined` when it has stopped.
+   */
+  watch(gaze: { x: number; y: number } | undefined) {
+    if (!gaze) {
+      this.seen.target = 0
+      return
+    }
+    this.seen.x = clamp(gaze.x, -1, 1)
+    this.seen.y = clamp(gaze.y, -1, 1)
+    this.seen.target = 1
+  }
+
   /** A tap at a point of the face, in face units: the eye on that side flinches, whatever else the face makes of it. */
   poke(x = 0, y = 0) {
     this.field.burst(x, y, 70)
@@ -397,12 +418,18 @@ export class Face {
   }
 
   /**
-   * The figure struck an edge of the page on this side of it. `force` is 0
-   * for a touch to 1 for as hard as it can be thrown. The head is knocked
-   * back from the edge and the eye on that side shuts for a moment; what
-   * else the face makes of it is the rules'.
+   * The figure struck something on this side of it: an edge of the page, or
+   * Kit when `against` says so. `force` is 0 for a touch to 1 for as hard as
+   * it can be thrown. The head is knocked back from what it met and the eye
+   * on that side shuts for a moment; what else the face makes of it is the
+   * rules', and they tell an edge (`body.bump.<side>`) from Kit
+   * (`body.meet.kit`).
    */
-  bump(side: 'left' | 'right' | 'top' | 'bottom', force = 0.5) {
+  bump(
+    side: 'left' | 'right' | 'top' | 'bottom',
+    force = 0.5,
+    against?: 'kit',
+  ) {
     const hard = clamp(force, 0, 1)
     const { width, height } = this.identity
     const across = side === 'left' ? -1 : side === 'right' ? 1 : 0
@@ -420,7 +447,10 @@ export class Face {
       this.knock.squash = (across === 0 ? 1 : -1) * (0.05 + 0.11 * hard)
       this.flinch(across, 0.5 + 0.5 * hard)
     }
-    return this.notice(`body.bump.${side}`, 0.6 + 0.8 * hard)
+    return this.notice(
+      against ? `body.meet.${against}` : `body.bump.${side}`,
+      0.6 + 0.8 * hard,
+    )
   }
 
   /** One eye shuts for a moment, or both a little when it came from neither side. */
@@ -543,8 +573,16 @@ export class Face {
     this.colourByMood(now)
     this.follow.weight +=
       (this.follow.target - this.follow.weight) * (1 - Math.exp(-dt * 7))
-    // Bound for somewhere, the eyes are on where it is going, not on the pointer.
-    const free = this.follow.weight * (1 - this.bound.weight)
+    this.seen.weight +=
+      (this.seen.target - this.seen.weight) * (1 - Math.exp(-dt * 9))
+    // Bound for somewhere, the eyes are on where it is going; watching Kit, on Kit; only otherwise on the pointer.
+    const watching = this.seen.weight * (1 - this.bound.weight)
+    if (watching > 0.01 && !this.asleep) {
+      rig.offset('gaze.x', this.seen.x * 0.8 * watching)
+      rig.offset('gaze.y', this.seen.y * 0.8 * watching)
+    }
+    const free =
+      this.follow.weight * (1 - this.bound.weight) * (1 - this.seen.weight)
     if (free > 0.01 && !this.asleep) {
       rig.offset('gaze.x', this.follow.x * 0.7 * free)
       rig.offset('gaze.y', this.follow.y * 0.7 * free)
@@ -636,10 +674,12 @@ export class Face {
    */
   /** What the face is doing and has lately done: the part of the manual that changes. */
   state() {
+    const pointing = this.stage.pointing?.()
     return {
       liveness: this.liveness,
       asleep: this.asleep,
       doing: this.words(),
+      ...(pointing ? { pointing } : {}),
       features: this.rig.channels
         .features()
         .map((feature) => ({ id: feature.id, side: feature.side })),
@@ -661,9 +701,15 @@ export class Face {
     }
   }
 
-  manual(part: 'all' | 'channels' | 'book' | 'state' = 'all') {
+  manual(part: 'all' | 'channels' | 'book' | 'page' | 'state' = 'all') {
     const state = this.state()
     if (part === 'state') return state
+    // What the page has named, read fresh: it changes as the conversation does.
+    const page = {
+      how: THING_MANUAL,
+      things: this.stage.things?.() ?? [],
+    }
+    if (part === 'page') return { page, state }
     const bounds = (
       specs: Record<
         string,
@@ -706,6 +752,7 @@ export class Face {
         'Theo is a face made of glowing matter: two eyes at rest, and anything else you add as a feature. A performance is a program of steps over time. Nothing limits you to the named performances: write new programs, add features, save what works.',
       channels,
       steps: STEP_MANUAL,
+      page,
       values:
         'A value is a number, {rand:[low,high]} for a fresh draw each play, or {arg:"name", or:number}.',
       limits: `A performance runs at most ${LIMITS.ms} ms and ${LIMITS.cues} cues. Values outside bounds are pulled in and reported as notes.`,
@@ -719,6 +766,7 @@ const round = (value: number) => Math.round(value * 100) / 100
 
 /** A place as a gaze when nothing on the page can say better. */
 export function plainGaze(place: Place): { x: number; y: number } | undefined {
+  if (isThing(place)) return undefined
   if (typeof place === 'object') return place
   if (place === 'centre' || place === 'person') return { x: 0, y: 0 }
   if (place === 'composer') return { x: 0.15, y: 0.75 }
