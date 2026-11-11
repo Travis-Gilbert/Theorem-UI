@@ -76,7 +76,9 @@ import {
   ComposerToolTrigger,
   ComposerWebToggle,
 } from '@/components/chat/composer-tools'
+import { ComposerConnections } from '@/components/chat/composer-connections'
 import { EffortPicker } from '@/components/chat/effort-picker'
+import { ResponseControl } from '@/components/chat/response-control'
 import { DirectiveText } from './directive-text.aui'
 import { ChatCollapsibleMessage } from '@/components/coss/chat/chat-collapsible-message'
 import {
@@ -622,12 +624,14 @@ const ComposerAction: FC = () => {
         <ComposerAddAttachment />
         <ComposerWebToggle />
         <ComposerPlanToggle />
+        <ComposerConnections />
       </div>
       {/* Claims 8rem beside the attachment button, Web and Plan, so a long
           model name truncates first; the row wraps only when less than that is left. */}
       <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
         <ModelPicker />
         <EffortPicker />
+        <ResponseControl />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate
