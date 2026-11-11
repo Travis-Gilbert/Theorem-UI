@@ -133,6 +133,27 @@ test('a follow-up saved for one new chat is not sent when a later chat is create
   expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
 })
 
+test('retry on a fresh chat appends the recovered text without waiting for a thread id', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  h.queue.submit('Use the smaller design')
+  h.queue.dispose()
+
+  h.host.attemptId = 'attempt-2'
+  h.local.isRunning = false
+  const later = createRunInputQueue(h.host)
+  later.observe()
+  const recovered = later.getSnapshot()[0]!
+  expect(recovered.state).toBe('failed')
+  later.retry(recovered.id)
+  await settle()
+  expect(h.host.append).toHaveBeenCalledTimes(1)
+  expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
+  expect(h.host.send).not.toHaveBeenCalled()
+  expect(later.getSnapshot()).toEqual([])
+})
+
 test('an ambiguous command response is not resent automatically and explicit retry keeps its identity', async () => {
   const h = harness()
   h.host.send = mock()

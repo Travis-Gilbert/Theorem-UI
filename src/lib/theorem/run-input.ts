@@ -357,6 +357,13 @@ export function createRunInputQueue(host: RunInputHost) {
       const item = items.find((candidate) => candidate.id === id)
       if (!item || item.state !== 'failed' || disposed) return
       if (item.retryAsTurn) {
+        const snapshot = host.snapshot()
+        // A fresh chat has no thread for refresh to settle. append starts one.
+        if (!snapshot.threadId && !durableId && !snapshot.isRunning && !snapshot.isLoading) {
+          host.append(item.text)
+          if (!disposed) publish(items.filter((current) => current.id !== id))
+          return
+        }
         update(id, { state: 'next', error: undefined, stopped: false })
         observe()
       } else if (item.runId) {
