@@ -475,37 +475,13 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
   // sound itself: with nothing playing, nothing in them moves.
   own(
     'boombox',
-    'While sound plays: the eyes become ringed loudspeakers that throb with it, a cassette deck and a tuner open between them, and arcs leave its sides.',
+    'While sound plays: the eyes become the mesh covers of two loudspeakers that throb with it, a tuner opens above and between them, and arcs leave its sides.',
     {
       keep: true,
       steps: [
         {
           op: 'par',
           steps: [
-            {
-              op: 'feature',
-              id: 'deck',
-              side: 'centre',
-              set: {
-                x: 0,
-                y: 9,
-                w: 9.5,
-                h: 6.5,
-                round: 6,
-                hollow: 0.74,
-                share: 0.34,
-              },
-            },
-            {
-              op: 'feature',
-              id: 'reel.left',
-              set: { x: 4.2, y: 9, w: 2, h: 2, round: 2, share: 0.07 },
-            },
-            {
-              op: 'feature',
-              id: 'reel.right',
-              set: { x: 4.2, y: 9, w: 2, h: 2, round: 2, share: 0.07 },
-            },
             {
               op: 'feature',
               id: 'dial',
@@ -529,7 +505,7 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
                 'eyes.w': 13,
                 'eyes.h': 13,
                 'eyes.round': 2,
-                'eyes.rings': 3,
+                'eyes.mesh': 5,
                 'eyes.lid': 0,
                 'eyes.low': 0,
                 'eyes.lidTilt': 0,

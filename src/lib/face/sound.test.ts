@@ -1,4 +1,4 @@
-// SOURCING: bun:test; lib/face's own parts (signals, the follow step, forms, rings and bars), checked on a clock the test turns. The sound here is numbers the test feeds, as the page's meter would (lib/sound/meter has its own tests).
+// SOURCING: bun:test; lib/face's own parts (signals, the follow step, forms, rings, bars and mesh), checked on a clock the test turns. The sound here is numbers the test feeds, as the page's meter would (lib/sound/meter has its own tests).
 import { describe, expect, test } from 'bun:test'
 import { BUILT_IN } from './book'
 import { Channels } from './channels'
@@ -299,7 +299,7 @@ describe('forms', () => {
     expect([...seen].sort()).toEqual(['boombox', 'speak'])
   })
 
-  test('as a loudspeaker it has a deck and a dial, and sends out as much as is playing', () => {
+  test('as a loudspeaker its eyes are mesh covers under a dial, and it sends out as much as is playing', () => {
     const { face, run } = theo()
     // Draw until the loudspeaker is the form: which one is the face's to choose.
     for (let tries = 0; tries < 20; tries++) {
@@ -308,9 +308,12 @@ describe('forms', () => {
     }
     expect(plain(face.player.holding('form')?.name)).toBe('boombox')
     run(1_500)
-    expect(features(face)).toEqual(
-      expect.arrayContaining(['deck', 'reel.left', 'reel.right', 'dial']),
-    )
+    expect(features(face)).toContain('dial')
+    // Nothing sits under the dial, between the speakers.
+    expect(features(face)).not.toContain('deck')
+    expect(face.rig.read('eye.left.mesh')).toBeCloseTo(5, 1)
+    expect(face.rig.read('eye.right.mesh')).toBeCloseTo(5, 1)
+    expect(face.rig.read('eye.left.rings')).toBe(0)
     expect(face.emitting()).toEqual({ left: 0, right: 0 })
     face.feed({ 'sound.level': 0.8 })
     run(300)
@@ -426,7 +429,7 @@ describe('forms', () => {
   })
 })
 
-describe('rings and bars', () => {
+describe('rings, bars and mesh', () => {
   const seat = (
     shape: ReturnType<typeof restShape>,
     theta: number,
@@ -468,7 +471,43 @@ describe('rings and bars', () => {
     expect(rows.size).toBe(5)
   })
 
-  test('with neither, a feature is filled as it always was', () => {
+  test('a mesh gathers it into dots inside a rim, every other row set between the dots of the last', () => {
+    const meshed = { ...round, mesh: 5 }
+    const step = 20 / 5
+    const rows = step * (Math.sqrt(3) / 2)
+    const dots = new Set<string>()
+    let onRim = 0
+    let inside = 0
+    for (let turn = 0; turn < 96; turn++)
+      for (let depth = 1; depth <= 60; depth++) {
+        const [x, y] = seat(meshed, (turn / 96) * Math.PI * 2, depth / 60)
+        const out = Math.hypot(x, y) / 10
+        expect(out).toBeLessThanOrEqual(1 + 1e-6)
+        if (out > 0.92) {
+          onRim++
+          continue
+        }
+        inside++
+        const row = Math.round(y / rows)
+        const shift = row % 2 === 0 ? 0 : 0.5
+        const column = Math.round(x / step - shift) + shift
+        // A grain stays near the middle of its dot: between two dots there is nothing.
+        expect(Math.hypot(x - column * step, y - row * rows)).toBeLessThan(
+          step * 0.35,
+        )
+        // And no dot reaches the rim.
+        expect(Math.hypot(column * step, row * rows) / 10).toBeLessThan(0.85)
+        dots.add(`${column},${row}`)
+      }
+    // Five across the middle, and the rows above and below it.
+    expect([...dots].filter((dot) => dot.endsWith(',0'))).toHaveLength(5)
+    expect(dots.has('0,0')).toBe(true)
+    expect(dots.has('0.5,1')).toBe(true)
+    expect(dots.size).toBeGreaterThanOrEqual(15)
+    expect(onRim / (onRim + inside)).toBeCloseTo(0.24, 1)
+  })
+
+  test('with none of them, a feature is filled as it always was', () => {
     const [x, y] = seat(round, 0, 0.25)
     expect(Math.hypot(x, y)).toBeCloseTo(5, 3)
   })

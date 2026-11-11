@@ -27,15 +27,15 @@
     },
     {
       "id": "rings-bars",
-      "item": "A feature's matter can be gathered into rings or bars",
+      "item": "A feature's matter can be gathered into rings, bars or a mesh of dots inside a rim",
       "status": "done",
-      "evidence": "src/lib/face/feature.ts, channels.ts; sound.test.ts 'rings gather the matter into that many bands...', 'bars gather it into that many rows', 'with neither, a feature is filled as it always was'"
+      "evidence": "src/lib/face/feature.ts, channels.ts; sound.test.ts 'rings gather the matter into that many bands...', 'bars gather it into that many rows', 'a mesh gathers it into dots inside a rim...', 'with none of them, a feature is filled as it always was'"
     },
     {
       "id": "boombox",
-      "item": "The boombox form: ringed speakers, a deck with reels, a dial, moving with the sound's bands",
+      "item": "The boombox form: two mesh speaker covers under a dial, nothing between them below, moving with the sound's bands",
       "status": "done",
-      "evidence": "src/lib/face/book.ts; sound.test.ts 'as a loudspeaker it has a deck and a dial...'; evidence/theo-sound/boombox.png, boombox-light.png"
+      "evidence": "src/lib/face/book.ts; sound.test.ts 'as a loudspeaker its eyes are mesh covers under a dial...'; evidence/theo-sound/boombox.png, boombox-light.png (re-rendered after the owner's two changes)"
     },
     {
       "id": "arcs",

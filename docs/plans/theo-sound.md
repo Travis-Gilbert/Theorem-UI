@@ -29,6 +29,11 @@ box design"; "pair its activities with transforming into electronic
 devices"; "wire up phonon", the 31M model; and people may "bring their own
 ElevenLabs or similar provider keys". It is not a file, so it has no hash.
 
+On seeing the first loudspeaker the owner asked for two changes, made
+here: "remove the middle piece on the bottom", which "looks like a bear's
+nose", and make the eyes "less subwoofer shaped and more like the mesh of
+a speaker cover".
+
 Two limits were agreed with it and are kept here:
 
 - Theo never opens the microphone and never starts speech to text by
@@ -104,15 +109,20 @@ an ordinary reaction to a sound getting loud.
 ## The loudspeaker
 
 `boombox` is the first device. It is made of the face's own matter, with
-two additions to what a feature can be (`src/lib/face/feature.ts`):
+three additions to what a feature can be (`src/lib/face/feature.ts`):
 
-- `rings`: the matter gathered into that many rings from the middle out.
-  Three is a loudspeaker cone.
+- `mesh`: the matter gathered into dots inside a rim, that many across the
+  middle, every other row set between the dots of the last. Five is a
+  speaker's cover.
 - `slats`: the matter gathered into that many bars. Seven, turned a
   quarter, is a tuner strip.
+- `rings`: the matter gathered into that many rings from the middle out.
+  The first loudspeaker's cones were three of these. Nothing in the book
+  uses it now; it is kept for a device that wants it.
 
-The eyes become two ringed speakers and move apart; a `deck` (a hollow
-box) with two `reel`s sits between them and a `dial` above. The speakers
+The eyes become the mesh covers of two speakers and move apart, with a
+`dial` above and between them. Nothing sits under the dial: the first
+version had a cassette deck there, and it read as a nose. The speakers
 swell with `sound.low` and `sound.beat`, the dial with `sound.high`.
 
 What leaves the sides is not matter. Matter is clipped to the visor, so
@@ -134,8 +144,8 @@ are drawn still for as long as there is sound, and go when there is none.
 `sound.level` and whose width narrows with `sound.mid`. `thump` is a short
 kick for a sudden loud sound.
 
-Later devices are meant to be built the same way: features, rings and
-bars, and ties to signals.
+Later devices are meant to be built the same way: features, meshes, bars
+and rings, and ties to signals.
 
 ## The page's sound
 
@@ -236,8 +246,8 @@ src/lib/face/
   layers.ts       the `form` layer
   reactions.ts    `until`, and drawing a form; the three sound rules
   engine.ts       feed, forms taken and let go, emitting, the manual's signals
-  feature.ts      rings and bars
-  channels.ts     `rings`, `slats`, `emit.left`, `emit.right`
+  feature.ts      mesh, bars and rings
+  channels.ts     `mesh`, `slats`, `rings`, `emit.left`, `emit.right`
   book.ts         boombox, speak, thump
   memory.ts       what a sound does to the mood
   operations.ts   `follow` and `until` in the descriptions
@@ -264,7 +274,7 @@ src/stories/                         the story `face-sound`; the fake API's orig
 **Execution correctness** (`bun test src/lib/face src/lib/sound
 src/lib/speech src/stories`):
 
-- signals, `follow`, forms, rings and bars (24, `lib/face/sound.test.ts`):
+- signals, `follow`, forms, rings, bars and mesh (25, `lib/face/sound.test.ts`):
   bounds; a tied channel moving with the signal and with nothing else;
   `for`; a kept performance keeping its ties; refusals by path; nothing
   following with motion reduced, and a tie with `for` ending then all the
@@ -274,7 +284,8 @@ src/lib/speech src/stories`):
   drawn; the loudspeaker's parts and what it emits; the steady arcs with
   motion reduced; the mouth; a reaction over a form; no sleep while one is
   held; a loud sound as a moment; the manual; the three performances
-  compiling without a note; rings in bands; bars in rows; a plain feature
+  compiling without a note; rings in bands; bars in rows; a mesh in dots
+  inside a rim; a plain feature
   unchanged;
 - the meter (9, `lib/sound/meter.test.ts`, tones the test makes): the
   decibel scale; silence; one start and a level that follows loudness;
@@ -293,7 +304,7 @@ src/lib/speech src/stories`):
 The whole list (`src/lib/face src/lib/kit src/lib/figures.test.ts
 src/lib/world.test.ts src/lib/sound src/lib/speech src/components/face
 src/components/kit src/components/chat src/components/artifacts
-src/stories`) is 552 tests in 45 files.
+src/stories`) is 553 tests in 45 files.
 
 **Built.** `NITRO_PRESET=cloudflare_module bun --bun vite build` finishes.
 The voice package's worker and four WebAssembly files (about 4.4 MB each,
@@ -304,16 +315,16 @@ WebAssembly.
 **Seen** (headless Chromium on software WebGL, the story `face-sound` at
 1280 by 800, 2x; renders in `evidence/theo-sound/`):
 
-| Render               | Shows                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------- |
-| `boombox.png`        | a speech-shaped test tone playing: two ringed speakers, deck, dial, arcs both sides, clear of the words |
-| `boombox-light.png`  | the same in the light theme, on the visor                                                               |
-| `speak.png`          | the mouth form under the same tone                                                                      |
-| `reduced-motion.png` | motion reduced: the form taken, two still arcs a side                                                   |
-| `in-shell.png`       | the story `face-in-shell`: the form at its full three times, where the gutter has room                  |
-| `reading.png`        | the real voice reading the reply: the form held, the button now Stop reading                            |
-| `page.png`           | the whole story page                                                                                    |
-| `could-not-read.png` | the model's host unreachable: the button back to Read aloud, and the words beside it                    |
+| Render               | Shows                                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| `boombox.png`        | a speech-shaped test tone playing: two mesh speaker covers, the dial, arcs both sides, clear of the words |
+| `boombox-light.png`  | the same in the light theme, on the visor                                                                 |
+| `speak.png`          | the mouth form under the same tone                                                                        |
+| `reduced-motion.png` | motion reduced: the form taken, two still arcs a side                                                     |
+| `in-shell.png`       | the story `face-in-shell`: the form at its full three times, where the gutter has room                    |
+| `reading.png`        | the real voice reading the reply: the form held, the button now Stop reading                              |
+| `page.png`           | the whole story page                                                                                      |
+| `could-not-read.png` | the model's host unreachable: the button back to Read aloud, and the words beside it                      |
 
 With the real voice in that browser: pressing Read aloud fetched
 65,049,306 bytes, the first audio came after about five seconds, the form

@@ -12,7 +12,7 @@ export interface ChannelSpec {
  * What every feature of the face is made of. A feature is a filled shape of
  * particles: a superellipse (`w`, `h`, `round`) bent by eight radial gains
  * (`r0`..`r7`, clockwise from the outer side), cut by an upper and a lower
- * lid, gathered into rings or bars when asked, placed and turned. Lengths are face units: the visor is 100 by 64.
+ * lid, gathered into rings, bars or a mesh when asked, placed and turned. Lengths are face units: the visor is 100 by 64.
  */
 export const FEATURE_PARAMS = {
   x: {
@@ -86,6 +86,12 @@ export const FEATURE_PARAMS = {
     max: 9,
     rest: 0,
     note: 'Its matter gathered into this many bars across: 0 filled, 5 a grille.',
+  },
+  mesh: {
+    min: 0,
+    max: 9,
+    rest: 0,
+    note: 'Its matter gathered into dots, this many across the middle, inside a rim: 0 filled, 5 a speaker cover.',
   },
   turn: {
     min: -180,
