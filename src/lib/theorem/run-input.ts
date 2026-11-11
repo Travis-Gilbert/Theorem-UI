@@ -45,6 +45,8 @@ export type PendingRunInput = {
   visible?: boolean
   notDelivered?: boolean
   stopped?: boolean
+  /** Appended into a new chat; kept until that send is saved or durable. */
+  handoff?: boolean
 }
 
 type RunInputSnapshot = {
@@ -53,6 +55,8 @@ type RunInputSnapshot = {
   isRunning: boolean
   isLoading: boolean
   inputs: readonly InputReceipt[]
+  /** User text in the open transcript. Present as soon as append accepts it. */
+  localUserTexts?: readonly string[]
 }
 
 export type RunInputHost = {
@@ -61,6 +65,8 @@ export type RunInputHost = {
     active: boolean
     runId?: string
     inputs: readonly InputReceipt[]
+    /** User text already stored on the thread. */
+    userTexts?: readonly string[]
   }>
   send: (runId: string, text: string, key: string) => Promise<InputReceipt>
   receipts: (runId: string) => Promise<readonly InputReceipt[]>
@@ -73,6 +79,8 @@ export type RunInputHost = {
    * but only an explicit retry sends it there.
    */
   attemptId?: string
+  /** Text retained by send recovery for this thread, once that write has happened. */
+  savedSend?: (threadId: string) => string | undefined
   storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 }
 
@@ -110,6 +118,7 @@ function restoreItems(saved: string): PendingRunInput[] {
       ...(row.retryAsTurn === true ? { retryAsTurn: true } : {}),
       ...(row.notDelivered === true ? { notDelivered: true } : {}),
       ...(row.stopped === true ? { stopped: true } : {}),
+      ...(row.handoff === true ? { handoff: true } : {}),
       visible: false,
     }]
   })
@@ -163,26 +172,30 @@ export function createRunInputQueue(host: RunInputHost) {
       items: restoreItems(JSON.stringify(record.items ?? [])),
     }
   }
-  const keptForRetry = (item: PendingRunInput): PendingRunInput => ({
-    ...item,
-    state: 'failed',
-    retryAsTurn: true,
-    error: recoveredElsewhere,
-    runId: undefined,
-    stopped: false,
-  })
+  const keptForRetry = (item: PendingRunInput): PendingRunInput => {
+    const { handoff: _handoff, runId: _runId, ...rest } = item
+    return {
+      ...rest,
+      state: 'failed',
+      retryAsTurn: true,
+      error: recoveredElsewhere,
+      stopped: false,
+    }
+  }
   const publish = (next: readonly PendingRunInput[]) => {
     if (disposed) return
     const threadId = activeId()
     if (host.storage) {
-      if (threadId) {
-        if (next.length) host.storage.setItem(storageKey(threadId), JSON.stringify(next))
+      // A retried message stays here until send recovery or durable history has it.
+      const pending = next.filter((item) => item.handoff || !threadId)
+      const durable = threadId ? next.filter((item) => !item.handoff) : []
+      const ownedPending = restoredFor === TEMPORARY || items.some((item) => item.handoff)
+      if (pending.length) host.storage.setItem(PENDING_KEY, JSON.stringify({ attemptId, items: pending }))
+      else if (ownedPending) host.storage.removeItem(PENDING_KEY)
+      if (threadId && (durable.length || items.some((item) => !item.handoff))) {
+        if (durable.length) host.storage.setItem(storageKey(threadId), JSON.stringify(durable))
         else host.storage.removeItem(storageKey(threadId))
-        // The temporary copy has moved; a later new chat must not adopt it too.
-        if (restoredFor === TEMPORARY) host.storage.removeItem(PENDING_KEY)
-      } else if (next.length) {
-        host.storage.setItem(PENDING_KEY, JSON.stringify({ attemptId, items: next }))
-      } else host.storage.removeItem(PENDING_KEY)
+      }
     }
     restoredFor = threadId ?? TEMPORARY
     items = next
@@ -190,6 +203,30 @@ export function createRunInputQueue(host: RunInputHost) {
   }
   const update = (id: string, patch: Partial<PendingRunInput>) =>
     publish(items.map((item) => item.id === id ? { ...item, ...patch } : item))
+  /** Local user text this queue has seen for a handoff, so a rollback can offer retry. */
+  const sawLocalText = new Set<string>()
+  const releaseHandoff = (durableTexts: readonly string[] = []) => {
+    if (!items.some((item) => item.handoff)) return
+    const snapshot = host.snapshot()
+    const local = snapshot.localUserTexts ?? []
+    const threadId = activeId()
+    const saved = threadId ? host.savedSend?.(threadId) : undefined
+    let changed = false
+    const next = items.flatMap((item) => {
+      if (!item.handoff) return [item]
+      if (saved === item.text || durableTexts.includes(item.text)) {
+        changed = true
+        return []
+      }
+      if (local.includes(item.text)) sawLocalText.add(item.id)
+      else if (sawLocalText.has(item.id) && !snapshot.isRunning && !snapshot.isLoading) {
+        changed = true
+        return [keptForRetry(item)]
+      }
+      return [item]
+    })
+    if (changed) publish(next)
+  }
 
   const restore = () => {
     const threadId = activeId()
@@ -286,6 +323,8 @@ export function createRunInputQueue(host: RunInputHost) {
     try {
       const snapshot = await host.refresh()
       if (disposed) return
+      releaseHandoff(snapshot.userTexts ?? [])
+      if (disposed) return
       reconcile(snapshot.inputs)
       if (snapshot.active) {
         if (snapshot.runId) {
@@ -322,6 +361,7 @@ export function createRunInputQueue(host: RunInputHost) {
   function observe() {
     if (disposed) return
     restore()
+    releaseHandoff()
     const snapshot = host.snapshot()
     reconcile(snapshot.inputs, true)
     for (const item of items) {
@@ -361,7 +401,11 @@ export function createRunInputQueue(host: RunInputHost) {
         // A fresh chat has no thread for refresh to settle. append starts one.
         if (!snapshot.threadId && !durableId && !snapshot.isRunning && !snapshot.isLoading) {
           host.append(item.text)
-          if (!disposed) publish(items.filter((current) => current.id !== id))
+          if (disposed) return
+          // initialize() is still in flight, and send recovery cannot write
+          // until that thread exists. Keep this record until one of those does.
+          update(id, { handoff: true, state: 'queued', visible: true, error: undefined, retryAsTurn: true })
+          releaseHandoff()
           return
         }
         update(id, { state: 'next', error: undefined, stopped: false })

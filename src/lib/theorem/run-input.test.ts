@@ -9,7 +9,7 @@ const receipt = (status: InputReceipt['status'] = 'queued', reason?: string): In
 function harness() {
   const storage = new Map<string, string>()
   const local = { threadId: 'thread-1' as string | undefined, runId: 'run-1' as string | undefined, isRunning: true, isLoading: false, inputs: [] as InputReceipt[] }
-  const durable = { active: true, runId: 'run-1' as string | undefined, inputs: [] as InputReceipt[] }
+  const durable = { active: true, runId: 'run-1' as string | undefined, inputs: [] as InputReceipt[], userTexts: [] as string[] }
   const host: RunInputHost = {
     snapshot: () => local,
     refresh: mock(async () => durable),
@@ -133,7 +133,7 @@ test('a follow-up saved for one new chat is not sent when a later chat is create
   expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
 })
 
-test('retry on a fresh chat appends the recovered text without waiting for a thread id', async () => {
+test('retry on a fresh chat keeps the text until the send is saved', async () => {
   const h = harness()
   h.local.threadId = undefined
   h.local.runId = undefined
@@ -148,10 +148,53 @@ test('retry on a fresh chat appends the recovered text without waiting for a thr
   expect(recovered.state).toBe('failed')
   later.retry(recovered.id)
   await settle()
-  expect(h.host.append).toHaveBeenCalledTimes(1)
   expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
   expect(h.host.send).not.toHaveBeenCalled()
+  expect(h.storage.get('theorem.run-input.pending:')).toContain('Use the smaller design')
+
+  later.dispose()
+  h.host.attemptId = 'attempt-3'
+  const reloaded = createRunInputQueue(h.host)
+  reloaded.observe()
+  expect(reloaded.getSnapshot()[0]?.text).toBe('Use the smaller design')
+  expect(reloaded.getSnapshot()[0]?.state).toBe('failed')
+  expect(h.host.append).toHaveBeenCalledTimes(1)
+})
+
+test('a saved send or durable user message releases the retried text', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  h.local.isRunning = false
+  h.host.attemptId = 'attempt-2'
+  h.storage.set('theorem.run-input.pending:', JSON.stringify({
+    attemptId: 'attempt-1',
+    items: [{ id: 'early', text: 'Use the smaller design', state: 'failed', retryAsTurn: true }],
+  }))
+  const later = createRunInputQueue(h.host)
+  later.observe()
+  later.retry(later.getSnapshot()[0]!.id)
+  h.local.threadId = 'thread-9'
+  h.host.savedSend = () => 'Use the smaller design'
+  later.observe()
   expect(later.getSnapshot()).toEqual([])
+  expect(h.storage.has('theorem.run-input.pending:')).toBe(false)
+
+  h.storage.set('theorem.run-input.pending:', JSON.stringify({
+    attemptId: 'attempt-1',
+    items: [{ id: 'early', text: 'Use the smaller design', state: 'failed', retryAsTurn: true }],
+  }))
+  h.host.savedSend = () => undefined
+  h.local.threadId = undefined
+  const byHistory = createRunInputQueue(h.host)
+  byHistory.observe()
+  byHistory.retry(byHistory.getSnapshot()[0]!.id)
+  h.local.threadId = 'thread-9'
+  h.durable.userTexts = ['Use the smaller design']
+  h.durable.active = false
+  byHistory.observe()
+  await settle()
+  expect(byHistory.getSnapshot()).toEqual([])
 })
 
 test('an ambiguous command response is not resent automatically and explicit retry keeps its identity', async () => {
@@ -287,7 +330,7 @@ test('switching away while checking settlement does not append to a detached run
   h.local.isRunning = false
   h.queue.submit('Use the smaller design')
   h.queue.dispose()
-  finish({ active: false, inputs: [], runId: undefined })
+  finish({ active: false, inputs: [], runId: undefined, userTexts: [] })
   await settle()
   expect(h.host.append).not.toHaveBeenCalled()
   expect(h.storage.size).toBe(1)

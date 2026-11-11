@@ -167,6 +167,17 @@ export function createSendRecovery(
     pendingKey(threadId: string) {
       return read(threadId)?.key
     },
+    /** The text of the send saved for this thread, once that write has happened. */
+    pendingText(threadId: string) {
+      const pending = read(threadId)
+      if (!pending) return
+      try {
+        const text = (JSON.parse(pending.body) as { text?: unknown }).text
+        return typeof text === 'string' ? text : undefined
+      } catch {
+        return
+      }
+    },
     /** Keeps a refused send's text, which only this holds, for its chat's composer. */
     holdRefused(threadId: string, text: string) {
       const held = storage.getItem(refusedSlot(threadId))

@@ -52,6 +52,12 @@ export function pendingSendKey(threadId: string) {
   return sendRecovery?.pendingKey(threadId)
 }
 
+/** The text of the send saved for recovery on this thread, once that write has happened. */
+export function pendingSendText(threadId: string) {
+  theorem()
+  return sendRecovery?.pendingText(threadId)
+}
+
 /** Keeps a refused send's text under its thread until that chat can take it. */
 export function holdRefusedText(threadId: string, text: string) {
   theorem()
