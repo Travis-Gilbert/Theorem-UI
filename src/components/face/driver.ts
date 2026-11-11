@@ -6,7 +6,7 @@ import type { Face } from '@/lib/face/engine'
 import { FEEL } from '@/lib/face/feel'
 import { isThing } from '@/lib/face/program'
 import type { Place, Thing } from '@/lib/face/program'
-import { noteOf, stand } from '@/lib/face/things'
+import { noteOf, stand, wantsBringing } from '@/lib/face/things'
 import type { Standing } from '@/lib/face/things'
 import { kitDriver } from '@/lib/kit/driver'
 import { KIT_SIZE, useKitStage } from '@/lib/kit/stage'
@@ -210,6 +210,9 @@ export class FaceDriver {
   go(place: Place, size: number | undefined, over = 620) {
     // The person has it: nothing else moves it until they let go.
     if (this.press?.carried) return
+    forget()
+    // Nothing on the page by that name (a saved performance, played on another page): it stays where it is.
+    if (isThing(place) && !locate(place)) return
     this.wantBody()
     const before = this.target()
     this.free = undefined
@@ -549,11 +552,11 @@ export class FaceDriver {
     const thing = this.pointed()
     const found = thing && locate(thing)
     if (!found) return undefined
-    const { where } = this.standAt(found)
+    const standing = this.standAt(found)
+    const { where } = standing
     const what = found.label ?? found.name
-    return where === 'in view'
-      ? `pointing at ${what}`
-      : `pointing at ${what}, which is ${where === 'closed' ? 'folded away' : `${where} what is showing`}; press it to bring that into view`
+    if (!wantsBringing(thing, found, standing)) return `pointing at ${what}`
+    return `pointing at ${what}, which is ${where === 'closed' ? 'folded away' : where === 'in view' ? 'not all showing' : `${where} what is showing`}; press it to bring that into view`
   }
 
   /**
@@ -564,12 +567,7 @@ export class FaceDriver {
     const thing = this.pointed()
     const found = thing && locate(thing)
     if (!thing || !found) return false
-    const asked = thing.text !== undefined || thing.line !== undefined
-    if (
-      this.standAt(found).where === 'in view' &&
-      (!asked || found.part !== undefined)
-    )
-      return false
+    if (!wantsBringing(thing, found, this.standAt(found))) return false
     reveal(thing, !this.face.still)
     this.awaySince = 0
     this.face.rouse()

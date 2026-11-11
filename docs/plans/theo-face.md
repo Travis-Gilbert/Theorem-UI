@@ -459,8 +459,8 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-156 tests, 34 of them the body's and 18 the feel's, listed in `theo-body.md`,
-and 21 pointing's, listed in `theo-pointing.md` with the 15 that find a thing
+159 tests, 34 of them the body's and 18 the feel's, listed in `theo-body.md`,
+and 24 pointing's, listed in `theo-pointing.md` with the 16 that find a thing
 in the page):
 
 - channels: every feature has every param; a new feature gets channels of its

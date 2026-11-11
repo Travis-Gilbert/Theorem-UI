@@ -88,9 +88,29 @@ export function pick<T extends { name: string; state?: string }>(
   )
 }
 
-/** A name fit to be a thing's: the kind, then an id with nothing in it a name cannot hold. */
-export const thingName = (kind: string, id: string) =>
-  `${kind}:${id.replace(/[^A-Za-z0-9_.:/@-]/g, '-').slice(0, 120)}`
+/** A short mark of a text, the same for the same text: 32-bit FNV-1a, in base 36. */
+function markOf(text: string) {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++)
+    hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193)
+  return (hash >>> 0).toString(36).padStart(7, '0')
+}
+
+/** The longest an id is written out in a name. */
+const ID = 120
+
+/**
+ * A name fit to be a thing's: the kind, then the id. Two ids never share a
+ * name: white space, which a name cannot hold, is written as its code (and
+ * so is the sign that writes it), and an id too long to write out ends in a
+ * mark of the whole of it.
+ */
+export function thingName(kind: string, id: string) {
+  const written = id.replace(/[\s%]/g, encodeURIComponent)
+  return `${kind}:${
+    written.length > ID ? `${written.slice(0, ID - 8)}~${markOf(id)}` : written
+  }`
+}
 
 /**
  * The attributes that name an element to the face, for a component to spread
@@ -253,6 +273,17 @@ export function stand(
         }
       : {}),
   }
+}
+
+/**
+ * Whether the person's press should bring what is pointed at to them: it is
+ * out of view or folded away, the part asked for is not there, or the part
+ * is there and none of it shows (a long line scrolled off sideways).
+ */
+export function wantsBringing(thing: Thing, found: Found, standing: Standing) {
+  if (standing.where !== 'in view') return true
+  const asked = thing.text !== undefined || thing.line !== undefined
+  return asked && (found.part === undefined || standing.mark === undefined)
 }
 
 /** What the agent is told when a thing it named is not simply there to point at. */

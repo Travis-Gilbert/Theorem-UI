@@ -84,6 +84,24 @@ describe('finding words', () => {
     expect(spanOf(host, 'color: red')).toBeUndefined()
   })
 
+  test('words in what is not drawn are passed over for the same words where they show', () => {
+    // An artifact's newest revision kept, hidden, before the older one the person has open.
+    const hidden = make('div', { hidden: '' }, [
+      make('h2', {}, ['What is left']),
+    ])
+    const styled = make('div', { style: 'display: none' }, ['What is left'])
+    const showing = make('h2', {}, ['What is left'])
+    const root = make('section', {}, [
+      hidden,
+      styled,
+      make('div', {}, [showing]),
+    ])
+    document.body.append(root)
+    expect(spanOf(root, 'What is left')?.start.parentElement).toBe(showing)
+    showing.remove()
+    expect(spanOf(root, 'What is left')).toBeUndefined()
+  })
+
   test('words that are not there are not found', () => {
     const root = make('p', {}, ['one two'])
     expect(spanOf(root, 'three')).toBeUndefined()

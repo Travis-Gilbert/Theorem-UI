@@ -36,6 +36,10 @@ hash.
   with one number where a line was changed; the added one is taken.
 - With both, the words are looked for in the line.
 
+Two ids never share a name: white space in an id is written as its code
+(`a b.ts` is `a%20b.ts`), and an id too long to write out ends in a mark of
+the whole of it.
+
 The agent names things; it never gives coordinates for them. What is on the
 page is read with `face.read`, part `page`:
 
@@ -118,8 +122,8 @@ scrolled by the agent.
 ## The person's tap
 
 A tap on Theo, or Enter or Space, while what it points at is out of view,
-folded away, or missing the part asked for, brings the thing to the person
-instead of poking Theo:
+folded away, missing the part asked for, or has that part scrolled off
+sideways, brings the thing to the person instead of poking Theo:
 
 1. what folds it away is opened by pressing its own control, the one that
    says `aria-expanded="false"`, as the person would. First what holds the
@@ -164,7 +168,8 @@ out of view, that pressing Theo brings it.
 - The agent does not scroll the page, open a fold or open a panel. The
   person's tap does.
 - Theo marks; it does not select, edit or copy what it points at.
-- Words are found in what is drawn. A tool result that is folded shut has no
+- Words are found in what is drawn, and only there: a revision kept hidden
+  beside the one that is open is passed over. A tool result that is folded shut has no
   words on the page until it is opened.
 - Whether a tool call failed is the run's own record of it, as the card
   shows it. Pointing adds no judgement.
@@ -216,7 +221,8 @@ src/stories/fixtures/pointing.ts, the story `face-point`
 
 **Execution correctness** (`bun test src/lib/face src/components/face`):
 
-- standing (16, `lib/face/things.test.ts`): names, `last` and `failed`; the
+- standing (19, `lib/face/things.test.ts`): names, `last` and `failed`, and
+  no two ids sharing one; when a press brings a thing; the
   attributes; a tool call's state in one word; a sliver shows and none does
   not; beside and never over; the nearer side; the side with room; over the
   thing above the part; a tall thing by its head; out of view at that edge
@@ -230,9 +236,9 @@ src/stories/fixtures/pointing.ts, the story `face-point`
   says what is pointed at; `face.perform` refuses a thing the page lacks and
   nothing plays, and plays one it has with the page's note in the receipt.
   The declarations are still inside Theorem's limits;
-- the page (15, `components/face/things.test.ts`, happy-dom with boxes the
+- the page (16, `components/face/things.test.ts`, happy-dom with boxes the
   test gives): words across nodes, across a line break, by case, into a
-  shadow root and not into a style; the list; a thing that takes no room
+  shadow root and not into a style, and not in what is hidden; the list; a thing that takes no room
   found by its holder; a name on two elements; a diff's added line before its
   removed one; the whole of a thing before a part of it; a clip that is out
   of sight; a cut-off part opening the whole and never scrolling the excerpt;

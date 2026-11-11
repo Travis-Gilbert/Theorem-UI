@@ -103,13 +103,18 @@ function clipsOf(element: Element): Array<Element> {
   return clips
 }
 
-/** Every element under a root, into open shadow roots. */
+/** Whether an element and all under it are not drawn: another revision kept beside the one showing, a closed fold. */
+const undrawn = (element: Element) =>
+  element.hasAttribute('hidden') || getComputedStyle(element).display === 'none'
+
+/** Every drawn element under a root, into open shadow roots, in the order the page has them. */
 function* elementsIn(root: ParentNode): Generator<Element> {
   if (root instanceof Element && root.shadowRoot)
     yield* elementsIn(root.shadowRoot)
-  for (const element of root.querySelectorAll('*')) {
+  for (const element of root.children) {
+    if (undrawn(element)) continue
     yield element
-    if (element.shadowRoot) yield* elementsIn(element.shadowRoot)
+    yield* elementsIn(element)
   }
 }
 
@@ -125,6 +130,8 @@ function textIn(root: Node, out: Array<Text>, budget: { left: number }) {
     } else if (child.nodeType === Node.ELEMENT_NODE) {
       const element = child as Element
       if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') continue
+      // What is not drawn has no words on the page.
+      if (undrawn(element)) continue
       textIn(element, out, budget)
     }
   }
