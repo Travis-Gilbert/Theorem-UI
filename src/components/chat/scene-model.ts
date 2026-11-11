@@ -4,8 +4,9 @@
 // scene package to the reply as a `scene` part (rustyred-thg-server's
 // `conversation_scene`); it arrives here as the `theorem-scene` data part.
 // The page that draws it is served by the authority at SCENE_HOST_PATH and
-// runs in a sandboxed frame. The host posts it the package and the layout,
-// and reads back only the shapes below (scene-os-web's `web/src/embed.ts`).
+// runs in a sandboxed frame. The host posts it the package, the theme, whether
+// it takes questions about a part, and the layout, and reads back only the
+// shapes below (scene-os-web's `web/src/embed.ts`).
 
 export const SCENE_PART = 'theorem-scene'
 export const SCENE_CONTRACT = 'theorem-scene-v1'
@@ -65,7 +66,7 @@ export type SceneLayout = 'inline' | 'full'
 
 /**
  * The conversation's colours and type, which an immersive artifact draws
- * with so it matches the reply around it (scene-os-web's `immersive/theme.ts`).
+ * with so it matches the reply around it (scene-os-web's `web/src/theme.ts`).
  * A token the browser could not resolve is left out; the page fills it in.
  */
 export type SceneTheme = Partial<{
@@ -101,7 +102,16 @@ export type SceneEntity = {
 }
 
 export type HostMessage =
-  | { type: 'sceneos:mount'; package: Record<string, unknown>; theme: SceneTheme }
+  | {
+      type: 'sceneos:mount'
+      package: Record<string, unknown>
+      theme: SceneTheme
+      /**
+       * The host takes questions about a part: the page puts an Ask action
+       * on the callout it draws on the picked part.
+       */
+      ask: boolean
+    }
   | { type: 'sceneos:layout'; layout: SceneLayout }
 
 export type FrameMessage =
@@ -109,6 +119,7 @@ export type FrameMessage =
   | { type: 'sceneos:mounted'; ok: boolean; error?: ModuleError }
   | { type: 'sceneos:error'; error: ModuleError }
   | { type: 'sceneos:select'; entity: SceneEntity | null }
+  | { type: 'sceneos:ask'; entity: SceneEntity }
   | { type: 'sceneos:dismiss' }
 
 const STAGES: readonly ModuleError['stage'][] = [
@@ -175,6 +186,10 @@ export function readFrameMessage(data: unknown): FrameMessage | undefined {
       if (message.entity === null) return { type: 'sceneos:select', entity: null }
       const entity = readEntity(message.entity)
       return entity && { type: 'sceneos:select', entity }
+    }
+    case 'sceneos:ask': {
+      const entity = readEntity(message.entity)
+      return entity && { type: 'sceneos:ask', entity }
     }
     default:
       return undefined

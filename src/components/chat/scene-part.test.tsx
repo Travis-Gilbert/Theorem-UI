@@ -77,11 +77,12 @@ afterAll(() => {
 
 afterEach(cleanup)
 
-async function card(shown: Scene = scene) {
+async function card(shown: Scene = scene, options: { asks?: boolean } = {}) {
   const asked: SceneEntity[] = []
   const repairs: ModuleError[] = []
-  const props = {
-    onAsk: (entity: SceneEntity) => void asked.push(entity),
+  const onAsk = (entity: SceneEntity) => void asked.push(entity)
+  let props = {
+    onAsk: options.asks === false ? undefined : onAsk,
     onRepair: (error: ModuleError) => void repairs.push(error),
   }
   const rendered = await render(
@@ -105,8 +106,14 @@ async function card(shown: Scene = scene) {
     [...rendered.container.querySelectorAll('button')].find(
       (b) => b.textContent === name,
     )
-  const rerender = (next: { scene?: Scene; theme?: SceneTheme }) =>
-    act(() =>
+  const rerender = (next: {
+    scene?: Scene
+    theme?: SceneTheme
+    asks?: boolean
+  }) => {
+    if (next.asks !== undefined)
+      props = { ...props, onAsk: next.asks ? onAsk : undefined }
+    return act(() =>
       rendered.root.render(
         <QueryClientProvider client={rendered.queryClient}>
           <SceneCard
@@ -117,6 +124,7 @@ async function card(shown: Scene = scene) {
         </QueryClientProvider>,
       ),
     )
+  }
   return {
     ...rendered,
     dialog,
@@ -160,7 +168,7 @@ test('the page is sent the package when it is ready, and nothing else is read', 
 
   fromPage({ type: 'sceneos:host-ready' })
   expect(sent).toEqual([
-    { type: 'sceneos:mount', package: scene.scenePackage, theme },
+    { type: 'sceneos:mount', package: scene.scenePackage, theme, ask: true },
     { type: 'sceneos:layout', layout: 'inline' },
   ])
   fromPage({ type: 'sceneos:mounted', ok: true })
@@ -211,7 +219,7 @@ test('expanding keeps the same frame, and Escape or the page collapses it', asyn
   sent.length = 0
   fromPage({ type: 'sceneos:host-ready' })
   expect(sent).toEqual([
-    { type: 'sceneos:mount', package: scene.scenePackage, theme },
+    { type: 'sceneos:mount', package: scene.scenePackage, theme, ask: true },
     { type: 'sceneos:layout', layout: 'full' },
   ])
 })
@@ -236,7 +244,12 @@ test('a palette change draws the scene again in the new colours', async () => {
   const dark: SceneTheme = { colorScheme: 'dark', background: 'rgb(30, 28, 27)' }
   rerender({ theme: dark })
   expect(sent).toEqual([
-    { type: 'sceneos:mount', package: scene.scenePackage, theme: dark },
+    {
+      type: 'sceneos:mount',
+      package: scene.scenePackage,
+      theme: dark,
+      ask: true,
+    },
   ])
   expect(container.querySelector('iframe')).toBe(frame)
 })
@@ -276,6 +289,12 @@ test('code that throws while running keeps the scene up and offers Fix', async (
   expect(dialog.dataset.phase).toBe('ready')
   expect(frame.isConnected).toBe(true)
   expect(dialog.textContent).toContain('runtime at line 3: x is not defined')
+  // The notice is a strip of the card under the scene, not drawn over it.
+  const notice = dialog.querySelector('[role="status"]')
+  expect(notice?.textContent).toContain('x is not defined')
+  expect(frame.parentElement?.parentElement?.contains(notice ?? null)).toBe(
+    false,
+  )
   act(() => button('Fix')?.click())
   expect(repairs).toEqual([error])
 })
@@ -318,18 +337,60 @@ test('a page that never loads has nothing for the model to fix', async () => {
   }
 })
 
-test('a pick offers to ask about it, and clearing the pick takes the offer away', async () => {
-  const { fromPage, button, asked } = await card()
+test('the page draws the callout: a pick puts nothing of the card over the scene', async () => {
+  const { container, fromPage, sent, asked } = await card()
+  fromPage({ type: 'sceneos:host-ready' })
+  fromPage({ type: 'sceneos:mounted', ok: true })
+  // The page is told the card takes questions, so its callout offers Ask.
+  expect(sent[0]).toEqual({
+    type: 'sceneos:mount',
+    package: scene.scenePackage,
+    theme,
+    ask: true,
+  })
+  const buttons = () =>
+    [...container.querySelectorAll('button')].map((b) => b.textContent)
+  const before = buttons()
+  fromPage({ type: 'sceneos:select', entity: { id: 'alu', label: 'ALU' } })
+  expect(buttons()).toEqual(before)
+  expect(container.textContent).not.toContain('Ask about')
+  expect(asked).toEqual([])
+})
+
+test('Ask on the callout the page drew puts the part in the composer', async () => {
+  const { fromPage, asked } = await card()
   fromPage({ type: 'sceneos:host-ready' })
   fromPage({ type: 'sceneos:mounted', ok: true })
   const alu = { id: 'alu', label: 'ALU', kind: 'unit' }
-  fromPage({ type: 'sceneos:select', entity: alu })
-  act(() => button('Ask about ALU')?.click())
+  fromPage({ type: 'sceneos:ask', entity: alu })
   expect(asked).toEqual([alu])
+  // Only the scene page is heard, and only a part with an id.
+  fromPage({ type: 'sceneos:ask', entity: alu }, window)
+  fromPage({ type: 'sceneos:ask', entity: { label: 'ALU' } })
+  fromPage({ type: 'sceneos:ask', entity: null })
+  expect(asked).toEqual([alu])
+})
 
-  fromPage({ type: 'sceneos:select', entity: { id: 'pc' } })
-  expect(button('Ask about ALU')).toBeUndefined()
-  expect(button('Ask about pc')).toBeDefined()
-  fromPage({ type: 'sceneos:select', entity: null })
-  expect(button('Ask about pc')).toBeUndefined()
+test('a card that takes no questions tells the page, and is told again when that changes', async () => {
+  const { fromPage, sent, asked, rerender } = await card(scene, {
+    asks: false,
+  })
+  fromPage({ type: 'sceneos:host-ready' })
+  fromPage({ type: 'sceneos:mounted', ok: true })
+  expect(sent[0]).toEqual({
+    type: 'sceneos:mount',
+    package: scene.scenePackage,
+    theme,
+    ask: false,
+  })
+  fromPage({ type: 'sceneos:ask', entity: { id: 'alu' } })
+  expect(asked).toEqual([])
+
+  const count = sent.length
+  rerender({ asks: true })
+  expect(sent.slice(count)).toEqual([
+    { type: 'sceneos:mount', package: scene.scenePackage, theme, ask: true },
+  ])
+  fromPage({ type: 'sceneos:ask', entity: { id: 'alu' } })
+  expect(asked).toEqual([{ id: 'alu' }])
 })
