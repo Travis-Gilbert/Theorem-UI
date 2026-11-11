@@ -125,6 +125,17 @@ describe('the feel', () => {
     useFigures.getState().resetFeel('drag')
     expect(useFigures.getState().feel).toEqual({ pace: 1.5 })
   })
+
+  test('a setting brought back to what Theo ships with is no longer kept as changed', () => {
+    const figures = useFigures.getState()
+    figures.setFeel('drag', 9)
+    figures.setFeel('pace', 1.5)
+    figures.setFeel('drag', FEEL_REST.drag)
+    expect(useFigures.getState().feel).toEqual({ pace: 1.5 })
+    expect(FEEL.drag).toBe(FEEL_REST.drag)
+    figures.setFeel('lean', FEEL_REST.lean)
+    expect(useFigures.getState().feel).toEqual({ pace: 1.5 })
+  })
 })
 
 describe('what the feel does to the body', () => {
@@ -207,6 +218,29 @@ describe('what the feel does to the body', () => {
     const caught = thrown.position().x - 300
     tune()
     expect(caught).toBeLessThan(coast() * 0.8)
+  })
+
+  test('a pace changed while it rests is the pace a poke comes back at', () => {
+    /** How far a poke of 220 pixels a second carries it from where it rests. */
+    const poked = (body: FaceBody) => {
+      const from = body.position()
+      body.nudge({ x: 0, y: 220 })
+      let furthest = 0
+      for (let elapsed = 0; elapsed < 4; elapsed += STEP) {
+        body.advance(STEP)
+        furthest = Math.max(furthest, Math.abs(body.position().y - from.y))
+        if (body.state === 'resting') break
+      }
+      return furthest
+    }
+    const shipped = poked(bodyAt({ x: 500, y: 400 }))
+    const resting = bodyAt({ x: 500, y: 400 })
+    tune({ pace: 2 })
+    resting.advance(STEP)
+    const after = poked(resting)
+    const made = poked(bodyAt({ x: 500, y: 400 }))
+    expect(after).toBeCloseTo(made, 6)
+    expect(after).toBeLessThan(shipped * 0.7)
   })
 
   test('with every setting at either end, a trip still arrives and a throw still stays inside', () => {

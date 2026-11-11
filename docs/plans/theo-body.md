@@ -239,7 +239,7 @@ src/stories/registry.tsx                        the story face-visit
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face`, 34 of its tests came with
-the body and 16 with the feel):
+the body and 18 with the feel):
 
 - the body (21, against Rapier itself): a trip rests exactly on its anchor
   with a small overshoot; a shorter `over` arrives sooner; a moving anchor is
@@ -258,15 +258,16 @@ the body and 16 with the feel):
   different reaction calm and wound up; a throw is noticed; nothing the body
   does produces a run event; asleep ignores `body.*`; reduced motion moves
   nothing; `artifact` compiles as a place and `visit` looks before it goes;
-- the feel (16): every setting ships inside its bounds; a value outside them
+- the feel (18): every setting ships inside its bounds; a value outside them
   is brought inside and a non-number refused; tuning lays what is given over
   what ships and counts a revision only when something changed; the store
-  keeps only what was changed, one setting can be put back alone and Reset
-  all empties it; less drag carries a throw
-  further; the throw threshold decides throw or drop; more bounce comes
+  keeps only what was changed, one setting can be put back alone, one
+  dragged back to what ships is dropped and Reset all empties it; less drag
+  carries a throw further; the throw threshold decides throw or drop; more bounce comes
   further back off the edge; pace changes when a trip arrives; a looser
   settle swings past and still rests exactly; a change takes hold of a trip
-  and a coast under way; every setting at either end still arrives and stays
+  and a coast under way; a pace changed while it rests is the pace a poke
+  comes back at; every setting at either end still arrives and stays
   inside; lean and trail scale the face's answer and zero is none; a quicker
   recovery gets over a knock sooner; the face keeps its bounds at either end.
 

@@ -1,7 +1,7 @@
 // SOURCING: zustand + zustand/middleware persist (a per-browser preference, as lib/palette.ts keeps the palette). Which figures the shell has is this app's: Kit, the fox that is simply there, and Theo, the agent's face. Whether Theo has its visor is the owner's call (docs/plans/theo-face.md, "The visor"). How Theo's movement feels is lib/face/feel's set of numbers; what the person changed of it is kept here and put in force there.
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { feelValue, tune } from './face/feel'
+import { FEEL_REST, feelValue, tune } from './face/feel'
 import type { Feel, FeelKey } from './face/feel'
 
 const STORAGE_KEY = 'theorem-ui:figures'
@@ -46,7 +46,7 @@ interface FiguresState {
   setVisor: (visor: Visor) => void
   /** How Theo moves, where the person changed it. A setting not here is as Theo ships. */
   feel: Partial<Feel>
-  /** Changes one setting of the feel; a value outside its bounds is brought inside. */
+  /** Changes one setting of the feel; a value outside its bounds is brought inside, and one that is what Theo ships with is not kept as a change. */
   setFeel: (key: FeelKey, value: number) => void
   /** One setting of the feel as Theo ships; with no setting named, all of them. */
   resetFeel: (key?: FeelKey) => void
@@ -73,6 +73,7 @@ export const useFigures = create<FiguresState>()(
         const next = feelValue(key, value)
         if (next === undefined) return
         const feel = { ...get().feel, [key]: next }
+        if (next === FEEL_REST[key]) delete feel[key]
         tune(feel)
         set({ feel })
       },

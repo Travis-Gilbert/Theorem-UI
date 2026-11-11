@@ -420,9 +420,10 @@ export class FaceBody {
     this.feel = feelRevision()
     this.collider.setRestitution(FEEL.bounce)
     if (this.mode === 'coasting') this.body.setLinearDamping(FEEL.drag)
-    if (this.mode !== 'tethered') return
+    // The pace is taken up whatever it is doing: at rest there is no tether to redo, and the next poke fastens one at this rate.
     this.pace(tetherRate(this.over))
-    this.body.setLinearDamping(2 * this.rate * FEEL.settle)
+    if (this.mode === 'tethered')
+      this.body.setLinearDamping(2 * this.rate * FEEL.settle)
   }
 
   private movePin() {

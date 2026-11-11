@@ -83,7 +83,7 @@
       "id": "tuning-panel",
       "item": "The numbers that are a matter of taste are set from Settings, take hold at once, and are kept per browser",
       "status": "done",
-      "evidence": "src/lib/face/feel.ts; src/components/face/face-feel.tsx on /settings/appearance; src/lib/figures.ts keeps what was changed. feel.test.ts (16). Browser: sliders by keyboard, in force after a reload, one row put back, Reset all, the strip pinned while the rows scroll; docs/plans/evidence/theo-body/tuning.png"
+      "evidence": "src/lib/face/feel.ts; src/components/face/face-feel.tsx on /settings/appearance; src/lib/figures.ts keeps what was changed. feel.test.ts (18). Browser: sliders by keyboard, in force after a reload, one row put back, Reset all, the strip pinned while the rows scroll; docs/plans/evidence/theo-body/tuning.png"
     },
     {
       "id": "verify-real-hand",
