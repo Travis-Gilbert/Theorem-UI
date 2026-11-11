@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+import { FaceBody } from '../face/body'
+import type { Bump, Point } from '../face/body'
+import { loadRapier, theWorld } from '../world'
 import { KitDriver } from './driver'
 import { FEET, changeStage, resetKitStage, useKitStage } from './stage'
 
@@ -295,4 +298,112 @@ describe('a follow that ends, and moves cut off', () => {
     expect(Date.now() - started).toBeLessThan(4000)
     expect(useKitStage.getState().touched?.kind).toBe('thrown')
   }, 10_000)
+})
+
+describe('Theo, thrown, and Kit', () => {
+  const SIZE = { width: 64, height: 41 }
+
+  /** Kit standing mid-floor with its body in the world, and Theo's body in the same one. */
+  async function both() {
+    const rapier = await loadRapier()
+    await Bun.sleep(0)
+    driver!.track()
+    const [x, y] = driver!.position()
+    const kitAt = { x: x + 16, feet: y + FEET }
+    const world = theWorld()!
+    expect(world.figure('kit')).toBeDefined()
+    const theo = new FaceBody(rapier, { x: 100, y: 100 }, SIZE, world)
+    theo.bounds(window.innerWidth, window.innerHeight, 8)
+    /** Throws Theo and runs it at the display's pace until it rests, noting what Kit did. */
+    const thrown = async (from: Point, velocity: Point) => {
+      theo.hold(from)
+      expect(theo.release(velocity)).toBe(true)
+      const motions = new Set<string>()
+      const bumps: Array<Bump> = []
+      let last = performance.now()
+      while (theo.state !== 'resting' && bumps.length < 50) {
+        await Bun.sleep(8)
+        const now = performance.now()
+        bumps.push(...theo.advance((now - last) / 1000).bumps)
+        last = now
+        motions.add(useKitStage.getState().motion)
+      }
+      return { motions, met: bumps.filter((bump) => bump.against === 'kit') }
+    }
+    /** Waits for Kit to be standing still again. */
+    const settled = async () => {
+      for (let waited = 0; waited < 4000; waited += 20) {
+        if (useKitStage.getState().motion === 'still' && waited > 300) return
+        await Bun.sleep(20)
+      }
+    }
+    return { theo, kitAt, thrown, settled }
+  }
+
+  test('with no time to get out of the way, Kit is knocked off its feet the way Theo was going, and lands', async () => {
+    const { theo, kitAt, thrown, settled } = await both()
+    try {
+      const from = { x: kitAt.x - 9 - 32 - 40, y: kitAt.feet - 30 }
+      const { motions, met } = await thrown(from, { x: 1200, y: 0 })
+      expect(met).toHaveLength(1)
+      expect(met[0]?.side).toBe('right')
+      // It came back off Kit.
+      expect(theo.position().x).toBeLessThan(kitAt.x)
+      expect(motions.has('air') || motions.has('fall')).toBe(true)
+      await settled()
+      const state = useKitStage.getState()
+      expect(state.motion).toBe('still')
+      expect(state.perch).toBe('floor')
+      // Knocked to the right of where it stood.
+      expect(driver!.position()[0] + 16).toBeGreaterThan(kitAt.x + 10)
+      expect(driver!.position()[1] + FEET).toBe(kitAt.feet)
+      // It was not the person's doing.
+      expect(state.touched).toBeUndefined()
+    } finally {
+      theo.destroy()
+    }
+  })
+
+  test('seeing it come along the ground, Kit jumps, Theo goes under, and Kit comes down where it stood', async () => {
+    const { theo, kitAt, thrown, settled } = await both()
+    try {
+      const from = {
+        x: kitAt.x - 9 - 32 - 230,
+        y: window.innerHeight - 8 - SIZE.height / 2,
+      }
+      const { motions, met } = await thrown(from, { x: 1450, y: 0 })
+      expect(met).toEqual([])
+      expect(motions.has('air')).toBe(true)
+      expect(theo.position().x - SIZE.width / 2).toBeGreaterThan(kitAt.x)
+      await settled()
+      const state = useKitStage.getState()
+      expect(state.motion).toBe('still')
+      expect(state.perch).toBe('floor')
+      expect(driver!.position()[0] + 16).toBeCloseTo(kitAt.x, 0)
+      expect(driver!.position()[1] + FEET).toBe(kitAt.feet)
+    } finally {
+      theo.destroy()
+    }
+  })
+
+  test('seeing it come at its head, Kit ducks, Theo goes over, and Kit stands again', async () => {
+    const { theo, kitAt, thrown, settled } = await both()
+    try {
+      // Its bottom edge between the top of Kit standing and the top of Kit ducked.
+      const from = {
+        x: kitAt.x - 9 - 32 - 150,
+        y: kitAt.feet - 17 - SIZE.height / 2,
+      }
+      const { motions, met } = await thrown(from, { x: 1200, y: 0 })
+      expect(met).toEqual([])
+      expect(motions.has('crouch')).toBe(true)
+      expect(motions.has('air')).toBe(false)
+      expect(theo.position().x - SIZE.width / 2).toBeGreaterThan(kitAt.x)
+      await settled()
+      expect(useKitStage.getState().motion).toBe('still')
+      expect(driver!.position()[0] + 16).toBe(kitAt.x)
+    } finally {
+      theo.destroy()
+    }
+  })
 })

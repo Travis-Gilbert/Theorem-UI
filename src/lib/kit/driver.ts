@@ -1,4 +1,4 @@
-// SOURCING: lib/kit/physics (Rapier 2D: walking by its character controller, jumps, falls, flings and throws as a dynamic body, surfaces as kinematic colliders, a shape cast for ground), loaded lazily and only when motion is not reduced; animejs (createDraggable for the person's hand, its release glide stopped so Kit is thrown instead, its velocity and angle read as the throw; animate with a spring for the landing squash, utils.set for the stretch in flight); prefersReducedMotion from lib/motion; stage.ts for where surfaces are and which catches a fall when there is no physics
+// SOURCING: lib/kit/physics (Rapier 2D: walking by its character controller, jumps, falls, flings and throws as a dynamic body, surfaces as kinematic colliders, a shape cast for ground and one for a thrown Theo on its way), loaded lazily and only when motion is not reduced, in the world lib/world shares with Theo's body; animejs (createDraggable for the person's hand, its release glide stopped so Kit is thrown instead, its velocity and angle read as the throw; animate with a spring for the landing squash, utils.set for the stretch in flight); prefersReducedMotion from lib/motion; stage.ts for where surfaces are and which catches a fall when there is no physics
 import { animate, createDraggable, spring, utils } from 'animejs'
 import type { Draggable } from 'animejs'
 import { prefersReducedMotion } from '@/lib/motion'
@@ -20,6 +20,7 @@ import type { KitDirection } from './contract/KitDirection'
 import type { KitJumpStyle } from './contract/KitJumpStyle'
 import type { KitTouchKind } from './contract/KitTouchKind'
 import {
+  GRAVITY,
   KitWorld,
   PX,
   STEP,
@@ -28,6 +29,8 @@ import {
   loadRapier,
   timeToFall,
 } from './physics'
+import type { Coming } from './physics'
+import { enterWorld, leaveWorld } from '../world'
 
 /** Walking pace and running pace, in CSS pixels per second. */
 const PACE: Record<'walk' | 'run', number> = { walk: 70, run: 190 }
@@ -61,6 +64,17 @@ const MAX_THROW = 40
 const HELD_STILL_MS = 90
 /** How often a follow looks again for where its target is. */
 const FOLLOW_MS = 450
+/** Struck by Theo where it stands, Kit takes this share of Theo's speed and is lifted by at least this much, in metres per second. */
+const KNOCK = { share: 0.55, lift: 5 }
+/**
+ * A jump over Theo goes at least `least` metres higher than it must, and
+ * higher the longer Theo takes to pass, up to `most`; Kit leaves the ground
+ * so as to be just clear as Theo arrives, with `early` seconds to spare, and
+ * a jump begun later than `late` of the way up is still worth making.
+ */
+const OVER = { least: 0.45, most: 1.6, early: 0.04, late: 0.5 }
+/** Kit ducks when Theo is this many seconds off, and stays down at least and at most this long, in milliseconds. */
+const DUCK = { ahead: 0.32, least: 240, most: 1400 }
 /** Kit's spring back from a landing's squash. */
 const REBOUND = spring({ bounce: 0.55, duration: 420 })
 
@@ -125,6 +139,8 @@ export class KitDriver {
   private loadingPhysics: Promise<KitWorld | undefined> | undefined
   private readonly clock = { at: 0 }
   private destroyed = false
+  /** Getting out of a thrown Theo's way: nothing more is made of its coming until that is over. */
+  private dodging = false
 
   constructor(
     element: HTMLElement,
@@ -143,6 +159,8 @@ export class KitDriver {
         if (!this.dragged) {
           this.dragged = true
           this.setMotion('held')
+          // In the hand its body is not where it is: nothing in the world meets it.
+          this.physics?.lift()
         }
         this.lastDragAt = performance.now()
         this.x = draggable.x
@@ -196,7 +214,10 @@ export class KitDriver {
     window.removeEventListener('resize', this.onWindowResize)
     window.removeEventListener('pointermove', this.onPointer)
     this.draggable.revert()
-    this.physics?.destroy()
+    if (this.physics) {
+      this.physics.destroy()
+      leaveWorld()
+    }
     this.physics = undefined
   }
 
@@ -205,15 +226,20 @@ export class KitDriver {
     return [this.x, this.y]
   }
 
-  /** Kit's world, loaded on first need; none under reduced motion, or when Rapier fails to load. */
+  /** Kit's body in the figures' world, loaded on first need; none under reduced motion, or when Rapier fails to load. */
   private world(): Promise<KitWorld | undefined> {
     if (this.physics) return Promise.resolve(this.physics)
     if (prefersReducedMotion()) return Promise.resolve(undefined)
     this.loadingPhysics ??= loadRapier()
       .then((rapier) => {
         if (this.destroyed) return undefined
-        this.physics = new KitWorld(rapier, this.x, this.y)
-        return this.physics
+        const world = new KitWorld(rapier, this.x, this.y, enterWorld(rapier))
+        // Until Kit stands somewhere its body is nowhere.
+        if (!this.placed) world.lift()
+        world.onStruck = (velocity, airborne) => this.struck(velocity, airborne)
+        world.onComing = (coming) => this.dodge(coming)
+        this.physics = world
+        return world
       })
       .catch((error: unknown) => {
         console.warn('Kit moves without physics: Rapier did not load', error)
@@ -265,6 +291,7 @@ export class KitDriver {
     this.crouching?.(false)
     this.crouching = undefined
     this.physics?.ground()
+    this.physics?.duck(false)
     if (this.squash) {
       utils.remove(this.squash)
       utils.set(this.squash, { scaleX: 1, scaleY: 1 })
@@ -306,6 +333,12 @@ export class KitDriver {
     }
     const [x, y] = standPoint(line, state.at)
     if (x !== this.x || y !== this.y) this.place(x, y)
+    // Its body stands where it does, so Theo, thrown, meets it there.
+    const body = this.physics
+    if (body && !body.isAirborne()) {
+      const [bx, by] = body.frame()
+      if (body.lifted || bx !== x || by !== y) body.place(x, y)
+    }
   }
 
   /** Crouches a moment; resolves false when stopped first (a grab, or another move). */
@@ -449,10 +482,11 @@ export class KitDriver {
     await this.release({ x: 0, y: 0 })
   }
 
-  /** Lets go of Kit at `velocity`, metres per second; reports the person's touch once it rests. */
+  /** Lets go of Kit at `velocity`, metres per second, bouncing by `bounce`; reports the person's touch once it rests. */
   private async release(
     velocity: { x: number; y: number },
     touch?: KitTouchKind,
+    bounce = touch === 'thrown' ? 0.38 : 0.12,
   ) {
     this.stop()
     const generation = this.generation
@@ -487,10 +521,121 @@ export class KitDriver {
       onto = useKitStage.getState().perch
     } else {
       this.setMotion('fall')
-      world.launch(velocity, touch === 'thrown' ? 0.38 : 0.12)
+      world.launch(velocity, bounce)
       onto = await this.flight(world, generation)
     }
     if (touch && onto !== undefined) this.touch(touch, onto)
+  }
+
+  // Theo ---------------------------------------------------------------------
+  // Theo's body is in the same world (lib/world). Thrown, it strikes Kit;
+  // Kit sees it coming and gets out of the way when it can.
+
+  /** Where Kit stands on its surface now: a walk cut short leaves it part way along. */
+  private standHere() {
+    const state = useKitStage.getState()
+    const line = perchLine(state.perch)
+    if (line) changeStage({ at: atOf(line, this.x) })
+    return useKitStage.getState()
+  }
+
+  /**
+   * Theo, thrown, struck Kit, moving at `velocity` metres per second.
+   * Standing, Kit is knocked off its feet the way Theo was going; in the air
+   * the collision has already moved it.
+   */
+  private struck(velocity: { x: number; y: number }, airborne: boolean) {
+    if (this.destroyed || this.draggable.grabbed) return
+    this.squashBy(Math.hypot(velocity.x, velocity.y) * 0.6)
+    if (airborne) return
+    if (Math.abs(velocity.x) > 0.3)
+      changeStage({ facing: velocity.x > 0 ? 1 : -1 })
+    void this.release(
+      {
+        x: velocity.x * KNOCK.share,
+        y: Math.min(velocity.y * KNOCK.share, 0) - KNOCK.lift,
+      },
+      undefined,
+      0.38,
+    )
+  }
+
+  /**
+   * Theo, thrown, is on its way to where Kit stands. Kit turns to it. When
+   * it is close, Kit ducks if that lets Theo over it, or jumps so as to be
+   * above it as it passes; with no time for either it is struck.
+   */
+  private dodge(coming: Coming) {
+    if (this.dodging || this.destroyed || this.draggable.grabbed) return
+    const { motion, facing } = useKitStage.getState()
+    if (motion !== 'still' && motion !== 'walk' && motion !== 'run') return
+    if (motion === 'still' && facing !== coming.from)
+      changeStage({ facing: coming.from })
+    if (coming.over) {
+      if (coming.in <= DUCK.ahead) void this.duck()
+      return
+    }
+    if (coming.rise === undefined) return
+    // Above it for as long as it is under: the time spent over a height goes as the root of how far over.
+    const over = Math.min(
+      OVER.most,
+      Math.max(OVER.least, (GRAVITY * coming.passing ** 2) / 8 + 0.1),
+    )
+    const rise = coming.rise + over
+    const up = Math.sqrt(2 * GRAVITY * rise)
+    // How long the way up to just clear of it takes.
+    const clear =
+      (up - Math.sqrt(up * up - 2 * GRAVITY * coming.rise)) / GRAVITY
+    // Not yet, while there is longer than that to go: all its time above is for Theo passing.
+    if (coming.in > clear + OVER.early) return
+    if (coming.in >= clear * OVER.late) void this.leap(rise)
+  }
+
+  /** Ducks until Theo has gone over. */
+  private async duck() {
+    const world = this.physics
+    if (!world) return
+    this.stop()
+    const generation = this.generation
+    this.dodging = true
+    this.standHere()
+    this.setMotion('crouch')
+    world.duck(true)
+    if (this.squash) utils.set(this.squash, { scaleX: 1.2, scaleY: 0.58 })
+    const began = performance.now()
+    let clear = 0
+    while (generation === this.generation) {
+      await frame(this.clock)
+      const waited = performance.now() - began
+      clear = world.coming() || world.overhead() ? 0 : clear + 1
+      if ((waited >= DUCK.least && clear >= 3) || waited > DUCK.most) break
+    }
+    this.dodging = false
+    world.duck(false)
+    // Stopped first (a grab, another move): that has it now.
+    if (generation !== this.generation) return
+    if (this.squash)
+      animate(this.squash, { scaleX: 1, scaleY: 1, ease: REBOUND })
+    this.setMotion('still')
+    world.sleep()
+  }
+
+  /** Jumps `rise` metres straight up from where it stands and comes down there. */
+  private async leap(rise: number) {
+    this.stop()
+    const generation = this.generation
+    this.dodging = true
+    try {
+      const world = await this.ready()
+      if (!world || generation !== this.generation) return
+      const state = this.standHere()
+      const from = bodyOf(this.x, this.y)
+      world.launch(launchVelocity(from, from, rise), 0, state.perch)
+      this.setMotion('air')
+      await this.flight(world, generation, { name: state.perch, at: state.at })
+    } finally {
+      this.dodging = false
+    }
   }
 
   private claim() {

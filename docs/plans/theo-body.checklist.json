@@ -98,16 +98,64 @@
       "evidence": "Not run here"
     },
     {
+      "id": "one-world",
+      "item": "Theo and Kit in one physical world, each collider saying what it is and what it meets",
+      "status": "done",
+      "evidence": "src/lib/world.ts; world.test.ts: a thrown Theo strikes Kit, a travelling one passes it, Kit's surfaces are not Theo's, a loose Kit strikes Theo and an aimed one does not, a lifted Kit is met by nothing"
+    },
+    {
+      "id": "one-clock",
+      "item": "Two figures moving do not run the world's time twice",
+      "status": "done",
+      "evidence": "world.test.ts \"one clock\": Theo's path step for step as alone while Kit walks or flies, either order; Kit's walk forces a real step, so 30 frames take 30 to 32 steps"
+    },
+    {
+      "id": "kit-forecast",
+      "item": "Kit sees a thrown Theo coming, allowing for the throw dying away",
+      "status": "done",
+      "evidence": "KitWorld.coming; world.test.ts \"Kit sees it coming\": side and time, within two steps for three throws, nothing for one that falls short or is headed away"
+    },
+    {
+      "id": "kit-dodge",
+      "item": "Kit ducks under, jumps over, or is knocked off its feet",
+      "status": "done",
+      "evidence": "kit/driver.ts dodge, duck, leap, struck; driver.test.ts \"Theo, thrown, and Kit\"; in headless Chromium on face-in-shell, twice: evidence/theo-body/meet-struck.png, meet-jump.png, meet-duck.png"
+    },
+    {
+      "id": "theo-meets",
+      "item": "Theo reacts to meeting Kit as its own event, and watches Kit in the air",
+      "status": "done",
+      "evidence": "body.meet.kit in engine.ts, memory.ts, reactions.ts; Face.watch; face.test.ts; gaze seen turning toward a jumping Kit and back in headless Chromium"
+    },
+    {
+      "id": "release-place",
+      "item": "A released Theo starts from where the hand is",
+      "status": "done",
+      "evidence": "components/face/driver.ts holds the body at the hand before release; seen in the struck throw, which starts beside Kit"
+    },
+    {
       "id": "obstacles",
-      "item": "Obstacles other than the window's edges",
+      "item": "Obstacles other than the window's edges and Kit",
       "status": "todo",
-      "evidence": "Not built. See 'Not yet'"
+      "evidence": "Not built. Kit's surfaces are in the same world now; which of them Theo meets is undecided. See 'Not yet'"
     },
     {
       "id": "automatic-visit",
       "item": "A rule that sends Theo to an artifact by itself",
       "status": "todo",
       "evidence": "Not built. The place and the performance exist for the agent and for rules"
+    },
+    {
+      "id": "meet-real-hand",
+      "item": "A throw at Kit by a person's hand on a real display",
+      "status": "todo",
+      "evidence": "Not run here. The headless throws were mouse flicks and dispatched pointer events on software rendering"
+    },
+    {
+      "id": "kit-minds-travel",
+      "item": "Kit steps aside for a Theo that is travelling",
+      "status": "todo",
+      "evidence": "Not built. See 'Not yet'"
     }
   ]
 }

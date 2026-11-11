@@ -955,6 +955,50 @@ describe('the body', () => {
     expect(made.face.head().squash).toBeGreaterThan(0.05)
   })
 
+  test('meeting Kit knocks the head as an edge does, and is remembered as a meeting, not a wall', () => {
+    const made = theo()
+    made.run(300)
+    made.face.bump('right', 0.8, 'kit')
+    made.run(24)
+    expect(made.face.head().dx).toBeLessThan(-3)
+    const events = made.face.state().recentEvents
+    expect(events).toContain('body.meet.kit')
+    expect(events).not.toContain('body.bump.right')
+    // It has something to say about it that a wall does not get.
+    expect(['startle', 'wince', 'curious', 'wink']).toContain(
+      plain(made.face.player.active('reaction')?.name),
+    )
+  })
+
+  test('the eyes follow what it is given to watch, over the pointer, and let go', () => {
+    const made = theo()
+    made.face.followPointer({ x: -1, y: 0 })
+    made.run(600)
+    const onPointer = made.face.rig.read('gaze.x')
+    expect(onPointer).toBeLessThan(-0.4)
+    // Kit, up and to the right.
+    made.face.watch({ x: 1, y: -0.8 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(0.5)
+    expect(made.face.rig.read('gaze.y')).toBeLessThan(-0.3)
+    made.face.watch(undefined)
+    made.run(900)
+    expect(made.face.rig.read('gaze.x')).toBeCloseTo(onPointer, 1)
+  })
+
+  test('bound for somewhere, where it is going wins over what it is watching', () => {
+    const made = theo()
+    made.face.watch({ x: -1, y: 0 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeLessThan(-0.5)
+    made.face.heading({ x: 1, y: 0 })
+    made.run(600)
+    expect(made.face.rig.read('gaze.x')).toBeGreaterThan(0.6)
+    made.face.heading(undefined)
+    made.run(900)
+    expect(made.face.rig.read('gaze.x')).toBeLessThan(-0.5)
+  })
+
   test('a poke to one side closes that eye more than the other', () => {
     const made = theo()
     made.run(300)

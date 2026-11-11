@@ -34,21 +34,22 @@ Not every grain is a rigid body, and neither eye is. There is one.
 
 ## The body
 
-`FaceBody` is a Rapier world with no gravity, one dynamic body the size of the
-figure, a kinematic pin, and four fixed walls at the window's edges. It is
-loaded through Kit's `loadRapier`, so Theo and Kit share one WASM chunk, and
-only on first need: the pointer arriving on the figure, focus, a press, or a
-`go`. Until it has loaded, and whenever it cannot, the glide that was there
-before carries the figure.
+`FaceBody` is one dynamic body the size of the figure, weightless, with a
+kinematic pin and four fixed walls at the window's edges, in the world the
+figures share (`lib/world.ts`, [below](#one-world-with-kit)). Rapier is loaded
+through that module's `loadRapier`, so Theo and Kit share one WASM chunk, and
+only on first need: the pointer arriving on the figure, focus, a press, a
+`go`, or Kit having a body in the world already. Until it has loaded, and
+whenever it cannot, the glide that was there before carries the figure.
 
 At any moment the body is one of four things:
 
-| State      | What moves it                                              | Edges |
-| ---------- | ---------------------------------------------------------- | ----- |
-| `resting`  | nothing: no step is run, and it sits exactly on its anchor | pass  |
-| `tethered` | a spring from the pin, which is where it is meant to be    | pass  |
-| `held`     | the hand: the body is put where the hand is                | pass  |
-| `coasting` | its own momentum against drag, after a release with speed  | solid |
+| State      | What moves it                                              | Edges | Kit                    |
+| ---------- | ---------------------------------------------------------- | ----- | ---------------------- |
+| `resting`  | nothing: no step is run, and it sits exactly on its anchor | pass  | struck by a loose Kit  |
+| `tethered` | a spring from the pin, which is where it is meant to be    | pass  | struck by a loose Kit  |
+| `held`     | the hand: the body is put where the hand is                | pass  | nothing                |
+| `coasting` | its own momentum against drag, after a release with speed  | solid | strikes it, and is met |
 
 - **The tether** is a Rapier spring joint between the pin and the body, with
   the settling done by the body's linear damping. The joint's own damping acts
@@ -181,6 +182,71 @@ every reaction is. A calm Theo squints at a bump or winces; a wound-up one may
 glare or go dizzy; a first throw startles, and being thrown again and again
 in quick succession dizzies.
 
+## One world with Kit
+
+Theo and Kit used to share an engine and nothing else: two worlds, so a
+thrown Theo went through Kit. Now there is one (`lib/world.ts`,
+`FigureWorld`), and each figure puts its own bodies in it.
+
+**What meets what.** Every collider says what it is and what it meets, as
+bits (`IS`), and two touch only when each is among what the other meets.
+
+| Collider                        | Is                   | Meets                          |
+| ------------------------------- | -------------------- | ------------------------------ |
+| Kit's surfaces and its walls    | `ground`             | `kit`                          |
+| Theo's walls                    | `edge`               | `theo`                         |
+| Kit standing, walking, or aimed | `kit`                | `ground`, `theoThrown`         |
+| Kit loose in the air            | `kit`, `kitLoose`    | `ground`, `theoThrown`, `theo` |
+| Kit just struck, or in the hand | `kit`, or nothing    | `ground`, or nothing           |
+| Theo coasting                   | `theo`, `theoThrown` | `edge`, `kit`, `kitLoose`      |
+| Theo resting or tethered        | `theo`               | `kitLoose`                     |
+| Theo held                       | nothing              | nothing                        |
+
+So Kit's ground is not Theo's, and Theo's edges are not Kit's. A thrown Theo
+strikes Kit wherever it is. A Theo that is travelling or at rest passes a
+standing Kit by, since a figure sent to stand beside a card must not shove
+the fox off it. Kit loose in the air (thrown, flung, knocked, falling with
+nowhere it is aimed) strikes Theo once and then goes past it, so Kit never
+comes to rest on Theo; a jump aimed at a surface goes through a resting Theo.
+
+**One clock.** Either figure steps the world when it moves, and both may be
+moving. Each keeps a count of the steps it has lived through, and a step one
+of them took is not taken again for the other (`pass`), so two figures in
+motion do not run time twice. Theo's body has no gravity of its own; the
+world's is Kit's.
+
+**Theo thrown at Kit.**
+
+- _Kit sees it coming._ Each step, Kit's body casts Theo's along its line
+  (`KitWorld.coming`) and says how soon it arrives, from which side, whether
+  ducking lets it over, how far Kit's feet must rise to clear it, and how long
+  it will be passing. A throw dies away, so the forecast allows for drag: it
+  looks only as far as the throw can reach, and a throw that will not get
+  there, or will get there with nothing left, is not coming at all. Measured
+  against the body, the forecast is right to within two steps.
+- _Kit ducks_ when that lets Theo over its head, and stays down until Theo is
+  no longer where it would stand up.
+- _Kit jumps_ when it cannot duck: straight up, leaving the ground so as to be
+  just clear as Theo arrives, and higher the longer Theo will be under it. It
+  comes down where it stood.
+- _With no time for either, Kit is struck._ Theo bounces off it. Kit is
+  knocked off its feet the way Theo was going, with a share of Theo's speed,
+  and lands on whatever is there. Being knocked is not the person's touch: no
+  touch is reported for it.
+- _In the person's hand_ Kit is not in the world at all.
+
+**What Theo makes of it.** Meeting Kit is `body.meet.kit`, not a bump against
+an edge: the head is knocked the same way, and the reaction is drawn from
+rules of its own (startle, wince, curious, a wink when it is in good spirits,
+dizzy when it keeps happening).
+
+**Theo watches Kit jump.** While Kit is in the air, Theo's eyes follow it
+(`Face.watch`). Where Theo is going still comes first, and the pointer comes
+after.
+
+**Kit thrown at Theo.** Theo, resting or travelling, is pushed and its tether
+brings it back to exactly where it was. It reports the same meeting.
+
 ## Boundaries
 
 - **The person's drag has priority.** While carried, a `go` from a
@@ -209,6 +275,9 @@ in quick succession dizzies.
 | Carry              | The body is placed at the hand each frame                                      | The hand is exact; a spring to the hand would lag the figure behind the pointer, and the eye matter already supplies the lag |
 | Settling           | Joint stiffness with body damping, critically damped                           | Rapier's spring joint damps along its axis only                                                                              |
 | Edges              | Solid only to a thrown figure, by collision groups                             | A perch flush with an edge must not collide                                                                                  |
+| Kit                | One world for both figures, each collider saying what it is and what it meets  | Mirrored copies of each figure in the other's world would need keeping in step, and would still not be one collision         |
+| Who steps it       | Whoever is moving, each counting the steps it has lived                        | Two figures pacing one world against the display would otherwise run it twice as fast                                        |
+| Travel past Kit    | A travelling or resting Theo does not push a standing Kit                      | Theo is sent to things Kit may be standing on                                                                                |
 | Where a throw ends | It stays there                                                                 | A drop stays where it is put, and a throw is a drop with speed                                                               |
 | Lead of the gaze   | 170 ms, for trips over 48 px                                                   | Long enough to read as looking first, short enough not to read as a delay                                                    |
 | What can be tuned  | Ten numbers in one module, set from Settings, kept per browser                 | The feel was never judged at 60 frames a second; whoever does judge it should not need a code change to act on it            |
@@ -217,18 +286,22 @@ in quick succession dizzies.
 ## Files
 
 ```
+src/lib/world.ts        FigureWorld: the one world, what each collider is and meets, the step each figure counts; loadRapier
+src/lib/world.test.ts   the two figures in it together, with Rapier itself
+src/lib/kit/physics.ts  Kit's body in that world: coming, duck, overhead, lift, struck
+src/lib/kit/driver.ts   Kit's dodge (duck or leap) and being knocked
 src/lib/face/
-  body.ts         FaceBody: the world, the tether, hold, release, nudge, shift, the paced step; releaseVelocity
+  body.ts         FaceBody: Theo's body in that world, the tether, hold, release, nudge, shift, the paced step; releaseVelocity
   body.test.ts    the body under bun test, with Rapier itself
   feel.ts         the numbers a person may set, their bounds, and what is in force
   feel.test.ts    the bounds, and what each setting does to the body and the face
-  engine.ts       sway, heading, bump, toss: how the face answers its body
-  memory.ts       what a throw and a bump do to mood
-  reactions.ts    rules for person.throw and body.bump.*
+  engine.ts       sway, heading, watch, bump, toss: how the face answers its body
+  memory.ts       what a throw, a bump and meeting Kit do to mood
+  reactions.ts    rules for person.throw, body.bump.* and body.meet.kit
   program.ts      the place "artifact"
   book.ts         the performance "visit"
 src/components/face/
-  driver.ts       loads the body, moves it by priority (hand, travel, coast, layout), tells the face
+  driver.ts       loads the body, moves it by priority (hand, travel, coast, layout), tells the face, has it watch Kit in the air
   face-feel.tsx   the panel: a row for each setting with its own way back, Reset all, and Theo to try them on
 src/lib/figures.ts                              keeps what the person changed of the feel
 src/routes/settings/appearance.tsx              shows the panel when Theo is on
@@ -304,6 +377,41 @@ travelling, arrived, looking it over), `thrown.png` (carried, in flight,
 against the edge, at rest) and `tuning.png` (the panel, dark theme, scrolled
 to its last rows, two settings changed).
 
+**With Kit**, in `lib/world.test.ts` (the two bodies in one world),
+`lib/kit/driver.test.ts` (Kit's driver against a thrown body) and
+`lib/face/face.test.ts` (the face):
+
+| Property                       | What holds it                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| A thrown Theo strikes Kit      | one bump against Kit on the right side, Theo comes back off it, Kit is told Theo's speed               |
+| Travelling, Theo passes Kit by | an 800 px trip through where Kit stands arrives exactly, with no bump                                  |
+| Whose ground is whose          | a thrown Theo goes up through Kit's surface, stops at its own bottom edge short of Kit's floor         |
+| A loose Kit strikes Theo       | one meeting, Theo pushed and back exactly where it was, Kit lands on a surface                         |
+| An aimed Kit does not          | a jump up through a resting Theo: no meeting, Theo stays at rest                                       |
+| In the hand                    | nothing comes, nothing strikes; put down, it is struck again                                           |
+| One clock                      | Theo's path step for step as alone while Kit walks or flies, whoever goes first in the frame           |
+| The forecast                   | side and time; right to within two steps for three throws; nothing for a throw that falls short        |
+| Duck                           | `over` for a Theo at head height; ducked it passes; standing again the same throw strikes              |
+| Staying down                   | `overhead` while a slowing Theo is where Kit would stand, and not once it rests                        |
+| Jump                           | a `rise` for a Theo along the ground; launched to it, Kit is not struck and lands where it stood       |
+| Passing time                   | short at speed, the stated most for one that stops there                                               |
+| Leaving                        | a figure that goes takes only its own bodies; the page's world is freed by the last one out            |
+| Kit's driver                   | knocked the way Theo was going and lands, with no touch reported; jumps and comes down in place; ducks |
+| The face                       | meeting Kit knocks the head and is `body.meet.kit`; `watch` beats the pointer and yields to `heading`  |
+
+In headless Chromium, on the shell story with its WebGL backdrop left out
+(that backdrop is why the page runs at 13 frames a second; without it, 41),
+with a real mouse flick: thrown from close by, Theo met Kit and Kit was
+knocked 196 px along the composer; from further off along Kit's feet, Kit was
+in the air as Theo arrived, Theo went on past it, nothing met and Kit came
+down where it stood; at Kit's head, Kit was crouched as Theo arrived, Theo
+went over, nothing met and Kit stood again; and while Kit jumped to a message
+above, Theo's gaze went from down to up and toward it, then back. Twice over,
+the same each time. Renders: `meet-struck.png`, `meet-jump.png` and
+`meet-duck.png`, each five frames of one throw, taken with the page's clock
+turned a frame at a time so that taking the picture does not cost the page a
+frame.
+
 **How the throws were made.** That page runs at about 13 frames a second and
 delivers events 75 to 190 ms apart, so a real-time mouse gesture cannot throw
 anything there. The carry was driven with pointer events dispatched in the
@@ -325,13 +433,16 @@ not been seen.
 
 ## Not yet
 
-- **Obstacles other than the window's edges.** A thrown Theo passes over the
-  composer, the sidebar and Kit. Surfaces would be kinematic colliders that
-  follow the shell, as Kit's are.
+- **Obstacles other than the window's edges and Kit.** A thrown Theo passes
+  over the composer and the sidebar. Kit's surfaces are in the same world now,
+  so this is a question of which of them Theo should meet, not of building
+  them.
 - **An automatic visit.** A rule that sends Theo to an artifact when one
   arrives or is selected. It wants deciding how often that is welcome.
 - **Places beside other things**: a tool card, a line of a diff, "the relevant
   area" inside an artifact and not just its side.
 - **Bodies for parts.** Eyes that are bodies of their own, joined to the
   figure. Only if the rig's answer to the one body proves too stiff.
-- **Kit and Theo touching.** They share an engine but not a world.
+- **Kit minding a travelling Theo.** Sent somewhere, Theo passes through a
+  standing Kit. Kit could step aside for it.
+- **Kit with reduced motion** has no body, so nothing meets it.

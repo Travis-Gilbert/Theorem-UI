@@ -1,23 +1,16 @@
-// SOURCING: @dimforge/rapier2d-compat 0.21 (Rapier 2D: the world and its fixed step, Kit's rigid body switched between kinematic and dynamic, kinematic colliders that follow the shell's surfaces, fixed walls, the kinematic character controller for walking, a shape cast for what is under Kit's feet, physics hooks for surfaces Kit passes up through and lands on, sleeping), imported on demand so its inlined WASM is a chunk of its own; stage.ts for where surfaces are and where Kit's feet sit in its frame. Hand-rolled: the launch velocity that lands a ballistic jump on a point and its in-flight correction, closed-form projectile algebra that Rapier, a simulator, does not solve for.
-import type RAPIER from '@dimforge/rapier2d-compat'
+// SOURCING: @dimforge/rapier2d-compat 0.21 (Rapier 2D: Kit's rigid body switched between kinematic and dynamic, kinematic colliders that follow the shell's surfaces, fixed walls, the kinematic character controller for walking, shape casts for what is under Kit's feet and for what is flying at it, a contact filter for surfaces Kit passes up through and lands on, a collider's shape changed for a duck, sleeping); lib/world for the world itself, which Theo's body is in too, its fixed step and its scale; stage.ts for where surfaces are and where Kit's feet sit in its frame. Hand-rolled: the launch velocity that lands a ballistic jump on a point and its in-flight correction, closed-form projectile algebra that Rapier, a simulator, does not solve for.
 import type {
   Collider,
-  EventQueue,
   KinematicCharacterController,
   RigidBody,
   World,
 } from '@dimforge/rapier2d-compat'
+import { FigureWorld, GRAVITY, IS, PX, STEP, groups } from '../world'
+import type { Clock, Rapier } from '../world'
 import { FEET, KIT_SIZE } from './stage'
 import type { PerchLine, PerchName } from './stage'
 
-type Rapier = typeof RAPIER
-
-/** CSS pixels to a metre: Kit, 32 pixels tall, is a metre-high fox. */
-export const PX = 32
-/** Metres per second squared, downward: snappier than Earth for a creature this size. */
-export const GRAVITY = 30
-/** Rapier's fixed step, in seconds. */
-export const STEP = 1 / 60
+export { GRAVITY, PX, STEP, loadRapier } from '../world'
 
 /** Half of Kit's body, in metres: a capsule narrower than the frame, its bottom on the feet row. */
 const HALF = { x: 9 / PX, y: 11 / PX }
@@ -33,22 +26,26 @@ const CATCH = 3 / PX
 const GAP = 0.01
 /** How far below its feet Kit looks for ground, in metres. */
 const PROBE = 3 / PX
+/** Ducked, Kit is a ball this big on its feet, in metres: about half as tall as it stands. */
+const DUCK = 6 / PX
+/** How far ahead Kit sees something flying at it, in seconds. */
+const HORIZON = 0.6
+/** Slower than this, in metres per second, a thrown Theo is not something to get out of the way of. */
+const SLOWEST = 4
+/** Arriving slower than this, in metres per second, it would not so much as nudge Kit. */
+const ARRIVING = 2
+/** The longest Theo is said to be over Kit for, in seconds: one that stops there is over it this long. */
+const LINGER = 1
+/** How far clear of Theo a jump over it means to be, in metres. */
+const CLEAR = 6 / PX
+/** The highest Kit can jump to get over something, in metres. */
+const HIGHEST = 2.8
+/** How fast Kit is sent sideways off Theo when it lands on it, in metres per second. */
+const TUMBLE = 3
+/** How many steps after Theo struck it Kit can be struck again, if nothing has thrown it since. */
+const STRUCK_FOR = 45
 
-let loading: Promise<Rapier> | undefined
-
-/** Loads Rapier once, on first need; a failure lets a later call try again. */
-export function loadRapier(): Promise<Rapier> {
-  loading ??= import('@dimforge/rapier2d-compat')
-    .then(async (module) => {
-      await module.default.init()
-      return module.default
-    })
-    .catch((error: unknown) => {
-      loading = undefined
-      throw error
-    })
-  return loading
-}
+const STILL = { x: 0, y: 0 }
 
 /** The centre of Kit's body, in metres, for a frame whose top-left is (x, y) in pixels. */
 export const bodyOf = (x: number, y: number) => ({
@@ -107,12 +104,34 @@ export interface Flight {
   readonly under: PerchName | undefined
 }
 
+/** Theo, thrown, is on its way to where Kit stands. */
+export interface Coming {
+  /** Seconds until it gets there. */
+  readonly in: number
+  /** The side it comes from: -1 from Kit's left, 1 from its right. */
+  readonly from: -1 | 1
+  /** Whether it passes over Kit if Kit ducks. */
+  readonly over: boolean
+  /** How far Kit's feet must rise to be clear of it, in metres; `undefined` when no jump of Kit's gets over it. */
+  readonly rise: number | undefined
+  /** Seconds it is over where Kit stands for, slowing as it is: at most `LINGER`, which also stands for one that stops there. */
+  readonly passing: number
+}
+
 /**
- * Kit's physical world: one body for Kit, a thin kinematic slab under each
- * surface's line, and walls at the window's edges. Surfaces are one-way:
- * Kit rises through them and is caught on top only while coming down.
+ * Kit's body in the figures' world: one body for Kit, a thin kinematic slab
+ * under each surface's line, and walls at the window's edges. Surfaces are
+ * one-way: Kit rises through them and is caught on top only while coming
+ * down.
+ *
+ * Theo's body is in the same world. A thrown Theo strikes Kit where it
+ * stands, and Kit loose in the air strikes Theo, once: after that it goes
+ * past, so it never comes to rest on something that is not a surface. Given
+ * no world, it makes one of its own.
  */
 export class KitWorld {
+  private readonly shared: FigureWorld
+  private readonly own: boolean
   private readonly world: World
   private readonly body: RigidBody
   private readonly collider: Collider
@@ -120,25 +139,45 @@ export class KitWorld {
   private readonly slabs = new Map<PerchName, Slab>()
   private readonly byCollider = new Map<number, PerchName>()
   private readonly walls: RigidBody[] = []
+  /** The walls' colliders: with the surface Kit stands on, all that walking is stopped by. */
+  private readonly edges = new Set<number>()
+  private readonly leave: () => void
+  private readonly clock: Clock = { lived: 0 }
   private feetBefore = 0
   private fallingBefore = true
+  private fallBefore = 0
+  /** The hardest landing since `fly` was last asked, in metres per second. */
+  private hit = 0
   /** Surfaces that catch Kit now; all of them unless a jump aims at one. */
   private catches: (name: PerchName) => boolean = () => true
   private dynamic = false
-  private readonly hooks
+  /** In the air with nowhere it is aimed. */
+  private loose = false
+  /** The step at which Theo last struck it; until it lands, or a moment passes, it is not struck again. */
+  private struckAt: number | undefined
+  /** The person has it: its body is not where it is, and nothing meets it. */
+  private away = false
+  private ducked = false
   private readonly probe
-  /** Rapier's JS step runs the hooks only beside an event queue. */
-  private readonly events: EventQueue
+  private readonly low
   /** A surface was added since the last step, which the queries do not see yet. */
   private unseen = false
+  /** Theo struck Kit, moving at this many metres per second; `airborne` when the two met in the air and the collision has already moved Kit. */
+  onStruck:
+    | ((velocity: { x: number; y: number }, airborne: boolean) => void)
+    | undefined
+  /** Theo, thrown, is on its way to where Kit stands. Said every step until it has passed. */
+  onComing: ((coming: Coming) => void) | undefined
 
   constructor(
     private readonly rapier: Rapier,
     x: number,
     y: number,
+    shared?: FigureWorld,
   ) {
-    this.world = new rapier.World({ x: 0, y: GRAVITY })
-    this.world.timestep = STEP
+    this.own = shared === undefined
+    this.shared = shared ?? new FigureWorld(rapier)
+    this.world = this.shared.world
     const start = bodyOf(x, y)
     this.body = this.world.createRigidBody(
       rapier.RigidBodyDesc.kinematicPositionBased()
@@ -155,50 +194,226 @@ export class KitWorld {
     )
     for (let side = 0; side < 3; side++) {
       const wall = this.world.createRigidBody(rapier.RigidBodyDesc.fixed())
-      this.world.createCollider(
-        rapier.ColliderDesc.cuboid(WALL, WALL).setRestitution(0.2),
+      const collider = this.world.createCollider(
+        rapier.ColliderDesc.cuboid(WALL, WALL)
+          .setRestitution(0.2)
+          .setCollisionGroups(groups(IS.ground, IS.kit)),
         wall,
       )
       this.walls.push(wall)
+      this.edges.add(collider.handle)
     }
     this.probe = new rapier.Capsule(SHAFT, HALF.x)
-    this.events = new rapier.EventQueue(true)
+    this.low = new rapier.Ball(DUCK)
     this.controller = this.world.createCharacterController(0.01)
     this.controller.setUp({ x: 0, y: -1 })
     this.controller.setSlideEnabled(true)
     this.controller.enableSnapToGround(10 / PX)
     this.controller.setApplyImpulsesToDynamicBodies(false)
-    const { SolverFlags } = rapier
-    this.hooks = {
-      filterContactPair: (one: number, two: number) => {
+    this.regroup()
+    this.shared.name('kit', this.collider)
+    this.leave = this.shared.join({
+      before: () => this.remember(),
+      after: () => this.after(),
+      met: (one, two) => this.met(one, two),
+      solid: (one, two) => {
         const name = this.byCollider.get(one) ?? this.byCollider.get(two)
-        if (name === undefined) return SolverFlags.COMPUTE_IMPULSE
+        if (name === undefined) return undefined
         const slab = this.slabs.get(name)
         const top = slab ? slab.line.y / PX : 0
-        return this.catches(name) &&
+        return (
+          this.catches(name) &&
           this.fallingBefore &&
           this.feetBefore <= top + CATCH
-          ? SolverFlags.COMPUTE_IMPULSE
-          : SolverFlags.EMPTY
+        )
       },
-      filterIntersectionPair: () => true,
-    }
+    })
   }
 
   destroy() {
-    this.events.free()
-    this.world.free()
+    this.leave()
+    if (this.shared.figure('kit') === this.collider)
+      this.shared.name('kit', undefined)
+    if (this.own) {
+      this.shared.free()
+      return
+    }
+    // The world is someone else's too: only what Kit put in it goes.
+    this.world.removeCharacterController(this.controller)
+    for (const slab of this.slabs.values())
+      this.world.removeRigidBody(slab.body)
+    for (const wall of this.walls) this.world.removeRigidBody(wall)
+    this.world.removeRigidBody(this.body)
   }
 
+  /** A step Kit needs taken now, whoever else has stepped: one that moves it along the ground, or shows it a new surface. */
   private step() {
-    this.remember()
-    this.world.step(this.events, this.hooks)
-    this.unseen = false
+    this.shared.step()
+    this.clock.lived = this.shared.steps
   }
 
   /** Steps once, if a surface was just added, so the queries that follow see it. */
   private see() {
     if (this.unseen) this.step()
+  }
+
+  /** What Kit's body is and meets now. */
+  private regroup() {
+    if (this.away) {
+      this.collider.setCollisionGroups(groups(0, 0))
+      return
+    }
+    const struck = this.struckAt !== undefined
+    const free = this.loose && !struck
+    this.collider.setCollisionGroups(
+      groups(
+        IS.kit | (free ? IS.kitLoose : 0),
+        IS.ground | (struck ? 0 : IS.theoThrown) | (free ? IS.theo : 0),
+      ),
+    )
+  }
+
+  private after() {
+    // Any step, whoever took it, shows the queries what was added.
+    this.unseen = false
+    const falling = this.body.linvel().y
+    if (
+      this.dynamic &&
+      this.fallBefore > 1.5 &&
+      falling < this.fallBefore * 0.5 &&
+      this.fallBefore > this.hit
+    )
+      this.hit = this.fallBefore
+    if (
+      this.struckAt !== undefined &&
+      !this.dynamic &&
+      this.shared.steps - this.struckAt > STRUCK_FOR
+    ) {
+      this.struckAt = undefined
+      this.regroup()
+    }
+    if (!this.onComing) return
+    const coming = this.coming()
+    if (coming) this.onComing(coming)
+  }
+
+  private met(one: number, two: number) {
+    const mine = this.collider.handle
+    if (one !== mine && two !== mine) return
+    if (this.shared.who(one === mine ? two : one) !== 'theo') return
+    const theo = this.shared.figure('theo')
+    this.struckAt = this.shared.steps
+    this.regroup()
+    if (this.dynamic && theo) {
+      // It does not come to rest on Theo: it tumbles off the nearer side.
+      const now = this.body.linvel()
+      if (Math.abs(now.x) < TUMBLE) {
+        const off = this.body.translation().x >= theo.translation().x ? 1 : -1
+        this.body.setLinvel({ x: off * TUMBLE, y: now.y }, true)
+      }
+    }
+    this.onStruck?.({ ...this.shared.into('theo') }, this.dynamic)
+  }
+
+  /**
+   * Theo, if it has been thrown and is on its way to where Kit stands: how
+   * soon, from which side, and what would get Kit out of its way. Nothing
+   * while Kit is in the air or in the person's hand.
+   */
+  coming(): Coming | undefined {
+    if (this.dynamic || this.away || this.struckAt !== undefined)
+      return undefined
+    const theo = this.shared.figure('theo')
+    const mover = theo?.parent()
+    if (!theo || !mover) return undefined
+    if (((theo.collisionGroups() >>> 16) & IS.theoThrown) === 0)
+      return undefined
+    const speed = mover.linvel()
+    if (Math.hypot(speed.x, speed.y) < SLOWEST) return undefined
+    const at = this.body.translation()
+    // A throw dies away: it covers its speed over its drag and no more, so
+    // that is as far along its line as there is to look, and how long it
+    // takes to get somewhere is not the distance over the speed it has now.
+    const drag = mover.linearDamping()
+    const reach = drag > 0 ? 1 / drag : HORIZON
+    // Against Kit as it stands, whatever it is doing about it now.
+    const hit = theo.castShape(speed, this.probe, at, 0, STILL, 0, reach, true)
+    const half = theo.halfExtents()
+    if (!hit || !half) return undefined
+    const along = hit.time_of_impact
+    // What is left of its speed when it gets here.
+    const left = drag > 0 ? 1 - drag * along : 1
+    if (Math.hypot(speed.x, speed.y) * left < ARRIVING) return undefined
+    const soon =
+      drag > 0 ? (Math.log(left) / -Math.log1p(drag * STEP)) * STEP : along
+    if (soon > HORIZON) return undefined
+    const across = Math.max(Math.abs(speed.x), 0.01)
+    // How much further along its line it is over Kit for.
+    const passing = Math.min(1, (2 * half.x + 2 * HALF.x) / across)
+    // And how long that takes it, slowing: for ever, if it stops there.
+    const gone = drag > 0 ? 1 - drag * (along + passing) : 1
+    const lingers =
+      drag <= 0
+        ? passing
+        : gone <= 0
+          ? LINGER
+          : Math.min(
+              LINGER,
+              (Math.log(gone) / -Math.log1p(drag * STEP)) * STEP - soon,
+            )
+    const ducked = theo.castShape(
+      speed,
+      this.low,
+      { x: at.x, y: at.y + HALF.y - DUCK },
+      0,
+      STILL,
+      0,
+      Math.min(reach, along + passing),
+      true,
+    )
+    const top =
+      theo.translation().y +
+      speed.y * along -
+      half.y -
+      Math.max(0, -speed.y) * passing
+    const rise = at.y + HALF.y - top + CLEAR
+    return {
+      in: soon,
+      from: speed.x >= 0 ? -1 : 1,
+      passing: lingers,
+      over: ducked === null,
+      rise:
+        Math.abs(speed.x) >= Math.abs(speed.y) && rise > 0 && rise <= HIGHEST
+          ? rise
+          : undefined,
+    }
+  }
+
+  /** Whether Theo, still moving from a throw, is where Kit would be if it stood up. */
+  overhead(): boolean {
+    const theo = this.shared.figure('theo')
+    if (!theo || ((theo.collisionGroups() >>> 16) & IS.theoThrown) === 0)
+      return false
+    return theo.intersectsShape(this.probe, this.body.translation(), 0)
+  }
+
+  /** Kit ducks, or stands again: ducked it is about half as tall, on the same feet. */
+  duck(low: boolean) {
+    if (low === this.ducked) return
+    this.ducked = low
+    this.collider.setShape(low ? this.low : this.probe)
+    this.collider.setTranslationWrtParent({ x: 0, y: low ? HALF.y - DUCK : 0 })
+  }
+
+  /** Whether Kit is in the person's hand, or has not stood anywhere yet. */
+  get lifted() {
+    return this.away
+  }
+
+  /** The person picked Kit up: until it is put somewhere, nothing in the world meets it. */
+  lift() {
+    this.away = true
+    this.regroup()
   }
 
   /**
@@ -224,7 +439,9 @@ export class KitWorld {
           ),
         )
         const collider = this.world.createCollider(
-          this.rapier.ColliderDesc.cuboid(half, SLAB).setFriction(0.9),
+          this.rapier.ColliderDesc.cuboid(half, SLAB)
+            .setFriction(0.9)
+            .setCollisionGroups(groups(IS.ground, IS.kit)),
           body,
         )
         this.slabs.set(line.name, { body, collider, line })
@@ -271,6 +488,10 @@ export class KitWorld {
   place(x: number, y: number) {
     this.ground()
     this.body.setTranslation(bodyOf(x, y), true)
+    if (this.away) {
+      this.away = false
+      this.regroup()
+    }
   }
 
   /** Kit's frame now, top-left in pixels. */
@@ -297,15 +518,22 @@ export class KitWorld {
     )
     this.body.setLinvel({ x: 0, y: 0 }, true)
     this.catches = () => true
+    this.loose = false
+    this.struckAt = undefined
+    this.regroup()
   }
 
   /**
    * Kit leaves the ground at `velocity` (metres per second), bouncing by
    * `bounce` off what it hits; while `aim` is given, only that surface and
-   * the floor catch it.
+   * the floor catch it. With no aim it is loose, and can strike Theo.
    */
   launch(velocity: { x: number; y: number }, bounce: number, aim?: PerchName) {
+    this.duck(false)
     this.dynamic = true
+    this.loose = aim === undefined
+    this.hit = 0
+    this.clock.lived = this.shared.steps
     this.body.setBodyType(this.rapier.RigidBodyType.Dynamic, true)
     this.collider.setRestitution(bounce)
     this.body.setLinvel(velocity, true)
@@ -313,6 +541,7 @@ export class KitWorld {
       aim === undefined
         ? () => true
         : (name) => name === aim || name === 'floor'
+    this.regroup()
   }
 
   /** Steers a flight's sideways speed, metres per second. */
@@ -326,10 +555,10 @@ export class KitWorld {
    * the surface under its feet once it rests there.
    */
   fly(): Flight {
-    const before = this.body.linvel().y
-    this.step()
-    const after = this.body.linvel().y
-    const impact = before > 1.5 && after < before * 0.5 ? before : 0
+    // A step Theo has already taken the world through is one Kit has flown too.
+    this.shared.pass(this.clock)
+    const impact = this.hit
+    this.hit = 0
     return { impact, under: this.under() }
   }
 
@@ -360,7 +589,7 @@ export class KitWorld {
       undefined,
       (collider) =>
         collider.handle === slab?.collider.handle ||
-        !this.byCollider.has(collider.handle),
+        this.edges.has(collider.handle),
     )
     const moved = this.controller.computedMovement()
     this.body.setNextKinematicTranslation({
@@ -372,8 +601,10 @@ export class KitWorld {
   }
 
   private remember() {
+    const falling = this.body.linvel().y
     this.feetBefore = this.body.translation().y + HALF.y
-    this.fallingBefore = this.body.linvel().y >= -0.05
+    this.fallingBefore = falling >= -0.05
+    this.fallBefore = falling
   }
 
   /** The surface just under Kit's feet that would catch it, by a shape cast downward. */

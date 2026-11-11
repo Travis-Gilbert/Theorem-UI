@@ -226,8 +226,9 @@ The page feeds one stream of events: the person (`person.poke`, `pet`, `drop`,
 `throw`, `type`, `send`, `return`), the run (`run.start`, `ask`, `tool`,
 `tool.fail`, `error`, `done`), the environment (`env.resize`, `theme`,
 `offline`, `online`, `copy`), and the figure's own body
-(`body.bump.left|right|top|bottom`, when a throw meets the window's edge). An
-agent's rule may name a kind nobody emits yet.
+(`body.bump.left|right|top|bottom`, when a throw meets the window's edge, and
+`body.meet.kit`, when it and Kit strike each other). An agent's rule may name
+a kind nobody emits yet.
 
 **What it remembers.** For each kind of event: a rate over seconds, a rate
 over minutes, how many came in a row, how long since the last, and a baseline

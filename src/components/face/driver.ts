@@ -1,12 +1,14 @@
-// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
+// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion; lib/world for the world that body is in, which is Kit's too, so a thrown Theo strikes Kit; lib/kit/driver and lib/kit/stage for where Kit is while it is in the air, which the eyes follow. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
 import { BODY, FaceBody, releaseVelocity } from '@/lib/face/body'
 import type { Sample } from '@/lib/face/body'
 import { clamp } from '@/lib/face/channels'
 import type { Face } from '@/lib/face/engine'
 import { FEEL } from '@/lib/face/feel'
 import type { Place } from '@/lib/face/program'
-import { loadRapier } from '@/lib/kit/physics'
+import { kitDriver } from '@/lib/kit/driver'
+import { KIT_SIZE, useKitStage } from '@/lib/kit/stage'
 import { prefersReducedMotion } from '@/lib/motion'
+import { enterWorld, leaveWorld, loadRapier, theWorld } from '@/lib/world'
 import { createPainter } from './painter'
 import type { Painter } from './painter'
 
@@ -122,7 +124,11 @@ export class FaceDriver {
     for (const cleanup of this.cleanups) cleanup()
     this.face.attach(undefined)
     this.face.heading(undefined)
-    this.body?.destroy()
+    this.face.watch(undefined)
+    if (this.body) {
+      this.body.destroy()
+      leaveWorld()
+    }
     this.body = undefined
     this.painter?.destroy()
     this.host.replaceChildren()
@@ -130,7 +136,7 @@ export class FaceDriver {
 
   // Where it is ---------------------------------------------------------------
 
-  /** Asks for the physical body. The first carry, poke or trip wants it; a page that never touches Theo never loads Rapier. */
+  /** Asks for the physical body. The first carry, poke or trip wants it, and so does Kit having one, so the two can meet; a page with no Kit that never touches Theo never loads Rapier. */
   private wantBody() {
     if (
       this.body ||
@@ -145,7 +151,12 @@ export class FaceDriver {
       (rapier) => {
         this.bodyLoading = false
         if (this.destroyed) return
-        this.body = new FaceBody(rapier, this.at, this.dimensions())
+        this.body = new FaceBody(
+          rapier,
+          this.at,
+          this.dimensions(),
+          enterWorld(rapier),
+        )
         this.anchored = undefined
       },
       () => {
@@ -388,7 +399,7 @@ export class FaceDriver {
     }
     const out = body.advance(dt)
     for (const bump of out.bumps)
-      face.bump(bump.side, bump.speed / BODY.throwAt)
+      face.bump(bump.side, bump.speed / BODY.throwAt, bump.against)
     if (out.landed && !this.leaving) {
       // Where a throw leaves it is where the person left it.
       this.free = out.landed
@@ -418,6 +429,25 @@ export class FaceDriver {
     body.nudge({ x: away.x * FEEL.recoil, y: away.y * FEEL.recoil })
   }
 
+  /** Kit in the air has Theo's eye: a jump, a fall, a throw. */
+  private watchKit() {
+    const { mounted, motion } = useKitStage.getState()
+    const kit = mounted ? kitDriver() : undefined
+    if (
+      !kit ||
+      (motion !== 'air' && motion !== 'fall') ||
+      this.press?.carried
+    ) {
+      this.face.watch(undefined)
+      return
+    }
+    const [x, y] = kit.position()
+    this.face.watch({
+      x: clamp((x + KIT_SIZE / 2 - this.at.x) / 220, -1, 1),
+      y: clamp((y + KIT_SIZE / 2 - this.at.y) / 220, -1, 1),
+    })
+  }
+
   // Frames --------------------------------------------------------------------
 
   private readonly frame = (now: number) => {
@@ -441,6 +471,10 @@ export class FaceDriver {
       else if (this.awaySince === 0) this.awaySince = now
       else if (now - this.awaySince > LINGER_MS) this.go('home', undefined)
     }
+
+    // Kit has a body in the world: Theo's joins it, so the two can meet.
+    if (!this.body && theWorld()?.figure('kit')) this.wantBody()
+    this.watchKit()
 
     const target = this.target()
     const scale = (REST_PX * this.shown) / VISOR_PX
@@ -594,6 +628,8 @@ export class FaceDriver {
           ? releaseVelocity(this.samples, event.timeStamp)
           : { x: 0, y: 0 }
         this.samples = []
+        // Let go from where the hand is now, not where the last frame had it.
+        body?.hold(this.target())
         // A cancelled press is put down, never thrown.
         if (event.type === 'pointerup' && body?.release(velocity))
           face.toss(Math.hypot(velocity.x, velocity.y) / BODY.throwAt)
