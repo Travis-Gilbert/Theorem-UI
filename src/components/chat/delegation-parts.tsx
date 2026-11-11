@@ -671,12 +671,26 @@ export const DelegationBody: FC<{
 /**
  * Follows a specialist's run while it works, so what it asks of this page is
  * answered: a builder checks the App it is writing in the person's browser,
- * as the conversation's own turn does. It draws nothing.
+ * as the conversation's own turn does. It draws nothing while it follows the
+ * run; once the run's stream has given up, it says that its checks are no
+ * longer answered here.
  */
-function SpecialistPage({ runId }: { runId: string }) {
-  const { message } = useSpecialistRun(runId)
+function SpecialistPage({
+  runId,
+  roleLabel,
+}: {
+  runId: string
+  roleLabel: string
+}) {
+  const { message, error } = useSpecialistRun(runId)
   useSpecialistAppRequests(runId, message)
-  return null
+  if (!error) return null
+  return (
+    <p role="alert" className="px-4 pb-4 text-xs text-error-ink">
+      This page stopped following the {roleLabel.toLowerCase()}’s run, so its
+      App checks are not answered here. {error.message}
+    </p>
+  )
 }
 
 const DelegationCard: DataMessagePartComponent = ({ data }) => {
@@ -688,11 +702,14 @@ const DelegationCard: DataMessagePartComponent = ({ data }) => {
       data-delegation-id={delegation.delegationId}
       className={cn(card, liveEnter)}
     >
+      <DelegationBody delegation={delegation} />
       {LIVE_DELEGATION_STATES.has(delegation.state) &&
         delegation.childRunId && (
-          <SpecialistPage runId={delegation.childRunId} />
+          <SpecialistPage
+            runId={delegation.childRunId}
+            roleLabel={delegation.roleLabel}
+          />
         )}
-      <DelegationBody delegation={delegation} />
     </article>
   )
 }
