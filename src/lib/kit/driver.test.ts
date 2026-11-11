@@ -152,6 +152,78 @@ describe('Kit in its world', () => {
   })
 })
 
+describe('a carry let go inside a surface', () => {
+  const release = () =>
+    (
+      driver as unknown as {
+        release: (v: { x: number; y: number }, kind: string) => Promise<void>
+      }
+    ).release.bind(driver)
+  const place = () =>
+    (driver as unknown as { place: (x: number, y: number) => void }).place.bind(
+      driver,
+    )
+
+  test('set down in the middle of the composer, Kit climbs onto its top', async () => {
+    perch('composer', { left: 100, top: 300, width: 400, height: 120 })
+    driver!.track()
+    // The person carried Kit into the composer's box and let go there.
+    place()(284, 344)
+    await release()({ x: 0, y: 0 }, 'moved')
+    expect(useKitStage.getState()).toMatchObject({
+      perch: 'composer',
+      motion: 'still',
+      touched: { kind: 'moved', onto: 'composer' },
+    })
+    expect(driver!.position()[1]).toBe(300 + 1 - FEET)
+  })
+
+  test('set down above the composer, Kit falls onto it as before', async () => {
+    perch('composer', { left: 100, top: 300, width: 400, height: 120 })
+    driver!.track()
+    place()(284, 200)
+    await release()({ x: 0, y: 0 }, 'moved')
+    expect(useKitStage.getState().perch).toBe('composer')
+  })
+
+  test('set down over the part of a message the scroller hides, Kit does not climb it', async () => {
+    // The conversation shows y 100 to 400; the message's top shows, its bottom runs on below.
+    const clip = perch('clip', { left: 0, top: 100, width: 800, height: 300 })
+    delete clip.dataset.kitPerch
+    clip.dataset.kitClip = ''
+    clip.append(
+      perch('message:m1', { left: 100, top: 300, width: 400, height: 400 }),
+    )
+    driver!.track()
+    place()(284, 500)
+    await release()({ x: 0, y: 0 }, 'moved')
+    expect(useKitStage.getState()).toMatchObject({
+      perch: 'floor',
+      touched: { kind: 'moved', onto: 'floor' },
+    })
+  })
+
+  test('its surface going away during the crouch, Kit still reports where the carry ended', async () => {
+    const composer = perch('composer', {
+      left: 100,
+      top: 300,
+      width: 400,
+      height: 120,
+    })
+    driver!.track()
+    place()(284, 344)
+    const done = release()({ x: 0, y: 0 }, 'moved')
+    composer.remove()
+    await done
+    await Bun.sleep(2500)
+    expect(useKitStage.getState()).toMatchObject({
+      perch: 'floor',
+      motion: 'still',
+      touched: { kind: 'moved', onto: 'floor' },
+    })
+  })
+})
+
 describe('a follow that ends, and moves cut off', () => {
   test('a follow stops at its time even in the middle of a step', async () => {
     changeStage({ perch: 'floor', at: 0.02 })

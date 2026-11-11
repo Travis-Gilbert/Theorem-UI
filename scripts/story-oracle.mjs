@@ -4,10 +4,12 @@
 //   node scripts/story-oracle.mjs list
 //   node scripts/story-oracle.mjs shot <id|all>
 //   node scripts/story-oracle.mjs diff <id|all>      reference, render and heatmap in one collage
+//   node scripts/story-oracle.mjs collage <id|all>   the same collage from a render already in renders/,
+//                                                    such as one captured in another browser at the story's viewport
 //   node scripts/story-oracle.mjs motion <id>        animation names, and two frames 400ms apart
 //
 // STORY_ORIGIN picks the dev server. A collage's number is reported, never a verdict: a person seals it.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pixelmatch from 'pixelmatch'
@@ -81,8 +83,8 @@ const label = (text, width) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="24"><rect width="100%" height="100%" fill="#101010"/><text x="8" y="16" font-family="sans-serif" font-size="12" fill="#e6e6e6">${text}</text></svg>`,
   )
 
-async function diff(story) {
-  await shot(story)
+async function collage(story) {
+  if (!existsSync(renderPath(story.id))) throw new Error(`${story.id}: no render at ${renderPath(story.id)}`)
   const { width, height } = story.viewport
   let reference = sharp(join(EVIDENCE, 'refs', story.reference))
   if (story.region) {
@@ -101,7 +103,7 @@ async function diff(story) {
   const ratio = mismatched / (width * height)
 
   const gap = 12
-  const collage = sharp({
+  const image = sharp({
     create: {
       width: width * 3 + gap * 2,
       height: height + 24,
@@ -118,8 +120,13 @@ async function diff(story) {
   ])
   const out = join(EVIDENCE, 'collages', `${story.id}.png`)
   mkdirSync(dirname(out), { recursive: true })
-  writeFileSync(out, await collage.png().toBuffer())
+  writeFileSync(out, await image.png().toBuffer())
   console.log(`${story.id}: ${(ratio * 100).toFixed(1)}% differs at ${THRESHOLD}, ${out}`)
+}
+
+async function diff(story) {
+  await shot(story)
+  await collage(story)
 }
 
 async function motion(story) {
@@ -151,6 +158,6 @@ if (command === 'list') {
 }
 const chosen = target === 'all' ? stories : stories.filter((story) => story.id === target)
 if (chosen.length === 0) throw new Error(`No story named ${target}`)
-const run = { shot, diff, motion }[command]
+const run = { shot, diff, collage, motion }[command]
 if (!run) throw new Error(`Unknown command ${command}`)
 for (const story of chosen) await run(story)

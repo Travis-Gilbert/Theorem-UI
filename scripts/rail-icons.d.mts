@@ -1,4 +1,14 @@
 export const LAYERS: readonly ['line', 'accent', 'tint', 'paper']
-export const LAYERS_DIR: URL
+export type IconSet = {
+  dir: string
+  icons: ReadonlyArray<{ name: string; source: string; autofill?: boolean }>
+  table: string
+  type: string
+  /** Trace each layer to an SVG outline instead of writing its PNG alpha. */
+  vector?: boolean
+  what: string
+}
+export const SETS: IconSet[]
+export function layersDir(set: IconSet): URL
 export function split(pixel: number[]): Record<(typeof LAYERS)[number], number>
-export function railFiles(): Promise<Map<string, Buffer | string>>
+export function layerFiles(set: IconSet): Promise<Map<string, Buffer | string>>

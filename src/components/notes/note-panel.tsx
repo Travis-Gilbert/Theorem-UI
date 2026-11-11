@@ -1,6 +1,7 @@
 // SOURCING: NoteEditor (Milkdown Crepe), ui/button, @tanstack/react-query via useNote and the Space cache
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useComposer, quoteRange } from '@/components/canvas/composer-state'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -93,7 +94,13 @@ export function selectedTextIn(container: Element): string | undefined {
   return selection.toString().trim() || undefined
 }
 
-function Banner({ note }: { note: Note }) {
+function Banner({
+  note,
+  readOnlyNotice,
+}: {
+  note: Note
+  readOnlyNotice?: ReactNode
+}) {
   const queryClient = useQueryClient()
   const status = useNoteStatus((s) => s.status[note.documentId])
   const [reloading, setReloading] = useState(false)
@@ -120,9 +127,13 @@ function Banner({ note }: { note: Note }) {
     )
   if (!note.editable)
     return (
-      <div className="border-b border-separator bg-frame px-4 py-2 text-xs text-ink-muted">
-        Read only. This document has a block structure the Markdown editor would
-        flatten, or Theorem marks it read-only.
+      <div className="flex items-center gap-2 border-b border-separator bg-frame px-4 py-2 text-xs text-ink-muted">
+        {readOnlyNotice ?? (
+          <span>
+            Read only. This document has a block structure the Markdown editor
+            would flatten, or Theorem marks it read-only.
+          </span>
+        )}
       </div>
     )
   return null
@@ -132,10 +143,16 @@ function Banner({ note }: { note: Note }) {
 export function NotePanel({
   documentId,
   onClose,
+  actions,
+  readOnlyNotice,
   className,
 }: {
   documentId: string
   onClose?: () => void
+  /** Controls in the header, before Close: Notes mode's Trash and Restore. */
+  actions?: ReactNode
+  /** Replaces the read-only notice, for a note the person can still make editable. */
+  readOnlyNotice?: ReactNode
   className?: string
 }) {
   const queryClient = useQueryClient()
@@ -162,6 +179,7 @@ export function NotePanel({
           {note.data?.title ?? 'Note'}
         </h2>
         <NoteStatus documentId={documentId} />
+        {actions}
         {onClose && (
           <Button
             variant="ghost"
@@ -179,7 +197,7 @@ export function NotePanel({
         <p className="p-6 text-sm text-ink-muted">This note is unavailable.</p>
       ) : (
         <>
-          <Banner note={note.data} />
+          <Banner note={note.data} readOnlyNotice={readOnlyNotice} />
           <div
             className="min-h-0 flex-1 overflow-y-auto"
             onContextMenu={(event) => {

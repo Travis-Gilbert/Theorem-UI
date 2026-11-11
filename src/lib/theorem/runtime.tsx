@@ -67,7 +67,9 @@ import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
 
 import { KitStage } from '@/components/kit/kit-stage'
-import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
+import { useKitRequests } from '@/lib/kit/operations'
+import { useAppRequests } from '@/lib/blocks/app-operations'
+import { clientSurfaceTurnOptions } from './client-surface'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -601,6 +603,22 @@ export async function* runTurn(
     noteLiveRun(threadId, undefined)
   }
 }
+/**
+ * A turn's steps, then how long they took. assistant-ui stamps a live reply
+ * when its run begins and records no end, so this is what lets the reply say
+ * how long the person waited; a reply read from history has its stored time.
+ */
+export async function* timed(turn: AsyncIterable<ChatModelRunResult>): AsyncGenerator<ChatModelRunResult> {
+  const streamStartTime = Date.now()
+  let totalChunks = 0
+  let toolCallCount = 0
+  for await (const step of turn) {
+    totalChunks += 1
+    toolCallCount = (step.content ?? []).filter((part) => part.type === 'tool-call').length
+    yield step
+  }
+  yield { metadata: { timing: { streamStartTime, totalStreamTime: Date.now() - streamStartTime, totalChunks, toolCallCount } } }
+}
 /** Whether a streamed step carries a finished `draft_plan` call. */
 export function draftedPlan(step: ChatModelRunResult): boolean {
   return (step.content ?? []).some(
@@ -624,8 +642,8 @@ function useTheoremThreadRuntime() {
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
-          // The composer's context, Web and Plan toggles and connection choice, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions(),...connectionTurnOptions(localId,remoteId),...generationTurnOptions(remoteId)}
+          // The composer's context, Web and Plan toggles, client surface and connection choice, read at each send like the model pick.
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...clientSurfaceTurnOptions(),...connectionTurnOptions(localId,remoteId),...generationTurnOptions(remoteId)}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
@@ -634,7 +652,7 @@ function useTheoremThreadRuntime() {
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
-          for await (const step of turn) {
+          for await (const step of timed(turn)) {
             // Plan stays on until a plan is written; the turn that writes one turns it off.
             if (draftedPlan(step)) usePlanning.getState().set(false)
             yield step
@@ -652,6 +670,8 @@ function useTheoremThreadRuntime() {
   const runtime = useLocalRuntime(adapter)
   useKitSource(runtime)
   useKitRequests(runtime)
+  // The agent checks Apps with the page's compiler; this answers it.
+  useAppRequests(runtime)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()

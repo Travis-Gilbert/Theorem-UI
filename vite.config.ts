@@ -97,6 +97,19 @@ const config = defineConfig({
         },
       },
       publicAssets: [
+        // The page a webview (the markdown preview) runs in, which Theia's
+        // build puts beside the frontend for a backend to serve at /webview.
+        // It comes before /theia, which dev otherwise answers with a 404.
+        {
+          baseURL: '/theia/webview',
+          dir: fileURLToPath(
+            new URL(
+              './ide/applications/browser/lib/webview/pre',
+              import.meta.url,
+            ),
+          ),
+          maxAge: 0,
+        },
         {
           baseURL: '/theia',
           dir: fileURLToPath(

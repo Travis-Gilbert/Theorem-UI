@@ -4,9 +4,16 @@
 // was set in GitHub Sharp; each colour keeps the relationship it has there,
 // so a palette, a mode, or a person's own colours move the terminal with them:
 // - background: the workspace's tint (the mean of its neutrals in OKLab,
-//   since a near-grey hex colour alone carries little reliable hue), in
-//   proportion up to the slate's own tint and turned as the slate is turned
-//   from GitHub Sharp's; a shade below the darkest large colour around it
+//   since a near-grey hex colour alone carries little reliable hue), turned
+//   as the slate is turned from GitHub Sharp's. The slate is about four times
+//   as tinted as GitHub Sharp, and that extra tint is a cool one: at a cool
+//   hue a dark surface carries it as slate, while at a warm hue the same
+//   chroma reads as brown, a colour of its own beside the workspace. So the
+//   tint is raised toward the slate's in proportion to how near the
+//   workspace's hue is to the slate's (the cosine of the angle between them),
+//   and a workspace a right angle or more away, Stone among them, keeps its
+//   own tint: graphite in its own warmth. A shade below the darkest large
+//   colour around it
 //   (the ink in a light workspace, the main screen in a dark one); never
 //   lighter than the slate, where the diff rows already use all the lightness
 //   their text allows;
@@ -165,6 +172,15 @@ const slate = at(SLATE.bg)
 /** How much more tinted the slate is than GitHub Sharp, and how much bluer. */
 const TINT = slate.c / GITHUB_SHARP.tint.c
 const HUE_STEP = slate.h! - GITHUB_SHARP.tint.h
+/**
+ * How much of the slate's extra tint a background at hue `h` takes: all of
+ * it at the slate's hue, less as the hue turns away, none from a right angle
+ * on, where the background keeps the workspace's own tint.
+ */
+function raise(h: number) {
+  const apart = Math.abs(((h - slate.h! + 540) % 360) - 180)
+  return 1 + (TINT - 1) * Math.max(0, Math.cos((apart * Math.PI) / 180))
+}
 /** How far below its anchor the slate sits, light and dark. */
 const SHADE = {
   light: slate.l - GITHUB_SHARP.anchor.light,
@@ -325,11 +341,12 @@ function placeWords(
 
 export function terminalTheme(workspace: Workspace): TerminalTheme {
   const around = measure(workspace)
+  const h = around.tint.h + HUE_STEP
   const bgColour: Oklch = {
     mode: 'oklch',
     l: Math.min(slate.l, around.anchor + SHADE[around.dark ? 'dark' : 'light']),
-    c: Math.min(slate.c, TINT * around.tint.c),
-    h: around.tint.h + HUE_STEP,
+    c: Math.min(slate.c, raise(h) * around.tint.c),
+    h,
   }
   const bg = hex(bgColour)
   const surface = at(bg)

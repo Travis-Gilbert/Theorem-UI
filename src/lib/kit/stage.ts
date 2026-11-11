@@ -171,12 +171,22 @@ export function resetKitStage() {
 }
 
 /**
- * Whether a marked element shows now: it has a size and, inside a scroller
- * marked `data-kit-clip`, its top edge is within the scroller's view.
+ * Whether a marked element shows now: it has a size, no layer it is on is
+ * inert or made invisible (a page the shell keeps mounted under another), and,
+ * inside a scroller marked `data-kit-clip`, its top edge is within the
+ * scroller's view.
  */
 function showing(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect()
   if (rect.width <= 0 || rect.height <= 0) return false
+  if (element.closest('[inert]')) return false
+  if (
+    !element.checkVisibility({
+      opacityProperty: true,
+      visibilityProperty: true,
+    })
+  )
+    return false
   const clip = element.closest<HTMLElement>('[data-kit-clip]')
   if (!clip) return true
   const view = clip.getBoundingClientRect()
@@ -236,6 +246,30 @@ export function perchLines(): PerchLine[] {
   return ['composer', 'rail', ...messageSurfaces(), 'floor']
     .map(perchLine)
     .filter((line): line is PerchLine => line !== undefined)
+}
+
+/**
+ * The surface whose box holds the point (x, y), the composer first: a person
+ * who sets Kit down on the composer or a message aims at its box, not at the
+ * line along its top. Inside a scroller marked `data-kit-clip`, only the part
+ * of the box the scroller shows counts. The floor has no box.
+ */
+export function surfaceAround(x: number, y: number): PerchLine | undefined {
+  return perchLines().find((line) => {
+    if (line.name === 'floor') return false
+    const element = perchElement(line.name)
+    if (!element) return false
+    const rect = element.getBoundingClientRect()
+    const view = element
+      .closest<HTMLElement>('[data-kit-clip]')
+      ?.getBoundingClientRect()
+    return (
+      x >= Math.max(rect.left, view?.left ?? -Infinity) &&
+      x <= Math.min(rect.right, view?.right ?? Infinity) &&
+      y >= Math.max(rect.top, view?.top ?? -Infinity) &&
+      y <= Math.min(rect.bottom, view?.bottom ?? Infinity)
+    )
+  })
 }
 
 /** The surfaces on screen as the scene names them, with their labels. */

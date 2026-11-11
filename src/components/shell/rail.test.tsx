@@ -93,6 +93,7 @@ test('the rail keeps the order destinations were dragged into', () => {
   expect(modes([])).toEqual([
     'chat',
     'index',
+    'notes',
     'pages',
     'vault',
     'spaces',
@@ -105,6 +106,7 @@ test('the rail keeps the order destinations were dragged into', () => {
     'chat',
     'canvas',
     'index',
+    'notes',
     'pages',
     'vault',
     'spaces',

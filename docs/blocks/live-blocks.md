@@ -179,6 +179,7 @@ The list is parsed with acorn as JavaScript call expressions:
 | `files.read("Data/*.csv")` | reading and listing matching workspace paths (picomatch globs)   |
 | `files.write("Log.csv")`   | writing matching paths                                           |
 | `state("habits")`          | the `habits` collection in the workspace's state document        |
+| `db("records")`            | the App's `records` graph database, kept in this browser         |
 | `net("api.example.com")`   | `fetch` to `https://api.example.com` (the frame's `connect-src`) |
 | `run("agent:#weekly")`     | asking for a run of the agent block `#weekly`                    |
 
@@ -344,6 +345,7 @@ An `.html` file, or a folder with `index.html`, opens as an app.
   resolves:
   - `theorem.files` (`text`, `json`, `csv`, `bytes`, `list`, `write`);
   - `theorem.state(name)`;
+  - `theorem.db(name)`, for a conversation App (see [App databases](#app-databases));
   - `theorem.run(target)`.
 
   Everything the page reaches is checked against the entry page's
@@ -371,6 +373,132 @@ Each workspace has one Loro document, `state.loro` in its app data. Each
 with one over Documents v2, and the state document follows the workspace's
 replication policy (D12). The replica, the bridge and blocks stay as they
 are. Until then, state stays on this machine.
+
+## App databases
+
+A conversation App that declares `db("records")` keeps a graph database: nodes
+with labels and properties, and edges between them.
+
+```html
+<meta name="theorem:uses" content='db("records")' />
+<script>
+  theorem.db('records').then((db) => {
+    db.subscribe({ method: 'queryNodes', args: { label: 'Org' } }, (orgs) => {
+      // now, and again after any commit that changes the result
+    })
+    db.mutate({
+      upsertNodes: [
+        { id: 'org:a', labels: ['Org'], properties: { name: 'Alder' } },
+      ],
+    })
+  })
+</script>
+```
+
+- **The calls.** `mutate(batch)` commits one batch atomically. `getNode`,
+  `getEdge`, `queryNodes` and `neighbors` read the graph. `query(cypher,
+params)` runs read-only Cypher. `subscribe(read, next)` keeps one of those
+  reads current. A failure is a `DbError` with the database's own `code`, such
+  as `cypher_write_unsupported`.
+- **Where it lives.** The database is RustyRedDB (`@rustyreddb/browser`) in a
+  worker of the page, stored in the origin private file system. A sandboxed
+  frame has no storage, so each call crosses the bridge and is checked against
+  the declaration first (`bridge.ts`, `app-db.ts`).
+- **It belongs to the App, not a revision.** Its directory is named by the
+  App's document id. A new revision of the App reads the records the last one
+  wrote, and two views of the App on one page share one database: a write in
+  one reaches the other's subscriptions.
+- **A saved revision reads only.** A pinned revision in the conversation sees
+  the App's records as they are now, and its `mutate` fails with `read_only`.
+- **This browser only.** The records do not sync. `state(name)` is still the
+  choice for data that must follow a person to another device.
+- **Several tabs.** Tabs showing the same App use one database. One tab holds
+  its file and the others reach it through that tab; when it closes, another
+  takes over.
+- **Not yet.** Full-text search and compaction are not in the browser
+  database. Folder HTML apps, cells and page modules have no `db`.
+
+`bun run e2e:app-db` runs this in headless Chromium without a Theorem server,
+and with `--built` against a production build.
+
+## TypeScript Apps
+
+A conversation App can be written as TypeScript files instead of one page of
+script. It is still one HTML document with one revision history: the page
+carries its source files as scripts a browser does not run.
+
+```html
+<meta name="theorem:uses" content='db("records")' />
+<div id="root"></div>
+<script type="text/theorem-source" data-path="main.tsx">
+  import { createRoot } from 'react-dom/client'
+  import { Table } from './Table'
+  await window.theorem.ready
+  createRoot(document.getElementById('root')!).render(<Table />)
+</script>
+<script type="text/theorem-source" data-path="Table.tsx">
+  export function Table() { return <table /> }
+</script>
+```
+
+- **The form.** Each file is a `text/theorem-source` script with a
+  `data-path`: `.ts`, `.tsx`, `.js`, `.jsx`, `.css` or `.json`, relative, in
+  folders if wanted. The App starts from `main.tsx` (or `.ts`, `.jsx`, `.js`),
+  or from the file marked `data-entry`. Files import each other by relative
+  path and import the modules in [the import map](#the-import-map), nothing
+  else. A page with no such scripts is a plain HTML App, as before
+  (`app-source.ts`).
+- **Build.** When the page is hosted, esbuild-wasm bundles the files and what
+  they import into one module, which replaces the source scripts and runs
+  last in the body. Imported `.css` becomes a style element. Types are erased,
+  not checked. A file that does not build is a problem at its line
+  (`export.ts` `bundleAppSources`, `hosted-app.ts`).
+- **Check.** tsrs, the Rust port of the TypeScript compiler, checks the same
+  files in a worker that loads when an App with source is first shown
+  (`app-check.ts`, `app-checker.ts`). The check is strict. It knows React,
+  and `window.theorem` exactly as the bridge gives it: those declarations are
+  written from `sandbox/app-bridge.ts` by `bun scripts/app-declarations.ts`,
+  and a test fails when they are stale. The import map's other modules import
+  untyped. An App runs whether or not its check passes; the check and the
+  build are separate facts about a revision.
+- **Running.** What the App throws and does not catch is sent to the page
+  (`frame.error`), which traces it through the bundle's source map to the
+  file and line that threw (`app-trace.ts`). The page carries that map,
+  holding the App's own files only.
+- **Problems.** Build errors, type errors and what the App threw are listed
+  above the App with their file and line. **Ask to fix** adds a reference to
+  that revision with the problems, for the next turn
+  (`appRepairReference`, `app-problems.tsx`).
+- **Click to source.** Each element a built App renders carries
+  `data-theorem-source`, the file, line and column that wrote it
+  (`Table.tsx:26:13`). The App's JSX runtime adds it from the place esbuild
+  passes to `jsxDEV`; nothing is written into the App's source. A selection
+  or click in the App sends the nearest one, so **Ask about selection** tells
+  the agent which element of which file was pointed at.
+- **Changing an element.** Pointing at an element shows it above the App:
+  its tag, its place, and what its source writes as plain text, which is its
+  text when that is all it holds and each attribute written as a string.
+  **Apply to source** rewrites that one element in its file and saves the App
+  as its next revision; the rest of the page is left exactly as written
+  (`app-edit.ts`, `app-element.tsx`). An attribute or child written as code is
+  not offered: that change is the agent's, with the selection.
+- **Editing.** **Edit source** opens an App built from source one file at a
+  time, in tabs, with the whole page as the last tab. A plain HTML App is
+  edited as one page.
+- **A revision that does not build** leaves the last one that built running,
+  with its problems above it. A plain HTML revision replaces the frame at
+  once, as before.
+
+- **The agent checks an App.** The page declares the client operation
+  `app.check` on every send, so the turn has a tool that builds an App, checks
+  its types and runs it off screen, and returns its problems and the text it
+  showed (`app-operations.ts`, `app-inspect.ts`). It takes a draft's HTML or a
+  published App's document id. The run reaches no network, keeps its state in
+  the frame and gets an empty in-memory database, so a check changes nothing.
+  `docs/plans/agent-app-feedback.md` has the rest.
+
+`bun run e2e:app-ts` runs this in headless Chromium without a Theorem server,
+and with `--built` against a production build.
 
 ## Export
 
@@ -431,14 +559,16 @@ Pure blocks then run in a phone browser. Effectful ones wait for remote runs
 
 ## Where the code is
 
-| Concern                         | Files                                                                                            |
-| ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Format, round trip, editor node | `src/lib/blocks/format.ts`, `milkdown.ts`, `output.ts`                                           |
-| Compile and cache               | `compile.ts`, `compile.worker.ts`, `compiler.ts`, `vendor/`                                      |
-| Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                        |
-| Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                             |
-| Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                             |
-| State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts` |
-| Views                           | `src/components/blocks/`                                                                         |
-| Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                            |
-| Fixtures                        | `test/fixtures/blocks/`: `Today.md`, `Tools/Habit tracker.tsx`, `Data/habits.csv`                |
+| Concern                         | Files                                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Format, round trip, editor node | `src/lib/blocks/format.ts`, `milkdown.ts`, `output.ts`                                                                                                       |
+| Compile and cache               | `compile.ts`, `compile.worker.ts`, `compiler.ts`, `vendor/`                                                                                                  |
+| Graph and sessions              | `runtime.ts`, `session.ts`, `sessions.ts`                                                                                                                    |
+| Queries and formulas            | `query.ts`, `embark.ts`, `formulas/`                                                                                                                         |
+| Sandbox                         | `executor.ts`, `bridge.ts`, `sandbox/`, `src/server/desktop/blocks/`                                                                                         |
+| TypeScript Apps                 | `app-source.ts`, `app-check*.ts`, `app-checker.ts`, `app-trace.ts`, `app-edit.ts`, `app-inspect.ts`, `app-operations.ts`, `check/`, `scripts/e2e/app-ts.mjs` |
+| App databases                   | `app-db.ts`, `app-db.worker.ts`, `sandbox/db.ts`, `scripts/e2e/app-db.mjs`                                                                                   |
+| State, last run, trust          | `state.ts`, `last-run.ts`, `trust.ts`, `src/server/desktop/blocks/state-document.ts`, `store.ts`                                                             |
+| Views                           | `src/components/blocks/`                                                                                                                                     |
+| Routes                          | [workspace-routes.md](../desktop/workspace-routes.md)                                                                                                        |
+| Fixtures                        | `test/fixtures/blocks/`: `Today.md`, `Tools/Habit tracker.tsx`, `Data/habits.csv`                                                                            |

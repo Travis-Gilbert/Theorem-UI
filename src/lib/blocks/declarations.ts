@@ -19,6 +19,8 @@ export interface Capabilities {
   net: Array<string>
   /** Agent blocks it may start, `run("agent:#nightly")`. */
   run: Array<string>
+  /** Graph databases it keeps in this browser, `db("records")`. */
+  db: Array<string>
 }
 
 export const noCapabilities = (): Capabilities => ({
@@ -27,6 +29,7 @@ export const noCapabilities = (): Capabilities => ({
   state: [],
   net: [],
   run: [],
+  db: [],
 })
 
 /**
@@ -49,10 +52,13 @@ const CALLS: Record<string, keyof Capabilities> = {
   state: 'state',
   net: 'net',
   run: 'run',
+  db: 'db',
 }
 
 const HOST = /^[a-z0-9.-]+(:\d+)?$/i
 const RUN_TARGET = /^agent:#[\w:.-]+$/
+/** A database's name is part of a file name in the browser's private storage. */
+export const DB_NAME = /^[a-z0-9][a-z0-9_-]{0,47}$/
 
 function calleeName(node: Expression): string | null {
   if (node.type === 'Identifier') return node.name
@@ -81,6 +87,8 @@ function validate(kind: keyof Capabilities, value: string): string | null {
     return `net("${value}") needs a host name such as api.example.com`
   if (kind === 'run' && !RUN_TARGET.test(value))
     return `run("${value}") needs an agent block such as agent:#nightly`
+  if (kind === 'db' && !DB_NAME.test(value))
+    return `db("${value}") needs a short name of lowercase letters, digits, - and _, such as records`
   if (
     (kind === 'read' || kind === 'write') &&
     /^\/|(^|\/)\.\.(\/|$)/.test(value)
@@ -120,7 +128,7 @@ export function parseDeclarationList(
         : null
     if (!kind || value === null) {
       into.errors.push(
-        `"${source}" is not a declaration; use files.read("…"), files.write("…"), state("…"), net("…") or run("agent:#…")`,
+        `"${source}" is not a declaration; use files.read("…"), files.write("…"), state("…"), db("…"), net("…") or run("agent:#…")`,
       )
       continue
     }

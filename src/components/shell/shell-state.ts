@@ -2,6 +2,7 @@
 import type { SerializedDockview } from 'dockview-react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { NoteOrder } from '@/lib/theorem/note-order'
 import type { ShellMode } from './modes'
 
 /** A project's desktop dock arrangement. */
@@ -48,8 +49,17 @@ type ShellState = {
   chatThreadId: string | undefined
   /** Whether the chat panel's file explorer is expanded. */
   explorerOpen: boolean
+  /** Whether Theia's own side panel (its explorer) is open in the IDE. */
+  ideFilesOpen: boolean
   /** Which quick views and projects a person opened or closed in the sidebar. */
   organizeOpen: Readonly<Record<string, boolean>>
+  /** The IDE panel's Files height in px, set by dragging the line above it. Unset, Files takes half. */
+  ideFilesHeight?: number
+  /**
+   * The sidebar's projects in the order the person dragged them into. Empty
+   * until they move one; projects it does not name follow, as Theorem lists them.
+   */
+  projectOrder: readonly string[]
   /** Whether the agent terminal drawer is up. Not persisted. */
   terminalOpen: boolean
   /** The bottom drawer's snap point: its height as a share of the window. */
@@ -66,7 +76,10 @@ type ShellState = {
   terminalTabs: Readonly<
     Record<string, { tabs: readonly TerminalTab[]; active: string }>
   >
+  /** The order Notes mode lists notes in. */
+  noteOrder: NoteOrder
   setProjectId: (projectId: string) => void
+  setNoteOrder: (order: NoteOrder) => void
   saveLayout: (projectId: string, layout: SavedLayout) => void
   setPanelWidth: (width: number) => void
   togglePanel: (mode: ShellMode) => void
@@ -75,7 +88,10 @@ type ShellState = {
   setFilesShown: (shown: boolean) => void
   setChatThreadId: (threadId: string | undefined) => void
   toggleExplorer: () => void
+  setIdeFilesOpen: (open: boolean) => void
   setOrganizeOpen: (key: string, open: boolean) => void
+  setIdeFilesHeight: (height: number) => void
+  setProjectOrder: (order: readonly string[]) => void
   setTerminalOpen: (open: boolean) => void
   setTerminalHeight: (height: number) => void
   setTerminalThread: (projectId: string, threadId: string | undefined) => void
@@ -106,9 +122,12 @@ export const useShell = create<ShellState>()(
       panelCollapsed: {},
       railOrder: [],
       filesShown: false,
+      noteOrder: 'edited',
       chatThreadId: undefined,
       explorerOpen: false,
+      ideFilesOpen: true,
       organizeOpen: {},
+      projectOrder: [],
       terminalOpen: false,
       terminalHeight: 0.46,
       terminalThreads: {},
@@ -116,6 +135,7 @@ export const useShell = create<ShellState>()(
       sideDrawer: undefined,
       sideWidth: 620,
       terminalTabs: {},
+      setNoteOrder: (noteOrder) => set({ noteOrder }),
       setProjectId: (projectId) => set({ projectId }),
       saveLayout: (projectId, layout) =>
         set((s) => ({ layouts: { ...s.layouts, [projectId]: layout } })),
@@ -135,8 +155,11 @@ export const useShell = create<ShellState>()(
       setFilesShown: (filesShown) => set({ filesShown }),
       setChatThreadId: (chatThreadId) => set({ chatThreadId }),
       toggleExplorer: () => set((s) => ({ explorerOpen: !s.explorerOpen })),
+      setIdeFilesOpen: (ideFilesOpen) => set({ ideFilesOpen }),
       setOrganizeOpen: (key, open) =>
         set((s) => ({ organizeOpen: { ...s.organizeOpen, [key]: open } })),
+      setIdeFilesHeight: (ideFilesHeight) => set({ ideFilesHeight }),
+      setProjectOrder: (projectOrder) => set({ projectOrder }),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
       setTerminalHeight: (terminalHeight) => set({ terminalHeight }),
       setTerminalThread: (projectId, threadId) =>
@@ -221,8 +244,10 @@ export const useShell = create<ShellState>()(
       // Version 3 kept filesShown, which now lasts only for the visit. Version 4
       // (on main) dropped it; version 4 (on the canvas branch) widened the panel
       // for the project tree and folded the files away. Version 5 does both for
-      // whichever version 4 a layout was saved under.
-      version: 5,
+      // whichever version 4 a layout was saved under. Version 6 gave the IDE
+      // its own panel beside the rail: the IDE's collapsed flag had meant
+      // Theia's explorer, so it moves to ideFilesOpen and the panel opens.
+      version: 6,
       partialize: ({
         projectId,
         layouts,
@@ -230,12 +255,16 @@ export const useShell = create<ShellState>()(
         panelCollapsed,
         railOrder,
         explorerOpen,
+        ideFilesOpen,
         organizeOpen,
+        ideFilesHeight,
+        projectOrder,
         terminalHeight,
         sideWidth,
         terminalThreads,
         terminalThreadIds,
         terminalTabs,
+        noteOrder,
       }) => ({
         projectId,
         layouts,
@@ -243,19 +272,27 @@ export const useShell = create<ShellState>()(
         panelCollapsed,
         railOrder,
         explorerOpen,
+        ideFilesOpen,
         organizeOpen,
+        ideFilesHeight,
+        projectOrder,
         terminalHeight,
         sideWidth,
         terminalThreads,
         terminalThreadIds,
         terminalTabs,
+        noteOrder,
       }),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ShellState> | undefined
+        const { ide, ...collapsed } = state?.panelCollapsed ?? {}
+        const theia = { panelCollapsed: collapsed, ideFilesOpen: !ide }
+        if (version === 5) return { ...state, ...theia }
         if (version >= 2 && version <= 4) {
           const { filesShown: _, ...kept } = (state ?? {}) as ShellState
           return {
             ...kept,
+            ...theia,
             panelWidth: PANEL_WIDTH.default,
             explorerOpen: false,
           }

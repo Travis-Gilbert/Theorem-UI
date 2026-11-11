@@ -1,5 +1,6 @@
 // SOURCING: the existing HTML App sandbox (hostedAppDocument + BlockFrame,
-// `sandbox="allow-scripts"` under a CSP that loads nothing), snapshots.ts for
+// `sandbox="allow-scripts"` under a CSP that loads nothing, with followTheme
+// keeping the page's look current in it), snapshots.ts for
 // the off-screen poster, and the platform IntersectionObserver for whether a
 // preview is on screen. No library models a pinned App revision's frame.
 //
@@ -13,8 +14,9 @@ import { BlockFrame, SnapshotFrame } from '@/components/blocks/block-frame'
 import { BlockMessage } from '@/components/blocks/block-status'
 import { appDeclarations } from '@/components/blocks/html-app-handler'
 import type { AppSelection } from '@/lib/blocks/sandbox/protocol'
+import { documentAppDatabases } from '@/lib/blocks/app-db'
 import { pinnedAppHost, pinnedAppState } from '@/lib/blocks/document-app'
-import { hostedAppDocument } from '@/lib/blocks/hosted-app'
+import { followTheme, hostedAppDocument } from '@/lib/blocks/hosted-app'
 import { useSnapshot } from '@/lib/blocks/snapshots'
 import { appDocumentFor } from '@/lib/theorem/apps'
 import { describeError } from '@/lib/theorem/client'
@@ -114,6 +116,14 @@ export function PinnedAppFrame({
       pinned.dispose()
     }
   }, [seed])
+  // The App's records as they are now, for reading: a saved revision keeps
+  // its source, and an App keeps one set of data across revisions.
+  const documentId = artifact.documentId ?? artifact.artifactId
+  const databases = useMemo(
+    () => documentAppDatabases(documentId, { writable: false }),
+    [documentId],
+  )
+  useEffect(() => () => databases.dispose(), [databases])
   const host = useMemo(
     () =>
       state && {
@@ -122,6 +132,7 @@ export function PinnedAppFrame({
           artifact.documentId ?? artifact.artifactId,
           appDeclarations(artifact.content).capabilities,
           state.state,
+          databases,
         ),
         onSelection,
       },
@@ -130,6 +141,7 @@ export function PinnedAppFrame({
       artifact.documentId,
       artifact.artifactId,
       state,
+      databases,
       onSelection,
     ],
   )
@@ -147,6 +159,8 @@ export function PinnedAppFrame({
         host={host}
         title={artifact.title}
         snapshotKey={previewKey(artifact)}
+        // The page is built with the look it had then; this keeps it current.
+        onConnection={followTheme}
       />
     </div>
   )

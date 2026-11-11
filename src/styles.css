@@ -75,7 +75,7 @@
   --surface-pill: var(--surface-rail);
   /* A shadow cannot show on the near-black rail, so the sheet glows instead. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(227 98 9 / 0.32);
   --glow-to: rgb(53 132 185 / 0.38);
 
@@ -99,7 +99,7 @@
      the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
      read against the rail, warm at the top and teal at the bottom. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(205 78 24 / 0.36);
   --glow-to: rgb(25 142 169 / 0.36);
 
@@ -123,7 +123,7 @@
 .dark[data-palette='vitesse'] {
   --surface-pill: var(--surface-rail);
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(77 147 117 / 0.34);
   --glow-to: rgb(99 148 191 / 0.3);
 
@@ -219,6 +219,21 @@
   display: none;
 }
 
+/* A folder takes the palette's primary, so it follows the theme. A folder of
+   what agents wrote takes that colour's complement: the hue turned half way
+   round in OKLCH, its lightness and chroma kept, so it holds the same weight
+   beside the person's folders in every palette, light or dark. The palette
+   and dark classes sit on the root, so the complement is taken there. An
+   engine without relative colours (Servo 0.7) shows the palette's ochre. */
+:root {
+  --folder-agent: var(--ochre);
+}
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --folder-agent: oklch(from var(--redwood) l c calc(h + 180));
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -274,6 +289,8 @@
   --color-separator: var(--line-separator);
   --color-control: var(--line-control);
   --color-redwood: var(--redwood);
+  --color-folder: var(--redwood);
+  --color-folder-agent: var(--folder-agent);
   --color-redwood-hover: var(--redwood-hover);
   --color-redwood-pressed: var(--redwood-pressed);
   --color-on-redwood: var(--on-redwood);
@@ -335,7 +352,13 @@
   --spacing-rail: 44px;
   --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
-  --spacing-reading: 720px;
+  /* The reading column of a conversation, an artifact and the highlights:
+     wide enough that an agent's answer, its tables and code, read without
+     the column closing in on them. */
+  --spacing-reading: 1080px;
+  /* An immersive artifact in a reply: wider than the reading column, centred
+     on it, reaching 160px past it on each side. */
+  --spacing-artifact: 1400px;
 
   @keyframes collapsible-down {
     from {
@@ -464,7 +487,7 @@
 
   html {
     color-scheme: light;
-    /* Inherited by every scroller; the thread viewport always shows its track. */
+    /* Inherited by every scroller. A scroller draws its bar only while it overflows. */
     scrollbar-color: var(--line-control) transparent;
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
@@ -586,34 +609,34 @@
   background-repeat: no-repeat;
 }
 
-/* Paper: a flat sheet with fine grain. surface-paper is the composer's, at full
-   strength; surface-paper-subtle is for panels that open in the conversation
-   (an opened activity disclosure, an artifact frame, a review candidate). The
-   grain is Paper Design's PaperTexture baked once per page into
+/* Paper: a smooth sheet whose texture shows when you look for it.
+   surface-paper is the composer's, at full strength; surface-paper-subtle is
+   for panels that open in the conversation (an opened activity disclosure, an
+   artifact frame, a review candidate). The grain is Paper Design's
+   PaperTexture baked once per page into
    --paper-texture (lib/paper-texture.ts) and painted through it in the
    palette's ink, under the content, so text stays crisp and no surface holds
    a WebGL context. Each sits a step off its surroundings with a soft shadow
-   and a lit top edge. surface-paper keeps the element's own border (the
-   composer's follows focus); surface-paper-subtle draws a hairline, so add
-   none. Plain bg-*, shadow-* and position utilities override either. */
+   and a faintly lit top edge, both a pixel soft so neither reads as a drawn
+   line. surface-paper keeps the element's own border (the composer's follows
+   focus; give it --paper-edge at rest); surface-paper-subtle draws its own
+   edge, so add none. Plain bg-*, shadow-* and position utilities override either. */
 :root {
   /* Masks the grain out until the bake lands. */
   --paper-texture: linear-gradient(transparent, transparent);
   --paper-texture-size: 512px;
   --paper-grain-opacity: 0.1;
   --paper-depth: 1;
-  --paper-highlight: rgb(255 255 255 / 0.7);
-  --paper-edge: color-mix(in oklab, var(--line-separator) 80%, transparent);
+  --paper-highlight: rgb(255 255 255 / 0.34);
+  --paper-edge: color-mix(in oklab, var(--line-separator) 60%, transparent);
 }
 
-/* The grain varies the light sheet by about 4 sRGB levels; the dark sheet's
-   ink sits closer to its ground, so it takes more opacity for the same. Black
-   shadows need more weight to read on a dark sheet, and the lit edge is the
-   ink's. */
+/* The grain is one continuous tone that varies either sheet by a level or two
+   of sRGB. Black shadows need more weight to read on a dark sheet, and the lit
+   edge is the ink's. */
 .dark {
-  --paper-grain-opacity: 0.12;
   --paper-depth: 2.5;
-  --paper-highlight: color-mix(in srgb, var(--ink) 8%, transparent);
+  --paper-highlight: color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 @utility surface-paper {
@@ -621,7 +644,8 @@
   isolation: isolate;
   background-color: var(--surface-composer);
   box-shadow:
-    inset 0 1px 0 var(--paper-highlight),
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 2px var(--paper-edge),
     0 1px 2px rgb(var(--shadow-tint) / calc(0.07 * var(--paper-depth))),
     0 8px 24px -8px rgb(var(--shadow-tint) / calc(0.16 * var(--paper-depth)));
 
@@ -651,8 +675,8 @@
   isolation: isolate;
   background-color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
   box-shadow:
-    inset 0 1px 0 var(--paper-highlight),
-    0 0 0 1px var(--paper-edge),
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 1.5px 0.5px var(--paper-edge),
     0 1px 2px rgb(var(--shadow-tint) / calc(0.05 * var(--paper-depth))),
     0 4px 14px -6px rgb(var(--shadow-tint) / calc(0.1 * var(--paper-depth)));
 
@@ -672,6 +696,34 @@
   @supports not (mask-image: none) {
     &::before {
       content: none;
+    }
+  }
+}
+
+/* The chat panel's rows answer the pointer (organized-panel.tsx): what a row
+   holds lifts a pixel and its mark tips, on the snap spring. */
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button'])
+      > * {
+      transition:
+        translate var(--duration-snap) var(--ease-snap),
+        rotate var(--duration-snap) var(--ease-snap),
+        scale var(--duration-snap) var(--ease-snap);
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > * {
+      translate: 0 -1px;
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > :is(svg, .rail-mark) {
+      rotate: -8deg;
+      scale: 1.1;
     }
   }
 }

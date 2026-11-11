@@ -1,4 +1,5 @@
 // SOURCING: none: the list /stories.json serves and the story route looks up, kept free of components so the server route can read it. Each story's lane and reference are the license ledger's, docs/plans/evidence/ledger.md.
+import { ACTIVITY_STATES } from './fixtures/activity'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 
 export type StoryMeta = {
@@ -17,6 +18,8 @@ export type StoryMeta = {
 
 const SIDEBAR_REF = 'sidebar-compare@2026-11-05.webp'
 const CANVAS_REF = 'canvas-note-types@2026-11-05.png'
+/** The coding-workspace mockup the person attached: the terminal against the code pane, and the fox. */
+const CODING_REF = 'coding-workspace-mockup@2026-11-08.png'
 
 export const STORIES: readonly StoryMeta[] = [
   {
@@ -74,6 +77,14 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1440, height: 900 },
   },
   {
+    id: 'conversation-wide',
+    title: 'Conversation on a wide sheet',
+    lane: 'original',
+    reference: CODING_REF,
+    viewport: { width: 1600, height: 1000 },
+    threadId: 'thread-app-gallery',
+  },
+  {
     id: 'shell-compare',
     title: 'Shell with Compare open',
     lane: 'translation',
@@ -104,6 +115,32 @@ export const STORIES: readonly StoryMeta[] = [
     title: 'CPU or GPU: the cost model in Python, runnable in the browser',
     lane: 'original',
     viewport: { width: 960, height: 900 },
+  },
+  {
+    id: 'composer-paper',
+    title: 'Composer on paper, new conversation',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  {
+    id: 'chat-program',
+    title: 'A program the agent wrote',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  ...ACTIVITY_STATES.map(
+    (state): StoryMeta => ({
+      id: `activity-${state}`,
+      title: `Activity line: ${state}`,
+      lane: 'original',
+      viewport: { width: 760, height: 560 },
+    }),
+  ),
+  {
+    id: 'tool-pills',
+    title: 'Tool pills: done, failed and running',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
   },
   ...ARTIFACT_STORIES.map(
     ({ id, title }): StoryMeta => ({

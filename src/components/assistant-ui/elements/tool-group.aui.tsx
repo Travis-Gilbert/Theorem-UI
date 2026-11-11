@@ -118,9 +118,9 @@ function ToolGroupTrigger({
       {...props}
     >
       {active && (
-        <Icon.Refresh
+        <Icon.ToolRunning
           data-slot="tool-group-trigger-loader"
-          className="aui-tool-group-trigger-loader size-3 shrink-0 animate-spin"
+          className="aui-tool-group-trigger-loader size-3.5 shrink-0 animate-pulse motion-reduce:animate-none"
         />
       )}
       <span

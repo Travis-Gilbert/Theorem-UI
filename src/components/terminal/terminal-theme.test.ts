@@ -23,13 +23,18 @@ const displayable = inGamut('rgb')
 type Mode = (typeof modes)[number]
 const mode = (selector: string) => modes.find((m) => m.selector === selector)!
 const workspace = (m: Mode) => workspaceOf((name) => modeTokens(m)[name]!)
-/** A mode with every surface `by` darker in Okhsl lightness; inks stay. */
+/**
+ * A mode with every surface `by` darker in Okhsl lightness; inks stay, and so
+ * does a neutral given as a source theme's hex, which has no lightness to move.
+ */
 const darker = (m: Mode, by: number): Mode => ({
   ...m,
   neutrals: Object.fromEntries(
     Object.entries(m.neutrals).map(([name, l]) => [
       name,
-      name.startsWith('ink') ? l : Math.max(0.02, l - by),
+      typeof l === 'number' && !name.startsWith('ink')
+        ? Math.max(0.02, l - by)
+        : l,
     ]),
   ),
 })

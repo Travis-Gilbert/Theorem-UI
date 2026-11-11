@@ -1,13 +1,16 @@
 import { expect, test } from 'bun:test'
 import { readFile } from 'node:fs/promises'
-import { LAYERS_DIR, railFiles, split } from './rail-icons.mjs'
+import { SETS, layerFiles, layersDir, split } from './rail-icons.mjs'
 
-test('the committed rail layers are what the script makes', async () => {
-  for (const [file, bytes] of await railFiles()) {
-    const committed = await readFile(new URL(file, LAYERS_DIR))
-    expect(committed.equals(Buffer.from(bytes)), file).toBe(true)
-  }
-})
+test.each(SETS)(
+  'the committed layers in $dir are what the script makes',
+  async (set) => {
+    for (const [file, bytes] of await layerFiles(set)) {
+      const committed = await readFile(new URL(file, layersDir(set)))
+      expect(committed.equals(Buffer.from(bytes)), file).toBe(true)
+    }
+  },
+)
 
 test('a pixel splits into the layers by its colour, and they sum to its alpha', () => {
   const outline = split([25, 25, 25, 255])

@@ -7,9 +7,10 @@
 // than gray and sky, which vanish in the dark palettes; motion stops when the
 // person prefers reduced motion. FilesystemTree adds arrow-key movement.
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ChevronRight, File, Folder, LoaderCircle } from 'lucide-react'
+import { ChevronRight, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
+import { Icon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 export type FilesystemNode = {
@@ -139,18 +140,9 @@ function FilesystemTreeItem({
       >
         {expandable && <ChevronIcon open={isOpen} animated={motionOn} />}
         {folder ? (
-          <Folder
-            aria-hidden
-            className={cn(
-              'size-5 shrink-0 fill-focus/20 text-focus',
-              !expandable && 'ml-[22px]',
-            )}
-          />
+          <Icon.Folder className={cn('size-5', !expandable && 'ml-[22px]')} />
         ) : (
-          <File
-            aria-hidden
-            className="ml-[22px] size-5 shrink-0 text-ink-faint"
-          />
+          <Icon.FileEntry className="ml-[22px] size-5" />
         )}
         <span className="min-w-0 truncate">{node.name}</span>
         {node.loading && (

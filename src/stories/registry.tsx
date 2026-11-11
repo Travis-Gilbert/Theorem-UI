@@ -1,4 +1,4 @@
-// SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message.
+// SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message; the activity and composer stories hand committed messages to the thread itself the same way, converted by the SDK's toAssistantMessages.
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useState } from 'react'
@@ -10,6 +10,8 @@ import {
   useExternalStoreRuntime,
 } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
+import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
@@ -22,14 +24,22 @@ import { ReviewCard } from '@/components/review/review-card'
 import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 import { useReview } from '@/lib/theorem/reviews'
+import {
+  ACTIVITY_STATES,
+  activityMessages,
+  toolPillMessages,
+} from './fixtures/activity'
+import type { ActivityState } from './fixtures/activity'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
+import { PROGRAM_PART } from './fixtures/program'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -93,6 +103,20 @@ function ShellCompareStory() {
   return (
     <WithRuntime>
       <ChatShell projectId="project-theorem" threadId="thread-app-gallery" />
+    </WithRuntime>
+  )
+}
+
+/** The thread alone on the sheet: the reading column and the composer at desktop width. */
+/** The conversation as the chat mode shows it (ModeView): over the Life field, on the sheet's gradient. */
+function ConversationWideStory() {
+  return (
+    <WithRuntime>
+      <div className="bg-sheet h-dvh w-full">
+        <LifeBackdrop>
+          <Thread />
+        </LifeBackdrop>
+      </div>
     </WithRuntime>
   )
 }
@@ -213,7 +237,15 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
       ],
     },
   ]
-  return function OpenUIArtifactStory() {
+  return partsStory(messages)
+}
+
+/**
+ * Finished messages drawn by the thread's own part renderers, at the thread's
+ * reading width.
+ */
+function partsStory(messages: ThreadMessageLike[]) {
+  return function PartsStory() {
     const runtime = useExternalStoreRuntime({
       messages,
       isRunning: false,
@@ -231,15 +263,78 @@ function artifactStory({ id, title, program, version }: ArtifactStory) {
   }
 }
 
+/** A program the agent wrote, as the row the conversation draws for it. */
+const programStory = partsStory([
+  {
+    id: 'message-program',
+    role: 'assistant',
+    status: { type: 'complete', reason: 'stop' },
+    content: [{ type: 'data', name: 'theorem-program', data: PROGRAM_PART }],
+  },
+])
+
+const ACTIVITY_STATUS: Record<ActivityState, ThreadMessageLike['status']> = {
+  working: { type: 'running' },
+  approval: { type: 'running' },
+  finished: { type: 'complete', reason: 'stop' },
+  stopped: { type: 'incomplete', reason: 'cancelled' },
+  unfinished: {
+    type: 'incomplete',
+    reason: 'error',
+    error: 'The response could not be saved.',
+  },
+}
+
+/**
+ * The thread itself, composer and all, over committed messages: none for a new
+ * conversation, or one question and its reply in a state of the activity line.
+ */
+function threadStory(
+  state?: ActivityState,
+  stored = state ? activityMessages(state) : [],
+) {
+  const messages: ThreadMessageLike[] = state
+    ? toAssistantMessages(stored).map((message) =>
+        message.role === 'assistant'
+          ? { ...message, status: ACTIVITY_STATUS[state] }
+          : message,
+      )
+    : []
+  const isRunning = state === 'working' || state === 'approval'
+  return function ThreadStory() {
+    const runtime = useExternalStoreRuntime({
+      messages,
+      isRunning,
+      onNew: async () => {},
+      convertMessage: (message: ThreadMessageLike) => message,
+    })
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <TheoremPartRenderers />
+        <div className="h-dvh">
+          <Thread autoFocus={false} />
+        </div>
+      </AssistantRuntimeProvider>
+    )
+  }
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
+  'composer-paper': threadStory(),
+  'chat-program': programStory,
+  ...Object.fromEntries(
+    ACTIVITY_STATES.map((state) => [`activity-${state}`, threadStory(state)]),
+  ),
   ...Object.fromEntries(
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),
+  'tool-pills': threadStory('working', toolPillMessages()),
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'conversation-wide': ConversationWideStory,
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
   'program-note': ProgramNoteStory,

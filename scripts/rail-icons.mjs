@@ -1,17 +1,22 @@
-// SOURCING: pngjs (PNG decode and encode, already a dev dependency for the story oracle); the colour split is Theorem's own, since no library recolours a flat-colour icon by region
-// Splits each rail icon into four alpha masks: the outline, an accent fill, a tint
-// fill and a paper fill. The rail paints each mask with a palette token
-// (src/components/shell/rail-marks.tsx), so one set of bytes takes every
-// palette and both modes. Run `node scripts/rail-icons.mjs`; rail-icons.test.ts
-// fails while the committed layers and this script disagree.
+// SOURCING: pngjs (PNG decode and encode, already a dev dependency for the story oracle); potrace (outline tracing), jimp (the bicubic enlargement potrace needs to see an edge's sub-pixel position) and svgo (path data shortening) for the vector layers; the colour split is Theorem's own, since no library recolours a flat-colour icon by region
+// Splits each colour icon into four masks: the outline, an accent fill, a tint
+// fill and a paper fill. The rail (src/components/shell/rail-marks.tsx) and the
+// controls' colour marks (src/components/icons.tsx) paint each mask with a palette
+// token, so one set of bytes takes every palette and both modes. The rail's masks
+// are PNG alpha; the controls' are traced to SVG outlines. Run
+// `node scripts/rail-icons.mjs`; rail-icons.test.ts fails while the committed
+// layers and this script disagree.
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import Jimp from 'jimp'
 import { PNG } from 'pngjs'
+import potrace from 'potrace'
+import { optimize } from 'svgo'
 
 export const LAYERS = ['line', 'accent', 'tint', 'paper']
 
 /**
- * The icons, by name. `source` is relative to src/assets/icons/streamline.
+ * The rail's icons, by name. `source` is relative to src/assets/icons/streamline.
  * An icon drawn as line art alone (the Light style) has no fills of its own,
  * so `autofill` colours the regions its outline encloses: every enclosed region
  * is a tint, and when there are several the topmost is the accent.
@@ -19,6 +24,11 @@ export const LAYERS = ['line', 'accent', 'tint', 'paper']
 export const ICONS = [
   { name: 'home', source: 'rail/source/streamline-house-1.png' },
   { name: 'index', source: 'rail/source/streamline-drawer-file.png' },
+  {
+    name: 'notes',
+    source: 'streamline-common-file-stack.png',
+    autofill: true,
+  },
   {
     name: 'pages',
     source: 'streamline-browser-page-layout.png',
@@ -29,6 +39,57 @@ export const ICONS = [
   { name: 'ide', source: 'rail/source/streamline-file-code.png' },
   { name: 'vault', source: 'rail/source/streamline-folder-zip.png' },
   { name: 'files', source: 'rail/source/streamline-hierarchy-files-1.png' },
+]
+
+/** The controls' colour marks: the composer, a thread's row, a tool call, the search. */
+export const CONTROLS = [
+  {
+    name: 'thread',
+    source: 'control/source/streamline-messages-bubble-text-1.png',
+  },
+  {
+    name: 'chatSearch',
+    source: 'control/source/streamline-messages-bubble-search.png',
+  },
+  { name: 'send', source: 'control/source/streamline-send-email-1.png' },
+  {
+    name: 'upload',
+    source: 'control/source/streamline-common-file-upload.png',
+  },
+  {
+    name: 'attachFolder',
+    source: 'control/source/streamline-folder-image-1.png',
+  },
+  { name: 'plan', source: 'control/source/streamline-task-list-quill.png' },
+  { name: 'webSearch', source: 'control/source/streamline-network-search.png' },
+  { name: 'newChat', source: 'control/source/streamline-pencil-write.png' },
+  { name: 'toolRunning', source: 'control/source/streamline-list-edit.png' },
+  {
+    name: 'toolDone',
+    source: 'control/source/streamline-task-list-multiple.png',
+  },
+]
+
+/**
+ * Each set of icons, the folder its layers are written to, and what its module
+ * exports. A `vector` set is traced to SVG outlines; the others keep PNG alpha.
+ */
+export const SETS = [
+  {
+    dir: 'rail/layers/',
+    icons: ICONS,
+    table: 'RAIL_LAYERS',
+    type: 'RailIcon',
+    what: 'rail icon',
+  },
+  {
+    dir: 'control/layers/',
+    icons: CONTROLS,
+    table: 'CONTROL_LAYERS',
+    type: 'ControlIcon',
+    what: 'control mark',
+    vector: true,
+  },
 ]
 
 const clamp = (n) => Math.min(1, Math.max(0, n))
@@ -142,25 +203,200 @@ export function layersOf(source, autofill) {
   )
 }
 
-const ROOT = new URL('../src/assets/icons/streamline/', import.meta.url)
-export const LAYERS_DIR = new URL('rail/layers/', ROOT)
+/** The layer a flat colour paints. */
+function layerOf(rgb) {
+  const share = split([...rgb, 255])
+  if (share.line > 0.5) return 'line'
+  return ['accent', 'tint', 'paper'].reduce((a, b) =>
+    share[b] > share[a] ? b : a,
+  )
+}
 
-/** Every file the icons make, by name: the layer PNGs and the module that imports them. */
-export async function railFiles() {
+/**
+ * The icon's own flat colours: an opaque colour that three of a pixel's eight
+ * neighbours share. An edge's blend repeats along the edge, so at most two do.
+ */
+function flats({ width: w, height: h, data }) {
+  const key = (x, y) => {
+    if (x < 0 || x >= w || y < 0 || y >= h) return -1
+    const i = (y * w + x) * 4
+    return data[i + 3] === 255
+      ? (data[i] << 16) | (data[i + 1] << 8) | data[i + 2]
+      : -1
+  }
+  const found = new Set()
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const k = key(x, y)
+      if (k < 0 || found.has(k)) continue
+      let same = 0
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if ((dx || dy) && key(x + dx, y + dy) === k) same++
+        }
+      }
+      if (same >= 3) found.add(k)
+    }
+  }
+  return [...found].map((k) => {
+    const rgb = [k >> 16, (k >> 8) & 255, k & 255]
+    return { rgb, layer: layerOf(rgb) }
+  })
+}
+
+/** How far, in 8-bit RGB, a colour may sit from a blend of two flats and still be that blend. */
+const STRAY = 30
+
+/** The blend of two of `candidates` nearest a pixel's colour: which two, how far along, how far off. */
+function blend(pixel, palette, candidates) {
+  let best = { distance: Infinity }
+  for (const a of candidates) {
+    for (const b of candidates) {
+      if (b < a) continue
+      const from = palette[a].rgb
+      const step = palette[b].rgb.map((v, k) => v - from[k])
+      const length = step.reduce((sum, v) => sum + v * v, 0)
+      const along = step.reduce(
+        (sum, v, k) => sum + v * (pixel[k] - from[k]),
+        0,
+      )
+      const t = length ? clamp(along / length) : 0
+      const distance = step.reduce(
+        (sum, v, k) => sum + (from[k] + v * t - pixel[k]) ** 2,
+        0,
+      )
+      if (distance < best.distance) best = { distance, a, b, t }
+    }
+  }
+  return best
+}
+
+/**
+ * Each layer's coverage of each pixel, 0 to 1. A pixel of a flat colour is that
+ * colour's layer; any other is an edge, a blend of two of the flats within two
+ * pixels of it, and is shared between their layers. Splitting an edge by its own
+ * colour instead would give the grey between outline and paper to the tint.
+ */
+function unmix(png) {
+  const { width: w, height: h, data } = png
+  const palette = flats(png)
+  const masks = Object.fromEntries(
+    LAYERS.map((layer) => [layer, new Float32Array(w * h)]),
+  )
+  const flat = Int16Array.from({ length: w * h }, (_, i) =>
+    data[i * 4 + 3]
+      ? palette.findIndex(({ rgb }) =>
+          rgb.every((v, k) => v === data[i * 4 + k]),
+        )
+      : -1,
+  )
+  for (let i = 0; i < w * h; i++) {
+    const alpha = data[i * 4 + 3] / 255
+    if (!alpha) continue
+    if (flat[i] >= 0) {
+      masks[palette[flat[i]].layer][i] = alpha
+      continue
+    }
+    const x = i % w
+    const y = (i - x) / w
+    const near = new Set()
+    for (let ny = Math.max(0, y - 2); ny <= Math.min(h - 1, y + 2); ny++) {
+      for (let nx = Math.max(0, x - 2); nx <= Math.min(w - 1, x + 2); nx++) {
+        if (flat[ny * w + nx] >= 0) near.add(flat[ny * w + nx])
+      }
+    }
+    // The flats beside it first; where they do not make its colour (lines that
+    // meet leave no flat between them), any two of the icon's flats.
+    const pixel = data.subarray(i * 4, i * 4 + 3)
+    let best = blend(pixel, palette, [...near])
+    if (best.distance > STRAY ** 2) {
+      best = blend(pixel, palette, [...palette.keys()])
+    }
+    if (best.distance > STRAY ** 2) {
+      // No two flats make this colour: a stripe too thin to hold a flat of its
+      // own. Its own colour says what it is.
+      const share = split(data.subarray(i * 4, i * 4 + 4))
+      for (const layer of LAYERS) masks[layer][i] = share[layer]
+      continue
+    }
+    masks[palette[best.a].layer][i] += alpha * (1 - best.t)
+    masks[palette[best.b].layer][i] += alpha * best.t
+  }
+  return masks
+}
+
+/** How many times its size a mask is enlarged before tracing, so an edge keeps its sub-pixel place. */
+const ENLARGE = 8
+
+/** The outline of one mask as SVG path data, or nothing when the mask is empty. */
+async function outline(mask, w, h, threshold) {
+  const image = new Jimp(w, h, 0xffffffff)
+  for (let i = 0; i < w * h; i++) {
+    const v = 255 - Math.round(mask[i] * 255)
+    image.bitmap.data.set([v, v, v, 255], i * 4)
+  }
+  image.resize(w * ENLARGE, h * ENLARGE, Jimp.RESIZE_BICUBIC)
+  const png = await image.getBufferAsync(Jimp.MIME_PNG)
+  const tracer = new potrace.Potrace({
+    threshold,
+    turdSize: ENLARGE * ENLARGE,
+    optTolerance: 0.4,
+  })
+  await new Promise((resolve, reject) =>
+    tracer.loadImage(png, (error) => (error ? reject(error) : resolve())),
+  )
+  return tracer.getPathTag('#000')
+}
+
+/**
+ * The masks of one icon as SVGs, the layer being the shape. A fill counts a
+ * little under half coverage as covered, so it reaches under the outline drawn
+ * over it and no ground shows between the two.
+ */
+async function vectorLayersOf(source) {
+  const png = PNG.sync.read(source)
+  const { width: w, height: h } = png
+  const masks = unmix(png)
+  const out = {}
+  for (const layer of LAYERS) {
+    if (masks[layer].reduce((sum, v) => sum + v, 0) < MIN_INK) continue
+    const path = await outline(masks[layer], w, h, layer === 'line' ? 128 : 150)
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w * ENLARGE} ${h * ENLARGE}">${path}</svg>`
+    out[layer] = `${
+      optimize(svg, {
+        plugins: [{ name: 'convertPathData', params: { floatPrecision: 1 } }],
+      }).data
+    }\n`
+  }
+  return out
+}
+
+const ROOT = new URL('../src/assets/icons/streamline/', import.meta.url)
+export const layersDir = (set) => new URL(set.dir, ROOT)
+
+/** Every file a set makes, by name: the layer images and the module that imports them. */
+export async function layerFiles(set) {
   const files = new Map()
   const used = new Map()
-  for (const icon of ICONS) {
+  const ext = set.vector ? 'svg' : 'png'
+  for (const icon of set.icons) {
     const source = await readFile(new URL(icon.source, ROOT))
-    const layers = layersOf(source, icon.autofill ?? false)
-    for (const [layer, png] of Object.entries(layers)) {
-      files.set(`${icon.name}-${layer}.png`, PNG.sync.write(png))
+    const layers = set.vector
+      ? await vectorLayersOf(source)
+      : Object.fromEntries(
+          Object.entries(layersOf(source, icon.autofill ?? false)).map(
+            ([layer, png]) => [layer, PNG.sync.write(png)],
+          ),
+        )
+    for (const [layer, bytes] of Object.entries(layers)) {
+      files.set(`${icon.name}-${layer}.${ext}`, bytes)
       used.set(icon.name, [...(used.get(icon.name) ?? []), layer])
     }
   }
   const imports = [...used].flatMap(([name, layers]) =>
     layers.map(
       (layer) =>
-        `import ${name}${layer[0].toUpperCase()}${layer.slice(1)} from './${name}-${layer}.png'`,
+        `import ${name}${layer[0].toUpperCase()}${layer.slice(1)} from './${name}-${layer}.${ext}'`,
     ),
   )
   const table = [...used].map(
@@ -172,12 +408,12 @@ export async function railFiles() {
     `// Generated by scripts/rail-icons.mjs. Do not edit; run \`bun scripts/rail-icons.mjs\`.
 ${imports.join('\n')}
 
-/** Each rail icon's masks: the PNG's alpha is the layer. */
-export const RAIL_LAYERS = {
+/** Each ${set.what}'s masks: ${set.vector ? "the SVG's shape" : "the PNG's alpha"} is the layer. */
+export const ${set.table} = {
 ${table.join('\n')}
 } as const
 
-export type RailIcon = keyof typeof RAIL_LAYERS
+export type ${set.type} = keyof typeof ${set.table}
 `,
   )
   return files
@@ -186,13 +422,15 @@ export type RailIcon = keyof typeof RAIL_LAYERS
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // Read and decode every input first, so a missing or damaged PNG fails
   // before any committed output is removed.
-  const files = await railFiles()
-  await mkdir(LAYERS_DIR, { recursive: true })
-  for (const stale of await readdir(LAYERS_DIR)) {
-    await rm(new URL(stale, LAYERS_DIR))
+  const made = await Promise.all(
+    SETS.map(async (set) => [layersDir(set), await layerFiles(set)]),
+  )
+  for (const [dir, files] of made) {
+    await mkdir(dir, { recursive: true })
+    for (const stale of await readdir(dir)) await rm(new URL(stale, dir))
+    for (const [file, bytes] of files) {
+      await writeFile(new URL(file, dir), bytes)
+    }
+    console.log(`wrote ${files.size} files to ${dir.pathname}`)
   }
-  for (const [file, bytes] of files) {
-    await writeFile(new URL(file, LAYERS_DIR), bytes)
-  }
-  console.log(`wrote ${(await readdir(LAYERS_DIR)).length} files`)
 }
