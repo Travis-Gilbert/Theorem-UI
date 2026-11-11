@@ -56,6 +56,46 @@ test('input entered before the first run event waits for durable thread and run 
   expect(h.queue.getSnapshot()[0]?.runId).toBe('run-1')
 })
 
+test('a chat that already has an id leaves input saved for a chat still being created', () => {
+  const h = harness()
+  h.storage.set(
+    'theorem.run-input.pending:',
+    JSON.stringify([{ id: 'early', text: 'Keep this aside', state: 'waiting' }]),
+  )
+  h.queue.observe()
+  expect(h.queue.getSnapshot()).toEqual([])
+  h.local.threadId = undefined
+  h.queue.submit('Stays with this chat')
+  expect(h.storage.get('theorem.run-input.pending:')).toContain('Keep this aside')
+  expect(h.storage.get('theorem.run-input.thread-1')).toContain('Stays with this chat')
+})
+
+test('input accepted while a new chat is being created survives reload and moves to its durable id', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  expect(h.queue.submit('Use the smaller design')).toBe(true)
+  const saved = h.storage.get('theorem.run-input.pending:')
+  expect(saved).toBeDefined()
+  const pendingId = (JSON.parse(saved!) as Array<{ id: string; text: string }>)[0]
+  expect(pendingId?.text).toBe('Use the smaller design')
+  expect(h.storage.has('theorem.run-input.thread-1')).toBe(false)
+
+  h.queue.dispose()
+  const reloaded = createRunInputQueue(h.host)
+  reloaded.observe()
+  expect(reloaded.getSnapshot()[0]?.id).toBe(pendingId?.id)
+  expect(reloaded.getSnapshot()[0]?.state).toBe('waiting')
+
+  h.local.threadId = 'thread-1'
+  h.local.runId = 'run-1'
+  reloaded.observe()
+  await settle()
+  expect(h.storage.has('theorem.run-input.pending:')).toBe(false)
+  expect(h.storage.get('theorem.run-input.thread-1')).toContain('Use the smaller design')
+  expect(h.host.send).toHaveBeenCalledWith('run-1', 'Use the smaller design', pendingId?.id)
+})
+
 test('an ambiguous command response is not resent automatically and explicit retry keeps its identity', async () => {
   const h = harness()
   h.host.send = mock()

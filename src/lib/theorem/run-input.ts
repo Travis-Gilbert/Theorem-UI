@@ -71,6 +71,13 @@ export type RunInputHost = {
 }
 
 const storageKey = (threadId: string) => `theorem.run-input.${threadId}`
+/**
+ * Input accepted while a new chat is still being created. The composer has
+ * already cleared, and the durable thread id is not known yet, so a reload
+ * can only find the text here. It moves to `storageKey` once that id arrives.
+ */
+const PENDING_KEY = 'theorem.run-input.pending:'
+const TEMPORARY = 'temporary'
 const unknownDelivery = 'Could not confirm delivery. Retry checks this same message.'
 const stoppedMessage = 'The response stopped before this message was delivered.'
 
@@ -116,17 +123,35 @@ function errorCode(error: unknown) {
 export function createRunInputQueue(host: RunInputHost) {
   let items: readonly PendingRunInput[] = []
   let restoredFor: string | undefined
+  /** The thread id once this queue has seen it, so a brief gap still has a slot. */
+  let durableId: string | undefined
   let refreshing = false
   let disposed = false
   const inFlight = new Set<string>()
+  const activeId = () => {
+    const threadId = host.snapshot().threadId
+    if (threadId) durableId = threadId
+    return durableId
+  }
+  const merge = (saved: string | null, current: readonly PendingRunInput[]) => {
+    const restored = saved ? restoreItems(saved) : []
+    return [
+      ...restored.filter((item) => !current.some((existing) => existing.id === item.id)),
+      ...current,
+    ]
+  }
 
   const publish = (next: readonly PendingRunInput[]) => {
     if (disposed) return
-    const threadId = host.snapshot().threadId
-    if (threadId && host.storage) {
-      if (next.length) host.storage.setItem(storageKey(threadId), JSON.stringify(next))
-      else host.storage.removeItem(storageKey(threadId))
+    const threadId = activeId()
+    if (host.storage) {
+      const key = threadId ? storageKey(threadId) : PENDING_KEY
+      if (next.length) host.storage.setItem(key, JSON.stringify(next))
+      else host.storage.removeItem(key)
+      // The temporary copy has moved; a later new chat must not adopt it too.
+      if (threadId && restoredFor === TEMPORARY) host.storage.removeItem(PENDING_KEY)
     }
+    restoredFor = threadId ?? TEMPORARY
     items = next
     if (!disposed) host.changed(items)
   }
@@ -134,19 +159,16 @@ export function createRunInputQueue(host: RunInputHost) {
     publish(items.map((item) => item.id === id ? { ...item, ...patch } : item))
 
   const restore = () => {
-    const threadId = host.snapshot().threadId
-    if (!threadId || restoredFor === threadId) return
-    const saved = host.storage?.getItem(storageKey(threadId))
-    restoredFor = threadId
-    if (!saved) {
-      if (items.length) publish(items)
+    const threadId = activeId()
+    const identity = threadId ?? TEMPORARY
+    if (restoredFor === identity) return
+    const saved = host.storage?.getItem(threadId ? storageKey(threadId) : PENDING_KEY) ?? null
+    if (!saved && items.length === 0) {
+      if (threadId && restoredFor === TEMPORARY) host.storage?.removeItem(PENDING_KEY)
+      restoredFor = identity
       return
     }
-    const restored = restoreItems(saved)
-    publish([
-      ...restored.filter((item) => !items.some((current) => current.id === item.id)),
-      ...items,
-    ])
+    publish(merge(saved, items))
   }
 
   const reconcile = (receipts: readonly InputReceipt[], visible = false) => {

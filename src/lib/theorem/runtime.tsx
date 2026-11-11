@@ -675,6 +675,7 @@ function useTheoremThreadRuntime() {
     threadKey: aui.threadListItem.getState().id,
     threadId: () => aui.threadListItem.getState().remoteId,
     liveRuns: useLiveRuns,
+    subscribe: (listener) => aui.subscribe(listener),
   }), [aui, runtime])
   useKitSource(runtime)
   useKitRequests(runtime)

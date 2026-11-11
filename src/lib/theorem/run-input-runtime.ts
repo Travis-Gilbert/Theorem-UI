@@ -6,13 +6,15 @@ import { registerRunInputQueue, useRunInputs } from './run-input-store'
 /** Binds native input to one assistant-ui observer without replacing its stream. */
 export function bindRunInput(
   runtime: Pick<AssistantRuntime, 'thread'>,
-  { threadKey, threadId, liveRuns }: {
+  { threadKey, threadId, liveRuns, subscribe }: {
     threadKey: string
     threadId: () => string | undefined
     liveRuns: {
       getState: () => Partial<Record<string, string>>
       subscribe: (listener: () => void) => () => void
     }
+    /** Notifies when the open chat may have received its durable id. */
+    subscribe?: (listener: () => void) => () => void
   },
 ) {
   const visibleInputs = () => runtime.thread.getState().messages.flatMap((message) =>
@@ -82,9 +84,16 @@ export function bindRunInput(
   const unregister = registerRunInputQueue(threadKey, queue)
   const stopThread = runtime.thread.subscribe(queue.observe)
   const stopRuns = liveRuns.subscribe(queue.observe)
+  let knownThreadId = threadId()
+  const stopIdentity = subscribe?.(() => {
+    const next = threadId()
+    if (next === knownThreadId) return
+    knownThreadId = next
+    queue.observe()
+  })
   const timer = setInterval(() => {
     if (queue.getSnapshot().length) queue.observe()
   }, 2_000)
   queue.observe()
-  return () => { clearInterval(timer); stopThread(); stopRuns(); unregister() }
+  return () => { clearInterval(timer); stopThread(); stopRuns(); stopIdentity?.(); unregister() }
 }
