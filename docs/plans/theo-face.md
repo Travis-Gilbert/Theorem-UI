@@ -1,14 +1,17 @@
 # Theo's face
 
-Theo is the face Theorem wears in this app: two eyes made of particles, drawn
-with luma.gl, that the agent, the person and the page's own events can all
-move. Nothing in it is a fixed list of emotions. A face is built from shapes,
-shapes are moved by continuous channels, channels are moved by programs over
-time, and programs are started by the agent, by a hand, or by reaction rules
-that weigh what has been happening lately. Each of those four layers is data,
-so each can hold something nobody wrote in advance.
+Theo is the face Theorem wears in this app: two eyes made of particles on a
+small dark visor, drawn with luma.gl, that the agent, the person and the
+page's own events can all move. Nothing in it is a fixed list of emotions. A
+face is built from shapes, shapes are moved by continuous channels, channels
+are moved by programs over time, and programs are started by the agent, by a
+hand, or by reaction rules that weigh what has been happening lately. Each of
+those four layers is data, so each can hold something nobody wrote in advance.
 
-The checklist in `theo-face.checklist.json` tracks this spec item by item.
+The name is a typo of "Theorem" that the owner kept.
+
+The checklist in `theo-face.checklist.json` tracks this spec item by item, and
+says for each what was built, what was checked, and what was not.
 
 ## Sources
 
@@ -20,389 +23,433 @@ The checklist in `theo-face.checklist.json` tracks this spec item by item.
   before and with what is ordinary in this person's environment; expressions
   that can be programmed later.
 - The owner's design note pasted with the request ("Theorem can have
-  expressions that nobody individually programmed"): expression as a
-  performance over time; identity kept apart from expression; channel
-  semantics (absolute, additive, blend); one face per shell with one owner;
-  explicit status beside the face; receipts for what ran, not what was
-  admitted.
-- **The robot reference has not reached this repo.** The request pointed at a
-  picture that was not attached. Until it is filed under
-  `docs/plans/evidence/refs/` with its hash in the ledger, the identity in
-  "Identity" below is a placeholder and no fidelity collage can be made. The
-  reference is for expressive range (how much two eyes can say), not for the
-  robot's likeness: Theo's shapes, spacing and palette are its own.
-- What is already here and is reused, not rebuilt:
-  - `src/lib/kit/operations.ts`: Theorem's client operations. A page declares
-    operations on its send, each becomes a tool of the turn, a call streams a
-    `client_operation` part, and the page answers with a receipt.
+  expressions that nobody individually programmed").
+- **The handoff** `theorem-expressive-presence.md` of 2026-11-10 and the face
+  study that came with it (a standalone rig, a luma 9.4.2 renderer, a Canvas2D
+  fallback). Where it changed this plan is listed under "What the handoff
+  changed".
+- **The reference**: a screen recording of the robot, supplied by the owner.
+  Its hash and scope are in the ledger; its frames are not in this repository.
+  It is a reference for expressive range and for the plain look of the thing
+  (a dark screen, two solid glowing rounded boxes, lids that cut them into
+  wedges, arcs and lines). Theo's proportions, colour and matter are its own.
+- The owner's decisions of 2026-11-11:
+  - Kit stays, on by default, and may gain more physics over time. Kit is
+    "just there"; Theo is the agent's expression, closer to a tool.
+  - Each has its own switch. Either, both or neither may be on.
+  - Eyes only at rest. A mouth is added if eyes turn out not to say enough;
+    the primitive already allows one.
+  - When the agent is not active, Theo sleeps.
+- What was already here and is reused, not rebuilt:
+  - `src/lib/kit/operations.ts` and `src/lib/blocks/app-operations.ts`:
+    Theorem's client operations. A page declares operations on its send, each
+    becomes a tool of the turn, a call streams a `client_operation` part, and
+    the page answers with a receipt.
   - `src/lib/kit/facts.ts`, `liveness.ts`, `store.ts`: run facts gathered
     across every mounted conversation, the liveness derived from them, and the
-    agent's `theorem-expression` part (pose, energy, breath, tilt, gaze, hue).
-  - `src/lib/kit/stage.ts`, `src/components/kit/kit-stage.tsx`: a fixed layer
-    over the shell with named perches, a figure the person can pick up, and a
-    scene the agent can read.
+    agent's `theorem-expression` part.
   - `src/lib/life/energy.ts`: pulses that lift a level and decay with a
-    half-life. The reaction model below is the same arithmetic, kept per kind
-    of event.
-  - `scripts/story-oracle.mjs` and `src/stories/`: addressable stories over
-    committed fixtures, shot and diffed by one driver.
-- luma.gl 9.3: `@luma.gl/core`, `engine`, `shadertools` and `webgl` 9.3.6 are
-  already in `bun.lock` as peers of `@cosmos.gl/graph` 3.5.1, which accepts
-  `~9.3.0` only.
-- Prior work the design note cites: Xpress (language models authoring timed
-  expressions for a 28-degree-of-freedom face; real-time use fell back to a
-  pre-generated bank), Disney Research's layered gaze building blocks, and
-  Kismet's continuous interpolation between expressions.
+    half-life. The reaction memory is the same arithmetic, kept per kind of
+    event.
+  - `src/stories/`: addressable stories over committed fixtures.
+- luma.gl 9.3.6 (`@luma.gl/core`, `engine`, `shadertools`, `webgl`), MIT.
+
+## What the handoff changed
+
+| The handoff says                                                                                        | What this plan does with it                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Acknowledge the start promptly; report the end later. Do not hold a tool request open for a performance | `face.perform` answers as soon as the performance has started, with its id and length. `wait: true` holds the receipt for the end, for at most 15 s. Either way, `face.read` reports how each recent performance ended                                   |
+| Accepted, started, completed, interrupted and failed are different answers                              | A refusal is `rejected` with the path of the step and the reason. `applied` means it started in this browser. The ending is `completed`, `interrupted`, `stopped`, or `running` if the wait ran out. `failed` is an exception while answering            |
+| Reading saved history must not run saved commands again                                                 | Requests are read only from the last assistant message of a conversation whose turn is running, and each request reference is served once per page                                                                                                       |
+| Version the definition apart from the execution                                                         | The book holds immutable versions, `name@n`. An invocation is its own record: id, the version it came from, seed, owner, layer, length, ending                                                                                                           |
+| One moving presence; history keeps a still mark                                                         | One canvas for the page. Earlier replies show an SVG mark of the same eyes                                                                                                                                                                               |
+| The shell owns anchors, and retargets gracefully when one goes                                          | The shell marks its own elements (`data-face-perch`). The driver looks them up every frame: the live reply's gutter, then the composer, then a corner of the window. A perch that scrolls away or unmounts is simply no longer chosen                    |
+| Free positions too, not only anchors                                                                    | The person drags it anywhere; a program's `go` step takes a named place or a point of the window                                                                                                                                                         |
+| Layer order: the hand, the deliberate performance, small secondary motion, resting identity             | `hand` over `performance` over `reaction` over `mood`, over rest. Blink, saccade and breath are offsets beside the stack                                                                                                                                 |
+| Each channel needs an explicit blend policy; do not average                                             | A step says which it is: `to` sets, `by` adds to where the channel is headed, `wave` oscillates around whatever is there. The highest layer holding a channel wins. A blink closes toward shut by an amount, so the eye underneath comes back as it was  |
+| Start a replacement from the displayed state, keeping velocity                                          | Programs only move spring targets. A new target keeps the position and velocity the old one left                                                                                                                                                         |
+| Give the agent the rig schema, examples, the current state and recent history                           | `face.read` returns exactly that, as data                                                                                                                                                                                                                |
+| Validate before running; refuse with a concrete reason                                                  | `compile` checks every step against the face as it is and returns the path and the reason, with the nearest channel name when one is misspelt                                                                                                            |
+| A recorded seed for bounded variation                                                                   | Every invocation records its seed; passing it back replays the same draws                                                                                                                                                                                |
+| Share SceneOS's eyes and renderer rather than start another                                             | **Not done, on purpose.** SceneOS's eyes live in the Theorem repository on luma 9.4.2 inside an artifact frame. This app is held to luma `~9.3.0` by cosmos.gl. The rig here is written so the two could share it later; SceneOS's eyes stay scene-local |
+| Revise the one-expression-a-turn limit in the stream                                                    | Not needed. Performances travel as client operations, which have no such limit. The `theorem-expression` part still lands, once a turn, on the mood layer                                                                                                |
+| The focused conversation owns deliberate expression                                                     | **Not yet.** Any mounted conversation's live turn may perform, and a newer performance interrupts an older one, which is told so. See "Open"                                                                                                             |
+| Keep run state in text                                                                                  | The face has a `role="status"` line. Connection, approval and failure stay where they were in the interface                                                                                                                                              |
+| Evaluate execution, visual quality, communication and preference separately                             | "Tests and evidence" keeps them apart. Only the first two were done here                                                                                                                                                                                 |
+| Defer shader generation, a behaviour-graph editor, anatomy, emotion inference, learned ranking          | Under "Not yet"                                                                                                                                                                                                                                          |
 
 ## Shape
 
-One face per shell. It lives in the fixed layer Kit's stage already owns, in a
-small canvas of its own that is moved by a CSS transform, so travel across the
-page costs no redraw of anything else.
+One face per page, in a fixed layer of its own above the shell. Its canvas is
+small and is moved by a CSS transform, so travel across the page costs no
+redraw of anything else.
 
-- **At rest** it sits in the gutter of the live assistant message, where
-  `Icon.Speaker` (a folder) is drawn today. Earlier messages show a still mark
-  of the same eyes, drawn as SVG from the identity, so history mounts no
-  canvases.
-- **It can leave**: to the composer, to a source or an artifact it is looking
-  at, to a free spot the person dropped it on, or to a park position.
-- **It always has words.** A `role="status"` node says what Theo is doing, as
-  Kit's does. Connection and run state stay in the interface's own text; the
-  face never carries them alone.
+- **At rest** it sits in the gutter of the live assistant reply, where
+  `Icon.Speaker` (a folder) was drawn. Earlier replies show the still mark.
+  With no reply on screen it rests on the composer, and with no composer, in
+  a corner of the window.
+- **It grows to act.** At rest the visor is 32 px wide. It is 1.8 times that
+  while it reacts and 2.4 times while the agent performs, and a program may
+  ask for a size.
+- **It can leave**: to the composer, beside the text, to the centre, to the
+  pointer, to a point of the window, or wherever the person drops it.
+  Double-tap or Escape sends it home.
+- **It always has words.** A `role="status"` node says what Theo is doing.
+- **It sleeps.** Ninety seconds with no run and nothing from the person, and
+  it shuts its eyes, dims and breathes slowly. The person or a run wakes it;
+  the window resizing does not.
 
 ## The four layers
 
 ### 1. Shapes: what a face is made of
 
-A face is a list of **features**. A feature is one closed shape that particles
-fill, and every feature is the same primitive:
+A face is a list of **features**. Every feature is the same primitive:
 
-- a **contour**: a periodic curve through 8 radii around a centre, so one
-  primitive is a circle, a slit, a teardrop, a wedge or a bean;
-- two **lids**: an upper and a lower curve (height, tilt, bow) that cut the
-  contour. A raised, bowed lower lid makes the smiling arc; a tilted upper lid
-  makes a glare;
-- a **hollow**: an inner radius, for a ring or a pupil that is a gap;
-- a **transform**: place, turn, scale, relative to the face or to another
-  feature;
-- a **share** of the particle budget.
+- a **rim**: a superellipse (`w`, `h`, `round`: 2 is an ellipse, 4 the
+  reference's rounded box, 8 nearly a rectangle) multiplied by eight radial
+  gains (`r0`..`r7`), so one primitive is a box, a circle, a slit, a teardrop,
+  a wedge or a bean;
+- two **lids**: an upper and a lower edge, each with how far it closes, a tilt
+  and a bow. A raised, bowed lower lid makes the smiling arc; a tilted upper
+  lid makes a glare; both shut make a line;
+- a **hollow**: an inner radius, for a ring;
+- a **place**: position, turn and scale on the visor;
+- an **alpha**, and a **share** of the face's matter.
 
 The two eyes are two features. They are not special. A brow, a mouth, a tear,
-a blush, a spark over the head are the same primitive with other numbers, and
-the agent can add one for the length of a performance and take it away again.
-When shares change, particles leave one feature and fly to another, which is
-the transition. This is what lets the face show a feature nobody built: a
-feature is described, not implemented.
+a spark over the head are the same primitive with other numbers, and a program
+can add one for its own length and have it taken away when it ends (the book's
+`skeptic` adds two brows this way). At most eight features exist at once.
 
-Every particle keeps a fixed seat in its feature (an angle and a depth from 0
-to 1), from a seeded generator. Its target is that seat mapped through the
-feature's current contour and lids. A spring carries it there. Seats never
-change, so a shape can change completely and each particle still has one
-continuous path.
+The face has one budget of 1,200 grains. Each grain keeps a fixed seat (an
+angle and a depth), laid by a seeded low-discrepancy sequence so a shape fills
+evenly; one grain in four sits on the rim so a feature has an edge. Features
+divide the grains by `share`, so when a feature appears, grains leave the eyes
+and fly to it, and that flight is the transition. A spring carries each grain
+to its seat. Seats never change, so a shape can change completely and every
+grain still has one continuous path.
 
 ### 2. Channels: the instrument
 
-Every number above is a **channel** with a name, bounds, a rest value and a
-blend rule. Names address meaning, never particles: `eye.left.open`,
-`eye.right.lid.upper.tilt`, `gaze.x`, `face.tilt`, `matter.cohesion`.
+Every number above is a **channel** with a name, bounds and a rest value.
+Names address meaning, never grains: `eye.left.lid`, `eye.right.lidTilt`,
+`gaze.x`, `face.tilt`, `matter.cohesion`. `eyes.<param>` means both eyes.
 
-| Group    | Channels                                                                |
-| -------- | ----------------------------------------------------------------------- |
-| Feature  | contour radii, lid height, tilt and bow (upper, lower), hollow, share   |
-| Place    | feature offset, turn and scale; face position, tilt, scale, lean, bob   |
-| Gaze     | target (a point or a named thing on the page), offset, reach, vergence  |
-| Matter   | cohesion, drift, jitter, particle size, glow, hue shift, trail          |
-| Autonomy | blink rate, saccade size, breath depth (how much the face does unasked) |
+| Group    | Channels                                                                                                                                     |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feature  | `x`, `y`, `w`, `h`, `round`, `r0`..`r7`, `lid`, `lidTilt`, `lidBow`, `low`, `lowTilt`, `lowBow`, `hollow`, `turn`, `scale`, `alpha`, `share` |
+| Face     | `face.tilt`, `face.scale`, `face.dx`, `face.dy`, `face.squash`                                                                               |
+| Gaze     | `gaze.x`, `gaze.y`                                                                                                                           |
+| Matter   | `matter.cohesion`, `matter.jitter`, `matter.drift`, `matter.size`, `matter.glow`, `matter.hue`                                               |
+| Autonomy | `auto.blink`, `auto.saccade`, `auto.breath` (how much the face does unasked)                                                                 |
 
-Blend rules are part of the channel, so two writers never fight silently:
-
-- `set`: the highest layer that holds the channel wins; others wait.
-- `add`: offsets sum (a saccade on top of a gaze target, a breath on top of a
-  lid).
-- `scale`: factors multiply (a blink closes whatever openness is underneath
-  and gives it back).
-
-Layers, lowest first: **identity** (rest values), **mood** (slow, from the
-reaction model), **reaction**, **performance** (the agent's), **hand** (the
-person, while they hold a control or the face). Blink, saccade and breath are
-`add` and `scale` writers beside the stack. A layer that lets go of a channel
-does not snap: the spring's target becomes the next layer's value.
+Layers, lowest first: **mood** (the run's liveness, sleep, and the agent's
+`theorem-expression`), **reaction** (the rules), **performance** (the agent's
+programs), **hand** (the person, while they hold the face). The highest layer
+holding a channel decides its target. A layer that lets go does not snap: the
+spring's target becomes the next layer's value.
 
 Every channel moves through a spring, and a program only ever moves the
-spring's target. So interruption is not a special case. A new target keeps
-the velocity the old one left.
+spring's target. So interruption is not a special case. Moves shorter than
+40 ms snap, and the spring's frequency is capped, so no program can make one
+unstable.
 
 ### 3. Programs: expression over time
 
-A performance is a small tree, as JSON:
+A performance is a list of steps, as JSON:
 
-| Node      | Does                                                                    |
-| --------- | ----------------------------------------------------------------------- |
-| `to`      | moves named channels to values over a time, with an ease                |
-| `hold`    | keeps what is held for a time                                           |
-| `seq`     | children in order                                                       |
-| `par`     | children together; ends with the longest                                |
-| `stagger` | children together, each delayed (one eye leads the other)               |
-| `look`    | points gaze at a thing on the page, a point, the cursor or the person   |
-| `feature` | adds, reshapes or removes a feature                                     |
-| `use`     | plays a named performance, with arguments and an intensity from 0 to 1  |
-| `vary`    | jitters its child's values and times within a stated range, from a seed |
-| `repeat`  | plays its child a number of times, or until released                    |
-| `release` | gives channels back to the layer below                                  |
+| Step      | Does                                                                         |
+| --------- | ---------------------------------------------------------------------------- |
+| `to`      | moves channels to values over a time, with a bounce, then holds              |
+| `by`      | moves channels by an amount from where they are headed                       |
+| `wave`    | oscillates a channel around wherever it is (sine, square or noise)           |
+| `wait`    | nothing, for a while                                                         |
+| `seq`     | steps in order                                                               |
+| `par`     | steps together; lasts as long as the longest                                 |
+| `stagger` | steps together, each delayed (one eye leads the other)                       |
+| `repeat`  | a step several times; draws are fresh each time                              |
+| `vary`    | one of several steps, drawn by weight from the seed                          |
+| `look`    | turns the gaze to the person, the pointer, the composer, the text or a point |
+| `feature` | adds, reshapes or removes a feature                                          |
+| `go`      | moves the whole face on the page, at a size                                  |
+| `burst`   | kicks the matter outward from a point                                        |
+| `use`     | plays a named performance inside this one, with arguments and an intensity   |
+| `release` | gives channels back to the layer below                                       |
 
-Named emotions are entries in a book of performances, each one such a tree
-with parameters. `use: curious` is a shortcut the agent may take; writing the
-tree is always allowed and needs no name.
+Any number may be `{rand:[low,high]}`, drawn from the invocation's seed, or
+`{arg:"name", or:n}`, passed by the caller. `keep: true` leaves what the
+program set in place after it ends, until the layer is stopped or played on
+again; that is how a mood or a sleep holds.
 
-A program is checked before it starts: known channels, values clamped to
-bounds (the clamps are reported, not hidden), at most 64 nodes, at most 6
-features, at most 15 seconds (a run waits 20 seconds for a receipt, as
-`CHOREOGRAPHY_MS` already allows for). `repeat` until released is admitted
-only on the mood and reaction layers.
+Named expressions are entries in a book of performances (26 to start: blink,
+wink, nod, shake, perk, squint, glare, worry, happy, joy, think, curious,
+startle, wince, dizzy, sigh, scan, melt, sparkle, skeptic, attend, focus, ask,
+sleep, wake, done). `use: "curious"` is a shortcut the agent may take; writing
+the steps is always allowed and needs no name.
+
+A program is compiled before it starts: known steps, known channels (the
+nearest name is offered for a misspelt one), values clamped to bounds and the
+clamps reported in the receipt, at most 30 s, 600 cues, 10 levels of nesting,
+24 repeats and 4 levels of `use`. A refused program changes nothing.
 
 ### 4. Reactions: the same event, a different answer
 
-The page feeds one stream of typed events: the person (pointer near, poke on a
-feature, stroke, pick up, drop, typing, send, scroll, selection), the run
-(start, text, reasoning, tool call, tool error, approval asked, done,
-cancelled), and the environment (tab hidden and shown, window resized, theme
-changed, offline, hour of day, how long idle).
+The page feeds one stream of events: the person (`person.poke`, `pet`, `drop`,
+`type`, `send`, `return`), the run (`run.start`, `ask`, `tool`, `tool.fail`,
+`error`, `done`), and the environment (`env.resize`, `theme`, `offline`,
+`online`, `copy`). An agent's rule may name a kind nobody emits yet.
 
-**What it remembers.** For each kind of event, three decayed rates: over
-seconds, over minutes, and a baseline over days that is kept in
-`localStorage`. From them:
+**What it remembers.** For each kind of event: a rate over seconds, a rate
+over minutes, how many came in a row, how long since the last, and a baseline
+over days kept in `localStorage`. From them a rule can read:
 
-- **novelty** falls as the short rate rises, so the fifth poke in a row gets
-  less than the first;
-- **surprise** is how far the minutes rate stands from this device's baseline,
-  so forty tool calls startle the face for a person who rarely runs any and
-  pass unremarked for one who always does;
-- **mood**: three slow numbers (arousal, valence, focus) that events push and
-  time relaxes. Mood writes the mood layer: lower arousal lowers the lids and
-  slows the blink; a run of errors tightens cohesion and narrows the eyes.
+- **streak** and **fast**: how many in a row, how many lately;
+- **novelty**: how far from ordinary this is for this device, so a burst of
+  tool calls is news for a person who rarely runs any and passes unremarked
+  for one who always does;
+- **habit**: how ordinary the kind is here at all;
+- **mood**: arousal, valence and focus, which events push and time relaxes.
 
 **What it does.** A reaction rule is data:
 
 ```json
 {
-  "on": ["poke", "poke", "poke"],
-  "within": 2000,
-  "when": "novelty.poke < 0.3",
-  "do": { "use": "dizzy", "intensity": "1 - novelty.poke" },
-  "cooldown": 8000,
-  "weight": 2
+  "id": "done-relief",
+  "on": ["run.tool.fail", "run.done"],
+  "within": 120000,
+  "do": "sigh",
+  "weight": 4
 }
 ```
 
-`on` is one kind or a short sequence. `when` reads novelty, surprise, mood and
-liveness. `do` is a program whose numbers may be expressions over the same
-values. When several rules match, one is drawn by weight from a seeded
-generator, a rule that just played is drawn less, and a cooldown keeps it from
-repeating. So a first poke gets a blink and a look; a quick fifth gets
-something else; a poke after ten idle minutes gets a start. None of the three
-is the "poke reaction".
+`on` is one kind or a short sequence. `when` gives ranges for the gauges
+above. `do` is a book name or a program. When several rules fit, one is drawn
+by weight from a seeded generator, a rule that just played is drawn less,
+doing nothing is always one of the candidates, and a cooldown keeps a rule
+from repeating. So a first poke gets a start or a look, a fourth a glare, and
+an eighth a face that has gone dizzy or let go of its shape. None of those is
+"the poke reaction".
 
-The rule book ships with defaults. The person can edit it, and the agent can
-add to it, which is how the face learns a reflex nobody thought of.
+The rule book ships with 40 defaults. The agent can add up to 32 and remove
+its own. A reaction never talks over a performance the agent is playing.
 
 ## Who moves it
 
-| Mover                     | How                                                                                                     | Layer       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------- | ----------- |
-| The model, by tool call   | `face.*` client operations, declared on the send beside `kit.*`                                         | performance |
-| The model, in code mode   | the same operations as `tool('face.perform', …)` inside a Boa, Monty or Blaze program                   | performance |
-| The model, without a tool | the `theorem-expression` part it already writes (energy, breath, tilt, gaze, hue) maps onto channels    | mood        |
-| The person                | pointer and keyboard on the face; the bench                                                             | hand        |
-| The page                  | reaction rules over the event stream                                                                    | reaction    |
-| The face itself           | blink, saccade, breath, and an idle glance now and then, at the rate ADDENDUM-1 allows Kit's own shifts | autonomy    |
+| Mover                     | How                                                                                                  | Layer       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- | ----------- |
+| The model, by tool call   | `face.read`, `face.perform`, `face.define`, declared on the send beside `kit.*` and `app.check`      | performance |
+| The model, in code mode   | the same three as `tool("face__perform", {...})` inside a cell                                       | performance |
+| The model, without a tool | the `theorem-expression` part it already writes (energy, breath, tilt, gaze, hue) maps onto channels | mood        |
+| The run                   | its liveness: attending, working, asking, done, idle                                                 | mood        |
+| The person                | pointer and keyboard on the face                                                                     | hand        |
+| The page                  | reaction rules over the event stream                                                                 | reaction    |
+| The face itself           | blink, saccade, breath                                                                               | autonomy    |
 
 ### Operations
 
-| Operation      | Arguments                                        | Receipt says                                              |
-| -------------- | ------------------------------------------------ | --------------------------------------------------------- |
-| `face.perform` | a program, or a name with arguments              | started; then completed, interrupted (by what) or refused |
-| `face.set`     | channels and values, a time to get there, a hold | the values after clamping                                 |
-| `face.look`    | a surface id from the scene, a point, `cursor`   | whether the target is on screen                           |
-| `face.feature` | add, reshape or remove one feature               | the feature's id and the share it got                     |
-| `face.move`    | a perch, a free point, or `park`                 | where it ended up                                         |
-| `face.define`  | a named performance or a reaction rule to keep   | the name, and what it replaced                            |
-| `face.read`    | nothing                                          | channels, mood, recent events, names in the book, bounds  |
+Theorem admits sixteen operations a send. Kit has nine and Apps one, so the
+face has three, and everything it can do is reached through them: looking,
+moving, adding a feature and setting a channel are steps of a program, not
+operations of their own.
 
-A receipt reports what the browser did. Admitted, started, completed,
-interrupted and failed are five different answers, and the model reads the one
-that happened.
+| Operation      | Arguments                                                                   | Receipt says                                                                                 |
+| -------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `face.read`    | `part`: all, channels, book or state                                        | the manual: channels with bounds, the steps, the book, the rules, and what the face is doing |
+| `face.perform` | `use` (a name) or `program`; `args`, `intensity`, `seed`, `wait`; or `stop` | the invocation's id, version, length and seed, what was clamped, and how it ended            |
+| `face.define`  | `name` + `program` + `note`; or `rule`; or `remove`                         | `name@version` saved, the rule's id, or what was removed                                     |
 
-Code mode needs nothing of its own on this side: a cell already reaches the
-turn's operations through `tool(name, args)`. A cell can therefore loop, read
-the face, and change a performance on what it reads. Typed builders for the
-program tree inside a cell belong to the kernel in the Theorem repository and
-are listed under "Not yet".
+The face is declared only while it is on the page, so a turn is never offered
+a face it cannot move.
 
 ### The person's hands
 
-- The face is a focusable button, as Kit is. Enter or Space pokes it; arrow
-  keys move it; Escape parks it.
-- The pointer near it draws the gaze. A press inside one eye is a poke on that
-  feature, so that eye flinches and the other does not.
-- Drag moves it and drops it anywhere; a quick release throws it and it
-  settles. Dropped over text or the composer, it slides to the nearest clear
-  spot (`src/lib/free-spot.ts`).
-- **The bench** is a panel (and a story) with every channel as a control, the
-  running program as editable JSON, capture of the current pose, and save to
-  the book under a name. Touching a control takes that one channel to the
-  hand layer while the rest of the performance plays on.
+- The face is a focusable button. Enter or Space pokes it; Escape sends it
+  home.
+- The pointer near it draws the gaze.
+- A tap is a poke at that point: the matter scatters from where it was
+  touched, and the face may react.
+- Dragging carries it. It opens its eyes wide, leans into the motion, and its
+  matter lags behind. Let go and it stays where it was put.
+- Stroking across it is petting.
+- Double-tap sends it home.
+- Settings, Appearance, Figures: a switch for Theo and a switch for Kit.
 
-### One face, one owner
+### One face
 
-The face is the agent's, not a conversation's, as Kit is. Facts come from
-every mounted conversation; deliberate performances are taken only from the
-focused one. Each carries its run id and a generation, and a callback from an
-older generation can no longer write. The hand outranks everything while it
-holds.
+The face is the page's, not a conversation's. Each performance carries its
+owner (`run:<id>`, `rule:<id>`, `liveness`) and an invocation id; a newer one
+on the same layer interrupts the older, whose waiting receipt says so. The
+hand outranks everything while it holds.
 
 ## Identity
 
-Identity is one data file: the features at rest, their spacing, the particle
-count and size, the palette (from the theme's tokens, resolved as
-`mount-life.ts` resolves them), and the manner (spring stiffness and damping,
-blink rate, how far the autonomy channels sit). Expression deforms identity
+Identity is one data file, `src/lib/face/identity.ts`: the visor's
+proportions (100 by 64 face units), the features at rest (two eyes), the grain
+count and size, and the matter's colour in OKLCH. Expression deforms identity
 and always returns to it. Changing how Theo looks is a change to this file and
 to nothing else.
 
-The placeholder until the reference arrives: two tall rounded eyes, slightly
-apart, in the accent colour, about 1,200 particles each.
+The eyes are white-hot at the centre with a cyan fringe, on a visor that is
+dark in every palette, as the reference's screen is. The mood shifts the hue a
+little; the agent's `theorem-expression` hue shifts it more.
 
 ## Decisions
 
-| Decision               | Choice                                                                                                                   | Why                                                                                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| luma.gl version        | 9.3.6, added as direct dependencies at the version already locked                                                        | cosmos.gl's peer range is `~9.3.0`. The study's 9.4.2 would put a second luma in the bundle beside the Vault graph's                                           |
-| Where motion is solved | On the CPU, in typed arrays: channels, springs and particle targets                                                      | A few thousand particles cost little; the solver then runs in `bun test` with no GPU, and one solver feeds both renderers                                      |
-| What luma draws        | Instanced soft points from one buffer written each frame; glow, colour and shimmer in the shader                         | The request is luma for presentation. The shader holds nothing a test would need to see                                                                        |
-| Fallback               | Canvas2D over the same arrays, labelled in the status node                                                               | Servo 0.7's WebGL2 is the open question `vault-view.md` already records for the desktop window                                                                 |
-| Canvas                 | One small canvas moved by transform, not a window-sized one                                                              | One WebGL context for the face whatever it does; travel is compositor work                                                                                     |
-| Frame loop             | Runs while a spring is awake or a program plays; idle shimmer at a lower rate; stopped when hidden or off screen         | Kit paints on timers between frames. A face that always animates must not cost a frame loop to a person who is reading                                         |
-| Tween or spring        | Programs move targets, springs follow                                                                                    | Interruption and blending need no rules of their own                                                                                                           |
-| Expression language    | A JSON tree, validated by zod from a JSON Schema                                                                         | The same schema is the tool's `inputSchema`, the bench's editor check and the book's file format                                                               |
-| Contract home          | `src/lib/face/contract/` in this repository first; moved to `theorem-surface-contracts` with ts-rs types once it settles | The page declares its operations on the send. Whether the authority admits a namespace it has no declaration of is the first thing to verify (see "To verify") |
-| Book and rules         | Defaults in code; the person's and the agent's additions in `localStorage`                                               | Useful before any backend work. A durable book in Theorem is under "Not yet"                                                                                   |
-| Kit                    | Stays. A setting picks the figure: Theo or Kit                                                                           | Both read the same facts and stand on the same stage. Whether Kit retires is the owner's call (see "Open")                                                     |
-| Randomness             | One seeded generator per face, injectable                                                                                | "Not the same every time" and "repeatable in a test" are both required                                                                                         |
-| Tests                  | `bun test` over the pure modules; stories with a frozen clock for the oracle                                             | No new test runner                                                                                                                                             |
+| Decision               | Choice                                                                                                      | Why                                                                                                                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| luma.gl version        | 9.3.6, as direct dependencies at the version already locked                                                 | cosmos.gl's peer range is `~9.3.0`. The study's 9.4.2 would put a second luma in the bundle beside the Vault graph's                              |
+| Where motion is solved | On the CPU, in typed arrays: channels, springs and grain seats                                              | 1,200 grains cost about half a millisecond a frame. The solver then runs in `bun test` with no GPU, and one solver feeds both renderers           |
+| What luma draws        | One instanced triangle strip from one buffer written each frame; core, halo and additive glow in the shader | The request is luma for presentation. The shader holds nothing a test would need to see                                                           |
+| Fallback               | Canvas2D over the same buffer; the status says which is drawing                                             | The desktop window's WebGL2 is unverified                                                                                                         |
+| Canvas                 | One small canvas, made afresh by each mount, moved by transform                                             | One WebGL context for the face whatever it does. A canvas whose context was destroyed cannot be given another, which React's double mount found   |
+| Tween or spring        | Programs move targets, springs follow                                                                       | Interruption and blending need no rules of their own                                                                                              |
+| Expression language    | JSON steps, checked by a compiler written here                                                              | The refusals need a path and a suggestion, which a schema validator does not give. The tool's `inputSchema` leaves `program` open for that reason |
+| Three operations       | read, perform, define                                                                                       | The sixteen-operation limit, and a model learns one manual more readily than seven tools                                                          |
+| Book and rules         | Defaults in code; the agent's additions in `localStorage`                                                   | Useful before any backend work. A durable book in Theorem is under "Not yet"                                                                      |
+| Kit                    | Stays, on by default, with its own switch                                                                   | The owner's decision                                                                                                                              |
+| Randomness             | One seeded generator per face, and a recorded seed per invocation                                           | "Not the same every time" and "repeatable in a test" are both required                                                                            |
+| Tests                  | `bun test` over the pure modules; stories that can be frozen at a moment                                    | No new test runner                                                                                                                                |
 
 ## Files
 
 ```
 src/lib/face/
-  channels.ts     channel table: names, bounds, rest, blend rule
-  identity.ts     Theo's features at rest, particle budget, manner
-  feature.ts      contour, lids, hollow; a seat mapped to a point; hit test
-  particles.ts    seats from a seed, shares, springs toward targets
-  layers.ts       the stack, ownership, release
-  program.ts      the tree's schema, validation, clamping, timing
-  player.ts       runs a program against the layers; interruption, generations
-  book.ts         named performances: defaults, and those kept locally
-  events.ts       the event stream and its typed kinds
-  memory.ts       decayed rates, novelty, surprise, mood, the stored baseline
-  reactions.ts    rules, matching, weighted choice, cooldowns
-  autonomy.ts     blink, saccade, breath, idle glances
-  operations.ts   face.* declarations, parsing, receipts
-  store.ts        zustand: what the components read
-  words.ts        what the status node says
-  contract/operations.json
+  channels.ts     channel table: names, bounds, rest; features added and removed
+  identity.ts     Theo's features at rest, grain budget, colour
+  feature.ts      the primitive: a seat mapped to a point through rim and lids
+  particles.ts    seats from a seed, shares, springs, shove and burst, the buffer
+  layers.ts       the rig: a spring per channel, the layer stack, release
+  program.ts      steps, the compiler, limits, refusals
+  player.ts       runs a score on a layer; interruption, kept holds, endings
+  book.ts         named performances: Theo's own, and versions added later
+  memory.ts       decayed rates, streaks, the days baseline, mood
+  reactions.ts    rules, fitting, weighted draw, cooldowns
+  autonomy.ts     blink, saccade, breath
+  engine.ts       Face: the one object everything that moves Theo goes through
+  operations.ts   face.* declarations, requests, receipts, run events
+  store.ts        the page's one face; whether it is mounted
+  random.ts       the seeded generator
+src/lib/figures.ts            Theo's and Kit's switches
 src/components/face/
-  face.tsx        canvas, status node, pointer and keyboard
-  luma.ts         the luma renderer
-  canvas2d.ts     the fallback
-  face-mark.tsx   the still SVG mark for earlier messages
-  face-bench.tsx  the bench
+  driver.ts       where the face is on the page; pointer, keyboard, page events
+  face-stage.tsx  the layer, the button, the status line
+  painter.ts      the Painter interface, the Canvas2D painter, the choice
+  luma.ts         the luma painter
+  face-mark.tsx   the still mark, and the gutter slot
+  figures.tsx     mounts Theo and Kit, each if switched on
+  face-bench.tsx  the bench and the book sheet, for stories
 ```
-
-`KitStage` becomes the stage for whichever figure the setting names.
-`thread.aui.tsx` swaps `Icon.Speaker` for the mark, and for a perch on the
-live message.
 
 ## Milestones
 
-1. **Rig.** Channels, features, particles, both renderers, and the bench as a
-   story. No agent, no shell. Shows: two eyes, each moved alone; a third
-   feature added and removed from the bench; the same seed gives the same
-   particles.
-2. **Programs.** The tree, the player, the default book, autonomy. Shows: a
-   performance interrupted halfway by another without a jump; a channel taken
-   by hand while the rest plays.
-3. **In the shell.** The stage, the gutter, the mark, the hands, the words,
-   reduced motion, the figure setting.
-4. **Reactions.** Events, memory, rules, the stored baseline. Shows: one event
-   repeated gets a falling, then a different, answer.
-5. **The agent.** `face.*` operations and receipts, the expression part on the
-   mood layer, focus ownership. Shows the target below.
-6. **Keeping what works.** `face.define`, the book and the rules edited from
-   the bench.
+1. **Rig.** Channels, features, particles, both painters. Done.
+2. **Programs.** The steps, the compiler, the player, the book, autonomy.
+   Done.
+3. **In the shell.** The layer, the gutter, the mark, the hands, the words,
+   reduced motion, the switches, sleep. Done.
+4. **Reactions.** Events, memory, rules, the stored baseline. Done.
+5. **The agent.** The three operations and their receipts, the expression
+   part and liveness on the mood layer. Built and tested against the SDK's
+   message mapping; **not yet driven by a live run** (see "To verify").
+6. **Keeping what works.** `face.define` for performances and rules. Done. An
+   editor for them in the app is not built; the bench plays a program typed
+   into it.
 
-**The target for milestone 5:** in a live turn, the model writes a
-performance that has no name in the book, points the face at a real message or
-artifact, moves the eyes differently from each other, is interrupted by the
-person's next message and redirects without a jump, and reads back a receipt
-that says "interrupted" and by what.
+**The target for milestone 5**, still to be seen in a live turn: the model
+writes a performance that has no name in the book, moves the eyes differently
+from each other, adds a feature, is interrupted by the next performance
+without a jump, and reads back that it was interrupted.
 
 ## Tests and evidence
 
-- `bun test`, pure modules:
-  - the same seed gives the same seats, and a shape change moves no particle
-    discontinuously;
-  - every channel stays finite and inside its bounds under any admitted
-    program;
-  - `seq`, `par` and `stagger` end when they should; a second program started
-    mid-way leaves no channel with a jump in value;
-  - a channel on the hand layer ignores the performance and returns to it on
-    release;
-  - a blink on a half-closed eye gives the half-closed eye back;
-  - one event repeated: intensity falls, then a different rule is drawn; the
-    same seed draws the same sequence;
-  - a stored baseline changes surprise for the same events;
-  - a receipt from an older generation is not sent as "completed";
-  - a refused program names the node and the reason.
-- Stories, each with `?t=` to freeze the clock: `face-bench`, `face-book`
-  (every default performance at its midpoint, in every palette),
-  `face-in-thread`, `face-fallback`. `story-oracle.mjs motion` records two
-  frames 400 ms apart.
-- A collage against the robot reference, once it is filed. A person seals it.
-- Frame cost measured in the browser at the placeholder's particle count, on
-  the desktop window and a phone, and written into the checklist. No number is
-  promised before it is measured.
+**Execution correctness** (`bun test src/lib/face`, 61 tests):
 
-**What tests cannot say.** Whether a performance reads as anything to a
-person. That is asked of people: a free description first ("what is it doing?
-what will it do next?"), labels only afterwards, each performance seen both
-alone and beside the sentence it accompanied. The answers are kept with the
-performance in the book.
+- channels: every feature has every param; a new feature gets channels of its
+  own up to the limit; a near miss is named;
+- the primitive: sides mirror; a closing lid brings the eye to a line; a
+  radial gain moves one part of the rim;
+- the rig: a higher layer wins and the lower shows again after; bounds hold;
+  no move, however abrupt, sends a spring away; bounce overshoots and reduced
+  motion does not;
+- the matter: it settles inside its features and the visor; a share draws
+  grains out of the others; a poke scatters and it comes back; the same seed
+  lays the same face;
+- the compiler: timing of `seq`, `par` and `stagger`; refusals with a path and
+  the nearest name; every limit; seeded draws; every performance in the book
+  compiles;
+- the book: versions, persistence, Theo's own are never lost;
+- the face: a performance moves it and lets go; a program nobody named plays
+  and its added feature is taken away after; a refused program changes
+  nothing; interruption; the hand over a performance; ten pokes in a row do
+  not repeat and end somewhere they did not start; different seeds differ and
+  the same seed repeats; a finish straight after a failure is a sigh and a
+  clean finish is not; sleep, what does and does not wake it, and waking;
+  liveness moods; the buffer is finite and lit; the manual names everything;
+- operations: each declaration inside Theorem's limits (name, 1,024 bytes of
+  description, 8 KB of schema) and all of the page's together at most sixteen;
+  declared only when mounted; a pending request is read from the live turn and
+  nothing in history is performed again; read, perform, wait, stop, define,
+  remove, rules; refusals; a request is answered once; a receipt that fails
+  to post is sent again and the performance is not played again.
 
-## To verify first
+**Visual quality**, checked here in headless Chromium (software WebGL):
 
-1. That the authority admits `face.*` operations declared only by the page,
-   or needs a declaration of its own as `kit_operations()` is.
-2. That luma 9.3.6 instanced drawing runs in the desktop window's webview. If
-   not, the desktop gets the fallback and the checklist says so.
-3. That a Boa cell's `tool('face.perform', …)` reaches the page with the same
-   receipt path a direct tool call has.
+- luma draws the face (`drawn by luma`), and Canvas2D draws the same face in a
+  browser with no WebGL (`drawn by canvas2d`);
+- the book sheet: every performance at its fullest moment;
+- in the shell: at rest in the live reply's gutter beside Kit on the composer;
+  poked; poked eight times running; carried and dropped; sent home; with
+  reduced motion; by keyboard; switched off (the old gutter icon returns) and
+  on again; asleep after ninety seconds and awake after a poke.
+
+Renders are under `docs/plans/evidence/theo-face/`.
+
+**Not done here**, and nothing in this plan claims them:
+
+- **Communication.** Whether a performance reads as anything to a person. That
+  is asked of people: a free description first ("what is it doing? what will
+  it do next?"), labels only afterwards, each performance seen alone and
+  beside the sentence it accompanied.
+- **Preference.** How much movement a person wants over days of use.
+- A collage against the reference, sealed by a person.
+- Frame cost in a real browser on real hardware. The solver alone measures
+  about 0.5 ms a frame under Bun.
+- Light and dark, and each palette, side by side. The visor is dark in all of
+  them by design; that choice has not been looked at on every one.
+
+## To verify
+
+1. **A live run.** That Theorem admits `face.*` declared only by the page (it
+   admits Apps' `app.check` this way), offers them to the model, and that a
+   receipt reaches the run. The server's limits were read from its source;
+   nothing was run against it.
+2. **Code mode.** That a cell's `tool("face__perform", {...})` reaches the
+   page with the same receipt path a direct tool call has.
+3. **The desktop window.** That luma 9.3.6 draws in its webview. If not, it
+   gets the fallback, which is already there.
 
 ## Open
 
-- **The reference picture.** Needed for the identity and for any collage.
-- **Kit.** Companion, alternative, or retired.
-- **A mouth.** The primitive allows one. Whether Theo has one at rest is an
-  identity question the reference should answer.
+- **Who may perform.** The handoff's first policy is that only the focused
+  conversation owns deliberate expression. Today any mounted conversation's
+  live turn may, and the newest wins.
+- **How much the manual costs a turn.** `face.read` with no part is about
+  10 KB of JSON. The parts are there so a model can ask for less.
+- **A mouth.** Added if eyes are not enough.
 - **Sound.** Not planned.
 
 ## Not yet
 
 - A durable book and rule set in Theorem, shared across devices and readable
   by the agent before a page is open.
-- Typed builders for the program tree in the code-mode kernel.
+- An editor in the app for the book and the rules, and controls for single
+  channels (the study's sliders).
+- Typed builders for programs in the code-mode kernel.
+- Sharing the rig with SceneOS's eyes.
 - A model that ranks or adapts candidate performances (the design note's
-  Transformers.js idea). It needs the reading records above before it has
-  anything to learn from.
+  Transformers.js idea). It needs people's readings before it has anything to
+  learn from.
 - New expressive mechanisms beyond the feature primitive (a shape that is not
-  one closed contour), as versioned extensions with a preview.
-- The particle solver on the GPU. Only if the particle count outgrows the CPU.
+  one closed rim), agent-written shaders, a behaviour-graph editor, anatomy
+  beyond a face, any inference of the person's emotion.
+- The particle solver on the GPU. Only if the grain count outgrows the CPU.
