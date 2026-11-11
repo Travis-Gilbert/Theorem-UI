@@ -2,6 +2,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from 'bun:test'
 import { installFakeTheorem } from '@/stories/fake-theorem'
 import type { FakeRoutes } from '@/stories/fake-theorem'
+import { bootstrap } from './client'
 import { connectionsApi } from './connections'
 
 const page = (window as unknown as { happyDOM: { setURL: (url: string) => void } })
@@ -58,9 +59,10 @@ const routes: FakeRoutes = {
   [`GET ${root}/tools`]: record({ groups: [] }),
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   seen = []
   restore = installFakeTheorem(routes)
+  await bootstrap(true)
 })
 afterEach(() => restore())
 

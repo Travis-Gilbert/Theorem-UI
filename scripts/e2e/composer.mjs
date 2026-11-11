@@ -97,10 +97,11 @@ try {
   await page.keyboard.press('Enter')
   await page.keyboard.type('Second item')
   check(
-    'Enter continues a list without submitting',
+    'Enter continues a list without submitting or reordering typed characters',
     (await sent()) === '0' &&
       (await submits()) === '0' &&
-      (await input.locator('li').count()) === 2,
+      (await input.locator('li').count()) === 2 &&
+      (await draft()) === '* First item\n* Second item',
     await draft(),
   )
 
@@ -130,7 +131,13 @@ try {
 
   await load('Markdown')
   await input.click()
-  await page.keyboard.press('Control+a')
+  // Ctrl+A creates a ProseMirror AllSelection, for which Crepe deliberately
+  // hides its text toolbar. Select the line as a person would with Shift+End.
+  await page.keyboard.press('Home')
+  await page.keyboard.press('Shift+End')
+  await page.waitForFunction(
+    () => window.getSelection()?.toString() === 'Select this text',
+  )
   const bold = page.locator('[data-toolbar-item="bold"]')
   await bold.waitFor({ state: 'visible' })
   await bold.click()
@@ -144,7 +151,11 @@ try {
 
   await load('Markdown')
   await input.click()
-  await page.keyboard.press('Control+a')
+  await page.keyboard.press('Home')
+  await page.keyboard.press('Shift+End')
+  await page.waitForFunction(
+    () => window.getSelection()?.toString() === 'Select this text',
+  )
   const link = page.locator('[data-toolbar-item="link"]')
   await link.waitFor({ state: 'visible' })
   await link.click()

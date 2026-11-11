@@ -1,0 +1,40 @@
+diff --git a/lib/list-item-block/index.js b/lib/list-item-block/index.js
+index d1926c0f730d5437f2110e3b51e87dd50d0ab6d7..9481f1e8278145311ed4388a2d8fa02d78730bcd 100644
+--- a/lib/list-item-block/index.js
++++ b/lib/list-item-block/index.js
+@@ -199 +199 @@
+-        if (capture2.anchor <= docSize && capture2.head <= docSize) last = capture2;
++        if (capture2.state === state && capture2.anchor <= docSize && capture2.head <= docSize) last = capture2;
+@@ -245 +245,2 @@
+-        const { anchor, head } = view.state.selection;
++        const state = view.state;
++        const { anchor, head } = state.selection;
+@@ -247 +248 @@
+-        scheduleRestore(view, dom, { anchor, head });
++        scheduleRestore(view, dom, { anchor, head, state });
+diff --git a/src/list-item-block/view.ts b/src/list-item-block/view.ts
+index 1af811b56ad59efdf791dd40500600729bdad258..13e74efc1face0d040bbe8119c0d5444d542b46c 100644
+--- a/src/list-item-block/view.ts
++++ b/src/list-item-block/view.ts
+@@ -5 +5 @@
+-import { TextSelection } from '@milkdown/prose/state'
++import { TextSelection, type EditorState } from '@milkdown/prose/state'
+@@ -15,0 +16 @@
++  state: EditorState
+@@ -45 +46,8 @@
+-        if (capture.anchor <= docSize && capture.head <= docSize) last = capture
++        // A later transaction owns the caret and stored marks now. Replaying
++        // old coordinates can reorder typing or clear newly enabled formatting.
++        if (
++          capture.state === state &&
++          capture.anchor <= docSize &&
++          capture.head <= docSize
++        )
++          last = capture
+@@ -104 +112,2 @@
+-        const { anchor, head } = view.state.selection
++        const state = view.state
++        const { anchor, head } = state.selection
+@@ -107 +116 @@
+-        scheduleRestore(view, dom, { anchor, head })
++        scheduleRestore(view, dom, { anchor, head, state })

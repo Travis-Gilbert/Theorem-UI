@@ -373,8 +373,13 @@ test('a fresh bootstrap aborts at 30 seconds before any input command is dispatc
 })
 
 test('the shipped SDK sends only an input command and keeps its key through CSRF refresh', async () => {
-  const requests: Array<{ path: string; key: string | null; body: unknown }> =
-    []
+  const requests: Array<{
+    path: string
+    key: string | null
+    csrf: string | null
+    body: unknown
+  }> = []
+  let bootstraps = 0
   const store = storage()
   fetchSpy = spyOn(window, 'fetch').mockImplementation((async (
     input: RequestInfo | URL,
@@ -382,10 +387,19 @@ test('the shipped SDK sends only an input command and keeps its key through CSRF
   ) => {
     const request = new Request(input, init)
     const path = new URL(request.url).pathname
-    if (path.endsWith('/bootstrap'))
-      return Response.json({ csrfToken: 'fresh-csrf' })
+    if (path.endsWith('/bootstrap')) {
+      bootstraps++
+      return Response.json({
+        csrfToken: bootstraps === 1 ? 'old-csrf' : 'fresh-csrf',
+      })
+    }
     const body = await request.json()
-    requests.push({ path, key: request.headers.get('Idempotency-Key'), body })
+    requests.push({
+      path,
+      key: request.headers.get('Idempotency-Key'),
+      csrf: request.headers.get('X-CSRF-Token'),
+      body,
+    })
     expect(store.saved.size).toBe(1)
     if (requests.length === 1)
       return Response.json({ code: 'csrf' }, { status: 403 })
@@ -394,18 +408,21 @@ test('the shipped SDK sends only an input command and keeps its key through CSRF
     ) as RunInputEnvelope
     return Response.json(receipt(envelope))
   }) as typeof fetch)
+  await bootstrap(true)
   const sender = createRunInputSender(store, dispatchRunInput)
   const text = '  Keep working; use B.\n\n'
   expect((await sender.send('sdk-thread', 'sdk-run', text))?.kind).toBe(
     'accepted',
   )
+  expect(bootstraps).toBe(2)
   expect(requests).toHaveLength(2)
   expect(requests[0]).toEqual({
     path: '/v1/theorem/agent/stream/sdk-run/commands',
     key: expect.any(String),
+    csrf: 'old-csrf',
     body: { command: 'input', text },
   })
-  expect(requests[1]).toEqual(requests[0])
+  expect(requests[1]).toEqual({ ...requests[0]!, csrf: 'fresh-csrf' })
 })
 
 test('the shipped SDK recovers a closed inbox from its exact durable acceptance event', async () => {
