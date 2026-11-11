@@ -10,6 +10,25 @@ export type Value =
   | { readonly rand: readonly [number, number] }
   | { readonly arg: string; readonly or?: number }
 
+/**
+ * Something particular on the page, by the name the page gives it
+ * (`face.read` lists them), and optionally one part of it.
+ */
+export interface Thing {
+  /** `kind:id`, or `kind:last` and `kind:failed` for the newest of a kind. */
+  readonly thing: string
+  /** The first place these words appear in it. */
+  readonly text?: string
+  /** A numbered line of it, where it has numbered lines. */
+  readonly line?: number
+}
+
+/** A point: of the gaze for `look`, of the window for `go`. */
+export interface Spot {
+  readonly x: number
+  readonly y: number
+}
+
 /** Where the face can be told to look or go. */
 export type Place =
   | 'person'
@@ -18,7 +37,13 @@ export type Place =
   | 'composer'
   | 'text'
   | 'home'
-  | { readonly x: number; readonly y: number }
+  | 'artifact'
+  | Thing
+  | Spot
+
+/** Whether a place is a particular thing on the page. */
+export const isThing = (where: Place): where is Thing =>
+  typeof where === 'object' && 'thing' in where
 
 /** One step of a performance. */
 export type Step =
@@ -81,16 +106,20 @@ export const STEP_MANUAL: Record<Step['op'], string> = {
   repeat:
     '{op:"repeat", times, step} the step, several times; draws are fresh each time.',
   vary: '{op:"vary", of:[...], weights?:[...]} one of the steps, drawn by weight.',
-  look: '{op:"look", at:"person"|"pointer"|"composer"|"text"|"centre"|{x,y in -1..1}, over?, hold?} turns the gaze.',
+  look: '{op:"look", at:"person"|"pointer"|"composer"|"text"|"artifact"|"centre"|{x,y in -1..1}|{thing}, over?, hold?} turns the gaze.',
   feature:
     '{op:"feature", id:"brow.left", side?:"left"|"right"|"centre", set?:{param:value}, remove?:true} adds a feature made of the same matter, or removes one. Its channels are id.param.',
-  go: '{op:"go", to:"home"|"composer"|"text"|"centre"|"pointer"|{x,y in 0..1 of the window}, size?:0.5..4, over?} moves the whole face on the page.',
+  go: '{op:"go", to:"home"|"composer"|"text"|"artifact"|"centre"|"pointer"|{x,y in 0..1 of the window}|{thing}, size?:0.5..4, over?} moves the whole face on the page: the eyes turn there first, then it travels and settles ("artifact" is beside the artifact card in view).',
   burst:
     '{op:"burst", x?, y?, strength?} kicks the matter outward from a point in face units.',
   use: '{op:"use", name, args?, intensity?} plays a named performance from the book inside this one.',
   release:
     '{op:"release", channels?:[...], over?} lets go of channels so they return to what lies beneath.',
 }
+
+/** The place that is a particular thing on the page, for the same manual. */
+export const THING_MANUAL =
+  '{thing:"tool:<id>", text?:"words in it", line?:12} is one particular thing on the page, as a place for look and go: a tool call, a message, an artifact, by the name the page lists for it (face.read part "page"). "<kind>:last" is the newest of a kind and "<kind>:failed" the newest that failed. `text` narrows it to the first place those words appear inside it; `line` to a numbered line. Gone to, the face stands beside it, looks at it and marks it; out of view, it waits at the edge the thing is beyond, and the person’s tap on the face brings the thing into view.'
 
 /** A performance as written: steps, and whether what it set stays when it ends. */
 export interface Program {
@@ -163,6 +192,14 @@ export interface CompileContext {
   readonly args?: Record<string, number>
   /** Scales how far from rest the performance goes: 0 nothing, 1 as written, up to 2. */
   readonly intensity?: number
+  /**
+   * What a thing a step names comes to on the page: what there is to say
+   * about it (nothing, when it is plainly there), or `undefined` when nothing
+   * has the name. Left out, things are not looked for.
+   */
+  readonly thing?: (thing: Thing) => ReadonlyArray<string> | undefined
+  /** A thing that is not on the page refuses the program; otherwise it is a note, and the face stays where it is. */
+  readonly strict?: boolean
 }
 
 export const LIMITS = {
@@ -173,9 +210,19 @@ export const LIMITS = {
   depth: 10,
   repeat: 24,
   uses: 4,
+  /** The most characters of `text` a thing is searched for. */
+  text: 200,
 } as const
 
-const PLACES = ['person', 'pointer', 'centre', 'composer', 'text', 'home']
+const PLACES = [
+  'person',
+  'pointer',
+  'centre',
+  'composer',
+  'text',
+  'home',
+  'artifact',
+]
 
 class Failure extends Error {
   constructor(
@@ -206,6 +253,8 @@ interface Run {
   readonly notes: Array<string>
   readonly adds: Set<string>
   readonly lookup?: (name: string) => Program | undefined
+  readonly thing?: (thing: Thing) => ReadonlyArray<string> | undefined
+  readonly strict: boolean
 }
 
 interface Frame {
@@ -238,6 +287,8 @@ export function compile(input: unknown, context: CompileContext): Checked {
     notes: [],
     adds: new Set(),
     lookup: context.lookup,
+    ...(context.thing ? { thing: context.thing } : {}),
+    strict: context.strict === true,
   }
   try {
     declareFeatures(program.steps, 'steps', run, 0)
@@ -378,12 +429,62 @@ function channelsOf(name: string, path: string, run: Run) {
   return channels
 }
 
+/** A thing's name: a kind, a colon, and the rest. */
+const THING = /^[a-z][a-z0-9-]{0,23}:\S{1,160}$/
+
+function thingOf(value: Record<string, unknown>, path: string): Thing {
+  const { thing, text, line } = value
+  if (typeof thing !== 'string' || !THING.test(thing))
+    throw new Failure(
+      `${path}.thing`,
+      'thing is a name the page lists, as "kind:id": "tool:failed", "artifact:last".',
+    )
+  if (text !== undefined && (typeof text !== 'string' || text.trim() === ''))
+    throw new Failure(`${path}.text`, 'text is the words to find in the thing.')
+  if (
+    line !== undefined &&
+    (typeof line !== 'number' || !Number.isInteger(line) || line < 1)
+  )
+    throw new Failure(`${path}.line`, 'line is a line number, from 1.')
+  return {
+    thing,
+    ...(typeof text === 'string'
+      ? { text: text.trim().slice(0, LIMITS.text) }
+      : {}),
+    ...(typeof line === 'number' ? { line } : {}),
+  }
+}
+
+/** A thing as the page has it now: refused or noted when it is not there, noted when it is not simply there. */
+function onPage(thing: Thing, path: string, run: Run): Thing {
+  if (!run.thing) return thing
+  const said = run.thing(thing)
+  const note = (text: string) => {
+    const line = `${path}: ${text}`
+    if (!run.notes.includes(line)) run.notes.push(line)
+  }
+  if (said) said.forEach(note)
+  else if (run.strict)
+    throw new Failure(
+      `${path}.thing`,
+      `Nothing on the page is named "${thing.thing}". face.read with part "page" lists what is.`,
+    )
+  else
+    note(
+      `nothing on the page is named "${thing.thing}"; the face stays where it is.`,
+    )
+  return thing
+}
+
 function placeOf(
   value: unknown,
   path: string,
   bounds: readonly [number, number],
+  run: Run,
 ): Place {
   if (typeof value === 'string' && PLACES.includes(value)) return value as Place
+  if (isRecord(value) && value.thing !== undefined)
+    return onPage(thingOf(value, path), path, run)
   if (
     isRecord(value) &&
     typeof value.x === 'number' &&
@@ -395,7 +496,7 @@ function placeOf(
     }
   throw new Failure(
     path,
-    `This is one of ${PLACES.map((p) => `"${p}"`).join(', ')} or {x, y}.`,
+    `This is one of ${PLACES.map((p) => `"${p}"`).join(', ')}, {x, y} or {thing}.`,
   )
 }
 
@@ -559,7 +660,7 @@ function place(
         {
           at,
           kind: 'look',
-          place: placeOf(step.at, `${path}.at`, [-1, 1]),
+          place: placeOf(step.at, `${path}.at`, [-1, 1], run),
           over,
         },
         path,
@@ -612,7 +713,7 @@ function place(
         {
           at,
           kind: 'go',
-          place: placeOf(step.to, `${path}.to`, [0, 1]),
+          place: placeOf(step.to, `${path}.to`, [0, 1], run),
           ...(size === undefined ? {} : { size: clamp(size, 0.5, 4) }),
           over,
         },

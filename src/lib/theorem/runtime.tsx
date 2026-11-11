@@ -62,6 +62,7 @@ import { RefusedSend } from './send-recovery'
 import { generationTurnOptions, useGenerationOverrides } from './generation'
 import { saveThreadGeneration, takeThreadGeneration } from './thread-generation'
 import { modelTurnOptions } from './models'
+import { bindRunInput } from './run-input-runtime'
 
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
@@ -632,7 +633,8 @@ function useTheoremThreadRuntime() {
     () => ({
       async *run(options) {
         try {
-          const references = useComposerReferences.getState().references
+          const references = options.runConfig.custom?.theoremRunInput === true
+            ? [] : useComposerReferences.getState().references
           const { id: localId, remoteId: existingId } = aui.threadListItem.getState()
           const isNew = !existingId
           const { remoteId } = await aui.threadListItem.initialize()
@@ -669,6 +671,11 @@ function useTheoremThreadRuntime() {
     [aui],
   )
   const runtime = useLocalRuntime(adapter)
+  useEffect(() => bindRunInput(runtime, {
+    threadKey: aui.threadListItem.getState().id,
+    threadId: () => aui.threadListItem.getState().remoteId,
+    liveRuns: useLiveRuns,
+  }), [aui, runtime])
   useKitSource(runtime)
   useKitRequests(runtime)
   // The agent checks Apps with the page's compiler; this answers it.

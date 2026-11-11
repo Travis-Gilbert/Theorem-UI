@@ -63,7 +63,8 @@ import type { ComponentType, FC, PropsWithChildren } from 'react'
 import { Magnet, useArrivedLive } from '@/components/motion'
 import { flyFrom, kick, recordLaunch, takeLaunch } from '@/lib/motion'
 
-import { ComposerReferences } from '@/components/chat/composer-references'
+import { ComposerReferences, useComposerReferences } from '@/components/chat/composer-references'
+import { RunInputStatus, useBusyComposerInput, useRunInputSendDisabled } from '@/components/chat/run-input'
 import { ComposerReviewTarget, useComposerReview } from '@/components/review/review-target'
 import type { ComposerReview } from '@/components/review/review-target'
 import { SCENE_PART } from '@/components/chat/scene-model'
@@ -72,7 +73,6 @@ import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
 
 import { hasTheoremError } from '@/lib/theorem/message-history'
 
-import { useComposerSend } from '@assistant-ui/core/react'
 import {
   COMPOSER_TOOLTIP_DELAY,
   ComposerPlanToggle,
@@ -91,6 +91,7 @@ import {
 } from './unseen-divider.aui'
 import { attendKit } from '@/lib/kit/store'
 import { messageLabel, messageSurface } from '@/lib/kit/stage'
+import { thingProps } from '@/lib/face/things'
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart
 
@@ -556,6 +557,10 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   // chat's own send is left out.
   const review = useComposerReview()
   const shellRef = useRef<HTMLDivElement>(null)
+  const busyInput = useBusyComposerInput({
+    hasReferences: () => useComposerReferences.getState().references.length > 0,
+    onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
+  })
   // Where the text was, for the new user message to fly up from. Recorded on
   // submit because the composer.send event arrives a microtask after the
   // message has already mounted.
@@ -577,10 +582,15 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root
         onSubmit={(event) => {
-          if (!review) return recordLaunches()
-          event.preventDefault()
-          if (review.canSend) review.send()
+          // A review's answer goes to the review, also while a response runs.
+          if (review) {
+            event.preventDefault()
+            if (review.canSend) review.send()
+            return
+          }
+          if (!busyInput.onSubmit(event)) recordLaunches()
         }}
+        onKeyDown={busyInput.onKeyDown}
         className="aui-composer-root relative flex w-full flex-col"
       >
         <ComposerToolTrigger />
@@ -601,6 +611,7 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             />
           }
         >
+          <RunInputStatus />
           {review && <ComposerReviewTarget target={review} />}
           <ComposerReferences />
           <ComposerAttachments />
@@ -622,9 +633,9 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 }
 
 const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
-  const chat = useComposerSend()
+  const chatDisabled = useRunInputSendDisabled()
   // A choice can be sent with nothing written.
-  const sendDisabled = review ? !review.canSend : chat.disabled
+  const sendDisabled = review ? !review.canSend : chatDisabled
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -686,7 +697,7 @@ const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) 
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            (!s.composer.canCancel ||
+            (s.thread.isRunning || !s.composer.canCancel ||
               (s.thread.voice !== undefined &&
                 s.composer.submission === undefined)) &&
             !shouldShowComposerResume(s)
@@ -914,7 +925,12 @@ function useKitSurface() {
         .join(' '),
     ),
   )
-  return { 'data-kit-perch': messageSurface(id), 'data-kit-label': label }
+  return {
+    'data-kit-perch': messageSurface(id),
+    'data-kit-label': label,
+    // The same message, named for Theo to be sent to.
+    ...thingProps('message', id, { label }),
+  }
 }
 
 const AssistantMessage: FC = () => {

@@ -1,6 +1,7 @@
 // SOURCING: a cue list played against a clock, as a timeline player does; one performance per layer with the newer one interrupting, and a record of how each ended, after the handoff's split of a definition from its invocations (docs/plans/theo-face.md). What a cue does to the rig is this app's.
 import type { Layer, Rig } from './layers'
-import type { Cue, Place, Score } from './program'
+import type { Cue, Place, Score, Thing } from './program'
+import type { ThingSeen, Where } from './things'
 
 /** What the player asks of wherever the face is shown. */
 export interface Stage {
@@ -10,6 +11,12 @@ export interface Stage {
   go: (place: Place, size: number | undefined, over: number) => void
   /** Kicks the matter. */
   burst: (x: number, y: number, strength: number) => void
+  /** What a thing a program names comes to on the page: what there is to say of it, or `undefined` when nothing has the name. */
+  thing?: (thing: Thing) => ReadonlyArray<string> | undefined
+  /** The things the page has named, oldest first. */
+  things?: () => ReadonlyArray<ThingSeen>
+  /** The thing the face has gone to, and whether it can be seen. */
+  pointing?: () => { thing: string; where: Where } | undefined
 }
 
 export type Ending = 'completed' | 'interrupted' | 'stopped'

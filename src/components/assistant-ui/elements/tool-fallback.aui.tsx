@@ -18,6 +18,7 @@ import {
 } from "@assistant-ui/react";
 import type { ToolApprovalAnswer, ToolApprovalOption, ToolApprovalQuestion, ToolCallMessagePart, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { cn, humanize } from "@/lib/utils";
+import { thingProps, toolState } from "@/lib/face/things";
 import { liveEnter } from "./surfaces";
 import {
   CollapsibleRoot as Collapsible,
@@ -1180,6 +1181,8 @@ type ToolFallbackProps = React.ComponentProps<ToolCallMessagePartComponent> & {
 
 const ToolFallbackImpl = ({
   aside,
+  toolCallId,
+  isError,
   toolName,
   argsText,
   result,
@@ -1232,7 +1235,15 @@ const ToolFallbackImpl = ({
   }, [approval, isRequiresAction, status?.type]);
 
   return (
-    <ToolFallbackRoot open={open} onOpenChange={setOpen}>
+    <ToolFallbackRoot
+      open={open}
+      onOpenChange={setOpen}
+      // Theorem: named, so Theo can be sent to this call (lib/face/things).
+      {...thingProps("tool", toolCallId, {
+        label: humanize(toolName),
+        state: toolState(status, isError),
+      })}
+    >
       {/* Wraps, so in a narrow column the aside moves under the trigger instead of squeezing its label. */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-2">
         <ToolFallbackTrigger

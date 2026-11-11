@@ -147,7 +147,9 @@ export function FaceBook() {
 const EVENTS = [
   'person.poke',
   'person.pet',
+  'person.throw',
   'person.send',
+  'body.bump.left',
   'run.tool',
   'run.tool.fail',
   'run.done',

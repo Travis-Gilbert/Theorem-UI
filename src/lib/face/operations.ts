@@ -22,7 +22,7 @@ export const FACE_OPERATIONS = [
   {
     name: FACE_READ,
     description:
-      'Reads Theo, the face that stands for you on the person’s screen: a small dark visor with two glowing eyes made of particles. Returns its manual as data: every channel you can set with its bounds and rest value, the steps a performance is written in, the named performances in its book, its reaction rules, and what it is doing now (mood, recent events, how your last performances ended). Read it once before your first face.perform; pass `part` to read less later. Nothing changes.',
+      'Reads Theo, the face that stands for you on the person’s screen: a small dark visor with two glowing eyes made of particles. Returns its manual as data: every channel you can set with its bounds and rest value, the steps a performance is written in, the named performances in its book, its reaction rules, the things on the page it can point at by name (tool calls, messages, artifacts, changed files), and what it is doing now (mood, recent events, how your last performances ended). Read it once before your first face.perform; pass `part` to read less later (`page` for the things alone, which change as the conversation does). Nothing changes.',
     effect: 'read',
     inputSchema: {
       type: 'object',
@@ -30,7 +30,7 @@ export const FACE_OPERATIONS = [
       properties: {
         part: {
           type: 'string',
-          enum: ['all', 'channels', 'book', 'state'],
+          enum: ['all', 'channels', 'book', 'page', 'state'],
           description: 'Which part to return. Default all.',
         },
       },
@@ -39,7 +39,7 @@ export const FACE_OPERATIONS = [
   {
     name: FACE_PERFORM,
     description:
-      'Makes Theo perform, visibly, now. Pass `use` to play a named performance from the book ("blink", "glare", "think", ...), or `program` to play one you write: {steps:[...]} where each step is {op:"to", set:{"eyes.lid":0.4,"face.tilt":8}, over:200, hold:600}, a wave, seq, par, stagger, repeat, vary, look, go, feature (adds a new facial feature made of the same matter, e.g. brows or a mouth), burst, use or release. You are not limited to named expressions: any point in the channels is a face, and any program is a performance. A wrong program is refused with the path and the reason and nothing plays. The receipt comes when it starts, with its id and length in ms; pass `wait: true` to get how it ended instead. `stop: true` ends your current performance. Call face.read first for the channels and steps.',
+      'Makes Theo perform, visibly, now. Pass `use` to play a named performance from the book ("blink", "glare", "think", ...), or `program` to play one you write: {steps:[...]} where each step is {op:"to", set:{"eyes.lid":0.4,"face.tilt":8}, over:200, hold:600}, a wave, seq, par, stagger, repeat, vary, look, go, feature (adds a new facial feature made of the same matter, e.g. brows or a mouth), burst, use or release. You are not limited to named expressions: any point in the channels is a face, and any program is a performance. To point at something, go to it: {op:"go", to:{thing:"tool:failed"}} stands Theo beside that tool call, looking at it, with a mark on it. A wrong program is refused with the path and the reason and nothing plays. The receipt comes when it starts, with its id and length in ms; pass `wait: true` to get how it ended instead. `stop: true` ends your current performance. Call face.read first for the channels and steps.',
     effect: 'presentation',
     inputSchema: {
       type: 'object',
@@ -219,7 +219,10 @@ export async function answerFaceRequest(
       return {
         outcome: 'applied',
         result: face.manual(
-          part === 'channels' || part === 'book' || part === 'state'
+          part === 'channels' ||
+            part === 'book' ||
+            part === 'page' ||
+            part === 'state'
             ? part
             : 'all',
         ),
@@ -240,6 +243,8 @@ export async function answerFaceRequest(
       const performed = face.perform(named ? args.use : args.program, {
         layer: 'performance',
         owner: `run:${request.runId}`,
+        // A program written now names what is on the page now.
+        ...(named ? {} : { strict: true }),
         args: numbers(args.args),
         ...(typeof args.intensity === 'number'
           ? { intensity: args.intensity }
