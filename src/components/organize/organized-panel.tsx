@@ -144,6 +144,9 @@ function takes(active: Active | null, projectId: string | null) {
 
 const dropRing = 'rounded-lg bg-selected/50 outline-1 outline-focus'
 
+/** A group's name: its weight and size set the groups apart, with no rule between them. */
+const HEADING = 'text-base font-bold'
+
 /** A thread lands on what the pointer is over; a project takes the place of the nearest project. */
 const collide: CollisionDetection = (args) =>
   threadOf(args.active)
@@ -628,12 +631,9 @@ function ChatsGroup({
   return (
     <SidebarGroup
       ref={setNodeRef}
-      className={cn(
-        'border-t border-separator p-0 pt-2',
-        accepting && dropRing,
-      )}
+      className={cn('p-0 pt-2', accepting && dropRing)}
     >
-      <SidebarGroupLabel>Chats</SidebarGroupLabel>
+      <SidebarGroupLabel className={HEADING}>Chats</SidebarGroupLabel>
       {/* The rows a project nests, here at the top level: no guide line, no ticks. */}
       <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 px-0 *:before:hidden">
         {starting && <StartingRow />}
@@ -659,18 +659,18 @@ function WorkspaceHeader({
   const control = useLibrarianControl()
   const librarian = organization?.served ? organization.librarian : undefined
   return (
-    <div className="flex h-12 shrink-0 items-center px-1.5">
+    <div className="flex h-14 shrink-0 items-center px-1.5">
       <Menu>
         <MenuTrigger
           render={
             <Button
               variant="ghost"
-              className="h-10 w-full justify-start gap-2 rounded-lg px-2 text-start font-normal hover:bg-hover data-popup-open:bg-hover"
+              className="h-12 w-full justify-start gap-2 rounded-lg px-2 text-start font-normal hover:bg-hover data-popup-open:bg-hover"
             />
           }
         >
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="truncate text-sm leading-tight font-medium">
+            <span className="truncate text-lg leading-tight font-bold">
               Theorem
             </span>
             <span className="truncate text-xs leading-tight text-ink-faint-sheet">
@@ -718,7 +718,7 @@ function useFreshAfterRuns(known: (threadId: string) => boolean) {
 
 /** Chat's panel: attention views above a stable project tree and the chats outside it, the Librarian below, the files folded. */
 export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
-  const { data, error, isPending } = useOrganization()
+  const { data, error, isPending, dataUpdatedAt } = useOrganization()
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
   const views = useOrganizedViews()
@@ -818,12 +818,13 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
       projects: data?.projects ?? [],
       views,
       served: data?.served ?? false,
+      readAtMs: dataUpdatedAt,
     }),
-    [data, views],
+    [data, views, dataUpdatedAt],
   )
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-organize-panel className="flex h-full flex-col">
       <WorkspaceHeader
         organization={data}
         onNewProject={() => setCreating(true)}
@@ -895,8 +896,10 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
                   hint="later"
                 />
               </SidebarMenu>
-              <SidebarGroup className="border-t border-separator p-0 pt-2">
-                <SidebarGroupLabel>Projects</SidebarGroupLabel>
+              <SidebarGroup className="p-0 pt-2">
+                <SidebarGroupLabel className={HEADING}>
+                  Projects
+                </SidebarGroupLabel>
                 <SidebarGroupAction
                   aria-label="New project"
                   title="New project"

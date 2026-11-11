@@ -40,6 +40,8 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     createdAtMs: now,
     updatedAtMs: now,
   }))
+  // The branch a scripted story opens in a thread stays selected for its life.
+  const selected = new Map<string, string>()
   const threadOf = (threadId: string) => {
     const entry = organization.threads.find((t) => t.threadId === threadId)
     return {
@@ -49,7 +51,7 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
       projectId: entry?.homeProjectId ?? 'project-theorem',
       title: entry?.title ?? 'Thread',
       status: 'regular',
-      selectedBranchId: 'branch-main',
+      selectedBranchId: selected.get(threadId) ?? 'branch-main',
       revision: 1,
       createdAtMs: now,
       updatedAtMs: now,
@@ -62,6 +64,11 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     threadId,
     createdAtMs: now,
   })
+  // One thread carries a fork, so the sidebar shows a branch under its thread.
+  const branchesOf = (threadId: string) =>
+    threadId === 'thread-graph-memory'
+      ? [branch(threadId), { ...branch(threadId), branchId: 'branch-fork', parentBranchId: 'branch-main' }]
+      : [branch(threadId)]
   const rootSpace = canvasSpaceFixture('project-theorem')
   const nestedSpace = nestedSpaceFixture(rootSpace.space.id)
   const spaces = new Map([
@@ -100,10 +107,30 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     [`GET ${BASE}/threads/:threadId`]: ({ threadId = '' }) => ({
       thread: threadOf(threadId),
       project: projects[0],
-      branches: [branch(threadId)],
-      selectedBranch: branch(threadId),
+      branches: branchesOf(threadId),
+      selectedBranch:
+        branchesOf(threadId).find(({ branchId }) => branchId === selected.get(threadId)) ??
+        branch(threadId),
       messages: threadId === 'thread-app-gallery' ? threadMessages(now) : [],
     }),
+    [`PATCH ${BASE}/threads/:threadId`]: async ({ threadId = '' }, request) => {
+      const { selectedBranchId } = (await request.json()) as { selectedBranchId?: string }
+      if (selectedBranchId) selected.set(threadId, selectedBranchId)
+      return {
+        record: threadOf(threadId),
+        receipt: {
+          receiptId: `receipt-${threadId}`,
+          schema: 'theorem.chat.mutation_receipt.v1',
+          operation: 'thread.update',
+          requestHash: 'story',
+          idempotencyKeyHash: 'story',
+          resourceId: threadId,
+          revision: 1,
+          createdAtMs: now,
+          reused: false,
+        },
+      }
+    },
     [`GET /api/documents/v2/documents`]: () => ({
       documents: [...notes.keys()].map((id) => snapshot(id)?.summary),
     }),

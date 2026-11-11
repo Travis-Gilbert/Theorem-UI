@@ -29,7 +29,11 @@ import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
 import { TheoremRuntimeProvider } from '@/lib/theorem/runtime'
 import { useReview } from '@/lib/theorem/reviews'
-import { ACTIVITY_STATES, activityMessages } from './fixtures/activity'
+import {
+  ACTIVITY_STATES,
+  activityMessages,
+  toolPillMessages,
+} from './fixtures/activity'
 import type { ActivityState } from './fixtures/activity'
 import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
@@ -251,9 +255,12 @@ const ACTIVITY_STATUS: Record<ActivityState, ThreadMessageLike['status']> = {
  * The thread itself, composer and all, over committed messages: none for a new
  * conversation, or one question and its reply in a state of the activity line.
  */
-function threadStory(state?: ActivityState) {
+function threadStory(
+  state?: ActivityState,
+  stored = state ? activityMessages(state) : [],
+) {
   const messages: ThreadMessageLike[] = state
-    ? toAssistantMessages(activityMessages(state)).map((message) =>
+    ? toAssistantMessages(stored).map((message) =>
         message.role === 'assistant'
           ? { ...message, status: ACTIVITY_STATUS[state] }
           : message,
@@ -286,6 +293,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   ...Object.fromEntries(
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),
+  'tool-pills': threadStory('working', toolPillMessages()),
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,
