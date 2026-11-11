@@ -15,14 +15,6 @@ import { liveEnter } from '@/components/assistant-ui/elements/surfaces'
 import { Icon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
-/** The languages a turn's program is written in, as a person names them and as Shiki does. */
-const PYTHON = { name: 'Python', shiki: 'python' }
-const LANGUAGES: Partial<Record<string, { name: string; shiki: string }>> = {
-  monty: PYTHON,
-  python: PYTHON,
-  typescript: { name: 'TypeScript', shiki: 'typescript' },
-}
-
 export interface ProgramSummary {
   source: string
   /** The language as a person names it. */
@@ -44,9 +36,11 @@ const record = (value: unknown): Record<string, unknown> =>
 /**
  * What the chat says of a program part, or null where it draws nothing.
  *
- * A turn's native tool calls are also recorded as a program, one line a call,
- * and those are already drawn as the calls they are. Only a program the model
- * wrote as code (`authored`) is shown as one.
+ * Only a TypeScript program is shown as one. A Python (Monty) program is a
+ * tool call in another form: a model with no native tool calls writes each
+ * call as one, and a batch of native calls is recorded as one. Those are
+ * already drawn as the calls they are, and Theorem does not send them to a
+ * conversation.
  */
 export function programSummary(
   data: unknown,
@@ -54,14 +48,11 @@ export function programSummary(
 ): ProgramSummary | null {
   const program = record(data)
   const source = typeof program.source === 'string' ? program.source : ''
-  if (program.authored !== true || !source.trim()) return null
-  const named =
-    typeof program.language === 'string' ? program.language.toLowerCase() : ''
-  const language = LANGUAGES[named] ?? PYTHON
+  if (program.language !== 'typescript' || !source.trim()) return null
   return {
     source,
-    language: language.name,
-    shiki: language.shiki,
+    language: 'TypeScript',
+    shiki: 'typescript',
     lines: source.trimEnd().split('\n').length,
     writing: program.streaming === true && running,
     cut: program.truncated === true,

@@ -6,12 +6,9 @@ import { programSummary } from './program-part'
 const TS = 'const found = tool("lookup", { q: "alder" })\nfound.length\n'
 
 describe('a program part in the chat', () => {
-  test('a program the model wrote is named with its language and size', () => {
+  test('a TypeScript program is named with its language and size', () => {
     expect(
-      programSummary(
-        { source: TS, language: 'typescript', authored: true },
-        false,
-      ),
+      programSummary({ source: TS, language: 'typescript' }, false),
     ).toEqual({
       source: TS,
       language: 'TypeScript',
@@ -22,36 +19,27 @@ describe('a program part in the chat', () => {
     })
   })
 
-  test('a program with no language named is the Python the agent writes', () => {
-    const summary = programSummary(
-      { source: 'value(1)', authored: true },
-      false,
-    )
-    expect(summary?.language).toBe('Python')
-    expect(summary?.shiki).toBe('python')
+  test('a tool call written as a Python program is not drawn as one', () => {
     expect(
       programSummary(
-        { source: 'value(1)', language: 'monty', authored: true },
+        { source: 'value(lookup(q="a"))', language: 'monty' },
         false,
-      )?.language,
-    ).toBe('Python')
-  })
-
-  test('tool calls recorded as a program are not drawn as one', () => {
-    expect(programSummary({ source: 'lookup(q="a")' }, false)).toBeNull()
-    expect(
-      programSummary({ source: 'lookup(q="a")', authored: false }, false),
+      ),
     ).toBeNull()
+    // A part from before programs named their language was Python.
+    expect(programSummary({ source: 'lookup(q="a")' }, false)).toBeNull()
   })
 
   test('a part with nothing in it draws nothing', () => {
-    expect(programSummary({ source: '  \n', authored: true }, false)).toBeNull()
+    expect(
+      programSummary({ source: '  \n', language: 'typescript' }, false),
+    ).toBeNull()
     expect(programSummary(null, false)).toBeNull()
     expect(programSummary('source', false)).toBeNull()
   })
 
   test('a program is being written only while its turn runs', () => {
-    const arriving = { source: TS, authored: true, streaming: true }
+    const arriving = { source: TS, language: 'typescript', streaming: true }
     expect(programSummary(arriving, true)?.writing).toBe(true)
     // A turn that ended mid-program is not still writing it.
     expect(programSummary(arriving, false)?.writing).toBe(false)
@@ -59,8 +47,10 @@ describe('a program part in the chat', () => {
 
   test('a program cut where it was sent says so', () => {
     expect(
-      programSummary({ source: TS, authored: true, truncated: true }, false)
-        ?.cut,
+      programSummary(
+        { source: TS, language: 'typescript', truncated: true },
+        false,
+      )?.cut,
     ).toBe(true)
   })
 })

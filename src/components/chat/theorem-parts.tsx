@@ -906,7 +906,7 @@ const RENDERERS = (
     ['theorem-expression_refused', Inert],
     // The page's client operations: a check of an App shows as a chip.
     ['theorem-client_operation', ClientOperationPart],
-    // A program the agent wrote as code is shown as one, closed, with its
+    // A TypeScript program the agent wrote is shown as one, closed, with its
     // source inside. What it did shows up as its calls and their artifacts.
     ['theorem-program', ProgramPart],
   ])
