@@ -73,8 +73,11 @@
     {
       "id": "typescript-program",
       "requirement": "A turn's program can be TypeScript, run in a Boa cell with the turn's operations, for the front model and for workers (Theorem repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "Theorem pull request 1012: cargo test -p agent --lib program_turn, the typescript_program_tests run real cells in the worker against an in-process operation",
+        "Not built: the conversation drawing a program part; not observed: a live model writing a TypeScript program"
+      ]
     },
     {
       "id": "app-write-is-the-app",
@@ -85,8 +88,11 @@
     {
       "id": "front-edits",
       "requirement": "The front model's role admits writing an App, and app.read lets it change what a subagent handed back (Theorem repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "Theorem pull request 1010: the front role has read_app and write_app; two chat-route flow tests write an App and change one a worker published",
+        "Not observed: a live front turn"
+      ]
     },
     {
       "id": "worker-feedback",
@@ -103,8 +109,13 @@
     {
       "id": "app-picture",
       "requirement": "A model with vision is given a picture of the App, and the visual perceiver reads it for one without (Theorem repo and this repo)",
-      "status": "todo",
-      "evidence": []
+      "status": "partial",
+      "evidence": [
+        "This repo, pull request 65: app.check takes picture: true; bun run e2e:app-ts 21 of 21 in Chromium, reading back from the picture a CSS box, a canvas, an element styled through a class on the root and a half-transparent body background painted once; bun test 1688 passed",
+        "Theorem pull request 1013: agent tool_images 6 of 6; a receipt with a picture is saved without it (client_operations 15 of 15); picture_flow_tests through the chat routes shows the model's next request carrying the picture as an image, and the thread without it",
+        "Theorem pull request 1014: a model that does not read images is told what the visual perceiver read from the picture; picture_perception 4 of 4 against a perceiver stood up in the test",
+        "Not observed: a live model shown a picture; the perceiver service reading a real App's picture; a chat turn with a model that does not read images; any browser other than Chromium"
+      ]
     }
   ]
 }

@@ -6,6 +6,8 @@
 import { z } from 'zod'
 import { documentAppDatabases, openInMemory } from './app-db'
 import * as checker from './app-checker'
+import { PICTURE_WIDTH, pictureOf } from './app-picture'
+import type { AppPicture } from './app-picture'
 import { AppBuildError, appSourcesOf } from './app-source'
 import type { AppProblem } from './app-source'
 import { traceFrameError } from './app-trace'
@@ -13,8 +15,17 @@ import { parseHtmlDeclarations } from './declarations'
 import { pinnedAppHost, pinnedAppState } from './document-app'
 import { BLOCK_SANDBOX, FrameConnection } from './executor'
 import * as hosted from './hosted-app'
-import { MAX_OUTLINE, MAX_SNAPSHOT, call } from './sandbox/protocol'
-import type { FrameError, SandboxMethods } from './sandbox/protocol'
+import {
+  MAX_OUTLINE,
+  MAX_SNAPSHOT,
+  PAGE_BACKGROUND,
+  call,
+} from './sandbox/protocol'
+import type {
+  FrameError,
+  PageAttributes,
+  SandboxMethods,
+} from './sandbox/protocol'
 
 /** What a check of an App found. Everything in it is JSON. */
 export interface AppInspection {
@@ -39,11 +50,18 @@ export interface AppInspection {
    * read.
    */
   rendered?: { text: string; elements: number; outline?: string }
+  /**
+   * What the App looked like, when a picture was asked for: its snapshot drawn
+   * in the page, with what it drew on a canvas. Its own fonts are not in it.
+   */
+  picture?: AppPicture
 }
 
 export interface InspectOptions {
   /** How long to run the App and listen for what it throws. Zero does not run it. */
   runMs?: number
+  /** Also draw what the App showed, for a reader that can see. */
+  picture?: boolean
 }
 
 /** How long an App runs unless told otherwise, and the longest it may. */
@@ -51,12 +69,22 @@ export const DEFAULT_RUN_MS = 1500
 export const MAX_RUN_MS = 5000
 /** How long the App's page has to connect before the run is given up. */
 const CONNECT_MS = 10_000
+/** How tall the frame an App is run in is; it is as wide as a picture. */
+const FRAME_HEIGHT = 768
 /** How long the App's page has to say what it shows at the end of its run. */
 const LOOK_MS = 2_000
 /** What a frame answers when asked what it shows. It is the App's word, so it is checked. */
+const attributes = z.record(z.string().max(80), z.string())
 const looked = z.object({
   html: z.string().max(MAX_SNAPSHOT),
   outline: z.string().max(MAX_OUTLINE),
+  page: z
+    .object({
+      root: attributes,
+      body: attributes,
+      background: z.string().regex(PAGE_BACKGROUND).optional(),
+    })
+    .optional(),
 })
 /** The most problems one check reports, and the most text of the rendered page. */
 export const MAX_PROBLEMS = 40
@@ -128,14 +156,19 @@ async function run(
   html: string,
   page: string,
   runMs: number,
+  pictured: boolean,
 ): Promise<{
   problems: Array<AppProblem>
   ranMs: number
   rendered?: AppInspection['rendered']
+  picture?: AppPicture
 }> {
   const problems: Array<AppProblem> = []
   let snapshot: string | undefined
+  // What the App's root and body carried when it was last looked at.
+  let carried: PageAttributes | undefined
   let outline: string | undefined
+  let height = FRAME_HEIGHT
   const build = hosted.hostedBuild(page)
   const state = pinnedAppState(null)
   await state.ready
@@ -150,8 +183,7 @@ async function run(
   frame.setAttribute('aria-hidden', 'true')
   frame.tabIndex = -1
   // Laid out at a real size, so the App measures what it would on screen.
-  frame.style.cssText =
-    'position:fixed;left:-10000px;top:0;width:1024px;height:768px;visibility:hidden;pointer-events:none;border:0'
+  frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${PICTURE_WIDTH}px;height:${FRAME_HEIGHT}px;visibility:hidden;pointer-events:none;border:0`
   const connection = new FrameConnection(frame, {
     ...pinnedAppHost(
       html,
@@ -166,6 +198,10 @@ async function run(
     onSnapshot: (copy: string, things?: string) => {
       snapshot = copy
       outline = things
+      carried = undefined
+    },
+    onResize: (tall: number) => {
+      height = Math.max(tall, FRAME_HEIGHT)
     },
   })
   frame.src = url
@@ -199,6 +235,7 @@ async function run(
       if (last.success) {
         snapshot = last.data.html
         outline = last.data.outline
+        carried = last.data.page
       }
     }
   } finally {
@@ -213,6 +250,10 @@ async function run(
     ranMs: Math.round(performance.now() - started),
     rendered:
       snapshot === undefined ? undefined : renderedOf(snapshot, outline),
+    picture:
+      pictured && snapshot !== undefined
+        ? await pictureOf(snapshot, height, carried)
+        : undefined,
   }
 }
 
@@ -287,10 +328,11 @@ export async function inspectApp(
   }
 
   if (runMs > 0) {
-    const ran = await run(html, page, runMs)
+    const ran = await run(html, page, runMs, options.picture === true)
     found.push(...ran.problems)
     inspection.ranMs = ran.ranMs
     inspection.rendered = ran.rendered
+    if (ran.picture) inspection.picture = ran.picture
   }
   return finish()
 }

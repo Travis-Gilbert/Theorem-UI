@@ -26,7 +26,8 @@ const CLEAN: AppInspection = {
 }
 
 function host(overrides: Partial<AppOperationHost> = {}) {
-  const inspected: Array<{ html: string; runMs?: number }> = []
+  const inspected: Array<{ html: string; runMs?: number; picture?: boolean }> =
+    []
   const loaded: Array<string> = []
   const value: AppOperationHost = {
     inspect: async (html, options) => {
@@ -139,6 +140,36 @@ describe('answering a check', () => {
     expect(answer).toEqual({ outcome: 'applied', result: CLEAN })
     expect(page.inspected).toEqual([{ html: '<p>Draft</p>', runMs: 0 }])
     expect(page.loaded).toEqual([])
+  })
+
+  test('a picture is drawn only when it is asked for', async () => {
+    const page = host()
+    await answerAppRequest(
+      request({ html: '<p>Draft</p>', picture: true }),
+      page.host,
+    )
+    await answerAppRequest(
+      request({ html: '<p>Draft</p>', picture: 'yes' }),
+      page.host,
+    )
+    expect(page.inspected).toEqual([
+      { html: '<p>Draft</p>', picture: true },
+      { html: '<p>Draft</p>' },
+    ])
+  })
+
+  test('the operation tells the turn what a check takes within what a turn admits', () => {
+    const [check] = APP_OPERATIONS
+    expect(Object.keys(check.inputSchema.properties)).toEqual([
+      'html',
+      'documentId',
+      'runMs',
+      'picture',
+    ])
+    // The server refuses a declaration whose description is over 1024 bytes.
+    expect(
+      new TextEncoder().encode(check.description).length,
+    ).toBeLessThanOrEqual(1024)
   })
 
   test('a published App is checked as it is saved, and says which revision', async () => {

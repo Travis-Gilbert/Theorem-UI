@@ -144,11 +144,27 @@ the accessibility tree, by vision, or by the harness's visual perceiver.
    names real elements. The harness's own `perception_visual` README puts the
    tree first on web surfaces and the perceiver where there is no tree.
 2. **A picture, for a model with vision.** An outline cannot say whether the
-   layout is right. It needs the frame's pixels and a way to give a turn an
-   image; a receipt's result is JSON today, so the second is Theorem's.
+   layout is right.
+   - This repo (built, `feat/app-picture`): `app.check` takes `picture: true`
+     and its result then has `picture`, the App's snapshot drawn by the
+     browser, as `{type: "image", mediaType, data, width, height}`. PNG, or
+     JPEG where the PNG is over 1 MiB of base64. A real Chromium draws the
+     fixture's layout and its canvas (`bun run e2e:app-ts`).
+   - Theorem (built, pull request 1013, stacked on 1012): a receipt's result
+     is JSON, and JSON is text to a model, so the turn takes a picture of
+     that shape out of a result and gives it to the model as an image after
+     the result. It is kept out of what the run saves. Only a model the
+     catalog records as reading images is sent one; OpenRouter's directory
+     says which do, and the model list the interface reads now reports it.
+     A chat-route test shows the picture in the model's next request as an
+     image and absent from the thread.
 3. **The visual perceiver on that picture** (`perception_visual`, reached
    through `THEOREM_OMNIPARSER_URL`), for a model without vision and for what
-   is drawn on a canvas, which has no tree.
+   is drawn on a canvas, which has no tree. Built in Theorem pull request
+   1014, stacked on 1013: a model that is not sent a picture is told what
+   the perceiver read from it, as lines of text and controls with where each
+   is. Tested against a perceiver stood up in the test; the perceiver service
+   itself was not run, so what it reads from a real App is not observed.
 4. **Acting.** With elements named, a program can press and type and read
    the outline again, which tests what the App does and not only what it
    shows.
@@ -181,10 +197,15 @@ the accessibility tree, by vision, or by the harness's visual perceiver.
 2. Boa cells: the kernel's cell tests and the worker tests pass, with the
    memory and deadline refusals held by the worker. Recorded in the Theorem
    pull request.
-3. A live turn: the front model writes a TypeScript program whose
+3. A picture: a real browser draws the fixture App's layout and canvas into
+   the check's result. Observed: `bun run e2e:app-ts`, 21 of 21, the picture
+   about 25 KB of base64. Theorem's chat-route test
+   (`picture_flow_tests`) shows a scripted model's next request carrying a
+   receipt's picture as an image. Not observed: a live model shown one.
+4. A live turn: the front model writes a TypeScript program whose
    `app.write` returns the page's findings, and repairs a type error without
    the person. Needs the deployed stack.
-4. A live turn: the front model reads an App a subagent published and
+5. A live turn: the front model reads an App a subagent published and
    changes it.
-5. A live builder: a worker's program writes an App, reads a build failure
+6. A live builder: a worker's program writes an App, reads a build failure
    and repairs it in the same attempt.
