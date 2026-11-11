@@ -1,19 +1,11 @@
-// SOURCING: @milkdown/crepe (block handles, slash menu, toolbar, tables, CodeMirror code blocks, LaTeX, image blocks with upload) via @milkdown/react, @prosemirror-adapter/react for theorem-embed blocks as React node views, Crepe code-block renderPreview for Mermaid (beautiful-mermaid) and data fences (react-dom/server static markup)
-//
-// The editor reads and writes one Markdown string. Its own edits go out through
-// onChange; a change that arrives from elsewhere (the other view of this note,
-// a merge after a stale save) replaces the document. The last Markdown this
-// editor serialized tells the two apart, since Milkdown's markdownUpdated
-// listener is debounced.
+// SOURCING: @milkdown/crepe (block handles, slash menu, toolbar, tables, CodeMirror code blocks, LaTeX, image blocks with upload) via @milkdown/react and the shared Markdown round trip in crepe-markdown, @prosemirror-adapter/react for theorem-embed blocks as React node views, Crepe code-block renderPreview for Mermaid (beautiful-mermaid) and data fences (react-dom/server static markup)
 import { Crepe } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
-import { commandsCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core'
-import type { Editor } from '@milkdown/kit/core'
+import { commandsCtx, editorViewCtx } from '@milkdown/kit/core'
 import { clearTextInCurrentBlockCommand } from '@milkdown/kit/preset/commonmark'
 import { Selection } from '@milkdown/kit/prose/state'
-import type { Serializer } from '@milkdown/kit/transformer'
-import { getMarkdown, insert, replaceAll } from '@milkdown/kit/utils'
-import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
+import { insert } from '@milkdown/kit/utils'
+import { Milkdown, MilkdownProvider } from '@milkdown/react'
 import {
   ProsemirrorAdapterProvider,
   useNodeViewFactory,
@@ -39,6 +31,7 @@ import {
 } from '@/lib/theorem/uploads'
 import { uploadFile } from '@/lib/theorem/imports'
 import { cn } from '@/lib/utils'
+import { useCrepeMarkdown } from './crepe-markdown'
 import { remarkTheoremBlocks, theoremBlockNode } from './kinds/block-syntax'
 import { theoremBlockView } from './kinds/block-view'
 import { DataTable } from './kinds/embed-block'
@@ -56,14 +49,6 @@ type Callbacks = {
   onKind: (kind: NoteKind) => void
   /** Where an image goes, read when a person picks one. */
   projectId?: string
-}
-
-/** Flush the current editor state before an action can capture its source. */
-function reportCurrentMarkdown(
-  editor: Editor,
-  report: (markdown: string) => void,
-) {
-  report(editor.action(getMarkdown()))
 }
 
 /** Mermaid and data fences show as what they draw; their source stays a click away. */
@@ -161,20 +146,8 @@ function CrepeEditor({
   onFlushReady: (flush: () => void) => void
 }) {
   const nodeViewFactory = useNodeViewFactory()
-  /** The Markdown this editor last showed or serialized. */
-  const shown = useRef(markdown)
   const crepeRef = useRef<Crepe>(undefined)
   const images = useRef(new Set<string>())
-  const latest = useRef(onChange)
-  useLayoutEffect(() => {
-    latest.current = onChange
-  })
-  /** Hands the editor's text on when it is a new edit. */
-  const report = (next: string) => {
-    if (next === shown.current) return
-    shown.current = next
-    latest.current(next)
-  }
 
   useEffect(() => {
     const urls = images.current
@@ -184,114 +157,100 @@ function CrepeEditor({
     }
   }, [])
 
-  const { get } = useEditor((root) => {
-    const crepe = new Crepe({
-      root,
-      defaultValue: markdown,
-      featureConfigs: {
-        [Crepe.Feature.Placeholder]: {
-          text: 'Type / for blocks',
-          mode: 'block',
-        },
-        [Crepe.Feature.CodeMirror]: {
-          renderPreview: fencePreview,
-          previewOnlyByDefault: true,
-        },
-        [Crepe.Feature.ImageBlock]: {
-          onUpload: async (file) => {
-            const { projectId } = callbacks.current
-            if (!projectId) throw new Error('Pick a project before adding images.')
-            const { uploadId } = await uploadFile(projectId, file)
-            await retainUpload(uploadId)
-            return uploadContentPath(uploadId)
+  const { flush } = useCrepeMarkdown({
+    markdown,
+    onChange,
+    build: (root, editor) => {
+      const crepe = new Crepe({
+        root,
+        defaultValue: editor.markdown,
+        featureConfigs: {
+          [Crepe.Feature.Placeholder]: {
+            text: 'Type / for blocks',
+            mode: 'block',
           },
-          proxyDomURL: async (url) => {
-            if (!isUploadPath(url)) return url
-            const blob = URL.createObjectURL(await readUpload(url))
-            images.current.add(blob)
-            return blob
+          [Crepe.Feature.CodeMirror]: {
+            renderPreview: fencePreview,
+            previewOnlyByDefault: true,
+          },
+          [Crepe.Feature.ImageBlock]: {
+            onUpload: async (file) => {
+              const { projectId } = callbacks.current
+              if (!projectId)
+                throw new Error('Pick a project before adding images.')
+              const { uploadId } = await uploadFile(projectId, file)
+              await retainUpload(uploadId)
+              return uploadContentPath(uploadId)
+            },
+            proxyDomURL: async (url) => {
+              if (!isUploadPath(url)) return url
+              const blob = URL.createObjectURL(await readUpload(url))
+              images.current.add(blob)
+              return blob
+            },
+          },
+          [Crepe.Feature.BlockEdit]: {
+            buildMenu: (builder) => {
+              const group = builder.addGroup('theorem', 'Theorem')
+              for (const item of MENU)
+                group.addItem(item.key, {
+                  label: item.label,
+                  icon: item.icon(),
+                  onRun: (ctx) => {
+                    ctx
+                      .get(commandsCtx)
+                      .call(clearTextInCurrentBlockCommand.key)
+                    item.run(callbacks.current)
+                  },
+                })
+              if (callbacks.current.onAsk)
+                group.addItem('ask-theorem', {
+                  label: 'Ask Theorem',
+                  icon: askIcon,
+                  onRun: (ctx) => {
+                    ctx
+                      .get(commandsCtx)
+                      .call(clearTextInCurrentBlockCommand.key)
+                    // Flush the editor's text before the action captures its source.
+                    editor.flush()
+                    callbacks.current.onAsk?.()
+                  },
+                })
+            },
           },
         },
-        [Crepe.Feature.BlockEdit]: {
-          buildMenu: (builder) => {
-            const group = builder.addGroup('theorem', 'Theorem')
-            for (const item of MENU)
-              group.addItem(item.key, {
-                label: item.label,
-                icon: item.icon(),
-                onRun: (ctx) => {
-                  ctx.get(commandsCtx).call(clearTextInCurrentBlockCommand.key)
-                  item.run(callbacks.current)
-                },
-              })
-            if (callbacks.current.onAsk)
-              group.addItem('ask-theorem', {
-                label: 'Ask Theorem',
-                icon: askIcon,
-                onRun: (ctx) => {
-                  ctx.get(commandsCtx).call(clearTextInCurrentBlockCommand.key)
-                  reportCurrentMarkdown(crepe.editor, report)
-                  callbacks.current.onAsk?.()
-                },
-              })
-          },
-        },
-      },
-    })
-    crepe.editor
-      .config((ctx) => ctx.set(nodeViewFactoryCtx.key, nodeViewFactory))
-      .use(nodeViewFactoryCtx)
-      .use(remarkTheoremBlocks)
-      .use(theoremBlockNode)
-      .use(theoremBlockView)
-    crepeRef.current = crepe
-    crepe.on((listener) => {
-      // Milkdown removes the serializer before it closes the view, so the
-      // destroy handler below keeps its own.
-      let serialize: Serializer | undefined
-      // Normalization on load is not an edit; remember the editor's own form.
-      listener.mounted((ctx) => {
-        serialize = ctx.get(serializerCtx)
-        shown.current = crepe.getMarkdown()
-        if (!autoFocus) return
-        // Ready to type where the note ends.
-        const view = ctx.get(editorViewCtx)
-        view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
-        view.focus()
       })
-      listener.markdownUpdated((_ctx, next) => report(next))
-      // markdownUpdated waits 200ms and is dropped when the editor closes, so
-      // a closing editor hands over its last text itself.
-      listener.destroy((ctx) => {
-        if (serialize) report(serialize(ctx.get(editorViewCtx).state.doc))
-      })
-    })
-    onInsertReady((next) => crepe.editor.action(insert(next)))
-    onFlushReady(() => reportCurrentMarkdown(crepe.editor, report))
-    return crepe
-  }, [])
+      crepe.editor
+        .config((ctx) => ctx.set(nodeViewFactoryCtx.key, nodeViewFactory))
+        .use(nodeViewFactoryCtx)
+        .use(remarkTheoremBlocks)
+        .use(theoremBlockNode)
+        .use(theoremBlockView)
+      crepeRef.current = crepe
+      if (autoFocus)
+        crepe.on((listener) =>
+          listener.mounted((ctx) => {
+            // Ready to type where the note ends.
+            const view = ctx.get(editorViewCtx)
+            view.dispatch(
+              view.state.tr.setSelection(Selection.atEnd(view.state.doc)),
+            )
+            view.focus()
+          }),
+        )
+      onInsertReady((next) => crepe.editor.action(insert(next)))
+      onFlushReady(editor.flush)
+      return crepe
+    },
+  })
 
   useEffect(() => {
     crepeRef.current?.setReadonly(!editable)
   }, [editable])
 
-  // Leaving the page skips the destroy above, so the editor hands over its
-  // last text before the saves are flushed.
-  useEffect(() =>
-    onLeavePage(() => {
-      const editor = get()
-      if (editor) reportCurrentMarkdown(editor, report)
-    }),
-  )
-
-  // A change from elsewhere replaces the document.
-  useEffect(() => {
-    if (markdown === shown.current) return
-    const editor = get()
-    if (!editor) return
-    editor.action(replaceAll(markdown))
-    shown.current = markdown
-  }, [get, markdown])
+  // Leaving the page skips the editor's destroy, so it hands over its last
+  // text before the saves are flushed.
+  useEffect(() => onLeavePage(flush))
 
   return <Milkdown />
 }
