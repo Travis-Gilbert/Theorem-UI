@@ -36,6 +36,7 @@ import {
 } from '@/components/artifacts/artifact-model'
 import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
+import { ProgramPart } from '@/components/chat/program-part'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
@@ -905,9 +906,9 @@ const RENDERERS = (
     ['theorem-expression_refused', Inert],
     // The page's client operations: a check of an App shows as a chip.
     ['theorem-client_operation', ClientOperationPart],
-    // The native agent's program: what it does shows up as its host calls
-    // and their artifacts, and its stored source is not the full program.
-    ['theorem-program', Inert],
+    // A program the agent wrote as code is shown as one, closed, with its
+    // source inside. What it did shows up as its calls and their artifacts.
+    ['theorem-program', ProgramPart],
   ])
 
 function DataRenderer({
