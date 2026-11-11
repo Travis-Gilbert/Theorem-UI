@@ -37,7 +37,9 @@ import {
   useDelegationContent,
   useDelegationDock,
   useLiveDelegation,
+  useSpecialistRun,
 } from '@/lib/theorem/delegations'
+import { useSpecialistAppRequests } from '@/lib/blocks/app-operations'
 import type {
   ChangeAdmission,
   ChangeSetEntry,
@@ -420,7 +422,8 @@ const Notes: FC<{ title: string; items: string[] }> = ({ title, items }) =>
 
 function workProblems({ receipt, problem }: DelegationPart): string[] {
   const terminal = receipt?.terminal
-  const workerFailure = terminal?.kind === 'failed' ? terminal.message : undefined
+  const workerFailure =
+    terminal?.kind === 'failed' ? terminal.message : undefined
   return [
     workerFailure && withoutCode(workerFailure),
     problem && problem !== workerFailure
@@ -490,7 +493,10 @@ export const DelegationBody: FC<{
             )}
           </p>
           <p
-            className={cn('text-sm text-ink-muted', !detailed && 'line-clamp-3')}
+            className={cn(
+              'text-sm text-ink-muted',
+              !detailed && 'line-clamp-3',
+            )}
             title={detailed ? undefined : objective}
           >
             {objective}
@@ -662,6 +668,17 @@ export const DelegationBody: FC<{
   )
 }
 
+/**
+ * Follows a specialist's run while it works, so what it asks of this page is
+ * answered: a builder checks the App it is writing in the person's browser,
+ * as the conversation's own turn does. It draws nothing.
+ */
+function SpecialistPage({ runId }: { runId: string }) {
+  const { message } = useSpecialistRun(runId)
+  useSpecialistAppRequests(runId, message)
+  return null
+}
+
 const DelegationCard: DataMessagePartComponent = ({ data }) => {
   const delegation = useLiveDelegation(readDelegation(data))
   if (!delegation) return null
@@ -671,6 +688,10 @@ const DelegationCard: DataMessagePartComponent = ({ data }) => {
       data-delegation-id={delegation.delegationId}
       className={cn(card, liveEnter)}
     >
+      {LIVE_DELEGATION_STATES.has(delegation.state) &&
+        delegation.childRunId && (
+          <SpecialistPage runId={delegation.childRunId} />
+        )}
       <DelegationBody delegation={delegation} />
     </article>
   )
