@@ -1,4 +1,6 @@
 // SOURCING: none — the Index's built-in view definitions as OpenUI Lang programs over the library in ./library; they are data, written in the language the library renders
+import { workProgramFor } from '@/components/work/programs'
+import { isWorkView } from '@/components/work/route'
 import type { IndexView, Operation, Scope, ViewRevision } from './contract'
 
 const OPERATIONS: Operation[] = [
@@ -44,9 +46,11 @@ export const recordsViewId = (nameSingular: string) =>
 export const dataModelViewId = (focus?: string) =>
   focus ? `${DATA_MODEL_VIEW_ID}:${focus}` : DATA_MODEL_VIEW_ID
 
-/** Programs that draw tables or diagrams take the view's full width. */
+/** Programs that draw tables, diagrams or the work tracker's screens take the view's full width. */
 export const isWideProgram = (program: string) =>
-  /\b(RecordTable|DataModel)\(/.test(program)
+  /\b(RecordTable|DataModel|Work(View|List|Board|ViewBar|Inbox|Item|Projects|Project))\(/.test(
+    program,
+  )
 export const isDefaultView = (viewId: string) =>
   viewId.startsWith(DEFAULT_PREFIX)
 
@@ -173,6 +177,24 @@ export function revisionOnScreen(
   return held ?? view.current
 }
 
+/** A work tracker screen: the program is one component that reads the tracker itself. */
+function workView(viewId: string): IndexView | undefined {
+  const screen = workProgramFor(viewId)
+  return (
+    screen &&
+    defaultView(
+      viewId,
+      { kind: 'home' },
+      revision({
+        title: screen.title,
+        purpose: screen.purpose,
+        program: screen.program,
+        bindings: {},
+      }),
+    )
+  )
+}
+
 /** Every built-in view, for tests and for resolving a default id from the URL. */
 export function resolveDefaultView(
   viewId: string,
@@ -189,6 +211,7 @@ export function resolveDefaultView(
     const name = viewId.slice(DATA_MODEL_VIEW_ID.length + 1)
     return dataModelView(name, objectLabel?.(name))
   }
+  if (isWorkView(viewId)) return workView(viewId)
   if (viewId === 'default:home') return defaultViewFor({ kind: 'home' })
   const prefix = 'default:collection:'
   if (viewId.startsWith(prefix)) {

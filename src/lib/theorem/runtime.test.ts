@@ -23,6 +23,7 @@ import {
   takeRefusedText,
   theorem,
 } from './client'
+import { useToolSelections } from './tool-selection'
 import {
   TheoremRuntimeProvider,
   createHistoryAdapter,
@@ -37,8 +38,13 @@ type Send = {
   capabilityScope?: string[]
   webResearch?: boolean
   planning?: boolean
+  toolSelection?: { connections: string[]; tools?: string[] }
   model?: { provider: string; model: string }
   executionMode?: string
+  responseDetail?: string
+  effort?: string
+  maxOutputTokens?: number
+  runBudget?: { maxOutputTokens?: number; maxSteps?: number }
 }
 
 let sends: Send[] = []
@@ -96,7 +102,7 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   }
   if (path.endsWith('/messages') && request.method === 'POST') {
     titleEvents.push(`send:${request.headers.get('If-Match')}`)
-    const { text, capabilityScope, webResearch, planning, model, executionMode } =
+    const { text, capabilityScope, webResearch, planning, toolSelection, model, executionMode, ...limits } =
       (await request.json()) as Omit<Send, 'key'>
     sends.push({
       key: request.headers.get('Idempotency-Key') ?? '',
@@ -104,8 +110,14 @@ async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
       ...(capabilityScope ? { capabilityScope } : {}),
       ...(webResearch !== undefined ? { webResearch } : {}),
       ...(planning !== undefined ? { planning } : {}),
+      ...(toolSelection ? { toolSelection } : {}),
       ...(model ? { model } : {}),
       ...(executionMode ? { executionMode } : {}),
+      ...Object.fromEntries(
+        ['responseDetail', 'effort', 'maxOutputTokens', 'runBudget'].flatMap((field) =>
+          field in limits ? [[field, (limits as Record<string, unknown>)[field]]] : [],
+        ),
+      ),
     })
     if (lostReplies > 0) {
       lostReplies -= 1
@@ -180,6 +192,7 @@ beforeEach(() => {
   titleReads = []
   useWebSearch.setState({ on: false })
   usePlanning.setState({ on: false })
+  useToolSelections.setState({ byThread: {} })
 })
 afterEach(cleanup)
 
@@ -534,6 +547,61 @@ test('only a finished draft_plan call turns Plan off', () => {
 })
 
 // A cached SDK adapter may first be created by the terminal, then used by chat.
+/** Sends one message from inside the runtime, after `prepare` has set the thread's choices up. */
+async function sendFromComposer(
+  threadId: string,
+  prepare: (localId: string) => void = () => {},
+) {
+  function Sender() {
+    const aui = useAui()
+    useEffect(() => {
+      prepare(aui.threadListItem.getState().id)
+      aui.composer.setText('Look at the open pull requests')
+      aui.composer.send()
+    }, [aui])
+    return null
+  }
+  await render(
+    createElement(TheoremRuntimeProvider, {
+      projectId: 'project',
+      threadId,
+      onThreadIdChange: () => {},
+      children: createElement(Sender),
+    }),
+  )
+  await waitFor(() => sends.length === 1)
+}
+
+test('a send with the default connections carries no toolSelection', async () => {
+  await sendFromComposer(`thread-${crypto.randomUUID()}`)
+  expect(sends[0]?.toolSelection).toBeUndefined()
+})
+
+test("a send carries the conversation's connection choice, and no other conversation's", async () => {
+  const threadId = `thread-${crypto.randomUUID()}`
+  const selection = { connections: ['mcp:abc'], tools: ['mcp:abc/search'] }
+  await sendFromComposer(threadId, () => {
+    useToolSelections.getState().set(threadId, selection)
+    useToolSelections.getState().set('another-thread', { connections: [] })
+  })
+  expect(sends[0]?.toolSelection).toEqual(selection)
+})
+
+test('a choice made before the first send moves to the new conversation\'s durable id', async () => {
+  const threadId = `thread-${crypto.randomUUID()}`
+  const selection = { connections: ['github'] }
+  let localId = ''
+  await sendFromComposer(threadId, (id) => {
+    localId = id
+    useToolSelections.getState().set(id, selection)
+  })
+  expect(sends[0]?.toolSelection).toEqual(selection)
+  expect(useToolSelections.getState().byThread[threadId]).toEqual(selection)
+  // The local id is only meaningful when it differs from the durable one.
+  if (localId !== threadId)
+    expect(useToolSelections.getState().byThread[localId]).toBeUndefined()
+})
+
 test('each surface sends its current model and mode on a shared durable thread', async () => {
   const threadId = 'switch-model-after-terminal'
   await drain(runTurn(threadId, options('Terminal first'), { executionMode: 'coding' }))
@@ -555,6 +623,17 @@ test('research and planning retain an explicit caller capability scope', async (
   expect(sends[0]?.capabilityScope).toEqual(['web_read'])
 })
 
+
+test('the response limits a turn names go out on its send, and a turn that names none sends none', async () => {
+  const limited = {
+    ...options('Keep it short'),
+    runConfig: { custom: { theoremTurnOptions: { responseDetail: 'concise', effort: 'max', maxOutputTokens: 4000, runBudget: { maxOutputTokens: 20000, maxSteps: 6 } } } },
+  }
+  await drain(runTurn(`limits-${crypto.randomUUID()}`, limited))
+  expect(sends.at(-1)).toMatchObject({ responseDetail: 'concise', effort: 'max', maxOutputTokens: 4000, runBudget: { maxOutputTokens: 20000, maxSteps: 6 } })
+  await drain(runTurn(`limits-${crypto.randomUUID()}`, options('Plain')))
+  expect(Object.keys(sends.at(-1)!).sort()).toEqual(['key', 'text'])
+})
 
 test('new chat creation failures are visible and still reject admission', async () => {
   const failure = new TheoremError({ statusCode: 500, body: {

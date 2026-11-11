@@ -1,5 +1,5 @@
-// SOURCING: coss ui Menu over Base UI Menu (MenuRadioGroup / MenuRadioItem for the one choice), ui/tooltip over Base UI Tooltip, lib/theorem/models (the catalog's effort levels, the picked model, the per-model effort store the send reads)
-import { useEffect, useMemo } from 'react'
+// SOURCING: coss ui Menu over Base UI Menu (MenuRadioGroup / MenuRadioItem for the one choice), ui/tooltip over Base UI Tooltip, lib/theorem/models (the catalog's effort levels, the picked model), lib/theorem/generation (the effort a send carries, in the conversation's override over the account default)
+import { useMemo } from 'react'
 import {
   Menu,
   MenuGroup,
@@ -17,30 +17,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useModelCatalog, useModelEffort, usePickedModels } from '@/lib/theorem/models'
+import { effortLabel, useGenerationDefaults } from '@/lib/theorem/generation'
+import { useModelCatalog, usePickedModels } from '@/lib/theorem/models'
 import type { ModelOption } from '@/lib/theorem/models'
+import { useConversationGeneration, useLatestRunFacts } from '@/lib/theorem/use-generation'
 
 /** The radio value of "no level": the model runs at its own default. */
 const DEFAULT = ''
-
-const LABELS: Readonly<Record<string, string>> = {
-  minimal: 'Minimal',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'Extra high',
-  max: 'Max',
-}
-
-export const effortLabel = (level: string) =>
-  LABELS[level] ?? level.charAt(0).toUpperCase() + level.slice(1)
 
 /**
  * The model the next turn runs on, as the catalog lists it: the picked one,
  * or Theorem's default when nothing is picked. Undefined until the catalog
  * says.
  */
-export function useEffectiveModel(): { key: string; model: ModelOption | undefined } {
+export function useEffectiveModel(): { model: ModelOption | undefined } {
   const { data: catalog, list } = useModelCatalog()
   const selected = usePickedModels((s) => s.selected)
   const ref = selected ?? list?.defaultRef
@@ -48,27 +38,32 @@ export function useEffectiveModel(): { key: string; model: ModelOption | undefin
     () => (ref ? catalog?.find((option) => option.ref === ref) : undefined),
     [catalog, ref],
   )
-  return { key: selected ?? '', model }
+  return { model }
 }
 
 /**
  * The composer's reasoning effort menu, beside the model picker. It lists the
  * levels Theorem says the model's route sends and is absent for a model that
- * takes none. A level stays chosen per model; a stored level the model no
- * longer lists is dropped, so a send never carries one Theorem would refuse.
+ * takes none. The level is the conversation's, over the account's default; it
+ * goes out whatever the model, and Theorem maps one the model does not list.
+ * When the last run was mapped, the menu names the level it ran at.
  */
 export function EffortPicker() {
-  const { key, model } = useEffectiveModel()
+  const { model } = useEffectiveModel()
+  const { override, change } = useConversationGeneration()
+  const accountEffort = useGenerationDefaults((s) => s.defaults.effort)
+  const mapped = useLatestRunFacts()?.limits?.effort
   const levels = model?.effortLevels ?? []
-  const chosen = useModelEffort((s) => s.byModel[key])
-  const choose = useModelEffort((s) => s.choose)
-
-  useEffect(() => {
-    if (model && chosen && !model.effortLevels.includes(chosen)) choose(key, undefined)
-  }, [model, chosen, key, choose])
-
   if (!levels.length) return null
-  const current = chosen && levels.includes(chosen) ? chosen : DEFAULT
+  const chosen = override.effort ?? DEFAULT
+  const requested = override.effort ?? accountEffort
+  const ranAt = mapped?.requested === requested ? mapped?.effective : undefined
+  // The last reply's route took no level at all, so the one chosen was not sent.
+  const notSent = Boolean(requested) && mapped?.requested === requested && mapped?.reason === 'unsupported'
+  const shown = ranAt ?? requested
+  const standing = accountEffort ?? model?.effortDefault
+  // A level kept from another model stays in the list so the choice shows.
+  const listed = chosen && !levels.includes(chosen) ? [...levels, chosen] : levels
   return (
     <Menu>
       <TooltipProvider>
@@ -82,30 +77,34 @@ export function EffortPicker() {
               />
             }
           >
-            <span>{current ? effortLabel(current) : 'Effort'}</span>
+            <span>{shown ? effortLabel(shown) : 'Effort'}</span>
             <Icon.UpDown className="size-3.5 shrink-0" />
           </TooltipTrigger>
-          <TooltipContent side="top">How hard the model thinks before it answers</TooltipContent>
+          <TooltipContent side="top">
+            {notSent && requested
+              ? `The last reply ran without ${effortLabel(requested)}: its model takes no effort level`
+              : ranAt && requested && ranAt !== requested
+                ? `${effortLabel(requested)} is not offered here; the last reply ran at ${effortLabel(ranAt)}`
+                : 'How hard the model thinks before it answers'}
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <MenuPopup side="top" align="end" className="w-52">
         <MenuGroup>
           <MenuGroupLabel>Reasoning effort</MenuGroupLabel>
           <MenuRadioGroup
-            value={current}
-            onValueChange={(value: string) => choose(key, value || undefined)}
+            value={chosen}
+            onValueChange={(value: string) => change({ effort: value || undefined })}
           >
             <MenuRadioItem value={DEFAULT}>
               <span className="flex items-baseline justify-between gap-3">
                 Default
-                {model?.effortDefault && (
-                  <span className="text-xs text-ink-faint">
-                    {effortLabel(model.effortDefault)}
-                  </span>
+                {standing && (
+                  <span className="text-xs text-ink-faint">{effortLabel(standing)}</span>
                 )}
               </span>
             </MenuRadioItem>
-            {levels.map((level) => (
+            {listed.map((level) => (
               <MenuRadioItem key={level} value={level}>
                 {effortLabel(level)}
               </MenuRadioItem>

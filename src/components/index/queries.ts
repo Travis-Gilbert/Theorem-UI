@@ -17,6 +17,7 @@ import type {
   Proposal,
   Scope,
 } from './contract'
+import { useWorkTracker } from '@/components/work/settings'
 import { libraryRecord } from './library'
 import { observer } from './observe'
 
@@ -119,20 +120,31 @@ export const useFilings = (documentId: string | undefined) =>
  * Publishes this build's component library when Theorem holds a different
  * one, so the improver composes against exactly what this build renders.
  */
-export const useLibraryPublication = () =>
-  useQuery({
-    queryKey: keys.library,
+export function useLibraryPublication() {
+  // Theorem is told about the Work components only while the tracker is on.
+  // Both libraries share the one slot on the server, so every switch and
+  // every mount looks at what the server holds again: a cached answer from
+  // the other switch would skip the publication and leave Theorem composing
+  // against a library this build no longer renders. The digest check keeps
+  // the publication itself to the times the server's copy differs.
+  const tracker = useWorkTracker()
+  const work = tracker.state === 'on'
+  return useQuery({
+    queryKey: [...keys.library, work] as const,
     queryFn: async () => {
       const [published, record] = await Promise.all([
         api.readLibrary(),
-        libraryRecord(),
+        libraryRecord(work),
       ])
       if (published?.digest === record.digest) return published
       return api.publishLibrary(record)
     },
-    staleTime: Infinity,
+    enabled: tracker.state !== 'loading',
+    staleTime: 0,
+    refetchOnWindowFocus: false,
     retry,
   })
+}
 
 /** Every write that changes views refreshes the lists, the view and the proposals. */
 function useInvalidateIndex() {

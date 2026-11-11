@@ -53,6 +53,8 @@ import {
   addReference,
 } from '@/components/terminal/terminal-screen'
 import { Button } from '@/components/ui/button'
+import { WorkInspector } from '@/components/work/inspector'
+import { parseWorkItemId } from '@/components/work/route'
 import { WorkspaceFilePanel } from '@/components/workspace/workspace-file-panel'
 import type { Item } from '@/lib/modules/contract'
 import { builtin, registerBuiltin } from '@/lib/modules/registry'
@@ -63,6 +65,7 @@ import { isItem, isReference } from '@/lib/modules/values'
 import { describeError } from '@/lib/theorem/client'
 import { useNothingToShow } from './layout-parts'
 import { useModuleAction, usePageRuntime } from './page-runtime'
+import { WORK_MODULES } from './work-modules'
 
 function Empty({ children }: { children: string }) {
   return <p className="p-3 text-sm text-ink-muted">{children}</p>
@@ -73,7 +76,11 @@ const text = (value: unknown) => (typeof value === 'string' ? value : '')
 /** An item for a document or record, opened in `scope` when it was. */
 const indexItem = (id: string, scope?: IndexScope): Item => ({
   id,
-  kind: parseRecordItemId(id) ? 'record' : 'document',
+  kind: parseWorkItemId(id)
+    ? 'work'
+    : parseRecordItemId(id)
+      ? 'record'
+      : 'document',
   ...(scope && { scope }),
 })
 
@@ -226,6 +233,17 @@ function InspectorModule({ inputs, emit }: ModuleViewProps) {
   }
   if (!current)
     return <Empty>Nothing to show yet. Connect its Item, or send it one.</Empty>
+  const work = parseWorkItemId(current.id)
+  if (work)
+    return (
+      <WorkInspector
+        key={current.id}
+        itemId={work}
+        onOpen={(id) => open(`work:${id}`)}
+        onClose={close}
+        className="h-full"
+      />
+    )
   const record = parseRecordItemId(current.id)
   if (record)
     return (
@@ -570,6 +588,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
     actions: [item('show', 'Show an item')],
     Component: InspectorModule,
   }),
+  ...WORK_MODULES,
   builtin({
     id: 'theorem.records.table',
     label: 'Records',

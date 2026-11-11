@@ -37,6 +37,7 @@ import {
 import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
 import { ProgramPart } from '@/components/chat/program-part'
+import { CompletionFooter } from '@/components/chat/run-footer'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
@@ -937,6 +938,8 @@ const RENDERERS = (
     ['theorem-attachment', AttachmentPart],
     ['theorem-host_call', HostCallPart],
     ['theorem-user_input', UserInputPart],
+    // A run's completion: why it stopped, and the way back up when a limit stopped it.
+    ['theorem-completion', CompletionFooter],
     ...DELEGATION_RENDERERS,
   ] satisfies Array<[string, DataMessagePartComponent]>
 )
