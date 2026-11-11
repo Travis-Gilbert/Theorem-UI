@@ -151,6 +151,19 @@ export class TheoremConnection {
         return operations.has(name);
     }
 
+    /** What this workspace's host can run now, including which terminal backends are ready. */
+    async capabilities(): Promise<unknown> {
+        const { workspaceId } = await this.headers();
+        const response = await this.client.fetch(
+            `api/environment/v1/workspaces/${encodeURIComponent(workspaceId)}/capabilities`,
+            { method: 'GET' }
+        );
+        if (!response.ok) {
+            throw new TheoremError({ statusCode: response.status, body: await response.text(), message: `capabilities: HTTP ${response.status}` });
+        }
+        return response.json();
+    }
+
     async headers(): Promise<OperationHeaders> {
         await this.ready;
         return {
