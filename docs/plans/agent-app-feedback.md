@@ -156,9 +156,12 @@ As built (Theorem pull request 1020 and this repo's 69):
 - The Builder asks on its own run, which is not a message of the
   conversation. While a specialist's card is live the page follows that run
   by its id and answers its checks. A check waits 60 seconds for the page.
-- Tested at the seams: the Builder's catalog and task carry the check, and
-  the page reads pending requests off a specialist's run. Not observed: a
-  Builder calling the check and being answered.
+- Tested on the server with only the model's replies scripted
+  (`page_check_tests`): a Builder's run calls the check, the test answers as
+  the page does on that run, the model reads what was found and hands the App
+  back. Tested here without a server: the page reads pending requests off a
+  specialist's run. Not observed: a browser page answering a Builder, or a
+  live model.
 
 ## Seeing the App
 

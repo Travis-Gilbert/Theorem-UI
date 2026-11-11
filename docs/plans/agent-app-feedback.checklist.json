@@ -106,7 +106,8 @@
         "Theorem pull request 1020: a Builder's run is handed the page's read-only operations and its task says to check the App; conversation_work tests \"a_builder_is_handed_the_page_operations_that_only_read\" and \"a_builders_run_offers_the_pages_check_and_its_task_says_to_use_it\"",
         "This repo, pull request 69: the page follows a live specialist's run by its id and serves its App requests; app-operations.test.ts \"a specialist's run is read by its own run id, while it works\"",
         "A Builder still submits through complete_work and has no write_app",
-        "Not observed: a Builder calling app__check and being answered by a page"
+        "Theorem pull request 1020, page_check_tests \"a_builder_asks_the_page_to_check_its_app_and_reads_what_it_found\": a real Builder attempt with scripted model replies calls app__check, is answered through the worker run's command route, reads the finding in its next request and publishes the App",
+        "Not observed: a browser page answering a Builder; a live model"
       ]
     },
     {
