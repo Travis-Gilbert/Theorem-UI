@@ -8,6 +8,7 @@ import { isThing } from '@/lib/face/program'
 import type { Place, Thing } from '@/lib/face/program'
 import { noteOf, stand, wantsBringing } from '@/lib/face/things'
 import type { Standing } from '@/lib/face/things'
+import { theWork } from '@/lib/face/work'
 import { kitDriver } from '@/lib/kit/driver'
 import { KIT_SIZE, useKitStage } from '@/lib/kit/stage'
 import { prefersReducedMotion } from '@/lib/motion'
@@ -178,6 +179,8 @@ export class FaceDriver {
     this.listen()
     // Sound that began before anyone was measuring said so to nobody: take the form it would have given.
     if (theSound().sounding) face.notice('sound.start')
+    // A run that was at work before this stage was: the same.
+    if (face.working) face.notice('run.work')
     this.frameId = requestAnimationFrame(this.frame)
   }
 
@@ -486,6 +489,8 @@ export class FaceDriver {
       'sound.beat': signals.beat,
     })
     for (const event of events) this.face.notice(event)
+    // What the run is doing: how busy it is with tools and how hard it was asked to think.
+    this.face.feed(theWork().measure(now, this.face.working))
   }
 
   /** Draws the arcs leaving each side: more of them, and further, the more the face emits. Still, they stand where they are. */

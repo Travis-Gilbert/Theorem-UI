@@ -203,6 +203,11 @@ export const DEFAULT_RULES: ReadonlyArray<Rule> = [
     note: 'Finished right after a failure: relief, not cheer.',
   }),
   rule('done-wink', 'run.done', 'wink', { when: { habit: [0.5, 1] } }),
+  // A form: held for as long as the run is at work.
+  rule('work-orb', 'run.work', 'orb', {
+    until: 'run.rest',
+    note: 'While the agent works, the face is a thinking orb.',
+  }),
   // Sound the page plays. The first two are forms: held from the sound's start to its stop.
   rule('sound-boombox', 'sound.start', 'boombox', {
     until: 'sound.stop',

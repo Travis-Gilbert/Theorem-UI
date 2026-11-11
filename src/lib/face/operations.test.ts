@@ -190,6 +190,7 @@ describe('reading requests off a conversation', () => {
     } as unknown as ThreadMessage
     expect(toolFactsOf([message], true)).toEqual({
       id: 'm1',
+      called: 3,
       done: 2,
       failed: 1,
     })

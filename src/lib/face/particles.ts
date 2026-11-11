@@ -106,6 +106,11 @@ export class Field {
    */
   step(shapes: ReadonlyArray<Shape>, matter: Matter, dt: number, time: number) {
     const any = this.split(shapes)
+    // What a globe has turned and been stirred is kept here, so a change of speed carries on from where it was.
+    for (const shape of shapes) {
+      shape.spun += shape.spin * dt
+      shape.stirred += shape.stir * dt
+    }
     const cohesion = clamp(matter.cohesion, 0, 1)
     const baseOmega = 6 + 26 * cohesion
     const zeta = 0.5 + 0.45 * cohesion
@@ -126,16 +131,17 @@ export class Field {
       let ty = 0
       let light = 0
       if (shape) {
-        seatPoint(
-          shape,
-          this.theta[index] as number,
-          this.u[index] as number,
-          this.seat,
-          0,
-        )
+        light =
+          shape.alpha *
+          seatPoint(
+            shape,
+            this.theta[index] as number,
+            this.u[index] as number,
+            this.seat,
+            0,
+          )
         tx = this.seat[0] as number
         ty = this.seat[1] as number
-        light = shape.alpha
       }
       if (tremble > 0) {
         tx += noise(index, tick) * tremble

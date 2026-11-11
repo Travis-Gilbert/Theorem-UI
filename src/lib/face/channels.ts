@@ -93,6 +93,24 @@ export const FEATURE_PARAMS = {
     rest: 0,
     note: 'Its matter gathered into dots, this many across the middle, inside a rim: 0 filled, 5 a speaker cover.',
   },
+  globe: {
+    min: 0,
+    max: 12,
+    rest: 0,
+    note: 'Its matter set as dots on a ball seen from the side, this many rows from pole to pole, with a few grains in orbit: 0 flat, 9 an orb.',
+  },
+  spin: {
+    min: -3,
+    max: 3,
+    rest: 0,
+    note: 'How fast a globe turns, in turns a second. What it has turned is kept, so a change of speed never jumps it.',
+  },
+  stir: {
+    min: 0,
+    max: 1,
+    rest: 0,
+    note: 'How much a globe is stirred: its rows slide past each other, its axis wanders and its orbits quicken.',
+  },
   turn: {
     min: -180,
     max: 180,

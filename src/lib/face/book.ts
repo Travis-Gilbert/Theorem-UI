@@ -471,6 +471,64 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
       },
     ],
   }),
+  // What the face is while a run is at work (docs/plans/theo-orb.md). It keeps, and follows the run itself:
+  // how fast it turns and how stirred it is come from the tool calls, and its size from the effort asked for.
+  own(
+    'orb',
+    'While the agent works: the eyes give their matter to one ball of dots that turns, with a few grains in orbit. It turns faster and is stirred more with each tool call, and is larger the harder the run was asked to think.',
+    {
+      keep: true,
+      steps: [
+        {
+          op: 'par',
+          steps: [
+            {
+              op: 'feature',
+              id: 'orb',
+              side: 'centre',
+              set: {
+                x: 0,
+                y: 0,
+                w: 14,
+                h: 14,
+                round: 2,
+                globe: 9,
+                spin: 0.11,
+                stir: 0.14,
+                scale: 0.76,
+                alpha: 0.45,
+                share: 1,
+              },
+            },
+            {
+              op: 'to',
+              set: {
+                'eyes.share': 0,
+                'eyes.lid': 0,
+                'eyes.low': 0,
+                'gaze.x': 0,
+                'gaze.y': 0,
+                'matter.cohesion': 0.9,
+                'matter.drift': 0.02,
+                'auto.blink': 0,
+                'auto.saccade': 0,
+              },
+              over: 420,
+              bounce: 0.2,
+            },
+            { op: 'follow', channel: 'orb.spin', signal: 'run.pace', amp: 0.7 },
+            { op: 'follow', channel: 'orb.stir', signal: 'run.pace', amp: 0.8 },
+            {
+              op: 'follow',
+              channel: 'orb.scale',
+              signal: 'run.effort',
+              amp: 0.54,
+            },
+          ],
+        },
+      ],
+    },
+  ),
   // What the face is while the page plays sound (docs/plans/theo-sound.md). Both keep, and both follow the
   // sound itself: with nothing playing, nothing in them moves.
   own(

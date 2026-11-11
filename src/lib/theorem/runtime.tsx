@@ -30,7 +30,7 @@ import {
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
@@ -59,7 +59,7 @@ import {
 import type { Theorem } from './client'
 import { chatAttachments, turnUploads } from './chat-attachments'
 import { RefusedSend } from './send-recovery'
-import { generationTurnOptions, useGenerationOverrides } from './generation'
+import { generationTurnOptions, requestedEffort, useGenerationOverrides } from './generation'
 import { saveThreadGeneration, takeThreadGeneration } from './thread-generation'
 import { modelTurnOptions } from './models'
 import { bindRunInput } from './run-input-runtime'
@@ -679,12 +679,14 @@ function useTheoremThreadRuntime() {
     threadId: () => aui.threadListItem.getState().remoteId,
     liveRuns: useLiveRuns,
   }), [aui, runtime])
+  // The effort this conversation's sends ask for, for Theo to show while one runs.
+  const faceEffort = useCallback(() => requestedEffort(aui.threadListItem.getState().remoteId ?? undefined), [aui])
   useKitSource(runtime)
   useKitRequests(runtime)
   // The agent checks Apps with the page's compiler; this answers it.
   useAppRequests(runtime)
   // The agent drives Theo, its face, through the page; this answers it.
-  useFaceRequests(runtime)
+  useFaceRequests(runtime, faceEffort)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()

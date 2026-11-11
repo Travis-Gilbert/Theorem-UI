@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { hasStatus, mutate, theorem } from '@/lib/theorem/client'
 import type { Face } from './engine'
 import { theFace, useFaceStage } from './store'
+import { effortShare, theWork } from './work'
 
 export const FACE_READ = 'face.read'
 export const FACE_PERFORM = 'face.perform'
@@ -415,14 +416,17 @@ export function toolFactsOf(
 ) {
   const last = messages.at(-1)
   if (!running || last?.role !== 'assistant') return undefined
+  let called = 0
   let done = 0
   let failed = 0
   for (const part of last.content) {
-    if (part.type !== 'tool-call' || part.result === undefined) continue
+    if (part.type !== 'tool-call') continue
+    called++
+    if (part.result === undefined) continue
     done++
     if (part.isError) failed++
   }
-  return { id: last.id, done, failed }
+  return { id: last.id, called, done, failed }
 }
 
 /** The id of the conversation's last reply if it ended in an error, so the face can take it in once. */
@@ -438,9 +442,14 @@ export function runErrorOf(messages: readonly ThreadMessage[]) {
 /**
  * Serves face requests from one conversation for as long as it is mounted,
  * and tells the face what the run's tools are doing: each one that finishes
- * is an event, and one that fails is a different one.
+ * is an event, and one that fails is a different one. Each call that starts
+ * or ends is counted into the run's pace too, and `effort` says what
+ * reasoning effort the conversation's sends ask for.
  */
-export function useFaceRequests(runtime: ThreadSource) {
+export function useFaceRequests(
+  runtime: ThreadSource,
+  effort?: () => string | undefined,
+) {
   useEffect(() => {
     let seen: ReturnType<typeof toolFactsOf>
     let errored: string | undefined
@@ -451,13 +460,24 @@ export function useFaceRequests(runtime: ThreadSource) {
       void serveFaceRequests(faceRequestsOf(messages, isRunning))
       const facts = toolFactsOf(messages, isRunning)
       if (facts && !first && useFaceStage.getState().mounted) {
-        const before = seen?.id === facts.id ? seen : { done: 0, failed: 0 }
+        const before =
+          seen?.id === facts.id ? seen : { called: 0, done: 0, failed: 0 }
         const face = theFace()
-        for (let index = before.failed; index < facts.failed; index++)
+        const work = theWork()
+        const now = performance.now()
+        for (let index = before.called; index < facts.called; index++)
+          work.tool(now)
+        for (let index = before.failed; index < facts.failed; index++) {
           face.notice('run.tool.fail')
+          work.tool(now, true)
+        }
         const passed = facts.done - facts.failed - (before.done - before.failed)
-        for (let index = 0; index < passed; index++) face.notice('run.tool')
+        for (let index = 0; index < passed; index++) {
+          face.notice('run.tool')
+          work.tool(now)
+        }
       }
+      if (isRunning) theWork().effort = effortShare(effort?.())
       seen = facts ?? seen
       const error = runErrorOf(messages)
       if (
@@ -472,5 +492,5 @@ export function useFaceRequests(runtime: ThreadSource) {
     }
     serve()
     return runtime.thread.subscribe(serve)
-  }, [runtime])
+  }, [runtime, effort])
 }

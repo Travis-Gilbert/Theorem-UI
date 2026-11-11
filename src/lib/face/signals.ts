@@ -11,7 +11,8 @@ export interface SignalSpec {
  * What the face can follow. The sound ones are measured from the audio the
  * page itself is playing (lib/sound): they are 0 while nothing plays, so
  * nothing that follows them moves for a flag. They never come from a
- * microphone.
+ * microphone. The run ones are counted from the run's own tool calls and
+ * read from the effort it was sent with (./work).
  */
 export const SIGNALS = {
   'sound.level': {
@@ -38,6 +39,16 @@ export const SIGNALS = {
     min: 0,
     max: 1,
     note: 'Jumps to 1 when a sound sets in (a syllable, a beat) and dies away in about a fifth of a second.',
+  },
+  'run.pace': {
+    min: 0,
+    max: 1,
+    note: 'How busy the run is with tools: each call that starts or ends pushes it up, and it dies away in a few seconds. 0 while nothing runs.',
+  },
+  'run.effort': {
+    min: 0,
+    max: 1,
+    note: 'The reasoning effort the run was asked for, least 0 to most 1, the middle where none was. 0 while nothing runs.',
   },
   'body.speed': {
     min: 0,

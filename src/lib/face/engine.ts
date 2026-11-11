@@ -336,6 +336,15 @@ export class Face {
     if (liveness === 'work' && before !== 'ask') this.notice('run.start')
     if (liveness === 'ask') this.notice('run.ask')
     if (liveness === 'done') this.notice('run.done')
+    // Working has begun, or begun again after a question, or is over whatever came next: what lasts for as long
+    // as the work does starts and ends here. Said last, so the events a rule waits for in order stay next to each other.
+    if (liveness === 'work') this.notice('run.work')
+    if (before === 'work') this.notice('run.rest')
+  }
+
+  /** Whether a run is at work now. */
+  get working() {
+    return this.liveness === 'work'
   }
 
   /** The manner the agent authored for its turn, laid on the mood layer. */
@@ -682,6 +691,8 @@ export class Face {
       shape.y += gazeY * 6 * depth
       if (shape.side !== 0) shape.w *= 1 - 0.1 * gazeX * shape.side
       shape.h *= 1 - 0.06 * Math.abs(gazeY)
+      // With motion reduced a globe is a ball of dots that does not turn.
+      if (rig.still) shape.spin = shape.stir = 0
     })
     const { matter } = this
     matter.cohesion = rig.read('matter.cohesion')

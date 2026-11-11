@@ -1,4 +1,4 @@
-// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The rings, bars and mesh a feature's matter can be gathered into are this app's, for the devices the face turns into (docs/plans/theo-sound.md). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
+// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The rings, bars and mesh a feature's matter can be gathered into are this app's, for the devices the face turns into (docs/plans/theo-sound.md). The globe is an orthographic sphere of dots in rows of latitude, each row turned about the pole and the whole leaned toward the viewer, with grains on tilted circular orbits: the dotted thought-orb of agent interfaces (thinking-orbs by Jakub Antalik, MIT, which the app's inline indicator uses; none of its code is here), remade from this face's own matter so that what it has turned is integrated from a speed that events change, where that one is a function of the clock (docs/plans/theo-orb.md). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
 import { FEATURE_PARAMS, FEATURE_PARAM_NAMES } from './channels'
 import type { FeatureDef, FeatureParam } from './channels'
 
@@ -22,6 +22,12 @@ export interface Shape {
   rings: number
   slats: number
   mesh: number
+  globe: number
+  spin: number
+  stir: number
+  /** How far a globe has turned, in turns, and how much it has been stirred: kept by the matter (particles), not read off the rig. */
+  spun: number
+  stirred: number
   turn: number
   scale: number
   alpha: number
@@ -52,6 +58,11 @@ export function restShape(side: -1 | 0 | 1 = 0): Shape {
     rings: 0,
     slats: 0,
     mesh: 0,
+    globe: 0,
+    spin: 0,
+    stir: 0,
+    spun: 0,
+    stirred: 0,
     turn: 0,
     scale: 1,
     alpha: 1,
@@ -89,12 +100,31 @@ const ROW = Math.sqrt(3) / 2
 const RIM_SHARE = 0.24
 const RIM_WIDTH = 0.07
 const RIM_GAP = 0.03
+/** How many dots a globe has round its middle for each row it has from pole to pole. */
+const AROUND = 1.9
+/** How much of the step between two dots of a globe the matter of one fills. */
+const BEAD = 0.4
+/** How far the globe's axis leans toward whoever looks, in radians, and how far a stirred one wanders from that. */
+const LEAN = 0.5
+const WANDER = 0.38
+/** Of the matter a flat feature keeps on its rim, the part a globe sends into orbit; how many orbits; how far out they are, in radii; how long a tail each trails, in radians. */
+const ORBIT_SHARE = 0.5
+const ORBITS = 3
+const ORBIT_REACH = 1.5
+const TAIL = 1.3
+/** How dim the far side of a globe is. */
+const FAR = 0.1
+const fraction = (value: number) => value - Math.floor(value)
+/** A repeatable number in [-1, 1] for a whole number: each row of a globe has its own. */
+const own = (index: number) =>
+  fraction(Math.sin(index * 12.9898 + 4.1414) * 43758.5453) * 2 - 1
 
 /**
  * Where one grain sits in a feature, in face units. `theta` is its angle
  * around the feature (0 the outer side, a quarter turn the bottom) and `u`
  * how far out it is by area (0 the middle, 1 the rim). Writes two numbers to
- * `out` at `at`.
+ * `out` at `at`, and gives back how much of its light the grain keeps there:
+ * 1, but for the far side of a globe.
  */
 export function seatPoint(
   shape: Shape,
@@ -168,6 +198,74 @@ export function seatPoint(
     }
   }
 
+  // Globe: the matter is dots on a ball that turns, seen from the side, and a few grains orbit it.
+  let light = 1
+  const rows = Math.round(shape.globe)
+  if (rows >= 1) {
+    const turned = shape.spun * TAU
+    const stirred = shape.stirred * TAU
+    let px: number
+    let py: number
+    let pz: number
+    // The rim of a flat feature is a quarter of its matter, all at one depth: part of it orbits, the rest is spread over the ball.
+    const edge = u > 0.9995
+    const lot = fraction(theta * 7.3137)
+    const pick = fraction(theta * 23.1731)
+    if (edge && lot < ORBIT_SHARE) {
+      const orbit = Math.min(ORBITS - 1, Math.floor(pick * ORBITS))
+      const back = fraction(pick * ORBITS)
+      const head =
+        orbit * 2.1 + (turned * 1.6 + stirred * 2.4) * (0.7 + 0.3 * orbit)
+      const angle = head - back * back * TAIL
+      // How open the orbit is to whoever looks: never edge on, where its grains would pile up at the two ends, and each one different.
+      const tip = 0.35 + 0.2 * orbit + 0.12 * Math.sin(stirred * 0.31 + orbit)
+      const roll = (orbit * TAU) / ORBITS + 0.4
+      const ox = Math.cos(angle) * ORBIT_REACH
+      const oy = Math.sin(angle) * ORBIT_REACH * Math.sin(tip)
+      const oz = Math.sin(angle) * ORBIT_REACH * Math.cos(tip)
+      px = ox * Math.cos(roll) - oy * Math.sin(roll)
+      py = ox * Math.sin(roll) + oy * Math.cos(roll)
+      pz = oz
+      light = 1 - 0.75 * back
+    } else {
+      const deep = edge ? pick : u / 0.9995
+      const lat = Math.asin(Math.max(-1, Math.min(1, 1 - 2 * deep)))
+      const row = Math.min(
+        rows - 1,
+        Math.max(0, Math.floor((lat / Math.PI + 0.5) * rows)),
+      )
+      const rowLat = ((row + 0.5) / rows - 0.5) * Math.PI
+      const dots = Math.max(1, Math.round(rows * AROUND * Math.cos(rowLat)))
+      const along = (theta / TAU) * dots
+      const dot = Math.floor(along)
+      // Each row turns with the ball, and slides past its neighbours by as much as the ball has been stirred.
+      const lon =
+        ((dot + 0.5 + (along - dot - 0.5) * BEAD) / dots) * TAU +
+        (row & 1) * (Math.PI / dots) +
+        turned +
+        own(row) * stirred * 0.6
+      const up =
+        rowLat +
+        (lat - rowLat) * BEAD +
+        shape.stir * 0.1 * Math.sin(2 * lon + stirred * 1.3 + row)
+      // The ball's axis leans toward whoever looks, and wanders the more it is stirred.
+      const lean = LEAN + WANDER * shape.stir * Math.sin(stirred * 0.23 + 1.3)
+      const flat = Math.cos(up) * Math.cos(lon)
+      px = Math.cos(up) * Math.sin(lon)
+      py = Math.sin(up) * Math.cos(lean) - flat * Math.sin(lean)
+      pz = Math.sin(up) * Math.sin(lean) + flat * Math.cos(lean)
+    }
+    // Ball and orbits sway together, the more it is stirred.
+    const sway = WANDER * shape.stir * Math.sin(stirred * 0.17)
+    const swayed = px * Math.cos(sway) - py * Math.sin(sway)
+    py = px * Math.sin(sway) + py * Math.cos(sway)
+    px = swayed
+    x = px * shape.w
+    y = py * shape.h
+    const near = Math.max(0, Math.min(1, (pz + 0.35) / 0.9))
+    light *= FAR + (1 - FAR) * near * near * (3 - 2 * near)
+  }
+
   // Lids. `across` runs -1 at the inner end to 1 at the outer.
   const h = shape.h
   const across = shape.w > 0 ? Math.max(-1.4, Math.min(1.4, x / shape.w)) : 0
@@ -200,6 +298,7 @@ export function seatPoint(
   }
   out[at] = shape.side === 0 ? shape.x + x : shape.side * (shape.x + x)
   out[at + 1] = shape.y + y
+  return light
 }
 
 /** The feature's outline as an SVG path in face units, for the still mark. */
