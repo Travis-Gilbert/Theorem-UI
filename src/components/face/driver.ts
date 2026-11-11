@@ -1,7 +1,10 @@
-// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
+// SOURCING: lib/kit/driver.ts for the shape of it (one object that owns a figure's place on the page, its pointer handling and its frame loop, outside React); lib/face/engine for everything the face is; lib/face/body (Rapier) for how the figure travels, is carried, thrown and knocked, loaded on first need, with the glide this file had before it kept for a browser that cannot load it and for reduced motion. Anchors are attributes the shell puts on its own elements (`data-face-perch`), found afresh each frame so a perch that scrolls away or unmounts is simply no longer chosen. The gestures (tap, carry, stroke, double-tap home) are this app's.
+import { BODY, FaceBody, releaseVelocity } from '@/lib/face/body'
+import type { Sample } from '@/lib/face/body'
 import { clamp } from '@/lib/face/channels'
 import type { Face } from '@/lib/face/engine'
 import type { Place } from '@/lib/face/program'
+import { loadRapier } from '@/lib/kit/physics'
 import { prefersReducedMotion } from '@/lib/motion'
 import { createPainter } from './painter'
 import type { Painter } from './painter'
@@ -23,6 +26,15 @@ const NEAR = 280
 const CARRY_AFTER = 4
 /** How long after a performance away from home before it goes back. */
 const LINGER_MS = 3_500
+/** How long the eyes are on where it is going before the body sets off, and the shortest trip worth announcing, in pixels. */
+const LEAD_MS = 170
+const LEAD_FROM = 48
+/** Within this many pixels of where it was going, the eyes let go of it. */
+const ARRIVED = 18
+/** How fast a poke pushes it, in pixels per second. */
+const RECOIL = 220
+/** How many times Rapier is asked for before the glide is accepted. */
+const BODY_TRIES = 3
 
 /**
  * Theo on the page: where it is, how big, what the pointer does to it, and
@@ -56,6 +68,16 @@ export class FaceDriver {
   private hiddenAt = 0
   private readonly cleanups: Array<() => void> = []
   private destroyed = false
+  /** The figure's physical body, once Rapier has loaded. Until then, and with reduced motion, the figure glides. */
+  private body: FaceBody | undefined
+  private bodyTries = 0
+  private bodyLoading = false
+  /** Where the body was last told the layout puts it; `undefined` until it has been told. */
+  private anchored: Point | undefined
+  /** A move the eyes have announced and the body has not begun. */
+  private leaving: { at: number; over: number } | undefined
+  /** Where the hand has lately been while it carries, for how fast it lets go. */
+  private samples: Array<Sample> = []
 
   constructor(
     private readonly face: Face,
@@ -101,14 +123,54 @@ export class FaceDriver {
     cancelAnimationFrame(this.frameId)
     for (const cleanup of this.cleanups) cleanup()
     this.face.attach(undefined)
+    this.face.heading(undefined)
+    this.body?.destroy()
+    this.body = undefined
     this.painter?.destroy()
     this.host.replaceChildren()
   }
 
   // Where it is ---------------------------------------------------------------
 
-  /** Sends the face somewhere, gliding there over about `over` milliseconds. */
+  /** Asks for the physical body. The first carry, poke or trip wants it; a page that never touches Theo never loads Rapier. */
+  private wantBody() {
+    if (
+      this.body ||
+      this.bodyLoading ||
+      this.destroyed ||
+      this.bodyTries >= BODY_TRIES
+    )
+      return
+    this.bodyLoading = true
+    this.bodyTries++
+    void loadRapier().then(
+      (rapier) => {
+        this.bodyLoading = false
+        if (this.destroyed) return
+        this.body = new FaceBody(rapier, this.at, this.dimensions())
+        this.anchored = undefined
+      },
+      () => {
+        // No physics here: the glide carries it.
+        this.bodyLoading = false
+      },
+    )
+  }
+
+  /** The body, when it is the one moving the figure: it is loaded, and motion is not reduced. */
+  private physical() {
+    return this.face.still ? undefined : this.body
+  }
+
+  /**
+   * Sends the face somewhere, over about `over` milliseconds. With a body
+   * the eyes turn there first and the body follows; the hand's hold is not
+   * overridden.
+   */
   go(place: Place, size: number | undefined, over = 620) {
+    // The person has it: nothing else moves it until they let go.
+    if (this.press?.carried) return
+    this.wantBody()
     const before = this.target()
     this.free = undefined
     this.place = place
@@ -116,6 +178,20 @@ export class FaceDriver {
       place === 'home' && size === undefined ? undefined : (size ?? this.size)
     this.awaySince = 0
     const after = this.target()
+    const body = this.physical()
+    if (body && this.anchored) {
+      const from = body.position()
+      const dx = after.x - from.x
+      const dy = after.y - from.y
+      const lead = Math.hypot(dx, dy) > LEAD_FROM ? LEAD_MS : 0
+      this.leaving = { at: performance.now() + lead, over }
+      if (lead > 0)
+        this.face.heading({
+          x: clamp(dx / 220, -1, 1),
+          y: clamp(dy / 220, -1, 1),
+        })
+      return
+    }
     this.offset = {
       x: before.x + this.offset.x - after.x,
       y: before.y + this.offset.y - after.y,
@@ -140,10 +216,47 @@ export class FaceDriver {
     return rect
   }
 
+  /** The artifact the conversation is about: the selected card, or the newest, when any of it is on screen. */
+  private artifact() {
+    const cards = [
+      ...document.querySelectorAll<HTMLElement>('[data-face-perch="artifact"]'),
+    ]
+    const seen = cards
+      .map((card) => ({ card, rect: card.getBoundingClientRect() }))
+      .filter(
+        ({ rect }) =>
+          rect.width > 0 &&
+          rect.bottom > MARGIN + 24 &&
+          rect.top < window.innerHeight - 24,
+      )
+    return (
+      seen.find(({ card }) => card.dataset.selected !== undefined) ??
+      seen.at(-1)
+    )?.rect
+  }
+
   /** Where a place is on the page, as the face's centre. */
   private pointOf(place: Place, width: number, height: number): Point {
     if (typeof place === 'object')
       return { x: place.x * window.innerWidth, y: place.y * window.innerHeight }
+    if (place === 'artifact') {
+      const card = this.artifact()
+      // No artifact on the page: it stays where home is.
+      if (!card) return this.pointOf('home', width, height)
+      const room = width + 12 + MARGIN
+      const beside =
+        window.innerWidth - card.right >= room
+          ? card.right + 12 + width / 2
+          : card.left >= room
+            ? card.left - 12 - width / 2
+            : card.right - width / 2 - 12
+      // Level with the card's heading, or just above the card when it has to sit over it.
+      const level =
+        beside > card.right || beside < card.left
+          ? card.top + Math.min(card.height / 2, 36)
+          : card.top - height / 2 - 8
+      return { x: beside, y: level }
+    }
     if (place === 'pointer') return { ...this.pointer }
     if (place === 'centre')
       return { x: window.innerWidth / 2, y: window.innerHeight / 2 }
@@ -200,7 +313,16 @@ export class FaceDriver {
   private gazeAt(place: Place): Point | undefined {
     if (place === 'person') return { x: 0, y: 0 }
     const { width, height } = this.dimensions()
-    const point = this.pointOf(place === 'home' ? 'text' : place, width, height)
+    let point: Point
+    if (place === 'artifact') {
+      const card = this.artifact()
+      if (!card) return undefined
+      point = {
+        x: card.left + card.width / 2,
+        y: card.top + Math.min(card.height / 2, 36),
+      }
+    } else
+      point = this.pointOf(place === 'home' ? 'text' : place, width, height)
     return {
       x: clamp((point.x - this.at.x) / 220, -1, 1),
       y: clamp((point.y - this.at.y) / 220, -1, 1),
@@ -210,11 +332,92 @@ export class FaceDriver {
   /** How big it wants to be: as asked, or by what it is doing. */
   private wantedSize() {
     if (this.size !== undefined) return this.size
-    if (this.press?.carried) return 2
+    // Thrown, it stays the size it was carried at until it lands.
+    if (this.press?.carried || this.physical()?.state === 'coasting') return 2
     const { player } = this.face
     if (player.active('performance')) return 2.4
     if (player.active('reaction') || player.active('hand')) return 1.8
     return 1
+  }
+
+  // The body ------------------------------------------------------------------
+
+  /**
+   * One frame of the physical body. The hand comes first, then a move the
+   * eyes have announced, then a place that itself moves (the pointer); any
+   * other change in where the figure belongs is the layout's (a scroll, a
+   * resize, the figure growing) and carries the body with it without
+   * throwing it. Returns where the figure is.
+   */
+  private move(body: FaceBody, target: Point, now: number, dt: number): Point {
+    const { face } = this
+    const { width, height } = this.dimensions()
+    body.bounds(window.innerWidth, window.innerHeight, MARGIN)
+    body.resize(width, height)
+    if (!this.anchored) {
+      // Taking over from the glide: from wherever that had got to.
+      body.rest(this.placed ? this.at : target)
+      body.anchor(target, 620)
+      this.anchored = target
+      this.offset = { x: 0, y: 0 }
+    }
+    const was = body.position()
+    let shiftX = 0
+    let shiftY = 0
+    if (this.press?.carried) {
+      this.leaving = undefined
+      face.heading(undefined)
+      body.hold(target)
+      this.anchored = target
+    } else if (this.leaving) {
+      if (now >= this.leaving.at) {
+        body.anchor(target, this.leaving.over)
+        this.leaving = undefined
+        this.anchored = target
+      }
+    } else if (body.state === 'coasting') {
+      // Thrown: it is the simulation's until it lands.
+    } else if (this.place === 'pointer' && !this.free) {
+      body.anchor(target)
+      this.anchored = target
+    } else {
+      shiftX = target.x - this.anchored.x
+      shiftY = target.y - this.anchored.y
+      if (shiftX !== 0 || shiftY !== 0) {
+        body.shift(shiftX, shiftY)
+        this.anchored = target
+      }
+    }
+    const out = body.advance(dt)
+    for (const bump of out.bumps)
+      face.bump(bump.side, bump.speed / BODY.throwAt)
+    if (out.landed && !this.leaving) {
+      // Where a throw leaves it is where the person left it.
+      this.free = out.landed
+      this.anchored = out.landed
+    }
+    const at = body.position()
+    if (!this.leaving && Math.hypot(at.x - target.x, at.y - target.y) < ARRIVED)
+      face.heading(undefined)
+    if (this.placed && dt > 0) {
+      const perUnit = (REST_PX * this.shown) / face.identity.width
+      face.sway(
+        (at.x - was.x - shiftX) / perUnit,
+        (at.y - was.y - shiftY) / perUnit,
+        dt,
+      )
+    }
+    return at
+  }
+
+  /** A poke pushes the figure away from where it was touched, in pixels from its centre; the tether brings it back. */
+  private recoil(dx: number, dy: number) {
+    const body = this.physical()
+    if (!body || body.state === 'held') return
+    const far = Math.hypot(dx, dy)
+    // Touched in the middle, it is pressed into the page: down.
+    const away = far < 3 ? { x: 0, y: 1 } : { x: -dx / far, y: -dy / far }
+    body.nudge({ x: away.x * RECOIL, y: away.y * RECOIL })
   }
 
   // Frames --------------------------------------------------------------------
@@ -242,13 +445,16 @@ export class FaceDriver {
     }
 
     const target = this.target()
+    const scale = (REST_PX * this.shown) / VISOR_PX
+    const body = this.physical()
+    if (!body) this.anchored = undefined
+    const moved = body ? this.move(body, target, now, dt) : undefined
     const decay = still ? 0 : Math.exp(-dt * this.glide)
     this.offset.x *= decay
     this.offset.y *= decay
-    const x = target.x + this.offset.x
-    const y = target.y + this.offset.y
-    const scale = (REST_PX * this.shown) / VISOR_PX
-    if (this.placed && !still) {
+    const x = moved ? moved.x : target.x + this.offset.x
+    const y = moved ? moved.y : target.y + this.offset.y
+    if (this.placed && !still && !moved) {
       // The matter lags behind a face that moves; a scroll that carries it does not count.
       const perUnit = (scale * VISOR_PX) / face.identity.width
       const dx = clamp((x - this.at.x) / perUnit, -6, 6)
@@ -334,11 +540,17 @@ export class FaceDriver {
             x: event.clientX - press.grab.x,
             y: event.clientY - press.grab.y,
           }
-          const perUnit = (REST_PX * this.shown) / face.identity.width
-          face.carry(
-            (next.x - (this.free?.x ?? this.at.x)) / perUnit,
-            (next.y - (this.free?.y ?? this.at.y)) / perUnit,
-          )
+          if (this.physical()) {
+            // The body reads the motion off where the hand takes it; the last few places say how fast it lets go.
+            this.samples.push({ at: event.timeStamp, x: next.x, y: next.y })
+            if (this.samples.length > 12) this.samples.shift()
+          } else {
+            const perUnit = (REST_PX * this.shown) / face.identity.width
+            face.carry(
+              (next.x - (this.free?.x ?? this.at.x)) / perUnit,
+              (next.y - (this.free?.y ?? this.at.y)) / perUnit,
+            )
+          }
           this.free = next
           this.offset = { x: 0, y: 0 }
         }
@@ -350,8 +562,19 @@ export class FaceDriver {
     })
     this.on(document, 'pointerleave', () => face.followPointer(undefined))
 
+    this.on(holder, 'pointerenter', () => this.wantBody())
+    this.on(holder, 'focus', () => this.wantBody())
     this.on(holder, 'pointerdown', (event: PointerEvent) => {
       if (event.button !== 0) return
+      this.wantBody()
+      const body = this.physical()
+      if (body?.state === 'coasting') {
+        // Caught in the air: it stops where the hand met it.
+        body.rest(this.at)
+        this.free = { ...this.at }
+        this.anchored = { ...this.at }
+      }
+      this.samples = []
       holder.setPointerCapture(event.pointerId)
       this.press = {
         id: event.pointerId,
@@ -368,14 +591,25 @@ export class FaceDriver {
       if (holder.hasPointerCapture(event.pointerId))
         holder.releasePointerCapture(event.pointerId)
       if (press.carried) {
-        face.drop()
+        const body = this.physical()
+        const velocity = body
+          ? releaseVelocity(this.samples, event.timeStamp)
+          : { x: 0, y: 0 }
+        this.samples = []
+        // A cancelled press is put down, never thrown.
+        if (event.type === 'pointerup' && body?.release(velocity))
+          face.toss(Math.hypot(velocity.x, velocity.y) / BODY.throwAt)
+        else {
+          body?.release({ x: 0, y: 0 })
+          face.drop()
+        }
         return
       }
+      const dx = event.clientX - this.at.x
+      const dy = event.clientY - this.at.y
       const perUnit = (REST_PX * this.shown) / face.identity.width
-      face.poke(
-        (event.clientX - this.at.x) / perUnit,
-        (event.clientY - this.at.y) / perUnit,
-      )
+      face.poke(dx / perUnit, dy / perUnit)
+      this.recoil(dx, dy)
     }
     this.on(holder, 'pointerup', release)
     this.on(holder, 'pointercancel', release)
@@ -399,6 +633,7 @@ export class FaceDriver {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         face.poke()
+        this.recoil(0, 0)
       } else if (event.key === 'Escape') this.go('home', undefined)
     })
 

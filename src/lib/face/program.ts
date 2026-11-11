@@ -18,6 +18,7 @@ export type Place =
   | 'composer'
   | 'text'
   | 'home'
+  | 'artifact'
   | { readonly x: number; readonly y: number }
 
 /** One step of a performance. */
@@ -81,10 +82,10 @@ export const STEP_MANUAL: Record<Step['op'], string> = {
   repeat:
     '{op:"repeat", times, step} the step, several times; draws are fresh each time.',
   vary: '{op:"vary", of:[...], weights?:[...]} one of the steps, drawn by weight.',
-  look: '{op:"look", at:"person"|"pointer"|"composer"|"text"|"centre"|{x,y in -1..1}, over?, hold?} turns the gaze.',
+  look: '{op:"look", at:"person"|"pointer"|"composer"|"text"|"artifact"|"centre"|{x,y in -1..1}, over?, hold?} turns the gaze.',
   feature:
     '{op:"feature", id:"brow.left", side?:"left"|"right"|"centre", set?:{param:value}, remove?:true} adds a feature made of the same matter, or removes one. Its channels are id.param.',
-  go: '{op:"go", to:"home"|"composer"|"text"|"centre"|"pointer"|{x,y in 0..1 of the window}, size?:0.5..4, over?} moves the whole face on the page.',
+  go: '{op:"go", to:"home"|"composer"|"text"|"artifact"|"centre"|"pointer"|{x,y in 0..1 of the window}, size?:0.5..4, over?} moves the whole face on the page: the eyes turn there first, then it travels and settles ("artifact" is beside the artifact card in view).',
   burst:
     '{op:"burst", x?, y?, strength?} kicks the matter outward from a point in face units.',
   use: '{op:"use", name, args?, intensity?} plays a named performance from the book inside this one.',
@@ -175,7 +176,15 @@ export const LIMITS = {
   uses: 4,
 } as const
 
-const PLACES = ['person', 'pointer', 'centre', 'composer', 'text', 'home']
+const PLACES = [
+  'person',
+  'pointer',
+  'centre',
+  'composer',
+  'text',
+  'home',
+  'artifact',
+]
 
 class Failure extends Error {
   constructor(

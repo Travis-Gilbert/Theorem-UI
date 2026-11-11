@@ -94,6 +94,38 @@ export const DEFAULT_RULES: ReadonlyArray<Rule> = [
     weight: 3,
   }),
   rule('drop-perk', 'person.drop', 'perk'),
+  // Being thrown, and meeting the edge of the page. What a knock does to the
+  // head and the near eye is the engine's (Face.bump); these are what the face
+  // makes of it, and they turn on how wound up it already is.
+  rule('throw-startle', 'person.throw', 'startle', {
+    when: { streak: [1, 1] },
+    weight: 2,
+  }),
+  rule('throw-perk', 'person.throw', 'perk'),
+  rule('throw-joy', 'person.throw', 'joy', {
+    when: { valence: [0.25, 1] },
+    weight: 2,
+  }),
+  rule('throw-dizzy', 'person.throw', 'dizzy', {
+    when: { fast: [3, 999] },
+    weight: 3,
+  }),
+  rule('bump-wince', 'body.bump.*', 'wince', { weight: 2, cooldown: 900 }),
+  rule('bump-squint', 'body.bump.*', 'squint', {
+    when: { arousal: [0, 0.5] },
+    intensity: 0.7,
+    cooldown: 900,
+  }),
+  rule('bump-glare', 'body.bump.*', 'glare', {
+    when: { arousal: [0.55, 1], valence: [-1, 0.1] },
+    weight: 2,
+    cooldown: 2_000,
+  }),
+  rule('bump-dizzy', 'body.bump.*', 'dizzy', {
+    when: { arousal: [0.7, 1] },
+    weight: 2,
+    cooldown: 4_000,
+  }),
   // The person sends, or comes back.
   rule('send-perk', 'person.send', 'perk', { intensity: 0.7 }),
   rule('send-nod', 'person.send', 'nod', { intensity: 0.8 }),

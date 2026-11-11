@@ -13,6 +13,9 @@ The name is a typo of "Theorem" that the owner kept.
 The checklist in `theo-face.checklist.json` tracks this spec item by item, and
 says for each what was built, what was checked, and what was not.
 
+How the figure travels, is carried, thrown and knocked is `theo-body.md`: one
+Rapier body for the whole figure, which this face answers to.
+
 ## Sources
 
 - The owner's request of 2026-11-11: an avatar with the expressive face of a
@@ -98,8 +101,9 @@ redraw of anything else.
 - **It grows to act.** At rest the visor is 32 px wide. It is 1.8 times that
   while it reacts and 2.4 times while the agent performs, and a program may
   ask for a size.
-- **It can leave**: to the composer, beside the text, to the centre, to the
-  pointer, to a point of the window, or wherever the person drops it.
+- **It can leave**: to the composer, beside the text, beside the artifact in
+  view, to the centre, to the pointer, to a point of the window, or wherever
+  the person drops or throws it.
   Double-tap or Escape sends it home.
 - **It always has words.** A `role="status"` node says what Theo is doing.
 - **It sleeps.** Ninety seconds with no run and nothing from the person, and
@@ -165,33 +169,33 @@ unstable.
 
 A performance is a list of steps, as JSON:
 
-| Step      | Does                                                                         |
-| --------- | ---------------------------------------------------------------------------- |
-| `to`      | moves channels to values over a time, with a bounce, then holds              |
-| `by`      | moves channels by an amount from where they are headed                       |
-| `wave`    | oscillates a channel around wherever it is (sine, square or noise)           |
-| `wait`    | nothing, for a while                                                         |
-| `seq`     | steps in order                                                               |
-| `par`     | steps together; lasts as long as the longest                                 |
-| `stagger` | steps together, each delayed (one eye leads the other)                       |
-| `repeat`  | a step several times; draws are fresh each time                              |
-| `vary`    | one of several steps, drawn by weight from the seed                          |
-| `look`    | turns the gaze to the person, the pointer, the composer, the text or a point |
-| `feature` | adds, reshapes or removes a feature                                          |
-| `go`      | moves the whole face on the page, at a size                                  |
-| `burst`   | kicks the matter outward from a point                                        |
-| `use`     | plays a named performance inside this one, with arguments and an intensity   |
-| `release` | gives channels back to the layer below                                       |
+| Step      | Does                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `to`      | moves channels to values over a time, with a bounce, then holds                            |
+| `by`      | moves channels by an amount from where they are headed                                     |
+| `wave`    | oscillates a channel around wherever it is (sine, square or noise)                         |
+| `wait`    | nothing, for a while                                                                       |
+| `seq`     | steps in order                                                                             |
+| `par`     | steps together; lasts as long as the longest                                               |
+| `stagger` | steps together, each delayed (one eye leads the other)                                     |
+| `repeat`  | a step several times; draws are fresh each time                                            |
+| `vary`    | one of several steps, drawn by weight from the seed                                        |
+| `look`    | turns the gaze to the person, the pointer, the composer, the text, the artifact or a point |
+| `feature` | adds, reshapes or removes a feature                                                        |
+| `go`      | moves the whole face on the page, at a size                                                |
+| `burst`   | kicks the matter outward from a point                                                      |
+| `use`     | plays a named performance inside this one, with arguments and an intensity                 |
+| `release` | gives channels back to the layer below                                                     |
 
 Any number may be `{rand:[low,high]}`, drawn from the invocation's seed, or
 `{arg:"name", or:n}`, passed by the caller. `keep: true` leaves what the
 program set in place after it ends, until the layer is stopped or played on
 again; that is how a mood or a sleep holds.
 
-Named expressions are entries in a book of performances (26 to start: blink,
+Named expressions are entries in a book of performances (27 to start: blink,
 wink, nod, shake, perk, squint, glare, worry, happy, joy, think, curious,
 startle, wince, dizzy, sigh, scan, melt, sparkle, skeptic, attend, focus, ask,
-sleep, wake, done). `use: "curious"` is a shortcut the agent may take; writing
+sleep, wake, done, visit). `use: "curious"` is a shortcut the agent may take; writing
 the steps is always allowed and needs no name.
 
 A saved performance is never changed. Defining a name again adds a version,
@@ -219,9 +223,11 @@ clamps reported in the receipt, at most 30 s, 600 cues, 10 levels of nesting,
 ### 4. Reactions: the same event, a different answer
 
 The page feeds one stream of events: the person (`person.poke`, `pet`, `drop`,
-`type`, `send`, `return`), the run (`run.start`, `ask`, `tool`, `tool.fail`,
-`error`, `done`), and the environment (`env.resize`, `theme`, `offline`,
-`online`, `copy`). An agent's rule may name a kind nobody emits yet.
+`throw`, `type`, `send`, `return`), the run (`run.start`, `ask`, `tool`,
+`tool.fail`, `error`, `done`), the environment (`env.resize`, `theme`,
+`offline`, `online`, `copy`), and the figure's own body
+(`body.bump.left|right|top|bottom`, when a throw meets the window's edge). An
+agent's rule may name a kind nobody emits yet.
 
 **What it remembers.** For each kind of event: a rate over seconds, a rate
 over minutes, how many came in a row, how long since the last, and a baseline
@@ -292,9 +298,11 @@ off mid-run gets `rejected`, "Theo is not on screen", with its receipt.
   home.
 - The pointer near it draws the gaze.
 - A tap is a poke at that point: the matter scatters from where it was
-  touched, and the face may react.
+  touched, the figure is pushed a little away and comes back, and the face
+  may react.
 - Dragging carries it. It opens its eyes wide, leans into the motion, and its
-  matter lags behind. Let go and it stays where it was put.
+  matter lags behind. Let go and it stays where it was put; let go while
+  moving and it carries on a little first (`theo-body.md`).
 - Stroking across it is petting.
 - Double-tap sends it home.
 - Settings, Appearance, Figures: a switch for Theo and a switch for Kit.
@@ -404,6 +412,7 @@ src/lib/face/
   reactions.ts    rules, fitting, weighted draw, cooldowns
   autonomy.ts     blink, saccade, breath
   engine.ts       Face: the one object everything that moves Theo goes through
+  body.ts         the figure's one Rapier body (theo-body.md)
   operations.ts   face.* declarations, requests, receipts, run events
   store.ts        the page's one face; whether it is mounted
   random.ts       the seeded generator
@@ -443,7 +452,7 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-80 tests):
+114 tests, 34 of them the body's, listed in `theo-body.md`):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;
