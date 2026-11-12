@@ -111,6 +111,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         widgets: [],
       },
     ],
+    [
+      // The event editor for a proposed event (features/phone-actions). On
+      // iOS 17 and later it runs outside the app and asks for no permission;
+      // these strings are what iOS would show if a later feature asked.
+      'expo-calendar',
+      {
+        calendarPermission:
+          'Theorem adds an event to your calendar only when you save it yourself in the event editor.',
+        remindersPermission: 'Theorem does not use your reminders.',
+      },
+    ],
     // Theo's actions for Shortcuts, Siri, Spotlight and the Action button. The
     // Swift in app-intents/ is compiled into the app target (inline modules),
     // which is where Apple's build reads App Intents from. Alpha in SDK 58.

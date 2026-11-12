@@ -5,7 +5,14 @@
 // Detaching only stops observation. Stopping a run is a separate, explicit
 // command (cancel), never a side effect of a view going away, the app going
 // to the background or a lease being dropped.
-import type { ConversationState } from '@theoremharness/sdk'
+import type { ConversationState, Theorem } from '@theoremharness/sdk'
+
+/** What a send may carry beyond its text: files Theorem already stored, and operations this client offers the turn. */
+export type TurnExtras = {
+  uploadIds?: string[]
+  clientOperations?: Theorem.ClientOperationDeclaration[]
+  clientSurface?: Theorem.ClientSurface
+}
 
 /** The part of HeadlessConversation the binding drives. */
 export interface Conversation {
@@ -14,7 +21,7 @@ export interface Conversation {
   connect(): Promise<void>
   observe(): Promise<void>
   detach(): void
-  send(id: string, request: { text: string; uploadIds?: string[] }): Promise<unknown>
+  send(id: string, request: { text: string } & TurnExtras): Promise<unknown>
   stop(id: string, reason?: string): Promise<void>
 }
 
@@ -76,7 +83,7 @@ export type Lease = {
    * survive termination (intake) supplies its own id, so the same delivery is
    * the same command however often it is resumed.
    */
-  send(text: string, options?: { id?: string; uploadIds?: string[] }): Promise<unknown>
+  send(text: string, options?: { id?: string } & TurnExtras): Promise<unknown>
   /** The person pressed Stop: a durable cancel of the run or pending admission. */
   stop(): Promise<void>
   /** The view is gone. Observation may end; the run is not touched. */
@@ -110,6 +117,9 @@ export class ConversationBinding {
         const result = await session.conversation.send(options?.id ?? this.options.newId(), {
           text,
           ...(options?.uploadIds?.length ? { uploadIds: options.uploadIds } : {}),
+          ...(options?.clientOperations?.length
+            ? { clientOperations: options.clientOperations, clientSurface: options.clientSurface ?? { revision: 0 } }
+            : {}),
         })
         session.follow()
         return result

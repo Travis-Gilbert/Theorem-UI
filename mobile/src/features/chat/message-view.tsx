@@ -10,6 +10,8 @@ import { useTheme } from '@/ui/theme'
 import { readApproval } from './approval'
 import { ApprovalCard } from './approval-card'
 import { LinkedText } from './linked-text'
+import { PROPOSE_EVENT } from '../phone-actions/calendar'
+import { EventProposalCard } from '../phone-actions/event-card'
 
 type Part = MessageState['content'][number]
 type Json = Record<string, unknown>
@@ -127,7 +129,23 @@ function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
         </Disclosure>
       )
     }
-    case 'data':
+    case 'data': {
+      const data = object(part.data)
+      if (
+        part.name === 'theorem-client_operation' &&
+        data.operation === PROPOSE_EVENT &&
+        typeof data.requestRef === 'string'
+      )
+        return (
+          <EventProposalCard
+            runId={runId}
+            request={{
+              requestRef: data.requestRef,
+              state: typeof data.state === 'string' ? data.state : 'pending',
+              args: data.args,
+            }}
+          />
+        )
       return (
         <Disclosure title={part.name.replace(/^theorem-/, '').replace(/_/g, ' ')}>
           <Text variant="code" selectable numberOfLines={40}>
@@ -135,6 +153,7 @@ function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
           </Text>
         </Disclosure>
       )
+    }
     default:
       return (
         <Text variant="label" tone="muted">
@@ -142,6 +161,17 @@ function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
         </Text>
       )
   }
+}
+
+/** The files a stored message carries, by the name Theorem kept or, without one, as a plain count. */
+function attachmentNames(message: MessageState): string[] {
+  let unnamed = 0
+  return message.content.flatMap((part) => {
+    if (part.type !== 'data' || part.name !== 'theorem-attachment') return []
+    const payload = object(part.data)
+    const name = [payload.fileName, payload.name, payload.filename].find((value) => typeof value === 'string')
+    return [typeof name === 'string' && name ? name : `file ${++unnamed}`]
+  })
 }
 
 export const MessageView = memo(function MessageView({ message }: { message: MessageState }) {
@@ -162,6 +192,12 @@ export const MessageView = memo(function MessageView({ message }: { message: Mes
           {message.content.map((part, index) =>
             part.type === 'text' ? <LinkedText key={index} text={part.text} variant="body" /> : null,
           )}
+          {attachmentNames(message).map((name, index) => (
+            // The message Theorem stored carries this file. The picture itself is not drawn here yet.
+            <Text key={`file-${index}`} variant="label" tone="muted">
+              Attached: {name}
+            </Text>
+          ))}
         </Pressable>
         {status ? <StatusLabel {...status} /> : null}
       </View>
