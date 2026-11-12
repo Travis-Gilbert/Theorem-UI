@@ -1,0 +1,8 @@
+{
+  "name": "theorem-session",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remux-derived native terminal sessions (Herdr, tmux over SSH) for the Theorem iOS app",
+  "main": "index.tsx",
+  "license": "Apache-2.0 AND MIT"
+}

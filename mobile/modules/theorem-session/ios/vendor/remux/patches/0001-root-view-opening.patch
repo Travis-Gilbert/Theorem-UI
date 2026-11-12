@@ -1,0 +1,60 @@
+diff --git a/Sources/App/RootView.swift b/Sources/App/RootView.swift
+index 8924aca..95f5612 100644
+--- a/Sources/App/RootView.swift
++++ b/Sources/App/RootView.swift
+@@ -3,11 +3,22 @@ import SwiftUI
+ import UIKit
+ import UniformTypeIdentifiers
+ 
++/// Theorem patch (VENDORED.md): a session to open as soon as the library has loaded.
++struct RemuxRootOpening: Equatable, Sendable {
++    let serverID: SavedServer.ID
++    let locator: SessionLocator
++}
++
+ struct RootView: View {
+     private let dependencies: Result<RemuxAppDependencies, Error>
++    private let opening: RemuxRootOpening?
+ 
+-    init(dependencies: Result<RemuxAppDependencies, Error> = RemuxAppDependencies.launch()) {
++    init(
++        dependencies: Result<RemuxAppDependencies, Error> = RemuxAppDependencies.launch(),
++        opening: RemuxRootOpening? = nil
++    ) {
+         self.dependencies = dependencies
++        self.opening = opening
+     }
+ 
+     var body: some View {
+@@ -18,7 +29,7 @@ struct RootView: View {
+     private var liveBody: some View {
+         switch dependencies {
+         case .success(let dependencies):
+-            RemuxRootContentView(dependencies: dependencies)
++            RemuxRootContentView(dependencies: dependencies, opening: opening)
+         case .failure(let error):
+             FailureView(message: String(describing: error))
+         }
+@@ -31,8 +42,10 @@ private struct RemuxRootContentView: View {
+     @State private var shortcutStore: ShortcutStore
+     @State private var tailscaleSSHCheckRequests: [TailscaleSSHCheckRequest]
+     private let tailscaleSSHCheckEvents: AsyncStream<TailscaleSSHCheckEvent>
++    private let opening: RemuxRootOpening?
+ 
+-    init(dependencies: RemuxAppDependencies) {
++    init(dependencies: RemuxAppDependencies, opening: RemuxRootOpening? = nil) {
++        self.opening = opening
+         _model = StateObject(wrappedValue: RemuxRootModel(dependencies: dependencies))
+         _composer = State(initialValue: GhosttyComposerModel())
+         _shortcutStore = State(
+@@ -70,6 +83,10 @@ private struct RemuxRootContentView: View {
+                 handleTailscaleSSHCheckEvent(event)
+             }
+         }
++        .onChange(of: model.state) { previous, current in
++            guard previous == .loading, current == .library, let opening else { return }
++            Task { await model.connectToDiscoveredSession(opening.locator, on: opening.serverID) }
++        }
+     }
+ 
+     private var currentTailscaleSSHCheckRequest: Binding<TailscaleSSHCheckRequest?> {

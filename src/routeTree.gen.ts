@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StoriesDotjsonRouteImport } from './routes/stories[.]json'
 import { Route as ChatChar91indexChar93RouteImport } from './routes/_chat/[index]'
+import { Route as DotwellKnownAppleAppSiteAssociationRouteImport } from './routes/[.]well-known/apple-app-site-association'
 import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ChatCanvasRouteImport } from './routes/_chat/canvas'
 import { Route as ChatIdeRouteImport } from './routes/_chat/ide'
@@ -113,6 +114,12 @@ const ChatChar91indexChar93Route = ChatChar91indexChar93RouteImport.update({
   path: '/index',
   getParentRoute: () => ChatRoute,
 } as any)
+const DotwellKnownAppleAppSiteAssociationRoute =
+  DotwellKnownAppleAppSiteAssociationRouteImport.update({
+    id: '/.well-known/apple-app-site-association',
+    path: '/.well-known/apple-app-site-association',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -451,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories.json': typeof StoriesDotjsonRoute
+  '/.well-known/apple-app-site-association': typeof DotwellKnownAppleAppSiteAssociationRoute
   '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
@@ -519,6 +527,7 @@ export interface FileRoutesByTo {
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/stories.json': typeof StoriesDotjsonRoute
+  '/.well-known/apple-app-site-association': typeof DotwellKnownAppleAppSiteAssociationRoute
   '/canvas': typeof ChatCanvasRoute
   '/ide': typeof ChatIdeRoute
   '/index': typeof ChatChar91indexChar93Route
@@ -591,6 +600,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories.json': typeof StoriesDotjsonRoute
+  '/.well-known/apple-app-site-association': typeof DotwellKnownAppleAppSiteAssociationRoute
   '/_chat/canvas': typeof ChatCanvasRoute
   '/_chat/ide': typeof ChatIdeRoute
   '/_chat/index': typeof ChatChar91indexChar93Route
@@ -664,6 +674,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/stories.json'
+    | '/.well-known/apple-app-site-association'
     | '/canvas'
     | '/ide'
     | '/index'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/login'
     | '/stories.json'
+    | '/.well-known/apple-app-site-association'
     | '/canvas'
     | '/ide'
     | '/index'
@@ -803,6 +815,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/stories.json'
+    | '/.well-known/apple-app-site-association'
     | '/_chat/canvas'
     | '/_chat/ide'
     | '/_chat/index'
@@ -875,6 +888,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesDotjsonRoute: typeof StoriesDotjsonRoute
+  DotwellKnownAppleAppSiteAssociationRoute: typeof DotwellKnownAppleAppSiteAssociationRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthConsentRoute: typeof AuthConsentRoute
   AuthEmailRoute: typeof AuthEmailRoute
@@ -972,6 +986,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/index'
       preLoaderRoute: typeof ChatChar91indexChar93RouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/.well-known/apple-app-site-association': {
+      id: '/.well-known/apple-app-site-association'
+      path: '/.well-known/apple-app-site-association'
+      fullPath: '/.well-known/apple-app-site-association'
+      preLoaderRoute: typeof DotwellKnownAppleAppSiteAssociationRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_chat/': {
       id: '/_chat/'
@@ -1491,6 +1512,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRouteWithChildren,
   StoriesDotjsonRoute: StoriesDotjsonRoute,
+  DotwellKnownAppleAppSiteAssociationRoute:
+    DotwellKnownAppleAppSiteAssociationRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthConsentRoute: AuthConsentRoute,
   AuthEmailRoute: AuthEmailRoute,

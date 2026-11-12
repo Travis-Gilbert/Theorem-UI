@@ -1,0 +1,5 @@
+[install]
+# Same supply-chain gate as the web app: only install versions that have been
+# public for three days. The mobile app keeps no exemptions; its assistant-ui
+# packages resolve to the release set @assistant-ui/react-native was cut from.
+minimumReleaseAge = 259200

@@ -26,3 +26,5 @@ minimumReleaseAgeExcludes = [
 
 [test]
 preload = ["./test/happy-dom.ts", "./test/vite-imports.ts"]
+# The iOS app is its own workspace with its own runner (cd mobile && bun test src).
+pathIgnorePatterns = ["mobile/**"]
