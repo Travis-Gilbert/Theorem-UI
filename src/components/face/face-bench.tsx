@@ -40,13 +40,14 @@ export function FaceView({
     let painter: Painter | undefined
     let frame = 0
     let gone = false
-    // A face that is not running is drawn as it stands: the plate is where it would have come to.
+    // A face that is not running is drawn as it stands: the plate is where it would have come to. So is a face
+    // with its motion reduced, as on the stage.
     const motion = new PlateMotion(THEO.width, THEO.height)
     let last = 0
     const draw = (now = 0) => {
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
       last = now
-      if (visor) motion.step(face.ball(), dt, !running)
+      if (visor) motion.step(face.ball(), dt, !running || face.still)
       const drawnIn = visor && !motion.whole
       if (back.current) motion.lay(back.current, width / THEO.width)
       painter?.draw(
