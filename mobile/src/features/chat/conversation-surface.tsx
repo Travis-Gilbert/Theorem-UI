@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react-native ThreadPrimitive (Root, MessagesFlatList with its forwarded FlatList ref and composed onScroll), ComposerPrimitive (Input, Send, Cancel), AuiIf, AssistantRuntimeProvider; react-native KeyboardAvoidingView
+// SOURCING: @assistant-ui/react-native ThreadPrimitive (Root, MessagesFlatList with its forwarded FlatList ref and composed onScroll), ComposerPrimitive (Input, Send, Cancel), AuiIf, AssistantRuntimeProvider; react-native KeyboardAvoidingView; react-native-screens SafeAreaView (the bottom inset native tabs documents)
 //
 // One conversation screen for every recipient: Theorem's agent, Claude Code or
 // Codex on a computer. The transcript fills the screen; the composer floats
@@ -17,6 +17,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native'
 import { useHeaderHeight } from 'expo-router/react-navigation'
+import { SafeAreaView } from 'react-native-screens/experimental'
 import {
   AssistantRuntimeProvider,
   AuiIf,
@@ -161,108 +162,112 @@ export function ConversationSurface({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <KeyboardAvoidingView
-        style={styles.fill}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={headerHeight}
-      >
-        <ThreadPrimitive.Root style={[styles.fill, { backgroundColor: palette.neutral }]}>
-          {composerHeight === undefined ? (
-            <View style={styles.fill} />
-          ) : (
-            <ThreadPrimitive.MessagesFlatList
-              ref={list}
-              style={styles.fill}
-              contentContainerStyle={[styles.list, { paddingBottom: composerHeight + space.sm }]}
-              keyboardDismissMode="interactive"
-              keyboardShouldPersistTaps="handled"
-              onScroll={onScroll}
-              ListEmptyComponent={<View style={styles.empty}>{empty}</View>}
-              ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : undefined}
-            >
-              {({ message }) => <MessageView message={message} />}
-            </ThreadPrimitive.MessagesFlatList>
-          )}
+      {/* Native tabs float the tab bar over the screen, so the composer would sit under it. The keyboard
+          avoider measures itself inside this inset, so with the keyboard up the inset is not added twice. */}
+      <SafeAreaView edges={{ bottom: true }} style={[styles.fill, { backgroundColor: palette.neutral }]}>
+        <KeyboardAvoidingView
+          style={styles.fill}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={headerHeight}
+        >
+          <ThreadPrimitive.Root style={[styles.fill, { backgroundColor: palette.neutral }]}>
+            {composerHeight === undefined ? (
+              <View style={styles.fill} />
+            ) : (
+              <ThreadPrimitive.MessagesFlatList
+                ref={list}
+                style={styles.fill}
+                contentContainerStyle={[styles.list, { paddingBottom: composerHeight + space.sm }]}
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
+                onScroll={onScroll}
+                ListEmptyComponent={<View style={styles.empty}>{empty}</View>}
+                ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : undefined}
+              >
+                {({ message }) => <MessageView message={message} />}
+              </ThreadPrimitive.MessagesFlatList>
+            )}
 
-          {farFromEnd && composerHeight !== undefined ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Jump to the latest message"
-              onPress={() => list.current?.scrollToEnd({ animated: true })}
-              hitSlop={4}
-              style={({ pressed }) => [
-                styles.round,
-                styles.jump,
-                styles.lifted,
-                {
-                  bottom: composerHeight + space.xs,
-                  backgroundColor: pressed ? palette.hover : palette.raised,
-                  borderColor: palette.lineControl,
-                  shadowOpacity: scheme === 'dark' ? 0 : 0.08,
-                },
-              ]}
-            >
-              <Text variant="strong">↓</Text>
-            </Pressable>
-          ) : null}
+            {farFromEnd && composerHeight !== undefined ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Jump to the latest message"
+                onPress={() => list.current?.scrollToEnd({ animated: true })}
+                hitSlop={4}
+                style={({ pressed }) => [
+                  styles.round,
+                  styles.jump,
+                  styles.lifted,
+                  {
+                    bottom: composerHeight + space.xs,
+                    backgroundColor: pressed ? palette.hover : palette.raised,
+                    borderColor: palette.lineControl,
+                    shadowOpacity: scheme === 'dark' ? 0 : 0.08,
+                  },
+                ]}
+              >
+                <Text variant="strong">↓</Text>
+              </Pressable>
+            ) : null}
 
-          {/* The card sits on the page colour, so the transcript ends at the card instead of showing around it. */}
-          <View
-            onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
-            style={[styles.dock, { backgroundColor: palette.neutral }]}
-          >
+            {/* The card sits on the page colour, so the transcript ends at the card instead of showing around it. */}
             <View
-              style={[
-                styles.card,
-                styles.lifted,
-                {
-                  backgroundColor: palette.composer,
-                  borderColor: palette.lineControl,
-                  shadowOpacity: scheme === 'dark' ? 0 : 0.06,
-                },
-              ]}
+              onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
+              style={[styles.dock, { backgroundColor: palette.neutral }]}
             >
-              {notes.map((note, index) => (
-                <NoteStrip key={index} note={note} />
-              ))}
-              <ComposerPrimitive.Input
-                accessibilityLabel={placeholder}
-                placeholder={placeholder}
-                placeholderTextColor={palette.inkFaint}
-                multiline
-                submitMode="none"
-                style={[styles.input, { color: palette.ink }]}
-              />
-              <View style={styles.controls}>
-                <RecipientChip recipient={recipient} />
-                <View style={styles.spacer} />
-                {controls}
-                <AuiIf condition={(s) => !s.thread.isRunning}>
-                  <SendButton name={recipient.name} blocked={sendBlocked} />
-                </AuiIf>
-                <AuiIf condition={(s) => s.thread.isRunning}>
-                  {/* Stop is the only control that interrupts; leaving this screen does not. */}
-                  <ComposerPrimitive.Cancel
-                    accessibilityRole="button"
-                    accessibilityLabel={stopLabel}
-                    hitSlop={(touchTarget - ROUND) / 2}
-                    style={({ pressed }) => [
-                      styles.round,
-                      {
-                        backgroundColor: pressed ? palette.hover : palette.neutral,
-                        borderColor: palette.lineControl,
-                        borderWidth: StyleSheet.hairlineWidth,
-                      },
-                    ]}
-                  >
-                    <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
-                  </ComposerPrimitive.Cancel>
-                </AuiIf>
+              <View
+                style={[
+                  styles.card,
+                  styles.lifted,
+                  {
+                    backgroundColor: palette.composer,
+                    borderColor: palette.lineControl,
+                    shadowOpacity: scheme === 'dark' ? 0 : 0.06,
+                  },
+                ]}
+              >
+                {notes.map((note, index) => (
+                  <NoteStrip key={index} note={note} />
+                ))}
+                <ComposerPrimitive.Input
+                  accessibilityLabel={placeholder}
+                  placeholder={placeholder}
+                  placeholderTextColor={palette.inkFaint}
+                  multiline
+                  submitMode="none"
+                  style={[styles.input, { color: palette.ink }]}
+                />
+                <View style={styles.controls}>
+                  <RecipientChip recipient={recipient} />
+                  <View style={styles.spacer} />
+                  {controls}
+                  <AuiIf condition={(s) => !s.thread.isRunning}>
+                    <SendButton name={recipient.name} blocked={sendBlocked} />
+                  </AuiIf>
+                  <AuiIf condition={(s) => s.thread.isRunning}>
+                    {/* Stop is the only control that interrupts; leaving this screen does not. */}
+                    <ComposerPrimitive.Cancel
+                      accessibilityRole="button"
+                      accessibilityLabel={stopLabel}
+                      hitSlop={(touchTarget - ROUND) / 2}
+                      style={({ pressed }) => [
+                        styles.round,
+                        {
+                          backgroundColor: pressed ? palette.hover : palette.neutral,
+                          borderColor: palette.lineControl,
+                          borderWidth: StyleSheet.hairlineWidth,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
+                    </ComposerPrimitive.Cancel>
+                  </AuiIf>
+                </View>
               </View>
             </View>
-          </View>
-        </ThreadPrimitive.Root>
-      </KeyboardAvoidingView>
+          </ThreadPrimitive.Root>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </AssistantRuntimeProvider>
   )
 }
