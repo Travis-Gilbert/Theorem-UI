@@ -855,55 +855,117 @@
   }
 }
 
-/* Liquid glass (Settings, Appearance): the frost above, thinner, with a lens
-   drawn on top by liquid-lens.tsx. The lens bends the Life field at the
-   rim, splits its colour a little and lights the bevel, after ybouane's
-   liquidglass shader; the frost under it still softens the conversation,
-   which the lens cannot see. The --liquid-* numbers are the shader's. */
+/* Liquid glass (Settings, Appearance): in Chromium, glass/liquid-backdrop.ts
+   replaces this backdrop-filter with an SVG filter that frosts what is
+   behind lightly and bends it at the beveled rim, the conversation and the
+   Life field alike, after ybouane/liquidglass. Elsewhere the frost below
+   stands alone. The light on the rim is CSS: a ring brightest where the
+   light falls, top left, and a softer counter-light bottom right.
+   --liquid-blur, -bevel and -refract are CSS pixels, unitless for the
+   filter; -chroma is how far apart the colours bend at the rim. */
 :root {
-  --liquid-blur: 10px;
-  --liquid-tint: color-mix(in oklab, var(--surface-composer) 26%, transparent);
-  --liquid-tint-solid: color-mix(in oklab, var(--surface-composer) 94%, transparent);
-  --liquid-edge: rgb(0 0 0 / 0.06);
-  --liquid-edge-focus: rgb(0 0 0 / 0.14);
-  --liquid-depth: 1;
-  --liquid-refract: 1.3;
+  --liquid-blur: 4.5;
   --liquid-bevel: 22;
-  --liquid-chroma: 0.2;
-  --liquid-gain: 1.8;
-  --liquid-frost: 3.5;
-  --liquid-specular: 0.9;
-  --liquid-rim: 0.75;
-  --liquid-shade: 0.2;
+  --liquid-refract: 22;
+  --liquid-chroma: 0.06;
+  --liquid-saturate: 1.6;
+  --liquid-tint: color-mix(in oklab, var(--surface-composer) 40%, transparent);
+  --liquid-tint-solid: color-mix(in oklab, var(--surface-composer) 94%, transparent);
+  --liquid-rim: rgb(255 255 255 / 0.95);
+  --liquid-rim-low: rgb(255 255 255 / 0.5);
+  --liquid-glow: rgb(255 255 255 / 0.55);
+  --liquid-edge: rgb(0 0 0 / 0.08);
+  --liquid-edge-focus: rgb(0 0 0 / 0.16);
+  --liquid-depth: 1;
 }
 
 .dark {
-  --liquid-blur: 10px;
-  --liquid-tint: color-mix(in oklab, var(--surface-composer) 42%, transparent);
-  --liquid-edge: rgb(255 255 255 / 0.04);
+  --liquid-blur: 5;
+  --liquid-saturate: 1.4;
+  --liquid-tint: color-mix(in oklab, var(--surface-composer) 55%, transparent);
+  --liquid-rim: rgb(255 255 255 / 0.16);
+  --liquid-rim-low: rgb(255 255 255 / 0.05);
+  --liquid-glow: rgb(255 255 255 / 0.03);
+  --liquid-edge: rgb(255 255 255 / 0.05);
   --liquid-edge-focus: rgb(255 255 255 / 0.1);
   --liquid-depth: 2.5;
-  --liquid-gain: 1.7;
-  --liquid-specular: 0.14;
-  --liquid-rim: 0.16;
-  --liquid-shade: 0.12;
 }
 
 @utility surface-liquid {
   position: relative;
   isolation: isolate;
   background-color: var(--liquid-tint);
-  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(1.4);
-  backdrop-filter: blur(var(--liquid-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(calc(var(--liquid-blur) * 2px)) saturate(1.4);
+  backdrop-filter: blur(calc(var(--liquid-blur) * 2px)) saturate(1.4);
   box-shadow:
+    inset 0 0 18px -6px var(--liquid-glow),
     0 1px 2px rgb(var(--shadow-tint) / calc(0.06 * var(--liquid-depth))),
     0 14px 36px -14px rgb(var(--shadow-tint) / calc(0.22 * var(--liquid-depth)));
+
+  /* The lit rim, a 1.5px ring over the border. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      var(--liquid-rim),
+      transparent 28%,
+      transparent 72%,
+      var(--liquid-rim-low)
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+
+  @supports not (mask-image: none) {
+    &::after {
+      content: none;
+    }
+  }
 
   @supports not (
     (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
   ) {
     background-color: var(--liquid-tint-solid);
   }
+}
+
+/* Under liquid glass the footer frosts only its gutter below the pane:
+   frost behind the pane would blur what the pane is meant to bend. */
+@utility liquid-footer {
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: calc(var(--spacing) * 6);
+    z-index: -1;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    mask-image: linear-gradient(to bottom, transparent, #000 70%);
+  }
+
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+/* The side panel under liquid glass: glass-panel's veil and frost, its edge
+   toward the conversation beveled by liquid-backdrop.ts and lit here. */
+@utility glass-panel-liquid {
+  /* The frost the panel had as plain glass, with a broad bevel. */
+  --liquid-blur: 3;
+  --liquid-bevel: 28;
+  --liquid-refract: 24;
+  box-shadow: inset -1px 0 0 var(--liquid-rim-low);
 }
 
 /* The glass composer's footer is clear, so the composer frosts the messages

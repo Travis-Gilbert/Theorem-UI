@@ -31,8 +31,8 @@ import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { LiquidLens } from '@/components/glass/liquid-lens'
-import { useComposerSurface, useGlassComposer } from '@/lib/surfaces'
+import { useLiquidBackdrop } from '@/components/glass/liquid-backdrop'
+import { useComposerSurface } from '@/lib/surfaces'
 import type { ComposerSurface } from '@/lib/surfaces'
 import { cn } from '@/lib/utils'
 import {
@@ -263,7 +263,7 @@ const ThreadRoot: FC<{
 }> = ({ isEmpty, autoFocus, covered }) => {
   const footerRef = useRef<HTMLDivElement>(null)
   const unseen = useUnseenFrom(covered)
-  const glass = useGlassComposer()
+  const surface = useComposerSurface()
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
   // edge, so it glides rather than overshooting past it.
@@ -328,9 +328,11 @@ const ThreadRoot: FC<{
               // scrolling under it with the stretch of gradient it sits on;
               // under a glass composer it is clear, so the glass frosts them.
               !isEmpty &&
-                (glass
-                  ? 'glass-footer'
-                  : 'bg-sheet rounded-t-(--composer-radius) bg-bottom'),
+                {
+                  paper: 'bg-sheet rounded-t-(--composer-radius) bg-bottom',
+                  glass: 'glass-footer',
+                  liquid: 'liquid-footer',
+                }[surface],
             )}
           >
             <ThreadScrollToBottom />
@@ -569,6 +571,7 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const shellRef = useRef<HTMLDivElement>(null)
   const surface = useComposerSurface()
   const glass = surface !== 'paper'
+  useLiquidBackdrop(shellRef, surface === 'liquid')
   const busyInput = useBusyComposerInput({
     hasReferences: () => useComposerReferences.getState().references.length > 0,
     onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
@@ -629,7 +632,6 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             />
           }
         >
-          {surface === 'liquid' && <LiquidLens />}
           <RunInputStatus />
           {review && <ComposerReviewTarget target={review} />}
           <ComposerReferences />
@@ -1224,6 +1226,8 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   const surface = useComposerSurface()
   const glass = surface !== 'paper'
+  const rootRef = useRef<HTMLFormElement>(null)
+  useLiquidBackdrop(rootRef, surface === 'liquid')
   return (
     // No content-visibility here, unlike the message rows: its paint
     // containment would clip the composer's shadow and glow, and only the
@@ -1241,12 +1245,12 @@ const EditComposer: FC = () => {
         )}
         <ComposerPrimitive.TriggerPopoverRoot>
           <ComposerPrimitive.Root
+            ref={rootRef}
             className={cn(
               'aui-edit-composer-root flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
               composerSurface(surface),
             )}
           >
-            {surface === 'liquid' && <LiquidLens />}
             <ComposerToolTrigger />
             <ComposerEditor
               label="Edit message"
