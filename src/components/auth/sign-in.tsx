@@ -82,6 +82,17 @@ export function SignIn({
               Continue with {provider.name}
             </Button>
           ))}
+          {options?.providers.length === 0 && (
+            // The issuer asks how on its own page, so there is nothing to pick.
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={forget.isPending}
+            >
+              Continue to sign in
+            </Button>
+          )}
           <p className="text-xs leading-5 text-ink-muted">
             You’ll sign in there and come back here.
           </p>
