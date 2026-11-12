@@ -1,4 +1,4 @@
-// SOURCING: modules/theo-capture (support, start, stop, stats, speak, onState, onFrame); react-native AppState; expo-image for the still; features/screen-share/session for every word shown
+// SOURCING: modules/theo-capture (support, start, stop, stats, onState, onFrame); modules/theo-speech (speak, speechSupport) for Theo's own voice; react-native AppState; expo-image for the still; features/screen-share/session for every word shown
 //
 // The feasibility prototype for "look at my screen" (docs/plans/theo-iphone.md
 // §1). It answers one question on a real phone: does user-started sharing of
@@ -30,6 +30,7 @@ import { Text } from '@/ui/text'
 import { useTheme } from '@/ui/theme'
 import { Unavailable } from '@/ui/unavailable'
 import { capture, captureSupport } from '../../modules/theo-capture'
+import { speak as speakAsTheo, speechSupport } from '../../modules/theo-speech'
 
 const stillWords: Record<Staleness, string> = {
   live: 'This is the screen now.',
@@ -42,6 +43,7 @@ export default function ScreenShareScreen() {
   const { palette } = useTheme()
   const support = captureSupport()
   const module = capture()
+  const speech = speechSupport()
   const [session, dispatch] = useReducer(reduce, initial)
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState<unknown>()
@@ -131,11 +133,14 @@ export default function ScreenShareScreen() {
           )}
           <Button
             label="Speak a test line"
-            disabled={session.phase !== 'capturing'}
+            disabled={session.phase !== 'capturing' || speech.route === 'none'}
             onPress={() =>
-              void run(() => module.speak('This is Theo, speaking while your screen is shared.'))
+              void run(() =>
+                speakAsTheo('This is Theo, speaking while your screen is shared.'),
+              )
             }
           />
+          {speech.route === 'none' && <Text>{speech.reason}</Text>}
         </View>
       </View>
 

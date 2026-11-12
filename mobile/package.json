@@ -54,7 +54,8 @@
     "prebuild:ios": "expo prebuild --platform ios --no-install --clean",
     "doctor": "expo-doctor",
     "ghosttykit": "bash modules/theorem-session/scripts/fetch-ghosttykit.sh",
-    "eas-build-pre-install": "bash modules/theorem-session/scripts/fetch-ghosttykit.sh"
+    "phonon": "bash modules/theo-speech/scripts/fetch-phonon.sh",
+    "eas-build-pre-install": "bash modules/theorem-session/scripts/fetch-ghosttykit.sh && bash modules/theo-speech/scripts/fetch-phonon.sh"
   },
   "private": true
 }

@@ -139,6 +139,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // Puts Remux's images in the app's asset catalog (see the plugin for why).
     './modules/theorem-session/app.plugin.js',
+    // Phonon's compiled core is arm64 only: exclude x86_64 from simulator
+    // builds (see the plugin for why).
+    './modules/theo-speech/app.plugin.js',
   ],
   experiments: { typedRoutes: true, inlineModules: { watchedDirectories: ['app-intents'] } },
   extra: {

@@ -86,7 +86,7 @@ Expo SDK 58, read the same day:
 | An annotation stays attached to the frame it describes        | A still has a sequence number and a capture time, is called live only for three seconds while sharing, and an older frame never replaces a newer one                            | test-verified                                                |
 | Switching from a screenshot to the screen in one conversation | A still goes to a conversation through intake ("Give this still to a conversation")                                                                                             | source-implemented                                           |
 | ReplayKit route for iOS 18 to 26                              | **Not built.** It needs a broadcast upload extension target, which no first-party Expo package generates                                                                        | owner decision 3                                             |
-| The frames reach an agent continuously, and Theo speaks       | **Not built.** The prototype answers only whether capture survives other apps. `speak` is a test line through the system voice                                                  | —                                                            |
+| The frames reach an agent continuously, and Theo speaks       | Partially built: `modules/theo-speech` speaks as Theo with Phonon on the Neural Engine, the owner's voice and the picked pace fixed in the exported Core ML bundle, and the prototype's test line now uses it; frames reaching an agent continuously is still not built | source-implemented; never compiled |
 
 ### §2 Native places to appear
 

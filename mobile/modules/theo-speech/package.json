@@ -1,0 +1,8 @@
+{
+  "name": "theo-speech",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Theo's own voice on the phone: Phonon on the Neural Engine, with the owner's voice and pace fixed in the exported Core ML bundle",
+  "main": "index.ts",
+  "license": "Apache-2.0"
+}
