@@ -1,4 +1,4 @@
-// SOURCING: Apple's "Capturing screen content on iOS" sample and the ScreenCaptureKit reference as read on 2026-11-12 (iOS 27.0: SCContentSharingPicker.shared with present() for the whole display, SCContentSharingPickerConfiguration.showsMicrophoneControl, SCContentSharingPickerObserver, SCContentFilter.isMicrophoneEnabled, SCStream with .screen and .microphone outputs, an AVAudioSession in playAndRecord before a full-display capture). Never compiled: there was no Xcode where this was written.
+// SOURCING: Apple's "Capturing screen content on iOS" sample and the ScreenCaptureKit reference as read on 2026-11-12 (iOS 27.0: SCContentSharingPicker.shared with present() for the whole display, SCContentSharingPickerConfiguration.showsMicrophoneControl, SCContentSharingPickerObserver, SCContentFilter.isMicrophoneEnabled, SCStream with .screen and .microphone outputs, an AVAudioSession in playAndRecord before a full-display capture). Compiled against the iPhoneOS 27.1 SDK on EAS; that SDK marks SCStreamConfiguration.minimumFrameInterval unavailable on iOS.
 #if canImport(ScreenCaptureKit)
 import AVFoundation
 import CoreMedia
@@ -17,6 +17,8 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   private weak var sink: CaptureSink?
   private var stream: SCStream?
   private var microphone = false
+  /// Touched only on `samples`, where the system calls the stream output.
+  private var lastFrame = CMTime.invalid
 
   @MainActor
   func start(askForMicrophone: Bool, sink: CaptureSink) async throws {
@@ -60,6 +62,7 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   private func begin(with filter: SCContentFilter) async {
     try? await stream?.stopCapture()
     microphone = filter.isMicrophoneEnabled
+    samples.sync { lastFrame = .invalid }
     do {
       if microphone {
         // Apple's sample: without an active playAndRecord session the microphone stops producing samples in the background.
@@ -67,10 +70,7 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
         try audio.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
         try audio.setActive(true)
       }
-      let configuration = SCStreamConfiguration()
-      // A frame a second is enough to follow what someone is doing, and keeps the phone cool.
-      configuration.minimumFrameInterval = CMTime(value: 1, timescale: 1)
-      let next = SCStream(filter: filter, configuration: configuration, delegate: self)
+      let next = SCStream(filter: filter, configuration: SCStreamConfiguration(), delegate: self)
       try next.addStreamOutput(self, type: .screen, sampleHandlerQueue: samples)
       if microphone {
         try next.addStreamOutput(self, type: .microphone, sampleHandlerQueue: samples)
@@ -91,7 +91,12 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
     switch type {
     case .screen:
       guard let frame = sampleBuffer.imageBuffer else { return }
-      sink?.captureDelivered(frame: frame, at: sampleBuffer.presentationTimeStamp)
+      // A frame a second is enough to follow what someone is doing, and keeps the phone cool. iOS has no
+      // minimumFrameInterval, so the route passes on at most one frame a second of presentation time.
+      let time = sampleBuffer.presentationTimeStamp
+      if lastFrame.isValid, CMTimeGetSeconds(CMTimeSubtract(time, lastFrame)) < 1 { return }
+      lastFrame = time
+      sink?.captureDelivered(frame: frame, at: time)
     case .microphone:
       sink?.captureDeliveredMicrophone()
     default:
