@@ -1,4 +1,4 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
+// SOURCING: dockview-react via DockShell (desktop layout), the Life field under the desktop sheet (LifeSheet) seen through the side panel's frosted glass (styles.css glass-panel), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
@@ -6,6 +6,7 @@ import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
 import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
+import { LifeSheet } from '@/components/life/life-backdrop'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
@@ -209,8 +210,20 @@ function DockView() {
 }
 const PANEL = 'panel'
 
+/**
+ * The side panel as frosted glass: the Life field runs under the whole sheet,
+ * so it shows through the panel, blurred, instead of stopping at its edge.
+ */
+function GlassPanel() {
+  return (
+    <div className="glass-panel h-full">
+      <ContextPanel />
+    </div>
+  )
+}
+
 const splitComponents = {
-  [PANEL]: ContextPanel,
+  [PANEL]: GlassPanel,
   dock: DockView,
 }
 
@@ -301,7 +314,11 @@ function DesktopShell(route: DockRoute) {
           {/* Dockview layers its panels with z-index; isolate keeps them under the Vault. */}
           <div inert={vault} className="isolate flex h-full flex-col">
             <div className="min-h-0 flex-1">
-              <SheetSplit {...route} />
+              {/* The field runs under the panel as well as the conversation,
+                  while the conversation is the sheet's view. */}
+              <LifeSheet active={mode === 'chat'}>
+                <SheetSplit {...route} />
+              </LifeSheet>
             </div>
             {ide && <IdeStatusBar />}
           </div>

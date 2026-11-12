@@ -734,6 +734,180 @@
   }
 }
 
+/* Frosted glass: the composer's other material (Settings, Appearance; lib/surfaces.ts).
+   The recipe is liquidGL's (naughtyduk/liquidGL): frost, a tint, a bevel lit
+   at the rim and a specular sheen. liquidGL refracts a snapshot it rasterises
+   of the page, which would hold the Life field and the messages scrolling
+   behind the composer still; here the frost is backdrop-filter, so what shows
+   through is what is there now, and the bevel and sheen are painted over it.
+   - frost: the backdrop blurred and its colour lifted a little, as glass
+     concentrates what it bends;
+   - tint: the composer's own surface colour at low strength, so text keeps
+     its contrast and the palette still owns the pane;
+   - bevel: a 1px rim, bright where the light falls on the top left edge and
+     faint at the bottom right, with a lit inner top edge;
+   - specular: a soft highlight falling from the top left, under the content.
+   The element keeps its own border (the composer's follows focus; give it
+   --glass-edge at rest). An engine with no backdrop-filter gets a near opaque
+   pane instead of a see-through one. */
+:root {
+  --glass-blur: 8px;
+  --glass-saturate: 1.7;
+  --glass-tint: color-mix(in oklab, var(--surface-composer) 28%, transparent);
+  --glass-tint-solid: color-mix(
+    in oklab,
+    var(--surface-composer) 94%,
+    transparent
+  );
+  --glass-rim: rgb(255 255 255 / 0.7);
+  --glass-rim-low: rgb(255 255 255 / 0.16);
+  --glass-specular: rgb(255 255 255 / 0.42);
+  --glass-depth: 1;
+  --glass-edge: color-mix(in oklab, var(--line-separator) 55%, transparent);
+}
+
+.dark {
+  --glass-tint: color-mix(in oklab, var(--surface-composer) 36%, transparent);
+  --glass-rim: rgb(255 255 255 / 0.2);
+  --glass-rim-low: rgb(255 255 255 / 0.05);
+  --glass-specular: rgb(255 255 255 / 0.09);
+  --glass-depth: 2.5;
+  --glass-edge: rgb(255 255 255 / 0.08);
+}
+
+@utility surface-glass {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--glass-tint);
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim),
+    inset 0 -1px 0 var(--glass-rim-low),
+    inset 0 0 18px -6px var(--glass-rim-low),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.06 * var(--glass-depth))),
+    0 14px 36px -14px rgb(var(--shadow-tint) / calc(0.22 * var(--glass-depth)));
+
+  /* The specular sheen, under the content. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        130% 90% at 12% -20%,
+        var(--glass-specular),
+        transparent 58%
+      ),
+      linear-gradient(to bottom, var(--glass-rim-low), transparent 45%);
+  }
+
+  /* The bevel: a ring cut from a diagonal light, bright at the top left. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      var(--glass-rim),
+      transparent 32%,
+      transparent 68%,
+      var(--glass-rim-low)
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+
+  /* Without CSS masks (Servo 0.7) the ring would fill the pane. */
+  @supports not (mask-image: none) {
+    &::after {
+      content: none;
+    }
+  }
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    background-color: var(--glass-tint-solid);
+  }
+}
+
+/* The glass composer's footer is clear, so the composer frosts the messages
+   scrolling under it. Below the pane they would show sharp in the footer's
+   gutter, so the footer frosts its lower half too, the frost fading in from
+   nothing toward the sheet's bottom edge. */
+@utility glass-footer {
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 35%;
+    bottom: 0;
+    z-index: -1;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    mask-image: linear-gradient(to bottom, transparent, #000 70%);
+  }
+
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+/* The sheet's side panel on the desktop (chat-shell.tsx), as frosted glass
+   over the Life field, which runs under the whole sheet: the field shows
+   through, blurred, and the panel's veil is the sheet's own gradient, sized
+   to the sheet as bg-sheet is, so the panel reads as the sheet frosted over
+   rather than a second colour. */
+/* The field's ink is faint, so the frost is light: the cells soften to
+   moving blots rather than vanishing, and the panel's text stays on a veil. */
+:root {
+  --glass-panel-blur: 3px;
+  --glass-panel-veil: 0.24;
+}
+
+.dark {
+  --glass-panel-veil: 0.3;
+}
+
+@utility glass-panel {
+  position: relative;
+  isolation: isolate;
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(1.3);
+  backdrop-filter: blur(var(--glass-panel-blur)) saturate(1.3);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--sheet-field);
+    background-size: 100% var(--sheet-h, 100dvh);
+    background-repeat: no-repeat;
+    opacity: var(--glass-panel-veil);
+  }
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    &::before {
+      opacity: 1;
+    }
+  }
+}
+
 /* The chat panel's rows answer the pointer (organized-panel.tsx): what a row
    holds lifts a pixel and its mark tips, on the snap spring. */
 @layer components {

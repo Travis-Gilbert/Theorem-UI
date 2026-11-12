@@ -1,4 +1,4 @@
-// SOURCING: next-themes (light/dark), lib/palette (colours), lib/life/store (the field behind the chat), lib/figures (Kit and Theo), components/face/face-feel (how Theo moves), coss ui SegmentedControl, the settings frame
+// SOURCING: next-themes (light/dark), lib/palette (colours), lib/surfaces (what the composer is made of), lib/life/store (the field behind the chat), lib/figures (Kit and Theo), components/face/face-feel (how Theo moves), coss ui SegmentedControl, the settings frame
 import { createFileRoute } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import {
@@ -17,6 +17,7 @@ import { FaceMark } from '@/components/face/face-mark'
 import { VISORS, useFigures } from '@/lib/figures'
 import { useLifeControls } from '@/lib/life/store'
 import { PALETTES, usePalette } from '@/lib/palette'
+import { COMPOSER_SURFACES, useSurfaces } from '@/lib/surfaces'
 
 export const Route = createFileRoute('/settings/appearance')({
   component: Appearance,
@@ -54,6 +55,8 @@ function Appearance() {
   const { theme, setTheme } = useTheme()
   const { palette, setPalette } = usePalette()
   const lifeShown = useLifeControls((state) => state.shown)
+  const composer = useSurfaces((state) => state.composer)
+  const setComposer = useSurfaces((state) => state.setComposer)
   const figures = useFigures()
   return (
     <SettingsPage
@@ -90,6 +93,22 @@ function Appearance() {
                   label={label}
                   pressed={palette === value}
                   onPress={() => setPalette(value)}
+                />
+              ))}
+            </SegmentedControl>
+          </SettingsRow>
+          <SettingsRow
+            Mark={Icon.Edit}
+            title="Composer"
+            description="What the message box is made of. Paper is a smooth sheet with a fine grain; frosted glass lets the Life field and the conversation show through it, blurred."
+          >
+            <SegmentedControl size="sm" aria-label="Composer">
+              {COMPOSER_SURFACES.map(({ value, label }) => (
+                <Choice
+                  key={value}
+                  label={label}
+                  pressed={composer === value}
+                  onPress={() => setComposer(value)}
                 />
               ))}
             </SegmentedControl>

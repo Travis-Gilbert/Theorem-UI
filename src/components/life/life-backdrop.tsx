@@ -1,7 +1,7 @@
 // SOURCING: textmode.js through mountLife; assistant-ui useAuiState for the working turn (as ide/follow reads it); ResizeObserver to keep the canvas at its box; MutationObserver on <html> to repaint when next-themes or the palette changes; Base UI context menu for the controls, styled as the thread list's
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useAuiState } from '@assistant-ui/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { Icon } from '@/components/icons'
 import { pulsesSince, signalOf } from '@/lib/life/energy'
@@ -41,10 +41,23 @@ const lifeRenderer = (): 'webgl' | 'canvas2d' | undefined => {
 const CHAT_CONTENT =
   '[data-message-id], .aui-thread-viewport-footer, button, a, input, textarea, [contenteditable], [role="menu"]'
 
+/**
+ * Where a press draws: the conversation's box (marked `data-life-space`). The
+ * field alone is that box; a field under the whole sheet shows beneath the
+ * side panel too, but only the conversation draws on it.
+ */
+const LIFE_SPACE = '[data-life-space]'
+
 // React portal events bubble through this component even when their DOM nodes
 // belong to a popup outside the field. Never capture those menu interactions.
 const isFieldSpace = (target: EventTarget, field: Element) =>
-  target instanceof Element && field.contains(target) && target.closest(CHAT_CONTENT) === null
+  target instanceof Element &&
+  field.contains(target) &&
+  target.closest(LIFE_SPACE) !== null &&
+  target.closest(CHAT_CONTENT) === null
+
+/** A field above draws for the conversation, which then only marks its box. */
+const FieldAbove = createContext(false)
 
 const menuItem =
   'data-highlighted:bg-hover data-disabled:opacity-50 flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none'
@@ -52,8 +65,61 @@ const menuItem =
 const menuPopup =
   'bg-popover text-popover-foreground shadow-popover border-separator min-w-48 origin-(--transform-origin) rounded-lg border p-1 outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
 
-/** A Game of Life behind the conversation, livelier the harder the model works. */
+/**
+ * A Game of Life behind the conversation, livelier the harder the model works.
+ * Under a field that runs beneath the whole sheet (`LifeSheet`) it draws
+ * nothing of its own and marks the conversation as the space that draws.
+ */
 export function LifeBackdrop({ children }: { children: ReactNode }) {
+  if (useContext(FieldAbove))
+    return (
+      <div data-life-space="" className="h-full">
+        {children}
+      </div>
+    )
+  return (
+    <LifeField space active>
+      {children}
+    </LifeField>
+  )
+}
+
+/**
+ * The field under the desktop sheet, so the side panel's frosted glass shows
+ * it running behind. The conversation's own LifeBackdrop always defers to it,
+ * and it runs only while `active` (the conversation is the sheet's view); in
+ * the other modes there is no field. Neither switch changes the tree, so the
+ * dock and the conversation under it stay mounted through a change of mode.
+ */
+export function LifeSheet({
+  active,
+  children,
+}: {
+  active: boolean
+  children: ReactNode
+}) {
+  return (
+    <FieldAbove.Provider value>
+      <LifeField space={false} active={active}>
+        {children}
+      </LifeField>
+    </FieldAbove.Provider>
+  )
+}
+
+/**
+ * `space`: the field's own box is the space a press draws in.
+ * `active`: whether the field runs at all.
+ */
+function LifeField({
+  children,
+  space,
+  active,
+}: {
+  children: ReactNode
+  space: boolean
+  active: boolean
+}) {
   const shown = useLifeControls((state) => state.shown)
   const [renderer] = useState(lifeRenderer)
   const [game, setGame] = useState<LifeGame>()
@@ -87,7 +153,7 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
   }, [renderer])
 
   if (!renderer) return children
-  const draws = shown
+  const draws = shown && active
 
   // Touch scrolls the conversation, so only a mouse or pen draws.
   const onPointerDown = (event: ReactPointerEvent) => {
@@ -123,6 +189,7 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
         render={
           <div
             data-life-backdrop=""
+            data-life-space={space ? '' : undefined}
             className="relative h-full"
             onPointerDown={draws ? onPointerDown : undefined}
             onPointerMove={draws ? onPointerMove : undefined}
