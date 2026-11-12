@@ -2,7 +2,11 @@
 import { describe, expect, test } from 'bun:test'
 import { destinationOf, settle, type Invocation } from './route'
 
-const call = (name: string, params: Record<string, unknown> = {}, id = name): Invocation => ({ id, name, params })
+const call = (name: string, params: Record<string, unknown> = {}, id = name): Invocation => ({
+  id,
+  name,
+  params,
+})
 
 describe('a system action', () => {
   test('capture opens intake at the camera', () => {
@@ -37,7 +41,11 @@ describe('a system action', () => {
 
   test('several waiting actions open one screen, the newest, and all are cleared', () => {
     const result = settle(
-      [call('continueConversation', {}, 'a'), call('nonsense', {}, 'b'), call('captureForConversation', {}, 'c')],
+      [
+        call('continueConversation', {}, 'a'),
+        call('nonsense', {}, 'b'),
+        call('captureForConversation', {}, 'c'),
+      ],
       't1',
     )
     expect(result.open).toEqual({ pathname: '/intake', params: { from: 'camera' } })

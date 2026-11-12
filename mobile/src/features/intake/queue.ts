@@ -13,7 +13,15 @@ import { describeError } from '@/lib/theorem'
 import { phoneTurnOptions } from '../phone-actions/calendar'
 import { deliver, type DeliverDeps, type SendAnswer } from './deliver'
 import { discard, discardAll } from './files'
-import { files, isPending, newDelivery, storedUploads, type Delivery, type IntakeItem, type Receiver } from './model'
+import {
+  files,
+  isPending,
+  newDelivery,
+  storedUploads,
+  type Delivery,
+  type IntakeItem,
+  type Receiver,
+} from './model'
 import { createDeliveryStore, type DeliveryStore } from './store'
 import { uploadFile } from './upload'
 
@@ -103,7 +111,8 @@ const deps: DeliverDeps = {
     try {
       await connected(lease)
       await idle(lease, delivery.id)
-      return (await lease.send(text, { id: delivery.id, uploadIds, ...phoneTurnOptions() })) as SendAnswer | undefined
+      return (await lease.send(text, { id: delivery.id, uploadIds, ...phoneTurnOptions() })) as
+        SendAnswer | undefined
     } finally {
       // Releasing ends this queue's observation only. The run it started goes on.
       lease.release()

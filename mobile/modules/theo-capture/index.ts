@@ -7,7 +7,13 @@ import { requireOptionalNativeModule } from 'expo'
 export type CaptureStateName = 'idle' | 'picking' | 'capturing' | 'stopped' | 'failed'
 
 export type StateEvent = { state: CaptureStateName; reason: string; microphone: boolean }
-export type FrameEvent = { sequence: number; uri: string; width: number; height: number; capturedAtMs: number }
+export type FrameEvent = {
+  sequence: number
+  uri: string
+  width: number
+  height: number
+  capturedAtMs: number
+}
 export type CaptureStats = { frames: number; microphoneBuffers: number; lastFrameAtMs: number }
 export type CaptureSupport = { route: 'screencapturekit' | 'none'; reason: string }
 

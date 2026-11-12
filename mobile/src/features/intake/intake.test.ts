@@ -177,7 +177,10 @@ describe('a delivery', () => {
   })
 
   test('a recorded delivery says what Theorem does not report', () => {
-    const line = describeStage({ ...fresh([{ ...photo('a'), uploadId: 'u' } as IntakeItem]), stage: 'recorded' })
+    const line = describeStage({
+      ...fresh([{ ...photo('a'), uploadId: 'u' } as IntakeItem]),
+      stage: 'recorded',
+    })
     expect(line.label).toBe('In the conversation')
     expect(line.detail).toContain('does not report whether the model read it')
   })

@@ -147,12 +147,19 @@ export function outcomeWords(outcome: EditorOutcome): string {
 }
 
 export function whenWords(proposal: EventProposal, locale?: string): string {
-  const day: Intl.DateTimeFormatOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }
+  const day: Intl.DateTimeFormatOptions = {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }
   const time: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
   const sameDay = proposal.startDate.toDateString() === proposal.endDate.toDateString()
   const start = proposal.startDate.toLocaleDateString(locale, day)
   if (proposal.allDay)
-    return sameDay ? `${start}, all day` : `${start} to ${proposal.endDate.toLocaleDateString(locale, day)}, all day`
+    return sameDay
+      ? `${start}, all day`
+      : `${start} to ${proposal.endDate.toLocaleDateString(locale, day)}, all day`
   const from = proposal.startDate.toLocaleTimeString(locale, time)
   const to = proposal.endDate.toLocaleTimeString(locale, time)
   return sameDay

@@ -19,7 +19,10 @@ const base: Activity = {
 
 describe('an activity', () => {
   test('a stale generation or revision is refused and changes nothing', () => {
-    expect(accept(base, { ...base, generation: 1, revision: 99 })).toEqual({ accepted: false, reason: 'stale-generation' })
+    expect(accept(base, { ...base, generation: 1, revision: 99 })).toEqual({
+      accepted: false,
+      reason: 'stale-generation',
+    })
     expect(accept(base, { ...base, revision: 5 })).toEqual({ accepted: false, reason: 'stale-revision' })
     expect(accept(base, { ...base, activityId: 'b' })).toEqual({ accepted: false, reason: 'other-activity' })
     expect(accept(base, { ...base, revision: 6 }).accepted).toBe(true)

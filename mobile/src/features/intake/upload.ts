@@ -21,7 +21,11 @@ export class UploadError extends Error {
  * of the same delivery always sends the same one, so a repeat after a lost
  * answer does not store it twice.
  */
-export async function uploadFile(projectId: string, file: FileItem, key: string): Promise<{ uploadId: string }> {
+export async function uploadFile(
+  projectId: string,
+  file: FileItem,
+  key: string,
+): Promise<{ uploadId: string }> {
   const { bytes, sha256 } = await read(file)
   return mutate(key, async (headers) => {
     const response = await theorem().fetch(`/api/chat/v1/projects/${encodeURIComponent(projectId)}/uploads`, {
@@ -36,8 +40,7 @@ export async function uploadFile(projectId: string, file: FileItem, key: string)
       body: bytes,
     })
     const body = (await response.json().catch(() => undefined)) as
-      | { record?: { uploadId?: string }; detail?: string; title?: string }
-      | undefined
+      { record?: { uploadId?: string }; detail?: string; title?: string } | undefined
     const uploadId = body?.record?.uploadId
     if (!response.ok || !uploadId)
       throw new UploadError(

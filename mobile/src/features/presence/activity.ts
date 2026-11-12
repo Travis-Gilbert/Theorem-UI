@@ -40,7 +40,9 @@ export type Activity = {
   actions: Action[]
 }
 
-export type Verdict = { accepted: true; activity: Activity } | { accepted: false; reason: 'stale-generation' | 'stale-revision' | 'other-activity' }
+export type Verdict =
+  | { accepted: true; activity: Activity }
+  | { accepted: false; reason: 'stale-generation' | 'stale-revision' | 'other-activity' }
 
 /** An update replaces what is shown only if it is newer. A stale one changes nothing. */
 export function accept(current: Activity | undefined, incoming: Activity): Verdict {
@@ -89,7 +91,8 @@ export function livenessOf(activity: Activity | undefined): Liveness {
  */
 export class Shown {
   private readonly hiddenAt = new Map<string, string>()
-  private static mark = (activity: Activity) => `${activity.generation}:${activity.revision}:${activity.phase}`
+  private static mark = (activity: Activity) =>
+    `${activity.generation}:${activity.revision}:${activity.phase}`
 
   hide(activity: Activity): void {
     this.hiddenAt.set(activity.activityId, Shown.mark(activity))

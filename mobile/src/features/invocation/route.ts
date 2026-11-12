@@ -11,7 +11,10 @@ export type Destination =
   | { pathname: '/chat' }
 
 /** Undefined for a name this build does not know: it is dropped, not guessed at. */
-export function destinationOf(invocation: Invocation, lastThreadId: string | undefined): Destination | undefined {
+export function destinationOf(
+  invocation: Invocation,
+  lastThreadId: string | undefined,
+): Destination | undefined {
   switch (invocation.name) {
     case 'captureForConversation':
       return { pathname: '/intake', params: { from: 'camera' } }

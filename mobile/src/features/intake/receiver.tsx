@@ -112,8 +112,8 @@ export function ReceiverPicker({
           ListFooterComponent={
             <View style={styles.pad}>
               <Text variant="label" tone="muted">
-                Claude Code and Codex conversations on your computers are not listed. The app can type into them,
-                but it has no way yet to put a file on the computer and confirm the agent was given it.
+                Claude Code and Codex conversations on your computers are not listed. The app can type into
+                them, but it has no way yet to put a file on the computer and confirm the agent was given it.
               </Text>
             </View>
           }
@@ -156,7 +156,13 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.sm,
   },
-  projects: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm },
+  projects: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.sm,
+  },
   list: { paddingBottom: space.xl * 2 },
   pad: { padding: space.lg, gap: space.sm },
 })

@@ -45,7 +45,11 @@ export function activityOfConversation(
   const events = state.journal?.events.length ?? 0
   const standing: Standing = phase === 'waiting' ? 'needs-you' : phase === 'working' ? 'in-hand' : 'settled'
   const actions: Action[] =
-    phase === 'working' ? ['open', 'steer', 'stop'] : phase === 'waiting' ? ['open', 'answer', 'stop'] : ['open']
+    phase === 'working'
+      ? ['open', 'steer', 'stop']
+      : phase === 'waiting'
+        ? ['open', 'answer', 'stop']
+        : ['open']
   return {
     activityId: threadActivityId(thread.threadId),
     generation,
@@ -61,7 +65,11 @@ export function activityOfConversation(
 }
 
 /** A thread the list reports as running, before any conversation is opened on it. */
-export function activityOfThread(authority: string, thread: Theorem.Thread, nowMs: number): Activity | undefined {
+export function activityOfThread(
+  authority: string,
+  thread: Theorem.Thread,
+  nowMs: number,
+): Activity | undefined {
   if (!thread.activeRunId) return undefined
   return {
     activityId: threadActivityId(thread.threadId),

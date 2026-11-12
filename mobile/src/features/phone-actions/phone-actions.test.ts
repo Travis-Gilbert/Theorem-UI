@@ -42,7 +42,9 @@ describe('a proposed calendar event', () => {
     expect(reason({ title: 'x' })).toContain('start:')
     expect(reason({ title: 'x', start: 'next Friday' })).toContain('not a date')
     expect(reason({ title: 'x', start: '2026-02-31' })).toContain('not a real date')
-    expect(reason({ title: 'x', start: '2026-11-20T19:00', end: '2026-11-20T18:00' })).toBe('end: is before start')
+    expect(reason({ title: 'x', start: '2026-11-20T19:00', end: '2026-11-20T18:00' })).toBe(
+      'end: is before start',
+    )
     expect(reason({ title: 'x', start: '2026-11-20', attendees: [] })).toContain('attendees')
     expect(reason('2026-11-20')).toBe('arguments must be an object')
   })

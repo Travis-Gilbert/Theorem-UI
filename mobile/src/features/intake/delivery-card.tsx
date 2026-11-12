@@ -61,7 +61,8 @@ export function DeliveryCard({ id, onDone }: { id: string; onDone?: () => void }
       {note ? <Text tone="attention">{note}</Text> : null}
       {delivery.stage === 'failed' && stored > 0 ? (
         <Text variant="label" tone="muted">
-          Theorem already stored {stored} of {files(delivery).length}. Trying again does not upload those twice.
+          Theorem already stored {stored} of {files(delivery).length}. Trying again does not upload those
+          twice.
         </Text>
       ) : null}
       <View style={styles.actions}>

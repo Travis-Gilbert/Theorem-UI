@@ -5,7 +5,16 @@
 // §4). Opened from Chat, from a conversation, from the share sheet
 // (`from=share`) and from a system action (`from=camera`).
 import { useEffect, useRef, useState } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useIncomingShare } from 'expo-sharing'
@@ -30,7 +39,8 @@ type Params = { thread?: string; from?: string; text?: string }
 function ItemRow({ item, onRemove }: { item: IntakeItem; onRemove: () => void }) {
   const { palette } = useTheme()
   const image = item.kind === 'file' && item.mimeType.startsWith('image/')
-  const title = item.kind === 'file' ? item.name : item.kind === 'link' ? (item.title ?? item.url) : item.text.trim()
+  const title =
+    item.kind === 'file' ? item.name : item.kind === 'link' ? (item.title ?? item.url) : item.text.trim()
   const detail =
     item.kind === 'file'
       ? [item.mimeType, sizeWords(item.size)].filter(Boolean).join(' · ')
@@ -75,7 +85,9 @@ export default function IntakeScreen() {
   const deliveries = useDeliveries()
   const [items, setItems] = useState<IntakeItem[]>(takeStaged)
   const [instruction, setInstruction] = useState(params.text ?? '')
-  const [receiver, setReceiver] = useState<Receiver | undefined>(() => (params.thread ? undefined : lastReceiver()))
+  const [receiver, setReceiver] = useState<Receiver | undefined>(() =>
+    params.thread ? undefined : lastReceiver(),
+  )
   const [receiverError, setReceiverError] = useState<unknown>()
   const [picking, setPicking] = useState(false)
   const [working, setWorking] = useState<string>()
@@ -186,17 +198,33 @@ export default function IntakeScreen() {
               <ItemRow key={item.id} item={item} onRemove={() => remove(item)} />
             ))}
             {share.isResolving ? <Row title="Reading what was shared…" /> : null}
-            {share.error ? <Row title="Could not read what was shared" detail={share.error.message} wrap /> : null}
+            {share.error ? (
+              <Row title="Could not read what was shared" detail={share.error.message} wrap />
+            ) : null}
             <View style={styles.sources}>
-              <Button label="Camera" busy={working === 'camera'} onPress={() => void add('camera', fromCamera)} />
-              <Button label="Photos" busy={working === 'library'} onPress={() => void add('library', fromLibrary)} />
+              <Button
+                label="Camera"
+                busy={working === 'camera'}
+                onPress={() => void add('camera', fromCamera)}
+              />
+              <Button
+                label="Photos"
+                busy={working === 'library'}
+                onPress={() => void add('library', fromLibrary)}
+              />
               <Button label="Files" busy={working === 'files'} onPress={() => void add('files', fromFiles)} />
             </View>
           </Section>
 
           <Section title="To">
             <Row
-              title={receiver ? receiver.title : receiverError ? 'That conversation could not be read' : 'Choose a conversation'}
+              title={
+                receiver
+                  ? receiver.title
+                  : receiverError
+                    ? 'That conversation could not be read'
+                    : 'Choose a conversation'
+              }
               detail={
                 receiver
                   ? `Theorem · ${receiver.projectTitle}`

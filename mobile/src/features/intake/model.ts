@@ -48,14 +48,7 @@ export type Receiver = {
  * - `failed`: something went wrong that trying again may fix.
  */
 export type Stage =
-  | 'queued'
-  | 'uploading'
-  | 'uploaded'
-  | 'sending'
-  | 'admitted'
-  | 'recorded'
-  | 'refused'
-  | 'failed'
+  'queued' | 'uploading' | 'uploaded' | 'sending' | 'admitted' | 'recorded' | 'refused' | 'failed'
 
 export type Delivery = {
   /** Also the conversation command id and the prefix of each upload's idempotency key. */

@@ -7,15 +7,7 @@
 //   SDK, so a lost answer is reconciled instead of sent twice;
 // - a delivery found in `sending` first looks for its message in the thread,
 //   and sends only if it is not there.
-import {
-  afterSend,
-  files,
-  isSettled,
-  messageText,
-  type Delivery,
-  type FileItem,
-  type Stage,
-} from './model'
+import { afterSend, files, isSettled, messageText, type Delivery, type FileItem, type Stage } from './model'
 
 export type SendAnswer = {
   record?: { messageId?: string; parts?: { type: string; payload?: unknown }[] }
@@ -81,7 +73,8 @@ export async function deliver(start: Delivery, deps: DeliverDeps): Promise<Deliv
     if (wasSending) answer = await deps.findStored(delivery, text, uploadIds)
     if (!answer) {
       await put({ stage: 'sending', stoppedAt: undefined, error: undefined })
-      answer = (await deps.send(delivery, text, uploadIds)) ?? (await deps.findStored(delivery, text, uploadIds))
+      answer =
+        (await deps.send(delivery, text, uploadIds)) ?? (await deps.findStored(delivery, text, uploadIds))
       // No answer and no stored message: nothing confirms the send, so it is not called accepted.
       if (!answer) throw new Error('Theorem did not confirm the message.')
     }

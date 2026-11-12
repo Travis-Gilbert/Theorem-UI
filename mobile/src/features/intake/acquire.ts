@@ -25,7 +25,12 @@ export async function fromCamera(): Promise<IntakeItem[]> {
   const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, exif: false })
   if (result.canceled) return []
   return result.assets.map((asset) =>
-    keep(id(), 'camera', { uri: asset.uri, name: asset.fileName, mimeType: asset.mimeType, size: asset.fileSize }),
+    keep(id(), 'camera', {
+      uri: asset.uri,
+      name: asset.fileName,
+      mimeType: asset.mimeType,
+      size: asset.fileSize,
+    }),
   )
 }
 
@@ -39,7 +44,12 @@ export async function fromLibrary(): Promise<IntakeItem[]> {
   })
   if (result.canceled) return []
   return result.assets.map((asset) =>
-    keep(id(), 'library', { uri: asset.uri, name: asset.fileName, mimeType: asset.mimeType, size: asset.fileSize }),
+    keep(id(), 'library', {
+      uri: asset.uri,
+      name: asset.fileName,
+      mimeType: asset.mimeType,
+      size: asset.fileSize,
+    }),
   )
 }
 

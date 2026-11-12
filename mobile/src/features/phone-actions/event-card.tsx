@@ -58,7 +58,13 @@ function answer(runId: string, request: OperationRequest): Promise<void> {
 
 const outcomeKey = (requestRef: string) => `calendar.outcome.${requestRef}`
 
-export function EventProposalCard({ request, runId }: { request: OperationRequest; runId: string | undefined }) {
+export function EventProposalCard({
+  request,
+  runId,
+}: {
+  request: OperationRequest
+  runId: string | undefined
+}) {
   const { palette } = useTheme()
   const parsed = parseProposal(request.args)
   const [outcome, setOutcome] = useState<EditorOutcome | undefined>(
@@ -141,7 +147,8 @@ export function EventProposalCard({ request, runId }: { request: OperationReques
       {error ? <Text tone="error">{describeError(error)}</Text> : null}
       {receiptError ? (
         <Text variant="label" tone="attention">
-          Theorem was not told this card was shown ({describeError(receiptError)}). You can still add the event.
+          Theorem was not told this card was shown ({describeError(receiptError)}). You can still add the
+          event.
         </Text>
       ) : null}
       <Button

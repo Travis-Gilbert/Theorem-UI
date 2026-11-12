@@ -16,8 +16,15 @@ const VOUCH_MS = 90_000
 const KEY = 'presence.live'
 
 type Kept = { instanceId: string; threadId?: string; activity: Activity }
-type Instance = { getId(): string; update(props: TaskActivityProps, staleDate?: Date): Promise<void>; end(policy?: 'default' | 'immediate', props?: TaskActivityProps, contentDate?: Date): Promise<void> }
-type Factory = { start(props: TaskActivityProps, url?: string, staleDate?: Date): Instance; getInstances(): Instance[] }
+type Instance = {
+  getId(): string
+  update(props: TaskActivityProps, staleDate?: Date): Promise<void>
+  end(policy?: 'default' | 'immediate', props?: TaskActivityProps, contentDate?: Date): Promise<void>
+}
+type Factory = {
+  start(props: TaskActivityProps, url?: string, staleDate?: Date): Instance
+  getInstances(): Instance[]
+}
 
 let factory: Factory | null | undefined
 const instances = new Map<string, Instance>()
@@ -129,9 +136,7 @@ export const liveActivities = {
       try {
         const { thread } = await theorem().chat.threads.get({ threadId: entry.threadId })
         if (thread.activeRunId) {
-          await instances
-            .get(activityId)
-            ?.update(propsOf(entry.activity), new Date(Date.now() + VOUCH_MS))
+          await instances.get(activityId)?.update(propsOf(entry.activity), new Date(Date.now() + VOUCH_MS))
           continue
         }
         // Theorem says the run is over; how it ended is read when the conversation is next opened.

@@ -41,7 +41,13 @@ export function reduce(session: Session, event: Event): Session {
     case 'state':
       if (event.state === 'picking') return { ...initial, phase: 'picking' }
       if (event.state === 'capturing')
-        return { ...session, phase: 'capturing', reason: '', microphone: event.microphone, startedAtMs: event.atMs }
+        return {
+          ...session,
+          phase: 'capturing',
+          reason: '',
+          microphone: event.microphone,
+          startedAtMs: event.atMs,
+        }
       // The last still stays on screen after sharing ends, marked as old by `staleness`.
       return { ...session, phase: event.state, reason: event.reason, microphone: false }
     case 'frame':
@@ -74,14 +80,19 @@ export function staleness(session: Session, nowMs: number): Staleness {
   return nowMs - session.frame.capturedAtMs <= LIVE_WITHIN_MS ? 'live' : 'old'
 }
 
-export function statusLine(session: Session): { label: string; detail: string; tone: 'neutral' | 'live' | 'attention' | 'error' } {
+export function statusLine(session: Session): {
+  label: string
+  detail: string
+  tone: 'neutral' | 'live' | 'attention' | 'error'
+} {
   switch (session.phase) {
     case 'idle':
       return { label: 'Not sharing', detail: 'Nothing on this phone is being captured.', tone: 'neutral' }
     case 'picking':
       return {
         label: 'Waiting for you',
-        detail: 'Choose in the system’s sheet whether to share the screen, and whether to include the microphone.',
+        detail:
+          'Choose in the system’s sheet whether to share the screen, and whether to include the microphone.',
         tone: 'attention',
       }
     case 'capturing':
@@ -95,7 +106,11 @@ export function statusLine(session: Session): { label: string; detail: string; t
     case 'stopped':
       return { label: 'Stopped', detail: session.reason || 'Sharing ended.', tone: 'neutral' }
     case 'failed':
-      return { label: 'Could not share', detail: session.reason || 'The system did not say why.', tone: 'error' }
+      return {
+        label: 'Could not share',
+        detail: session.reason || 'The system did not say why.',
+        tone: 'error',
+      }
   }
 }
 

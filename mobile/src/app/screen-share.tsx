@@ -115,7 +115,12 @@ export default function ScreenShareScreen() {
         {error ? <Text tone="error">{describeError(error)}</Text> : null}
         <View style={styles.actions}>
           {active ? (
-            <Button label="Stop sharing" variant="destructive" busy={busy} onPress={() => void run(() => module.stop())} />
+            <Button
+              label="Stop sharing"
+              variant="destructive"
+              busy={busy}
+              onPress={() => void run(() => module.stop())}
+            />
           ) : (
             <Button
               label="Share my screen…"
@@ -127,7 +132,9 @@ export default function ScreenShareScreen() {
           <Button
             label="Speak a test line"
             disabled={session.phase !== 'capturing'}
-            onPress={() => void run(() => module.speak('This is Theo, speaking while your screen is shared.'))}
+            onPress={() =>
+              void run(() => module.speak('This is Theo, speaking while your screen is shared.'))
+            }
           />
         </View>
       </View>

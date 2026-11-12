@@ -9,19 +9,28 @@ const frame = (sequence: number, capturedAtMs = sequence * 1000): Frame => ({
   height: 1280,
   capturedAtMs,
 })
-const capturing = reduce(reduce(initial, { type: 'state', state: 'picking', reason: '', microphone: false, atMs: 0 }), {
-  type: 'state',
-  state: 'capturing',
-  reason: '',
-  microphone: true,
-  atMs: 10,
-})
+const capturing = reduce(
+  reduce(initial, { type: 'state', state: 'picking', reason: '', microphone: false, atMs: 0 }),
+  {
+    type: 'state',
+    state: 'capturing',
+    reason: '',
+    microphone: true,
+    atMs: 10,
+  },
+)
 
 describe('a screen-sharing session', () => {
   test('says what is captured, and that the microphone is on only when the person turned it on', () => {
     expect(statusLine(initial).label).toBe('Not sharing')
     expect(statusLine(capturing).detail).toContain('and the microphone')
-    const silent = reduce(initial, { type: 'state', state: 'capturing', reason: '', microphone: false, atMs: 1 })
+    const silent = reduce(initial, {
+      type: 'state',
+      state: 'capturing',
+      reason: '',
+      microphone: false,
+      atMs: 1,
+    })
     expect(statusLine(silent).detail).toContain('The microphone is off')
   })
 
@@ -47,7 +56,13 @@ describe('a screen-sharing session', () => {
     const one = reduce(capturing, { type: 'frame', frame: frame(1, 1_000), appActive: true })
     expect(staleness(one, 2_000)).toBe('live')
     expect(staleness(one, 9_000)).toBe('old')
-    const ended = reduce(one, { type: 'state', state: 'stopped', reason: 'You stopped sharing.', microphone: false, atMs: 3_000 })
+    const ended = reduce(one, {
+      type: 'state',
+      state: 'stopped',
+      reason: 'You stopped sharing.',
+      microphone: false,
+      atMs: 3_000,
+    })
     expect(staleness(ended, 2_000)).toBe('ended')
     expect(ended.frame?.sequence).toBe(1)
     expect(statusLine(ended).detail).toBe('You stopped sharing.')
@@ -62,7 +77,17 @@ describe('a screen-sharing session', () => {
   })
 
   test('a failure carries the system’s reason', () => {
-    const failed = reduce(initial, { type: 'state', state: 'failed', reason: 'Not permitted', microphone: false, atMs: 1 })
-    expect(statusLine(failed)).toMatchObject({ label: 'Could not share', detail: 'Not permitted', tone: 'error' })
+    const failed = reduce(initial, {
+      type: 'state',
+      state: 'failed',
+      reason: 'Not permitted',
+      microphone: false,
+      atMs: 1,
+    })
+    expect(statusLine(failed)).toMatchObject({
+      label: 'Could not share',
+      detail: 'Not permitted',
+      tone: 'error',
+    })
   })
 })
