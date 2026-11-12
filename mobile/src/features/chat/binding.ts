@@ -14,7 +14,7 @@ export interface Conversation {
   connect(): Promise<void>
   observe(): Promise<void>
   detach(): void
-  send(id: string, request: { text: string }): Promise<unknown>
+  send(id: string, request: { text: string; uploadIds?: string[] }): Promise<unknown>
   stop(id: string, reason?: string): Promise<void>
 }
 
@@ -69,8 +69,14 @@ class Session {
 
 export type Lease = {
   readonly conversation: Conversation
-  /** Admits a message under a fresh command id. The id is journaled first. */
-  send(text: string): Promise<unknown>
+  /** Resolves once the conversation is connected; a send before that is refused by the session. */
+  ready(): Promise<void>
+  /**
+   * Admits a message. The command id is journaled first. A caller that must
+   * survive termination (intake) supplies its own id, so the same delivery is
+   * the same command however often it is resumed.
+   */
+  send(text: string, options?: { id?: string; uploadIds?: string[] }): Promise<unknown>
   /** The person pressed Stop: a durable cancel of the run or pending admission. */
   stop(): Promise<void>
   /** The view is gone. Observation may end; the run is not touched. */
@@ -99,8 +105,12 @@ export class ConversationBinding {
     let released = false
     return {
       conversation: session.conversation,
-      send: async (text) => {
-        const result = await session.conversation.send(this.options.newId(), { text })
+      ready: () => session.attach(),
+      send: async (text, options) => {
+        const result = await session.conversation.send(options?.id ?? this.options.newId(), {
+          text,
+          ...(options?.uploadIds?.length ? { uploadIds: options.uploadIds } : {}),
+        })
         session.follow()
         return result
       },
