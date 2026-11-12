@@ -469,63 +469,67 @@ export function runErrorOf(messages: readonly ThreadMessage[]) {
 }
 
 /**
- * Serves face requests from one conversation for as long as it is mounted,
- * and tells the face what the run's tools are doing: each one that finishes
- * is an event, and one that fails is a different one. Each call that starts
- * or ends is counted into the run's pace too, `effort` says what
+ * Serves face requests from one conversation until the returned function is
+ * called, and tells the face what the run's tools are doing: each one that
+ * finishes is an event, and one that fails is a different one. Each call
+ * that starts or ends is counted into the run's pace too, `effort` says what
  * reasoning effort the conversation's sends ask for, and the newest usage
  * the server reported says how full the conversation is.
  */
+export function watchFace(
+  runtime: ThreadSource,
+  effort?: () => string | undefined,
+) {
+  let seen: ReturnType<typeof toolFactsOf>
+  let errored: string | undefined
+  // Tools that finished before this page was looking are not news.
+  let first = true
+  let running = false
+  const serve = () => {
+    const { messages, isRunning } = runtime.thread.getState()
+    void serveFaceRequests(faceRequestsOf(messages, isRunning))
+    const facts = toolFactsOf(messages, isRunning)
+    if (facts && !first && useFaceStage.getState().mounted) {
+      const before =
+        seen?.id === facts.id ? seen : { called: 0, done: 0, failed: 0 }
+      const face = theFace()
+      const work = theWork()
+      const now = performance.now()
+      for (let index = before.called; index < facts.called; index++)
+        work.tool(now)
+      for (let index = before.failed; index < facts.failed; index++) {
+        face.notice('run.tool.fail')
+        work.tool(now, true)
+      }
+      const passed = facts.done - facts.failed - (before.done - before.failed)
+      for (let index = 0; index < passed; index++) {
+        face.notice('run.tool')
+        work.tool(now)
+      }
+    }
+    if (isRunning) {
+      const work = theWork()
+      const context = contextOf(messages)
+      // A run keeps the effort it was sent with: the setting can be changed for the next message while it works.
+      if (!running) work.effort = effortShare(effort?.())
+      work.context = contextShare(context?.tokens, context?.window)
+    }
+    running = isRunning
+    seen = facts ?? seen
+    const error = runErrorOf(messages)
+    if (error && error !== errored && !first && useFaceStage.getState().mounted)
+      theFace().notice('run.error')
+    errored = error
+    first = false
+  }
+  serve()
+  return runtime.thread.subscribe(serve)
+}
+
+/** `watchFace` for as long as a conversation is mounted. */
 export function useFaceRequests(
   runtime: ThreadSource,
   effort?: () => string | undefined,
 ) {
-  useEffect(() => {
-    let seen: ReturnType<typeof toolFactsOf>
-    let errored: string | undefined
-    // Tools that finished before this page was looking are not news.
-    let first = true
-    const serve = () => {
-      const { messages, isRunning } = runtime.thread.getState()
-      void serveFaceRequests(faceRequestsOf(messages, isRunning))
-      const facts = toolFactsOf(messages, isRunning)
-      if (facts && !first && useFaceStage.getState().mounted) {
-        const before =
-          seen?.id === facts.id ? seen : { called: 0, done: 0, failed: 0 }
-        const face = theFace()
-        const work = theWork()
-        const now = performance.now()
-        for (let index = before.called; index < facts.called; index++)
-          work.tool(now)
-        for (let index = before.failed; index < facts.failed; index++) {
-          face.notice('run.tool.fail')
-          work.tool(now, true)
-        }
-        const passed = facts.done - facts.failed - (before.done - before.failed)
-        for (let index = 0; index < passed; index++) {
-          face.notice('run.tool')
-          work.tool(now)
-        }
-      }
-      if (isRunning) {
-        const work = theWork()
-        const context = contextOf(messages)
-        work.effort = effortShare(effort?.())
-        work.context = contextShare(context?.tokens, context?.window)
-      }
-      seen = facts ?? seen
-      const error = runErrorOf(messages)
-      if (
-        error &&
-        error !== errored &&
-        !first &&
-        useFaceStage.getState().mounted
-      )
-        theFace().notice('run.error')
-      errored = error
-      first = false
-    }
-    serve()
-    return runtime.thread.subscribe(serve)
-  }, [runtime, effort])
+  useEffect(() => watchFace(runtime, effort), [runtime, effort])
 }

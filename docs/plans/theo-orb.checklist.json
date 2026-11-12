@@ -23,13 +23,13 @@
       "id": "effort",
       "item": "run.effort is the reasoning effort the run was asked for, least 0 to most 1, the middle where none was",
       "status": "done",
-      "evidence": "work.ts effortShare; lib/theorem/generation.ts requestedEffort; orb.test.ts 'an effort level is where it lies...'. A model's own default effort is not read"
+      "evidence": "work.ts effortShare; lib/theorem/generation.ts requestedEffort; orb.test.ts 'an effort level is where it lies...'; read once at the run's start, operations.ts watchFace, operations.test.ts 'a run keeps the effort it was sent with...'. A model's own default effort is not read"
     },
     {
       "id": "counted",
       "item": "Tool calls are counted from the running message's parts, and the effort read from the conversation's setting",
       "status": "done",
-      "evidence": "src/lib/face/operations.ts useFaceRequests, toolFactsOf; operations.test.ts 'a turn's finished tools are counted, failures apart'; src/lib/theorem/runtime.tsx. Not seen in a live run"
+      "evidence": "src/lib/face/operations.ts watchFace, toolFactsOf; operations.test.ts 'a turn's finished tools are counted, failures apart'; src/lib/theorem/runtime.tsx. Not seen in a live run"
     },
     {
       "id": "form",

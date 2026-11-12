@@ -19,9 +19,11 @@ import {
   serveFaceRequests,
   contextOf,
   toolFactsOf,
+  watchFace,
 } from './operations'
 import type { FaceReceipt, FaceRequest } from './operations'
 import { useFaceStage } from './store'
+import { theWork } from './work'
 
 /** A client operation part on a live run's message, as the installed SDK maps it onto assistant-ui. */
 const liveMessage = (
@@ -231,6 +233,60 @@ describe('reading requests off a conversation', () => {
     expect(
       contextOf([earlier, message('m4', [usage({ contextTokens: null })])]),
     ).toEqual({ tokens: 120_000, window: 1_000_000 })
+  })
+
+  test('a run keeps the effort it was sent with, and its context keeps up with what the server reports', () => {
+    const usage = (contextTokens: number) =>
+      ({
+        id: 'm1',
+        role: 'assistant',
+        status: { type: 'running' },
+        metadata: { custom: {} },
+        content: [
+          {
+            type: 'data',
+            name: 'theorem-usage',
+            data: { contextTokens, contextWindow: 1_000_000 },
+          },
+        ],
+      }) as unknown as ThreadMessage
+    let state: { messages: readonly ThreadMessage[]; isRunning: boolean } = {
+      messages: [],
+      isRunning: false,
+    }
+    const listeners = new Set<() => void>()
+    const update = (next: typeof state) => {
+      state = next
+      for (const listener of listeners) listener()
+    }
+    let asked = 'low'
+    const stop = watchFace(
+      {
+        thread: {
+          getState: () => state,
+          subscribe: (listener) => {
+            listeners.add(listener)
+            return () => listeners.delete(listener)
+          },
+        },
+      },
+      () => asked,
+    )
+    const work = theWork()
+    update({ messages: [], isRunning: true })
+    expect(work.effort).toBe(0)
+    // The menu is changed for the next message while this one works.
+    asked = 'max'
+    update({ messages: [usage(700_000)], isRunning: true })
+    expect(work.effort).toBe(0)
+    expect(work.context).toBe(0.5)
+    update({ messages: [usage(700_000)], isRunning: false })
+    update({ messages: [usage(700_000)], isRunning: true })
+    expect(work.effort).toBe(1)
+    stop()
+    expect(listeners.size).toBe(0)
+    work.effort = 0.5
+    work.context = 0
   })
 
   test('a reply that ended in an error is told apart from one that did not', () => {

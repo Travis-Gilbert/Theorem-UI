@@ -83,11 +83,14 @@ Three signals, measured from the run (`lib/face/signals.ts`,
 While nothing runs all three are 0.
 
 The tool calls are counted where the face already hears of them
-(`useFaceRequests` in `lib/face/operations.ts`): a call is counted when its
+(`watchFace` in `lib/face/operations.ts`): a call is counted when its
 part appears in the running message and again when it has a result. The
 effort is the conversation's own setting, else the account's default
-(`requestedEffort` in `lib/theorem/generation.ts`). A model's own default
-effort is not read, so with neither set the orb is the middle size.
+(`requestedEffort` in `lib/theorem/generation.ts`), read once when the
+run starts and kept until it ends: changing the setting while a reply is
+being written is a choice for the next message, and does not resize the
+orb of the one at work. A model's own default effort is not read, so with
+neither set the orb is the middle size.
 
 The context is what the server last reported. Its `usage` part of
 theorem-chat/1 carries `contextTokens`, the prompt's occupancy at the last
@@ -189,8 +192,8 @@ out by chance, back after an ask, faster and more stirred with pace, no
 jump on a change of speed, larger with effort and inside the visor,
 looser with context and inside the visor, with motion reduced not
 turning and still showing its size and shape, the relief sequence kept,
-the program compiles and the manual lists the signals). `contextOf` is
-tested in `operations.test.ts`.
+the program compiles and the manual lists the signals). `contextOf` and
+the effort held for a run are tested in `operations.test.ts`.
 
 Renders under `evidence/theo-orb/`, from the stories `face-sound` and
 `face-in-shell` in headless Chromium on software WebGL. The run in them is
