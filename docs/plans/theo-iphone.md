@@ -7,7 +7,8 @@ names what is missing, and lists the decisions that are the owner's.
 `theo-iphone.checklist.json` tracks each item with its evidence.
 
 Written 2026-11-12 on Linux, with no Xcode, simulator or phone. Built the
-same day on EAS; "Native build" says what that showed and changed.
+same day on EAS, then locally on a Mac with Xcode 27.2 and run in the iOS
+Simulator; "Native build" says what each showed and changed.
 
 ## How to read the evidence
 
@@ -23,10 +24,12 @@ than it earned:
 | **built**              | Xcode or EAS compiled and linked it. Say for which SDK: the simulator and the device are separate          |
 | **observed on device** | A person saw it happen on an iPhone. A simulator observation is not this, and is called simulator-observed |
 
-The app and both extensions are built for the iOS Simulator, and compiled and
-linked unsigned for the device SDK. The ScreenCaptureKit route is only in the
-device build: the simulator SDK has no ScreenCaptureKit. Nothing is signed,
-and nothing has run on a simulator or a phone.
+The app and both extensions are built for the iOS Simulator (on EAS with
+Xcode 27.1, and locally with Xcode 27.2), and compiled and linked unsigned for
+the device SDK. The ScreenCaptureKit route is only in the device build: the
+simulator SDK has no ScreenCaptureKit. The app has run in the iOS Simulator,
+signed out; the simulator-observed results are under "Native build". Nothing
+is signed for a device, and nothing has run on a phone.
 
 ## Where this sits
 
@@ -331,17 +334,79 @@ warning in the build came from `app-intents/` or `modules/theo-capture/`.
 What the simulator bundle contains: `UIBackgroundModes` `screen-capture` and
 `audio`, `NSScreenCaptureUsageDescription`, `NSSupportsLiveActivities`,
 `NSCameraUsageDescription`, minimum iOS 18.0 (16.4 for both extensions), and
-links to AppIntents and ActivityKit. Simulator builds carry no entitlements,
-so the App Group is not yet signed or provisioned anywhere.
+links to AppIntents and ActivityKit. EAS's simulator builds carry no
+entitlements. (Corrected: this said "simulator builds" in general. The local
+Xcode build below embeds simulated entitlements, `application-identifier`,
+the App Group and the associated domain, in the binary's `__entitlements`
+section, under an ad-hoc signature with no team identifier.) The App Group is
+not yet provisioned for a device anywhere.
 
-Not done: no simulator ran it (EAS's hosted simulator is not available on
-this account, and there is no local Xcode), no signed build, no device.
+### Local build on Xcode 27.2
+
+Done on 2026-11-12 on a Mac (macOS 27.0.1) with Xcode 27.2 (27B52) and the
+iPhoneSimulator 27.2 SDK: `bun run ios` (`expo run:ios`) after
+`expo prebuild --clean` and `pod install`. Result: "Build Succeeded, 0
+error(s), and 5 warning(s)", the app, `ExpoWidgetsTarget.appex` and
+`expo-sharing-extension.appex` built and linked, installed and opened on an
+iPhone 17 Pro simulator (iOS 26.5). The same `.app` also installed and ran on
+an iPhone 17 Pro simulator on iOS 27.2. Xcode 27.2 found three things Xcode
+27.1 on EAS had not:
+
+6. **Xcode 27.2 refused to open the generated project:** "The reference
+   Info.plist is a member of more than one group, which is not allowed."
+   The `xcode` package's `addPbxGroup` reuses a file reference with the same
+   path, so expo-sharing's and expo-widgets' groups shared one `Info.plist`
+   reference; Xcode 27.1 accepted that. This is expo/expo#52987, fixed
+   upstream in #53205 and #53206 but in no SDK 58 release yet.
+   `mobile/plugins/own-group-file-references.js` ports the fix: after every
+   other mod, a group that lists a reference another group already lists
+   gets its own copy. Remove it once expo-sharing and expo-widgets ship it.
+7. **The app target could not find the Swift packages' C module maps**
+   under Xcode's default derived data: clang looked for
+   `ModuleCache.noindex/../SourcePackages/checkouts/...`, which does not
+   exist. The podspec anchored the package checkouts on
+   `MODULE_CACHE_DIR`, which is inside the project's derived data only when
+   `-derivedDataPath` is passed, as EAS does. It now anchors on `OBJROOT`,
+   with the build and the archive layouts both listed.
+8. **A plain launch opened Expo Router's "Unmatched Route"** for
+   `theorem:///`: the root Stack had no index route, and none of the
+   protected routes is the anchor. `mobile/src/app/index.tsx` is now the
+   anchor, outside both guards; it sends a signed-in person to Chat and
+   anyone else to sign-in, so a refused protected route that falls back to it
+   cannot loop.
+
+Simulator-observed (not on a device), signed out, because signing in needs a
+dev bearer token or a registered OAuth client:
+
+- A plain launch shows the sign-in screen with the authority
+  `travis-theorem-personal.fly.dev` and the development bearer-token field.
+- Shortcuts lists the three Theorem actions: "Capture for a conversation",
+  "Share into a conversation" and "Continue the conversation". Running
+  "Capture for a conversation" on iOS 26.5 failed with "Unable to run App
+  Shortcut"; linkd logged `Unable to get teamId from rs.theorem.app` and then
+  `Couldn't find AppShortcutsProvider`. The provider is in the build:
+  `Metadata.appintents` names `7Theorem12AppShortcutsV`, and the type is in
+  `Theorem.debug.dylib`. The simulator build's signature is ad-hoc with no
+  team identifier, which is where linkd stops; whether a device build signed
+  with a team runs them is not known. On iOS 27.2 linkd registered the app's
+  shortcuts (`LNAppShortcutsChangedNotification` for `rs.theorem.app`);
+  running one there was not attempted.
+- In Photos, Share lists Theorem. Choosing it runs `expo-sharing-extension`
+  and opens the app (the status bar's back link reads "Photos"). Signed out,
+  the app shows sign-in and the shared photo is not kept, which is owner
+  decision 12 as written.
+
+Not done: no signed device build (the owner's iPhone is paired with this Mac;
+running on it needs the device registered and a development profile, which
+the owner approves), and nothing signed in.
 
 ## What to try on a real phone
 
-Nothing below has been observed on a device or in a simulator. Items 1 and 2
-are now built (see "Native build"); everything else needs a signed
-development build on an iPhone
+Nothing below has been observed on a device. Items 1 and 2 are built, on EAS
+and locally (see "Native build"). Items 10 and 11 are partly
+simulator-observed: Theorem is in the Photos share sheet and opens the app;
+Shortcuts lists the three actions, and running one failed in the simulator.
+Everything else needs a signed development build on an iPhone
 (`bunx eas-cli build --profile development --platform ios`, after the device
 is registered). The screen-sharing checks also need iOS 27.
 
