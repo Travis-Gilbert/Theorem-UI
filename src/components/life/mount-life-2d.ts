@@ -8,6 +8,7 @@ import {
   createField,
   ghostAt,
   paint,
+  paintLine,
   population,
   resize,
   stamp,
@@ -174,8 +175,13 @@ export function mountLife2d(
       const top = hovered.y - Math.floor(pattern.height / 2)
       ctx.fillStyle = accent
       ctx.globalAlpha = 0.5
-      for (const [x, y] of pattern.cells)
-        ctx.fillText('o', (left + x + 0.5) * CELL_W, (top + y + 0.5) * CELL_H)
+      for (const [x, y] of pattern.cells) {
+        const row = top + y
+        // stamp() wraps horizontally but clips outside the top/bottom.
+        if (row < 0 || row >= field.rows) continue
+        const col = (((left + x) % field.cols) + field.cols) % field.cols
+        ctx.fillText('o', (col + 0.5) * CELL_W, (row + 0.5) * CELL_H)
+      }
     }
     ctx.globalAlpha = 1
   }
@@ -229,21 +235,6 @@ export function mountLife2d(
     }
   }
 
-  // Paint every cell a pointer traverses, including moves that the browser
-  // coalesces into one event. Keep the previous point for the next segment.
-  const paintSegment = (
-    from: { x: number; y: number },
-    to: { x: number; y: number },
-    on: boolean,
-  ) => {
-    const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1)
-    for (let i = 0; i <= steps; i++) {
-      const x = Math.round(from.x + ((to.x - from.x) * i) / steps)
-      const y = Math.round(from.y + ((to.y - from.y) * i) / steps)
-      field = paint(field, x, y, on)
-    }
-  }
-
   repaint()
   fit(host.clientWidth, host.clientHeight)
   draw()
@@ -271,7 +262,7 @@ export function mountLife2d(
     drag(x, y) {
       hovered = at(x, y)
       if (stroke) {
-        paintSegment(stroke, hovered, stroke.on)
+        field = paintLine(field, stroke, hovered, stroke.on)
         stroke = { ...hovered, on: stroke.on }
         draw()
       }
