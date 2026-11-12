@@ -13,10 +13,16 @@ import {
 import type { ThreadMessageLike } from '@assistant-ui/react'
 import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
-import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
+import {
+  ARTIFACT_PART,
+  readArtifact,
+} from '@/components/artifacts/artifact-model'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
+import {
+  LIBRARY_ID,
+  LIBRARY_VERSION,
+} from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
 import { FaceBench, FaceBook } from '@/components/face/face-bench'
 import { FaceStage } from '@/components/face/face-stage'
@@ -31,6 +37,7 @@ import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
+import { GlassCompareStory } from './glass-compare'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
 import type { NoteFlowNode } from '@/lib/program/flow'
@@ -53,7 +60,9 @@ import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
 
 function WithRuntime({ children }: { children: React.ReactNode }) {
-  const [threadId, setThreadId] = useState<string | undefined>('thread-app-gallery')
+  const [threadId, setThreadId] = useState<string | undefined>(
+    'thread-app-gallery',
+  )
   return (
     <TheoremRuntimeProvider
       projectId="project-theorem"
@@ -286,7 +295,9 @@ function partsStory(messages: ThreadMessageLike[]) {
       <AssistantRuntimeProvider runtime={runtime}>
         <TheoremPartRenderers />
         <div className="mx-auto w-full max-w-(--spacing-reading) px-4 py-4">
-          <ThreadPrimitive.Messages components={{ Message: ArtifactPartMessage }} />
+          <ThreadPrimitive.Messages
+            components={{ Message: ArtifactPartMessage }}
+          />
         </div>
       </AssistantRuntimeProvider>
     )
@@ -375,9 +386,8 @@ function threadStory(
   }
 }
 
-const POINTING_MESSAGES: ThreadMessageLike[] = toAssistantMessages(
-  pointingMessages(),
-)
+const POINTING_MESSAGES: ThreadMessageLike[] =
+  toAssistantMessages(pointingMessages())
 
 /**
  * Theo on a conversation with things to be sent to: a tool call that failed,
@@ -475,7 +485,10 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   ...Object.fromEntries(
     ARTIFACT_STORIES.map((story) => [story.id, artifactStory(story)]),
   ),
-  'activity-approval-high': threadStory('approval', activityMessages('approval', 'high')),
+  'activity-approval-high': threadStory(
+    'approval',
+    activityMessages('approval', 'high'),
+  ),
   'tool-pills': threadStory('working', toolPillMessages()),
   'tool-calls-check': threadStory('finished', appCheckMessages()),
   'face-bench': FaceBench,
@@ -489,6 +502,11 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'compare-pane': ComparePaneStory,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'glass-compare': () => (
+    <WithRuntime>
+      <GlassCompareStory />
+    </WithRuntime>
+  ),
   'conversation-wide': ConversationWideStory,
   'note-kinds': NoteKindsStory,
   'canvas-note-types': CanvasNoteTypesStory,
