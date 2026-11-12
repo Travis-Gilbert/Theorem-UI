@@ -1,10 +1,11 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import {
   GHOST_FRAMES,
   alive,
   clear,
   createField,
   paint,
+  paintLine,
   population,
   randomize,
   resize,
@@ -16,24 +17,49 @@ import { PATTERNS, parsePattern } from './patterns'
 const living = (field: ReturnType<typeof createField>) => {
   const cells: Array<[number, number]> = []
   for (let y = 0; y < field.rows; y++)
-    for (let x = 0; x < field.cols; x++) if (alive(field, x, y)) cells.push([x, y])
+    for (let x = 0; x < field.cols; x++)
+      if (alive(field, x, y)) cells.push([x, y])
   return cells
 }
 
-const withCells = (cols: number, rows: number, cells: Array<[number, number]>) =>
-  cells.reduce((field, [x, y]) => paint(field, x, y, true), createField(cols, rows))
+const withCells = (
+  cols: number,
+  rows: number,
+  cells: Array<[number, number]>,
+) =>
+  cells.reduce(
+    (field, [x, y]) => paint(field, x, y, true),
+    createField(cols, rows),
+  )
 
 describe('step', () => {
   test('a blinker flips between a row and a column', () => {
-    const row = withCells(5, 5, [[1, 2], [2, 2], [3, 2]])
+    const row = withCells(5, 5, [
+      [1, 2],
+      [2, 2],
+      [3, 2],
+    ])
     const column = step(row)
-    expect(living(column)).toEqual([[2, 1], [2, 2], [2, 3]])
-    expect(living(step(column))).toEqual([[1, 2], [2, 2], [3, 2]])
+    expect(living(column)).toEqual([
+      [2, 1],
+      [2, 2],
+      [2, 3],
+    ])
+    expect(living(step(column))).toEqual([
+      [1, 2],
+      [2, 2],
+      [3, 2],
+    ])
     expect(column.generation).toBe(1)
   })
 
   test('a block survives and its cells age', () => {
-    const block = withCells(4, 4, [[1, 1], [2, 1], [1, 2], [2, 2]])
+    const block = withCells(4, 4, [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ])
     const later = step(step(block))
     expect(living(later)).toEqual(living(block))
     expect(later.age[1 * 4 + 1]).toBe(3)
@@ -62,9 +88,17 @@ describe('step', () => {
   })
 
   test('does not change the field it was given', () => {
-    const row = withCells(5, 5, [[1, 2], [2, 2], [3, 2]])
+    const row = withCells(5, 5, [
+      [1, 2],
+      [2, 2],
+      [3, 2],
+    ])
     step(row)
-    expect(living(row)).toEqual([[1, 2], [2, 2], [3, 2]])
+    expect(living(row)).toEqual([
+      [1, 2],
+      [2, 2],
+      [3, 2],
+    ])
   })
 })
 
@@ -84,7 +118,11 @@ describe('paint', () => {
 describe('stamp', () => {
   test('centres the pattern on the point', () => {
     const field = stamp(createField(9, 9), PATTERNS.blinker.cells, 4, 4)
-    expect(living(field)).toEqual([[3, 4], [4, 4], [5, 4]])
+    expect(living(field)).toEqual([
+      [3, 4],
+      [4, 4],
+      [5, 4],
+    ])
   })
 })
 
@@ -114,7 +152,13 @@ describe('parsePattern', () => {
     expect(parsePattern(['.O.', '..O', 'OOO'])).toEqual({
       width: 3,
       height: 3,
-      cells: [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]],
+      cells: [
+        [1, 0],
+        [2, 1],
+        [0, 2],
+        [1, 2],
+        [2, 2],
+      ],
     })
   })
 
@@ -123,5 +167,59 @@ describe('parsePattern', () => {
     const start = population(field)
     for (let i = 0; i < 120; i++) field = step(field)
     expect(population(field)).toBeGreaterThan(start + 15)
+  })
+})
+
+describe('paintLine', () => {
+  test('paints/erases an entire segment in one copy of each typed array', () => {
+    const initial = createField(24, 12)
+    const ages = spyOn(Uint16Array.prototype, 'slice')
+    const ghosts = spyOn(Uint8Array.prototype, 'slice')
+    try {
+      const line = paintLine(initial, { x: 2, y: 4 }, { x: 20, y: 4 }, true)
+      expect(ages).toHaveBeenCalledTimes(1)
+      expect(ghosts).toHaveBeenCalledTimes(1)
+      expect(population(initial)).toBe(0)
+      expect(population(line)).toBe(19)
+      expect(line.age).not.toBe(initial.age)
+      expect(line.ghost).not.toBe(initial.ghost)
+      expect(line.generation).toBe(initial.generation)
+
+      const erased = paintLine(line, { x: 2, y: 4 }, { x: 20, y: 4 }, false)
+      expect(ages).toHaveBeenCalledTimes(2)
+      expect(ghosts).toHaveBeenCalledTimes(2)
+      expect(population(erased)).toBe(0)
+      expect(population(line)).toBe(19)
+    } finally {
+      ages.mockRestore()
+      ghosts.mockRestore()
+    }
+  })
+
+  test('interpolates diagonals, wraps columns, and clips off-field rows', () => {
+    const line = paintLine(
+      createField(4, 5),
+      { x: -1, y: 0 },
+      { x: 3, y: 4 },
+      true,
+    )
+    expect(living(line)).toEqual([
+      [3, 0],
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ])
+    const clipped = paintLine(
+      createField(4, 3),
+      { x: 0, y: -2 },
+      { x: 0, y: 4 },
+      true,
+    )
+    expect(living(clipped)).toEqual([
+      [0, 0],
+      [0, 1],
+      [0, 2],
+    ])
   })
 })

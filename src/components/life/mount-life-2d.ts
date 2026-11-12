@@ -2,12 +2,30 @@
 // It draws transparent glyphs over the same CSS sheet, without the WebGL
 // compositing layer that can produce horizontal bands on iOS Safari.
 import {
-  ageAt, alive, clear, createField, ghostAt, paint, population, resize,
-  stamp, step,
+  ageAt,
+  alive,
+  clear,
+  createField,
+  ghostAt,
+  paint,
+  paintLine,
+  population,
+  resize,
+  stamp,
+  step,
 } from '@/lib/life/life'
 import type { Field } from '@/lib/life/life'
 import { emit, fill } from '@/lib/life/emitter'
-import { RESTING, beat, decay, glow, pace, pulse, restSeconds, sustain } from '@/lib/life/energy'
+import {
+  RESTING,
+  beat,
+  decay,
+  glow,
+  pace,
+  pulse,
+  restSeconds,
+  sustain,
+} from '@/lib/life/energy'
 import type { Energy } from '@/lib/life/energy'
 import { cellLook } from '@/lib/life/look'
 import { PATTERNS } from '@/lib/life/patterns'
@@ -20,7 +38,10 @@ const CELL_H = 16
 const FRAME_MS = 1000 / 30
 
 /** A transparent, lower-cost projection of the same simulation and controls. */
-export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotion: boolean }): LifeGame {
+export function mountLife2d(
+  host: HTMLElement,
+  { reducedMotion }: { reducedMotion: boolean },
+): LifeGame {
   const canvas = document.createElement('canvas')
   canvas.className = 'absolute inset-0'
   canvas.setAttribute('aria-hidden', 'true')
@@ -30,9 +51,19 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
   if (!ctx) {
     canvas.remove()
     return {
-      press() {}, drag() {}, release() {}, hover() {}, leave() {}, step() {},
-      clear() {}, randomize() {}, pulse() {}, sustain() {}, resize() {},
-      repaint() {}, destroy() {},
+      press() {},
+      drag() {},
+      release() {},
+      hover() {},
+      leave() {},
+      step() {},
+      clear() {},
+      randomize() {},
+      pulse() {},
+      sustain() {},
+      resize() {},
+      repaint() {},
+      destroy() {},
     }
   }
 
@@ -67,7 +98,12 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
       pace: Math.round(pace(energy.level) * 10) / 10,
     }
     const current = useLifeCounts.getState()
-    if (Object.keys(next).some((key) => next[key as keyof typeof next] !== current[key as keyof typeof next]))
+    if (
+      Object.keys(next).some(
+        (key) =>
+          next[key as keyof typeof next] !== current[key as keyof typeof next],
+      )
+    )
       useLifeCounts.setState(next)
   }
 
@@ -92,7 +128,10 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
     field = resize(field, cols, rows)
     if (first) {
       field = fill(field, Math.random)
-      presence = createPresence({ x: Math.floor(cols / 2), y: Math.floor(rows * 5 / 6) })
+      presence = createPresence({
+        x: Math.floor(cols / 2),
+        y: Math.floor((rows * 5) / 6),
+      })
     }
     publish()
   }
@@ -103,9 +142,14 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
     for (let i = 0; i < field.age.length; i++) {
       const look = cellLook(ageAt(field, i), ghostAt(field, i))
       if (!look) continue
-      ctx.fillStyle = look.tone === 'accent' ? accent : look.tone === 'ink' ? ink : muted
+      ctx.fillStyle =
+        look.tone === 'accent' ? accent : look.tone === 'ink' ? ink : muted
       ctx.globalAlpha = Math.min(1, look.weight * level)
-      ctx.fillText(look.glyph, (i % field.cols + 0.5) * CELL_W, (Math.floor(i / field.cols) + 0.5) * CELL_H)
+      ctx.fillText(
+        look.glyph,
+        ((i % field.cols) + 0.5) * CELL_W,
+        (Math.floor(i / field.cols) + 0.5) * CELL_H,
+      )
     }
     if (useLifeControls.getState().companion) {
       ctx.fillStyle = accent
@@ -115,7 +159,28 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
       }
       for (const glyph of figure(presence, seconds, CELL_H / CELL_W)) {
         ctx.globalAlpha = Math.min(1, glyph.weight * 0.75)
-        ctx.fillText(glyph.glyph, (presence.at.x + glyph.dx + 0.5) * CELL_W, (presence.at.y + glyph.dy + 0.5) * CELL_H)
+        ctx.fillText(
+          glyph.glyph,
+          (presence.at.x + glyph.dx + 0.5) * CELL_W,
+          (presence.at.y + glyph.dy + 0.5) * CELL_H,
+        )
+      }
+    }
+    // The selected brush follows the pointer without changing the field.
+    // Match the WebGL renderer's preview placement and glyph.
+    const brush = useLifeControls.getState().brush
+    if (hovered && brush !== 'cell') {
+      const pattern = PATTERNS[brush]
+      const left = hovered.x - Math.floor(pattern.width / 2)
+      const top = hovered.y - Math.floor(pattern.height / 2)
+      ctx.fillStyle = accent
+      ctx.globalAlpha = 0.5
+      for (const [x, y] of pattern.cells) {
+        const row = top + y
+        // stamp() wraps horizontally but clips outside the top/bottom.
+        if (row < 0 || row >= field.rows) continue
+        const col = (((left + x) % field.cols) + field.cols) % field.cols
+        ctx.fillText('o', (col + 0.5) * CELL_W, (row + 0.5) * CELL_H)
       }
     }
     ctx.globalAlpha = 1
@@ -130,10 +195,19 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
     last = now
     seconds += dt
     energy = decay(energy, dt)
-    const next = beat(phase, dt, energy.level, useLifeControls.getState().playing && !reducedMotion)
+    const next = beat(
+      phase,
+      dt,
+      energy.level,
+      useLifeControls.getState().playing,
+    )
     phase = next.steps >= 4 ? 0 : next.phase
-    for (let i = 0; i < Math.min(next.steps, 4); i++) field = step(emit(field, energy.level, Math.random))
-    presence = advance(presence, dt, { still: reducedMotion, quiet: stroke !== undefined })
+    for (let i = 0; i < Math.min(next.steps, 4); i++)
+      field = step(emit(field, energy.level, Math.random))
+    presence = advance(presence, dt, {
+      still: reducedMotion,
+      quiet: stroke !== undefined,
+    })
     if (useLifeControls.getState().companion && !reducedMotion) {
       const nextPresence = companion(presence, field, {
         random: Math.random,
@@ -141,7 +215,13 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
         rest: restSeconds(energy.level),
       })
       presence = nextPresence.presence
-      if (nextPresence.seed) field = stamp(field, PATTERNS[nextPresence.seed.pattern].cells, nextPresence.seed.x, nextPresence.seed.y)
+      if (nextPresence.seed)
+        field = stamp(
+          field,
+          PATTERNS[nextPresence.seed.pattern].cells,
+          nextPresence.seed.x,
+          nextPresence.seed.y,
+        )
     }
     draw()
     publish()
@@ -165,7 +245,13 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
       const cell = at(x, y)
       hovered = cell
       if (useLifeControls.getState().brush !== 'cell') {
-        field = stamp(field, PATTERNS[useLifeControls.getState().brush as keyof typeof PATTERNS].cells, cell.x, cell.y)
+        field = stamp(
+          field,
+          PATTERNS[useLifeControls.getState().brush as keyof typeof PATTERNS]
+            .cells,
+          cell.x,
+          cell.y,
+        )
       } else {
         const on = !alive(field, cell.x, cell.y)
         stroke = { ...cell, on }
@@ -175,18 +261,57 @@ export function mountLife2d(host: HTMLElement, { reducedMotion }: { reducedMotio
     },
     drag(x, y) {
       hovered = at(x, y)
-      if (stroke) field = paint(field, hovered.x, hovered.y, stroke.on)
+      if (stroke) {
+        field = paintLine(field, stroke, hovered, stroke.on)
+        stroke = { ...hovered, on: stroke.on }
+        draw()
+      }
     },
-    release() { stroke = undefined },
-    hover(x, y) { hovered = at(x, y) },
-    leave() { stroke = undefined; hovered = undefined },
-    step() { field = step(emit(field, energy.level, Math.random)); draw(); publish() },
-    clear() { field = clear(field); draw(); publish() },
-    randomize() { field = fill(clear(field), Math.random); draw(); publish() },
-    pulse(kind) { energy = pulse(energy, kind) },
-    sustain(running) { energy = sustain(energy, running) },
-    resize(w, h) { fit(w, h); draw() },
-    repaint() { repaint(); draw() },
-    destroy() { stopped = true; cancelAnimationFrame(handle); canvas.remove() },
+    release() {
+      stroke = undefined
+    },
+    hover(x, y) {
+      hovered = at(x, y)
+      draw()
+    },
+    leave() {
+      stroke = undefined
+      hovered = undefined
+      draw()
+    },
+    step() {
+      field = step(emit(field, energy.level, Math.random))
+      draw()
+      publish()
+    },
+    clear() {
+      field = clear(field)
+      draw()
+      publish()
+    },
+    randomize() {
+      field = fill(clear(field), Math.random)
+      draw()
+      publish()
+    },
+    pulse(kind) {
+      energy = pulse(energy, kind)
+    },
+    sustain(running) {
+      energy = sustain(energy, running)
+    },
+    resize(w, h) {
+      fit(w, h)
+      draw()
+    },
+    repaint() {
+      repaint()
+      draw()
+    },
+    destroy() {
+      stopped = true
+      cancelAnimationFrame(handle)
+      canvas.remove()
+    },
   }
 }
