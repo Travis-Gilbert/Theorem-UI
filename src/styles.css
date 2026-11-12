@@ -350,7 +350,6 @@
     0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
   --spacing-rail: 44px;
-  --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
   /* The reading column of a conversation, an artifact and the highlights:
      wide enough that an agent's answer, its tables and code, read without
