@@ -79,7 +79,9 @@ export function step(field: Field): Field {
       const was = ageAt(field, i)
       if (neighbours === 3 || (was > 0 && neighbours === 2))
         next.age[i] = Math.min(was + 1, 0xffff)
-      else next.ghost[i] = was > 0 ? GHOST_FRAMES : Math.max(ghostAt(field, i) - 1, 0)
+      else
+        next.ghost[i] =
+          was > 0 ? GHOST_FRAMES : Math.max(ghostAt(field, i) - 1, 0)
     }
   }
   return { ...next, generation: field.generation + 1 }
@@ -105,6 +107,29 @@ export const paint = (field: Field, x: number, y: number, on: boolean) =>
     const i = index(next, x, y)
     if (i !== undefined) set(next, i, on)
   })
+
+/**
+ * Paint the complete segment in one immutable field edit. A pointer event can
+ * cross many cells; copying the typed arrays per cell would make long strokes
+ * unnecessarily expensive. Column wrapping and vertical clipping are the
+ * same as for paint().
+ */
+export function paintLine(
+  field: Field,
+  from: Readonly<{ x: number; y: number }>,
+  to: Readonly<{ x: number; y: number }>,
+  on: boolean,
+): Field {
+  const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1)
+  return edit(field, (next) => {
+    for (let n = 0; n <= steps; n++) {
+      const x = Math.round(from.x + ((to.x - from.x) * n) / steps)
+      const y = Math.round(from.y + ((to.y - from.y) * n) / steps)
+      const i = index(next, x, y)
+      if (i !== undefined) set(next, i, on)
+    }
+  })
+}
 
 /** Brings the pattern to life centred on (x, y). */
 export function stamp(field: Field, cells: Cells, x: number, y: number) {
@@ -136,23 +161,36 @@ export function resize(field: Field, cols: number, rows: number): Field {
   return { ...next, generation: field.generation }
 }
 
-export const randomize = (field: Field, density: number, random: () => number) =>
+export const randomize = (
+  field: Field,
+  density: number,
+  random: () => number,
+) =>
   edit(field, (next) => {
     for (let i = 0; i < next.age.length; i++) set(next, i, random() < density)
   })
 
 /** Brings cells to life at random, in each row about the share its density gives. */
-export const sprinkle = (field: Field, densityAt: (y: number) => number, random: () => number) =>
+export const sprinkle = (
+  field: Field,
+  densityAt: (y: number) => number,
+  random: () => number,
+) =>
   edit(field, (next) => {
     for (let y = 0; y < next.rows; y++) {
       const density = densityAt(y)
       if (density <= 0) continue
-      for (let i = y * next.cols; i < (y + 1) * next.cols; i++) if (random() < density) set(next, i, true)
+      for (let i = y * next.cols; i < (y + 1) * next.cols; i++)
+        if (random() < density) set(next, i, true)
     }
   })
 
 /** Each living cell dies with the chance its row gives, leaving a ghost as a natural death does. */
-export const erode = (field: Field, chanceAt: (y: number) => number, random: () => number) =>
+export const erode = (
+  field: Field,
+  chanceAt: (y: number) => number,
+  random: () => number,
+) =>
   edit(field, (next) => {
     for (let y = 0; y < next.rows; y++) {
       const chance = chanceAt(y)
