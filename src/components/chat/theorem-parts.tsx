@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, MessagePrimitive.PartByIndex for the tool calls a run summary folds, and the installed ToolGroupRoot / ToolGroupContent / ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions
+// SOURCING: @assistant-ui/react data renderers (useAssistantDataUI + dataRenderers.setFallbackDataUI), @tanstack/react-router CatchBoundary per part, coss ui Collapsible (base-ui) for the activity line's details, and the installed ToolFallback / ApprovalCard / ThinkingIndicator / Reasoning elements, ui/button for the artifact card actions, the terminal's openOf/pathOf and Follow's useRevealFile for the file a tool card opens in the IDE, scene-part.tsx for the theorem-scene part
 //
 // Theorem message parts that are not text or tool calls arrive as data parts
 // named `theorem-<type>` (see @theoremharness/sdk/assistant-ui). This file
@@ -6,22 +6,22 @@
 // approvals (decided through runs.command, since Theorem owns approvals), and
 // gives the artifact tools a pending card while they run. Delegated work has
 // its own cards in delegation-parts.
-import {
-  MessagePrimitive,
-  useAui,
-  useAuiState,
-  useAssistantDataUI,
-} from '@assistant-ui/react'
+import { useAui, useAuiState, useAssistantDataUI } from '@assistant-ui/react'
 import { CatchBoundary } from '@tanstack/react-router'
 import type {
+  AssistantState,
   DataMessagePartComponent,
   ToolCallMessagePartComponent,
 } from '@assistant-ui/react'
-import { useEffect, useMemo, useState } from 'react'
-import type { FC } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import type { FC, ReactNode } from 'react'
 import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card'
 import type { ApprovalState } from '@/components/assistant-ui/elements/approval-card'
-import { CollapsibleTrigger } from '@/components/assistant-ui/elements/collapsible-root'
+import {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleTrigger,
+} from '@/components/coss/collapsible'
 import {
   ReasoningContent,
   ReasoningRoot,
@@ -29,20 +29,30 @@ import {
   ReasoningTrigger,
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-} from '@/components/assistant-ui/elements/tool-group.aui'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
+import { thingProps, toolState } from '@/lib/face/things'
 import {
   ARTIFACT_PART,
   readArtifact,
 } from '@/components/artifacts/artifact-model'
 import { ArtifactMessage } from '@/components/artifacts/artifact-message'
 import { DELEGATION_RENDERERS } from '@/components/chat/delegation-parts'
+import { ProgramPart } from '@/components/chat/program-part'
+import { CompletionFooter } from '@/components/chat/run-footer'
 import { NoteImage } from '@/components/notes/kinds/embed-block'
 import { ReviewAnswerCard } from '@/components/review/review-card'
 import { PlanToolCall } from '@/components/chat/plan-graph'
+import { useRevealFile } from '@/components/ide/follow'
+import { openOf, pathOf } from '@/components/terminal/terminal-code'
+import type { Open } from '@/components/terminal/terminal-code'
+import { askAbout } from '@/components/chat/composer-references'
+import {
+  readScene,
+  repairRequest,
+  SCENE_PART,
+} from '@/components/chat/scene-model'
+import { SceneCard } from '@/components/chat/scene-part'
+import { useSceneTheme } from '@/components/chat/scene-theme'
 import { Icon } from '@/components/icons'
 import {
   describeError,
@@ -143,7 +153,11 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     return null
   }
   const failed = state === 'failed'
-  const StateIcon = pending ? Icon.Code : failed ? Icon.Close : Icon.Check
+  const StateIcon = pending
+    ? Icon.ToolRunning
+    : failed
+      ? Icon.Close
+      : Icon.ToolDone
   return (
     <span
       className={cn(
@@ -154,7 +168,8 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
     >
       <StateIcon
         className={cn(
-          'size-3 shrink-0',
+          'shrink-0',
+          failed ? 'size-3' : 'size-4',
           // Each state is its own icon, so the settled one pops in.
           pending
             ? 'animate-pulse motion-reduce:animate-none'
@@ -164,6 +179,79 @@ const HostCallPart: DataMessagePartComponent = ({ data }) => {
       <span>{humanize(name)}</span>
       {failed && ' · failed'}
       {state === 'pending' && !running && ' · did not finish'}
+    </span>
+  )
+}
+
+/**
+ * A check the agent asked this page to make of an App: that it is being
+ * made, and what it found. Kit's operations draw nothing here; the fox on
+ * the stage shows what they did.
+ */
+/**
+ * What the chip for an `app.check` request says, or null for any other
+ * operation. `wrong` is anything short of a check that was made and found
+ * nothing: a type check that could not be made found nothing either, and says
+ * so with its `reason`.
+ */
+export function appCheckSummary(
+  data: unknown,
+  running: boolean,
+): { words: string; pending: boolean; wrong: boolean; reason?: string } | null {
+  const call = object(data)
+  if (str(call.operation) !== 'app.check') return null
+  const state = str(call.state) ?? 'pending'
+  const receipt = object(call.receipt)
+  const result = object(receipt.result)
+  const problems = Array.isArray(result.problems) ? result.problems.length : 0
+  const found =
+    problems + (typeof result.omitted === 'number' ? result.omitted : 0)
+  const pending = state === 'pending' && running
+  const checked = state === 'answered' && str(receipt.outcome) === 'applied'
+  const reason = checked ? str(result.typeCheckError) : undefined
+  const wrong = !pending && (!checked || found > 0 || reason !== undefined)
+  const words = pending
+    ? 'Checking the App'
+    : !checked
+      ? 'The App was not checked'
+      : result.built === false
+        ? 'The App does not build'
+        : found > 0
+          ? `Checked the App: ${found === 1 ? '1 problem' : `${found} problems`}`
+          : reason !== undefined
+            ? 'Checked the App: its types could not be checked'
+            : 'Checked the App: no problems'
+  return { words, pending, wrong, reason }
+}
+
+const ClientOperationPart: DataMessagePartComponent = ({ data }) => {
+  const running = useAuiState((s) => s.message.status?.type === 'running')
+  const summary = appCheckSummary(data, running)
+  if (!summary) return null
+  const { words, pending, wrong, reason } = summary
+  const StateIcon = pending
+    ? Icon.ToolRunning
+    : wrong
+      ? Icon.Close
+      : Icon.ToolDone
+  return (
+    <span
+      data-slot="app-check"
+      title={reason}
+      className={cn(
+        'me-1.5 mt-2 inline-flex items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs font-semibold',
+        liveEnter,
+        wrong ? 'text-error-ink' : 'text-ink-muted',
+      )}
+    >
+      <StateIcon
+        className={cn(
+          'shrink-0',
+          wrong ? 'size-3' : 'size-4',
+          pending && 'animate-pulse motion-reduce:animate-none',
+        )}
+      />
+      <span>{words}</span>
     </span>
   )
 }
@@ -377,6 +465,39 @@ const TheoremApprovalCard: FC<{
   )
 }
 
+/** A small bordered tag in the conversation: a source, a file. */
+const CHIP =
+  'inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 text-xs text-ink-muted'
+
+/**
+ * The file a tool worked on, which opens in the IDE as its own tab with the
+ * lines it touched selected; from chat it takes the person to the IDE.
+ */
+function OpenInIde({ open }: { open: Open }) {
+  const reveal = useRevealFile()
+  const name = open.path.split('/').pop() || open.path
+  const lines =
+    open.start === undefined
+      ? ''
+      : open.end !== undefined && open.end !== open.start
+        ? `:${open.start}–${open.end}`
+        : `:${open.start}`
+  return (
+    <button
+      type="button"
+      title={`Open ${open.path} in the IDE`}
+      onClick={() => reveal(open.path, open.start, open.end)}
+      className={cn(CHIP, 'min-w-0 py-0.5 hover:bg-hover hover:text-ink')}
+    >
+      <Icon.File className="size-3 shrink-0" />
+      <span className="truncate font-mono">
+        {name}
+        {lines}
+      </span>
+    </button>
+  )
+}
+
 /** ToolFallback slot: artifact tools, plans, Theorem approvals, then the generic tool card. */
 export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   if (ARTIFACT_TOOLS.has(props.toolName)) return <ArtifactToolCall {...props} />
@@ -384,10 +505,11 @@ export const TheoremToolCall: ToolCallMessagePartComponent = (props) => {
   const approval = readApproval(props)
   if (approval && props.result === undefined)
     return <TheoremApprovalCard approval={approval} argsText={props.argsText} />
-  return <ToolFallback {...props} />
+  const open = openOf(pathOf(props.args), props.args, props.result)
+  return <ToolFallback {...props} aside={open && <OpenInIde open={open} />} />
 }
 
-/* ------------------------------------------------------------- run summary */
+/* ---------------------------------------------------------------- activity */
 
 const LIVE_STATUSES = new Set([
   'running',
@@ -415,11 +537,47 @@ function progressLabels(
   })
 }
 
+/** How long the person waited for this reply: from their message to its arrival. */
+const waitedSeconds = (s: AssistantState) => {
+  const { messages } = s.thread
+  const at = messages.findIndex((message) => message.id === s.message.id)
+  const asked = messages
+    .slice(0, Math.max(at, 0))
+    .findLast((message) => message.role === 'user')
+  const replied = messages[at]
+  if (!asked || !replied) return undefined
+  // A live reply is stamped when its run begins; its timing says when it settled.
+  const timing =
+    replied.role === 'assistant' ? replied.metadata.timing : undefined
+  const settled =
+    timing?.totalStreamTime === undefined
+      ? replied.createdAt.getTime()
+      : timing.streamStartTime + timing.totalStreamTime
+  return Math.round((settled - asked.createdAt.getTime()) / 1000)
+}
+
+const spokenSeconds = (seconds: number) =>
+  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+
+const ACTIVITY_CONTROL =
+  '-mx-1 cursor-pointer rounded-sm px-1 outline-offset-2 outline-focus transition-colors duration-(--duration-snap) ease-snap hover:bg-hover hover:text-ink focus-visible:outline-2 data-panel-open:bg-hover data-panel-open:text-ink'
+
 /**
- * Theorem publishes answer text at turn end, so a running turn needs a visible
- * state: the latest progress label, or "Thinking", beside a thinking orb.
+ * What the agent is doing, then what it did, as one unboxed line by its name:
+ * the live step while it works ("Theorem · Checking the examples"), and once
+ * it settles how long the reply took and a Details control ("Theorem · 42s ·
+ * Details"). Theorem publishes answer text at turn end, so the live step is
+ * the running turn's visible state. Either opens the steps, the reasoning and
+ * the tool calls on a small sheet of paper; until then the work takes no room
+ * of its own. A run that stopped or did not finish says so on the line, and an
+ * approval still to give keeps its card in the reply.
  */
-export const RunningIndicator: FC = () => {
+export const Activity: FC<{
+  /** Whose line this is. A specialist's run in a delegation panel has no name to sit by. */
+  speaker?: string | undefined
+  /** The reply's reasoning and tool calls as the thread draws them, when it has any. */
+  work?: ReactNode
+}> = ({ speaker, work }) => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   const awaiting = useAuiState((s) =>
     s.message.content.some((part) => {
@@ -428,46 +586,17 @@ export const RunningIndicator: FC = () => {
       return approval !== undefined && approvalOutcome(approval) === 'awaiting'
     }),
   )
-  const label = useAuiState((s) => {
-    const last = s.message.content.findLast(
-      (part) => part.type === 'data' && part.name === 'theorem-progress',
-    )
-    const data = last?.type === 'data' ? object(last.data) : {}
-    return LIVE_STATUSES.has(str(data.status) ?? '')
-      ? str(data.label)
-      : undefined
-  })
-  if (!running) return null
-  return (
-    <ThinkingIndicator
-      className="my-2"
-      label={awaiting ? 'Waiting for your approval' : (label ?? 'Thinking')}
-      orb={awaiting ? 'breathing' : 'working'}
-    />
-  )
-}
-
-/**
- * A settled run's one line: its outcome, opening to its steps and to the tool
- * calls it made. Tool calls draw no row of their own; the thread folds them
- * here (`tools` holds their part indices), so a finished turn reads as its
- * answer under one quiet line, each call's arguments and result a click away.
- */
-export const RunSummary: FC<{
-  tools: readonly number[]
-  Tool: ToolCallMessagePartComponent
-}> = ({ tools, Tool }) => {
-  const settled = useAuiState((s) => s.message.status?.type !== 'running')
   // Select the store's own content array; deriving inside the selector would
   // hand back a fresh array on every read and loop the subscription.
   const content = useAuiState((s) => s.message.content)
   const labels = useMemo(() => progressLabels(content), [content])
-  const lastStatus = useAuiState((s) => {
-    const last = s.message.content.findLast(
+  const progress = useMemo(() => {
+    const last = content.findLast(
       (part) => part.type === 'data' && part.name === 'theorem-progress',
     )
-    return last?.type === 'data' ? str(object(last.data).status) : undefined
-  })
+    return last?.type === 'data' ? object(last.data) : {}
+  }, [content])
+  const status = str(progress.status)
   // Labels are what the run was doing while live ("Working"), even on the
   // step that completes, so the line names the outcome from the statuses: the
   // message's, then the last step's.
@@ -480,56 +609,133 @@ export const RunSummary: FC<{
           : 'Did not finish'
         : undefined,
   )
-  const components = useMemo(() => ({ tools: { Fallback: Tool } }), [Tool])
-  if (!settled || (labels.length === 0 && tools.length === 0)) return null
-  const finished = DONE_STATUSES.has(lastStatus ?? 'complete')
-  const result = outcome ?? (finished ? 'Done' : 'Did not finish')
-  const StatusIcon = result === 'Done' ? Icon.Check : Icon.Close
-  const steps = labels.length > 1
-  const line = (
-    <>
-      <StatusIcon className="size-3.5" />
-      {steps
-        ? `${result} ${result === 'Done' ? 'in' : 'after'} ${labels.length} steps`
-        : result}
-    </>
+  const seconds = useAuiState(waitedSeconds)
+  const [open, setOpen] = useState(false)
+  // The tool calls folded away here, as one string so the selector hands back
+  // the same value until one of them changes.
+  const folded = useAuiState((s) =>
+    s.message.parts
+      .flatMap((part) =>
+        part.type === 'tool-call' && !isStandaloneToolCall(part)
+          ? [
+              [
+                part.toolCallId,
+                part.toolName,
+                toolState(part.status, part.isError) ?? '',
+              ].join('\t'),
+            ]
+          : [],
+      )
+      .join('\n'),
   )
-  if (!steps && tools.length === 0)
-    return (
-      <p
-        data-slot="run-summary"
-        className="my-1 flex items-center gap-1.5 py-1 text-sm text-ink-faint"
-      >
-        {line}
-      </p>
+
+  const steps = labels.length > 1
+  const openable = steps || Boolean(work)
+  const notes: ReactNode[] = []
+  if (running) {
+    const doing = (
+      <ThinkingIndicator
+        label={
+          awaiting
+            ? 'Waiting for your approval'
+            : ((LIVE_STATUSES.has(status ?? '')
+                ? str(progress.label)
+                : undefined) ?? 'Thinking')
+        }
+        orb={awaiting ? 'breathing' : 'working'}
+      />
     )
+    notes.push(
+      openable ? (
+        <CollapsibleTrigger
+          nativeButton={false}
+          render={doing}
+          className={ACTIVITY_CONTROL}
+        />
+      ) : (
+        doing
+      ),
+    )
+  } else if (labels.length > 0 || work) {
+    const result =
+      outcome ??
+      (DONE_STATUSES.has(status ?? 'complete') ? 'Done' : 'Did not finish')
+    if (result !== 'Done') notes.push(result)
+    if (seconds)
+      notes.push(<span className="tabular-nums">{spokenSeconds(seconds)}</span>)
+    if (openable)
+      notes.push(
+        <CollapsibleTrigger className={ACTIVITY_CONTROL}>
+          Details
+        </CollapsibleTrigger>,
+      )
+  }
+  if (!speaker && notes.length === 0) return null
+
   return (
-    <ToolGroupRoot
-      variant="ghost"
-      data-slot="run-summary"
-      className="my-1 text-sm text-ink-faint"
+    <Collapsible
+      data-slot="activity"
+      // Theo points here for a tool call that is folded away inside.
+      data-face-holder=""
+      className="mb-1.5"
+      open={open}
+      onOpenChange={setOpen}
     >
-      <CollapsibleTrigger className="group/trigger flex items-center gap-1.5 py-1 hover:text-ink">
-        {line}
-        <Icon.Next className="size-3 shrink-0 transition-transform duration-(--duration-snap) ease-snap group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
-      </CollapsibleTrigger>
-      <ToolGroupContent>
-        {steps && (
-          <ol className="ms-5 list-decimal text-sm leading-6">
-            {labels.map((label, index) => (
-              <li key={index}>{label}</li>
+      {!open && folded !== '' && (
+        // Closed, the calls are not drawn: these stand for them by name.
+        <span hidden>
+          {folded.split('\n').map((call) => {
+            const [id = '', name = '', state] = call.split('\t')
+            return (
+              <span
+                key={id}
+                {...thingProps('tool', id, { label: humanize(name), state })}
+              />
+            )
+          })}
+        </span>
+      )}
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2 px-2">
+        {speaker && <span className="font-medium text-ink">{speaker}</span>}
+        {notes.length > 0 && (
+          <span
+            data-slot="activity-line"
+            className="flex min-w-0 items-center gap-x-2 text-sm text-ink-muted"
+          >
+            {notes.map((note, index) => (
+              <Fragment key={index}>
+                {(speaker || index > 0) && (
+                  <span aria-hidden className="text-ink-faint">
+                    ·
+                  </span>
+                )}
+                {note}
+              </Fragment>
             ))}
-          </ol>
+          </span>
         )}
-        {tools.map((index) => (
-          <MessagePrimitive.PartByIndex
-            key={index}
-            index={index}
-            components={components}
-          />
-        ))}
-      </ToolGroupContent>
-    </ToolGroupRoot>
+      </div>
+      {openable && (
+        <CollapsiblePanel>
+          {/* Room for the sheet's shadow inside the panel's clip. */}
+          <div className="px-2 pt-2 pb-3">
+            <div
+              data-slot="activity-details"
+              className="surface-paper-subtle rounded-xl px-3 py-2 text-sm"
+            >
+              {steps && (
+                <ol className="ms-5 list-decimal py-1 leading-6 text-ink-muted">
+                  {labels.map((label, index) => (
+                    <li key={index}>{label}</li>
+                  ))}
+                </ol>
+              )}
+              {work}
+            </div>
+          </div>
+        </CollapsiblePanel>
+      )}
+    </Collapsible>
   )
 }
 
@@ -540,7 +746,7 @@ const ReasoningSummaryPart: DataMessagePartComponent = ({ data }) => {
   const running = useAuiState((s) => s.message.status?.type === 'running')
   if (!text) return null
   return (
-    <ReasoningRoot streaming={running}>
+    <ReasoningRoot streaming={running} variant="ghost" className="mb-1">
       <ReasoningTrigger active={running} />
       <ReasoningContent>
         <ReasoningText>
@@ -576,8 +782,7 @@ const CitationPart: DataMessagePartComponent = ({ data }) => {
   const url = citationUrl(provenance.url)
   const label = str(part.label) ?? (url && new URL(url).hostname) ?? 'Source'
   const title = str(provenance.excerpt) ?? url
-  const chip =
-    'me-1.5 mt-2 inline-flex max-w-64 items-center gap-1.5 rounded-md border border-separator bg-raised px-2 py-1 align-top text-xs text-ink-muted'
+  const chip = cn(CHIP, 'me-1.5 mt-2 align-top')
   const content = (
     <>
       <Icon.Link className="size-3 shrink-0" />
@@ -679,6 +884,44 @@ const UserInputPart: DataMessagePartComponent = ({ data }) => {
   )
 }
 
+/* --------------------------------------------------------------------- scenes */
+
+/**
+ * A reply's interactive scene (scene-part.tsx), drawn above its text. Fix
+ * sends the failure to the agent as the next turn; a pick becomes a
+ * reference to this reply, with what was picked as its excerpt.
+ */
+const ScenePart: DataMessagePartComponent = ({ data }) => {
+  const aui = useAui()
+  const theme = useSceneTheme()
+  const threadId = useAuiState((s) => s.threadListItem.remoteId)
+  const messageId = useAuiState((s) => s.message.id)
+  const scene = readScene(data)
+  if (!scene) return <PartNotice name={SCENE_PART} />
+  return (
+    <SceneCard
+      scene={scene}
+      theme={theme}
+      onRepair={(error) => aui.thread.append(repairRequest(scene.title, error))}
+      onAsk={
+        threadId
+          ? (entity) =>
+              askAbout({
+                label: `${scene.title ?? 'Scene'}: ${entity.label ?? entity.id}`,
+                excerpt: JSON.stringify({
+                  scene: { sceneId: scene.sceneId, title: scene.title },
+                  entity,
+                }),
+                location: {
+                  resource: { kind: 'message', threadId, messageId },
+                },
+              })
+          : undefined
+      }
+    />
+  )
+}
+
 /** Inspector-only or figure-only parts: retained inert, never drawn in the transcript. */
 const Inert: DataMessagePartComponent = () => null
 
@@ -701,9 +944,7 @@ function guarded(
   name: string,
   Render: DataMessagePartComponent,
 ): DataMessagePartComponent {
-  const errorComponent = () => (
-    <PartNotice name={name} />
-  )
+  const errorComponent = () => <PartNotice name={name} />
   return (props) => (
     <CatchBoundary
       getResetKey={() => props.data}
@@ -723,6 +964,7 @@ const ReviewAnswerPart: DataMessagePartComponent = ({ data }) => {
 const RENDERERS = (
   [
     [ARTIFACT_PART, ArtifactPart],
+    [SCENE_PART, ScenePart],
     ['theorem-review_answer', ReviewAnswerPart],
     ['theorem-reasoning_summary', ReasoningSummaryPart],
     ['theorem-citation', CitationPart],
@@ -730,6 +972,8 @@ const RENDERERS = (
     ['theorem-attachment', AttachmentPart],
     ['theorem-host_call', HostCallPart],
     ['theorem-user_input', UserInputPart],
+    // A run's completion: why it stopped, and the way back up when a limit stopped it.
+    ['theorem-completion', CompletionFooter],
     ...DELEGATION_RENDERERS,
   ] satisfies Array<[string, DataMessagePartComponent]>
 )
@@ -738,16 +982,16 @@ const RENDERERS = (
     guarded(name, render),
   ])
   .concat([
-    // The run's steps are drawn once per message by RunSummary.
+    // The run's steps are drawn once per message by Activity.
     ['theorem-progress', Inert],
     ['theorem-usage', Inert],
     ['theorem-expression', Inert],
     ['theorem-expression_refused', Inert],
-    // Kit's client operations: the fox on the stage shows what they did.
-    ['theorem-client_operation', Inert],
-    // The native agent's program: what it does shows up as its host calls
-    // and their artifacts, and its stored source is not the full program.
-    ['theorem-program', Inert],
+    // The page's client operations: a check of an App shows as a chip.
+    ['theorem-client_operation', ClientOperationPart],
+    // A TypeScript program the agent wrote is shown as one, closed, with its
+    // source inside. What it did shows up as its calls and their artifacts.
+    ['theorem-program', ProgramPart],
   ])
 
 function DataRenderer({

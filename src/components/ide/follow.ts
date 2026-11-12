@@ -27,6 +27,8 @@ type FollowState = {
   following: boolean
   /** The IDE frame while one is open and linked. */
   ide: Ide | undefined
+  /** The workspace that linked frame opened. */
+  ideWorkspace: string | undefined
   /** What was asked of the IDE before its frame linked; it runs once it does. */
   pending: ((ide: Ide) => void) | undefined
   pause: () => void
@@ -36,6 +38,7 @@ type FollowState = {
 export const useFollow = create<FollowState>()((set) => ({
   following: true,
   ide: undefined,
+  ideWorkspace: undefined,
   pending: undefined,
   pause: () => set({ following: false }),
   resume: () => set({ following: true }),

@@ -11,6 +11,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
+import { SignInReturn } from '@/components/connections/sign-in-return'
 import { MotionRoot } from '@/components/motion'
 import { getDesktopHost, isDesktopDocument } from '@/lib/desktop/host'
 import { reportUnsaved } from '@/lib/desktop/unsaved'
@@ -69,6 +70,10 @@ function RootDocument({ children }: { children: ReactNode }) {
   useEffect(() => {
     void import('@/components/terminal/live-terminal-theme')
   }, [])
+  // The paper surfaces' grain, baked once and shared (lib/paper-texture.ts).
+  useEffect(() => {
+    void import('@/lib/paper-texture').then(({ applyPaperTexture }) => applyPaperTexture())
+  }, [])
   return (
     // next-themes sets the .dark class and paletteScript sets data-palette before paint, so the server markup differs by design.
     // data-theorem-desktop is DESKTOP_DOCUMENT_ATTRIBUTE: getDesktopHost() reads it.
@@ -90,6 +95,8 @@ function RootDocument({ children }: { children: ReactNode }) {
           disableTransitionOnChange
         >
           <MotionRoot />
+          {/* A sign-in the person was sent back from is finished on whatever page they return to. */}
+          <SignInReturn />
           {children}
         </ThemeProvider>
         <Scripts />

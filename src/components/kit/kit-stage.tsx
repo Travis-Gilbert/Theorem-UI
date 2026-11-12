@@ -1,4 +1,4 @@
-// SOURCING: @floating-ui/react-dom (the speech bubble kept beside Kit and inside the window); lib/kit (the stage's place and motion, the driver that moves Kit with anime.js, the store's act and liveness); Kit for the sprite; a fixed layer over the whole shell that only Kit itself takes pointer events in, below popups (z-50)
+// SOURCING: @floating-ui/react-dom (the speech bubble kept beside Kit and inside the window); lib/kit (the stage's place and motion, the driver that moves Kit with Rapier physics and squashes it with anime.js, the store's act and liveness); Kit for the sprite; a fixed layer over the whole shell that only Kit itself takes pointer events in, below popups (z-50)
 import {
   autoUpdate,
   flip,
@@ -35,6 +35,7 @@ const pick = <T,>(items: readonly T[]) =>
  */
 export function KitStage() {
   const holder = useRef<HTMLDivElement | null>(null)
+  const squash = useRef<HTMLDivElement | null>(null)
   const stage = useKitStage()
   const act = useKit((state) => state.act)
   const liveness = useKit((state) => state.liveness)
@@ -43,10 +44,14 @@ export function KitStage() {
   useEffect(() => {
     const element = holder.current
     if (!element) return
-    const driver = new KitDriver(element, () => {
-      const { act: current } = useKit.getState()
-      playGesture(current.tag === 'sleep' ? 'peek' : pick(TAPS))
-    })
+    const driver = new KitDriver(
+      element,
+      () => {
+        const { act: current } = useKit.getState()
+        playGesture(current.tag === 'sleep' ? 'peek' : pick(TAPS))
+      },
+      squash.current ?? undefined,
+    )
     setKitDriver(driver)
     changeStage({ mounted: true })
     return () => {
@@ -158,6 +163,8 @@ export function KitStage() {
         ref={hold}
         tabIndex={0}
         role="button"
+        // The shell's press squeeze clears the transform that places Kit; a tap plays Kit's own gesture instead.
+        data-press="off"
         aria-label="Kit, the agent's figure. Press to pet it, or drag it somewhere."
         onKeyDown={(event) => {
           if (event.key !== 'Enter' && event.key !== ' ') return
@@ -167,7 +174,9 @@ export function KitStage() {
         className="pointer-events-auto absolute top-0 left-0 touch-none rounded-sm outline-none select-none focus-visible:outline-2 focus-visible:outline-focus"
         style={{ width: KIT_SIZE, height: KIT_SIZE }}
       >
-        <Kit shown={shown} facing={stage.facing} />
+        <div ref={squash} className="size-full">
+          <Kit shown={shown} facing={stage.facing} />
+        </div>
       </div>
       {saying && (
         <div

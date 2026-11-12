@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { describeError } from '@/lib/theorem/client'
 import { useCatalogEntries } from '@/lib/theorem/catalog'
 import { ModelsTable } from '@/components/settings/models-table'
+import { ResponsesSection } from '@/components/settings/responses-section'
 import { defaultModelDescription, modelCatalogIssue, useModelCatalog, usePickedModels } from '@/lib/theorem/models'
 import { isNotServed } from '@/lib/theorem/passthrough'
 import type { ModelOption } from '@/lib/theorem/models'
@@ -104,6 +105,7 @@ function ModelsTab() {
         <Button variant="outline" size="sm" onClick={() => void refetch()}>Retry model list</Button>
       </div>}
       <DefaultModel catalog={catalog} defaultRef={list?.defaultRef} />
+      <ResponsesSection />
       <SettingsSection
         title="In the model picker"
         description={`Star the models you want in the composer's model picker. ${starred.length} starred${

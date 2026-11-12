@@ -58,7 +58,7 @@ export interface ModuleDefinition {
   description?: string
   origin: 'builtin' | 'vault'
   /** Where it is listed in the palette. */
-  category: 'Theorem' | 'Layout' | 'Installed' | 'Composite'
+  category: 'Theorem' | 'Work' | 'Layout' | 'Installed' | 'Composite'
   settings: Array<SettingSpec>
   inputs: Array<PortSpec>
   outputs: Array<PortSpec>

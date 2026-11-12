@@ -1,0 +1,161 @@
+{
+  "spec": "docs/plans/theo-body.md",
+  "items": [
+    {
+      "id": "one-body",
+      "item": "One Rapier body for the figure; the eyes and the matter answer to it through the rig and are not bodies",
+      "status": "done",
+      "evidence": "src/lib/face/body.ts (FaceBody); src/lib/face/engine.ts (sway, heading, bump, toss)"
+    },
+    {
+      "id": "ownership",
+      "item": "Rapier owns the holder's pose; the rig owns the visor's local transform; the field and the painters are unchanged",
+      "status": "done",
+      "evidence": "src/components/face/driver.ts move(): the body gives the holder's position only. engine.ts carryMotion(): tilt, trail, squash and lids as per-frame rig offsets"
+    },
+    {
+      "id": "fixed-step",
+      "item": "A fixed 1/60 s step with bounded catch-up and interpolation between steps",
+      "status": "done",
+      "evidence": "body.ts advance(); body.test.ts: a ten-second frame runs at most five steps, and the pose between steps is interpolated"
+    },
+    {
+      "id": "tether",
+      "item": "A spring tether brings the body to its anchor and settles it there",
+      "status": "done",
+      "evidence": "body.ts tether(): JointData.spring for stiffness, the body's linear damping to settle. body.test.ts: rests exactly on the anchor; travel after a throw arrives"
+    },
+    {
+      "id": "carry-release",
+      "item": "Carried, it follows the hand; released with speed it continues a little and settles; released at rest it stays",
+      "status": "done",
+      "evidence": "body.test.ts (held, slow release, moving release, cap). Browser: 220.8 px coast at ~940 px/s with person.throw; 0 px with person.drop"
+    },
+    {
+      "id": "contact",
+      "item": "A thrown figure meets the window's edges, and the face answers the contact on the side that was struck",
+      "status": "done",
+      "evidence": "body.test.ts: one right bump, stays inside. face.test.ts: knock, squash and the near eye for each side. Browser: body.bump.right; docs/plans/evidence/theo-body/thrown.png"
+    },
+    {
+      "id": "approach",
+      "item": "Sent to an artifact, it looks there first, then travels, then settles beside it",
+      "status": "done",
+      "evidence": "program.ts place \"artifact\"; book.ts \"visit\"; driver.ts go() and pointOf(). face.test.ts: visit looks before it goes. Browser: eyes at ~49 ms, body at ~716 ms, 12 px beside the card; docs/plans/evidence/theo-body/visit.png"
+    },
+    {
+      "id": "disturbance",
+      "item": "A poke or a collision gives a bounded recoil, a brief asymmetric eye response and a recovery, weighed by the face's state",
+      "status": "done",
+      "evidence": "body.test.ts: recoil 3 to 24 px, returns exactly. face.test.ts: poke asymmetry; calm and wound up draw different reactions. Browser: 9.8 px and back"
+    },
+    {
+      "id": "drag-priority",
+      "item": "The person's drag outranks autonomous travel",
+      "status": "done",
+      "evidence": "driver.ts go() returns while carried. Browser: a go during a carry moves it 0 px from the hand"
+    },
+    {
+      "id": "layout-not-throw",
+      "item": "Scrolling and resizing move the anchor and the body with it, with no velocity and no event",
+      "status": "done",
+      "evidence": "body.ts shift(); body.test.ts (resting and mid-trip). Browser: 123 px of scroll, on its perch every frame, no event"
+    },
+    {
+      "id": "reduced-and-quiet",
+      "item": "Reduced motion has no body, coast, recoil or lean; asleep ignores what happens to the body",
+      "status": "done",
+      "evidence": "driver.ts physical(); engine.ts notice(). face.test.ts: reduced motion moves nothing; asleep ignores body.*. Browser with reduced motion: no coast, a poke moves it 0 px"
+    },
+    {
+      "id": "status-honest",
+      "item": "Nothing the body does is, or produces, a sign that a request is advancing",
+      "status": "done",
+      "evidence": "face.test.ts: travel, a throw and a bump produce no run event and leave liveness as it was"
+    },
+    {
+      "id": "fallback",
+      "item": "Without Rapier the earlier glide carries the figure",
+      "status": "done",
+      "evidence": "driver.ts: the glide path is unchanged and is what runs until the body loads. Not seen with a load that fails in a browser"
+    },
+    {
+      "id": "tuning-panel",
+      "item": "The numbers that are a matter of taste are set from Settings, take hold at once, and are kept per browser",
+      "status": "done",
+      "evidence": "src/lib/face/feel.ts; src/components/face/face-feel.tsx on /settings/appearance; src/lib/figures.ts keeps what was changed. feel.test.ts (18). Browser: sliders by keyboard, in force after a reload, one row put back, Reset all, the strip pinned while the rows scroll; docs/plans/evidence/theo-body/tuning.png"
+    },
+    {
+      "id": "verify-real-hand",
+      "item": "A carry and a throw by a real hand on a real display, for feel",
+      "status": "todo",
+      "evidence": "Not done here. The headless page ran at about 13 frames a second; throws were made with dispatched pointer events carrying set timestamps. The panel under Settings, Appearance is where a real hand sets what it finds"
+    },
+    {
+      "id": "verify-desktop",
+      "item": "The body in the desktop window's webview",
+      "status": "todo",
+      "evidence": "Not run here"
+    },
+    {
+      "id": "one-world",
+      "item": "Theo and Kit in one physical world, each collider saying what it is and what it meets",
+      "status": "done",
+      "evidence": "src/lib/world.ts; world.test.ts: a thrown Theo strikes Kit, a travelling one passes it, Kit's surfaces are not Theo's, a loose Kit strikes Theo and an aimed one does not, a lifted Kit is met by nothing"
+    },
+    {
+      "id": "one-clock",
+      "item": "Two figures moving do not run the world's time twice",
+      "status": "done",
+      "evidence": "world.test.ts \"one clock\": Theo's path step for step as alone while Kit walks or flies, either order; Kit's walk forces a real step, so 30 frames take 30 to 32 steps"
+    },
+    {
+      "id": "kit-forecast",
+      "item": "Kit sees a thrown Theo coming, allowing for the throw dying away",
+      "status": "done",
+      "evidence": "KitWorld.coming; world.test.ts \"Kit sees it coming\": side and time, within two steps for three throws, nothing for one that falls short or is headed away"
+    },
+    {
+      "id": "kit-dodge",
+      "item": "Kit ducks under, jumps over, or is knocked off its feet",
+      "status": "done",
+      "evidence": "kit/driver.ts dodge, duck, leap, struck; driver.test.ts \"Theo, thrown, and Kit\"; in headless Chromium on face-in-shell, twice: evidence/theo-body/meet-struck.png, meet-jump.png, meet-duck.png"
+    },
+    {
+      "id": "theo-meets",
+      "item": "Theo reacts to meeting Kit as its own event, and watches Kit in the air",
+      "status": "done",
+      "evidence": "body.meet.kit in engine.ts, memory.ts, reactions.ts; Face.watch; face.test.ts; gaze seen turning toward a jumping Kit and back in headless Chromium"
+    },
+    {
+      "id": "release-place",
+      "item": "A released Theo starts from where the hand is",
+      "status": "done",
+      "evidence": "components/face/driver.ts holds the body at the hand before release; seen in the struck throw, which starts beside Kit"
+    },
+    {
+      "id": "obstacles",
+      "item": "Obstacles other than the window's edges and Kit",
+      "status": "todo",
+      "evidence": "Not built. Kit's surfaces are in the same world now; which of them Theo meets is undecided. See 'Not yet'"
+    },
+    {
+      "id": "automatic-visit",
+      "item": "A rule that sends Theo to an artifact by itself",
+      "status": "todo",
+      "evidence": "Not built. The place and the performance exist for the agent and for rules"
+    },
+    {
+      "id": "meet-real-hand",
+      "item": "A throw at Kit by a person's hand on a real display",
+      "status": "todo",
+      "evidence": "Not run here. The headless throws were mouse flicks and dispatched pointer events on software rendering"
+    },
+    {
+      "id": "kit-minds-travel",
+      "item": "Kit steps aside for a Theo that is travelling",
+      "status": "todo",
+      "evidence": "Not built. See 'Not yet'"
+    }
+  ]
+}

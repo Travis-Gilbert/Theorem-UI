@@ -75,7 +75,7 @@ export function NoteMenuItems({
   return (
     <>
       <MenuItem onClick={() => onAction({ type: 'kind', kind: 'note' })}>
-        <Icon.Add />
+        <Icon.NewNote />
         New note
       </MenuItem>
       <MenuItem onClick={() => onAction({ type: 'request', request: 'note' })}>

@@ -337,6 +337,24 @@ test("a saved module's parts are presented as the page around it is", async () =
   }
 })
 
+// IDE mode's page fills the window, and a module placed straight on such a
+// page kept the height it would have on a page that scrolls, so Theia would
+// not reach the bottom of the window.
+test('on a page that fills the window, a module placed on the page fills it', async () => {
+  const frameOf = async (fill: boolean) => {
+    const { container } = await renderPage({
+      root: { props: { fill, frames: 'flush' } },
+      content: [instance('theorem.text', 'note', { title: 'Note' })],
+    })
+    return waitFor(() =>
+      container.querySelector<HTMLElement>('section[aria-label="Note"]'),
+    )
+  }
+  expect((await frameOf(true)).className).toContain('h-full')
+  cleanup()
+  expect((await frameOf(false)).className).not.toContain('h-full')
+})
+
 // Review found that a sandboxed module's declared actions never reached it:
 // its frame registers them by name, from its manifest, through this hook.
 test('a module whose actions come from its manifest answers a route to each', async () => {

@@ -9,10 +9,12 @@
 // *****************************************************************************
 
 import { injectable } from '@theia/core/shared/inversify';
+import { Emitter } from '@theia/core/lib/common';
 import URI from '@theia/core/lib/common/uri';
 import { DocumentSession, TheoremClient, TheoremError, WorkspaceLanguage, WorkspaceLive, WorkspaceScm } from '@theoremharness/sdk';
 import { workspacePathOf } from './host-paths';
-import { isolateResyncListeners, recoveringSend, type Send } from './workspace-recovery';
+import type { IdeConnection } from '../common/ide-bridge';
+import { isolateResyncListeners, openUntilReady, recoveringSend, type Opening, type OpeningState, type Send } from './workspace-recovery';
 
 /** Headers every workspace operation carries. */
 export interface OperationHeaders {
@@ -42,8 +44,13 @@ export class TheoremConnection {
     /** `file:///<name>`: the workspace root as Theia shows it. */
     readonly root: URI;
     readonly live: WorkspaceLive;
-    /** Resolves once the workspace is open and the live stream has started. */
+    /** Resolves once the workspace is open and the live stream has started; until then, every call waits. */
     readonly ready: Promise<void>;
+    /** How the attachment stands: opening, open or failed, and the live stream apart from it. */
+    status: IdeConnection = { workspace: 'opening', live: 'connecting' };
+    protected readonly onDidChangeStatusEmitter = new Emitter<IdeConnection>();
+    readonly onDidChangeStatus = this.onDidChangeStatusEmitter.event;
+    protected readonly opening: Opening;
 
     protected csrfToken = '';
     protected reopening: Promise<void> | undefined;
@@ -67,12 +74,32 @@ export class TheoremConnection {
         this.root = new URI('file:///').resolve(params.get('name') ?? this.workspaceId);
         this.live = new WorkspaceLive({ client: this.client, workspaceId: this.workspaceId });
         isolateResyncListeners(this.live, error => console.warn('A live consumer could not re-read after a resync', error));
-        this.ready = this.open();
+        this.live.onState(live => this.setStatus({ ...this.status, live }));
+        this.opening = openUntilReady(() => this.attach(), state => this.opened(state));
+        this.ready = this.opening.ready.then(() => {
+            void this.live.start();
+        });
     }
 
-    protected async open(): Promise<void> {
-        await this.attach();
-        void this.live.start();
+    /** Try opening the workspace again now. */
+    retry(): void {
+        this.opening.retryNow();
+    }
+
+    protected opened(state: OpeningState): void {
+        if (state.state === 'failed') {
+            console.warn(`The workspace did not open; trying again in ${state.retryInMs} ms`, state.error);
+        }
+        this.setStatus({
+            workspace: state.state,
+            live: this.status.live,
+            ...(state.state === 'failed' ? { error: state.error, retryInMs: state.retryInMs } : {}),
+        });
+    }
+
+    protected setStatus(status: IdeConnection): void {
+        this.status = status;
+        this.onDidChangeStatusEmitter.fire(status);
     }
 
     /** Bootstrap, then ask the host to open the workspace: idempotent, so also how it is reopened. */

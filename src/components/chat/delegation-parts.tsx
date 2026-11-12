@@ -1,4 +1,4 @@
-// SOURCING: @pierre/diffs/react PatchDiff and MultiFileDiff (Shiki-highlighted diffs, the code blocks' GitHub themes), @assistant-ui/react data parts, the installed CollapsibleRoot over Base UI Collapsible, next-themes for the diff theme, ui/button
+// SOURCING: @pierre/diffs/react PatchDiff and MultiFileDiff (Shiki-highlighted diffs, in the code blocks' themes from lib/palette), @assistant-ui/react data parts, the installed CollapsibleRoot over Base UI Collapsible, next-themes for the diff theme, ui/button
 //
 // Delegated work in the conversation (D20: the transcript shows one agent).
 // The front role delegates a work contract to a specialist; its card follows
@@ -25,6 +25,7 @@ import { askAbout } from '@/components/chat/composer-references'
 import { useOpenChanges } from '@/components/ide/follow'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { useCodeThemes } from '@/lib/palette'
 import { withoutCode } from '@/lib/theorem/client'
 import {
   LIVE_DELEGATION_STATES,
@@ -36,7 +37,9 @@ import {
   useDelegationContent,
   useDelegationDock,
   useLiveDelegation,
+  useSpecialistRun,
 } from '@/lib/theorem/delegations'
+import { useSpecialistAppRequests } from '@/lib/blocks/app-operations'
 import type {
   ChangeAdmission,
   ChangeSetEntry,
@@ -45,6 +48,7 @@ import type {
   ReviewVerdict,
 } from '@/lib/theorem/delegations'
 import { cn } from '@/lib/utils'
+import { thingProps } from '@/lib/face/things'
 
 const card =
   'my-3 flex w-full max-w-2xl flex-col rounded-artifact border border-separator bg-artifact'
@@ -117,11 +121,6 @@ const Section: FC<{ title: string; children: ReactNode }> = ({
 
 /* ---------------------------------------------------------------- the diff */
 
-const DIFF_THEME = {
-  dark: 'github-dark-default',
-  light: 'github-light-default',
-}
-
 /**
  * A git-style patch, which Pierre's parser reads as an add, a modify or a
  * delete of one path. Theorem stores a plain unified diff.
@@ -145,6 +144,7 @@ const ChangeDiff: FC<{
   change: ChangeSetEntry
 }> = ({ delegation, change }) => {
   const { resolvedTheme } = useTheme()
+  const codeThemes = useCodeThemes()
   const { parentRunId: runId, delegationId } = delegation
   const patch = useDelegationContent(runId, delegationId, change.diffRef)
   // Without a stored diff, Pierre diffs the two sides itself.
@@ -178,7 +178,7 @@ const ChangeDiff: FC<{
       </ShimmerLabel>
     )
   const options = {
-    theme: DIFF_THEME,
+    theme: codeThemes,
     themeType:
       resolvedTheme === 'dark' ? ('dark' as const) : ('light' as const),
     diffStyle: 'unified' as const,
@@ -218,6 +218,10 @@ const ChangeRow: FC<{ delegation: DelegationPart; change: ChangeSetEntry }> = ({
       open={open}
       onOpenChange={setOpen}
       className="border-t border-separator first:border-t-0"
+      // Named, so Theo can be sent to this file's diff and to a line of it.
+      {...thingProps('change', `${delegation.delegationId}/${change.path}`, {
+        label: change.path,
+      })}
     >
       <div className="flex items-center gap-2 px-4 py-1.5">
         <CollapsibleTrigger
@@ -423,7 +427,8 @@ const Notes: FC<{ title: string; items: string[] }> = ({ title, items }) =>
 
 function workProblems({ receipt, problem }: DelegationPart): string[] {
   const terminal = receipt?.terminal
-  const workerFailure = terminal?.kind === 'failed' ? terminal.message : undefined
+  const workerFailure =
+    terminal?.kind === 'failed' ? terminal.message : undefined
   return [
     workerFailure && withoutCode(workerFailure),
     problem && problem !== workerFailure
@@ -493,7 +498,10 @@ export const DelegationBody: FC<{
             )}
           </p>
           <p
-            className={cn('text-sm text-ink-muted', !detailed && 'line-clamp-3')}
+            className={cn(
+              'text-sm text-ink-muted',
+              !detailed && 'line-clamp-3',
+            )}
             title={detailed ? undefined : objective}
           >
             {objective}
@@ -665,6 +673,31 @@ export const DelegationBody: FC<{
   )
 }
 
+/**
+ * Follows a specialist's run while it works, so what it asks of this page is
+ * answered: a builder checks the App it is writing in the person's browser,
+ * as the conversation's own turn does. It draws nothing while it follows the
+ * run; once the run's stream has given up, it says that its checks are no
+ * longer answered here.
+ */
+function SpecialistPage({
+  runId,
+  roleLabel,
+}: {
+  runId: string
+  roleLabel: string
+}) {
+  const { message, error } = useSpecialistRun(runId)
+  useSpecialistAppRequests(runId, message)
+  if (!error) return null
+  return (
+    <p role="alert" className="px-4 pb-4 text-xs text-error-ink">
+      This page stopped following the {roleLabel.toLowerCase()}’s run, so its
+      App checks are not answered here. {error.message}
+    </p>
+  )
+}
+
 const DelegationCard: DataMessagePartComponent = ({ data }) => {
   const delegation = useLiveDelegation(readDelegation(data))
   if (!delegation) return null
@@ -675,6 +708,13 @@ const DelegationCard: DataMessagePartComponent = ({ data }) => {
       className={cn(card, liveEnter)}
     >
       <DelegationBody delegation={delegation} />
+      {LIVE_DELEGATION_STATES.has(delegation.state) &&
+        delegation.childRunId && (
+          <SpecialistPage
+            runId={delegation.childRunId}
+            roleLabel={delegation.roleLabel}
+          />
+        )}
     </article>
   )
 }

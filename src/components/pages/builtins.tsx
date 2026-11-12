@@ -17,10 +17,13 @@ import {
 } from 'react'
 import { create } from 'zustand'
 import type { StoreApi, UseBoundStore } from 'zustand'
+import { ArtifactPlacement } from '@/components/artifacts/artifact-message'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { DocumentApp } from '@/components/blocks/document-app'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { IdeFrame } from '@/components/ide/ide-frame'
+import { IdePageShown } from '@/components/ide/ide-page'
+import { LifeBackdrop } from '@/components/life/life-backdrop'
 import type { Scope as IndexScope } from '@/components/index/contract'
 import { ViewColumn } from '@/components/index/index-surface'
 import { Inspector } from '@/components/index/inspector'
@@ -41,12 +44,17 @@ import { RecordInspector } from '@/components/records/record-inspector'
 import { RecordTable } from '@/components/records/record-table'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
-import { useTerminalTabs } from '@/components/terminal/side-terminal'
+import {
+  attachToSideTerminal,
+  useTerminalTabs,
+} from '@/components/terminal/side-terminal'
 import {
   TerminalScreen,
   addReference,
 } from '@/components/terminal/terminal-screen'
 import { Button } from '@/components/ui/button'
+import { WorkInspector } from '@/components/work/inspector'
+import { parseWorkItemId } from '@/components/work/route'
 import { WorkspaceFilePanel } from '@/components/workspace/workspace-file-panel'
 import type { Item } from '@/lib/modules/contract'
 import { builtin, registerBuiltin } from '@/lib/modules/registry'
@@ -57,6 +65,7 @@ import { isItem, isReference } from '@/lib/modules/values'
 import { describeError } from '@/lib/theorem/client'
 import { useNothingToShow } from './layout-parts'
 import { useModuleAction, usePageRuntime } from './page-runtime'
+import { WORK_MODULES } from './work-modules'
 
 function Empty({ children }: { children: string }) {
   return <p className="p-3 text-sm text-ink-muted">{children}</p>
@@ -67,7 +76,11 @@ const text = (value: unknown) => (typeof value === 'string' ? value : '')
 /** An item for a document or record, opened in `scope` when it was. */
 const indexItem = (id: string, scope?: IndexScope): Item => ({
   id,
-  kind: parseRecordItemId(id) ? 'record' : 'document',
+  kind: parseWorkItemId(id)
+    ? 'work'
+    : parseRecordItemId(id)
+      ? 'record'
+      : 'document',
   ...(scope && { scope }),
 })
 
@@ -220,6 +233,17 @@ function InspectorModule({ inputs, emit }: ModuleViewProps) {
   }
   if (!current)
     return <Empty>Nothing to show yet. Connect its Item, or send it one.</Empty>
+  const work = parseWorkItemId(current.id)
+  if (work)
+    return (
+      <WorkInspector
+        key={current.id}
+        itemId={work}
+        onOpen={(id) => open(`work:${id}`)}
+        onClose={close}
+        className="h-full"
+      />
+    )
   const record = parseRecordItemId(current.id)
   if (record)
     return (
@@ -355,10 +379,17 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
   useModuleAction('attach', (payload) => {
     if (isReference(payload)) useComposerReferences.getState().add(payload)
   })
+  // Kept laid out under another mode, the page's conversation is still out
+  // of sight: what arrives meanwhile is new when the person comes back.
+  const shown = useContext(IdePageShown)
   if (!mine) return <Elsewhere what="The conversation" onTake={take} />
   return (
     <div className="h-full min-h-[320px]">
-      <Thread autoFocus={false} />
+      <ArtifactPlacement.Provider value="inline">
+        <LifeBackdrop>
+          <Thread autoFocus={false} composerDocked covered={!shown} />
+        </LifeBackdrop>
+      </ArtifactPlacement.Provider>
     </div>
   )
 }
@@ -366,21 +397,35 @@ function ConversationModule({ settings, path }: ModuleViewProps) {
 const useIdeOwner = create<Owner>(() => ({}))
 
 /**
- * Theia, for the active project. Add to chat is its Added event; with its
- * chat set to the page, Theia's own chat closes and Follow follows the agent
- * terminal's active tab, so a connection from Added to a terminal's Attach
- * makes the terminal the conversation.
+ * Theia, for the active project. Add to chat is its Added event. With its
+ * chat set to the page's conversation, Theia's own chat closes and Follow
+ * follows the conversation's runs, so a connection from Added to the
+ * conversation's Attach puts the selection in its composer. Set to the
+ * agent terminal on the right, Added also puts the selection on the right
+ * drawer's active tab for its next turn, and Follow follows that tab. Set to
+ * the page, Follow follows the agent terminal's active tab too, so a
+ * connection to a terminal's Attach makes the terminal the conversation.
  */
 function IdeModule({ settings, emit, arranging, path }: ModuleViewProps) {
   const { mine, take } = useOwner(useIdeOwner, path, !arranging)
+  const { project } = useActiveProject()
   if (arranging)
     return <Empty>Theia opens here while the page is in use.</Empty>
   if (!mine) return <Elsewhere what="The IDE" onTake={take} />
   return (
     <div className="h-full">
       <IdeFrame
-        docked={settings.chat === 'page'}
-        onAddToChat={(reference) => emit('added', reference)}
+        docked={settings.chat !== 'own'}
+        follows={
+          settings.chat === 'page' || settings.chat === 'terminal'
+            ? 'terminal'
+            : 'chat'
+        }
+        onAddToChat={(reference) => {
+          emit('added', reference)
+          if (settings.chat === 'terminal' && project)
+            attachToSideTerminal(project.projectId, reference)
+        }}
       />
     </div>
   )
@@ -432,7 +477,7 @@ function PageTerminal({ hostId }: { hostId: string }) {
 }
 
 function FileModule({ settings }: ModuleViewProps) {
-  const { client, isPending } = useVaultClient()
+  const { client, isPending, missing } = useVaultClient()
   const path = text(settings.path)
   const [moved, setMoved] = useState<{ from: string; to: string }>()
   const shownPath = moved?.from === path ? moved.to : path
@@ -441,7 +486,9 @@ function FileModule({ settings }: ModuleViewProps) {
   if (!client)
     return (
       <Empty>
-        {isPending ? 'Opening the vault…' : 'The vault is not open.'}
+        {isPending
+          ? 'Opening the vault…'
+          : `The Theorem vault is not available. ${missing}`}
       </Empty>
     )
   return (
@@ -541,6 +588,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
     actions: [item('show', 'Show an item')],
     Component: InspectorModule,
   }),
+  ...WORK_MODULES,
   builtin({
     id: 'theorem.records.table',
     label: 'Records',
@@ -562,7 +610,7 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
     id: 'theorem.conversation',
     label: 'Conversation',
     description:
-      'The conversation and its composer. Moving it keeps the draft.',
+      'The conversation and its composer, over the Life field, its artifacts open in line. Moving it keeps the draft.',
     settings: [
       {
         name: 'conversation',
@@ -589,7 +637,15 @@ export const BUILTIN_MODULES: ReadonlyArray<ModuleDefinition> = [
         kind: 'select',
         options: [
           { label: "Theia's own", value: 'own' },
-          { label: 'On the page, through Added', value: 'page' },
+          {
+            label: "The page's conversation, through Added",
+            value: 'conversation',
+          },
+          { label: 'The agent terminal on the right', value: 'terminal' },
+          {
+            label: 'An agent terminal on the page, through Added',
+            value: 'page',
+          },
         ],
         default: 'own',
       },

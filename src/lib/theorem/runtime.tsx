@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); @tanstack/react-query's QueryClientContext for the cached model list a send checks its effort level against; each thread runtime also reports to Kit (lib/kit)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit) and reads replies aloud through lib/speech
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -28,16 +28,16 @@ import {
   toAssistantMessages,
 } from '@theoremharness/sdk/assistant-ui'
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
-import { QueryClientContext } from '@tanstack/react-query'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useContext, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
 import { toastManager } from '@/components/coss/toast'
 import { useComposerReferences } from '@/components/chat/composer-references'
 import { planningTurnOptions, usePlanning, webTurnOptions } from '@/components/chat/composer-tools'
+import { connectionTurnOptions } from './tool-selection'
 import { DRAFT_PLAN } from './plans'
 import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
 import { useShell } from '@/components/shell/shell-state'
@@ -59,13 +59,20 @@ import {
 import type { Theorem } from './client'
 import { chatAttachments, turnUploads } from './chat-attachments'
 import { RefusedSend } from './send-recovery'
+import { generationTurnOptions, requestedEffort, useGenerationOverrides } from './generation'
+import { saveThreadGeneration, takeThreadGeneration } from './thread-generation'
 import { modelTurnOptions } from './models'
+import { bindRunInput } from './run-input-runtime'
 
 import { toHistoryMessages } from './message-history'
 import { isUntitledTitle, threadTitle } from './thread-title'
 
-import { KitStage } from '@/components/kit/kit-stage'
-import { kitTurnOptions, useKitRequests } from '@/lib/kit/operations'
+import { Figures } from '@/components/face/figures'
+import { useKitRequests } from '@/lib/kit/operations'
+import { useAppRequests } from '@/lib/blocks/app-operations'
+import { useFaceRequests } from '@/lib/face/operations'
+import { speechAdapter } from '@/lib/speech/adapter'
+import { clientSurfaceTurnOptions } from './client-surface'
 
 type RemoteThreadMetadata = Awaited<
   ReturnType<RemoteThreadListAdapter['fetch']>
@@ -345,6 +352,7 @@ const loadedForResume = new Map<
  */
 async function durableHistory(threadId: string) {
   const snapshot = await theorem().chat.threads.get({ threadId })
+  takeThreadGeneration(snapshot.thread)
   const { lastRun, pendingTurn } = snapshot.thread
   const unanswered = snapshot.messages.at(-1)?.role === 'user' && !pendingTurn
   const runId =
@@ -598,6 +606,22 @@ export async function* runTurn(
     noteLiveRun(threadId, undefined)
   }
 }
+/**
+ * A turn's steps, then how long they took. assistant-ui stamps a live reply
+ * when its run begins and records no end, so this is what lets the reply say
+ * how long the person waited; a reply read from history has its stored time.
+ */
+export async function* timed(turn: AsyncIterable<ChatModelRunResult>): AsyncGenerator<ChatModelRunResult> {
+  const streamStartTime = Date.now()
+  let totalChunks = 0
+  let toolCallCount = 0
+  for await (const step of turn) {
+    totalChunks += 1
+    toolCallCount = (step.content ?? []).filter((part) => part.type === 'tool-call').length
+    yield step
+  }
+  yield { metadata: { timing: { streamStartTime, totalStreamTime: Date.now() - streamStartTime, totalChunks, toolCallCount } } }
+}
 /** Whether a streamed step carries a finished `draft_plan` call. */
 export function draftedPlan(step: ChatModelRunResult): boolean {
   return (step.content ?? []).some(
@@ -606,29 +630,33 @@ export function draftedPlan(step: ChatModelRunResult): boolean {
 }
 function useTheoremThreadRuntime() {
   const aui = useAui()
-  // Absent outside the app's query provider; a send there carries no effort level.
-  const queryClient = useContext(QueryClientContext)
-  const turnOptions = useMemo(() => modelTurnOptions(queryClient), [queryClient])
   const adapter = useMemo<ChatModelAdapter>(
     () => ({
       async *run(options) {
         try {
-          const references = useComposerReferences.getState().references
+          const references = options.runConfig.custom?.theoremRunInput === true
+            ? [] : useComposerReferences.getState().references
+          const { id: localId, remoteId: existingId } = aui.threadListItem.getState()
+          const isNew = !existingId
           const { remoteId } = await aui.threadListItem.initialize()
+          // A new chat's response settings were kept as a draft until it had a thread to belong to.
+          if (isNew) useGenerationOverrides.getState().adopt(remoteId)
+          // The override belongs on the thread; what is not there yet goes with the turn below.
+          await saveThreadGeneration(remoteId)
           // The composer's model pick; read at each send, so switching mid-thread takes effect.
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
-          // The composer's context, Web and Plan toggles, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...kitTurnOptions()}
+          // The composer's context, Web and Plan toggles, client surface and connection choice, read at each send like the model pick.
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...clientSurfaceTurnOptions(),...connectionTurnOptions(localId,remoteId),...generationTurnOptions(remoteId)}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
           } : options
-          const turn = runTurn(remoteId,composed,turnOptions,()=>{
+          const turn = runTurn(remoteId,composed,modelTurnOptions,()=>{
             // Recovery replays its saved request; only a newly accepted send consumes these references.
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
-          for await (const step of turn) {
+          for await (const step of timed(turn)) {
             // Plan stays on until a plan is written; the turn that writes one turns it off.
             if (draftedPlan(step)) usePlanning.getState().set(false)
             yield step
@@ -641,11 +669,24 @@ function useTheoremThreadRuntime() {
         }
       },
     }),
-    [aui, turnOptions],
+    [aui],
   )
-  const runtime = useLocalRuntime(adapter)
+  // Replies are read aloud by the page's own voice, when the person asks.
+  const speech = useMemo(() => speechAdapter(), [])
+  const runtime = useLocalRuntime(adapter, { adapters: { speech } })
+  useEffect(() => bindRunInput(runtime, {
+    threadKey: aui.threadListItem.getState().id,
+    threadId: () => aui.threadListItem.getState().remoteId,
+    liveRuns: useLiveRuns,
+  }), [aui, runtime])
+  // The effort this conversation's sends ask for, for Theo to show while one runs.
+  const faceEffort = useCallback(() => requestedEffort(aui.threadListItem.getState().remoteId ?? undefined), [aui])
   useKitSource(runtime)
   useKitRequests(runtime)
+  // The agent checks Apps with the page's compiler; this answers it.
+  useAppRequests(runtime)
+  // The agent drives Theo, its face, through the page; this answers it.
+  useFaceRequests(runtime, faceEffort)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()
@@ -797,7 +838,7 @@ export function TheoremRuntimeProvider({
     <AssistantRuntimeProvider runtime={runtime}>
       <TheoremPartRenderers />
       {children}
-      <KitStage />
+      <Figures />
     </AssistantRuntimeProvider>
   )
 }

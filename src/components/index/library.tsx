@@ -8,6 +8,7 @@ import {
   useStateField,
   useTriggerAction,
 } from '@openuidev/react-lang'
+import { once } from 'lodash-es'
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
@@ -25,6 +26,7 @@ import {
 import { useDataModel } from '@/components/records/queries'
 import { RecordTable as RecordTableView } from '@/components/records/record-table'
 import { describeError } from '@/lib/theorem/client'
+import { WORK_COMPONENT_NAMES, workComponents } from '@/components/work/library'
 import { AtlasMap } from './atlas'
 import { dataModelViewId, recordsViewId } from './programs'
 import type {
@@ -896,55 +898,75 @@ const SetPreference = defineAction({
   }),
 })
 
-export const indexLibrary = createLibrary({
-  id: 'theorem.index',
-  root: 'Stack',
-  components: [
-    Stack,
-    Columns,
-    Section,
-    Heading,
-    Text,
-    Callout,
-    Metric,
-    SearchField,
-    Choice,
-    ItemList,
-    Comparison,
-    IndexItems,
-    IndexComparison,
-    Timeline,
-    CollectionGrid,
-    FilingList,
-    Atlas,
-    RecordTable,
-    DataModel,
-    ActionButton,
-  ],
-  componentGroups: [
-    { name: 'Layout', components: ['Stack', 'Columns', 'Section'] },
-    { name: 'Text', components: ['Heading', 'Text', 'Callout', 'Metric'] },
-    { name: 'Inputs', components: ['SearchField', 'Choice'] },
-    {
-      name: 'Material',
-      components: [
-        'ItemList',
-        'Comparison',
-        'IndexItems',
-        'IndexComparison',
-        'Timeline',
-        'CollectionGrid',
-        'FilingList',
-        'Atlas',
-      ],
-    },
-    { name: 'Records', components: ['RecordTable', 'DataModel'] },
-    { name: 'Actions', components: ['ActionButton'] },
-  ],
-  actions: [OpenItem, AskTheorem, PinView, SetPreference],
-})
+const WORK_COMPONENTS = once(() => workComponents(useHost))
 
-export type IndexLibrary = typeof indexLibrary
+/** The library with or without the work tracker's components; both render and check the same programs. */
+function buildLibrary(withWork: boolean) {
+  return createLibrary({
+    id: 'theorem.index',
+    root: 'Stack',
+    components: [
+      Stack,
+      Columns,
+      Section,
+      Heading,
+      Text,
+      Callout,
+      Metric,
+      SearchField,
+      Choice,
+      ItemList,
+      Comparison,
+      IndexItems,
+      IndexComparison,
+      Timeline,
+      CollectionGrid,
+      FilingList,
+      Atlas,
+      RecordTable,
+      DataModel,
+      ActionButton,
+      ...(withWork ? WORK_COMPONENTS() : []),
+    ],
+    componentGroups: [
+      { name: 'Layout', components: ['Stack', 'Columns', 'Section'] },
+      { name: 'Text', components: ['Heading', 'Text', 'Callout', 'Metric'] },
+      { name: 'Inputs', components: ['SearchField', 'Choice'] },
+      {
+        name: 'Material',
+        components: [
+          'ItemList',
+          'Comparison',
+          'IndexItems',
+          'IndexComparison',
+          'Timeline',
+          'CollectionGrid',
+          'FilingList',
+          'Atlas',
+        ],
+      },
+      { name: 'Records', components: ['RecordTable', 'DataModel'] },
+      ...(withWork
+        ? [{ name: 'Work', components: [...WORK_COMPONENT_NAMES] }]
+        : []),
+      { name: 'Actions', components: ['ActionButton'] },
+    ],
+    actions: [OpenItem, AskTheorem, PinView, SetPreference],
+  })
+}
+
+/**
+ * Built on first use, for the reason artifactLibrary is (see artifacts/openui/library).
+ * Renders and checks every program, so a saved view that uses the tracker
+ * still draws (as "Work tracker is off") when the tracker is switched off.
+ */
+export const indexLibrary = once(() => buildLibrary(true))
+/** What Theorem is told it may compose with while the tracker is off. */
+const indexLibraryWithoutWork = once(() => buildLibrary(false))
+const libraryFor = (withWork: boolean) =>
+  withWork ? indexLibrary() : indexLibraryWithoutWork()
+
+export type IndexLibrary = ReturnType<typeof indexLibrary>
 
 /**
  * OpenUI's own calls, which its package does not export by name: the
@@ -983,6 +1005,9 @@ const PROMPT_RULES = [
   'RecordTable("<object>") and DataModel() read Theorem\'s schema register themselves and take no Query; name objects by their name_singular.',
 ]
 
+const WORK_RULE =
+  'The Work components (WorkView, WorkList, WorkBoard, WorkViewBar, WorkInbox, WorkItem, WorkProjects, WorkProject) read the work tracker themselves and take no Query; name views and projects by their ids.'
+
 const TOOL_EXAMPLE = `$q = ""
 root = Stack([search, results])
 search = SearchField("Search these documents", $q)
@@ -990,25 +1015,25 @@ found = Query("items", {q: $q}, {items: [], total: 0})
 results = ItemList(found.items, "list", "collection", "Nothing matches yet.")`
 
 /** The prompt Theorem composes candidates with, and the names the server lints against. */
-export function libraryPrompt() {
-  return indexLibrary.prompt({
+export function libraryPrompt(withWork = true) {
+  return libraryFor(withWork).prompt({
     preamble:
       "You compose views of a person's filed material in Theorem's Index. Answer with OpenUI Lang only.",
-    additionalRules: PROMPT_RULES,
+    additionalRules: withWork ? [...PROMPT_RULES, WORK_RULE] : PROMPT_RULES,
     toolExamples: [TOOL_EXAMPLE],
     toolCalls: true,
     bindings: true,
   })
 }
 
-export const libraryComponents = () => [
-  ...Object.keys(indexLibrary.components),
+export const libraryComponents = (withWork = true) => [
+  ...Object.keys(libraryFor(withWork).components),
   ...OPENUI_COMPONENTS,
 ]
 
 export const libraryCallables = () => [
   ...OPENUI_CALLABLES,
-  ...Object.keys(indexLibrary.actions),
+  ...Object.keys(indexLibrary().actions),
 ]
 
 async function sha256(text: string) {
@@ -1022,9 +1047,9 @@ async function sha256(text: string) {
 }
 
 /** The record PUT /api/index/v1/library stores; the digest covers everything the server reads. */
-export async function libraryRecord() {
-  const prompt = libraryPrompt()
-  const components = libraryComponents()
+export async function libraryRecord(withWork = true) {
+  const prompt = libraryPrompt(withWork)
+  const components = libraryComponents(withWork)
   const callables = libraryCallables()
   return {
     libraryId: 'theorem.index',

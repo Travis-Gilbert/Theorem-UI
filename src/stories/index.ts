@@ -1,11 +1,13 @@
 // SOURCING: none: the list /stories.json serves and the story route looks up, kept free of components so the server route can read it. Each story's lane and reference are the license ledger's, docs/plans/evidence/ledger.md.
+import { ACTIVITY_STATES } from './fixtures/activity'
+import { ARTIFACT_STORIES } from './fixtures/artifacts'
 
 export type StoryMeta = {
   id: string
   title: string
   lane: 'translation' | 'original'
-  /** Under docs/plans/evidence/refs/. */
-  reference: string
+  /** Under docs/plans/evidence/refs/; an original drawn to no reference has none, and the oracle skips it. */
+  reference?: string
   /** Width and height the reference's region is read at. */
   viewport: { width: number; height: number }
   /** The region of the reference this story answers: left, top, width, height. */
@@ -16,6 +18,8 @@ export type StoryMeta = {
 
 const SIDEBAR_REF = 'sidebar-compare@2026-11-05.webp'
 const CANVAS_REF = 'canvas-note-types@2026-11-05.png'
+/** The coding-workspace mockup the person attached: the terminal against the code pane, and the fox. */
+const CODING_REF = 'coding-workspace-mockup@2026-11-08.png'
 
 export const STORIES: readonly StoryMeta[] = [
   {
@@ -38,10 +42,11 @@ export const STORIES: readonly StoryMeta[] = [
   {
     id: 'compare-pane',
     title: 'Compare pane',
-    lane: 'translation',
-    reference: SIDEBAR_REF,
-    viewport: { width: 423, height: 1064 },
-    region: [1056, 0, 423, 1064],
+    // Drawn to the owner's sketch of 2026-11-11 (option rows, one preview,
+    // Write feedback), which was attached in chat and is not in the repo. The
+    // 2026-11-05 reference shows the earlier cards, so the oracle skips this.
+    lane: 'original',
+    viewport: { width: 380, height: 760 },
   },
   {
     id: 'review-card',
@@ -73,6 +78,14 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1440, height: 900 },
   },
   {
+    id: 'conversation-wide',
+    title: 'Conversation on a wide sheet',
+    lane: 'original',
+    reference: CODING_REF,
+    viewport: { width: 1600, height: 1000 },
+    threadId: 'thread-app-gallery',
+  },
+  {
     id: 'shell-compare',
     title: 'Shell with Compare open',
     lane: 'translation',
@@ -80,6 +93,101 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1479, height: 1064 },
     threadId: 'thread-app-gallery',
   },
+  {
+    id: 'cpu-gpu-tradeoff',
+    title: 'CPU or GPU: the tradeoff notebook',
+    lane: 'original',
+    viewport: { width: 960, height: 1500 },
+  },
+  {
+    id: 'cpu-gpu-measured',
+    title: 'CPU or GPU: measured timings, CPU-only run',
+    lane: 'original',
+    viewport: { width: 960, height: 1400 },
+  },
+  {
+    id: 'cpu-gpu-awaiting-gpu',
+    title: 'CPU or GPU: timings awaiting a GPU host',
+    lane: 'original',
+    viewport: { width: 960, height: 400 },
+  },
+  {
+    id: 'cpu-gpu-model',
+    title: 'CPU or GPU: the cost model in Python, runnable in the browser',
+    lane: 'original',
+    viewport: { width: 960, height: 900 },
+  },
+  {
+    id: 'composer-paper',
+    title: 'Composer on paper, new conversation',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  {
+    id: 'chat-program',
+    title: 'A program the agent wrote',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  ...ACTIVITY_STATES.map(
+    (state): StoryMeta => ({
+      id: `activity-${state}`,
+      title: `Activity line: ${state}`,
+      lane: 'original',
+      viewport: { width: 760, height: 560 },
+    }),
+  ),
+  {
+    id: 'face-bench',
+    title: 'Theo: the bench, every way to move the face',
+    lane: 'original',
+    viewport: { width: 1000, height: 620 },
+  },
+  {
+    id: 'face-book',
+    title: 'Theo: every performance in the book, stopped at its fullest',
+    lane: 'original',
+    viewport: { width: 780, height: 860 },
+  },
+  {
+    id: 'face-in-shell',
+    title: 'Theo in the shell, beside Kit',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+    threadId: 'thread-app-gallery',
+  },
+  {
+    id: 'face-visit',
+    title: 'Theo on a page with an artifact, to visit',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'face-point',
+    title: 'Theo on a page with things to point at',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'face-sound',
+    title: 'Theo on a page with a reply to read aloud',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'tool-pills',
+    title: 'Tool pills: done, failed and running',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  ...ARTIFACT_STORIES.map(
+    ({ id, title }): StoryMeta => ({
+      id,
+      title: `Artifact: ${title}`,
+      lane: 'original',
+      viewport: { width: 760, height: 900 },
+    }),
+  ),
 ]
 
 export const findStory = (id: string) => STORIES.find((story) => story.id === id)

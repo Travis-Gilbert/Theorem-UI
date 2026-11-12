@@ -10,6 +10,7 @@ import {
   JSONRPCServer,
   JSONRPCServerAndClient,
 } from 'json-rpc-2.0'
+import type { AppTheme, ThemeState } from './theme'
 
 /** How a file is read: its text, parsed JSON, CSV rows, or its bytes. */
 export type FileFormat = 'text' | 'json' | 'csv' | 'bytes'
@@ -49,7 +50,53 @@ export interface AppSelection {
   text: string
   rowId?: string
   field?: string
+  /** The nearest `[data-entity-id]` the person selected or clicked, such as one GPU lane. */
+  entityId?: string
+  entityLabel?: string
+  /** The notebook cell (`[data-cell-id]`) the selection or click is in. */
+  cellId?: string
+  /**
+   * Where the element was written, `Table.tsx:21:13`, in an App built from
+   * source: the nearest `[data-theorem-source]`.
+   */
+  source?: string
 }
+
+/** The reads a database answers. A subscription keeps one of them current. */
+export const DB_READS = [
+  'inspect',
+  'getNode',
+  'getEdge',
+  'queryNodes',
+  'neighbors',
+  'query',
+] as const
+export type DbRead = (typeof DB_READS)[number]
+export type DbMethod = DbRead | 'mutate'
+
+/** A database failure. `code` is the database's own, such as `cypher_write_unsupported`. */
+export interface DbFailure {
+  code: string
+  message: string
+}
+
+/** A database call's outcome. A failure is a value, so its code crosses the bridge. */
+export type DbOutcome =
+  { ok: true; value: unknown } | { ok: false; error: DbFailure }
+
+/** Something a frame's code threw and nothing caught, as the frame saw it. */
+export interface FrameError {
+  message: string
+  /** The error's class, such as `TypeError`. */
+  name?: string
+  /** Where the frame's document says it was thrown, one-based. */
+  line?: number
+  column?: number
+  stack?: string
+}
+
+/** The most uncaught errors one load of a frame reports. */
+export const MAX_FRAME_ERRORS = 20
 
 /** Methods the page serves; the sandbox calls them, and the page checks each call. */
 export interface PageMethods {
@@ -72,10 +119,26 @@ export interface PageMethods {
   }
   'state.delete': { params: { name: string; key: string }; result: null }
   'run.request': { params: { target: string }; result: RunRequestResult }
+  /** One call on a declared database. `args` is the method's own argument. */
+  'db.call': {
+    params: { name: string; method: DbMethod; args?: unknown }
+    result: DbOutcome
+  }
+  /** Keeps a read current; its results arrive as `db.changed` with this id. */
+  'db.subscribe': {
+    params: { name: string; id: number; method: DbRead; args?: unknown }
+    result: null
+  }
+  'db.unsubscribe': { params: { id: number }; result: null }
   'frame.selection': { params: AppSelection; result: null }
+  /** The frame's code threw and nothing caught it. */
+  'frame.error': { params: FrameError; result: null }
   'frame.resize': { params: { height: number }; result: null }
   /** A static copy of the frame, for where a live frame would cost too much. */
-  'frame.snapshot': { params: { html: string }; result: null }
+  'frame.snapshot': {
+    params: { html: string; outline?: string }
+    result: null
+  }
   /** A page module publishing one of its declared outputs. */
   'module.output': { params: { name: string; value: unknown }; result: null }
   /** A person used a page module's frame: its next events are theirs. */
@@ -93,6 +156,9 @@ export interface ModuleValues {
 /** The largest snapshot a frame may send, in characters. */
 export const MAX_SNAPSHOT = 512 * 1024
 
+/** The largest outline of a page a frame may send, in characters. */
+export const MAX_OUTLINE = 128 * 1024
+
 /** Methods the sandbox serves; the page calls them. */
 export interface SandboxMethods {
   'cell.run': {
@@ -103,11 +169,54 @@ export interface SandboxMethods {
     params: { name: string; value: Record<string, unknown> }
     result: null
   }
+  /** A subscribed read's result, now and after each commit that changes it. */
+  'db.changed': { params: { id: number; outcome: DbOutcome }; result: null }
   /** A page module's settings or inputs changed. */
   'module.inputs': { params: ModuleValues; result: null }
   /** A route reached one of a page module's declared actions. */
   'module.action': { params: { name: string; payload: unknown }; result: null }
+  /**
+   * The page's theme changed. A notebook's frame is handed its tokens,
+   * resolved, and its mode, for its root; a hosted App's is handed its look
+   * (`scheme` tells them apart), for the host stylesheet under the App's own.
+   */
+  'theme.changed': { params: ThemeState | AppTheme; result: null }
+  /**
+   * The frame as it is now, without waiting for it to settle: what a snapshot
+   * holds. Null when the copy is too large to send.
+   */
+  'frame.look': {
+    params: Record<string, never>
+    result: { html: string; outline: string; page?: PageAttributes } | null
+  }
 }
+
+/**
+ * The attributes on a frame's root and body that its CSS reads: a snapshot is
+ * the body's contents, and what styles them may be a class or a style on the
+ * elements above.
+ */
+export interface PageAttributes {
+  root: Record<string, string>
+  body: Record<string, string>
+  /**
+   * The body's background colour, where the root has none. A browser paints
+   * that behind the whole page and not in the body's box, so a copy has to be
+   * told. Absent where the root has its own or neither has one.
+   */
+  background?: string
+}
+
+/** What a computed colour looks like; nothing else is drawn with. */
+export const PAGE_BACKGROUND =
+  /^(?:rgba?|color|oklch|oklab|lab|lch|hsla?)\([\w\s.,%/+-]{1,80}\)$/
+
+/** The attributes carried: what CSS can select on or read, and nothing that runs. */
+export const PAGE_ATTRIBUTE = /^(?:class|style|dir|lang|data-[\w-]{1,64})$/
+/** A computed colour that paints nothing. */
+export const TRANSPARENT = /^(?:transparent|rgba\(0, 0, 0, 0\))$/
+/** The most text one page's carried attributes are, all together. */
+export const MAX_PAGE_ATTRIBUTES = 32 * 1024
 
 /** Something that carries messages: a MessagePort, a Worker or a worker's global scope. */
 export interface MessageCarrier {

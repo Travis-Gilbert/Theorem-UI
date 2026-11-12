@@ -108,6 +108,10 @@ export function organizationFixture(now: number): Organization {
     thread('thread-graph-memory', 'Graph memory', 'project-theorem', {
       glyph: 'graph',
     }),
+    thread('thread-graph-memory-next', 'Graph memory, continued', 'project-theorem', {
+      origin: { kind: 'continued', threadId: 'thread-graph-memory' },
+      lastMessageAtMs: now - 20 * MINUTE,
+    }),
     ...Array.from({ length: 8 }, (_, index) =>
       thread(`thread-theorem-${index}`, `Earlier thread ${index + 1}`, 'project-theorem', {
         lastMessageAtMs: now - (24 + index) * HOUR,

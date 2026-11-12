@@ -1,0 +1,113 @@
+{
+  "spec": "docs/plans/theo-pointing.md",
+  "items": [
+    {
+      "id": "thing-place",
+      "item": "A thing on the page is a place look and go can name: {thing, text?, line?}, with kind:last and kind:failed",
+      "status": "done",
+      "evidence": "src/lib/face/program.ts; face.test.ts 'a thing on the page is a place to look at and to go to', 'a thing that is not a name...'"
+    },
+    {
+      "id": "page-names",
+      "item": "The page names its things with attributes: tool calls with their state, messages, artifacts, changed files",
+      "status": "done",
+      "evidence": "thingProps in src/lib/face/things.ts, spread in tool-fallback.aui.tsx, theorem-parts.tsx, thread.aui.tsx, artifact-message.tsx, artifact-panel.tsx, delegation-parts.tsx; listed on the story face-point (9 things)"
+    },
+    {
+      "id": "read-page",
+      "item": "face.read part 'page' lists the things, newest forty, with where each is; the state says what is pointed at",
+      "status": "done",
+      "evidence": "operations.test.ts 'face.read lists what on the page the face can be sent to'; components/face/things.test.ts 'are listed by name...'"
+    },
+    {
+      "id": "strict",
+      "item": "A thing the page lacks is refused of a program written for this call, and noted of a saved one",
+      "status": "done",
+      "evidence": "face.test.ts 'a thing the page does not have...'; operations.test.ts 'sent to a thing, the face goes...'; refused in the browser at steps[0].to.thing"
+    },
+    {
+      "id": "stand",
+      "item": "Theo stands beside the thing, outside its box, level with the part, on the nearer side with room",
+      "status": "done",
+      "evidence": "src/lib/face/things.ts stand; 9 tests under 'where the face stands to point'; evidence/theo-pointing/words.png, line.png"
+    },
+    {
+      "id": "mark",
+      "item": "What is pointed at is marked: whole, words or a line, only where it shows, in light and dark",
+      "status": "done",
+      "evidence": "src/components/face/driver.ts point, .face-point in src/styles.css; evidence/theo-pointing/folded.png, words.png, line.png, line-dark.png"
+    },
+    {
+      "id": "words",
+      "item": "Words are found across text nodes, line breaks, case and open shadow roots",
+      "status": "done",
+      "evidence": "spanOf in src/components/face/things.ts; 5 tests under 'finding words'"
+    },
+    {
+      "id": "lines",
+      "item": "A numbered line of a diff is found, the added line before the removed",
+      "status": "done",
+      "evidence": "lineOf; things.test.ts 'a numbered line is found where a diff draws it'; evidence/theo-pointing/line.png"
+    },
+    {
+      "id": "folded",
+      "item": "A thing folded away is pointed at by what holds it",
+      "status": "done",
+      "evidence": "data-face-holder and markers in theorem-parts.tsx; things.test.ts 'a thing that takes no room is closed...'; evidence/theo-pointing/folded.png"
+    },
+    {
+      "id": "out-of-view",
+      "item": "Out of view, Theo waits at that edge, above the composer, looking that way, and nothing is marked",
+      "status": "done",
+      "evidence": "stand; viewOf; tests 'a thing out of view...', 'what covers the foot of the page...', 'a clip that is itself out of sight...'; evidence/theo-pointing/below.png"
+    },
+    {
+      "id": "tap-brings",
+      "item": "The person's tap opens what folds the thing away by its own control and scrolls the part into view",
+      "status": "done",
+      "evidence": "reveal in src/components/face/things.ts, bring in driver.ts; 3 tests under 'bringing a thing to the person'; seen in the browser for the tool call, its words and the diff line"
+    },
+    {
+      "id": "cut-off",
+      "item": "A part cut off by a preview is not scrolled inside it: the whole of the thing is opened and pointed at",
+      "status": "done",
+      "evidence": "cutOffBy, OPENS_WHOLE, whole; things.test.ts 'a part a preview cuts off...'; evidence/theo-pointing/section.png"
+    },
+    {
+      "id": "eyes",
+      "item": "While pointing the eyes stay on the thing with a glance at the person, and it lingers longer",
+      "status": "done",
+      "evidence": "driver.ts point (GLANCE, POINT_LINGER_MS). Seen in the browser; no unit test drives the driver's frame"
+    },
+    {
+      "id": "told",
+      "item": "The agent is told when a thing is folded away, a part was not found, or it is above or below",
+      "status": "done",
+      "evidence": "noteOf; 2 tests under 'what the agent is told'; the receipts in the browser run"
+    },
+    {
+      "id": "a11y",
+      "item": "The status line says what Theo points at and that pressing it brings it; Enter and Space do what a tap does",
+      "status": "done",
+      "evidence": "driver.ts pointingWords and the key handler. data-doing read in the browser: 'pointing at Bash, which is above what is showing; press it to bring that into view'. Not heard in a screen reader"
+    },
+    {
+      "id": "person-reads",
+      "item": "A person has looked at it and judged the mark and the edge wait",
+      "status": "todo",
+      "evidence": "Not done. See 'Not seen'"
+    },
+    {
+      "id": "live-run",
+      "item": "An agent has pointed during a real turn",
+      "status": "todo",
+      "evidence": "Not run here. The story's conversation is a fixture"
+    },
+    {
+      "id": "narrow",
+      "item": "Seen on a phone-width window",
+      "status": "todo",
+      "evidence": "Not run"
+    }
+  ]
+}

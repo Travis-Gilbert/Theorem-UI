@@ -18,6 +18,7 @@ import {
 } from "@assistant-ui/react";
 import type { ToolApprovalAnswer, ToolApprovalOption, ToolApprovalQuestion, ToolCallMessagePart, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { cn, humanize } from "@/lib/utils";
+import { thingProps, toolState } from "@/lib/face/things";
 import { liveEnter } from "./surfaces";
 import {
   CollapsibleRoot as Collapsible,
@@ -90,8 +91,8 @@ function ToolFallbackRoot({
 type ToolStatus = ToolCallMessagePartStatus["type"];
 
 const statusIconMap: Record<ToolStatus, React.ElementType> = {
-  running: Icon.Refresh,
-  complete: Icon.Check,
+  running: Icon.ToolRunning,
+  complete: Icon.ToolDone,
   incomplete: Icon.Close,
   "requires-action": Icon.Close,
 };
@@ -167,7 +168,7 @@ function ToolFallbackTrigger({
         className={cn(
           "aui-tool-fallback-trigger-icon size-4 shrink-0",
           isCancelled && "text-muted-foreground",
-          isRunning && "animate-spin",
+          isRunning && "animate-pulse motion-reduce:animate-none",
         )}
       />
       <span
@@ -1173,7 +1174,15 @@ function ToolFallbackApprovalImpl({
   );
 }
 
-const ToolFallbackImpl: ToolCallMessagePartComponent = ({
+type ToolFallbackProps = React.ComponentProps<ToolCallMessagePartComponent> & {
+  /** Drawn beside the trigger, outside it: a control of the card's own. */
+  aside?: React.ReactNode;
+};
+
+const ToolFallbackImpl = ({
+  aside,
+  toolCallId,
+  isError,
   toolName,
   argsText,
   result,
@@ -1184,7 +1193,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   interrupt,
   approval,
   respondToApproval,
-}) => {
+}: ToolFallbackProps) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
@@ -1226,12 +1235,24 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   }, [approval, isRequiresAction, status?.type]);
 
   return (
-    <ToolFallbackRoot open={open} onOpenChange={setOpen}>
-      <ToolFallbackTrigger
-        toolName={toolName}
-        status={status}
-        responseDeliveryStatus={responseDeliveryStatus}
-      />
+    <ToolFallbackRoot
+      open={open}
+      onOpenChange={setOpen}
+      // Theorem: named, so Theo can be sent to this call (lib/face/things).
+      {...thingProps("tool", toolCallId, {
+        label: humanize(toolName),
+        state: toolState(status, isError),
+      })}
+    >
+      {/* Wraps, so in a narrow column the aside moves under the trigger instead of squeezing its label. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2">
+        <ToolFallbackTrigger
+          toolName={toolName}
+          status={status}
+          responseDeliveryStatus={responseDeliveryStatus}
+        />
+        {aside}
+      </div>
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs
@@ -1276,7 +1297,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
 const ToolFallback = memo(
   ToolFallbackImpl,
-) as unknown as ToolCallMessagePartComponent & {
+) as unknown as React.FC<ToolFallbackProps> & {
   Root: typeof ToolFallbackRoot;
   Trigger: typeof ToolFallbackTrigger;
   Content: typeof ToolFallbackContent;

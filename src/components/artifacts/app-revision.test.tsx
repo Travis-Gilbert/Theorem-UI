@@ -1,11 +1,17 @@
 import { act } from 'react'
-import { afterEach, expect, spyOn, test } from 'bun:test'
+import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test'
+import * as esbuild from 'esbuild-wasm'
 import { EditorView } from '@codemirror/view'
 import {
   AssistantRuntimeProvider,
+  MessagePrimitive,
+  ThreadPrimitive,
   useExternalStoreRuntime,
 } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import { TheoremPartRenderers } from '@/components/chat/theorem-parts'
+import { BLOCK_SANDBOX } from '@/lib/blocks/executor'
+import * as hosted from '@/lib/blocks/hosted-app'
 import { appDocumentFixture } from '../../../test/blocks/app-documents'
 import {
   buttonNamed,
@@ -33,7 +39,7 @@ function Harness({ messages }: { messages: ThreadMessageLike[] }) {
   )
 }
 
-function message(revision: number): ThreadMessageLike {
+function message(revision: number, content?: string): ThreadMessageLike {
   return {
     id: `result-${revision}`,
     role: 'assistant',
@@ -52,6 +58,7 @@ function message(revision: number): ThreadMessageLike {
             documentId: 'app-draft-document',
             title: 'App',
             revision: { position: revision },
+            ...(content && { content, language: 'html' }),
           },
         },
       },
@@ -66,8 +73,20 @@ function appArtifact() {
   return readArtifact(content[0].data)!
 }
 
+// Opening an App in the workspace runs it; tests compile its page with the
+// Node build of esbuild instead of the browser's wasm one.
+const originalHosted = hosted.hostedAppDocument
+let compile:
+  ReturnType<typeof spyOn<typeof hosted, 'hostedAppDocument'>> | undefined
+beforeEach(() => {
+  compile = spyOn(hosted, 'hostedAppDocument').mockImplementation(
+    (html, _esbuild, options) => originalHosted(html, esbuild, options),
+  )
+})
+
 afterEach(async () => {
   await cleanup()
+  compile?.mockRestore()
   useArtifactView.getState().reset()
 })
 
@@ -121,6 +140,84 @@ test('a newly published App revision refreshes source without discarding the ope
       'Worker published source',
     )
   } finally {
+    get.mockRestore()
+    window.location.href = originalUrl
+  }
+}, 20_000)
+
+test('an older revision opens its pinned source, labeled, while the live App stays mounted', async () => {
+  const originalUrl = window.location.href
+  window.location.href = 'https://theorem.test/'
+  const store = await appDocumentFixture()
+  const get = spyOn(window, 'fetch').mockImplementation(
+    Object.assign(async () => Response.json(store.saved()), {
+      preconnect: window.fetch.preconnect,
+    }),
+  )
+  try {
+    const { container } = await render(
+      <Harness
+        messages={[message(1, '<p>Original revision</p>'), message(2)]}
+      />,
+    )
+    await waitFor(() => buttonNamed(container, 'Edit source'))
+    await click(container.querySelector('[aria-label="Previous version"]')!)
+    const revision = await waitFor(() =>
+      container.querySelector('[data-slot="app-revision"]'),
+    )
+    expect(revision.textContent).toContain('Saved revision 1')
+    expect(revision.textContent).toContain('not saved')
+    await waitFor(() => revision.querySelector('iframe'), 10_000)
+    expect(revision.querySelector('iframe')?.getAttribute('sandbox')).toBe(
+      BLOCK_SANDBOX,
+    )
+    expect(compile?.mock.calls.map((call) => call[0])).toContain(
+      '<p>Original revision</p>',
+    )
+    // The live App is still there, behind the revision.
+    expect(buttonNamed(container, 'Edit source')).toBeDefined()
+    await click(buttonNamed(container, 'Open latest')!)
+    expect(container.querySelector('[data-slot="app-revision"]')).toBeNull()
+    expect(container.textContent).toContain('v2 of 2')
+  } finally {
+    get.mockRestore()
+    window.location.href = originalUrl
+  }
+}, 20_000)
+
+test("an older revision's frame keeps the page's look as it changes", async () => {
+  const originalUrl = window.location.href
+  window.location.href = 'https://theorem.test/'
+  const store = await appDocumentFixture()
+  const get = spyOn(window, 'fetch').mockImplementation(
+    Object.assign(async () => Response.json(store.saved()), {
+      preconnect: window.fetch.preconnect,
+    }),
+  )
+  const followed: Array<HTMLIFrameElement> = []
+  const follow = spyOn(hosted, 'followTheme').mockImplementation(
+    (connection) => {
+      followed.push(
+        (connection as unknown as { frame: HTMLIFrameElement }).frame,
+      )
+      return () => {}
+    },
+  )
+  try {
+    const { container } = await render(
+      <Harness
+        messages={[message(1, '<p>Original revision</p>'), message(2)]}
+      />,
+    )
+    await waitFor(() => buttonNamed(container, 'Edit source'))
+    await click(container.querySelector('[aria-label="Previous version"]')!)
+    const revision = await waitFor(() =>
+      container.querySelector('[data-slot="app-revision"]'),
+    )
+    const frame = await waitFor(() => revision.querySelector('iframe'), 10_000)
+    expect(followed).toContain(frame)
+  } finally {
+    follow.mockRestore()
     get.mockRestore()
     window.location.href = originalUrl
   }
@@ -330,7 +427,7 @@ test('source actions reject missing references and empty content while inline ex
       download({ ...artifact, documentId: undefined }),
     ).rejects.toThrow('saved document reference')
     await expect(
-      download({ ...artifact, rendererId: 'markdown', content: '' }),
+      download({ ...artifact, kind: 'document', content: '' }),
     ).rejects.toThrow('no saved content')
     expect(blobs).toHaveLength(0)
     for (const [kind, content, type, name] of [
@@ -350,7 +447,7 @@ test('source actions reject missing references and empty content while inline ex
     }
     const { container } = await render(
       <ArtifactActions
-        artifact={{ ...artifact, rendererId: 'document', content: '# Inline' }}
+        artifact={{ ...artifact, kind: 'document', content: '# Inline' }}
         copy
       />,
     )
@@ -409,3 +506,46 @@ test('source actions stay disabled until the fresh document read and clipboard w
     window.location.href = originalUrl
   }
 })
+
+function ThreadHarness({ messages }: { messages: ThreadMessageLike[] }) {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (item: ThreadMessageLike) => item,
+  })
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <ThreadPrimitive.Messages
+        components={{ Message: () => <MessagePrimitive.Parts /> }}
+      />
+    </AssistantRuntimeProvider>
+  )
+}
+
+test('an older revision card downloads the source its message pinned, not the current App', async () => {
+  const fetch = spyOn(window, 'fetch')
+  try {
+    const { container } = await render(
+      <ThreadHarness
+        messages={[
+          message(1, '<p>Original revision</p>'),
+          message(2, '<p>Current revision</p>'),
+        ]}
+      />,
+    )
+    const downloads = await waitFor(() => {
+      const found = container.querySelectorAll<HTMLButtonElement>(
+        '[data-slot="theorem-artifact-card"] [aria-label="Download App source"]',
+      )
+      return found.length === 2 ? found : undefined
+    })
+    expect(downloads[0]!.title).toStartWith("Download this revision's source")
+    expect(downloads[1]!.title).toStartWith('Download current saved source')
+    await click(downloads[0]!)
+    expect(fetch).not.toHaveBeenCalled()
+  } finally {
+    fetch.mockRestore()
+  }
+}, 20_000)

@@ -1,15 +1,24 @@
-// SOURCING: coss ui menu over Base UI Menu (the same parts serve the More button and the right-click ContextMenu), date-fns for the Later presets, lib/theorem/organization for placement and Later, thread-tree for forks. Placement rules are Theorem's; this only asks.
+// SOURCING: coss ui menu over Base UI Menu (the same parts serve the More button and the right-click ContextMenu), coss ui toast (a refused change, said after the menu has closed), date-fns for the Later presets, lib/theorem/organization for placement and Later, thread-tree for forks. Placement rules are Theorem's; this only asks.
 import { addDays, addHours, nextMonday, setHours, startOfHour } from 'date-fns'
 import {
   MenuCheckboxItem,
   MenuItem,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
   MenuSub,
   MenuSubPopup,
   MenuSubTrigger,
 } from '@/components/coss/menu'
 import { Icon } from '@/components/icons'
-import { primaryProjectId, useLater, usePlacement } from '@/lib/theorem/organization'
+import { toastManager } from '@/components/coss/toast'
+import { describeError } from '@/lib/theorem/client'
+import {
+  primaryProjectId,
+  useLater,
+  useMoveThread,
+  usePlacement,
+} from '@/lib/theorem/organization'
 import type {
   LaterCondition,
   ProjectEntry,
@@ -24,6 +33,10 @@ const LATER_PRESETS: Array<{ label: string; at: () => Date }> = [
   { label: 'Tomorrow morning', at: () => morning(addDays(new Date(), 1)) },
   { label: 'Next week', at: () => morning(nextMonday(new Date())) },
 ]
+
+/** The menu has closed by the time Theorem answers, so a refusal is said in a toast. */
+const refused = (title: string) => (error: Error) =>
+  toastManager.add({ type: 'error', title, description: describeError(error) })
 
 /** The menu both a row's More button and its right-click open. */
 export function ThreadMenuItems({
@@ -51,8 +64,14 @@ export function ThreadMenuItems({
   onArchive: () => void
   onDelete: () => void
 }) {
-  const placement = usePlacement()
-  const later = useLater()
+  const placement = usePlacement({
+    onError: refused('Could not change where this thread is filed'),
+  })
+  const mover = useMoveThread({
+    onError: refused('Could not move this thread'),
+  })
+  const later = useLater({ onError: refused('Could not set Later') })
+  const filed = projects.filter((project) => !project.isInbox)
   const members = new Set(thread.memberships.map((m) => m.projectId))
   const primary = primaryProjectId(thread)
   const primaryMembership = thread.memberships.find(
@@ -74,35 +93,65 @@ export function ThreadMenuItems({
         Continue in new thread
       </MenuItem>
       <MenuSeparator />
+      {served ? (
+        <MenuSub>
+          <MenuSubTrigger>
+            <Icon.Folder className="size-4" />
+            Projects
+          </MenuSubTrigger>
+          <MenuSubPopup className="min-w-44">
+            {filed.map((project) => (
+              <MenuCheckboxItem
+                key={project.projectId}
+                closeOnClick={false}
+                checked={members.has(project.projectId)}
+                onCheckedChange={(checked) =>
+                  placement.mutate({
+                    threadId: thread.threadId,
+                    change: checked
+                      ? { add: [project.projectId] }
+                      : { remove: [project.projectId] },
+                  })
+                }
+              >
+                {project.title}
+              </MenuCheckboxItem>
+            ))}
+          </MenuSubPopup>
+        </MenuSub>
+      ) : (
+        // Without placement a thread lives in one project: moving it changes its home.
+        <MenuSub>
+          <MenuSubTrigger>
+            <Icon.Folder className="size-4" />
+            Move to
+          </MenuSubTrigger>
+          <MenuSubPopup className="min-w-44">
+            <MenuRadioGroup
+              value={members.size ? thread.homeProjectId : 'unsorted'}
+              onValueChange={(value: string) =>
+                mover.move(
+                  thread,
+                  thread.homeProjectId,
+                  value === 'unsorted' ? null : value,
+                )
+              }
+            >
+              {filed.map((project) => (
+                <MenuRadioItem
+                  key={project.projectId}
+                  value={project.projectId}
+                >
+                  {project.title}
+                </MenuRadioItem>
+              ))}
+              <MenuRadioItem value="unsorted">Chats</MenuRadioItem>
+            </MenuRadioGroup>
+          </MenuSubPopup>
+        </MenuSub>
+      )}
       {served && (
         <>
-          <MenuSub>
-            <MenuSubTrigger>
-              <Icon.Project className="size-4" />
-              Projects
-            </MenuSubTrigger>
-            <MenuSubPopup className="min-w-44">
-              {projects
-                .filter((project) => !project.isInbox)
-                .map((project) => (
-                  <MenuCheckboxItem
-                    key={project.projectId}
-                    closeOnClick={false}
-                    checked={members.has(project.projectId)}
-                    onCheckedChange={(checked) =>
-                      placement.mutate({
-                        threadId: thread.threadId,
-                        change: checked
-                          ? { add: [project.projectId] }
-                          : { remove: [project.projectId] },
-                      })
-                    }
-                  >
-                    {project.title}
-                  </MenuCheckboxItem>
-                ))}
-            </MenuSubPopup>
-          </MenuSub>
           {primaryMembership && (
             <MenuItem
               onClick={() =>
@@ -119,7 +168,8 @@ export function ThreadMenuItems({
               ) : (
                 <Icon.Pin className="size-4" />
               )}
-              {primaryMembership.pinned ? 'Unpin from' : 'Pin to'} {primaryTitle}
+              {primaryMembership.pinned ? 'Unpin from' : 'Pin to'}{' '}
+              {primaryTitle}
             </MenuItem>
           )}
           <MenuSub>
@@ -137,9 +187,7 @@ export function ThreadMenuItems({
               {LATER_PRESETS.map(({ label, at }) => (
                 <MenuItem
                   key={label}
-                  onClick={() =>
-                    place({ kind: 'time', atMs: at().getTime() })
-                  }
+                  onClick={() => place({ kind: 'time', atMs: at().getTime() })}
                 >
                   {label}
                 </MenuItem>
@@ -163,9 +211,9 @@ export function ThreadMenuItems({
               ))}
             </MenuSubPopup>
           </MenuSub>
-          <MenuSeparator />
         </>
       )}
+      <MenuSeparator />
       <MenuItem onClick={onRename}>
         <Icon.Edit className="size-4" />
         Rename

@@ -1,19 +1,24 @@
-// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked), next-themes (the theme the frame follows), the shell's panel state (the rail drives Theia's sidebar)
+// SOURCING: penpal connect + WindowMessenger (the frame link; contract in ide/theia-extensions/theorem-workspace/src/common/ide-bridge.ts), assistant-ui composer (Add to chat) and thread (the IDE chat's sends and stops), the chat's own approval decision, terminal-screen's runs (what Follow follows when docked beside the terminal), the UI's live tokens and data-palette (ide-theme.ts: the palette and mode the frame follows, Vitesse's code colours under Vitesse), the shell's ideFilesOpen (Theia's own side panel, kept across reloads), ide-page's store (a docked frame's status bar and file changes, which the page draws)
 //
 // The IDE is the browser-only Theia build served at /theia on this origin,
 // working on the active project's Theorem workspace. Theia owns everything
 // inside the sheet, Follow the Agent's switch included; this frame only links
 // it to the conversation, the rail and Follow the Agent. Alone, Theia's chat
 // shows the conversation this window holds and sends through it, so both
-// always show the same turns. Docked, on a page whose agent terminal is the
-// conversation, Theia's chat closes, Follow follows the terminal's active tab
-// and Add to chat goes only where the page connects it (a terminal's Attach).
+// always show the same turns. Docked, on a page that has the conversation or
+// the agent terminal beside it, Theia's chat closes, Follow follows that
+// conversation's runs or the terminal's active tab, and Add to chat goes only
+// where the page connects it (the conversation's or a terminal's Attach).
+// Docked on the IDE mode's page, Theia also leaves its title, file tree and
+// status bar to the page (EMBEDDED_LAYOUT): its status bar entries and file
+// changes come here.
 import { useAui } from '@assistant-ui/react'
 import type { TheoremContextReference } from '@theoremharness/sdk'
-import { useTheme } from 'next-themes'
 import { connect, WindowMessenger } from 'penpal'
-import { useEffect, useEffectEvent, useRef } from 'react'
+import type { RemoteProxy } from 'penpal'
+import { useContext, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useArtifactView } from '@/components/artifacts/artifact-view'
+import { ErrorState } from '@/components/assistant-ui/elements/error-state'
 import {
   approvalChoice,
   sendApprovalDecision,
@@ -22,11 +27,15 @@ import { useOpenMode } from '@/components/shell/modes'
 import { useActiveProject } from '@/components/shell/projects'
 import { useShell } from '@/components/shell/shell-state'
 import { useTerminalRuns } from '@/components/terminal/terminal-screen'
+import { EMBEDDED_LAYOUT } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import type {
+  IdeConnection,
   IdeFrameMethods,
   IdeHostMethods,
 } from '../../../ide/theia-extensions/theorem-workspace/src/common/ide-bridge'
 import { useChatMirror } from './chat-mirror'
+import { OnIdePage, useIdePage } from './ide-page'
+import { useIdeTheme } from './ide-theme'
 import {
   useChatRuns,
   useFollow,
@@ -43,38 +52,100 @@ function referenceText({ label, excerpt, location }: TheoremContextReference) {
 }
 
 /**
+ * The frame's methods, rejecting instead of throwing once their link is
+ * destroyed, as penpal already rejects the calls in flight when it is. A
+ * project switch loads a new frame, and an effect of the commit that destroyed
+ * the old link can still hold it; a throw there would stop the IDE page.
+ */
+function rejectWhenDestroyed(remote: RemoteProxy<IdeFrameMethods>) {
+  return new Proxy(remote, {
+    get(target, key, receiver) {
+      const member: unknown = Reflect.get(target, key, receiver)
+      if (typeof member !== 'function') return member
+      return (...args: unknown[]) => {
+        try {
+          return (member as (...args: unknown[]) => unknown)(...args)
+        } catch (error) {
+          return Promise.reject(error)
+        }
+      }
+    },
+  })
+}
+
+/** How long the frame may take to link before the IDE says it has not started. */
+const START_WAIT_MS = 45_000
+
+/** One load of the frame: whether it linked, is slow, and how its workspace attachment stands. */
+interface FrameLoad {
+  frame: string
+  linked?: boolean
+  slow?: boolean
+  connection?: IdeConnection
+}
+
+/** The record for this load, or a fresh one when the last record is another load's. */
+const forFrame = (load: FrameLoad | undefined, frame: string): FrameLoad =>
+  load?.frame === frame ? load : { frame }
+
+/**
  * The IDE. Add to chat reaches `onAddToChat` always and, unless `docked`,
- * Theia's chat composer too.
+ * Theia's chat composer too. Follow follows the conversation's runs, or with
+ * `follows` set to the terminal, the agent terminal's active tab.
  */
 export function IdeFrame({
   docked = false,
+  follows = 'chat',
   onAddToChat,
 }: {
   docked?: boolean
+  follows?: 'chat' | 'terminal'
   onAddToChat?: (reference: TheoremContextReference) => void
 }) {
   const { project } = useActiveProject()
   const aui = useAui()
   const openMode = useOpenMode()
-  const { resolvedTheme } = useTheme()
+  const look = useIdeTheme()
   const frame = useRef<HTMLIFrameElement>(null)
   const ide = useFollow((s) => s.ide)
   const following = useFollow((s) => s.following)
-  const sidebarOpen = useShell((s) => !s.panelCollapsed.ide)
+  const sidebarOpen = useShell((s) => s.ideFilesOpen)
   const activeTab = useShell((s) =>
     project ? s.terminalTabs[project.projectId]?.active : undefined,
   )
   const added = useEffectEvent((reference: TheoremContextReference) =>
     onAddToChat?.(reference),
   )
+  const embedded = useContext(OnIdePage) && docked
   const workspaceId = project && workspaceIdOf(project.projectId)
   const src = workspaceId
-    ? `/theia/?${new URLSearchParams({ workspace: workspaceId, name: project.title })}`
+    ? `/theia/?${new URLSearchParams({
+        workspace: workspaceId,
+        name: project.title,
+        ...(embedded && { [EMBEDDED_LAYOUT.param]: EMBEDDED_LAYOUT.value }),
+      })}`
     : undefined
+  /** Loads the frame again when it never linked. */
+  const [reloads, setReloads] = useState(0)
+  const frameKey = src && `${src}#${reloads}`
+  /** What this load of the frame has done; a new load starts from nothing. */
+  const [load, setLoad] = useState<FrameLoad>()
+  const thisLoad: Partial<FrameLoad> =
+    load && load.frame === frameKey ? load : {}
+  const { linked = false, slow = false, connection } = thisLoad
+
+  useEffect(() => {
+    if (!frameKey) return
+    const timer = setTimeout(
+      () => setLoad((current) => ({ ...forFrame(current, frameKey), slow: true })),
+      START_WAIT_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [frameKey])
 
   useEffect(() => {
     const remoteWindow = frame.current?.contentWindow
-    if (!src || !remoteWindow) return
+    if (!frameKey || !remoteWindow) return
     const methods: IdeHostMethods = {
       addToChat: (reference) => {
         added(reference)
@@ -84,10 +155,10 @@ export function IdeFrame({
         aui.composer.setText(draft ? `${draft}\n\n${text}\n` : `${text}\n`)
       },
       navigated: () => useFollow.getState().pause(),
-      sidebarChanged: (open) =>
-        useShell.setState((s) => ({
-          panelCollapsed: { ...s.panelCollapsed, ide: !open },
-        })),
+      // Embedded, the page's sidebar has the files and Theia's side panel is its own.
+      sidebarChanged: (open) => {
+        if (!embedded) useShell.getState().setIdeFilesOpen(open)
+      },
       setFollowing: (next) =>
         next ? useFollow.getState().resume() : useFollow.getState().pause(),
       send: async (text) => {
@@ -112,32 +183,57 @@ export function IdeFrame({
         useArtifactView.getState().open(artifactId)
         void openMode('chat')
       },
+      // A failure's error stays while it tries again.
+      connectionChanged: (next) =>
+        setLoad((current) => {
+          const previous = forFrame(current, frameKey)
+          const error = previous.connection?.error
+          return {
+            ...previous,
+            connection:
+              next.workspace === 'opening' && error ? { ...next, error } : next,
+          }
+        }),
+      statusBarChanged: (statusBar) => useIdePage.setState({ statusBar }),
+      filesChanged: (changedFolders, everywhere) =>
+        useIdePage.setState({
+          changedFolders,
+          changedEverywhere: everywhere === true,
+        }),
     }
-    const connection = connect<IdeFrameMethods>({
+    const link = connect<IdeFrameMethods>({
       messenger: new WindowMessenger({ remoteWindow }),
       methods: { ...methods },
     })
-    connection.promise.then(
-      (remote) => {
+    link.promise.then(
+      (proxy) => {
+        const remote = rejectWhenDestroyed(proxy)
+        setLoad((current) => ({ ...forFrame(current, frameKey), linked: true }))
         const { pending } = useFollow.getState()
-        useFollow.setState({ ide: remote, pending: undefined })
+        useFollow.setState({
+          ide: remote,
+          ideWorkspace: workspaceId,
+          pending: undefined,
+        })
         pending?.(remote)
       },
+      // Destroyed by the cleanup below; a frame that never links shows as not started.
       () => undefined,
     )
     return () => {
-      connection.destroy()
-      useFollow.setState({ ide: undefined })
+      link.destroy()
+      useFollow.setState({ ide: undefined, ideWorkspace: undefined })
+      useIdePage.setState({ statusBar: undefined })
     }
-  }, [src, aui, openMode, docked])
+  }, [frameKey, workspaceId, aui, openMode, docked, embedded])
 
   useEffect(() => {
-    void ide?.setTheme(resolvedTheme === 'dark')
-  }, [ide, resolvedTheme])
+    if (look) void ide?.setTheme(look)
+  }, [ide, look])
 
   useEffect(() => {
-    void ide?.setSidebar(sidebarOpen)
-  }, [ide, sidebarOpen])
+    if (!embedded) void ide?.setSidebar(sidebarOpen)
+  }, [ide, sidebarOpen, embedded])
 
   useEffect(() => {
     void ide?.setFollowing(following)
@@ -151,7 +247,7 @@ export function IdeFrame({
   const chatRuns = useChatRuns()
   const terminalRuns = useTerminalRuns(activeTab)
   useChatMirror(docked ? undefined : ide)
-  useFollowRuns(ide, docked ? terminalRuns : chatRuns)
+  useFollowRuns(ide, follows === 'terminal' ? terminalRuns : chatRuns)
 
   if (!src)
     return (
@@ -159,13 +255,41 @@ export function IdeFrame({
         Loading the workspace…
       </div>
     )
+  /** Why the workspace did not open, while it has not. */
+  const failure =
+    connection?.workspace === 'open'
+      ? undefined
+      : connection?.error?.replace(/\.$/, '')
   return (
-    <iframe
-      key={src}
-      ref={frame}
-      src={src}
-      title="IDE"
-      className="block h-full w-full border-0 bg-background"
-    />
+    <div className="relative h-full w-full">
+      <iframe
+        key={frameKey}
+        ref={frame}
+        src={src}
+        title="IDE"
+        className="block h-full w-full border-0 bg-background"
+      />
+      {failure || (slow && !linked) ? (
+        <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center px-4">
+          {failure ? (
+            <ErrorState
+              className="shadow-sheet pointer-events-auto max-w-md"
+              title="The workspace did not open"
+              detail={`${failure}. Trying again${connection?.retryInMs ? ` in ${Math.round(connection.retryInMs / 1000)} s` : ''}.`}
+              retrying={connection?.workspace === 'opening'}
+              onRetry={() => ide?.retryConnection()}
+            />
+          ) : (
+            <ErrorState
+              className="shadow-sheet pointer-events-auto max-w-md"
+              title="The IDE has not started"
+              detail="It is taking longer than usual to load."
+              retrying={false}
+              onRetry={() => setReloads((count) => count + 1)}
+            />
+          )}
+        </div>
+      ) : null}
+    </div>
   )
 }

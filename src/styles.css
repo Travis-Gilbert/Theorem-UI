@@ -75,7 +75,7 @@
   --surface-pill: var(--surface-rail);
   /* A shadow cannot show on the near-black rail, so the sheet glows instead. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(227 98 9 / 0.32);
   --glow-to: rgb(53 132 185 / 0.38);
 
@@ -99,9 +99,33 @@
      the Sunset Dock's hues (DESIGN.md, #451A08 to #0A3943), brightened to
      read against the rail, warm at the top and teal at the bottom. */
   --shadow-sheet: 0 0 #0000;
-  --glow-opacity: 1;
+  --glow-opacity: 0.7;
   --glow-from: rgb(205 78 24 / 0.36);
   --glow-to: rgb(25 142 169 / 0.36);
+
+  --shadow-tint: 0 0 0;
+}
+
+/* Vitesse (Anthony Fu's, MIT): Vitesse Light's white and its ink #393a34
+   for the shadow. */
+[data-palette='vitesse'] {
+  --surface-pill: var(--surface-rail);
+  --glow-opacity: 0;
+  --glow-from: transparent;
+  --glow-to: transparent;
+
+  --shadow-tint: 57 58 52;
+}
+
+/* Vitesse Dark, after franmc01's JetBrains theme: the #121212 rail takes a
+   glow in the theme's green accent (#4d9375) at the top and its blue
+   (#6394bf) at the bottom. */
+.dark[data-palette='vitesse'] {
+  --surface-pill: var(--surface-rail);
+  --shadow-sheet: 0 0 #0000;
+  --glow-opacity: 0.7;
+  --glow-from: rgb(77 147 117 / 0.34);
+  --glow-to: rgb(99 148 191 / 0.3);
 
   --shadow-tint: 0 0 0;
 }
@@ -195,6 +219,21 @@
   display: none;
 }
 
+/* A folder takes the palette's primary, so it follows the theme. A folder of
+   what agents wrote takes that colour's complement: the hue turned half way
+   round in OKLCH, its lightness and chroma kept, so it holds the same weight
+   beside the person's folders in every palette, light or dark. The palette
+   and dark classes sit on the root, so the complement is taken there. An
+   engine without relative colours (Servo 0.7) shows the palette's ochre. */
+:root {
+  --folder-agent: var(--ochre);
+}
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --folder-agent: oklch(from var(--redwood) l c calc(h + 180));
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -250,6 +289,8 @@
   --color-separator: var(--line-separator);
   --color-control: var(--line-control);
   --color-redwood: var(--redwood);
+  --color-folder: var(--redwood);
+  --color-folder-agent: var(--folder-agent);
   --color-redwood-hover: var(--redwood-hover);
   --color-redwood-pressed: var(--redwood-pressed);
   --color-on-redwood: var(--on-redwood);
@@ -309,9 +350,14 @@
     0 4px 16px rgb(var(--shadow-tint) / 0.16);
 
   --spacing-rail: 44px;
-  --spacing-sidebar: 256px;
   --spacing-inspector: 304px;
-  --spacing-reading: 720px;
+  /* The reading column of a conversation, an artifact and the highlights:
+     wide enough that an agent's answer, its tables and code, read without
+     the column closing in on them. */
+  --spacing-reading: 1080px;
+  /* An immersive artifact in a reply: wider than the reading column, centred
+     on it, reaching 160px past it on each side. */
+  --spacing-artifact: 1400px;
 
   @keyframes collapsible-down {
     from {
@@ -440,7 +486,7 @@
 
   html {
     color-scheme: light;
-    /* Inherited by every scroller; the thread viewport always shows its track. */
+    /* Inherited by every scroller. A scroller draws its bar only while it overflows. */
     scrollbar-color: var(--line-control) transparent;
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
@@ -547,19 +593,180 @@
   }
 }
 
-/* The sheet's gradient, sized to the whole sheet (--sheet-h, set by the
-   shell) so every element that paints it samples one field. An element below
-   the sheet's top aligns it with bg-bottom when it sits on the sheet's bottom
-   edge, or with an explicit background position. */
+/* The sheet's field: four layers down the sheet's height, each with its own
+   falloff, listed top layer first.
+   - The lower vignette: nothing above the middle, then it deepens toward the
+     composer and holds --sheet-shade along the bottom edge.
+   - The coloured light: a soft band of --sheet-light between the other two,
+     the palette's own warm container colour, so it follows every palette.
+   - The broad gradient: starts just under the sheet's top edge and carries
+     --sheet-fall of the way to --sheet-to by the bottom.
+   - The base, --sheet-from: the reading plane.
+   Every layer runs top to bottom only, so an element of any width that paints
+   the field (the rail's tab, the composer's footer) samples the same colours
+   at the same height. Light never goes past --sheet-to, the darkest sheet the
+   palette's inks are placed against; dark has room below it, where a darker
+   sheet only adds contrast, and its light stays under --sheet-from. */
+:root {
+  --sheet-fall: 42%;
+  --sheet-shade: var(--sheet-to);
+  --sheet-light: color-mix(in srgb, var(--ochre-container) 24%, transparent);
+  --sheet-field:
+    linear-gradient(to bottom, transparent 52%, 76%, var(--sheet-shade) 94%),
+    linear-gradient(
+      to bottom,
+      transparent 12%,
+      color-mix(in srgb, var(--sheet-light) 15%, transparent) 19%,
+      color-mix(in srgb, var(--sheet-light) 50%, transparent) 26%,
+      color-mix(in srgb, var(--sheet-light) 85%, transparent) 33%,
+      var(--sheet-light) 40%,
+      color-mix(in srgb, var(--sheet-light) 85%, transparent) 47%,
+      color-mix(in srgb, var(--sheet-light) 50%, transparent) 54%,
+      color-mix(in srgb, var(--sheet-light) 15%, transparent) 61%,
+      transparent 68%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 6%,
+      color-mix(in srgb, var(--sheet-to) var(--sheet-fall), transparent)
+    ),
+    linear-gradient(var(--sheet-from), var(--sheet-from));
+}
+
+.dark {
+  --sheet-fall: 70%;
+  --sheet-shade: color-mix(in srgb, var(--sheet-to), #000 22%);
+  --sheet-light: color-mix(in srgb, var(--ochre-container) 14%, transparent);
+}
+
+/* The field, sized to the whole sheet (--sheet-h, set by the shell) so every
+   element that paints it samples one field. An element below the sheet's top
+   aligns it with bg-bottom when it sits on the sheet's bottom edge, or with an
+   explicit background position. */
 @utility bg-sheet {
-  background-color: var(--sheet-to);
-  background-image: linear-gradient(
-    to bottom,
-    var(--sheet-from),
-    var(--sheet-to)
-  );
+  background-color: var(--sheet-shade);
+  background-image: var(--sheet-field);
   background-size: 100% var(--sheet-h, 100dvh);
   background-repeat: no-repeat;
+}
+
+/* Paper: a smooth sheet whose texture shows when you look for it.
+   surface-paper is the composer's, at full strength; surface-paper-subtle is
+   for panels that open in the conversation (an opened activity disclosure, an
+   artifact frame, a review candidate). The grain is Paper Design's
+   PaperTexture baked once per page into
+   --paper-texture (lib/paper-texture.ts) and painted through it in the
+   palette's ink, under the content, so text stays crisp and no surface holds
+   a WebGL context. Each sits a step off its surroundings with a soft shadow
+   and a faintly lit top edge, both a pixel soft so neither reads as a drawn
+   line. surface-paper keeps the element's own border (the composer's follows
+   focus; give it --paper-edge at rest); surface-paper-subtle draws its own
+   edge, so add none. Plain bg-*, shadow-* and position utilities override either. */
+:root {
+  /* Masks the grain out until the bake lands. */
+  --paper-texture: linear-gradient(transparent, transparent);
+  --paper-texture-size: 512px;
+  --paper-grain-opacity: 0.1;
+  --paper-depth: 1;
+  --paper-highlight: rgb(255 255 255 / 0.34);
+  --paper-edge: color-mix(in oklab, var(--line-separator) 60%, transparent);
+}
+
+/* The grain is one continuous tone that varies either sheet by a level or two
+   of sRGB. Black shadows need more weight to read on a dark sheet, and the lit
+   edge is the ink's. */
+.dark {
+  --paper-depth: 2.5;
+  --paper-highlight: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+@utility surface-paper {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--surface-composer);
+  box-shadow:
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 2px var(--paper-edge),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.07 * var(--paper-depth))),
+    0 8px 24px -8px rgb(var(--shadow-tint) / calc(0.16 * var(--paper-depth)));
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--ink);
+    opacity: var(--paper-grain-opacity);
+    mask-image: var(--paper-texture);
+    mask-size: var(--paper-texture-size);
+  }
+
+  /* Without CSS masks (Servo 0.7) the grain would be a solid wash. */
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+@utility surface-paper-subtle {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in oklab, var(--surface-raised) 72%, transparent);
+  box-shadow:
+    inset 0 1px 1px var(--paper-highlight),
+    0 0 1.5px 0.5px var(--paper-edge),
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.05 * var(--paper-depth))),
+    0 4px 14px -6px rgb(var(--shadow-tint) / calc(0.1 * var(--paper-depth)));
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--ink);
+    opacity: calc(0.55 * var(--paper-grain-opacity));
+    mask-image: var(--paper-texture);
+    mask-size: var(--paper-texture-size);
+  }
+
+  @supports not (mask-image: none) {
+    &::before {
+      content: none;
+    }
+  }
+}
+
+/* The chat panel's rows answer the pointer (organized-panel.tsx): what a row
+   holds lifts a pixel and its mark tips, on the snap spring. */
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button'])
+      > * {
+      transition:
+        translate var(--duration-snap) var(--ease-snap),
+        rotate var(--duration-snap) var(--ease-snap),
+        scale var(--duration-snap) var(--ease-snap);
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > * {
+      translate: 0 -1px;
+    }
+
+    [data-organize-panel]
+      :is([data-sidebar='menu-button'], [data-sidebar='menu-sub-button']):hover
+      > :is(svg, .rail-mark) {
+      rotate: -8deg;
+      scale: 1.1;
+    }
+  }
 }
 
 /* Streamline marks (icons.tsx): the ink is painted through the PNG's alpha,
@@ -582,6 +789,114 @@
 
     .dark .icon-mask {
       filter: invert(0.8);
+    }
+  }
+}
+
+/* Rail icons (rail-marks.tsx): stacked masks painted from the theme around
+   them. A theme gives the rail two facts it already has, its accent (--redwood)
+   and the ground the rail sits on (--surface-rail). Nothing here names a
+   palette or a mode, so a palette, a mode, or a person's own colours set on the
+   root, or on any element above the rail, move the icons with them, with no
+   script.
+
+   - Hue: each icon is the accent turned its own equal share of the OKLCH wheel
+     (--rail-shift, set per icon), so no two coincide in any theme. Home is the
+     accent's own hue.
+   - Lightness: the accent's. The theme chose it for its ground, so every icon
+     holds the contrast the accent does.
+   - Chroma: the accent's, up to what sRGB shows at that lightness in every hue
+     (min(0.17 L, 0.48 (1 - L)); rail-colors.test.ts checks it against the
+     gamut). No icon is louder than another, and turning the hue never clips.
+   - Fills: the icon's colour taken toward the rail's ground for lightness,
+     then given back a share of the accent's chroma. A plain mix loses chroma
+     with lightness and leaves a grey ground with grey fills. */
+@layer components {
+  /* The tunables are read with fallbacks and never declared here, so a value a
+     theme sets on the root or on any element above the rail reaches the icons:
+     a declaration on .rail-mark itself would beat what it inherits.
+       --rail-ground          what the fills are taken toward (--surface-rail)
+       --rail-chroma-slope    chroma cap per unit of lightness
+       --rail-chroma-top      chroma cap per unit of (1 - lightness)
+       --rail-tint-mix        share of the icon colour in the tint
+       --rail-tint-boost      chroma given back to the tint
+       --rail-paper-mix, --rail-paper-boost   the same for the paper
+     --rail-shift is each icon's own turn of the wheel, set on the element.
+     --rail-base, --rail-tint and --rail-paper are derived here, on the element,
+     so what they read is what the element inherits. Do not set them. */
+  .rail-mark {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    transition: opacity 100ms;
+
+    /* Without relative colours every icon is the accent itself. */
+    --rail-base: var(--redwood);
+    --rail-tint-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-tint-mix, 45%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-paper-mixed: color-mix(
+      in oklab,
+      var(--rail-base) var(--rail-paper-mix, 12%),
+      var(--rail-ground, var(--surface-rail))
+    );
+    --rail-tint: var(--rail-tint-mixed);
+    --rail-paper: var(--rail-paper-mixed);
+  }
+
+  @supports (color: oklch(from red l c h)) {
+    .rail-mark {
+      --rail-base: oklch(
+        from var(--redwood) l
+          min(
+            c,
+            var(--rail-chroma-slope, 0.17) * l,
+            var(--rail-chroma-top, 0.48) * (1 - l)
+          )
+          calc(h + var(--rail-shift, 0))
+      );
+      --rail-tint: oklch(
+        from var(--rail-tint-mixed) l calc(c * var(--rail-tint-boost, 1.25)) h
+      );
+      --rail-paper: oklch(
+        from var(--rail-paper-mixed) l calc(c * var(--rail-paper-boost, 1.7)) h
+      );
+    }
+  }
+
+  .rail-mark > .icon-mask {
+    position: absolute;
+    inset: 0;
+  }
+
+  .rail-mark > [data-layer='line'] {
+    background-color: var(--ink);
+  }
+
+  .rail-mark > [data-layer='accent'] {
+    background-color: var(--rail-base);
+  }
+
+  .rail-mark > [data-layer='tint'] {
+    background-color: var(--rail-tint);
+  }
+
+  .rail-mark > [data-layer='paper'] {
+    background-color: var(--rail-paper);
+  }
+
+  /* Without CSS masks (Servo 0.7) each layer's colour would fill its whole box.
+     Drop the colour fills and show the outline layer alone, as the plain
+     .icon-mask fallback does. */
+  @supports not (mask-image: none) {
+    .rail-mark > .icon-mask {
+      background-color: transparent;
+    }
+
+    .rail-mark > .icon-mask:not([data-layer='line']) {
+      display: none;
     }
   }
 }
@@ -663,11 +978,7 @@
   & > * {
     position: absolute;
     right: 0;
-    background-image: linear-gradient(
-      to bottom,
-      var(--sheet-from),
-      var(--sheet-to)
-    );
+    background-image: var(--sheet-field);
     background-size: 100% var(--sheet-h, 100dvh);
     background-repeat: no-repeat;
   }
@@ -1395,4 +1706,112 @@
 .vault-graph .css-label--label {
   font-weight: 400;
   text-shadow: 0 0 3px var(--surface-artifact);
+}
+
+/* Theo, the agent's face: glowing matter on a dark visor, as the reference
+   robot's screen is (docs/plans/theo-face.md). The plate is the same in both
+   themes; the screen is the face's own, not the page's. Whether the visor is
+   there is a setting (lib/figures): without it the eyes are light against a
+   dark page and ink against a light one. */
+/* The hue of Theo's matter follows the theme. A palette may name one here;
+   one that does not gives the hue of its ground when that is tinted, else of
+   its accent (lib/face/tint), as a theme someone makes will. GitHub Sharp's
+   is the cyan the face was first drawn in. Stone's is the warm hue all its
+   surfaces lean to (OKLCH 68), named because a lean that faint cannot be told
+   from a grey by measuring. Vitesse's ground is a true grey, so it takes its
+   green by the rule. */
+:root:where(:not([data-palette]), [data-palette='github-sharp']) {
+  --face-hue: 205;
+}
+[data-palette='stone'] {
+  --face-hue: 68;
+}
+.face-plate,
+.face-mark {
+  --face-plate: oklch(0.17 0.012 255);
+  --face-eye: oklch(0.9 0.11 205);
+}
+.face-plate {
+  position: relative;
+  border-radius: 21.6px;
+}
+/* What is dark behind the matter. It is the whole plate until the face is an
+   orb, when the driver draws it in to a ball under the orb's dots
+   (components/face/plate); the matter's own canvas keeps the plate's outline. */
+.face-plate-back {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--face-plate);
+  box-shadow:
+    inset 0 0 0 1.5px oklch(1 0 0 / 0.1),
+    0 3px 10px rgb(0 0 0 / 0.28);
+}
+.face-plate-screen {
+  position: relative;
+  border-radius: inherit;
+  overflow: hidden;
+}
+/* Bare: no plate, and matter that reaches the edge of its canvas thins out
+   there, where the plate's rim would have cut it. */
+.face-plate[data-visor='off'] .face-plate-back {
+  display: none;
+}
+.face-plate[data-visor='off'] .face-plate-screen {
+  mask-image:
+    linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
+    linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+/* What Theo points at (components/face/things): its own colour, as an
+   outline with a restrained fill around a whole thing, a wash with a rule
+   under some words, and a wash with a bar before a line. The stroke leans to
+   the ink so it reads on a light page as on a dark one. */
+.face-point {
+  --face-point-stroke: color-mix(in oklch, var(--face-point) 62%, var(--ink));
+  box-sizing: content-box;
+  border-radius: 6px;
+  opacity: 0;
+  background: color-mix(in oklch, var(--face-point) 12%, transparent);
+  transition: opacity var(--duration-exit) linear;
+}
+.face-point[data-on] {
+  opacity: 1;
+  transition-duration: var(--duration-glide);
+}
+.face-point[data-kind='whole'] {
+  margin: -4px;
+  padding: 3px;
+  border: 1px solid var(--face-point-stroke);
+  background: color-mix(in oklch, var(--face-point) 7%, transparent);
+}
+.face-point[data-kind='text'] {
+  margin: -1px -3px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--face-point) 22%, transparent);
+  box-shadow: 0 2px 0 -0.5px var(--face-point-stroke);
+}
+.face-point[data-kind='line'] {
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--face-point) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--face-point-stroke);
+}
+/* The arcs that leave Theo's sides while it sounds (components/face/driver):
+   its own colour, leaning to the ink as the mark above does, so they read on
+   a light page as on a dark one. */
+.face-waves path {
+  fill: none;
+  stroke: color-mix(in oklch, var(--face-wave) 62%, var(--ink));
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.face-mark-plate {
+  fill: var(--face-plate);
+}
+.face-mark-eye {
+  fill: var(--face-eye);
+}
+.face-mark-eye[data-ink] {
+  fill: color-mix(in srgb, var(--face-eye) 20%, black);
 }

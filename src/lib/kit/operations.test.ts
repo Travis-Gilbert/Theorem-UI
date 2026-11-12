@@ -6,18 +6,26 @@ import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { KitRefusal, setKitDriver } from './driver'
 import type { KitDriver } from './driver'
 import {
+  CHOREOGRAPHY_MS,
   GAITS,
   GESTURES,
   KIT_OPERATIONS,
   MAX_SAYING,
   applyKitRequest,
+  endFollowWhenDone,
   kitRequestsOf,
   kitTurnOptions,
   resetKitRequests,
   serveKitRequests,
 } from './operations'
 import type { KitRequest, Receipt } from './operations'
-import { PERCHES, changeStage, resetKitStage, useKitStage } from './stage'
+import {
+  changeStage,
+  messageLabel,
+  messageSurface,
+  resetKitStage,
+  useKitStage,
+} from './stage'
 import { resetKit } from './store'
 
 /** A client operation part on a live run's message, as the installed SDK maps it onto assistant-ui. */
@@ -65,13 +73,60 @@ const fakeDriver = (answer: () => Promise<boolean>) => {
   return moves
 }
 
+/** A driver that records every call by name and answers each as given. */
+const recordingDriver = (answers: Record<string, () => unknown> = {}) => {
+  const calls: Array<[string, ...unknown[]]> = []
+  const driver = new Proxy(
+    {},
+    {
+      get:
+        (_, name: string) =>
+        (...args: unknown[]) => {
+          calls.push([name, ...args])
+          const answer = answers[name]
+          return answer
+            ? answer()
+            : name === 'follow' || name === 'interrupt' || name === 'endFollow'
+              ? undefined
+              : Promise.resolve(name === 'fling' ? 'floor' : true)
+        },
+    },
+  ) as KitDriver
+  setKitDriver(driver)
+  return calls
+}
+
+/** A surface the shell would mark, measured where the test puts it. */
+function surface(
+  name: string,
+  rect: { left: number; top: number; width: number; height: number },
+  label?: string,
+) {
+  const element = document.createElement('div')
+  element.dataset.kitPerch = name
+  if (label) element.dataset.kitLabel = label
+  element.getBoundingClientRect = () => ({
+    ...rect,
+    x: rect.left,
+    y: rect.top,
+    right: rect.left + rect.width,
+    bottom: rect.top + rect.height,
+    toJSON: () => ({}),
+  })
+  document.body.append(element)
+  return element
+}
+
 beforeEach(() => {
   resetKitStage()
   resetKit()
   resetKitRequests()
   changeStage({ mounted: true })
 })
-afterEach(() => setKitDriver(undefined))
+afterEach(() => {
+  setKitDriver(undefined)
+  document.body.replaceChildren()
+})
 
 describe('what a send declares', () => {
   test('nothing while Kit is off screen', () => {
@@ -82,7 +137,17 @@ describe('what a send declares', () => {
   test('the operations and the revision while it is on screen', () => {
     const options = kitTurnOptions()
     expect(options.clientOperations.map((operation) => operation.name)).toEqual(
-      ['kit.move', 'kit.gesture', 'kit.say', 'kit.look'],
+      [
+        'kit.move',
+        'kit.jump',
+        'kit.fling',
+        'kit.point_at',
+        'kit.follow',
+        'kit.choreograph',
+        'kit.gesture',
+        'kit.say',
+        'kit.look',
+      ],
     )
     expect(options.clientSurface).toEqual({
       revision: useKitStage.getState().revision,
@@ -101,10 +166,16 @@ describe('what a send declares', () => {
     const schema = (name: string) =>
       KIT_OPERATIONS.find((operation) => operation.name === name)!
         .inputSchema as {
-        properties: Record<string, { enum?: string[]; maxLength?: number }>
+        properties: Record<
+          string,
+          { enum?: string[]; maxLength?: number; pattern?: string }
+        >
       }
     const move = schema('kit.move').properties
-    expect(move.to!.enum).toEqual([...PERCHES])
+    const to = new RegExp(move.to!.pattern!)
+    for (const id of ['composer', 'rail', 'floor', messageSurface('msg_1')])
+      expect(id).toMatch(to)
+    expect(messageSurface('a b/c"d')).toMatch(to)
     expect(move.gait!.enum).toEqual([...GAITS])
     expect(schema('kit.gesture').properties.gesture!.enum).toEqual([
       ...GESTURES,
@@ -200,12 +271,264 @@ describe('carrying out a request', () => {
   test('a move goes to the driver with its defaults filled in', async () => {
     const moves = fakeDriver(async () => true)
     expect(
+      await applyKitRequest({ operation: 'kit.move', args: { to: 'floor' } }),
+    ).toEqual({ outcome: 'applied' })
+    expect(moves).toEqual([['floor', 0.5, 'walk']])
+  })
+
+  test("arguments are read by the operation's own declaration", async () => {
+    recordingDriver()
+    const answer = (operation: string, args: Record<string, unknown>) =>
+      applyKitRequest({ operation, args })
+    expect(await answer('kit.move', { to: 'floor', at: 4 })).toMatchObject({
+      outcome: 'rejected',
+      reason: expect.stringContaining('at'),
+    })
+    expect(
+      (await answer('kit.follow', { target: 'cursor', seconds: 3.5 })).outcome,
+    ).toBe('rejected')
+    expect(
+      (await answer('kit.move', { to: 'rail', gait: 'walk', extra: 1 }))
+        .outcome,
+    ).toBe('rejected')
+    expect(
+      (await answer('kit.choreograph', { steps: [{ op: 'dance' }] })).outcome,
+    ).toBe('rejected')
+    expect((await answer('kit.choreograph', { steps: [] })).outcome).toBe(
+      'rejected',
+    )
+  })
+
+  test('jumps, flings and pointing go to the body with their defaults', async () => {
+    surface('composer', { left: 100, top: 300, width: 400, height: 80 })
+    const calls = recordingDriver()
+    for (const [operation, args] of [
+      ['kit.jump', { to: 'composer' }],
+      ['kit.fling', { direction: 'up_left' }],
+      ['kit.point_at', { target: 'composer' }],
+    ] as const)
+      expect(await applyKitRequest({ operation, args })).toEqual({
+        outcome: 'applied',
+      })
+    expect(calls).toEqual([
+      ['jumpTo', 'composer', 0.5, 'arc'],
+      ['fling', 'up_left', 0.6],
+      ['pointAt', 'composer'],
+    ])
+    expect(useKitStage.getState().gesture?.tag).toBe('point')
+  })
+
+  test('a jump that comes down elsewhere says where', async () => {
+    recordingDriver({ jumpTo: async () => false })
+    changeStage({ perch: 'floor' })
+    expect(
+      await applyKitRequest({ operation: 'kit.jump', args: { to: 'rail' } }),
+    ).toEqual({
+      outcome: 'interrupted',
+      reason: 'Kit came down on floor instead: rail moved, or Kit was stopped',
+    })
+  })
+
+  test('a follow answers as it starts, and only a surface on screen', async () => {
+    const calls = recordingDriver()
+    expect(
       await applyKitRequest({
-        operation: 'kit.move',
-        args: { to: 'floor', at: 4 },
+        operation: 'kit.follow',
+        args: { target: 'cursor' },
       }),
     ).toEqual({ outcome: 'applied' })
-    expect(moves).toEqual([['floor', 1, 'walk']])
+    expect(calls).toEqual([['follow', 'cursor', 8]])
+    expect(
+      (
+        await applyKitRequest({
+          operation: 'kit.follow',
+          args: { target: 'message:gone' },
+        })
+      ).outcome,
+    ).toBe('rejected')
+  })
+})
+
+describe('a follow and the turn that asked for it', () => {
+  const asked: KitRequest = {
+    runId: 'run_1',
+    requestRef: 'req_follow',
+    operation: 'kit.follow',
+    args: { target: 'cursor', seconds: 10 },
+  }
+  const stopping = (calls: Array<[string, ...unknown[]]>) =>
+    calls.filter(([name]) => name === 'endFollow').length
+
+  test('ends when that run stops, not while it runs or in another conversation', async () => {
+    const calls = recordingDriver()
+    await serveKitRequests([asked], async () => {})
+    const live = liveMessage([], 'run_1')
+    endFollowWhenDone([live], true)
+    endFollowWhenDone([liveMessage([], 'run_other')], false)
+    expect(stopping(calls)).toBe(0)
+    endFollowWhenDone([live], false)
+    expect(stopping(calls)).toBe(1)
+    // Once ended, it is not ended again.
+    endFollowWhenDone([live], false)
+    expect(stopping(calls)).toBe(1)
+  })
+
+  test('ends when a newer turn has taken over the conversation', async () => {
+    const calls = recordingDriver()
+    await serveKitRequests([asked], async () => {})
+    endFollowWhenDone(
+      [liveMessage([], 'run_1'), liveMessage([], 'run_2')],
+      true,
+    )
+    expect(stopping(calls)).toBe(1)
+  })
+})
+
+describe('a choreography', () => {
+  test('plays its steps in order and reports each', async () => {
+    const calls = recordingDriver()
+    const started = Date.now()
+    const answer = await applyKitRequest({
+      operation: 'kit.choreograph',
+      args: {
+        steps: [
+          { op: 'move', to: 'rail', gait: 'run' },
+          { op: 'wait', ms: 60 },
+          { op: 'say', text: 'here' },
+          { op: 'fling', direction: 'up', strength: 0.2 },
+        ],
+      },
+    })
+    expect(Date.now() - started).toBeGreaterThanOrEqual(55)
+    expect(answer).toEqual({
+      outcome: 'applied',
+      steps: [
+        { op: 'move', outcome: 'applied' },
+        { op: 'wait', outcome: 'applied' },
+        { op: 'say', outcome: 'applied' },
+        { op: 'fling', outcome: 'applied' },
+      ],
+    })
+    expect(calls).toEqual([
+      ['moveTo', 'rail', 0.5, 'run'],
+      ['fling', 'up', 0.2],
+    ])
+    expect(useKitStage.getState().speech?.text).toBe('here')
+  })
+
+  test('a step that does not finish ends the piece; the rest are interrupted', async () => {
+    const calls = recordingDriver({ moveTo: async () => false })
+    const answer = await applyKitRequest({
+      operation: 'kit.choreograph',
+      args: {
+        steps: [
+          { op: 'say', text: 'watch' },
+          { op: 'move', to: 'rail' },
+          { op: 'jump', to: 'floor', style: 'leap' },
+        ],
+      },
+    })
+    expect(answer.outcome).toBe('interrupted')
+    expect(answer.steps?.map((step) => step.outcome)).toEqual([
+      'applied',
+      'interrupted',
+      'interrupted',
+    ])
+    expect(answer.steps?.[2]?.reason).toBe('step 2 (move) did not finish')
+    expect(calls.map(([name]) => name)).toEqual(['moveTo'])
+  })
+
+  test('a piece that finished leaves no timer to stop Kit later', async () => {
+    const calls = recordingDriver()
+    const started = new Set<unknown>()
+    const realSet = globalThis.setTimeout
+    const realClear = globalThis.clearTimeout
+    globalThis.setTimeout = ((handler: () => void, ms?: number) => {
+      const timer = realSet(handler, ms)
+      if (ms !== undefined && ms > 10_000) started.add(timer)
+      return timer
+    }) as typeof setTimeout
+    globalThis.clearTimeout = ((timer?: Parameters<typeof clearTimeout>[0]) => {
+      started.delete(timer)
+      realClear(timer)
+    }) as typeof clearTimeout
+    try {
+      const answer = await applyKitRequest({
+        operation: 'kit.choreograph',
+        args: {
+          steps: [
+            { op: 'jump', to: 'floor' },
+            { op: 'say', text: 'hi' },
+          ],
+        },
+      })
+      expect(answer.outcome).toBe('applied')
+    } finally {
+      globalThis.setTimeout = realSet
+      globalThis.clearTimeout = realClear
+    }
+    expect(started.size).toBe(0)
+    expect(calls.map(([name]) => name)).not.toContain('interrupt')
+  })
+
+  test('it never outlasts what a visitor waits for a receipt', () => {
+    expect(CHOREOGRAPHY_MS).toBeLessThan(20_000)
+    const choreograph = KIT_OPERATIONS.find(
+      (operation) => operation.name === 'kit.choreograph',
+    )!.inputSchema as { properties: { steps: { maxItems: number } } }
+    expect(choreograph.properties.steps.maxItems).toBe(8)
+  })
+})
+
+describe('what the scene reports', () => {
+  test('the messages showing, with labels, between the rail and the floor', async () => {
+    surface('composer', { left: 100, top: 600, width: 400, height: 80 })
+    surface(
+      messageSurface('m1'),
+      { left: 100, top: 120, width: 600, height: 90 },
+      messageLabel('assistant', 'Here is the plan for the week'),
+    )
+    surface(messageSurface('m2'), { left: 100, top: 0, width: 0, height: 0 })
+    const posted: Receipt[] = []
+    await serveKitRequests(
+      [{ runId: 'run_1', requestRef: 'r', operation: 'kit.look', args: {} }],
+      async (_, receipt) => {
+        posted.push(receipt)
+      },
+    )
+    expect(posted[0]!.result.surfaces).toEqual([
+      { id: 'composer', kind: 'composer' },
+      {
+        id: 'message:m1',
+        kind: 'message',
+        label: 'your reply: Here is the plan for the week',
+      },
+      { id: 'floor', kind: 'floor' },
+    ])
+  })
+
+  test("the person's last touch, once, then not again", async () => {
+    changeStage({
+      touched: { kind: 'thrown', onto: 'floor', at: Date.now() - 500 },
+    })
+    const posted: Receipt[] = []
+    const post = async (_: KitRequest, receipt: Receipt) => {
+      posted.push(receipt)
+    }
+    await serveKitRequests(
+      [{ runId: 'run_1', requestRef: 'r1', operation: 'kit.look', args: {} }],
+      post,
+    )
+    await serveKitRequests(
+      [{ runId: 'run_1', requestRef: 'r2', operation: 'kit.look', args: {} }],
+      post,
+    )
+    expect(posted[0]!.result.touched).toMatchObject({
+      kind: 'thrown',
+      onto: 'floor',
+    })
+    expect(posted[0]!.result.touched!.agoMs).toBeGreaterThanOrEqual(500)
+    expect(posted[1]!.result.touched).toBeUndefined()
   })
 
   test('a move cut short is interrupted; one the driver refuses is rejected', async () => {

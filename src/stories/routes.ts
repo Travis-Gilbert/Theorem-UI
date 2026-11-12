@@ -1,4 +1,4 @@
-// SOURCING: src/stories/fake-theorem's route map, answered from the committed fixtures. Reviews keep their state in memory so the pane's draft and submit can be scripted.
+// SOURCING: src/stories/fake-theorem's route map, answered from the committed fixtures (the artifact host and notebook outputs from fixtures/notebook-parts). Reviews keep their state in memory so the pane's draft and submit can be scripted.
 import type { Theorem } from '@/lib/theorem/client'
 import type { Review, ReviewResponse } from '@/lib/theorem/reviews'
 import type { FakeRoutes } from './fake-theorem'
@@ -9,9 +9,20 @@ import {
   nestedSpaceFixture,
   uploadFixtures,
 } from './fixtures/notes'
+import {
+  NOTEBOOK_DOCUMENTS,
+  artifactHost,
+  outputsAnswer,
+} from './fixtures/notebook-parts'
 import { organizationFixture } from './fixtures/organization'
 import { reviewFixture, reviewShots } from './fixtures/review'
 import { threadMessages } from './fixtures/thread'
+import {
+  POINTING_DELEGATION,
+  POINTING_PATCH,
+  POINTING_RUN,
+  pointingDelegation,
+} from './fixtures/pointing'
 
 const BASE = '/api/chat/v1'
 
@@ -35,6 +46,8 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     createdAtMs: now,
     updatedAtMs: now,
   }))
+  // The branch a scripted story opens in a thread stays selected for its life.
+  const selected = new Map<string, string>()
   const threadOf = (threadId: string) => {
     const entry = organization.threads.find((t) => t.threadId === threadId)
     return {
@@ -44,7 +57,7 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
       projectId: entry?.homeProjectId ?? 'project-theorem',
       title: entry?.title ?? 'Thread',
       status: 'regular',
-      selectedBranchId: 'branch-main',
+      selectedBranchId: selected.get(threadId) ?? 'branch-main',
       revision: 1,
       createdAtMs: now,
       updatedAtMs: now,
@@ -57,6 +70,11 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     threadId,
     createdAtMs: now,
   })
+  // One thread carries a fork, so the sidebar shows a branch under its thread.
+  const branchesOf = (threadId: string) =>
+    threadId === 'thread-graph-memory'
+      ? [branch(threadId), { ...branch(threadId), branchId: 'branch-fork', parentBranchId: 'branch-main' }]
+      : [branch(threadId)]
   const rootSpace = canvasSpaceFixture('project-theorem')
   const nestedSpace = nestedSpaceFixture(rootSpace.space.id)
   const spaces = new Map([
@@ -95,10 +113,30 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     [`GET ${BASE}/threads/:threadId`]: ({ threadId = '' }) => ({
       thread: threadOf(threadId),
       project: projects[0],
-      branches: [branch(threadId)],
-      selectedBranch: branch(threadId),
+      branches: branchesOf(threadId),
+      selectedBranch:
+        branchesOf(threadId).find(({ branchId }) => branchId === selected.get(threadId)) ??
+        branch(threadId),
       messages: threadId === 'thread-app-gallery' ? threadMessages(now) : [],
     }),
+    [`PATCH ${BASE}/threads/:threadId`]: async ({ threadId = '' }, request) => {
+      const { selectedBranchId } = (await request.json()) as { selectedBranchId?: string }
+      if (selectedBranchId) selected.set(threadId, selectedBranchId)
+      return {
+        record: threadOf(threadId),
+        receipt: {
+          receiptId: `receipt-${threadId}`,
+          schema: 'theorem.chat.mutation_receipt.v1',
+          operation: 'thread.update',
+          requestHash: 'story',
+          idempotencyKeyHash: 'story',
+          resourceId: threadId,
+          revision: 1,
+          createdAtMs: now,
+          reused: false,
+        },
+      }
+    },
     [`GET /api/documents/v2/documents`]: () => ({
       documents: [...notes.keys()].map((id) => snapshot(id)?.summary),
     }),
@@ -142,6 +180,11 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     },
     [`POST ${BASE}/uploads/:uploadId/retain`]: () => ({ retained: true }),
     [`GET ${BASE}/organization`]: () => organization,
+    [`GET ${BASE}/runs/${POINTING_RUN}/delegations`]: () => ({
+      delegations: [pointingDelegation],
+    }),
+    [`GET ${BASE}/runs/${POINTING_RUN}/delegations/${POINTING_DELEGATION}/content`]:
+      () => new Response(POINTING_PATCH, { headers: { 'content-type': 'text/plain' } }),
     [`GET ${BASE}/librarian/history`]: () => ({
       items: organization.librarian.recent,
     }),
@@ -175,5 +218,13 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
       new Response(reviewShots[shotId], {
         headers: { 'content-type': 'image/svg+xml' },
       }),
+    // No execution host is registered: marimo runs in the browser or waits.
+    'GET /api/artifacts/v1/host': () => artifactHost('browser'),
+    'GET /api/artifacts/v1/documents/:documentId/outputs': ({ documentId = '' }, request) => {
+      const document = NOTEBOOK_DOCUMENTS[documentId]
+      return document?.sourceRevision
+        ? outputsAnswer(document.sourceRevision, document.runs, request)
+        : missing()
+    },
   }
 }

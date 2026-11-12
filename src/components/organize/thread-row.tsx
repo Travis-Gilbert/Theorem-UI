@@ -1,8 +1,9 @@
-// SOURCING: coss ui sidebar and collapsible, Base UI ContextMenu with coss menu parts, @tanstack/react-router Link, assistant-ui (the open thread's run state and reload), thread-tree (branches and forks, as the previous thread list read them), date-fns for a sleeping thread's wake time
+// SOURCING: coss ui sidebar and collapsible, @dnd-kit/core useDraggable (a row carries its thread to another project), Base UI ContextMenu with coss menu parts, @tanstack/react-router Link, assistant-ui (the open thread's run state and reload), thread-tree (branches and forks, as the previous thread list read them), date-fns for a sleeping thread's wake time
 import { useAui, useAuiState } from '@assistant-ui/react'
 import { ContextMenu } from '@base-ui/react/context-menu'
+import { useDraggable } from '@dnd-kit/core'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { format, isToday, isTomorrow } from 'date-fns'
+import { format, intlFormatDistance, isToday, isTomorrow } from 'date-fns'
 import { useContext, createContext, useEffect, useRef, useState } from 'react'
 import {
   OriginMark,
@@ -51,10 +52,15 @@ import { ThreadMenuItems } from './thread-menu'
 export const TREE_TICK =
   'relative before:pointer-events-none before:absolute before:top-1/2 before:-start-2.5 before:w-2 before:border-t before:border-sidebar-border'
 
+/** What a dragged row carries: the thread, and the project it was listed under. */
+export type RowDrag = { thread: ThreadEntry; from: string }
+
 export type TreeContext = {
   projects: readonly ProjectEntry[]
   views: OrganizedViews
   served: boolean
+  /** When the tree was last read: the clock a row measures its age against. */
+  readAtMs: number
 }
 
 export const OrganizeTree = createContext<TreeContext | null>(null)
@@ -77,7 +83,7 @@ const wakeLabel = (later: Later, views: OrganizedViews) => {
   return format(at, 'MMM d')
 }
 
-/** The row's compact status. Its width is the only thing that changes when it does. */
+/** The row's compact status, or when it last heard a message. Its width is the only thing that changes when it does. */
 function StatusMark({
   thread,
   running,
@@ -117,15 +123,34 @@ function StatusMark({
         <span className="sr-only">, running</span>
       </span>
     )
-  return null
+  const at = thread.lastMessageAtMs ?? thread.createdAtMs
+  return <Age at={at} />
 }
 
-function RenameField({
+function Age({ at }: { at: number }) {
+  const { readAtMs } = useTree()
+  return (
+    <time
+      dateTime={new Date(at).toISOString()}
+      title={format(at, 'PPp')}
+      className="shrink-0 text-xs text-ink-muted tabular-nums group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
+    >
+      {intlFormatDistance(at, Math.max(at, readAtMs), {
+        style: 'narrow',
+        numeric: 'always',
+      })}
+    </time>
+  )
+}
+
+export function RenameField({
   title,
+  label = 'Rename thread',
   onDone,
   onCommit,
 }: {
   title: string
+  label?: string
   onDone: () => void
   onCommit: (title: string) => void
 }) {
@@ -142,7 +167,7 @@ function RenameField({
     <Input
       autoFocus
       size="sm"
-      aria-label="Rename thread"
+      aria-label={label}
       value={value}
       className="h-7"
       onFocus={(event) => event.target.select()}
@@ -196,6 +221,15 @@ export function ThreadRow({
   const hasChildren = forks.length > 0 || childThreads.length > 0
   const [expanded, setExpanded] = useState(true)
   const [renaming, setRenaming] = useState(false)
+  const {
+    setNodeRef: dragRef,
+    listeners: dragListeners,
+    isDragging,
+  } = useDraggable({
+    id: `${place}|${thread.threadId}`,
+    data: { thread, from: place } satisfies RowDrag,
+    disabled: renaming,
+  })
 
   const selectBranch = useSelectBranch()
   const startThread = useStartThreadFrom()
@@ -282,17 +316,21 @@ export function ThreadRow({
               />
             ) : (
               <SidebarMenuSubButton
+                ref={dragRef}
+                {...dragListeners}
                 data-organize-row={
                   current ? (primary ? 'primary' : 'also') : undefined
                 }
                 aria-current={current || undefined}
                 title={thread.summary?.text ?? title}
                 className={cn(
-                  'h-9 w-full translate-x-0 pe-1 text-base text-ink sm:h-9 data-[organize-row=also]:bg-hover',
+                  'w-full translate-x-0 pe-1 data-[organize-row=also]:bg-hover',
                   'relative z-[1] hover:bg-hover',
+                  isDragging && 'opacity-40',
                 )}
                 render={
                   <Link
+                    draggable={false}
                     to="/c/$threadId"
                     params={{ threadId: thread.threadId }}
                     onClick={(event) => {
@@ -311,10 +349,16 @@ export function ThreadRow({
                   <ThreadGlyph
                     glyph={thread.glyph}
                     aria-hidden
-                    className="size-[18px]! shrink-0 text-ink-muted"
+                    className="text-ink-muted"
                   />
                 )}
-                <span className="min-w-0 flex-1 truncate">
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate',
+                    // A reply being written shows where it is.
+                    running && 'shimmer motion-reduce:animate-none',
+                  )}
+                >
                   {title}
                   {thread.origin && (
                     <span className="sr-only">
@@ -392,7 +436,7 @@ export function ThreadRow({
   )
 }
 
-/** Keeps a thread's project open when that thread becomes the open one. */
+/** Keeps a thread's project open when that thread becomes the open one. Chats outside every project are always listed. */
 export function useRevealOpenThread(views: OrganizedViews) {
   const { threadId } = useParams({ strict: false })
   const thread = threadId ? views.byId.get(threadId) : undefined
@@ -405,11 +449,9 @@ export function useRevealOpenThread(views: OrganizedViews) {
   useEffect(() => {
     if (threadId && failedAt) markSeen(threadId)
   }, [threadId, failedAt, markSeen])
+  const filed = (thread?.memberships.length ?? 0) > 0
   useEffect(() => {
-    if (!primary) return
-    const { setOrganizeOpen } = useShell.getState()
-    setOrganizeOpen(`project:${primary}`, true)
-    if (views.unsorted.some((t) => t.threadId === threadId))
-      setOrganizeOpen('view:unsorted', true)
-  }, [threadId, primary, views.unsorted])
+    if (primary && filed)
+      useShell.getState().setOrganizeOpen(`project:${primary}`, true)
+  }, [threadId, primary, filed])
 }

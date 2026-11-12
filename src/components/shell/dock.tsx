@@ -30,8 +30,7 @@ import {
 import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
-import { HighlightsView } from '@/components/organize/highlights-view'
-import { ThreadHeader, useThreadView } from '@/components/organize/thread-header'
+import { ThreadHeader } from '@/components/organize/thread-header'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
 import {
@@ -52,7 +51,13 @@ import {
 } from './arrangements'
 import type { Arrangement } from './arrangements'
 import { FilePanel } from './file-panel'
-import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
+import {
+  hasOwnView,
+  ModeView,
+  modeLabel,
+  navigatorMode,
+  useShellMode,
+} from './modes'
 import type { ShellMode } from './modes'
 import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
@@ -111,16 +116,13 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
   useEffect(
     () =>
       api.setTitle(
-        mode === 'spaces' ||
-        mode === 'canvas' ||
-        mode === 'index' ||
-        mode === 'pages'
+        hasOwnView(mode)
           ? modeLabel(mode)
           : title || 'New chat',
       ),
     [api, mode, title],
   )
-  // Chat's breadcrumb and views stand in for the tab while the conversation is
+  // Chat's breadcrumb stands in for the tab while the conversation is
   // alone in its group; a tab dropped beside it brings the tab bar back.
   const inChat = mode === 'chat'
   const alone = useSyncExternalStore(
@@ -131,7 +133,6 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
     // eslint-disable-next-line react-hooks/immutability -- dockview's header takes this as a setter, and has no method for it.
     api.group.header.hidden = inChat && alone
   }, [api, inChat, alone])
-  const view = useThreadView((s) => s.view)
   return (
     <div className="flex h-full flex-col">
       {inChat && (
@@ -142,10 +143,7 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
         />
       )}
       <div className="relative min-h-0 flex-1">
-        <div hidden={inChat && view === 'highlights'} className="h-full">
-          <ModeView docked />
-        </div>
-        {inChat && view === 'highlights' && <HighlightsView />}
+        <ModeView docked />
       </div>
     </div>
   )
@@ -225,7 +223,11 @@ function DelegationDockPanel({
   return <DelegationPanel delegationId={params.delegationId} />
 }
 
-/** Compare draws its own header, with a way out of the window and back. */
+/**
+ * Compare draws its own header: a way to fill the workspace with every option
+ * side by side, and a way out of the window and back. Wherever the
+ * conversation is not beside it, it carries the conversation's composer.
+ */
 function ReviewDockPanel({
   api,
   containerApi,
@@ -239,6 +241,20 @@ function ReviewDockPanel({
   const location = useSyncExternalStore(
     subscribe(api.onDidLocationChange),
     () => api.location.type,
+  )
+  const expanded = useSyncExternalStore(
+    subscribe(containerApi.onDidMaximizedGroupChange),
+    () => api.isMaximized(),
+  )
+  // A dock too narrow for both opens Compare as a tab over the conversation.
+  const overThread = useSyncExternalStore(
+    subscribe(containerApi.onDidLayoutChange),
+    () => api.group.panels.some((panel) => panel.id === THREAD),
+  )
+  // A tab opened quietly behind the conversation answers nothing until shown.
+  const visible = useSyncExternalStore(
+    subscribe(api.onDidVisibilityChange),
+    () => api.isVisible,
   )
   const close = () => {
     const panel = containerApi.getPanel(api.id)
@@ -263,6 +279,9 @@ function ReviewDockPanel({
       onClose={close}
       onDetach={() => void detach()}
       detached={location !== 'grid'}
+      expanded={expanded}
+      onExpandedChange={(next) => (next ? api.maximize() : api.exitMaximized())}
+      standalone={visible && (expanded || overThread || location !== 'grid')}
     />
   )
 }
@@ -450,13 +469,16 @@ function PanelsMenu({ api }: { api: DockviewApi }) {
   )
 }
 
+/** Below this the conversation's column is not laid out. */
+const THREAD_MIN_WIDTH = 360
+
 function buildDefaultLayout(api: DockviewApi) {
   api.addPanel({
     id: THREAD,
     component: 'thread',
     tabComponent: 'fixed',
     title: 'New chat',
-    minimumWidth: 360,
+    minimumWidth: THREAD_MIN_WIDTH,
   })
 }
 
@@ -522,9 +544,16 @@ function openDelegation(api: DockviewApi, delegationId: string, title: string) {
     title,
   })
 }
+/** Compare's column opens this wide, or at 40% of a dock too narrow for that. */
+const COMPARE_WIDTH = 380
+/** The conversation keeps this much beside Compare, which otherwise opens over it. */
+const CONVERSATION_WIDTH = 480
+
 /**
  * Compare opens in a column of its own, with its own header in place of the
- * tab, and a quiet open leaves the keyboard in the conversation.
+ * tab, and a quiet open leaves the keyboard in the conversation. The column
+ * has a set width, so a wide window gives the room to the conversation; a
+ * dock with no room for both opens Compare over the conversation as a tab.
  */
 function openReviewPanel(
   api: DockviewApi,
@@ -547,7 +576,8 @@ function openReviewPanel(
       minimumWidth: 340,
     },
     THREAD,
-    0.4,
+    Math.min(0.4, COMPARE_WIDTH / api.width),
+    CONVERSATION_WIDTH - THREAD_MIN_WIDTH,
   )
   const panel = api.getPanel(id)
   if (panel && panel.group.panels.length === 1) panel.group.header.hidden = true
@@ -696,6 +726,10 @@ export function DockShell({
     useReviewDock.setState({
       open: (reviewId, options) =>
         openReviewPanel(dock, reviewId, options?.quiet),
+      close: (reviewId) => {
+        const panel = dock.getPanel(reviewPanelId(reviewId))
+        if (panel) dock.removePanel(panel)
+      },
     })
     const listeners = [
       dock.onDidActivePanelChange(({ panel }) => {
@@ -717,7 +751,7 @@ export function DockShell({
       useWorkspaceFileView.setState({ dock: undefined })
       useFileDock.setState({ open: undefined })
       useDelegationDock.setState({ open: undefined })
-      useReviewDock.setState({ open: undefined })
+      useReviewDock.setState({ open: undefined, close: undefined })
     }
   }, [dock, projectId])
 

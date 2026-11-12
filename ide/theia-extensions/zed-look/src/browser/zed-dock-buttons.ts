@@ -11,6 +11,8 @@ import { SidePanelHandler } from '@theia/core/lib/browser/shell/side-panel-handl
 import { Title, Widget } from '@theia/core/shared/@lumino/widgets';
 import { TerminalCommands } from '@theia/terminal/lib/browser/terminal-frontend-contribution';
 import { nls } from '@theia/core/lib/common/nls';
+import { EXPLORER_VIEW_CONTAINER_ID } from '@theia/navigator/lib/browser/navigator-widget-factory';
+import { EMBEDDED } from './zed-embedded';
 
 type DockSide = 'left' | 'right';
 
@@ -18,6 +20,7 @@ type DockSide = 'left' | 'right';
  * Zed has no activity bar: each dock's panels are toggled from icon buttons at the ends of the status bar.
  * This mirrors the views of Theia's left and right side panels (whose side bars `ZedSidePanelHandler`
  * hides) into status bar buttons, left dock on the left and right dock plus the terminal on the right.
+ * Embedded, the page's sidebar has the files, so the explorer has no button.
  */
 @injectable()
 export class ZedDockButtons implements FrontendApplicationContribution {
@@ -58,6 +61,9 @@ export class ZedDockButtons implements FrontendApplicationContribution {
         for (const side of ['left', 'right'] as const) {
             const { tabBar } = this.handler(side);
             tabBar.titles.forEach((title, index) => {
+                if (EMBEDDED && title.owner.id === EXPLORER_VIEW_CONTAINER_ID) {
+                    return;
+                }
                 const id = `zed-dock.${side}.${title.owner.id}`;
                 stale.delete(id);
                 this.entryIds.add(id);

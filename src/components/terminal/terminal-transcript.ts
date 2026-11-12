@@ -7,6 +7,7 @@ import type { ThreadMessage } from '@assistant-ui/react'
 import {
   highlightLines,
   openOf,
+  pathOf,
   proseAndCode,
   toolOutput,
 } from './terminal-code'
@@ -103,10 +104,6 @@ function programLines(part: object, source: string, language?: string) {
   return lines
 }
 
-/** A tool's path argument, which names the language of what it read. */
-function pathOf(args: Record<string, unknown>) {
-  return str(args.path) ?? str(args.file_path) ?? str(args.file)
-}
 
 /** A tool call's one-line summary: its first string argument, else the raw args. */
 function toolSummary(args: Record<string, unknown>, argsText: string) {

@@ -16,14 +16,15 @@ import {
 import type { AppendMessage, ThreadMessageLike } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Thread } from '../assistant-ui/elements/thread.aui'
-import { cleanup, render, waitFor } from '../../../test/blocks/render'
+import { buttonNamed, cleanup, render, waitFor } from '../../../test/blocks/render'
 import {
   planningTurnOptions,
   usePlanning,
   useWebSearch,
   webTurnOptions,
 } from './composer-tools'
-import { modelTurnOptions, useModelEffort, usePickedModels } from '@/lib/theorem/models'
+import { DRAFT, generationTurnOptions, useGenerationDefaults, useGenerationOverrides } from '@/lib/theorem/generation'
+import { usePickedModels } from '@/lib/theorem/models'
 
 /** What GET /api/environment/v1/tools answers: MCP-shaped native descriptors. */
 const CATALOG = {
@@ -66,18 +67,25 @@ let toolsStatus = 200
 /** What GET /api/chat/v1/models answers; unset, the route is not served. */
 let modelsBody: unknown
 let client: QueryClient
+let requests: { origin: string; pathname: string; method: string }[]
 const realFetch = window.fetch
 beforeEach(() => {
   toolsStatus = 200
   modelsBody = undefined
+  requests = []
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  window.fetch = (async (input: RequestInfo | URL) => {
-    const url = input instanceof Request ? input.url : String(input)
-    if (new URL(url).pathname === '/api/environment/v1/tools')
+  window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    requests.push({
+      origin: url.origin,
+      pathname: url.pathname,
+      method: init?.method ?? (input instanceof Request ? input.method : 'GET'),
+    })
+    if (url.pathname === '/api/environment/v1/tools')
       return toolsStatus === 200
         ? Response.json(CATALOG)
         : Response.json({ title: 'Not found' }, { status: toolsStatus })
-    if (new URL(url).pathname === '/api/chat/v1/models' && modelsBody)
+    if (url.pathname === '/api/chat/v1/models' && modelsBody)
       return Response.json(modelsBody)
     return Response.json({}, { status: 404 })
   }) as typeof fetch
@@ -87,7 +95,8 @@ afterEach(async () => {
   window.fetch = realFetch
   useWebSearch.setState({ on: false })
   usePlanning.setState({ on: false })
-  useModelEffort.setState({ byModel: {} })
+  useGenerationOverrides.setState({ byThread: {} })
+  useGenerationDefaults.setState({ defaults: {} })
   usePickedModels.setState({ selected: undefined, starred: [] })
 })
 
@@ -184,6 +193,16 @@ test('a slash lists the native tools, with their first sentence and what they ch
     'rememberwritesStore a memory for this person.',
     'rustyweb_searchSearch the web.',
   ])
+  expect(
+    requests.filter(({ pathname }) => pathname.includes('/environment/')),
+  ).toEqual([
+    {
+      origin: window.location.origin,
+      pathname: '/api/environment/v1/tools',
+      method: 'GET',
+    },
+  ])
+  expect(requests.some(({ pathname }) => pathname.startsWith('/mcp'))).toBe(false)
 })
 
 test('the tools heading shows only while the slash list is open', async () => {
@@ -398,18 +417,80 @@ test("the effort menu offers the default model's levels, and a pick goes out wit
     return found.length ? found : undefined
   })
   expect(items.map((item) => item.textContent)).toEqual(['DefaultLow', 'Low', 'High', 'Max'])
-  expect(modelTurnOptions(client).effort).toBeUndefined()
+  expect(generationTurnOptions().effort).toBeUndefined()
 
   await act(() => items[2]!.click())
-  expect(modelTurnOptions(client).effort).toBe('high')
+  expect(generationTurnOptions().effort).toBe('high')
+  expect(useGenerationOverrides.getState().byThread[DRAFT]).toEqual({ effort: 'high' })
   await waitFor(() => trigger.textContent === 'High')
 })
 
-test('a model whose route sends no effort has no effort menu, and a stale level is dropped', async () => {
+test('a model whose route sends no effort has no effort menu, and a level already chosen still goes out', async () => {
   modelsBody = { defaultRef: OPUS.ref, models: [FLASH, OPUS], openrouter: { status: 'live' } }
-  useModelEffort.setState({ byModel: { '': 'high' } })
+  useGenerationOverrides.setState({ byThread: { [DRAFT]: { effort: 'high' } } })
   const { container } = await mount(<Harness text="Hello" sent={[]} />)
-  await waitFor(() => useModelEffort.getState().byModel[''] === undefined)
   expect(container.querySelector('[aria-label="Reasoning effort"]')).toBeNull()
-  expect(modelTurnOptions(client).effort).toBeUndefined()
+  // Theorem maps a level the model does not list; the browser neither drops nor refuses it.
+  expect(generationTurnOptions().effort).toBe('high')
+})
+
+const NARROW = { ref: 'openrouter/vendor/narrow', name: 'Narrow', source: 'catalog', effort_levels: ['low', 'high'], effort_default: 'low' }
+const mapped = (requested: string, effective: string): ThreadMessageLike[] => [{
+  role: 'assistant', id: 'last',
+  content: [{ type: 'data', name: 'theorem-limits', data: { limits: { effort: { requested, effective, reason: 'the model lists low, high' } } } }],
+}]
+
+test('a level the model does not list is kept and sent, and the menu names the level the last reply ran at', async () => {
+  modelsBody = { defaultRef: NARROW.ref, models: [NARROW], openrouter: { status: 'live' } }
+  useGenerationOverrides.setState({ byThread: { [DRAFT]: { effort: 'max' } } })
+  const { container } = await mount(<Harness text="Hello" sent={[]} messages={mapped('max', 'high')} />)
+  const trigger = await waitFor(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Reasoning effort"]'),
+  )
+  expect(trigger.textContent).toBe('High')
+  expect(generationTurnOptions().effort).toBe('max')
+  await act(() => trigger.click())
+  const items = await waitFor(() => {
+    const found = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
+    return found.length ? found : undefined
+  })
+  expect(items.map((item) => item.textContent)).toEqual(['DefaultLow', 'Low', 'High', 'Max'])
+})
+
+test('the account default effort stands in the menu until the conversation chooses its own', async () => {
+  modelsBody = { defaultRef: NARROW.ref, models: [NARROW], openrouter: { status: 'live' } }
+  useGenerationDefaults.setState({ defaults: { effort: 'high' } })
+  const { container } = await mount(<Harness text="Hello" sent={[]} />)
+  const trigger = await waitFor(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Reasoning effort"]'),
+  )
+  expect(trigger.textContent).toBe('High')
+  expect(useGenerationOverrides.getState().byThread[DRAFT]).toBeUndefined()
+  expect(generationTurnOptions().effort).toBe('high')
+})
+
+test('the length control sets this conversation apart, marks itself while it does, and resets', async () => {
+  const { container } = await mount(<Harness text="Hello" sent={[]} messages={[{
+    role: 'assistant', id: 'last',
+    content: [{ type: 'data', name: 'theorem-limits', data: { limits: { maxOutputTokensPerCall: { value: 8000, source: 'default' } } } }],
+  }]} />)
+  const trigger = await waitFor(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Response length and detail"]'),
+  )
+  expect(trigger.hasAttribute('data-active')).toBe(false)
+  await act(() => trigger.click())
+  const panel = await waitFor(() => document.querySelector('[data-slot="response-control"]'))
+  // What the newest run ran under is shown beneath the fields.
+  expect(panel.textContent).toContain('Last reply ran under')
+  expect(panel.textContent).toContain("Theorem's default")
+  expect(buttonNamed(panel, 'Reset')).toBeUndefined()
+
+  await act(() => buttonNamed(panel, 'Concise')!.click())
+  expect(useGenerationOverrides.getState().byThread[DRAFT]).toEqual({ responseDetail: 'concise' })
+  expect(generationTurnOptions().responseDetail).toBe('concise')
+  await waitFor(() => trigger.hasAttribute('data-active'))
+
+  await act(() => buttonNamed(panel, 'Reset')!.click())
+  expect(useGenerationOverrides.getState().byThread[DRAFT]).toBeUndefined()
+  await waitFor(() => !trigger.hasAttribute('data-active'))
 })

@@ -8,7 +8,7 @@ import {
 import { useMemo } from 'react'
 import { useShell } from '@/components/shell/shell-state'
 import { documentThreadIds } from '@/lib/documents/ask-store'
-import { mutate, mutateThread, theorem } from './client'
+import { mutate, mutateProject, mutateThread, theorem } from './client'
 import type { MutationHeaders, Theorem } from './client'
 import { isNotServed, theoremJson } from './passthrough'
 
@@ -75,6 +75,7 @@ export type Glyph =
   | 'research'
   | 'map'
   | 'chat'
+  | 'todo'
 
 export type ThreadEntry = {
   threadId: string
@@ -306,13 +307,15 @@ export const useOrganization = () => useQuery(organizationQuery())
 export function useOrganizedViews() {
   const { data } = useOrganization()
   const terminalThreads = useShell((state) => state.terminalThreadIds)
+  const projectOrder = useShell((state) => state.projectOrder)
   return useMemo(
     () =>
       organizedViews(
         data ?? { projects: [], threads: [] },
         new Set([...terminalThreads, ...documentThreadIds()]),
+        projectOrder,
       ),
-    [data, terminalThreads],
+    [data, terminalThreads, projectOrder],
   )
 }
 
@@ -329,18 +332,25 @@ export type OrganizedViews = {
  * The quick views and the tree: every view reads the same threads, and sorting
  * is by title and creation time, so a badge changing never moves a row.
  * `apart` holds threads that live elsewhere (the agent terminal's, a note's).
+ * `order` is the projects as the person arranged them; ones it does not name
+ * follow, as Theorem lists them.
  */
 export function organizedViews(
   organization: Pick<Organization, 'projects' | 'threads'>,
   apart: ReadonlySet<string> = new Set(),
+  order: readonly string[] = [],
 ): OrganizedViews {
   const threads = organization.threads.filter((t) => !apart.has(t.threadId))
+  const place = new Map(order.map((projectId, index) => [projectId, index]))
+  const placeOf = (project: ProjectEntry) =>
+    place.get(project.projectId) ?? order.length
   return {
     attention: threads.filter((t) => t.attention.reasons.length > 0),
     running: threads.filter((t) => t.attention.running),
     later: threads.filter((t) => t.later),
     projects: organization.projects
       .filter((project) => !project.isInbox)
+      .sort((a, b) => placeOf(a) - placeOf(b))
       .map((project) => ({
         project,
         threads: threads.filter((thread) =>
@@ -349,6 +359,61 @@ export function organizedViews(
       })),
     unsorted: threads.filter((thread) => thread.memberships.length === 0),
     byId: new Map(threads.map((thread) => [thread.threadId, thread])),
+  }
+}
+
+/** When a session last moved: its last message, else when it began. */
+export const lastMoved = (thread: ThreadEntry) =>
+  thread.lastMessageAtMs ?? thread.createdAtMs
+
+export type SessionLists = {
+  /** Projects the user made, each with its sessions, in the organization's order. */
+  sections: Array<{ project: ProjectEntry; threads: ThreadEntry[] }>
+  /** Every session in none of those sections, newest first. */
+  recent: ThreadEntry[]
+  /** Sessions waiting on a person's review or approval, newest first. */
+  review: ThreadEntry[]
+  /** Where each session's highlight sits: its primary section if the user made it, its first such section, else `recent`. */
+  home: ReadonlyMap<string, string>
+}
+
+/**
+ * The IDE's sidebar over the same views: the sections the user made, and the
+ * rest as Recent. Sections keep the tree's stable order; Recent is by when a
+ * session last moved, since that is what it lists.
+ */
+export function sessionLists(views: OrganizedViews): SessionLists {
+  const sections = views.projects.filter(
+    ({ project }) => project.createdBy === 'user',
+  )
+  const inSection = new Set(sections.map(({ project }) => project.projectId))
+  const threads = [...views.byId.values()]
+  const home = new Map<string, string>()
+  for (const thread of threads) {
+    const placed = thread.memberships
+      .map((m) => m.projectId)
+      .filter((projectId) => inSection.has(projectId))
+    const primary = primaryProjectId(thread)
+    home.set(
+      thread.threadId,
+      placed.includes(primary) ? primary : (placed[0] ?? 'recent'),
+    )
+  }
+  const newestFirst = (a: ThreadEntry, b: ThreadEntry) =>
+    lastMoved(b) - lastMoved(a)
+  return {
+    sections,
+    recent: threads
+      .filter((thread) => home.get(thread.threadId) === 'recent')
+      .sort(newestFirst),
+    review: threads
+      .filter((thread) =>
+        thread.attention.reasons.some(
+          (reason) => reason.kind === 'review' || reason.kind === 'approval',
+        ),
+      )
+      .sort(newestFirst),
+    home,
   }
 }
 
@@ -457,7 +522,13 @@ export function applyPlacement(
 }
 
 /** Places a thread in projects, removes it, pins it. Theorem keeps the correction. */
-export function usePlacement() {
+/**
+ * Told when Theorem refuses a change. It runs even after the caller unmounts,
+ * so a menu that closed on the click can still say why nothing moved.
+ */
+type Refusal = { onError?: (error: Error) => void }
+
+export function usePlacement({ onError }: Refusal = {}) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -491,12 +562,125 @@ export function usePlacement() {
       }
       return { previous }
     },
-    onError: (_error, _input, context) => {
+    onError: (error, _input, context) => {
       if (context?.previous)
         client.setQueryData(organizationKey, context.previous)
+      onError?.(error)
     },
     onSettled: () => invalidate(client),
   })
+}
+
+/** What moving a thread to `projectId` makes of it on a Theorem without placement: a new home. */
+export function rehome(
+  thread: ThreadEntry,
+  projectId: string,
+  inboxId: string | undefined,
+): ThreadEntry {
+  return {
+    ...thread,
+    homeProjectId: projectId,
+    memberships:
+      projectId === inboxId
+        ? []
+        : [
+            {
+              projectId,
+              by: 'user',
+              pinned: false,
+              why: '',
+              atMs: thread.createdAtMs,
+              implicit: true,
+            },
+          ],
+  }
+}
+
+export type MovePlan =
+  | { kind: 'placement'; change: PlacementChange }
+  | { kind: 'home'; projectId: string }
+
+/**
+ * What moving a thread from where it is listed (`from`) to a project, or out
+ * of every project (`to` null), asks of Theorem; nothing when it is already
+ * there. Where placement is served it is a placement a person made, which the
+ * Librarian keeps; elsewhere it changes the thread's home.
+ */
+export function planMove(
+  organization: OrganizationRead,
+  thread: ThreadEntry,
+  from: string | undefined,
+  to: string | null,
+): MovePlan | undefined {
+  const members = thread.memberships.map((m) => m.projectId)
+  if (organization.served) {
+    if (to === null)
+      return members.length
+        ? { kind: 'placement', change: { remove: members } }
+        : undefined
+    const leaving = from && from !== to && members.includes(from) ? [from] : []
+    if (members.includes(to) && !leaving.length) return undefined
+    return { kind: 'placement', change: { add: [to], remove: leaving } }
+  }
+  const projectId =
+    to ?? organization.projects.find((p) => p.isInbox)?.projectId
+  if (!projectId || projectId === thread.homeProjectId) return undefined
+  return { kind: 'home', projectId }
+}
+
+/** Moves a thread as {@link planMove} says, showing the move before Theorem answers. */
+export function useMoveThread({ onError }: Refusal = {}) {
+  const client = useQueryClient()
+  const placement = usePlacement({ onError })
+  const home = useMutation({
+    mutationFn: ({
+      threadId,
+      projectId,
+    }: {
+      threadId: string
+      projectId: string
+    }) =>
+      mutateThread(threadId, (headers) =>
+        theorem().chat.threads.update({ threadId, projectId, ...headers }),
+      ),
+    onMutate: async ({ threadId, projectId }) => {
+      await client.cancelQueries({ queryKey: organizationKey })
+      const previous = client.getQueryData<OrganizationRead>(organizationKey)
+      if (previous) {
+        const inboxId = previous.projects.find((p) => p.isInbox)?.projectId
+        client.setQueryData<OrganizationRead>(organizationKey, {
+          ...previous,
+          threads: previous.threads.map((thread) =>
+            thread.threadId === threadId
+              ? rehome(thread, projectId, inboxId)
+              : thread,
+          ),
+        })
+      }
+      return { previous }
+    },
+    onError: (error, _input, context) => {
+      if (context?.previous)
+        client.setQueryData(organizationKey, context.previous)
+      onError?.(error)
+    },
+    onSettled: () => invalidate(client),
+  })
+
+  const move = (
+    thread: ThreadEntry,
+    from: string | undefined,
+    to: string | null,
+  ) => {
+    const organization = client.getQueryData<OrganizationRead>(organizationKey)
+    const plan = organization && planMove(organization, thread, from, to)
+    if (plan?.kind === 'placement')
+      placement.mutate({ threadId: thread.threadId, change: plan.change })
+    if (plan?.kind === 'home')
+      home.mutate({ threadId: thread.threadId, projectId: plan.projectId })
+  }
+
+  return { move, error: placement.error ?? home.error }
 }
 
 /** Reverses one Librarian decision; Theorem records the correction so it holds. */
@@ -518,7 +702,7 @@ export function useUndoOrganize() {
   })
 }
 
-export function useLater() {
+export function useLater({ onError }: Refusal = {}) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -533,6 +717,7 @@ export function useLater() {
       condition
         ? sendJson(`${threadPath(threadId)}/later`, 'PUT', { condition, note })
         : sendJson(`${threadPath(threadId)}/later`, 'DELETE'),
+    onError,
     onSettled: () => invalidate(client),
   })
 }
@@ -605,6 +790,43 @@ export function useProjectState() {
       ),
     onSettled: () => invalidate(client),
   })
+}
+
+/**
+ * A section's edits: a new title, or archiving its project, which takes the
+ * section away and sends its sessions back to Recent. Theorem has no way to
+ * delete a project, and archiving keeps it to restore.
+ */
+export function useProjectEdits() {
+  const client = useQueryClient()
+  const settled = () =>
+    Promise.all([
+      invalidate(client),
+      client.invalidateQueries({ queryKey: ['theorem', 'projects'] }),
+    ])
+  const update = (
+    projectId: string,
+    change: { title?: string; archived?: boolean },
+  ) =>
+    mutateProject(projectId, (headers) =>
+      theorem().chat.projects.update({ projectId, ...change, ...headers }),
+    )
+  return {
+    rename: useMutation({
+      mutationFn: ({
+        projectId,
+        title,
+      }: {
+        projectId: string
+        title: string
+      }) => update(projectId, { title }),
+      onSettled: settled,
+    }),
+    archive: useMutation({
+      mutationFn: (projectId: string) => update(projectId, { archived: true }),
+      onSettled: settled,
+    }),
+  }
 }
 
 /** The thread edits the sidebar's rows make, each followed by a fresh tree. */

@@ -1,4 +1,4 @@
-// SOURCING: next-themes (light/dark), lib/palette (colours), lib/life/store (the field behind the chat), coss ui SegmentedControl, the settings frame
+// SOURCING: next-themes (light/dark), lib/palette (colours), lib/life/store (the field behind the chat), lib/figures (Kit and Theo), components/face/face-feel (how Theo moves), coss ui SegmentedControl, the settings frame
 import { createFileRoute } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import {
@@ -12,6 +12,9 @@ import {
   SettingsRow,
   SettingsSection,
 } from '@/components/settings/settings-frame'
+import { FaceFeel } from '@/components/face/face-feel'
+import { FaceMark } from '@/components/face/face-mark'
+import { VISORS, useFigures } from '@/lib/figures'
 import { useLifeControls } from '@/lib/life/store'
 import { PALETTES, usePalette } from '@/lib/palette'
 
@@ -51,21 +54,43 @@ function Appearance() {
   const { theme, setTheme } = useTheme()
   const { palette, setPalette } = usePalette()
   const lifeShown = useLifeControls((state) => state.shown)
+  const figures = useFigures()
   return (
-    <SettingsPage title="Appearance" description="How Theorem looks on this device.">
+    <SettingsPage
+      title="Appearance"
+      description="How Theorem looks on this device."
+    >
       <SettingsSection title="Display">
         <SettingsBox>
-          <SettingsRow Mark={Icon.Sun} title="Theme" description="Light, dark, or whatever the system uses.">
+          <SettingsRow
+            Mark={Icon.Sun}
+            title="Theme"
+            description="Light, dark, or whatever the system uses."
+          >
             <SegmentedControl size="sm" aria-label="Theme">
               {THEMES.map(({ value, label }) => (
-                <Choice key={value} label={label} pressed={theme === value} onPress={() => setTheme(value)} />
+                <Choice
+                  key={value}
+                  label={label}
+                  pressed={theme === value}
+                  onPress={() => setTheme(value)}
+                />
               ))}
             </SegmentedControl>
           </SettingsRow>
-          <SettingsRow Mark={Icon.Layout} title="Colors" description="The palette for both themes.">
+          <SettingsRow
+            Mark={Icon.Layout}
+            title="Colors"
+            description="The palette for both themes."
+          >
             <SegmentedControl size="sm" aria-label="Colors">
               {PALETTES.map(({ value, label }) => (
-                <Choice key={value} label={label} pressed={palette === value} onPress={() => setPalette(value)} />
+                <Choice
+                  key={value}
+                  label={label}
+                  pressed={palette === value}
+                  onPress={() => setPalette(value)}
+                />
               ))}
             </SegmentedControl>
           </SettingsRow>
@@ -75,12 +100,77 @@ function Appearance() {
             description="A Game of Life behind the chat that quickens as the model works. Right-click empty space for its controls."
           >
             <SegmentedControl size="sm" aria-label="Life field">
-              <Choice label="On" pressed={lifeShown} onPress={() => useLifeControls.setState({ shown: true })} />
-              <Choice label="Off" pressed={!lifeShown} onPress={() => useLifeControls.setState({ shown: false })} />
+              <Choice
+                label="On"
+                pressed={lifeShown}
+                onPress={() => useLifeControls.setState({ shown: true })}
+              />
+              <Choice
+                label="Off"
+                pressed={!lifeShown}
+                onPress={() => useLifeControls.setState({ shown: false })}
+              />
             </SegmentedControl>
           </SettingsRow>
         </SettingsBox>
       </SettingsSection>
+      <SettingsSection title="Figures">
+        <SettingsBox>
+          <SettingsRow
+            Mark={FaceMark}
+            title="Theo"
+            description="The agent’s face. It shows what Theorem is doing, reacts to you, and sleeps when nothing is happening. Tap it, carry it, or double-tap to send it home."
+          >
+            <SegmentedControl size="sm" aria-label="Theo">
+              <Choice
+                label="On"
+                pressed={figures.theo}
+                onPress={() => figures.setTheo(true)}
+              />
+              <Choice
+                label="Off"
+                pressed={!figures.theo}
+                onPress={() => figures.setTheo(false)}
+              />
+            </SegmentedControl>
+          </SettingsRow>
+          <SettingsRow
+            Mark={FaceMark}
+            title="Theo’s visor"
+            description="The dark screen behind Theo’s eyes. Auto keeps it in the light theme and drops it in the dark one, where the eyes glow against the page. Without it in the light theme, the eyes are drawn dark."
+          >
+            <SegmentedControl size="sm" aria-label="Theo’s visor">
+              {VISORS.map(({ value, label }) => (
+                <Choice
+                  key={value}
+                  label={label}
+                  pressed={figures.visor === value}
+                  onPress={() => figures.setVisor(value)}
+                />
+              ))}
+            </SegmentedControl>
+          </SettingsRow>
+          <SettingsRow
+            Mark={Icon.Sparkle}
+            title="Kit"
+            description="The fox that lives in the window. It is just there: it walks, sits and naps on its own."
+          >
+            <SegmentedControl size="sm" aria-label="Kit">
+              <Choice
+                label="On"
+                pressed={figures.kit}
+                onPress={() => figures.setKit(true)}
+              />
+              <Choice
+                label="Off"
+                pressed={!figures.kit}
+                onPress={() => figures.setKit(false)}
+              />
+            </SegmentedControl>
+          </SettingsRow>
+        </SettingsBox>
+      </SettingsSection>
+      {figures.theo ? <FaceFeel /> : null}
     </SettingsPage>
   )
 }

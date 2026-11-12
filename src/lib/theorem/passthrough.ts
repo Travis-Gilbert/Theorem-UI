@@ -27,10 +27,13 @@ export async function theoremJson<T>(
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   }
+  // The SDK joins a relative path onto its base URL as path segments, which
+  // percent-encodes a query's `?` into the path; an absolute URL it sends as is.
+  const url = new URL(path, window.location.origin).toString()
   // The SDK's passthrough forwards method, headers and body and drops keepalive.
   const response = init.keepalive
-    ? await window.fetch(path, { ...request, keepalive: true })
-    : await theorem().fetch(path, request)
+    ? await window.fetch(url, { ...request, keepalive: true })
+    : await theorem().fetch(url, request)
   const text = await response.text()
   const body: unknown = text ? JSON.parse(text) : undefined
   if (!response.ok)

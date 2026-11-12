@@ -9,9 +9,10 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { ApplicationShell, StatusBarEntry } from '@theia/core/lib/browser';
 import { BrowserMainMenuFactory, BrowserMenuBarContribution } from '@theia/core/lib/browser/menu/browser-menu-plugin';
 import { ScmContribution } from '@theia/scm/lib/browser/scm-contribution';
+import { EMBEDDED } from './zed-embedded';
 import { ZedTitleBar } from './zed-title-bar';
 
-/** Puts Zed's title bar in the top panel in place of Theia's logo and menu bar. */
+/** Puts Zed's title bar in the top panel in place of Theia's logo and menu bar; embedded, the page has the title. */
 @injectable()
 export class ZedTitleBarContribution extends BrowserMenuBarContribution {
 
@@ -23,16 +24,18 @@ export class ZedTitleBarContribution extends BrowserMenuBarContribution {
     }
 
     protected override appendMenu(shell: ApplicationShell): void {
-        shell.addWidget(this.titleBar, { area: 'top' });
+        if (!EMBEDDED) {
+            shell.addWidget(this.titleBar, { area: 'top' });
+        }
     }
 }
 
-/** Leaves the repository's first status bar command, the branch, to the title bar. */
+/** Leaves the repository's first status bar command, the branch, to the title bar; embedded, it stays in the status bar the page draws. */
 @injectable()
 export class ZedScmContribution extends ScmContribution {
 
     protected override setStatusBarEntry(id: string, entry: StatusBarEntry): void {
-        if (id !== 'scm.status.0') {
+        if (EMBEDDED || id !== 'scm.status.0') {
             super.setStatusBarEntry(id, entry);
         }
     }

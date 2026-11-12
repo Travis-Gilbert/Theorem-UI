@@ -16,7 +16,7 @@ The web frontend for the Theorem agent. It provides a chat interface, artifacts 
 | Styling                                    | Tailwind CSS v4 `src/styles.css`                                                                                              |
 | Runtime and hosting                        | Bun: installs, scripts, dev server, and the production server built by Nitro's `bun` preset, run beside the Theorem authority |
 
-Type: IBM Plex Sans for prose and titles (titles at a heavier weight, tracked as IBM's Carbon type sets track Plex), JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`.
+Type: IBM Plex Sans for prose and titles (titles at a heavier weight, tracked as IBM's Carbon type sets track Plex), JetBrains Mono for code. Icons are owned Noun Project SVGs and owner-supplied Streamline Ultimate PNGs (see `src/assets/icons/PROVENANCE.md`), exposed through `src/components/icons.tsx`. Palettes other than Stone and GitHub Sharp, their syntax themes and the paper material credit their sources in `docs/themes/PROVENANCE.md`.
 
 ## Setup
 
@@ -56,6 +56,8 @@ People sign in at the personal Theorem (`travis-theorem-personal.fly.dev`), whic
 openssl rand -hex 32 | bunx wrangler secret put THEOREM_SESSION_SECRET --name theorem-ui
 ```
 
+The issuer does not have to be Theorem. `THEOREM_OAUTH_ISSUER`, `THEOREM_OAUTH_SCOPE` and `THEOREM_OAUTH_RESOURCE` point sign-in at another OAuth 2.1 issuer, such as WorkOS AuthKit; `.env.example` says what each is. Unset, sign-in is as above.
+
 `bunfig.toml` holds back package versions published less than three days ago. Exemptions are listed there with the reason.
 
 ## Layout
@@ -69,12 +71,14 @@ src/
     _chat/c.$threadId.tsx /c/:thread   existing chat
     api/chat/v1/$.ts      proxy to the Theorem chat API
     v1/theorem/agent/stream/$.ts  proxy to the agent event stream
+    api/scene/v1/$.ts     proxy to the page that draws a reply's scene
   lib/theorem/
     client.ts             SDK client, CSRF bootstrap, idempotent mutations
     runtime.tsx           assistant-ui runtime over Theorem threads, history and live-run resume
   components/
     shell/                rail, context panel, project switcher, sheet and dock layout
-    chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, approvals, progress, citations, errors)
+    chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, scenes, approvals, progress, citations, errors)
+    chat/scene-part.tsx   a reply's interactive scene, framed inline and expandable
     artifacts/            artifact model, view state, panel, renderers
     assistant-ui/elements/  installed assistant-ui elements, restyled to Stone
 ```
@@ -91,3 +95,12 @@ The agent creates artifacts with `create_artifact` and revises them with `update
 - Renderers are chosen by `rendererId`: `theorem-document` renders Markdown, `theorem-code` renders highlighted source and `theorem-diagram` renders Mermaid.
 - Any other renderer shows a named fallback that explains what is missing and displays the part's `fallbackText`.
 - Artifact content is declarative text. Nothing in this app executes it.
+
+## Scenes
+
+A question that an interactive diagram explains better than prose (the first is "How does a CPU work?") can get one inline in the answer. Theorem's `show_scene` tool validates the scene package and writes it to the reply as a `scene` part ahead of the text. The model reads back only a receipt. The part arrives here as `theorem-scene` with `contractVersion: "theorem-scene-v1"`.
+
+- `chat/scene-part.tsx` draws it in a frame of the authority's scene page (`/api/scene/v1/host`, forwarded with the bearer). The frame is sandboxed to `allow-scripts`, so it runs in an opaque origin. The page's own policy forbids any network and allows only this origin to frame it.
+- The card posts the package to the page once the page says it is ready. It reads back only the page's `host-ready`, `mounted` and `dismiss` messages (`chat/scene-model.ts`). A page that cannot draw the package, or does not answer within 20 seconds, is replaced by the part's `fallbackText`.
+- Expand shows the card's `<dialog>` modal, so the scene fills the window from the top layer. The frame stays where it is, so the scene keeps its state. Escape, in the frame or on the page, collapses it. The card opens in the reply without taking focus from the composer.
+- `scene-os-web/web/test/embed-browser.mjs` in the Theorem repository checks the page under that policy in a browser.
