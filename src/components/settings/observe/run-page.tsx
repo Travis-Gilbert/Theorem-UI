@@ -8,6 +8,7 @@ import {
   describeWaiting,
   formatSpan,
   layLanes,
+  nextRunRead,
   shortRunId,
   useRunReport,
 } from '@/lib/theorem/observe'
@@ -43,7 +44,7 @@ export function RunPage({ runId }: { runId: string }) {
           <Freshness
             readAtMs={data?.generatedAtMs}
             reading={isFetching}
-            paused={data?.terminal}
+            paused={nextRunRead(data, error) === false}
             onRead={() => void refetch()}
           />
         </>

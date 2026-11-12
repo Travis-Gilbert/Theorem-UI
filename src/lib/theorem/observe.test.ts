@@ -1,15 +1,17 @@
 import { afterEach, expect, test } from 'bun:test'
 import { hasStatus, isSignedOut } from './client'
 import {
+  OBSERVE_REFRESH_MS,
   describeStreamEnd,
   describeWaiting,
   formatSpan,
   layLanes,
+  nextRunRead,
   readOverview,
   readRunReport,
   shortRunId,
 } from './observe'
-import type { ObservedRun, RunTrace } from './observe'
+import type { ObservedRun, RunReport, RunTrace } from './observe'
 
 test('a span reads in the unit a person would say', () => {
   expect(formatSpan(840)).toBe('840 ms')
@@ -344,4 +346,33 @@ test('an answer in another form is an error, not an empty page', async () => {
     active: [{ ...nodeRun, waiting: { on: 'something_new' } }],
   })
   expect(readOverview()).rejects.toThrow('does not read')
+})
+
+test('an active turn is read again after a failure that may pass', async () => {
+  // Nothing read yet, nothing wrong: read again.
+  expect(nextRunRead(undefined, null)).toBe(OBSERVE_REFRESH_MS)
+
+  answer(502, { code: 'theorem_upstream_unreachable' })
+  const unreachable = await readRunReport('run-1').catch(
+    (error: unknown) => error,
+  )
+  expect(nextRunRead(undefined, unreachable)).toBe(OBSERVE_REFRESH_MS)
+  // The connection dropped before any answer.
+  expect(nextRunRead(undefined, new TypeError('fetch failed'))).toBe(
+    OBSERVE_REFRESH_MS,
+  )
+})
+
+test('reads stop when the turn ended or the refusal will not change', async () => {
+  for (const status of [401, 403, 404]) {
+    answer(status, { code: 'refused' })
+    const refused = await readRunReport('run-1').catch(
+      (error: unknown) => error,
+    )
+    expect(nextRunRead(undefined, refused)).toBe(false)
+  }
+  const ended = { terminal: true } as RunReport
+  expect(nextRunRead(ended, null)).toBe(false)
+  // An ended turn stays ended whatever a later read said.
+  expect(nextRunRead(ended, new TypeError('fetch failed'))).toBe(false)
 })

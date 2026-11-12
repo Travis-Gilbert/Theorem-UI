@@ -2,6 +2,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { TheoremError } from '@theoremharness/sdk'
 import { z } from 'zod'
+import { hasStatus } from './client'
 
 const ms = z.number().nullish()
 const text = z.string().nullish()
@@ -246,13 +247,27 @@ export const runReportQuery = (runId: string) =>
   queryOptions({
     queryKey: ['theorem', 'observe', 'run', runId],
     queryFn: ({ signal }) => readRunReport(runId, signal),
-    // A turn that has ended has a settled trace; stop asking.
     refetchInterval: (query) =>
-      query.state.data?.terminal || query.state.error
-        ? false
-        : OBSERVE_REFRESH_MS,
+      nextRunRead(query.state.data, query.state.error),
     retry: false,
   })
+
+/**
+ * When to read a turn's report again, or false to stop.
+ *
+ * A turn that has ended has a settled trace. A refusal that asking again will
+ * not change (signed out, not allowed, no such turn) stops the reads too. Any
+ * other failure may pass, so a dropped connection or a node restarting does
+ * not freeze the trace of a turn that is still running.
+ */
+export function nextRunRead(
+  data: RunReport | undefined,
+  error: unknown,
+): number | false {
+  if (data?.terminal) return false
+  if (hasStatus(error, 401, 403, 404)) return false
+  return OBSERVE_REFRESH_MS
+}
 
 export const useObserveOverview = () => useQuery(overviewQuery())
 export const useRunReport = (runId: string) => useQuery(runReportQuery(runId))
