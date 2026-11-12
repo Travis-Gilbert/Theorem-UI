@@ -621,7 +621,7 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
               data-face-perch="composer"
               className={cn(
                 composerSurface(glass),
-                'focus-within:border-control data-[dragging=true]:border-focus flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected',
+                'data-[dragging=true]:border-focus flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected',
               )}
             />
           }
@@ -648,12 +648,12 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 /**
  * The composer's material (Settings, Appearance): paper with its grain, or
  * frosted glass. Each keeps the shell's border, which follows focus, and sets
- * its colour at rest.
+ * its colour at rest and while focused.
  */
 const composerSurface = (glass: boolean) =>
   glass
-    ? 'surface-glass border-(color:--glass-edge)'
-    : 'surface-paper border-(color:--paper-edge)'
+    ? 'surface-glass border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
+    : 'surface-paper border-(color:--paper-edge) focus-within:border-control'
 
 const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
   const chatDisabled = useRunInputSendDisabled()
@@ -1235,7 +1235,7 @@ const EditComposer: FC = () => {
         <ComposerPrimitive.TriggerPopoverRoot>
           <ComposerPrimitive.Root
             className={cn(
-              'aui-edit-composer-root focus-within:border-control flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
+              'aui-edit-composer-root flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
               composerSurface(glass),
             )}
           >
