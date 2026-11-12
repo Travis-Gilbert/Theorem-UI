@@ -1,7 +1,7 @@
 // SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message; the activity and composer stories hand committed messages to the thread itself the same way, converted by the SDK's toAssistantMessages.
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 import {
   AssistantRuntimeProvider,
@@ -14,9 +14,13 @@ import type { ThreadMessageLike } from '@assistant-ui/react'
 import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
+import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
+import { useArtifactView } from '@/components/artifacts/artifact-view'
 import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/library'
 import { Canvas } from '@/components/canvas/canvas'
 import { FaceBench, FaceBook } from '@/components/face/face-bench'
+import { FaceStage } from '@/components/face/face-stage'
+import { speechAdapter } from '@/lib/speech/adapter'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
@@ -42,6 +46,7 @@ import { ARTIFACT_STORIES } from './fixtures/artifacts'
 import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
 import { PROGRAM_PART } from './fixtures/program'
+import { pointingMessages } from './fixtures/pointing'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -81,13 +86,16 @@ function LibrarianFooterStory() {
 
 function ComparePaneStory() {
   return (
-    <div className="h-dvh w-[423px]">
-      <ComparePane
-        reviewId="review-app-gallery"
-        onClose={() => undefined}
-        onDetach={() => undefined}
-      />
-    </div>
+    <WithRuntime>
+      <div className="h-dvh w-[380px]">
+        <ComparePane
+          reviewId="review-app-gallery"
+          onClose={() => undefined}
+          onDetach={() => undefined}
+          onExpandedChange={() => undefined}
+        />
+      </div>
+    </WithRuntime>
   )
 }
 
@@ -199,6 +207,25 @@ function ArtifactPartMessage() {
 }
 
 /**
+ * Theo on a page that has an artifact: the `visit` performance looks at the
+ * card, travels to its side and looks it over. The live reply's gutter slot
+ * above it is where Theo rests, so the trip has somewhere to start.
+ */
+function FaceVisitStory() {
+  const Artifact = FACE_VISIT_ARTIFACT
+  return (
+    <div className="bg-background min-h-dvh pt-6" data-slot="face-visit">
+      <div className="mx-auto flex w-full max-w-(--spacing-reading) items-center gap-3 px-4">
+        <span data-face-perch="live" className="flex size-8" aria-hidden />
+        <p className="text-ink-muted text-sm">Here is the comparison.</p>
+      </div>
+      <Artifact />
+      <FaceStage />
+    </div>
+  )
+}
+
+/**
  * An OpenUI artifact as the conversation shows it: one assistant message
  * carrying the artifact part, drawn by the thread's own part renderers at the
  * thread's reading width.
@@ -266,6 +293,8 @@ function partsStory(messages: ThreadMessageLike[]) {
 }
 
 /** A program the agent wrote, as the row the conversation draws for it. */
+const FACE_VISIT_ARTIFACT = artifactStory(ARTIFACT_STORIES[0] as ArtifactStory)
+
 const programStory = partsStory([
   {
     id: 'message-program',
@@ -345,6 +374,96 @@ function threadStory(
   }
 }
 
+const POINTING_MESSAGES: ThreadMessageLike[] = toAssistantMessages(
+  pointingMessages(),
+)
+
+/**
+ * Theo on a conversation with things to be sent to: a tool call that failed,
+ * folded away among ones that did not; a worker's changed file and its diff;
+ * a document whose card shows an excerpt, with the larger view beside the
+ * conversation once it is opened, as the shell has it.
+ */
+function FacePointStory() {
+  const runtime = useExternalStoreRuntime({
+    messages: POINTING_MESSAGES,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  const openId = useArtifactView((s) => s.openId)
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <div className="flex h-dvh">
+        <div className="min-w-0 flex-1">
+          <Thread autoFocus={false} />
+        </div>
+        {openId && (
+          <ArtifactPanel
+            artifactId={openId}
+            onClose={() => useArtifactView.getState().closed(openId)}
+            className="border-separator w-[46%] shrink-0 border-s"
+          />
+        )}
+      </div>
+      <FaceStage />
+    </AssistantRuntimeProvider>
+  )
+}
+
+const SOUND_MESSAGES: ThreadMessageLike[] = [
+  {
+    id: 'sound-ask',
+    role: 'user',
+    content: [{ type: 'text', text: 'What did the build turn up?' }],
+  },
+  {
+    id: 'sound-reply',
+    role: 'assistant',
+    status: { type: 'complete', reason: 'stop' },
+    content: [
+      {
+        type: 'text',
+        text: [
+          'The build passed, with **two things** worth a look.',
+          '',
+          '1. The map loader now reads tiles in parallel, which took the cold start from nine seconds to four.',
+          '2. One test is slow: `tiles.test.ts` spends most of its time waiting on a timer.',
+          '',
+          'Nothing failed. I would fix the timer next, then cut the release.',
+        ].join('\n'),
+      },
+    ],
+  },
+]
+
+/**
+ * Theo on a conversation with a reply to read aloud. Pressing "Read aloud"
+ * speaks it with the page's voice through the page's sound graph, and Theo
+ * hears what plays: it is the thread as the shell has it, with nothing told
+ * to the face but the sound.
+ */
+function FaceSoundStory() {
+  const speech = useMemo(() => speechAdapter(), [])
+  const runtime = useExternalStoreRuntime({
+    messages: SOUND_MESSAGES,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+    adapters: { speech },
+  })
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <div className="h-dvh">
+        <Thread autoFocus={false} />
+      </div>
+      <FaceStage />
+    </AssistantRuntimeProvider>
+  )
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
   'composer-markdown': threadStory(undefined, [], COMPOSER_DRAFT),
@@ -359,6 +478,9 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'face-bench': FaceBench,
   'face-book': FaceBook,
   'face-in-shell': ShellCompareStory,
+  'face-visit': FaceVisitStory,
+  'face-point': FacePointStory,
+  'face-sound': FaceSoundStory,
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,

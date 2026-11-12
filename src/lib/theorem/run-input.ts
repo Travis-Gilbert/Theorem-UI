@@ -1,366 +1,301 @@
-// SOURCING: Theorem's runs.command(input) inbox contract and the shipped SDK's
-// typed RunCommand.text. A send's identity lives in sessionStorage before HTTP,
-// just as an ordinary chat send does in send-recovery.ts.
-import { describeError, mutate, theorem } from './client'
-
-const PREFIX = 'theorem.pending-run-input:'
-
-export type RunInputEnvelope = {
-  threadId: string
-  runId: string
-  key: string
+/** Native run input keeps its own identity until delivery is confirmed. */
+export type InputReceipt = {
+  inputId: string
   text: string
+  status: 'queued' | 'delivered' | 'not_delivered'
+  reason?: string
+  requestKey?: string
 }
 
-export type RunInputState =
-  | {
-      kind: 'unresolved'
-      envelope: RunInputEnvelope
-      pending: boolean
-      message: string
-    }
-  | {
-      kind: 'accepted' | 'closed' | 'refused'
-      envelope: RunInputEnvelope
-      message: string
-    }
-  | { kind: 'unavailable'; message: string; uncertain: boolean }
-  | {
-      kind: 'released'
-      envelope?: RunInputEnvelope
-      message: string
-      uncertain: boolean
-    }
-
-type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
-type Dispatch = (
-  envelope: RunInputEnvelope,
-  replay: boolean,
-) => Promise<unknown>
-
-function object(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object'
-    ? (value as Record<string, unknown>)
-    : {}
-}
-
-function envelopeOf(value: unknown, threadId: string): RunInputEnvelope {
-  const entry = object(value)
+export function inputReceipt(value: unknown): InputReceipt | undefined {
+  if (!value || typeof value !== 'object') return
+  const part = value as Record<string, unknown>
   if (
-    entry.threadId !== threadId ||
-    !['threadId', 'runId', 'key', 'text'].every(
-      (key) => typeof entry[key] === 'string' && entry[key].length > 0,
-    )
-  )
-    throw new Error('Invalid saved run input')
-  return entry as RunInputEnvelope
-}
-
-/** A confirmed receipt must belong to this run and contain this exact input. */
-function receiptOf(
-  value: unknown,
-  envelope: RunInputEnvelope,
-  inputId?: string,
-) {
-  const event = object(value)
-  const part = object(object(event.payload).part)
-  if (
-    event.runId !== envelope.runId ||
-    (inputId
-      ? part.inputId !== inputId
-      : event.idempotencyKey !== `chat-command:${envelope.key}`) ||
-    part.type !== 'user_input' ||
-    typeof part.inputId !== 'string' ||
-    part.inputId.length === 0 ||
-    part.text !== envelope.text ||
+    typeof part.inputId !== 'string' || typeof part.text !== 'string' ||
     !['queued', 'delivered', 'not_delivered'].includes(String(part.status))
-  )
-    throw new Error('The server did not confirm this message.')
-  return part
+  ) return
+  return {
+    inputId: part.inputId,
+    text: part.text,
+    status: part.status as InputReceipt['status'],
+    ...(typeof part.reason === 'string' ? { reason: part.reason } : {}),
+  }
+}
+
+/** Command identity belongs to the event envelope, not the user-authored text. */
+export function runInputReceipt(event: { payload: Record<string, unknown>; idempotencyKey?: unknown }): InputReceipt | undefined {
+  const part = event.payload.part
+  if (!part || typeof part !== 'object' || !('type' in part) || part.type !== 'user_input') return
+  const receipt = inputReceipt(part)
+  if (!receipt) return
+  const key = event.idempotencyKey
+  return typeof key === 'string' && key.startsWith('chat-command:')
+    ? { ...receipt, requestKey: key.slice('chat-command:'.length) }
+    : receipt
+}
+
+export type PendingRunInput = {
+  id: string
+  text: string
+  runId?: string
+  inputId?: string
+  state: 'waiting' | 'sending' | 'queued' | 'next' | 'failed'
+  error?: string
+  retryAsTurn?: boolean
+  visible?: boolean
+  notDelivered?: boolean
+  stopped?: boolean
+}
+
+type RunInputSnapshot = {
+  threadId?: string
+  runId?: string
+  isRunning: boolean
+  isLoading: boolean
+  inputs: readonly InputReceipt[]
+}
+
+export type RunInputHost = {
+  snapshot: () => RunInputSnapshot
+  refresh: () => Promise<{
+    active: boolean
+    runId?: string
+    inputs: readonly InputReceipt[]
+  }>
+  send: (runId: string, text: string, key: string) => Promise<InputReceipt>
+  receipts: (runId: string) => Promise<readonly InputReceipt[]>
+  append: (text: string) => void
+  changed: (items: readonly PendingRunInput[]) => void
+  describeError: (error: unknown) => string
+  storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+}
+
+const storageKey = (threadId: string) => `theorem.run-input.${threadId}`
+const unknownDelivery = 'Could not confirm delivery. Retry checks this same message.'
+const stoppedMessage = 'The response stopped before this message was delivered.'
+
+function restoreItems(saved: string): PendingRunInput[] {
+  let parsed: unknown
+  try { parsed = JSON.parse(saved) } catch { return [] }
+  const rows = Array.isArray(parsed) ? parsed : [parsed]
+  return rows.flatMap((row): PendingRunInput[] => {
+    if (!row || typeof row !== 'object' || typeof row.text !== 'string' || !row.text.trim()) return []
+    const id = typeof row.id === 'string' && row.id ? row.id : undefined
+    const runId = typeof row.runId === 'string' && row.runId ? row.runId : undefined
+    const validState = ['waiting', 'queued', 'next', 'failed'].includes(row.state)
+    const missingIdentity = !id || (!runId && row.state !== 'waiting' && row.retryAsTurn !== true)
+    return [{
+      id: id ?? crypto.randomUUID(),
+      text: row.text,
+      ...(runId ? { runId } : {}),
+      ...(typeof row.inputId === 'string' ? { inputId: row.inputId } : {}),
+      state: !missingIdentity && validState ? row.state as PendingRunInput['state'] : 'failed',
+      ...(typeof row.error === 'string' ? { error: row.error } : {}),
+      ...(!validState ? { error: unknownDelivery } : {}),
+      ...(missingIdentity ? { error: 'Recovered text has incomplete delivery identity. Check the conversation before retrying.', retryAsTurn: true } : {}),
+      ...(row.retryAsTurn === true ? { retryAsTurn: true } : {}),
+      ...(row.notDelivered === true ? { notDelivered: true } : {}),
+      ...(row.stopped === true ? { stopped: true } : {}),
+      visible: false,
+    }]
+  })
+}
+
+function errorCode(error: unknown) {
+  if (!error || typeof error !== 'object' || !('body' in error)) return
+  const body = error.body
+  return body && typeof body === 'object' && 'code' in body ? body.code : undefined
 }
 
 /**
- * One unresolved input per thread. Neither a changed draft nor a new run may
- * replace it: only replaying its original request can resolve uncertain delivery.
- * The transport is injectable so tests use the real SDK with controlled HTTP.
+ * An inbox beside the active stream, never a second assistant-ui run. A refusal
+ * or a not-delivered receipt may become the next turn only after both the local
+ * observer and Theorem's authoritative thread have settled. An unknown outcome
+ * keeps its original run, key and text for an explicit idempotent retry.
  */
-export function createRunInputSender(storage: StorageLike, dispatch: Dispatch) {
-  const states = new Map<string, RunInputState | undefined>()
-  const listeners = new Set<() => void>()
-  const slot = (threadId: string) => `${PREFIX}${threadId}`
-  const publish = (threadId: string, state: RunInputState | undefined) => {
-    states.set(threadId, state)
-    for (const listener of listeners) listener()
-  }
-  const getState = (threadId: string): RunInputState | undefined => {
-    if (!states.has(threadId)) {
-      try {
-        const saved = storage.getItem(slot(threadId))
-        states.set(
-          threadId,
-          saved
-            ? {
-                kind: 'unresolved',
-                envelope: envelopeOf(JSON.parse(saved), threadId),
-                pending: false,
-                message:
-                  'The previous message is awaiting confirmation. Retry that message before sending another.',
-              }
-            : undefined,
-        )
-      } catch {
-        states.set(threadId, {
-          kind: 'unavailable',
-          uncertain: true,
-          message:
-            'The saved message could not be read. Reset its saved delivery state to keep editing; your draft is unchanged.',
-        })
-      }
+export function createRunInputQueue(host: RunInputHost) {
+  let items: readonly PendingRunInput[] = []
+  let restoredFor: string | undefined
+  let refreshing = false
+  let disposed = false
+  const inFlight = new Set<string>()
+
+  const publish = (next: readonly PendingRunInput[]) => {
+    if (disposed) return
+    const threadId = host.snapshot().threadId
+    if (threadId && host.storage) {
+      if (next.length) host.storage.setItem(storageKey(threadId), JSON.stringify(next))
+      else host.storage.removeItem(storageKey(threadId))
     }
-    return states.get(threadId)
+    items = next
+    if (!disposed) host.changed(items)
+  }
+  const update = (id: string, patch: Partial<PendingRunInput>) =>
+    publish(items.map((item) => item.id === id ? { ...item, ...patch } : item))
+
+  const restore = () => {
+    const threadId = host.snapshot().threadId
+    if (!threadId || restoredFor === threadId) return
+    const saved = host.storage?.getItem(storageKey(threadId))
+    restoredFor = threadId
+    if (!saved) {
+      if (items.length) publish(items)
+      return
+    }
+    const restored = restoreItems(saved)
+    publish([
+      ...restored.filter((item) => !items.some((current) => current.id === item.id)),
+      ...items,
+    ])
   }
 
-  const attempt = async (
-    envelope: RunInputEnvelope,
-    replay: boolean,
-  ): Promise<RunInputState> => {
-    const { threadId } = envelope
-    publish(threadId, {
-      kind: 'unresolved',
-      envelope,
-      pending: true,
-      message: 'Sending to the current response…',
+  const reconcile = (receipts: readonly InputReceipt[], visible = false) => {
+    let changed = false
+    const next = items.flatMap((item): PendingRunInput[] => {
+      const receipt = receipts.find((part) => part.inputId === item.inputId || part.requestKey === item.id)
+      if (!receipt) {
+        if (visible && item.visible) { changed = true; return [{ ...item, visible: false }] }
+        return [item]
+      }
+      if (receipt.status === 'delivered') {
+        changed = true
+        return []
+      }
+      if (receipt.status === 'not_delivered') {
+        const retryRequested = item.state === 'next' && item.retryAsTurn && !item.stopped
+        const cancelled = !retryRequested && (receipt.reason === 'run_cancelled' || item.stopped)
+        // A person's Stop must not immediately launch another response.
+        if (item.notDelivered && item.inputId === receipt.inputId &&
+          item.state === (cancelled ? 'failed' : 'next') && (!visible || item.visible)) return [item]
+        changed = true
+        return [{
+          ...item,
+          inputId: receipt.inputId,
+          state: cancelled ? 'failed' : 'next',
+          retryAsTurn: cancelled || retryRequested,
+          error: cancelled ? stoppedMessage : undefined,
+          visible: visible || item.visible,
+          notDelivered: true,
+        }]
+      }
+      if ((visible && !item.visible) || item.inputId !== receipt.inputId || (item.state === 'next' && !item.notDelivered)) {
+        changed = true
+        return [{ ...item, inputId: receipt.inputId, visible: visible || item.visible, state: item.state === 'next' && !item.notDelivered ? 'queued' : item.state }]
+      }
+      return [item]
     })
-    let settled: RunInputState
+    if (changed) publish(next)
+  }
+
+  const send = async (item: PendingRunInput, runId: string) => {
+    if (inFlight.has(item.id) || disposed) return
+    inFlight.add(item.id)
+    // Persist the exact target and key before crossing the network boundary.
+    update(item.id, { runId, state: 'sending', error: undefined })
     try {
-      const answer = await dispatch(envelope, replay)
-      const proof = object(answer)
-      const accepted = receiptOf(proof.accepted ?? answer, envelope)
-      const part = proof.latest
-        ? receiptOf(proof.latest, envelope, accepted.inputId as string)
-        : accepted
-      settled = {
-        kind: part.status === 'not_delivered' ? 'closed' : 'accepted',
-        envelope,
-        message:
-          part.status === 'not_delivered'
-            ? 'The run did not take this message. Your draft is still here; send it when the response finishes.'
-            : part.status === 'delivered'
-              ? 'Your message was delivered to the response.'
-              : 'Message accepted. Delivery is tracked in the response.',
-      }
+      const receipt = await host.send(runId, item.text, item.id)
+      if (disposed) return
+      update(item.id, { inputId: receipt.inputId, state: 'queued' })
+      reconcile([receipt])
+      reconcile(host.snapshot().inputs, true)
     } catch (error) {
-      const code = object(object(error).body).code
-      // These are explicit inbox refusals. Network/proxy errors, unfamiliar
-      // errors, and malformed success responses remain uncertain and replayable.
-      settled =
-        code === 'run_input_closed' && !replay
-          ? {
-              kind: 'closed',
-              envelope,
-              message:
-                'The run finished before taking this message. Your draft is still here; send it again once the response finishes.',
-            }
-          : !replay &&
-              (code === 'run_input_empty' || code === 'run_input_too_large')
-            ? { kind: 'refused', envelope, message: describeError(error) }
-            : {
-                kind: 'unresolved',
-                envelope,
-                pending: false,
-                message:
-                  code === 'run_input_closed'
-                    ? 'The run is closed, but earlier delivery is still unconfirmed. Retry checks the saved response; your draft is unchanged.'
-                    : 'Delivery could not be confirmed. Retry the previous message to check it safely; your draft is unchanged.',
-              }
+      if (disposed) return
+      update(item.id, errorCode(error) === 'run_input_closed'
+        ? items.find((current) => current.id === item.id)?.stopped
+          ? { state: 'failed', error: stoppedMessage, retryAsTurn: true }
+          : { state: 'next', error: undefined }
+        : { state: 'failed', error: `${host.describeError(error)} ${unknownDelivery}` })
+    } finally {
+      inFlight.delete(item.id)
+      observe()
     }
-    if (settled.kind !== 'unresolved') {
-      try {
-        storage.removeItem(slot(threadId))
-      } catch {
-        // Do not admit another message if a reload would replay the old one.
-        settled = {
-          kind: 'unresolved',
-          envelope,
-          pending: false,
-          message:
-            'The reply was received, but its saved request could not be cleared. Retry the previous message before sending another.',
+  }
+
+  const refresh = async () => {
+    if (refreshing || disposed || !host.snapshot().threadId) return
+    refreshing = true
+    try {
+      const snapshot = await host.refresh()
+      if (disposed) return
+      reconcile(snapshot.inputs)
+      if (snapshot.active) {
+        if (snapshot.runId) {
+          for (const item of items) {
+            if (item.state === 'waiting') void send(item, snapshot.runId)
+          }
         }
+        return
       }
+      if (host.snapshot().isRunning || host.snapshot().isLoading) return
+      // A response can finish between accepting input and draining it. Consult
+      // its durable receipts; absence of a delivered event is not a refusal.
+      const runs = new Set(items.filter((item) => item.runId && (item.state === 'queued' || item.state === 'next')).map((item) => item.runId!))
+      for (const runId of runs) {
+        const receipts = await host.receipts(runId)
+        if (disposed) return
+        reconcile(receipts)
+      }
+      if (disposed || host.snapshot().isRunning || host.snapshot().isLoading) return
+      const next = items.filter((item) => item.state === 'next' || item.state === 'waiting')
+      if (!next.length) return
+      const ids = new Set(next.map((item) => item.id))
+      // append owns normal history, context, send recovery and model settings.
+      // Remove only after it accepts the local message into that same runtime.
+      host.append(next.map((item) => item.text).join('\n\n'))
+      publish(items.filter((item) => !ids.has(item.id)))
+    } catch {
+      // A failed read cannot establish that it is safe to start a new turn.
+    } finally {
+      refreshing = false
     }
-    publish(threadId, settled)
-    return settled
+  }
+
+  function observe() {
+    if (disposed) return
+    restore()
+    const snapshot = host.snapshot()
+    reconcile(snapshot.inputs, true)
+    for (const item of items) {
+      if (item.state === 'waiting' && snapshot.runId) void send(item, snapshot.runId)
+    }
+    if (items.some((item) => item.state === 'next' || item.state === 'queued' || item.state === 'waiting'))
+      void refresh()
+  }
+
+  function stop() {
+    if (disposed || items.every((item) => item.stopped)) return
+    publish(items.map((item) => ({
+      ...item,
+      stopped: true,
+      ...(item.state === 'waiting' || item.state === 'next'
+        ? { state: 'failed' as const, error: stoppedMessage, retryAsTurn: true }
+        : {}),
+    })))
   }
 
   return {
-    getState,
-    clearNotice(threadId: string) {
-      const state = getState(threadId)
-      if (
-        state?.kind === 'accepted' ||
-        state?.kind === 'closed' ||
-        state?.kind === 'refused' ||
-        state?.kind === 'released'
-      )
-        publish(threadId, undefined)
+    observe,
+    stop,
+    getSnapshot: () => items,
+    submit(text: string) {
+      if (disposed || !text.trim()) return false
+      restore()
+      publish([...items, { id: crypto.randomUUID(), text, state: 'waiting' }])
+      observe()
+      return true
     },
-    /** Explicitly stop recovery; this never sends, cancels, or undoes a message. */
-    reset(threadId: string) {
-      const state = getState(threadId)
-      if (state?.kind === 'unresolved' && state.pending) return false
-      if (state?.kind !== 'unresolved' && state?.kind !== 'unavailable')
-        return false
-      try {
-        storage.removeItem(slot(threadId))
-        const uncertain = state.kind === 'unresolved' || state.uncertain
-        publish(threadId, {
-          kind: 'released',
-          ...(state.kind === 'unresolved' ? { envelope: state.envelope } : {}),
-          uncertain,
-          message: uncertain
-            ? 'Recovery stopped. Earlier delivery is still unknown; your draft is unchanged.'
-            : 'Saved delivery state reset. Your draft is unchanged.',
-        })
-        return true
-      } catch {
-        publish(threadId, {
-          ...state,
-          message:
-            'The saved request could not be cleared. Allow this site to use session storage, then reset again. Your draft is unchanged.',
-        })
-        return false
+    retry(id: string) {
+      const item = items.find((candidate) => candidate.id === id)
+      if (!item || item.state !== 'failed' || disposed) return
+      if (item.retryAsTurn) {
+        update(id, { state: 'next', error: undefined, stopped: false })
+        observe()
+      } else if (item.runId) {
+        void send(item, item.runId)
       }
     },
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    send(threadId: string, runId: string, text: string) {
-      const current = getState(threadId)
-      if (
-        !text.trim() ||
-        current?.kind === 'unresolved' ||
-        current?.kind === 'unavailable'
-      )
-        return undefined
-      const envelope = { threadId, runId, text, key: crypto.randomUUID() }
-      try {
-        storage.setItem(slot(threadId), JSON.stringify(envelope))
-      } catch {
-        const unavailable: RunInputState = {
-          kind: 'unavailable',
-          uncertain: false,
-          message:
-            'This message could not be saved for retry, so it was not sent. Your draft is unchanged.',
-        }
-        publish(threadId, unavailable)
-        return Promise.resolve(unavailable)
-      }
-      return attempt(envelope, false)
-    },
-    retry(threadId: string) {
-      const state = getState(threadId)
-      return state?.kind === 'unresolved' && !state.pending
-        ? attempt(state.envelope, true)
-        : undefined
-    },
+    dispose() { disposed = true },
   }
 }
 
-type RunInputPage = {
-  runId: string
-  events: unknown[]
-  hasMore: boolean
-  nextAfterSeq: number
-}
-
-/**
- * A restarted server loses its live inbox cache. Its durable event retains the
- * exact chat-command key; text equality alone cannot identify a retried input.
- * Later parts with that inputId determine whether it was actually delivered.
- */
-export async function findRunInputReceipt(
-  envelope: RunInputEnvelope,
-  read: (after: number) => Promise<RunInputPage>,
-) {
-  let after = 0
-  let accepted: unknown
-  let latest: unknown
-  let inputId: string | undefined
-  for (let page = 0; page < 20; page++) {
-    const snapshot = await read(after)
-    if (
-      snapshot.runId !== envelope.runId ||
-      !Array.isArray(snapshot.events) ||
-      typeof snapshot.hasMore !== 'boolean'
-    )
-      throw new Error('Invalid run history')
-    for (const value of snapshot.events) {
-      const event = object(value)
-      const part = object(object(event.payload).part)
-      if (event.idempotencyKey === `chat-command:${envelope.key}`) {
-        inputId = receiptOf(event, envelope).inputId as string
-        accepted = event
-        latest = event
-      } else if (inputId && part.inputId === inputId) {
-        receiptOf(event, envelope, inputId)
-        latest = event
-      }
-    }
-    if (!snapshot.hasMore) return accepted ? { accepted, latest } : undefined
-    if (
-      !Number.isFinite(snapshot.nextAfterSeq) ||
-      snapshot.nextAfterSeq <= after
-    )
-      throw new Error('Run history did not advance')
-    after = snapshot.nextAfterSeq
-  }
-  throw new Error('Run history is still awaiting confirmation')
-}
-
-/** Sending input never calls cancel, append, or the ordinary message endpoint. */
-export const dispatchRunInput: Dispatch = async (envelope, replay) => {
-  try {
-    return await mutate(
-      (headers) =>
-        theorem().chat.runs.command(
-          {
-            ...headers,
-            runId: envelope.runId,
-            command: 'input',
-            text: envelope.text,
-          },
-          { timeoutInSeconds: 30, maxRetries: 0 },
-        ),
-      envelope.key,
-    )
-  } catch (error) {
-    if (!replay || object(object(error).body).code !== 'run_input_closed')
-      throw error
-    const abortSignal = AbortSignal.timeout(30_000)
-    const receipt = await findRunInputReceipt(envelope, (after_seq) =>
-      theorem().chat.runs.get(
-        { runId: envelope.runId, after_seq, limit: 100 },
-        { abortSignal, maxRetries: 0 },
-      ),
-    )
-    if (receipt) return receipt
-    throw error
-  }
-}
-
-let sender: ReturnType<typeof createRunInputSender> | undefined
-
-/** Lazy browser access keeps server rendering free of storage side effects. */
-export function runInputSender() {
-  return (sender ??= createRunInputSender(
-    {
-      getItem: (key) => window.sessionStorage.getItem(key),
-      setItem: (key, value) => window.sessionStorage.setItem(key, value),
-      removeItem: (key) => window.sessionStorage.removeItem(key),
-    },
-    dispatchRunInput,
-  ))
-}
+export type RunInputQueue = ReturnType<typeof createRunInputQueue>

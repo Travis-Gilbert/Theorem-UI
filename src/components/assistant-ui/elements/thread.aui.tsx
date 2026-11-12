@@ -25,12 +25,8 @@ import {
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
 import { ComposerEditor } from '@/components/chat/composer-editor'
-import {
-  ComposerRunInputStatus,
-  useComposerRunInput,
-} from '@/components/chat/composer-run-input'
-import type { ComposerRunInput } from '@/components/chat/composer-run-input'
 import { ModelPicker } from '@/components/chat/model-picker'
+import { ReadAloud } from '@/components/chat/read-aloud'
 import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -69,14 +65,16 @@ import type { ComponentType, FC, PropsWithChildren } from 'react'
 import { Magnet, useArrivedLive } from '@/components/motion'
 import { flyFrom, kick, recordLaunch, takeLaunch } from '@/lib/motion'
 
-import { ComposerReferences } from '@/components/chat/composer-references'
+import { ComposerReferences, useComposerReferences } from '@/components/chat/composer-references'
+import { RunInputStatus, useBusyComposerInput, useRunInputSendDisabled } from '@/components/chat/run-input'
+import { ComposerReviewTarget, useComposerReview } from '@/components/review/review-target'
+import type { ComposerReview } from '@/components/review/review-target'
 import { SCENE_PART } from '@/components/chat/scene-model'
 import { answerBody } from '@/lib/theorem/reviews'
 import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
 
 import { hasTheoremError } from '@/lib/theorem/message-history'
 
-import { useComposerSend } from '@assistant-ui/core/react'
 import {
   COMPOSER_TOOLTIP_DELAY,
   ComposerPlanToggle,
@@ -95,6 +93,7 @@ import {
 } from './unseen-divider.aui'
 import { attendKit } from '@/lib/kit/store'
 import { messageLabel, messageSurface } from '@/lib/kit/stage'
+import { thingProps } from '@/lib/face/things'
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart
 
@@ -554,10 +553,16 @@ const AttachmentRefusals: FC = () => {
   return <ToastProvider position="top-center" />
 }
 
-const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui()
-  const runInput = useComposerRunInput()
+  // While the composer answers a review, sending submits the review and the
+  // chat's own send is left out.
+  const review = useComposerReview()
   const shellRef = useRef<HTMLDivElement>(null)
+  const busyInput = useBusyComposerInput({
+    hasReferences: () => useComposerReferences.getState().references.length > 0,
+    onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
+  })
   // Where the text was, for the new user message to fly up from. Recorded on
   // submit because the composer.send event arrives a microtask after the
   // message has already mounted.
@@ -579,12 +584,15 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root
         onSubmit={(event) => {
-          if (runInput.submit()) {
+          // A review's answer goes to the review, also while a response runs.
+          if (review) {
             event.preventDefault()
+            if (review.canSend) review.send()
             return
           }
-          recordLaunches()
+          if (!busyInput.onSubmit(event)) recordLaunches()
         }}
+        onKeyDown={busyInput.onKeyDown}
         className="aui-composer-root relative flex w-full flex-col"
       >
         <ComposerToolTrigger />
@@ -605,6 +613,8 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             />
           }
         >
+          <RunInputStatus />
+          {review && <ComposerReviewTarget target={review} />}
           <ComposerReferences />
           <ComposerAttachments />
           <ComposerEditor
@@ -615,16 +625,18 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             onFocus={() => attendKit(true)}
             onBlur={() => attendKit(false)}
           />
-          <ComposerRunInputStatus input={runInput} />
-          <ComposerAction runInput={runInput} />
+          <ComposerAction review={review} />
         </ComposerPrimitive.AttachmentDropzone>
       </ComposerPrimitive.Root>
     </ComposerPrimitive.TriggerPopoverRoot>
   )
 }
 
-const ComposerAction: FC<{ runInput: ComposerRunInput }> = ({ runInput }) => {
-  const { disabled: sendDisabled } = useComposerSend()
+const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
+  const chatDisabled = useRunInputSendDisabled()
+  // A choice can be sent with nothing written.
+  const sendDisabled = review ? !review.canSend : chatDisabled
+  const running = useAuiState((s) => s.thread.isRunning)
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -686,8 +698,7 @@ const ComposerAction: FC<{ runInput: ComposerRunInput }> = ({ runInput }) => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            (runInput.active ||
-              !s.composer.canCancel ||
+            (s.thread.isRunning || !s.composer.canCancel ||
               (s.thread.voice !== undefined &&
                 s.composer.submission === undefined)) &&
             !shouldShowComposerResume(s)
@@ -696,18 +707,20 @@ const ComposerAction: FC<{ runInput: ComposerRunInput }> = ({ runInput }) => {
           <Magnet>
             <TooltipIconButton
               tooltip={
-                runInput.active
-                  ? 'Send to current response (⌘/Ctrl+Enter)'
-                  : 'Send message (⌘/Ctrl+Enter)'
+                review
+                  ? 'Send feedback'
+                  : running
+                    ? 'Send to current response (⌘/Ctrl+Enter)'
+                    : 'Send message (⌘/Ctrl+Enter)'
               }
               delay={COMPOSER_TOOLTIP_DELAY}
               side="top"
               type="submit"
-              disabled={runInput.active ? !runInput.canSend : sendDisabled}
+              disabled={sendDisabled}
               variant="default"
               size="icon"
               className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed dark:bg-transparent dark:hover:bg-hover dark:active:bg-selected size-9 rounded-lg disabled:opacity-40 p-2"
-              aria-label="Send message"
+              aria-label={review ? 'Send feedback' : 'Send message'}
               aria-keyshortcuts="Control+Enter Meta+Enter"
             >
               {/* In dark the plane stands without its button, filled with the accent the button would have been. */}
@@ -920,7 +933,12 @@ function useKitSurface() {
         .join(' '),
     ),
   )
-  return { 'data-kit-perch': messageSurface(id), 'data-kit-label': label }
+  return {
+    'data-kit-perch': messageSurface(id),
+    'data-kit-label': label,
+    // The same message, named for Theo to be sent to.
+    ...thingProps('message', id, { label }),
+  }
 }
 
 const AssistantMessage: FC = () => {
@@ -1002,7 +1020,7 @@ const AssistantActionBar: FC = () => {
         'aui-assistant-action-bar-root text-muted-foreground col-start-3 row-start-2 -ms-1 flex gap-1',
         // When a live reply finishes, its actions pop in one after another.
         'in-data-live:[&>*]:animate-in in-data-live:[&>*]:fade-in in-data-live:[&>*]:zoom-in-50 in-data-live:[&>*]:fill-mode-both in-data-live:[&>*]:ease-snap in-data-live:[&>*]:duration-(--duration-snap)',
-        'in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms]',
+        'in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms] in-data-live:[&>*:nth-child(4)]:[animation-delay:150ms]',
       )}
     >
       <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}>
@@ -1013,6 +1031,7 @@ const AssistantActionBar: FC = () => {
           <Icon.Copy className="animate-in fade-in zoom-in-75" />
         </AuiIf>
       </ActionBarPrimitive.Copy>
+      <ReadAloud />
       <ActionBarPrimitive.Reload
         render={<TooltipIconButton tooltip="Regenerate" />}
       >

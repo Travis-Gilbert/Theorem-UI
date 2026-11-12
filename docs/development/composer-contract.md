@@ -36,19 +36,17 @@ reopen the result to catch text that turns into unintended Markdown structure.
   tool settings apply to the next turn. Attachments, quotes, and additional
   context are not supported by this text-only input path; leave the draft
   available and say when it can be sent.
-- A known rejection restores the submitted draft to its original thread without
-  overwriting text written since the attempt. An ambiguous network result keeps
-  the original request identity for reconciliation; it must not invite a fresh
-  duplicate send as though the server certainly rejected it.
-- A first-attempt closed-run refusal can release the request for a later turn.
-  A closed-run response to a retry cannot establish that the first attempt failed.
-  Reconcile against saved run events using the original request key, run, input
-  identifier, and text; an absent record or failed lookup remains uncertain.
-- Show the uncertain message so the person can inspect what is being retried.
-  An explicit **Stop retrying** or **Reset saved delivery state** may clear local
-  recovery after the pending attempt settles and storage removal succeeds.
-  Preserve the draft, say that delivery remains unknown, and never automatically
-  send a new turn or cancel the current run as part of that action.
+- Each message sent during a run is listed under the composer with its own
+  state until the response shows it. Several may be waiting at once, and the
+  composer is cleared only once the message is saved for recovery.
+- A message the run did not take (the run closed first, or its receipt says not
+  delivered) becomes the next turn only after both the local stream and
+  Theorem's thread have settled. A person's Stop must not start another
+  response: that message stays listed with **Retry**.
+- An ambiguous network result keeps the original run, request key, and text.
+  **Retry** replays that same request; it must not invite a fresh duplicate send
+  as though the server certainly rejected it. Matching text alone is not proof
+  of delivery.
 - Navigation, editor initialization, reload, and unmount must not replace a newer
   draft with an older serialized value. A sent draft must not reappear because
   an editor cleanup reports stale content.

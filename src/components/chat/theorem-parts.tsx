@@ -30,6 +30,7 @@ import {
 } from '@/components/assistant-ui/elements/reasoning'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
+import { thingProps, toolState } from '@/lib/face/things'
 import {
   ARTIFACT_PART,
   readArtifact,
@@ -611,6 +612,23 @@ export const Activity: FC<{
   )
   const seconds = useAuiState(waitedSeconds)
   const [open, setOpen] = useState(false)
+  // The tool calls folded away here, as one string so the selector hands back
+  // the same value until one of them changes.
+  const folded = useAuiState((s) =>
+    s.message.parts
+      .flatMap((part) =>
+        part.type === 'tool-call' && !isStandaloneToolCall(part)
+          ? [
+              [
+                part.toolCallId,
+                part.toolName,
+                toolState(part.status, part.isError) ?? '',
+              ].join('\t'),
+            ]
+          : [],
+      )
+      .join('\n'),
+  )
 
   const steps = labels.length > 1
   const openable = steps || Boolean(work)
@@ -658,10 +676,26 @@ export const Activity: FC<{
   return (
     <Collapsible
       data-slot="activity"
+      // Theo points here for a tool call that is folded away inside.
+      data-face-holder=""
       className="mb-1.5"
       open={open}
       onOpenChange={setOpen}
     >
+      {!open && folded !== '' && (
+        // Closed, the calls are not drawn: these stand for them by name.
+        <span hidden>
+          {folded.split('\n').map((call) => {
+            const [id = '', name = '', state] = call.split('\t')
+            return (
+              <span
+                key={id}
+                {...thingProps('tool', id, { label: humanize(name), state })}
+              />
+            )
+          })}
+        </span>
+      )}
       <div className="flex min-h-6 flex-wrap items-center gap-x-2 px-2">
         {speaker && <span className="font-medium text-ink">{speaker}</span>}
         {notes.length > 0 && (

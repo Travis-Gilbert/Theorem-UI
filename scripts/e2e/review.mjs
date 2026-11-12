@@ -1,6 +1,7 @@
 // The review path, whole, as the test account and with a real model: sign in,
 // attach two images, have the agent offer them with show_options, choose in the
-// Compare pane, and see the answer and the agent's reply arrive on the open page.
+// Compare pane, write the feedback in the conversation's composer, and see the
+// answer and the agent's reply arrive on the open page.
 // Then again in a new thread, answering the moment the card appears, while the
 // run that offered the options is still finishing.
 //
@@ -58,7 +59,15 @@ const attach = async (name) => {
 
 const open_card = page.getByRole('button', { name: /Needs your choice/ }).first()
 const answered = page.getByRole('button', { name: /Answered/ }).first()
-const feedback = page.getByLabel('Feedback')
+// Write feedback has the conversation's composer answer the review.
+const writeFeedback = page.getByRole('button', { name: 'Write feedback' })
+const composer = (surface) => surface.getByLabel('Message input').filter({ visible: true }).first()
+const feedback = composer(page)
+// Real key presses, over whatever a restored draft left there.
+const write = async (words) => {
+  await feedback.press('ControlOrMeta+a')
+  await feedback.pressSequentially(words)
+}
 const threadPath = () =>
   `${UI}/api/chat/v1/threads/${new URL(page.url()).pathname.split('/').pop()}`
 const thread = () => context.request.get(threadPath(), READ).then((response) => response.json())
@@ -140,22 +149,25 @@ check('Review badge on the row', /Review/.test(inSidebar))
 
 // A draft survives everything short of sending it.
 const checkDraft = async (name, input) => {
-  const words = await input.inputValue().catch(() => '')
+  // The composer is an editor: it has text where a text area had a value.
+  const words = (await input.innerText().catch(() => '')).trim()
   check(name, words === FEEDBACK, words === FEEDBACK ? '' : JSON.stringify(words))
 }
 await open_card.click()
-await feedback.waitFor()
+await writeFeedback.waitFor()
 await page.getByLabel(/^Pick /).last().click()
 await pause(450)
-await feedback.fill(FEEDBACK.slice(0, 10))
+await writeFeedback.click()
+await write(FEEDBACK.slice(0, 10))
 await pause(450)
-await feedback.fill(FEEDBACK)
+await write(FEEDBACK)
 await pause(150)
 await page.reload({ waitUntil: 'domcontentloaded' })
 await open_card.waitFor({ timeout: 90_000 })
 await open_card.click()
-await feedback.waitFor()
+await writeFeedback.waitFor()
 await pause(800)
+await writeFeedback.click()
 await checkDraft('draft survives an immediate reload', feedback)
 
 const popupOpened = context.waitForEvent('page', { timeout: 15_000 }).catch(() => undefined)
@@ -163,8 +175,9 @@ await page.getByRole('button', { name: 'Detach' }).click()
 const popup = await popupOpened
 if (popup) await popup.waitForLoadState('domcontentloaded').catch(() => {})
 await pause(2_500)
-const detached = popup && (await popup.getByLabel('Feedback').count()) ? popup : page
-await checkDraft('detached keeps the draft', detached.getByLabel('Feedback').first())
+// Away from the conversation the pane carries the composer itself.
+const detached = popup && (await popup.getByLabel('Message input').count()) ? popup : page
+await checkDraft('detached keeps the draft', composer(detached))
 const dock = detached.getByRole('button', { name: 'Dock beside the conversation' })
 check('dock offered', (await dock.count()) > 0)
 if (await dock.count()) await dock.click()
@@ -211,8 +224,9 @@ await shot('5-highlights')
 await page.goto(UI, { waitUntil: 'domcontentloaded', timeout: 120_000 })
 await offerOptions()
 await open_card.click()
-await feedback.waitFor()
-await feedback.fill(FEEDBACK)
+await writeFeedback.waitFor()
+await writeFeedback.click()
+await write(FEEDBACK)
 const early = Date.now()
 await page.getByRole('button', { name: 'Send feedback' }).click()
 await answered.waitFor({ timeout: 60_000 }).catch(() => {})

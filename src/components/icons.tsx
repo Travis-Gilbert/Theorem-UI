@@ -15,6 +15,7 @@ import EditMark from '@/assets/icons/message/theorem-edit.svg?react'
 import MoreMark from '@/assets/icons/message/theorem-more.svg?react'
 import NextMark from '@/assets/icons/message/theorem-next.svg?react'
 import PreviousMark from '@/assets/icons/message/theorem-previous.svg?react'
+import ReadAloudMark from '@/assets/icons/message/theorem-read-aloud.svg?react'
 import ReloadMark from '@/assets/icons/message/theorem-reload.svg?react'
 import ChatMark from '@/assets/icons/rail/noun-chat-52762.svg?react'
 import Moon from '@/assets/icons/rail/lucide-moon-rail.svg?react'
@@ -365,6 +366,7 @@ const Edit = solid(EditMark)
 const More = solid(MoreMark)
 const Next = solid(NextMark)
 const Previous = solid(PreviousMark)
+const ReadAloud = solid(ReadAloudMark)
 const Reload = solid(ReloadMark)
 const TreeFolder = solid(FolderMark)
 const TreeFolderOpen = solid(FolderOpenMark)
@@ -490,6 +492,7 @@ export const Icon = {
   Project: ProjectRow,
   Projects,
   Refresh,
+  ReadAloud,
   Reload,
   Search,
   Send,

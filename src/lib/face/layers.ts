@@ -1,9 +1,15 @@
-// SOURCING: layered animation as character rigs and game animation stacks do it (a higher layer overrides a lower one per channel, and letting go hands the channel back without a snap), with a damped spring per channel as in lib/life/energy.ts. The layer order is the handoff's (docs/plans/theo-face.md): the person's hand over a deliberate performance over a reaction over mood over identity.
+// SOURCING: layered animation as character rigs and game animation stacks do it (a higher layer overrides a lower one per channel, and letting go hands the channel back without a snap), with a damped spring per channel as in lib/life/energy.ts. The layer order is the handoff's (docs/plans/theo-face.md): the person's hand over a deliberate performance over a reaction over mood over identity, with the form the face takes while something lasts (docs/plans/theo-sound.md) between a reaction and the mood.
 import { Channels, clamp } from './channels'
 import type { FeatureDef } from './channels'
 
 /** Who may hold a channel, lowest first. A higher layer's hold wins. */
-export const LAYERS = ['mood', 'reaction', 'performance', 'hand'] as const
+export const LAYERS = [
+  'mood',
+  'form',
+  'reaction',
+  'performance',
+  'hand',
+] as const
 export type Layer = (typeof LAYERS)[number]
 
 /** How a channel should get where it is told to go. */

@@ -42,10 +42,11 @@ export const STORIES: readonly StoryMeta[] = [
   {
     id: 'compare-pane',
     title: 'Compare pane',
-    lane: 'translation',
-    reference: SIDEBAR_REF,
-    viewport: { width: 423, height: 1064 },
-    region: [1056, 0, 423, 1064],
+    // Drawn to the owner's sketch of 2026-11-11 (option rows, one preview,
+    // Write feedback), which was attached in chat and is not in the repo. The
+    // 2026-11-05 reference shows the earlier cards, so the oracle skips this.
+    lane: 'original',
+    viewport: { width: 380, height: 760 },
   },
   {
     id: 'review-card',
@@ -160,6 +161,24 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     viewport: { width: 1280, height: 800 },
     threadId: 'thread-app-gallery',
+  },
+  {
+    id: 'face-visit',
+    title: 'Theo on a page with an artifact, to visit',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'face-point',
+    title: 'Theo on a page with things to point at',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'face-sound',
+    title: 'Theo on a page with a reply to read aloud',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
   },
   {
     id: 'tool-pills',

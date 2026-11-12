@@ -108,8 +108,8 @@ export type MutationHeaders = {
 /** Runs one mutation with fresh CSRF and a stable idempotency key, re-bootstrapping once on 403. */
 export async function mutate<T>(
   run: (headers: MutationHeaders) => Promise<T>,
-  key: string = crypto.randomUUID(),
 ): Promise<T> {
+  const key = crypto.randomUUID()
   const session = await bootstrap()
   try {
     return await run({

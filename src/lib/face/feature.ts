@@ -1,4 +1,4 @@
-// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
+// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The rings, bars and mesh a feature's matter can be gathered into are this app's, for the devices the face turns into (docs/plans/theo-sound.md). The globe is an orthographic sphere of dots in rows of latitude, each row turned about the pole and the whole leaned toward the viewer, with grains on tilted circular orbits: the dotted thought-orb of agent interfaces (thinking-orbs by Jakub Antalik, MIT, which the app's inline indicator uses; none of its code is here), remade from this face's own matter so that what it has turned is integrated from a speed that events change, where that one is a function of the clock; loosened, its radius is bent by two low waves over the sphere, its dots spread toward a plain scatter and a share of its grains stand off it, all this app's (docs/plans/theo-orb.md). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
 import { FEATURE_PARAMS, FEATURE_PARAM_NAMES } from './channels'
 import type { FeatureDef, FeatureParam } from './channels'
 
@@ -19,6 +19,16 @@ export interface Shape {
   lowTilt: number
   lowBow: number
   hollow: number
+  rings: number
+  slats: number
+  mesh: number
+  globe: number
+  spin: number
+  stir: number
+  loose: number
+  /** How far a globe has turned, in turns, and how much it has been stirred: kept by the matter (particles), not read off the rig. */
+  spun: number
+  stirred: number
   turn: number
   scale: number
   alpha: number
@@ -46,6 +56,15 @@ export function restShape(side: -1 | 0 | 1 = 0): Shape {
     lowTilt: 0,
     lowBow: 0,
     hollow: 0,
+    rings: 0,
+    slats: 0,
+    mesh: 0,
+    globe: 0,
+    spin: 0,
+    stir: 0,
+    loose: 0,
+    spun: 0,
+    stirred: 0,
     turn: 0,
     scale: 1,
     alpha: 1,
@@ -73,12 +92,48 @@ const TAU = Math.PI * 2
 const MEET = 0.3
 /** What is left of a cut grain's distance past the lid: a shut eye is a line with a little body. */
 const RESIDUE = 0.07
+/** How much of the gap between two rings, or two bars, the matter of one fills. */
+const BAND = 0.34
+/** How much of the step between two dots of a mesh the matter of one fills. */
+const DOT = 0.3
+/** How far apart the rows of a mesh are, in steps: every other row sits between the dots of the last. */
+const ROW = Math.sqrt(3) / 2
+/** How much of a meshed feature's matter is its rim, how wide the rim is and how far the dots keep from it, as parts of the feature. */
+const RIM_SHARE = 0.24
+const RIM_WIDTH = 0.07
+const RIM_GAP = 0.03
+/** How many dots a globe has round its middle for each row it has from pole to pole. */
+const AROUND = 1.9
+/** How much of the step between two dots of a globe the matter of one fills. */
+const BEAD = 0.4
+/** How far the globe's axis leans toward whoever looks, in radians, and how far a stirred one wanders from that. */
+const LEAN = 0.5
+const WANDER = 0.38
+/** Of the matter a flat feature keeps on its rim, the part a globe sends into orbit; how many orbits; how far out they are, in radii; how long a tail each trails, in radians. */
+const ORBIT_SHARE = 0.5
+const ORBITS = 3
+const ORBIT_REACH = 1.5
+const TAIL = 1.3
+/** A globe that has lost its shape: how far its two lumps stand out, how far a strayed grain goes, and how much an orbit's reach wavers, in radii; the part of its grains that stray; how much of a dot's fraying is left to do. */
+const LUMP = 0.2
+const LUMP_SMALL = 0.14
+const STRAY = 0.3
+const STRAYS = 0.3
+const WAVER = 0.12
+const FRAY = 0.5
+/** How dim the far side of a globe is. */
+const FAR = 0.1
+const fraction = (value: number) => value - Math.floor(value)
+/** A repeatable number in [-1, 1] for a whole number: each row of a globe has its own. */
+const own = (index: number) =>
+  fraction(Math.sin(index * 12.9898 + 4.1414) * 43758.5453) * 2 - 1
 
 /**
  * Where one grain sits in a feature, in face units. `theta` is its angle
  * around the feature (0 the outer side, a quarter turn the bottom) and `u`
  * how far out it is by area (0 the middle, 1 the rim). Writes two numbers to
- * `out` at `at`.
+ * `out` at `at`, and gives back how much of its light the grain keeps there:
+ * 1, but for the far side of a globe.
  */
 export function seatPoint(
   shape: Shape,
@@ -101,9 +156,145 @@ export function seatPoint(
   const from = shape.gains[index] as number
   const gain = from + ((shape.gains[(index + 1) & 7] as number) - from) * smooth
   const hollow = shape.hollow
-  const radius = Math.sqrt(hollow * hollow + (1 - hollow * hollow) * u)
+  let radius = Math.sqrt(hollow * hollow + (1 - hollow * hollow) * u)
+  // Rings: each grain goes to the ring its depth falls in, the outermost on the rim.
+  const rings = Math.round(shape.rings)
+  if (rings >= 1) {
+    const depth = Math.min(rings - 1e-6, u * rings)
+    const ring = Math.floor(depth)
+    const outer = hollow + ((1 - hollow) * (ring + 1)) / rings
+    radius = outer - ((1 - hollow) / rings) * BAND * (1 - (depth - ring))
+  }
   let x = radius * rim * gain * shape.w * cos
   let y = radius * rim * gain * shape.h * sin
+  // Bars: each grain goes to the bar its height falls in.
+  const slats = Math.round(shape.slats)
+  if (slats >= 1 && shape.h > 0) {
+    const height = Math.max(-1, Math.min(1, y / shape.h))
+    const bar = Math.min(slats - 1, Math.floor(((height + 1) / 2) * slats))
+    const middle = -1 + (2 * bar + 1) / slats
+    y = (middle + (height - middle) * BAND) * shape.h
+  }
+  // Mesh: the outermost matter is the rim, and each grain inside goes to the dot its place falls in, every
+  // other row half a step along. Where the nearest dot would cross the rim the grain looks further in.
+  const mesh = Math.round(shape.mesh)
+  if (mesh >= 1 && shape.w > 0 && shape.h > 0) {
+    if (u > 1 - RIM_SHARE) {
+      const band = 1 - RIM_WIDTH * ((1 - u) / RIM_SHARE)
+      x = band * rim * gain * shape.w * cos
+      y = band * rim * gain * shape.h * sin
+    } else {
+      const step = (2 * shape.w) / mesh
+      const reach = 1 - RIM_WIDTH - RIM_GAP - (DOT * step) / (2 * shape.w)
+      let inward = Math.sqrt(u / (1 - RIM_SHARE))
+      for (let tries = 0; tries < 4; tries++) {
+        const px = inward * rim * gain * shape.w * cos
+        const py = inward * rim * gain * shape.h * sin
+        const row = Math.round(py / (step * ROW))
+        const shift = ((row & 1) === 1 ? mesh % 2 : 1 - (mesh % 2)) / 2
+        const dotX = (Math.round(px / step - shift) + shift) * step
+        const dotY = row * step * ROW
+        x = dotX + (px - dotX) * DOT
+        y = dotY + (py - dotY) * DOT
+        const past = Math.pow(
+          Math.pow(Math.abs(dotX / shape.w), n) +
+            Math.pow(Math.abs(dotY / shape.h), n),
+          1 / n,
+        )
+        if (past <= reach) break
+        inward *= 0.82
+      }
+    }
+  }
+
+  // Globe: the matter is dots on a ball that turns, seen from the side, and a few grains orbit it.
+  let light = 1
+  const rows = Math.round(shape.globe)
+  if (rows >= 1) {
+    const turned = shape.spun * TAU
+    const stirred = shape.stirred * TAU
+    let px: number
+    let py: number
+    let pz: number
+    // The rim of a flat feature is a quarter of its matter, all at one depth: part of it orbits, the rest is spread over the ball.
+    const edge = u > 0.9995
+    const lot = fraction(theta * 7.3137)
+    const pick = fraction(theta * 23.1731)
+    if (edge && lot < ORBIT_SHARE) {
+      const orbit = Math.min(ORBITS - 1, Math.floor(pick * ORBITS))
+      const back = fraction(pick * ORBITS)
+      const head =
+        orbit * 2.1 + (turned * 1.6 + stirred * 2.4) * (0.7 + 0.3 * orbit)
+      const angle = head - back * back * TAIL
+      // How open the orbit is to whoever looks: never edge on, where its grains would pile up at the two ends, and each one different.
+      const tip = 0.35 + 0.2 * orbit + 0.12 * Math.sin(stirred * 0.31 + orbit)
+      const roll = (orbit * TAU) / ORBITS + 0.4
+      // A globe that has lost its shape has orbits that are no longer circles.
+      const wide =
+        ORBIT_REACH *
+        (1 + shape.loose * WAVER * Math.sin(3 * angle + orbit * 1.7))
+      const ox = Math.cos(angle) * wide
+      const oy = Math.sin(angle) * wide * Math.sin(tip)
+      const oz = Math.sin(angle) * wide * Math.cos(tip)
+      px = ox * Math.cos(roll) - oy * Math.sin(roll)
+      py = ox * Math.sin(roll) + oy * Math.cos(roll)
+      pz = oz
+      light = 1 - 0.75 * back
+    } else {
+      const deep = edge ? pick : u / 0.9995
+      const lat = Math.asin(Math.max(-1, Math.min(1, 1 - 2 * deep)))
+      const row = Math.min(
+        rows - 1,
+        Math.max(0, Math.floor((lat / Math.PI + 0.5) * rows)),
+      )
+      const rowLat = ((row + 0.5) / rows - 0.5) * Math.PI
+      const dots = Math.max(1, Math.round(rows * AROUND * Math.cos(rowLat)))
+      const along = (theta / TAU) * dots
+      // The looser it is, the more each dot frays toward where its matter would lie if nothing gathered it.
+      const bead = BEAD + (1 - BEAD) * FRAY * shape.loose
+      const dot = Math.floor(along)
+      // Each row turns with the ball, and slides past its neighbours by as much as the ball has been stirred.
+      const lon =
+        ((dot + 0.5 + (along - dot - 0.5) * bead) / dots) * TAU +
+        (row & 1) * (Math.PI / dots) +
+        turned +
+        own(row) * stirred * 0.6
+      const up =
+        rowLat +
+        (lat - rowLat) * bead +
+        shape.stir * 0.1 * Math.sin(2 * lon + stirred * 1.3 + row)
+      // The ball's axis leans toward whoever looks, and wanders the more it is stirred.
+      const lean = LEAN + WANDER * shape.stir * Math.sin(stirred * 0.23 + 1.3)
+      const flat = Math.cos(up) * Math.cos(lon)
+      px = Math.cos(up) * Math.sin(lon)
+      py = Math.sin(up) * Math.cos(lean) - flat * Math.sin(lean)
+      pz = Math.sin(up) * Math.sin(lean) + flat * Math.cos(lean)
+      if (shape.loose > 0) {
+        // Two lumps that ride the turning surface, so the outline changes as it turns, and a part of the grains strayed from their dots, each as far as is its own.
+        const lump =
+          LUMP * Math.sin(2 * lon + 1.3 * up + stirred * 0.7) +
+          LUMP_SMALL * Math.sin(3 * up - lon + 2.1 + stirred * 0.45)
+        const drawn = fraction(theta * 131.7 + u * 57.3)
+        const strayed =
+          drawn > 1 - STRAYS
+            ? ((drawn - (1 - STRAYS)) / STRAYS) ** 2 * STRAY
+            : 0
+        const reach = 1 + shape.loose * (lump + strayed)
+        px *= reach
+        py *= reach
+        pz *= reach
+      }
+    }
+    // Ball and orbits sway together, the more it is stirred.
+    const sway = WANDER * shape.stir * Math.sin(stirred * 0.17)
+    const swayed = px * Math.cos(sway) - py * Math.sin(sway)
+    py = px * Math.sin(sway) + py * Math.cos(sway)
+    px = swayed
+    x = px * shape.w
+    y = py * shape.h
+    const near = Math.max(0, Math.min(1, (pz + 0.35) / 0.9))
+    light *= FAR + (1 - FAR) * near * near * (3 - 2 * near)
+  }
 
   // Lids. `across` runs -1 at the inner end to 1 at the outer.
   const h = shape.h
@@ -137,6 +328,7 @@ export function seatPoint(
   }
   out[at] = shape.side === 0 ? shape.x + x : shape.side * (shape.x + x)
   out[at + 1] = shape.y + y
+  return light
 }
 
 /** The feature's outline as an SVG path in face units, for the still mark. */

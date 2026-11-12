@@ -2,6 +2,7 @@
 import { Link, useMatches } from '@tanstack/react-router'
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { Icon } from '@/components/icons'
+import { PANEL_WIDTH } from '@/components/shell/shell-state'
 import { IconTile } from '@/components/ui/icon-tile'
 import { cn } from '@/lib/utils'
 import { SETTINGS_GROUPS, settingsSection } from './sections'
@@ -14,7 +15,8 @@ function SettingsNav() {
   return (
     <nav
       aria-label="Settings"
-      className="flex w-(--spacing-sidebar) shrink-0 flex-col gap-4 overflow-y-auto px-2 py-3"
+      style={{ width: PANEL_WIDTH.default }}
+      className="flex shrink-0 flex-col gap-4 overflow-y-auto px-2 py-3"
     >
       <Link to="/" className={navItem}>
         <Icon.X className="size-4" />
