@@ -19,7 +19,8 @@ const PAGE_FETCH = Symbol('page fetch')
 type Fetch = typeof window.fetch & { [PAGE_FETCH]?: typeof window.fetch }
 
 /**
- * Answers `/api/` from the map and leaves the dev server's own requests alone.
+ * Answers this origin's `/api/` from the map and leaves the dev server's own
+ * requests, and every other host's, alone.
  * A second install replaces the first instead of wrapping it, so restoring
  * either one gives the page its own fetch back.
  */
@@ -33,7 +34,11 @@ export function installFakeTheorem(routes: FakeRoutes) {
   const fake = async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
     const url = new URL(request.url)
-    if (!url.pathname.startsWith('/api/')) return real(input, init)
+    // Only this origin's API is Theorem's: another host's `/api/` (a model hub, say) is that host's to answer.
+    // A page with no origin of its own (about:blank, as a test has) has no other hosts to tell apart.
+    const here = window.location.origin
+    const ours = here === 'null' || url.origin === here
+    if (!ours || !url.pathname.startsWith('/api/')) return real(input, init)
     for (const { method, pattern, answer } of table) {
       if (method !== request.method) continue
       const match = pattern.exec(url)

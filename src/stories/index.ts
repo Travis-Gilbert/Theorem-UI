@@ -162,6 +162,24 @@ export const STORIES: readonly StoryMeta[] = [
     threadId: 'thread-app-gallery',
   },
   {
+    id: 'face-visit',
+    title: 'Theo on a page with an artifact, to visit',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'face-point',
+    title: 'Theo on a page with things to point at',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
+    id: 'face-sound',
+    title: 'Theo on a page with a reply to read aloud',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
     id: 'tool-pills',
     title: 'Tool pills: done, failed and running',
     lane: 'original',

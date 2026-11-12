@@ -1789,6 +1789,49 @@
     linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
   mask-composite: intersect;
 }
+/* What Theo points at (components/face/things): its own colour, as an
+   outline with a restrained fill around a whole thing, a wash with a rule
+   under some words, and a wash with a bar before a line. The stroke leans to
+   the ink so it reads on a light page as on a dark one. */
+.face-point {
+  --face-point-stroke: color-mix(in oklch, var(--face-point) 62%, var(--ink));
+  box-sizing: content-box;
+  border-radius: 6px;
+  opacity: 0;
+  background: color-mix(in oklch, var(--face-point) 12%, transparent);
+  transition: opacity var(--duration-exit) linear;
+}
+.face-point[data-on] {
+  opacity: 1;
+  transition-duration: var(--duration-glide);
+}
+.face-point[data-kind='whole'] {
+  margin: -4px;
+  padding: 3px;
+  border: 1px solid var(--face-point-stroke);
+  background: color-mix(in oklch, var(--face-point) 7%, transparent);
+}
+.face-point[data-kind='text'] {
+  margin: -1px -3px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--face-point) 22%, transparent);
+  box-shadow: 0 2px 0 -0.5px var(--face-point-stroke);
+}
+.face-point[data-kind='line'] {
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--face-point) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--face-point-stroke);
+}
+/* The arcs that leave Theo's sides while it sounds (components/face/driver):
+   its own colour, leaning to the ink as the mark above does, so they read on
+   a light page as on a dark one. */
+.face-waves path {
+  fill: none;
+  stroke: color-mix(in oklch, var(--face-wave) 62%, var(--ink));
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
 .face-mark-plate {
   fill: var(--face-plate);
 }

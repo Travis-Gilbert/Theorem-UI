@@ -1,4 +1,4 @@
-// SOURCING: next-themes (light/dark), lib/palette (colours), lib/life/store (the field behind the chat), lib/figures (Kit and Theo), coss ui SegmentedControl, the settings frame
+// SOURCING: next-themes (light/dark), lib/palette (colours), lib/life/store (the field behind the chat), lib/figures (Kit and Theo), components/face/face-feel (how Theo moves), coss ui SegmentedControl, the settings frame
 import { createFileRoute } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import {
@@ -12,6 +12,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from '@/components/settings/settings-frame'
+import { FaceFeel } from '@/components/face/face-feel'
 import { FaceMark } from '@/components/face/face-mark'
 import { VISORS, useFigures } from '@/lib/figures'
 import { useLifeControls } from '@/lib/life/store'
@@ -169,6 +170,7 @@ function Appearance() {
           </SettingsRow>
         </SettingsBox>
       </SettingsSection>
+      {figures.theo ? <FaceFeel /> : null}
     </SettingsPage>
   )
 }

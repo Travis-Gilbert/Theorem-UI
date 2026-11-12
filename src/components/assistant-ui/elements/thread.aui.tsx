@@ -26,6 +26,7 @@ import {
 } from '@/components/chat/theorem-parts'
 import { ComposerEditor } from '@/components/chat/composer-editor'
 import { ModelPicker } from '@/components/chat/model-picker'
+import { ReadAloud } from '@/components/chat/read-aloud'
 import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -64,14 +65,14 @@ import type { ComponentType, FC, PropsWithChildren } from 'react'
 import { Magnet, useArrivedLive } from '@/components/motion'
 import { flyFrom, kick, recordLaunch, takeLaunch } from '@/lib/motion'
 
-import { ComposerReferences } from '@/components/chat/composer-references'
+import { ComposerReferences, useComposerReferences } from '@/components/chat/composer-references'
+import { RunInputStatus, useBusyComposerInput, useRunInputSendDisabled } from '@/components/chat/run-input'
 import { SCENE_PART } from '@/components/chat/scene-model'
 import { answerBody } from '@/lib/theorem/reviews'
 import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
 
 import { hasTheoremError } from '@/lib/theorem/message-history'
 
-import { useComposerSend } from '@assistant-ui/core/react'
 import {
   COMPOSER_TOOLTIP_DELAY,
   ComposerPlanToggle,
@@ -90,6 +91,7 @@ import {
 } from './unseen-divider.aui'
 import { attendKit } from '@/lib/kit/store'
 import { messageLabel, messageSurface } from '@/lib/kit/stage'
+import { thingProps } from '@/lib/face/things'
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart
 
@@ -552,6 +554,10 @@ const AttachmentRefusals: FC = () => {
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui()
   const shellRef = useRef<HTMLDivElement>(null)
+  const busyInput = useBusyComposerInput({
+    hasReferences: () => useComposerReferences.getState().references.length > 0,
+    onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
+  })
   // Where the text was, for the new user message to fly up from. Recorded on
   // submit because the composer.send event arrives a microtask after the
   // message has already mounted.
@@ -572,7 +578,8 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   return (
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root
-        onSubmit={recordLaunches}
+        onSubmit={(event) => { if (!busyInput.onSubmit(event)) recordLaunches() }}
+        onKeyDown={busyInput.onKeyDown}
         className="aui-composer-root relative flex w-full flex-col"
       >
         <ComposerToolTrigger />
@@ -593,6 +600,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             />
           }
         >
+          <RunInputStatus />
           <ComposerReferences />
           <ComposerAttachments />
           <ComposerEditor
@@ -611,7 +619,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 }
 
 const ComposerAction: FC = () => {
-  const { disabled: sendDisabled } = useComposerSend()
+  const sendDisabled = useRunInputSendDisabled()
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -673,7 +681,7 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            (!s.composer.canCancel ||
+            (s.thread.isRunning || !s.composer.canCancel ||
               (s.thread.voice !== undefined &&
                 s.composer.submission === undefined)) &&
             !shouldShowComposerResume(s)
@@ -901,7 +909,12 @@ function useKitSurface() {
         .join(' '),
     ),
   )
-  return { 'data-kit-perch': messageSurface(id), 'data-kit-label': label }
+  return {
+    'data-kit-perch': messageSurface(id),
+    'data-kit-label': label,
+    // The same message, named for Theo to be sent to.
+    ...thingProps('message', id, { label }),
+  }
 }
 
 const AssistantMessage: FC = () => {
@@ -983,7 +996,7 @@ const AssistantActionBar: FC = () => {
         'aui-assistant-action-bar-root text-muted-foreground col-start-3 row-start-2 -ms-1 flex gap-1',
         // When a live reply finishes, its actions pop in one after another.
         'in-data-live:[&>*]:animate-in in-data-live:[&>*]:fade-in in-data-live:[&>*]:zoom-in-50 in-data-live:[&>*]:fill-mode-both in-data-live:[&>*]:ease-snap in-data-live:[&>*]:duration-(--duration-snap)',
-        'in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms]',
+        'in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms] in-data-live:[&>*:nth-child(4)]:[animation-delay:150ms]',
       )}
     >
       <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}>
@@ -994,6 +1007,7 @@ const AssistantActionBar: FC = () => {
           <Icon.Copy className="animate-in fade-in zoom-in-75" />
         </AuiIf>
       </ActionBarPrimitive.Copy>
+      <ReadAloud />
       <ActionBarPrimitive.Reload
         render={<TooltipIconButton tooltip="Regenerate" />}
       >

@@ -1,0 +1,101 @@
+{
+  "spec": "docs/plans/theo-orb.md",
+  "items": [
+    {
+      "id": "globe",
+      "item": "A feature's matter can be set as dots on a ball that turns, the far side dim, with grains in orbit round it",
+      "status": "done",
+      "evidence": "src/lib/face/feature.ts, channels.ts; orb.test.ts 'the matter is set on a ball...', 'it is gathered into dots...', 'the far side is dimmer...', 'part of the rim goes into orbit...', 'with no rows a feature is filled as it always was'"
+    },
+    {
+      "id": "kept",
+      "item": "What a globe has turned is kept and added to, not read off the clock, so a change of speed never jumps it",
+      "status": "done",
+      "evidence": "src/lib/face/particles.ts; orb.test.ts 'turning it moves its dots, and a whole turn brings them back', 'a change of speed never jumps it...'"
+    },
+    {
+      "id": "pace",
+      "item": "run.pace rises with each tool call that starts or ends, harder for a failed one, each push with a strength of its own, and dies away",
+      "status": "done",
+      "evidence": "src/lib/face/work.ts, signals.ts; orb.test.ts 'the work meter' (7)"
+    },
+    {
+      "id": "effort",
+      "item": "run.effort is the reasoning effort the run was asked for, least 0 to most 1, the middle where none was",
+      "status": "done",
+      "evidence": "work.ts effortShare; lib/theorem/generation.ts requestedEffort; orb.test.ts 'an effort level is where it lies...'; read once at the run's start, operations.ts watchFace, operations.test.ts 'a run keeps the effort it was sent with...'. A model's own default effort is not read"
+    },
+    {
+      "id": "counted",
+      "item": "Tool calls are counted from the running message's parts, and the effort read from the conversation's setting",
+      "status": "done",
+      "evidence": "src/lib/face/operations.ts watchFace, toolFactsOf; operations.test.ts 'a turn's finished tools are counted, failures apart'; src/lib/theorem/runtime.tsx. Not seen in a live run"
+    },
+    {
+      "id": "form",
+      "item": "A run at work gives Theo the orb, held until the run rests; a run that asks is not at work, and the orb is back when it goes on",
+      "status": "done",
+      "evidence": "engine.ts setLiveness, reactions.ts work-orb, book.ts orb; orb.test.ts 'a run at work gives the face the orb...', 'it is never left out by chance', 'a run that stops to ask...'; evidence/theo-orb/run.png"
+    },
+    {
+      "id": "faster",
+      "item": "The orb turns faster and is stirred more with the pace of tool calls",
+      "status": "done",
+      "evidence": "orb.test.ts 'tool calls make it turn faster and stir it...'; evidence/theo-orb/run.png (frames 4 and 5)"
+    },
+    {
+      "id": "larger",
+      "item": "The orb is larger the more effort was asked for, and stays inside the visor",
+      "status": "done",
+      "evidence": "orb.test.ts 'the harder the run was asked to think, the larger it is'; evidence/theo-orb/efforts.png"
+    },
+    {
+      "id": "order",
+      "item": "The new events do not come between events a rule waits for in order",
+      "status": "done",
+      "evidence": "engine.ts setLiveness; orb.test.ts 'finishing straight after a failed tool is still relief...'; face.test.ts 'finishing straight after a failure is relief; finishing clean is not'"
+    },
+    {
+      "id": "reduced-motion",
+      "item": "With motion reduced the orb does not turn, and still shows what holds for the whole run: its size and its shape",
+      "status": "done",
+      "evidence": "engine.ts pose; signals.ts steady, player.ts follow; orb.test.ts 'with motion reduced it does not turn, and still shows what holds for the whole run...'; evidence/theo-orb/reduced-motion.png (re-taken: the largest size, still)"
+    },
+    {
+      "id": "started-late",
+      "item": "A face that starts while a run is at work takes up the orb",
+      "status": "done",
+      "evidence": "src/components/face/driver.ts start; evidence/theo-orb/in-shell.png, phone.png (the story mounted, then the run set to work)"
+    },
+    {
+      "id": "loose",
+      "item": "A globe can lose its shape: bulged into a lump, its dots frayed, some grains strayed, its orbits wavering",
+      "status": "done",
+      "evidence": "src/lib/face/feature.ts, channels.ts loose; orb.test.ts 'loosened, it is no longer a ball...'"
+    },
+    {
+      "id": "context",
+      "item": "run.context is how full the conversation is past 400,000 tokens, up to the model's window, from the usage the server last reported",
+      "status": "done",
+      "evidence": "work.ts contextShare, COMPOSED_UNTIL; operations.ts contextOf; orb.test.ts 'a conversation is as composed as ever up to 400,000 tokens...'; operations.test.ts 'the context is the newest usage the server reported...'. The usage part's shape is read from the server's source, not from a live stream"
+    },
+    {
+      "id": "looser",
+      "item": "The orb loses its shape as the conversation fills, and stays inside the visor at its largest, busiest and loosest",
+      "status": "done",
+      "evidence": "book.ts orb; orb.test.ts 'the fuller the conversation is past 400,000 tokens, the less it keeps its shape...'; evidence/theo-orb/context.png"
+    },
+    {
+      "id": "live-run",
+      "item": "The orb moved by an agent's own tool calls in the signed-in app",
+      "status": "todo",
+      "evidence": "Not seen. The renders drive the same meter from a script"
+    },
+    {
+      "id": "live-context",
+      "item": "The orb loosened by a real conversation past 400,000 tokens",
+      "status": "todo",
+      "evidence": "Not seen. The renders set the share from a script"
+    }
+  ]
+}

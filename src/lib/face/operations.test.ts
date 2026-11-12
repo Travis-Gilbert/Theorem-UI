@@ -17,10 +17,13 @@ import {
   resetFaceRequests,
   runErrorOf,
   serveFaceRequests,
+  contextOf,
   toolFactsOf,
+  watchFace,
 } from './operations'
 import type { FaceReceipt, FaceRequest } from './operations'
 import { useFaceStage } from './store'
+import { theWork } from './work'
 
 /** A client operation part on a live run's message, as the installed SDK maps it onto assistant-ui. */
 const liveMessage = (
@@ -190,10 +193,100 @@ describe('reading requests off a conversation', () => {
     } as unknown as ThreadMessage
     expect(toolFactsOf([message], true)).toEqual({
       id: 'm1',
+      called: 3,
       done: 2,
       failed: 1,
     })
     expect(toolFactsOf([message], false)).toBeUndefined()
+  })
+
+  test('the context is the newest usage the server reported, whichever message carries it', () => {
+    const message = (id: string, content: Array<unknown>) =>
+      ({ id, role: 'assistant', content }) as unknown as ThreadMessage
+    const usage = (data: unknown) => ({
+      type: 'data',
+      name: 'theorem-usage',
+      data,
+    })
+    expect(contextOf([])).toBeUndefined()
+    expect(
+      contextOf([message('m1', [{ type: 'text', text: 'Hello.' }])]),
+    ).toBeUndefined()
+    const earlier = message('m1', [
+      usage({ contextTokens: 120_000, contextWindow: 1_000_000 }),
+    ])
+    const later = message('m2', [
+      usage({ contextTokens: 380_000, contextWindow: 1_000_000 }),
+      usage({ contextTokens: 455_000 }),
+      { type: 'text', text: 'Done.' },
+    ])
+    expect(contextOf([earlier, later])).toEqual({
+      tokens: 455_000,
+      window: undefined,
+    })
+    // A live reply that has reported nothing yet leaves the last report standing.
+    expect(contextOf([earlier, message('m3', [])])).toEqual({
+      tokens: 120_000,
+      window: 1_000_000,
+    })
+    // A usage with no count of the context is passed over.
+    expect(
+      contextOf([earlier, message('m4', [usage({ contextTokens: null })])]),
+    ).toEqual({ tokens: 120_000, window: 1_000_000 })
+  })
+
+  test('a run keeps the effort it was sent with, and its context keeps up with what the server reports', () => {
+    const usage = (contextTokens: number) =>
+      ({
+        id: 'm1',
+        role: 'assistant',
+        status: { type: 'running' },
+        metadata: { custom: {} },
+        content: [
+          {
+            type: 'data',
+            name: 'theorem-usage',
+            data: { contextTokens, contextWindow: 1_000_000 },
+          },
+        ],
+      }) as unknown as ThreadMessage
+    let state: { messages: readonly ThreadMessage[]; isRunning: boolean } = {
+      messages: [],
+      isRunning: false,
+    }
+    const listeners = new Set<() => void>()
+    const update = (next: typeof state) => {
+      state = next
+      for (const listener of listeners) listener()
+    }
+    let asked = 'low'
+    const stop = watchFace(
+      {
+        thread: {
+          getState: () => state,
+          subscribe: (listener) => {
+            listeners.add(listener)
+            return () => listeners.delete(listener)
+          },
+        },
+      },
+      () => asked,
+    )
+    const work = theWork()
+    update({ messages: [], isRunning: true })
+    expect(work.effort).toBe(0)
+    // The menu is changed for the next message while this one works.
+    asked = 'max'
+    update({ messages: [usage(700_000)], isRunning: true })
+    expect(work.effort).toBe(0)
+    expect(work.context).toBe(0.5)
+    update({ messages: [usage(700_000)], isRunning: false })
+    update({ messages: [usage(700_000)], isRunning: true })
+    expect(work.effort).toBe(1)
+    stop()
+    expect(listeners.size).toBe(0)
+    work.effort = 0.5
+    work.context = 0
   })
 
   test('a reply that ended in an error is told apart from one that did not', () => {
@@ -232,6 +325,83 @@ describe('answering', () => {
     expect(result(state).doing).toBe('at rest')
     // The whole manual is one tool result: it has to stay readable in a turn.
     expect(JSON.stringify(all.result).length).toBeLessThan(24_000)
+  })
+
+  test('face.read lists what on the page the face can be sent to', async () => {
+    const { face } = theo()
+    const bare = await answerFaceRequest(
+      request(FACE_READ, { part: 'page' }),
+      face,
+    )
+    expect(result(bare).page).toMatchObject({ things: [] })
+    face.attach({
+      gazeAt: plainGaze,
+      go: () => {},
+      burst: () => {},
+      things: () => [
+        {
+          name: 'tool:call_1',
+          label: 'Run tests',
+          state: 'failed',
+          where: 'closed',
+        },
+        { name: 'message:m2', label: 'the reply', where: 'in view' },
+      ],
+      pointing: () => ({ thing: 'tool:call_1', where: 'closed' }),
+    })
+    const read = await answerFaceRequest(
+      request(FACE_READ, { part: 'page' }),
+      face,
+    )
+    const page = result(read).page as {
+      how: string
+      things: Array<{ name: string }>
+    }
+    expect(page.things.map((thing) => thing.name)).toEqual([
+      'tool:call_1',
+      'message:m2',
+    ])
+    expect(page.how).toContain('{thing:')
+    expect(result(read).state).toMatchObject({
+      pointing: { thing: 'tool:call_1', where: 'closed' },
+    })
+    const all = await answerFaceRequest(request(FACE_READ), face)
+    expect(Object.keys(result(all))).toContain('page')
+  })
+
+  test('sent to a thing, the face goes; to one the page does not have, the agent is told and nothing plays', async () => {
+    const { face, run } = theo()
+    const went: Array<unknown> = []
+    face.attach({
+      gazeAt: plainGaze,
+      go: (to) => void went.push(to),
+      burst: () => {},
+      thing: (thing) =>
+        thing.thing === 'tool:failed'
+          ? ['tool:call_1 is folded away; the face points at what holds it.']
+          : undefined,
+    })
+    const program = (thing: string) => ({
+      program: { steps: [{ op: 'go', to: { thing } }] },
+    })
+    const missing = await answerFaceRequest(
+      request(FACE_PERFORM, program('tool:nope')),
+      face,
+    )
+    expect(missing.outcome).toBe('rejected')
+    expect(missing.reason).toContain('steps[0].to.thing')
+    expect(missing.reason).toContain('tool:nope')
+    expect(face.player.active('performance')).toBeUndefined()
+    const sent = await answerFaceRequest(
+      request(FACE_PERFORM, program('tool:failed'), 'ref_2'),
+      face,
+    )
+    expect(sent.outcome).toBe('applied')
+    expect(result(sent).notes).toEqual([
+      'steps[0].to: tool:call_1 is folded away; the face points at what holds it.',
+    ])
+    run(100)
+    expect(went).toEqual([{ thing: 'tool:failed' }])
   })
 
   test('face.perform starts a named performance and says so at once', async () => {

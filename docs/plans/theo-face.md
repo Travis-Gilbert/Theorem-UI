@@ -13,6 +13,9 @@ The name is a typo of "Theorem" that the owner kept.
 The checklist in `theo-face.checklist.json` tracks this spec item by item, and
 says for each what was built, what was checked, and what was not.
 
+How the figure travels, is carried, thrown and knocked is `theo-body.md`: one
+Rapier body for the whole figure, which this face answers to.
+
 ## Sources
 
 - The owner's request of 2026-11-11: an avatar with the expressive face of a
@@ -72,7 +75,7 @@ says for each what was built, what was checked, and what was not.
 | One moving presence; history keeps a still mark                                                         | One canvas for the page. Earlier replies show an SVG mark of the same eyes                                                                                                                                                                               |
 | The shell owns anchors, and retargets gracefully when one goes                                          | The shell marks its own elements (`data-face-perch`). The driver looks them up every frame: the live reply's gutter, then the composer, then a corner of the window. A perch that scrolls away or unmounts is simply no longer chosen                    |
 | Free positions too, not only anchors                                                                    | The person drags it anywhere; a program's `go` step takes a named place or a point of the window                                                                                                                                                         |
-| Layer order: the hand, the deliberate performance, small secondary motion, resting identity             | `hand` over `performance` over `reaction` over `mood`, over rest. Blink, saccade and breath are offsets beside the stack                                                                                                                                 |
+| Layer order: the hand, the deliberate performance, small secondary motion, resting identity             | `hand` over `performance` over `reaction` over `form` over `mood`, over rest. Blink, saccade and breath are offsets beside the stack                                                                                                                     |
 | Each channel needs an explicit blend policy; do not average                                             | A step says which it is: `to` sets, `by` adds to where the channel is headed, `wave` oscillates around whatever is there. The highest layer holding a channel wins. A blink closes toward shut by an amount, so the eye underneath comes back as it was  |
 | Start a replacement from the displayed state, keeping velocity                                          | Programs only move spring targets. A new target keeps the position and velocity the old one left                                                                                                                                                         |
 | Give the agent the rig schema, examples, the current state and recent history                           | `face.read` returns exactly that, as data                                                                                                                                                                                                                |
@@ -98,8 +101,9 @@ redraw of anything else.
 - **It grows to act.** At rest the visor is 32 px wide. It is 1.8 times that
   while it reacts and 2.4 times while the agent performs, and a program may
   ask for a size.
-- **It can leave**: to the composer, beside the text, to the centre, to the
-  pointer, to a point of the window, or wherever the person drops it.
+- **It can leave**: to the composer, beside the text, beside the artifact in
+  view, to the centre, to the pointer, to a point of the window, or wherever
+  the person drops or throws it.
   Double-tap or Escape sends it home.
 - **It always has words.** A `role="status"` node says what Theo is doing.
 - **It sleeps.** Ninety seconds with no run and nothing from the person, and
@@ -120,6 +124,12 @@ A face is a list of **features**. Every feature is the same primitive:
   and a bow. A raised, bowed lower lid makes the smiling arc; a tilted upper
   lid makes a glare; both shut make a line;
 - a **hollow**: an inner radius, for a ring;
+- **rings**, **bars** and a **mesh**: its matter gathered into that many
+  rings from the middle out, that many rows, or dots inside a rim, for the
+  devices the face turns into (`theo-sound.md`);
+- a **globe**: its matter set as dots on a ball that turns (`spin`), can
+  be stirred (`stir`) and can lose its shape (`loose`), with grains in
+  orbit: the thinking orb the face is while a run works (`theo-orb.md`);
 - a **place**: position, turn and scale on the visor;
 - an **alpha**, and a **share** of the face's matter.
 
@@ -142,17 +152,19 @@ Every number above is a **channel** with a name, bounds and a rest value.
 Names address meaning, never grains: `eye.left.lid`, `eye.right.lidTilt`,
 `gaze.x`, `face.tilt`, `matter.cohesion`. `eyes.<param>` means both eyes.
 
-| Group    | Channels                                                                                                                                     |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Feature  | `x`, `y`, `w`, `h`, `round`, `r0`..`r7`, `lid`, `lidTilt`, `lidBow`, `low`, `lowTilt`, `lowBow`, `hollow`, `turn`, `scale`, `alpha`, `share` |
-| Face     | `face.tilt`, `face.scale`, `face.dx`, `face.dy`, `face.squash`                                                                               |
-| Gaze     | `gaze.x`, `gaze.y`                                                                                                                           |
-| Matter   | `matter.cohesion`, `matter.jitter`, `matter.drift`, `matter.size`, `matter.glow`, `matter.hue`                                               |
-| Autonomy | `auto.blink`, `auto.saccade`, `auto.breath` (how much the face does unasked)                                                                 |
+| Group    | Channels                                                                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feature  | `x`, `y`, `w`, `h`, `round`, `r0`..`r7`, `lid`, `lidTilt`, `lidBow`, `low`, `lowTilt`, `lowBow`, `hollow`, `rings`, `slats`, `mesh`, `globe`, `spin`, `stir`, `loose`, `turn`, `scale`, `alpha`, `share` |
+| Face     | `face.tilt`, `face.scale`, `face.dx`, `face.dy`, `face.squash`, `emit.left`, `emit.right` (what leaves its sides, drawn outside the visor)                                                               |
+| Gaze     | `gaze.x`, `gaze.y`                                                                                                                                                                                       |
+| Matter   | `matter.cohesion`, `matter.jitter`, `matter.drift`, `matter.size`, `matter.glow`, `matter.hue`                                                                                                           |
+| Autonomy | `auto.blink`, `auto.saccade`, `auto.breath` (how much the face does unasked)                                                                                                                             |
 
 Layers, lowest first: **mood** (the run's liveness, sleep, and the agent's
-`theorem-expression`), **reaction** (the rules), **performance** (the agent's
-programs), **hand** (the person, while they hold the face). The highest layer
+`theorem-expression`), **form** (what the face is for as long as something
+lasts: a loudspeaker while sound plays, `theo-sound.md`), **reaction** (the
+rules), **performance** (the agent's programs), **hand** (the person, while
+they hold the face). The highest layer
 holding a channel decides its target. A layer that lets go does not snap: the
 spring's target becomes the next layer's value.
 
@@ -165,33 +177,34 @@ unstable.
 
 A performance is a list of steps, as JSON:
 
-| Step      | Does                                                                         |
-| --------- | ---------------------------------------------------------------------------- |
-| `to`      | moves channels to values over a time, with a bounce, then holds              |
-| `by`      | moves channels by an amount from where they are headed                       |
-| `wave`    | oscillates a channel around wherever it is (sine, square or noise)           |
-| `wait`    | nothing, for a while                                                         |
-| `seq`     | steps in order                                                               |
-| `par`     | steps together; lasts as long as the longest                                 |
-| `stagger` | steps together, each delayed (one eye leads the other)                       |
-| `repeat`  | a step several times; draws are fresh each time                              |
-| `vary`    | one of several steps, drawn by weight from the seed                          |
-| `look`    | turns the gaze to the person, the pointer, the composer, the text or a point |
-| `feature` | adds, reshapes or removes a feature                                          |
-| `go`      | moves the whole face on the page, at a size                                  |
-| `burst`   | kicks the matter outward from a point                                        |
-| `use`     | plays a named performance inside this one, with arguments and an intensity   |
-| `release` | gives channels back to the layer below                                       |
+| Step      | Does                                                                                                                                                     |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `to`      | moves channels to values over a time, with a bounce, then holds                                                                                          |
+| `by`      | moves channels by an amount from where they are headed                                                                                                   |
+| `wave`    | oscillates a channel around wherever it is (sine, square or noise)                                                                                       |
+| `follow`  | ties a channel to a signal the page measures (how loud its sound is, how fast the figure moves), for a time or for as long as it holds (`theo-sound.md`) |
+| `wait`    | nothing, for a while                                                                                                                                     |
+| `seq`     | steps in order                                                                                                                                           |
+| `par`     | steps together; lasts as long as the longest                                                                                                             |
+| `stagger` | steps together, each delayed (one eye leads the other)                                                                                                   |
+| `repeat`  | a step several times; draws are fresh each time                                                                                                          |
+| `vary`    | one of several steps, drawn by weight from the seed                                                                                                      |
+| `look`    | turns the gaze to the person, the pointer, the composer, the text, the artifact, a point, or a thing the page names (`theo-pointing.md`)                 |
+| `feature` | adds, reshapes or removes a feature                                                                                                                      |
+| `go`      | moves the whole face on the page, at a size: to a place, a point, or a thing the page names, which it then points at                                     |
+| `burst`   | kicks the matter outward from a point                                                                                                                    |
+| `use`     | plays a named performance inside this one, with arguments and an intensity                                                                               |
+| `release` | gives channels back to the layer below, and ends what they followed                                                                                      |
 
 Any number may be `{rand:[low,high]}`, drawn from the invocation's seed, or
 `{arg:"name", or:n}`, passed by the caller. `keep: true` leaves what the
 program set in place after it ends, until the layer is stopped or played on
 again; that is how a mood or a sleep holds.
 
-Named expressions are entries in a book of performances (26 to start: blink,
+Named expressions are entries in a book of performances (30 to start: blink,
 wink, nod, shake, perk, squint, glare, worry, happy, joy, think, curious,
 startle, wince, dizzy, sigh, scan, melt, sparkle, skeptic, attend, focus, ask,
-sleep, wake, done). `use: "curious"` is a shortcut the agent may take; writing
+sleep, wake, done, visit, boombox, speak, thump). `use: "curious"` is a shortcut the agent may take; writing
 the steps is always allowed and needs no name.
 
 A saved performance is never changed. Defining a name again adds a version,
@@ -219,9 +232,14 @@ clamps reported in the receipt, at most 30 s, 600 cues, 10 levels of nesting,
 ### 4. Reactions: the same event, a different answer
 
 The page feeds one stream of events: the person (`person.poke`, `pet`, `drop`,
-`type`, `send`, `return`), the run (`run.start`, `ask`, `tool`, `tool.fail`,
-`error`, `done`), and the environment (`env.resize`, `theme`, `offline`,
-`online`, `copy`). An agent's rule may name a kind nobody emits yet.
+`throw`, `type`, `send`, `return`), the run (`run.start`, `ask`, `tool`,
+`tool.fail`, `error`, `done`), the environment (`env.resize`, `theme`,
+`offline`, `online`, `copy`), and the figure's own body
+(`body.bump.left|right|top|bottom`, when a throw meets the window's edge, and
+`body.meet.kit`, when it and Kit strike each other), and the sound the page
+plays (`sound.start`, `stop`, `loud`). An agent's rule may name a kind nobody
+emits yet. A rule that says what ends it (`until`) gives the face a form and
+not a moment (`theo-sound.md`).
 
 **What it remembers.** For each kind of event: a rate over seconds, a rate
 over minutes, how many came in a row, how long since the last, and a baseline
@@ -276,11 +294,11 @@ face has three, and everything it can do is reached through them: looking,
 moving, adding a feature and setting a channel are steps of a program, not
 operations of their own.
 
-| Operation      | Arguments                                                                   | Receipt says                                                                                 |
-| -------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `face.read`    | `part`: all, channels, book or state                                        | the manual: channels with bounds, the steps, the book, the rules, and what the face is doing |
-| `face.perform` | `use` (a name) or `program`; `args`, `intensity`, `seed`, `wait`; or `stop` | the invocation's id, version, length and seed, what was clamped, and how it ended            |
-| `face.define`  | `name` + `program` + `note`; or `rule`; or `remove`                         | `name@version` saved, the rule's id, or what was removed                                     |
+| Operation      | Arguments                                                                   | Receipt says                                                                                                                           |
+| -------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `face.read`    | `part`: all, channels, book, page or state                                  | the manual: channels with bounds, the steps, the book, the rules, the things on the page it can be sent to, and what the face is doing |
+| `face.perform` | `use` (a name) or `program`; `args`, `intensity`, `seed`, `wait`; or `stop` | the invocation's id, version, length and seed, what was clamped, and how it ended                                                      |
+| `face.define`  | `name` + `program` + `note`; or `rule`; or `remove`                         | `name@version` saved, the rule's id, or what was removed                                                                               |
 
 The face is declared only while it is on the page, so a turn is never offered
 a face it cannot move. A turn that was offered it and then had it switched
@@ -292,10 +310,15 @@ off mid-run gets `rejected`, "Theo is not on screen", with its receipt.
   home.
 - The pointer near it draws the gaze.
 - A tap is a poke at that point: the matter scatters from where it was
-  touched, and the face may react.
+  touched, the figure is pushed a little away and comes back, and the face
+  may react.
 - Dragging carries it. It opens its eyes wide, leans into the motion, and its
-  matter lags behind. Let go and it stays where it was put.
+  matter lags behind. Let go and it stays where it was put; let go while
+  moving and it carries on a little first (`theo-body.md`).
 - Stroking across it is petting.
+- While it points at something out of view, folded away or cut off, a tap
+  (or Enter or Space) brings that thing into view instead of poking it
+  (`theo-pointing.md`, "The person's tap").
 - Double-tap sends it home.
 - Settings, Appearance, Figures: a switch for Theo and a switch for Kit.
 
@@ -398,19 +421,25 @@ src/lib/face/
   particles.ts    seats from a seed, shares, springs, shove and burst, the buffer
   layers.ts       the rig: a spring per channel, the layer stack, release
   program.ts      steps, the compiler, limits, refusals
+  signals.ts      the numbers the page measures, that a step can follow (theo-sound.md)
+  work.ts         the run's pace with tools and the effort asked for, as two of those numbers (theo-orb.md)
+  things.ts       a thing the page names: where the figure stands to point at it (theo-pointing.md)
   player.ts       runs a score on a layer; interruption, kept holds, endings
   book.ts         named performances: Theo's own, and versions added later
   memory.ts       decayed rates, streaks, the days baseline, mood
   reactions.ts    rules, fitting, weighted draw, cooldowns
   autonomy.ts     blink, saccade, breath
   engine.ts       Face: the one object everything that moves Theo goes through
+  body.ts         the figure's one Rapier body (theo-body.md)
+  feel.ts         the numbers of its movement a person may set (theo-body.md, "The feel")
   operations.ts   face.* declarations, requests, receipts, run events
   store.ts        the page's one face; whether it is mounted
   random.ts       the seeded generator
   tint.ts         a colour's hue, and which of a theme's colours the face follows
-src/lib/figures.ts            Theo's and Kit's switches, the visor setting and the look it gives
+src/lib/figures.ts            Theo's and Kit's switches, the visor setting and the look it gives, what the person changed of the feel
 src/components/face/
   driver.ts       where the face is on the page; pointer, keyboard, page events
+  things.ts       finds a named thing in the DOM, and brings it into view on the person's tap
   face-stage.tsx  the layer, the button, the status line
   painter.ts      the Painter interface, the Canvas2D painter, the choice
   luma.ts         the luma painter
@@ -443,7 +472,9 @@ without a jump, and reads back that it was interrupted.
 ## Tests and evidence
 
 **Execution correctness** (`bun test src/lib/face src/lib/figures.test.ts`,
-80 tests):
+180 tests, 34 of them the body's and 18 the feel's, listed in `theo-body.md`,
+24 pointing's, listed in `theo-pointing.md` with the 16 that find a thing
+in the page, and 21 sound's, listed in `theo-sound.md`):
 
 - channels: every feature has every param; a new feature gets channels of its
   own up to the limit; a near miss is named;
@@ -538,8 +569,9 @@ Renders are under `docs/plans/evidence/theo-face/`.
   live turn may, and the newest wins.
 - **How much the manual costs a turn.** `face.read` with no part is about
   10 KB of JSON. The parts are there so a model can ask for less.
-- **A mouth.** Added if eyes are not enough.
-- **Sound.** Not planned.
+- **A mouth.** Built as a form that follows the sound the page plays
+  (`theo-sound.md`). Whether it is worth keeping beside the loudspeaker is
+  the owner's to say.
 
 ## Not yet
 

@@ -33,6 +33,25 @@ test('answers /api/ from its routes and passes other requests to the platform', 
   restore()
 })
 
+test('another host’s /api/ is that host’s to answer, not the fake’s', async () => {
+  const page = (
+    window as unknown as { happyDOM: { setURL: (url: string) => void } }
+  ).happyDOM
+  page.setURL('http://localhost:3000/stories/a')
+  const restore = installFakeTheorem(routes)
+  try {
+    const ours = await window.fetch('http://localhost:3000/api/ping')
+    expect(await ours.json()).toEqual({ ok: true })
+    expect(calls).toEqual([])
+    const theirs = await window.fetch('https://models.example/api/models/x')
+    expect(await theirs.text()).toBe('from the platform')
+    expect(calls).toEqual(['platform'])
+  } finally {
+    restore()
+    page.setURL('about:blank')
+  }
+})
+
 // React runs a story's first render twice in development, and its effects
 // again after a simulated remount, so the fake is installed more than once.
 test('a second install replaces the first, and restoring either gives the page its fetch back', () => {
