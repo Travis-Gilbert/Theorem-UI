@@ -16,3 +16,9 @@ cached or hosted, which is an owner decision.
 
 The compiled core is arm64 only, so `app.plugin.js` excludes `x86_64` from
 the app target's simulator builds, as the ptts Swift guide asks.
+
+Before a local `xcodebuild`: Expo SDK 58's prebuild writes a pbxproj whose
+sharing-extension and widget groups share one `Info.plist` file reference,
+which Xcode refuses to open (reproduced on pristine main, so it is not this
+module). Patch the generated project — give the second group its own
+reference — or build through EAS, which generates its own.
