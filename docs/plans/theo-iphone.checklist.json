@@ -1,0 +1,167 @@
+{
+  "spec": "docs/plans/theo-iphone.md",
+  "items": [
+    {
+      "id": "docs",
+      "item": "Commit the concept document and a plan that maps it to this repository",
+      "status": "done",
+      "evidence": "docs/plans/theo-iphone-concept.md (as written), docs/plans/theo-iphone.md. The Apple and Expo claims were read against the live documentation on 2026-11-12; the plan's table gives each verdict."
+    },
+    {
+      "id": "core-reuse",
+      "item": "The phone imports Theo's pure core, not a second copy",
+      "status": "done",
+      "evidence": "mobile/src/features/theo/core.ts re-exports src/lib/face; src/lib/face/engine.ts imports its liveness type by relative path; mobile/metro.config.js watchFolders. test-verified: mobile theo.test.ts runs the engine headlessly (3 tests); web bun test src/lib/face 206 pass. bundled: expo export --platform ios resolves it. Not run on a device."
+    },
+    {
+      "id": "poses",
+      "item": "Still poses for system surfaces come from the engine",
+      "status": "done",
+      "evidence": "mobile/src/features/theo/poses.ts (poseFor, eyeBoxes). test-verified: two eyes inside the visor, deterministic, work and ask differ from rest. Whether they read as Theo at Dynamic Island size is not observed."
+    },
+    {
+      "id": "activity-record",
+      "item": "An activity record that refuses stale updates, never cancels on hide, and stops only explicitly",
+      "status": "in_progress",
+      "evidence": "mobile/src/features/presence/activity.ts, from-thread.ts. test-verified (presence.test.ts, 8 tests). Written from a description of Platinum crates/presence, not its source: field names and value sets are unconfirmed (plan, owner decision 6)."
+    },
+    {
+      "id": "intake-record",
+      "item": "A delivery with stages that each name something confirmed",
+      "status": "done",
+      "evidence": "mobile/src/features/intake/model.ts, deliver.ts, store.ts. test-verified (intake.test.ts, 9 tests): stable upload keys, one send as its own command, recorded only when the stored message carries every file, resume after failure without re-uploading, refusal is final, a delivery found in sending looks before it sends, an unconfirmed send is not called accepted, the store survives a reopen."
+    },
+    {
+      "id": "intake-upload",
+      "item": "Files reach Theorem through the project uploads route",
+      "status": "in_progress",
+      "evidence": "mobile/src/features/intake/upload.ts, files.ts: POST /api/chat/v1/projects/:id/uploads with the web client's headers, through TheoremClient.fetch. source-implemented; typechecks against expo-file-system 58.0.13; bundled. Never run against Theorem: the route's behaviour with a repeated Idempotency-Key is assumed from the web client's use."
+    },
+    {
+      "id": "intake-send",
+      "item": "The message is a journaled conversation command carrying upload ids",
+      "status": "in_progress",
+      "evidence": "mobile/src/features/intake/queue.ts over features/chat/binding.ts (Lease.ready, send with id and uploadIds). source-implemented; bundled. Never run against Theorem."
+    },
+    {
+      "id": "intake-screen",
+      "item": "A screen that shows the item, the receiving conversation, the instruction and the delivery state",
+      "status": "in_progress",
+      "evidence": "mobile/src/app/intake.tsx, features/intake/receiver.tsx, delivery-card.tsx; entry points in the Chat header and each conversation. source-implemented; bundled. Not observed."
+    },
+    {
+      "id": "intake-camera",
+      "item": "Camera, Photos and Files acquisition",
+      "status": "in_progress",
+      "evidence": "mobile/src/features/intake/acquire.ts (expo-image-picker, expo-document-picker). source-implemented; prebuild-verified: NSCameraUsageDescription present. Not observed."
+    },
+    {
+      "id": "intake-share",
+      "item": "The share sheet delivers items to intake",
+      "status": "in_progress",
+      "evidence": "expo-sharing plugin in mobile/app.config.ts; mobile/src/app/+native-intent.ts; acquire.ts fromShare. prebuild-verified: target rs.theorem.app.ShareExtension with group.rs.theorem.app. expo-sharing's receiving is experimental and its extension opens the app, which Apple does not document for share extensions. Not built, not observed."
+    },
+    {
+      "id": "intake-agents",
+      "item": "Claude Code and Codex on a computer receive attachments",
+      "status": "not_started",
+      "evidence": "The receiver picker says why not. Plan, owner decision 4."
+    },
+    {
+      "id": "intake-model-receipt",
+      "item": "The delivery state says whether the model received the item",
+      "status": "blocked",
+      "evidence": "Theorem reports no such thing. The last stage is 'In the conversation' and says so. Plan, owner decision 5."
+    },
+    {
+      "id": "app-intents",
+      "item": "Theo's actions in Shortcuts, Siri, Spotlight and on the Action button",
+      "status": "in_progress",
+      "evidence": "mobile/app-intents/TheoIntents.swift, AppShortcuts.swift (expo-app-intents 0.5.16, alpha); mobile/src/features/invocation. test-verified: routing (invocation.test.ts, 5 tests). prebuild-verified: inline modules watch app-intents. The Swift has never been compiled."
+    },
+    {
+      "id": "control",
+      "item": "A Control Center control",
+      "status": "not_started",
+      "evidence": "Needs Swift in a widget extension; expo-widgets has no controls. Plan, owner decision 8."
+    },
+    {
+      "id": "live-activity",
+      "item": "A Live Activity for a real ongoing task",
+      "status": "in_progress",
+      "evidence": "mobile/src/features/presence/task-activity.tsx, live.ts, use-task-presence.ts (expo-widgets 58.0.27). source-implemented; bundled; prebuild-verified: target rs.theorem.app.ExpoWidgetsTarget, NSSupportsLiveActivities. Updates only while the app runs. Not built, not observed."
+    },
+    {
+      "id": "live-activity-push",
+      "item": "The Live Activity updates when the app is not running",
+      "status": "blocked",
+      "evidence": "Needs a Theorem route that sends ActivityKit pushes. Plan, owner decision 7."
+    },
+    {
+      "id": "calendar",
+      "item": "Poster to calendar event with the native event editor",
+      "status": "in_progress",
+      "evidence": "mobile/src/features/phone-actions/calendar.ts, event-card.tsx; sends declare phone.calendar.propose_event (features/chat/runtime.ts, intake/queue.ts). test-verified: parsing, the receipt says shown and never saved (phone-actions.test.ts, 6 tests). bundled. The shape of the client_operation part in this SDK line is taken from the web client's reading of it; not run against Theorem. The editor is not observed."
+    },
+    {
+      "id": "capture-interface",
+      "item": "One interface for every way of capturing the screen",
+      "status": "done",
+      "evidence": "mobile/modules/theo-capture/ios/CaptureRoute.swift. source-implemented; never compiled."
+    },
+    {
+      "id": "capture-sck",
+      "item": "The ScreenCaptureKit route on iOS 27",
+      "status": "in_progress",
+      "evidence": "mobile/modules/theo-capture/ios/ScreenCaptureKitRoute.swift, TheoCaptureModule.swift. source-implemented from Apple's sample and reference; never compiled. prebuild-verified: UIBackgroundModes screen-capture and audio, NSScreenCaptureUsageDescription; autolinking resolves pod TheoCapture."
+    },
+    {
+      "id": "capture-replaykit",
+      "item": "The ReplayKit broadcast extension route for iOS 18 to 26",
+      "status": "not_started",
+      "evidence": "Deprecated in iOS 27; needs a third-party target plugin. Plan, owner decision 3."
+    },
+    {
+      "id": "capture-screen",
+      "item": "A prototype screen with state, counts, the newest still and the device checks",
+      "status": "in_progress",
+      "evidence": "mobile/src/app/screen-share.tsx, features/screen-share/session.ts. test-verified: the session model (screen-share.test.ts, 6 tests). bundled. The seven device checks are the owner's to make."
+    },
+    {
+      "id": "capture-voice",
+      "item": "Frames reach an agent and Theo answers in speech",
+      "status": "not_started",
+      "evidence": "After the device checks pass."
+    },
+    {
+      "id": "renderer",
+      "item": "Theo's full character in a working view on the phone",
+      "status": "not_started",
+      "evidence": "The core is importable; the phone has no renderer. Plan, owner decision 2."
+    },
+    {
+      "id": "desktop",
+      "item": "Desktop viewing and control",
+      "status": "not_started",
+      "evidence": "Not to start until the earlier items stand."
+    },
+    {
+      "id": "routines",
+      "item": "Programmable forms and routines",
+      "status": "not_started",
+      "evidence": "Not to start until the earlier items stand."
+    },
+    {
+      "id": "native-build",
+      "item": "A native build of the app with its two extensions",
+      "status": "not_started",
+      "evidence": "No Xcode here and no EAS build was started. expo-doctor: 1 check failed (17 packages one patch behind releases of 2026-11-11, held by the three-day gate)."
+    },
+    {
+      "id": "device",
+      "item": "Observed on an iPhone",
+      "status": "not_started",
+      "evidence": "Nothing. The plan lists 24 things to try."
+    }
+  ]
+}
