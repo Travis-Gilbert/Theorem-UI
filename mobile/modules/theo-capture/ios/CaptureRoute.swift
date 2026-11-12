@@ -46,6 +46,11 @@ enum CaptureSupport {
       "route": "none",
       "reason": "Sharing the whole screen from an app needs iOS 27. On earlier versions it needs a ReplayKit broadcast extension, which this build does not include.",
     ]
+    #elseif targetEnvironment(simulator)
+    return [
+      "route": "none",
+      "reason": "The iOS Simulator has no ScreenCaptureKit. Screen sharing needs an iPhone on iOS 27.",
+    ]
     #else
     return [
       "route": "none",
