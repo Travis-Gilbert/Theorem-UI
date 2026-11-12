@@ -868,7 +868,7 @@
    type: the field and the sheet behind it, blurred and settled toward the
    pane's tone, so bright and dark behind it come out close to one value. Its
    rim says it is glass: across --lg-bevel the surface curves, what lies
-   behind bends inward and shows clearer, and the light from the top left
+   behind it, just past the edge, bends in and shows clearer, and the light from the top left
    catches the curve and runs along a hairline contour, shaded on the far
    side. The conversation is not drawn into the glass: it fades out under the
    footer's scroll edge before it reaches the pane, so no line of text smears
@@ -890,23 +890,26 @@
    ring and a contact and an ambient shadow (--liquid-elevation). The pane's
    ink steps up a shade (--glass-ink-*), since what shows through it is
    never quite as even as paper.
-   Three studies: smoked (the default), curved (a deeper, clearer rim with
-   more light) and satin (a softer, more even pane); data-glass-study on
-   <html> picks one. Until the pane draws, and wherever it cannot (no WebGL,
+   The default sits between two studies kept for comparison: curved (a
+   deeper, clearer rim with more light) and satin (a softer, more even pane,
+   nearly unlit). It keeps most of curved's bevel and rim, which is where
+   the depth comes from, takes satin's softer blur and broad sheen, and holds
+   the reflection well under curved's. data-glass-study on <html> picks a
+   study. Until the pane draws, and wherever it cannot (no WebGL,
    reduced transparency), the CSS frost below shows instead. */
 :root {
   --lg-tone: var(--surface-composer);
-  --lg-blur: 14;
-  --lg-bevel: 16;
-  --lg-refract: 9;
-  --lg-clarity: 0.85;
-  --lg-body: 0.55;
+  --lg-blur: 20;
+  --lg-bevel: 23;
+  --lg-refract: 12;
+  --lg-clarity: 0.65;
+  --lg-body: 0.54;
   --lg-rim-body: 0.22;
   --lg-lift: 0;
   --lg-saturate: 1.35;
-  --lg-light: 0.55;
-  --lg-sheen: 0.05;
-  --lg-stroke: 0.5;
+  --lg-light: 0.32;
+  --lg-sheen: 0.11;
+  --lg-stroke: 0.42;
   --lg-shade: 0.12;
   --liquid-fallback: color-mix(in oklab, var(--surface-composer) 72%, transparent);
   --liquid-fallback-solid: color-mix(in oklab, var(--surface-composer) 96%, transparent);
@@ -926,8 +929,8 @@
   --lg-rim-body: 0.3;
   --lg-saturate: 1.25;
   --lg-light: 0.2;
-  --lg-sheen: 0.02;
-  --lg-stroke: 0.08;
+  --lg-sheen: 0.045;
+  --lg-stroke: 0.09;
   --lg-shade: 0.4;
   --liquid-focus: rgb(255 255 255 / 0.1);
   --liquid-elevation:

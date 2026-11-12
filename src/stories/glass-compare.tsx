@@ -9,7 +9,7 @@ import { useSurfaces } from '@/lib/surfaces'
 import { cn } from '@/lib/utils'
 
 type Material = 'frost' | 'liquid' | 'none'
-type Study = 'smoked' | 'curved' | 'satin'
+type Study = 'default' | 'curved' | 'satin'
 
 /** The sidebar is attached to the window: only its right edge curves. */
 const PANEL_EDGES = { top: false, right: true, bottom: false, left: false }
@@ -24,7 +24,7 @@ function readOptions() {
     chosen === 'liquid' || chosen === 'none' ? chosen : 'frost'
   const picked = search.get('study')
   const study: Study =
-    picked === 'curved' || picked === 'satin' ? picked : 'smoked'
+    picked === 'curved' || picked === 'satin' ? picked : 'default'
   return {
     material,
     study,
@@ -108,7 +108,7 @@ export function GlassCompareStory() {
       .getState()
       .setComposer(material === 'liquid' ? 'liquid' : 'glass')
     const root = document.documentElement
-    if (study !== 'smoked') root.dataset.glassStudy = study
+    if (study !== 'default') root.dataset.glassStudy = study
     return () => {
       useSurfaces.getState().setComposer(before)
       delete root.dataset.glassStudy
