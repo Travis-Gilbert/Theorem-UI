@@ -5,6 +5,7 @@ The Theorem app for iPhone and iPad. It is built with Expo and React Native, ren
 - The product specification is `../docs/plans/theorem-ios.md`.
 - Status, per phase and acceptance item, is `../docs/plans/theorem-ios.checklist.json`.
 - Phase 0 decisions and evidence are in `docs/phase-0.md`.
+- Theo on iPhone (sharing into a conversation, the Live Activity, Shortcuts, the calendar card, the screen-sharing prototype) is planned in `../docs/plans/theo-iphone.md`, with its evidence in `../docs/plans/theo-iphone.checklist.json`.
 
 This is an early slice. Hosted Theorem conversations are implemented. Areas Theorem cannot serve yet show a plain "not available" state instead of guessed content: Inbox, Artifacts, pairing, Platinum, note editing and providers. Nothing here has been built natively or run on a device yet.
 
@@ -71,6 +72,21 @@ vendor/                   the Theorem SDK tarball this app is pinned to
 docs/                     sign-in setup, Phase 0 record
 ```
 
+## Theo on iPhone
+
+`../docs/plans/theo-iphone.md` says what each of these is, what was checked, and what to try on a phone. None of it has been built natively or run on a device.
+
+| Feature | Where | Depends on |
+| --- | --- | --- |
+| Share a photo, file, link or note into an existing conversation | `src/app/intake.tsx`, `src/features/intake` | `expo-image-picker`, `expo-document-picker`, `expo-file-system`, `expo-sharing` (share extension, experimental) |
+| A Live Activity for a running conversation | `src/features/presence` | `expo-widgets`, `@expo/ui` |
+| Capture, Share and Continue in Shortcuts and on the Action button | `app-intents/` (Swift, compiled into the app target), `src/features/invocation` | `expo-app-intents` (alpha) |
+| A proposed calendar event as a card with the system editor | `src/features/phone-actions` | `expo-calendar/legacy` |
+| Screen sharing prototype (iOS 27) | `modules/theo-capture`, `src/app/screen-share.tsx`, `src/features/screen-share` | ScreenCaptureKit |
+| Theo's core and still poses | `src/features/theo` | the repository root's `src/lib/face`, through `metro.config.js` |
+
+The app now has two extension targets (`<bundle id>.ShareExtension`, `<bundle id>.ExpoWidgetsTarget`) and one App Group (`group.<bundle id>`, or `THEOREM_IOS_APP_GROUP`). EAS has to sign and provision all three.
+
 ## Behavior that must hold
 
 - Leaving a conversation, backgrounding the app or closing the terminal never stops a run, an agent or a remote session. Only Stop cancels a run or interrupts an agent.
@@ -79,3 +95,6 @@ docs/                     sign-in setup, Phase 0 record
 - Sends are idempotent. The SDK journal keeps each command id across relaunches, so a lost response is reconciled instead of sent twice. Approvals are never queued or replayed.
 - Tokens stay in the Keychain and go only to the authority.
 - The app shows state it was given: a missing API gives an explanation, not a stand-in.
+- A delivery's stage names only what was confirmed. "In the conversation" means Theorem's stored message carries the files; nothing says the model read them.
+- A delivery is the same upload keys and the same conversation command however often it is resumed. It is never sent under a fresh key.
+- Hiding or ending a Live Activity, or leaving the screen-sharing screen, stops nothing.
