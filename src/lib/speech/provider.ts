@@ -28,6 +28,10 @@ export interface SpeechProvider {
     options: {
       signal: AbortSignal
       onFetching?: (fetching: Fetching | undefined) => void
+      /** How hard this utterance leans: the sampling temperature, where the provider has one. */
+      temperature?: number
+      /** A seed for a reproducible take, where the provider takes one. */
+      seed?: number
     },
   ) => Promise<Stream>
 }

@@ -114,6 +114,18 @@ describe('reading a reply aloud', () => {
     expect(useVoice.getState().fetching).toBeUndefined()
   })
 
+  test('a reply that opens with an interjection is read as two takes, the second after the first ends', async () => {
+    const { speaker, asked, gates } = provider()
+    const { play } = player()
+    speechAdapter(() => speaker, { play }).speak('Oh, that actually worked.')
+    await tick()
+    expect(asked).toEqual(['Oh,'])
+    gates[0]?.end()
+    await tick()
+    await tick()
+    expect(asked).toEqual(['Oh,', 'that actually worked.'])
+  })
+
   test('stopped, it ends as cancelled, tells the provider, and says nothing after', async () => {
     const { speaker, gates } = provider()
     const { play } = player()

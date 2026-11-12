@@ -331,15 +331,13 @@ pkg_resources.
 - Shipping consent and hosting: the canonical voice is Anthropic-derived;
   whether Theorem ships it, and serving voice and model from Theorem's own
   origin, are the owner's calls.
-- A direction layer for Theo's speech: spoken text plus conversational
-  direction as separate metadata, mapped only onto controls the engine
-  really has — pace and seed, punctuation unproven; identity stays one voice.
-  Its execution shape is being tried on s2: segmented synthesis, one request
-  per phrase with its own `duration_delta` and seed, joined by explicit
-  silence (`tuning/s2-directed-s*.wav`: 400 ms gap, resumption at +0.1 pace,
-  seeds 23/7/11 as the uncertainty cast), against the zero-cost text-prosody
-  variants `s2-ellipsis.wav` and `s2-twosent.wav`. Verdict pending; the
-  sound graph's back-to-back scheduling is where gaps would live in the app.
+- A direction layer for Theo's speech: v1 shipped in this worktree on
+  2026-11-12 (`direction.ts`, `perform.ts`): energy as the sweep's
+  temperature, a held beat at an opening interjection, an optional seed,
+  read for now from the reply's own punctuation. What remains is the
+  answering model proposing a direction with its answer — the `Direction`
+  type carries it unchanged — and cues from the environment (an explicit
+  quiet request, an interruption), not inference from a person's voice.
 - Reading a reply as it streams must hand the synthesizer whole sentences
   (see Tuning sweep).
 - A setting for which voice speaks: the voice is chosen; the setting around

@@ -5,7 +5,8 @@ import { theSound } from '@/lib/sound/graph'
 import type { Playback, Stream } from '@/lib/sound/graph'
 import { phonon } from './phonon'
 import type { Fetching, SpeechProvider } from './provider'
-import { speakable } from './speakable'
+import { directionFromReply, plan } from './direction'
+import { perform } from './perform'
 
 /** What the page shows of its voice: who speaks, how far a fetch of the voice has come, and which reply it could not read. */
 export const useVoice = create<{
@@ -105,9 +106,9 @@ export function speechAdapter(
       current = utterance.cancel
       void (async () => {
         try {
-          const words = speakable(text)
-          if (words === '') return end('finished')
-          const stream = await provider().speak(words, {
+          const segments = plan(text, directionFromReply(text))
+          if (segments.length === 0) return end('finished')
+          const stream = await perform(provider(), segments, {
             signal: abort.signal,
             onFetching: (fetching) => useVoice.setState({ fetching }),
           })

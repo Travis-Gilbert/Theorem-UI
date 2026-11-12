@@ -246,6 +246,41 @@ the message above. `theorem.rs` is not refused. Serving the model from
 Theorem's own origin would end the dependence; that is the owner's call
 (see Not yet).
 
+## Direction, and what the engine can carry
+
+What emotional intelligence is built into Phonon: none that can be named.
+The checkpoint's config lists two conditioners — `num_speakers` and
+`duration_delta` — and nothing else; there is no energy, intent or style
+knob, and the Swift/Core ML export fixes even those two at export time.
+What the engine leaves for delivery is sampling (temperature, seed), the
+text's own prosody, and where the reading pauses. The direction layer is
+built on exactly those, and on nothing else.
+
+A reply's reading is planned before it is spoken
+(`src/lib/speech/direction.ts`): a `Direction` — energy, a held beat, an
+optional take — becomes a list of `Segment`s, each with its own temperature
+and seed and the silence after it. The mapping is the tuning sweep's own
+numbers: energy low/even/high is temperature 0.2/0.3/0.45. A held beat
+splits only at an opening interjection's own comma ("Oh,", "Well,") and only
+when at least two words follow, and holds 0.35 s — the beat the owner's
+reference performance held. The split never rewrites text and never
+fragments a phrase mid-way; sentence-level chunking stays the synth's own.
+`perform` (`src/lib/speech/perform.ts`) speaks the segments in order through
+the provider seam and puts the gaps in the stream as silence, so the page's
+one graph and Theo's meter hear the beats too.
+
+v1 reads the direction from the reply's own punctuation
+(`directionFromReply`): an exclamation at the end leans the energy up, an
+opening interjection asks for its beat. It reports only what the marks
+already say; the later version is the answering model proposing a direction
+with its answer, which the same `Direction` type carries.
+
+Portability: temperature and seed are runtime knobs in the browser and in
+the Swift runtime; `duration_delta` is load-time in the browser and fixed at
+export in Core ML. Nothing in the direction layer therefore asks for
+per-utterance pace — a delivery that must survive every platform is built
+from pauses, temperature and seed alone.
+
 ## Decisions
 
 - **A tie, not a flag.** The face is given numbers, and a program decides
@@ -284,6 +319,9 @@ src/lib/speech/
   provider.ts     the seam
   phonon.ts       Phonon in the browser
   speakable.ts    a reply as it is read aloud
+  eq.ts           the voice's tilt, over streamed blocks
+  direction.ts    a reply's delivery as metadata, planned into segments
+  perform.ts      a performance spoken as one stream
   adapter.ts      assistant-ui's speech adapter over the seam
 src/components/face/
   driver.ts       hears the graph each frame; sizes a form; draws the arcs
