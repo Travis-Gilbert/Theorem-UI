@@ -190,7 +190,11 @@ export default function IntakeScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           {sent ? <DeliveryCard id={sent} onDone={close} /> : null}
 
           <Section title="What">
