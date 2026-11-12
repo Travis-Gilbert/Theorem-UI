@@ -35,25 +35,25 @@
       "id": "intake-upload",
       "item": "Files reach Theorem through the project uploads route",
       "status": "in_progress",
-      "evidence": "mobile/src/features/intake/upload.ts, files.ts: POST /api/chat/v1/projects/:id/uploads with the web client's headers, through TheoremClient.fetch. source-implemented; typechecks against expo-file-system 58.0.13; bundled. Never run against Theorem: the route's behaviour with a repeated Idempotency-Key is assumed from the web client's use."
+      "evidence": "mobile/src/features/intake/upload.ts, files.ts: POST /api/chat/v1/projects/:id/uploads with the web client's headers, through TheoremClient.fetch. source-implemented; typechecks against expo-file-system 58.0.13; bundled. simulator-observed 2026-11-12 (iPhone 17 Pro, iOS 26.5, Xcode 27.2 dev build) signed in as the local claude-e2e account against scripts/e2e/stack.mjs: a photo from the simulator's library was stored (POST .../uploads 201, once), and a later Try again did not upload it again; the card said \"Theorem already stored 1 of 1\". The route's own behaviour with a repeated Idempotency-Key was not exercised, because the app did not repeat the upload."
     },
     {
       "id": "intake-send",
       "item": "The message is a journaled conversation command carrying upload ids",
       "status": "in_progress",
-      "evidence": "mobile/src/features/intake/queue.ts over features/chat/binding.ts (Lease.ready, send with id and uploadIds). source-implemented; bundled. Never run against Theorem."
+      "evidence": "mobile/src/features/intake/queue.ts over features/chat/binding.ts (Lease.ready, send with id and uploadIds). source-implemented; bundled. simulator-observed 2026-11-12 (iPhone 17 Pro, iOS 26.5, Xcode 27.2 dev build) signed in as the local claude-e2e account against scripts/e2e/stack.mjs: the send stopped at connect with \"Bootstrap did not provide an authenticated conversation identity\" because the stack's server omits principalId from GET /api/chat/v1/bootstrap (Theorem main sends it since 3107d3c29b; the stack's binary predates it). The card said Not sent and where it stopped. Fixed from this run: Try again stayed disabled after the stop (queue.ts snapshot, ab6b6008) and the reason ran into the next sentence (model.ts, 169237c2, with a test). A completed send, the run and the reply are not observed."
     },
     {
       "id": "intake-screen",
       "item": "A screen that shows the item, the receiving conversation, the instruction and the delivery state",
       "status": "in_progress",
-      "evidence": "mobile/src/app/intake.tsx, features/intake/receiver.tsx, delivery-card.tsx; entry points in the Chat header and each conversation. source-implemented; bundled. Not observed."
+      "evidence": "mobile/src/app/intake.tsx, features/intake/receiver.tsx, delivery-card.tsx; entry points in the Chat header and each conversation. source-implemented; bundled. simulator-observed 2026-11-12 (iPhone 17 Pro, iOS 26.5, Xcode 27.2 dev build) signed in as the local claude-e2e account against scripts/e2e/stack.mjs: the sheet opens from theorem://intake, adds a photo, picks a conversation, and shows the delivery card and Earlier. Fixed from this run: the first row sat under the modal header (contentInsetAdjustmentBehavior, 37b5494a)."
     },
     {
       "id": "intake-camera",
       "item": "Camera, Photos and Files acquisition",
       "status": "in_progress",
-      "evidence": "mobile/src/features/intake/acquire.ts (expo-image-picker, expo-document-picker). source-implemented; prebuild-verified: NSCameraUsageDescription present. Not observed."
+      "evidence": "mobile/src/features/intake/acquire.ts (expo-image-picker, expo-document-picker). source-implemented; prebuild-verified: NSCameraUsageDescription present. simulator-observed: Photos added an item from the simulator's library. Camera and Files were not tried; the simulator has no camera."
     },
     {
       "id": "intake-share",
@@ -125,7 +125,7 @@
       "id": "capture-screen",
       "item": "A prototype screen with state, counts, the newest still and the device checks",
       "status": "in_progress",
-      "evidence": "mobile/src/app/screen-share.tsx, features/screen-share/session.ts. test-verified: the session model (screen-share.test.ts, 6 tests). bundled; in the Hermes bundle of EAS build 321364ec. Not observed: no simulator or device has shown the screen. The seven device checks are the owner's to make."
+      "evidence": "mobile/src/app/screen-share.tsx, features/screen-share/session.ts. test-verified: the session model (screen-share.test.ts, 6 tests). bundled; in the Hermes bundle of EAS build 321364ec. simulator-observed 2026-11-12 (iPhone 17 Pro, iOS 26.5, Xcode 27.2 dev build) signed in as the local claude-e2e account against scripts/e2e/stack.mjs: the screen says \"Screen sharing is not available in this build: The iOS Simulator has no ScreenCaptureKit.\" No device has shown it. The seven device checks are the owner's to make."
     },
     {
       "id": "capture-voice",
@@ -155,13 +155,13 @@
       "id": "native-build",
       "item": "A native build of the app with its two extensions",
       "status": "in_progress",
-      "evidence": "built on EAS 2026-11-12 with Xcode 27.1 (27A9275): dccbb349 (simulator, Debug dev client, arm64+x86_64), 321364ec (preview-simulator, Release, Hermes bundle embedded) and ed461e9f (device-compile, iphoneos 27.1, signing off), each with the app, ExpoWidgetsTarget.appex and expo-sharing-extension.appex. Not done: a signed development build (needs the owner's device registered and the App Group provisioned). mobile/eas.json device-compile and .eas/build/device-compile.yml rerun the unsigned device compile. expo-doctor's one failing check (packages one patch behind, held by the three-day gate) was not rerun. built locally 2026-11-12 with Xcode 27.2 (27B52), iPhoneSimulator 27.2 SDK (bun run ios after expo prebuild --clean and pod install): Build Succeeded, 0 errors, 5 warnings, with the app, ExpoWidgetsTarget.appex and expo-sharing-extension.appex. Xcode 27.2 needed three fixes Xcode 27.1 did not: mobile/plugins/own-group-file-references.js (one Info.plist reference in two groups, expo/expo#52987), the TheoremSession podspec anchoring package checkouts on OBJROOT instead of MODULE_CACHE_DIR (default derived data), and mobile/src/app/index.tsx (the root Stack had no anchor, so a plain launch opened Unmatched Route). Ran in the iOS Simulator: iPhone 17 Pro on iOS 26.5 and on iOS 27.2 (same .app). The unsigned device compile was not rerun on Xcode 27.2."
+      "evidence": "built on EAS 2026-11-12 with Xcode 27.1 (27A9275): dccbb349 (simulator, Debug dev client, arm64+x86_64), 321364ec (preview-simulator, Release, Hermes bundle embedded) and ed461e9f (device-compile, iphoneos 27.1, signing off), each with the app, ExpoWidgetsTarget.appex and expo-sharing-extension.appex. Not done: a signed development build (needs the owner's device registered and the App Group provisioned). mobile/eas.json device-compile and .eas/build/device-compile.yml rerun the unsigned device compile. expo-doctor's one failing check (packages one patch behind, held by the three-day gate) was not rerun. built locally 2026-11-12 with Xcode 27.2 (27B52), iPhoneSimulator 27.2 SDK (bun run ios after expo prebuild --clean and pod install): Build Succeeded, 0 errors, 5 warnings, with the app, ExpoWidgetsTarget.appex and expo-sharing-extension.appex. Xcode 27.2 needed three fixes Xcode 27.1 did not: mobile/plugins/own-group-file-references.js (one Info.plist reference in two groups, expo/expo#52987), the TheoremSession podspec anchoring package checkouts on OBJROOT instead of MODULE_CACHE_DIR (default derived data), and mobile/src/app/index.tsx (the root Stack had no anchor, so a plain launch opened Unmatched Route). Ran in the iOS Simulator: iPhone 17 Pro on iOS 26.5 and on iOS 27.2 (same .app). The unsigned device compile was not rerun on Xcode 27.2. Signed in on the simulator against the local stack on 2026-11-12 (see the plan's \"Signed in against the local stack\"); the conversation composer sat under the native tab bar and is fixed (fbac3e08)."
     },
     {
       "id": "device",
       "item": "Observed on an iPhone",
       "status": "not_started",
-      "evidence": "Nothing observed on a device. Of the plan's 24 checks: 1 and 2 passed by build, on EAS (Xcode 27.1) and locally (Xcode 27.2), not by observation; 3 (signing, App Group provisioning) not attempted. 10 partly simulator-observed: Theorem is in the Photos share sheet and opens the app, but signed out the item is not kept and intake is not reached. 11 partly simulator-observed: Shortcuts lists the three actions; running one failed in the simulator (no team identifier); the Action button was not tried. 4 to 9 and 12 to 17 not attempted: each needs a signed-in session, and 12 to 15 a device for the Dynamic Island and Lock Screen. 18 to 24 not attempted: they need an iPhone on iOS 27 (the simulator SDK has no ScreenCaptureKit). Signing in needs a dev bearer token from the owner or a registered OAuth client."
+      "evidence": "Nothing observed on a device. Of the plan's 24 checks: 1 and 2 passed by build, on EAS (Xcode 27.1) and locally (Xcode 27.2), not by observation; 3 (signing, App Group provisioning) not attempted. 10 partly simulator-observed: Theorem is in the Photos share sheet and opens the app, but signed out the item is not kept and intake is not reached. 11 partly simulator-observed: Shortcuts lists the three actions; running one failed in the simulator (no team identifier); the Action button was not tried. 4, 5 and 7 partly simulator-observed against the local stack: a photo added, uploaded once, the send stopped at bootstrap (the stack's server omits principalId) with where it stopped, and Try again did not upload twice; the send did not complete. 6, 8, 9 and 12 to 17 not attempted: 6 and 9 need a completed send, 8 a force-quit mid-upload, and 12 to 15 a device for the Dynamic Island and Lock Screen. 18 to 24 not attempted: they need an iPhone on iOS 27 (the simulator SDK has no ScreenCaptureKit). Signing in on a device against the owner's Theorem needs a dev bearer token from the owner or a registered OAuth client."
     }
   ]
 }

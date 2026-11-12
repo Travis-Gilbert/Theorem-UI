@@ -28,8 +28,10 @@ The app and both extensions are built for the iOS Simulator (on EAS with
 Xcode 27.1, and locally with Xcode 27.2), and compiled and linked unsigned for
 the device SDK. The ScreenCaptureKit route is only in the device build: the
 simulator SDK has no ScreenCaptureKit. The app has run in the iOS Simulator,
-signed out; the simulator-observed results are under "Native build". Nothing
-is signed for a device, and nothing has run on a phone.
+signed out and then signed in as the local end-to-end test account against
+the repository's local stack; the simulator-observed results are under
+"Native build". Nothing is signed for a device, and nothing has run on a
+phone.
 
 ## Where this sits
 
@@ -396,9 +398,85 @@ dev bearer token or a registered OAuth client:
   the app shows sign-in and the shared photo is not kept, which is owner
   decision 12 as written.
 
+### Signed in against the local stack
+
+Done on 2026-11-12 in the same simulator (iPhone 17 Pro, iOS 26.5), against
+`scripts/e2e/stack.mjs` (Theorem on 8392, the local OIDC issuer on 8398) as
+the `claude-e2e` test account. The token came from the local issuer
+(authorization code with PKCE S256, client `theorem-ui-e2e`) and went in
+through the development bearer field; it lives in the Keychain on the
+simulator and nowhere in the repository. Metro served the bundle with
+`THEOREM_AUTHORITY` pointed at a logging proxy in front of 8392, which
+recorded each request's method, path, status and whether it carried
+authorization. No config change was made for this.
+
+Simulator-observed, signed in:
+
+- **Chat** lists the account's project and threads (`GET .../projects`,
+  `.../threads`, 200).
+- **A conversation does not open on this stack:** "Bootstrap did not provide
+  an authenticated conversation identity". `GET /api/chat/v1/bootstrap`
+  answers 200 with `csrfToken`, `projects`, `schema`, `tenantId` and
+  `uploadLimits`, and no `principalId`, which the SDK's `Bootstrap` contract
+  requires and `HeadlessConversation.connect()` checks. Theorem `main` sends
+  it (3107d3c29b, 2026-10-26); the local stack's server binary was built from
+  a branch without that commit. This is the stack, not the app or the SDK. A
+  real send, a run and the reply were therefore not observed.
+- **Settings** shows the authority `127.0.0.1:8393`, "Development token", and
+  "Principal undefined · tenant claude-e2e": the same missing field. Execution
+  workspaces show "Could not load workspaces: The native environment host is
+  unavailable" for the stack's `GET /api/environment/v1/workspaces` 503.
+- **Library** lists notes and artifacts, and a note opens with its body
+  (`GET /api/documents/v2/documents` and `.../documents/<id>`, 200). Inbox
+  and Platinum render.
+- **Intake**, with a photo from the simulator's library: the upload was
+  stored (`POST .../uploads` 201, once) and the send stopped at bootstrap,
+  for the reason above. The card said Not sent, where it stopped, and
+  "Theorem already stored 1 of 1. Trying again does not upload those twice."
+  Try again made one bootstrap request and no second upload.
+- **Screen sharing (prototype)** says "Screen sharing is not available in
+  this build: The iOS Simulator has no ScreenCaptureKit."
+- The empty large-title band above the tab screens on iOS 26 is
+  software-mansion/react-native-screens#3100, which reproduces in plain UIKit;
+  left as is.
+
+Fixed from what this walk showed, each in its own commit:
+
+9. **The conversation composer sat under the native tab bar** (native tabs
+   float the bar over the screen and inset only the first scroll view). The
+   conversation is now inside `react-native-screens`' `SafeAreaView` with the
+   bottom edge, around the keyboard avoider, so the inset is not added twice
+   with the keyboard up. Observed: the composer above the tab bar, above the
+   keyboard while typing, and back above the tab bar after.
+10. **Intake's Try again stayed disabled with a spinner** after a send
+    stopped. `useDelivery` read `busy` from a set changed in place, so no
+    `useSyncExternalStore` snapshot changed when the run ended. The set is
+    now replaced on each change and read through its own snapshot. Observed:
+    after a retry failed, the button came back enabled.
+11. **The stop reason ran into the next sentence** ("... identity It stopped
+    while sending the message."). A reason without a full stop now gets one;
+    a test covers it.
+12. **The intake sheet's first row sat under its header.** Its scroll view
+    left `contentInsetAdjustmentBehavior` at React Native's iOS default,
+    `never`, unlike the app's other modals. It is now `automatic`.
+
+Seen and not explained or not fixed:
+
+- The first bearer sign-in was accepted, and the next request answered 401,
+  which signs the app out ("Your Theorem session ended"). The same token
+  worked on the second attempt and stayed signed in through relaunches. The
+  cause of the first 401 is not known.
+- `GET /api/documents/v2/documents` without parameters answers 400 from curl;
+  the app's request (with its parameters, which the proxy did not log)
+  answers 200.
+- Typing quickly into the intake instruction through the simulator's
+  keyboard injection interleaved copies of the text. This looks like the
+  injection, not the field; it was not checked on a device.
+
 Not done: no signed device build (the owner's iPhone is paired with this Mac;
 running on it needs the device registered and a development profile, which
-the owner approves), and nothing signed in.
+the owner approves), and no conversation send against a server that sends
+`principalId`.
 
 ## What to try on a real phone
 
@@ -406,6 +484,9 @@ Nothing below has been observed on a device. Items 1 and 2 are built, on EAS
 and locally (see "Native build"). Items 10 and 11 are partly
 simulator-observed: Theorem is in the Photos share sheet and opens the app;
 Shortcuts lists the three actions, and running one failed in the simulator.
+Items 4, 5 and 7 are partly simulator-observed against the local stack: a
+photo was added, uploaded once, the send stopped with where it stopped, and
+Try again did not upload it twice; the send itself did not complete there.
 Everything else needs a signed development build on an iPhone
 (`bunx eas-cli build --profile development --platform ios`, after the device
 is registered). The screen-sharing checks also need iOS 27.
