@@ -649,10 +649,12 @@ draw the rail. They stay in the registry for the surfaces that still use them.
 
 ## Control marks in colour (Streamline Ultimate, colored style)
 
-Ten marks for the sidebar, the composer and the tool rows, from the owner's
-downloads of 2026-11-10: "chat.zip", "Chat-search.zip", "send and upload.zip",
+Twelve marks for the sidebar, the composer, the tool rows and the permission
+prompt. Eleven are from the owner's downloads of 2026-11-10: "chat.zip", "Chat-search.zip", "send and upload.zip",
 "Plan icon.zip", "Tool call complete.zip", "web search.zip", "new chat (1).zip"
-and the loose "plans.png". Each was copied byte for byte and
+the loose "plans.png", and "Memory.zip" (attached in chat). The twelfth, the
+permission prompt's, the owner attached in chat on 2026-11-11 as a loose 48px
+PNG to replace the Noun gear there. Each was copied byte for byte and
 renamed in lowercase with a `streamline-` prefix, into
 `streamline/control/source/`. The license is whatever covers the owner's
 Streamline plan.
@@ -669,6 +671,8 @@ Streamline plan.
 | NewChat | New thread and new chat, wherever they are offered | `streamline/control/source/streamline-pencil-write.png` | Pencil Write | `db2e92915632cfc26b574bc0eea63fa530d0cd211955663cc707aa50ab6d8e3c` |
 | ToolRunning | A tool call in progress | `streamline/control/source/streamline-list-edit.png` | List Edit | `1b15161b5a241c1a7da50c572ea7cb28e676adb920f5d4a0c79503aa042bae3f` |
 | ToolDone | A finished tool call | `streamline/control/source/streamline-task-list-multiple.png` | Task List Multiple | `142f46f61810fa491aa90b40f084f74f059fffa6d8700255b6010eb988de5288` |
+| Memory | A memory tool call's row (`search_memory`, `recall`, `encode`) | `streamline/control/source/streamline-sd-card-question.png` | Sd Card Question | `7ae4a822c3d51572b9cad35276b5632997e7db76ed2b49205d8cfc792aabc65c` |
+| Approval | The permission prompt | `streamline/control/source/streamline-file-question.png` | Not carried by the file (pasted into chat without a name); a file with a question badge, so the file name describes the shape | `f7ef034d07b1fe3d43da076ca62a41da33fb0203ccd022fce58d076d6b6d9027` |
 
 "Plan icon.zip" also held Hierarchy 2, Data File Bars Edit and Performance
 Presentation Graph, and "new chat.zip" held Common File Edit. The owner chose
@@ -683,7 +687,7 @@ from the palette. At a control's size each fill takes the next lighter colour
 (`painted(..., soft)` in `components/icons.tsx`), so the outline stays legible.
 `scripts/rail-icons.test.ts` covers these layers too.
 
-Since 2026-11-10 these ten layers are vector outlines, not PNG alpha. The
+Since 2026-11-10 these layers are vector outlines, not PNG alpha. The
 sources are the same 48px PNGs, byte for byte; no SVG export came with the
 downloads. The generator reads each icon's own flat colours, takes every
 anti-aliased pixel as a blend of two of them to get each layer's coverage,

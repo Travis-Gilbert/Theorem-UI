@@ -68,6 +68,8 @@ export const CONTROLS = [
     name: 'toolDone',
     source: 'control/source/streamline-task-list-multiple.png',
   },
+  { name: 'memory', source: 'control/source/streamline-sd-card-question.png' },
+  { name: 'approval', source: 'control/source/streamline-file-question.png' },
 ]
 
 /**

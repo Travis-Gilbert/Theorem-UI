@@ -144,6 +144,12 @@ export const STORIES: readonly StoryMeta[] = [
     }),
   ),
   {
+    id: 'activity-approval-high',
+    title: 'Activity line: an approval Theorem marks high risk',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  {
     id: 'face-bench',
     title: 'Theo: the bench, every way to move the face',
     lane: 'original',
@@ -182,7 +188,13 @@ export const STORIES: readonly StoryMeta[] = [
   },
   {
     id: 'tool-pills',
-    title: 'Tool pills: done, failed and running',
+    title: 'Tool calls: done, failed and running',
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  },
+  {
+    id: 'tool-calls-check',
+    title: 'Tool calls: an App check with its problems',
     lane: 'original',
     viewport: { width: 760, height: 560 },
   },

@@ -3,8 +3,9 @@
 import { useId } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { Icon } from "@/components/icons";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { field, ghostButton, inkButton, liveEnter, mono, paper } from "./surfaces";
+import { field, ghostButton, inkButton, liveEnter, mono } from "./surfaces";
 import { useReceiptFocus } from "./receipt-focus";
 
 export type ApprovalState = "request" | "running" | "done" | "denied";
@@ -73,148 +74,134 @@ export function ApprovalCard({
   const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
 
   return (
-    <div
+    <Alert
       {...props}
       {...focusHandlers}
-      role="group"
+      // Announced while it asks; a settled card is only a record.
+      role={state === "request" ? "alert" : "group"}
+      variant={variant}
       data-variant={variant}
       data-slot="approval-card"
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
-      className={cn(
-        paper,
-        "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4",
-        liveEnter,
-        className,
-      )}
+      className={cn("max-w-sm", liveEnter, className)}
     >
-      <div className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-xl",
-            variant === "destructive"
-              ? "bg-error-container text-error-ink"
-              : "bg-foreground/[0.05] text-muted-foreground",
-          )}
-        >
-          {icon ?? <Icon.Code className="size-4" />}
-        </span>
-        <div className="flex flex-col">
-          <p id={titleId} className="text-sm font-medium">
-            {title}
+      {/* The Alert places a direct <svg> or painted mark child; every mark passed here is one. */}
+      {icon ?? <Icon.Key aria-hidden />}
+      <AlertTitle id={titleId} className="text-sm font-medium">
+        {title}
+      </AlertTitle>
+      <AlertDescription className="flex flex-col gap-3">
+        <p className="text-ink-muted text-xs">{subtitle}</p>
+
+        {description ? (
+          <p id={descriptionId} className="text-foreground/60 text-sm">
+            {description}
           </p>
-          <p className="text-muted-foreground text-xs">{subtitle}</p>
-        </div>
-      </div>
+        ) : null}
 
-      {description ? (
-        <p id={descriptionId} className="text-foreground/60 text-sm">
-          {description}
-        </p>
-      ) : null}
-
-      {command ? (
-        <div
-          className={cn(
-            field,
-            "text-foreground/70 rounded-xl px-3.5 py-2.5 font-mono text-xs",
-          )}
-        >
-          {command}
-        </div>
-      ) : null}
-
-      {details?.length ? (
-        <dl
-          className={cn(field, "flex flex-col gap-2 rounded-xl px-3.5 py-2.5")}
-        >
-          {details.map((detail, index) => (
-            <div
-              key={`${detail.label}-${index}`}
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 text-xs"
-            >
-              <dt className={cn(mono, "text-muted-foreground")}>
-                {detail.label}
-              </dt>
-              <dd className="text-foreground/80 break-words">{detail.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">
-        {state === "request" ? (
-          <>
-            {onDeny && (
-              <button
-                type="button"
-                data-slot="approval-card-deny"
-                onClick={onDeny}
-                className={cn(
-                  ghostButton,
-                  "h-8 px-3.5 text-xs font-medium whitespace-nowrap",
-                )}
-              >
-                {denyLabel}
-              </button>
-            )}
-            {onAlwaysAllow && (
-              <button
-                type="button"
-                data-slot="approval-card-always-allow"
-                onClick={onAlwaysAllow}
-                className={cn(
-                  ghostButton,
-                  "h-8 px-3.5 text-xs font-medium whitespace-nowrap",
-                )}
-              >
-                {alwaysAllowLabel}
-              </button>
-            )}
-            {onAllowOnce && (
-              <button
-                type="button"
-                data-slot="approval-card-allow-once"
-                onClick={onAllowOnce}
-                className={cn(
-                  variant === "destructive"
-                    ? "bg-error-ink text-on-redwood transition-[background-color,scale] duration-150 hover:bg-error-ink/90 motion-reduce:transition-none"
-                    : inkButton,
-                  "flex h-8 items-center rounded-full px-3.5 text-xs font-medium whitespace-nowrap",
-                )}
-              >
-                {allowOnceLabel}
-              </button>
-            )}
-          </>
-        ) : (
+        {command ? (
           <div
-            key={state}
-            ref={receiptRef}
-            tabIndex={-1}
-            role="status"
-            className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300 motion-reduce:animate-none"
-          >
-            {state === "running" ? (
-              <>
-                <Icon.Refresh className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-none" />
-                {statusLabel ?? receiptText.running}
-              </>
-            ) : state === "denied" ? (
-              <>
-                <Icon.Close className="text-muted-foreground size-3.5" />
-                {statusLabel ?? receiptText.denied}
-              </>
-            ) : (
-              <>
-                <Icon.Check className="size-3.5 text-teal-ink" />
-                {statusLabel ?? receiptText.done}
-              </>
+            className={cn(
+              field,
+              "text-foreground/70 rounded-xl px-3.5 py-2.5 font-mono text-xs",
             )}
+          >
+            {command}
           </div>
-        )}
-      </div>
-    </div>
+        ) : null}
+
+        {details?.length ? (
+          <dl
+            className={cn(field, "flex flex-col gap-2 rounded-xl px-3.5 py-2.5")}
+          >
+            {details.map((detail, index) => (
+              <div
+                key={`${detail.label}-${index}`}
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4 text-xs"
+              >
+                <dt className={cn(mono, "text-muted-foreground")}>
+                  {detail.label}
+                </dt>
+                <dd className="text-foreground/80 break-words">{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">
+          {state === "request" ? (
+            <>
+              {onDeny && (
+                <button
+                  type="button"
+                  data-slot="approval-card-deny"
+                  onClick={onDeny}
+                  className={cn(
+                    ghostButton,
+                    "h-8 px-3.5 text-xs font-medium whitespace-nowrap",
+                  )}
+                >
+                  {denyLabel}
+                </button>
+              )}
+              {onAlwaysAllow && (
+                <button
+                  type="button"
+                  data-slot="approval-card-always-allow"
+                  onClick={onAlwaysAllow}
+                  className={cn(
+                    ghostButton,
+                    "h-8 px-3.5 text-xs font-medium whitespace-nowrap",
+                  )}
+                >
+                  {alwaysAllowLabel}
+                </button>
+              )}
+              {onAllowOnce && (
+                <button
+                  type="button"
+                  data-slot="approval-card-allow-once"
+                  onClick={onAllowOnce}
+                  className={cn(
+                    variant === "destructive"
+                      ? "bg-error-ink text-on-redwood transition-[background-color,scale] duration-150 hover:bg-error-ink/90 motion-reduce:transition-none"
+                      : inkButton,
+                    "flex h-8 items-center rounded-full px-3.5 text-xs font-medium whitespace-nowrap",
+                  )}
+                >
+                  {allowOnceLabel}
+                </button>
+              )}
+            </>
+          ) : (
+            <div
+              key={state}
+              ref={receiptRef}
+              tabIndex={-1}
+              role="status"
+              className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300 motion-reduce:animate-none"
+            >
+              {state === "running" ? (
+                <>
+                  <Icon.Refresh className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-none" />
+                  {statusLabel ?? receiptText.running}
+                </>
+              ) : state === "denied" ? (
+                <>
+                  <Icon.Close className="text-muted-foreground size-3.5" />
+                  {statusLabel ?? receiptText.denied}
+                </>
+              ) : (
+                <>
+                  <Icon.Check className="size-3.5 text-teal-ink" />
+                  {statusLabel ?? receiptText.done}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }
