@@ -245,6 +245,15 @@ the model's default voice if the add fails. The graft route (WORLD-vocoder
 f0 replacement) stays here as the closest s2 approach yet and the reason it
 is parked: it measures right and sounds processed.
 
+**Pace and tilt, 2026-11-12.** Of the matrix (duration_delta -0.05/-0.1,
+two EQ tilts), the owner picked `tune2-fast05-crisp`: -0.05 pace with +2.5
+dB peaking at 3.2 kHz (Q 1.2) and +1.5 dB high shelf at 7 kHz. Measured: f0
+median identical to the un-tilted take (107.3 Hz), centroid +9%; -0.1 was
+rejected sighted — at that delta the regenerated take's f0 median drifts
++8 Hz. Shipped as `conditions: { duration_delta: -0.05 }` at load and
+`lib/speech/eq.ts`'s biquad pair over the streamed blocks; the in-app
+filter matches the approved ffmpeg render to 0.46% rms.
+
 ## The browser seam, answered
 
 `phonon-tts` takes a custom voice — the seam was verified against 0.6.0's

@@ -1,6 +1,7 @@
-// SOURCING: phonon-tts (Gradium's Phonon text to speech, MIT OR Apache-2.0): PhononTTS.load for the model, fetched once from its pinned Hugging Face commit and kept in the browser's cache, and tts.stream for audio as it is generated in the package's own worker. Loaded on first use, so a page that never speaks never fetches it. The 31M English model is the package's default (docs/plans/theo-sound.md, "Where the voice comes from"). The voice it speaks with ships in the repo: voice-theo.safetensors, a Phonon speaker latent the owner's ears chose on 2026-11-12 (a clone of the Buttery v4+v2 join, Gradium voice KtDVnkQ8XhyVLI1w; provenance and the consent caveat in docs/learnings/2026-11-11-buttery-reference-voice-and-phonon-cloning.md). It is added to the model once the model is loaded; if adding it fails, the model's own default voice speaks.
+// SOURCING: phonon-tts (Gradium's Phonon text to speech, MIT OR Apache-2.0): PhononTTS.load for the model, fetched once from its pinned Hugging Face commit and kept in the browser's cache, and tts.stream for audio as it is generated in the package's own worker. Loaded on first use, so a page that never speaks never fetches it. The 31M English model is the package's default (docs/plans/theo-sound.md, "Where the voice comes from"). The voice it speaks with ships in the repo: voice-theo.safetensors, a Phonon speaker latent the owner's ears chose on 2026-11-12 (a clone of the Buttery v4+v2 join, Gradium voice KtDVnkQ8XhyVLI1w; provenance and the consent caveat in docs/learnings/2026-11-11-buttery-reference-voice-and-phonon-cloning.md). It is added to the model once the model is loaded; if adding it fails, the model's own default voice speaks. The audio leaves here a touch quicker than the model's own pace (duration_delta -0.05 at load) and with lib/speech/eq's tilt on it, both the owner's pick of 2026-11-12; neither moves the pitch.
 import type { PhononTTS } from 'phonon-tts'
 import type { Fetching, SpeechProvider } from './provider'
+import { tilt } from './eq'
 import theoVoice from './voice-theo.safetensors?url'
 
 let model: Promise<PhononTTS> | undefined
@@ -20,6 +21,9 @@ function load() {
     .then(({ PhononTTS: Phonon }) =>
       Phonon.load({
         lang: 'en',
+        // A touch quicker than the model's own pace, fixed at load as the
+        // package asks; the owner's ears picked it on 2026-11-12.
+        conditions: { duration_delta: -0.05 },
         onProgress: ({ file, loaded, total, cached }) => {
           // What the browser already holds is not being fetched.
           if (cached) return
@@ -79,6 +83,9 @@ export const phonon: SpeechProvider = {
     const stream = tts.stream(text, { signal, voice })
     // A generation that fails says so through the blocks; nothing else waits on this.
     stream.done.catch(() => {})
-    return { sampleRate: stream.sampleRate, blocks: stream }
+    return {
+      sampleRate: stream.sampleRate,
+      blocks: tilt(stream.blocks, stream.sampleRate),
+    }
   },
 }

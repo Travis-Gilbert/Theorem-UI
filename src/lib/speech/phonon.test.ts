@@ -18,9 +18,12 @@ class FakePhonon {
     FakePhonon.added.push({ name, source })
     return Promise.resolve()
   }
+  static blocks: Float32Array[] = []
   stream(text: string, options: { signal: AbortSignal; voice?: string }) {
     FakePhonon.streamed.push({ text, voice: options.voice })
-    const blocks = (async function* () {})()
+    const blocks = (async function* () {
+      for (const block of FakePhonon.blocks) yield block
+    })()
     return { sampleRate: 24_000, blocks, done: Promise.resolve() }
   }
 }
@@ -39,6 +42,7 @@ describe('the phonon provider', () => {
     FakePhonon.streamed = []
     FakePhonon.failLoad = false
     FakePhonon.failAdd = false
+    FakePhonon.blocks = []
   })
 
   test('a voice that fails to register leaves the model its own', async () => {
@@ -81,5 +85,19 @@ describe('the phonon provider', () => {
       'theo',
       'theo',
     ])
+  })
+
+  test('the stream leaves with the voice tilt on it', async () => {
+    const sine = new Float32Array(2400)
+    for (let i = 0; i < sine.length; i++)
+      sine[i] = Math.sin((2 * Math.PI * 3200 * i) / 24_000) * 0.3
+    // Silence first: a fresh filter has no tail, so it must stay silence.
+    FakePhonon.blocks = [new Float32Array(2400), sine]
+    const stream = await speak('one')
+    const out: Float32Array[] = []
+    for await (const block of stream.blocks) out.push(block)
+    expect(out.length).toBe(2)
+    expect(out[0]).toEqual(new Float32Array(2400))
+    expect(out[1]).not.toEqual(sine)
   })
 })
