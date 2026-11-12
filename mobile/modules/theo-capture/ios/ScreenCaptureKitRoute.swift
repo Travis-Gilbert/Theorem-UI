@@ -6,17 +6,23 @@ import ScreenCaptureKit
 
 /// The iOS 27 route: the system picker, then an SCStream that keeps running
 /// while the person uses other apps (with the `screen-capture` background mode).
+///
+/// `@unchecked Sendable`, as the capture module is: the picker, `stream` and
+/// `microphone` are touched only on the main actor, `lastFrame` only on
+/// `samples`, and `sink` is set on the main actor before any stream exists.
+/// The system calls the observer and delegate methods on threads of its own,
+/// so they hop to the main actor before touching that state.
 @available(iOS 27.0, *)
 final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPickerObserver, SCStreamDelegate,
-  SCStreamOutput
+  SCStreamOutput, @unchecked Sendable
 {
   static let name = "screencapturekit"
 
   private let picker = SCContentSharingPicker.shared
   private let samples = DispatchQueue(label: "rs.theorem.capture.samples")
   private weak var sink: CaptureSink?
-  private var stream: SCStream?
-  private var microphone = false
+  @MainActor private var stream: SCStream?
+  @MainActor private var microphone = false
   /// Touched only on `samples`, where the system calls the stream output.
   private var lastFrame = CMTime.invalid
 
@@ -47,6 +53,8 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   // MARK: SCContentSharingPickerObserver
 
   func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
+    // The filter describes what the person chose; the system does not change it after handing it over.
+    nonisolated(unsafe) let filter = filter
     Task { @MainActor in await self.begin(with: filter) }
   }
 
@@ -107,7 +115,10 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   // MARK: SCStreamDelegate
 
   func stream(_ stream: SCStream, didStopWithError error: Error) {
-    self.stream = nil
+    let stopped = ObjectIdentifier(stream)
+    Task { @MainActor in
+      if let current = self.stream, ObjectIdentifier(current) == stopped { self.stream = nil }
+    }
     // The system ended it: the person stopped sharing from the system's control, a call arrived, or it failed.
     sink?.captureChanged(to: .stopped, reason: error.localizedDescription, microphone: false)
   }
