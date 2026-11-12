@@ -30,18 +30,20 @@ export async function perform(
       temperature: segment.temperature,
       seed: segment.seed,
     })
-  const first = await speakOne(segments[0])
+  const head = segments[0]
+  if (!head) throw new Error('A performance needs at least one segment.')
+  const first = await speakOne(head)
   const blocks = (async function* () {
     let stream = first
-    for (let i = 0; i < segments.length; i++) {
-      if (i > 0) {
-        if (options.signal.aborted) return
-        stream = await speakOne(segments[i])
-      }
+    let gap = head.gap
+    for (const segment of segments.slice(1)) {
       yield* stream.blocks
-      if (i < segments.length - 1 && segments[i].gap > 0)
-        yield* silence(segments[i].gap, stream.sampleRate)
+      if (gap > 0) yield* silence(gap, stream.sampleRate)
+      if (options.signal.aborted) return
+      stream = await speakOne(segment)
+      gap = segment.gap
     }
+    yield* stream.blocks
   })()
   return { sampleRate: first.sampleRate, blocks }
 }

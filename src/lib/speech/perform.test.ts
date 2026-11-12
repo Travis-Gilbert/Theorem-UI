@@ -59,7 +59,7 @@ describe('performing a plan', () => {
     ])
     // The spoken block, then 0.16 s of silence in 80 ms blocks, then the next spoken block.
     expect(blocks.length).toBe(4)
-    expect(blocks[1]?.length + (blocks[2]?.length ?? 0)).toBe(
+    expect((blocks[1]?.length ?? 0) + (blocks[2]?.length ?? 0)).toBe(
       Math.round(0.16 * RATE),
     )
     expect(blocks[1]?.every((sample) => sample === 0)).toBe(true)

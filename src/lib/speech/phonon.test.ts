@@ -21,10 +21,15 @@ class FakePhonon {
   static blocks: Float32Array[] = []
   stream(text: string, options: { signal: AbortSignal; voice?: string }) {
     FakePhonon.streamed.push({ text, voice: options.voice })
-    const blocks = (async function* () {
-      for (const block of FakePhonon.blocks) yield block
-    })()
-    return { sampleRate: 24_000, blocks, done: Promise.resolve() }
+    const blocks = FakePhonon.blocks
+    return {
+      sampleRate: 24_000,
+      done: Promise.resolve(),
+      cancel: () => {},
+      [Symbol.asyncIterator]: async function* () {
+        for (const block of blocks) yield block
+      },
+    }
   }
 }
 mock.module('phonon-tts', () => ({ PhononTTS: FakePhonon }))
