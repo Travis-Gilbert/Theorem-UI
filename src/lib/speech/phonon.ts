@@ -1,8 +1,11 @@
-// SOURCING: phonon-tts (Gradium's Phonon text to speech, MIT OR Apache-2.0): PhononTTS.load for the model, fetched once from its pinned Hugging Face commit and kept in the browser's cache, and tts.stream for audio as it is generated in the package's own worker. Loaded on first use, so a page that never speaks never fetches it. The 31M English model is the package's default (docs/plans/theo-sound.md, "Where the voice comes from").
+// SOURCING: phonon-tts (Gradium's Phonon text to speech, MIT OR Apache-2.0): PhononTTS.load for the model, fetched once from its pinned Hugging Face commit and kept in the browser's cache, and tts.stream for audio as it is generated in the package's own worker. Loaded on first use, so a page that never speaks never fetches it. The 31M English model is the package's default (docs/plans/theo-sound.md, "Where the voice comes from"). The voice it speaks with ships in the repo: voice-theo.safetensors, a Phonon speaker latent the owner's ears chose on 2026-11-12 (a clone of the Buttery v4+v2 join, Gradium voice KtDVnkQ8XhyVLI1w; provenance and the consent caveat in docs/learnings/2026-11-11-buttery-reference-voice-and-phonon-cloning.md). It is added to the model once the model is loaded; if adding it fails, the model's own default voice speaks.
 import type { PhononTTS } from 'phonon-tts'
 import type { Fetching, SpeechProvider } from './provider'
+import theoVoice from './voice-theo.safetensors?url'
 
 let model: Promise<PhononTTS> | undefined
+/** The shipped voice's name once it is added; requests ask for it by this. */
+let voice: string | undefined
 /** How much of each file has arrived, to add up. */
 const files = new Map<string, { loaded: number; total: number | null }>()
 const watchers = new Set<(fetching: Fetching | undefined) => void>()
@@ -31,7 +34,17 @@ function load() {
           }
           tell({ loaded: have, total: known ? all : undefined })
         },
-      }),
+      }).then((tts) =>
+        // The shipped voice once it is added; until then, or if adding it
+        // fails, the model's own default voice speaks.
+        tts.addVoice('theo', theoVoice).then(
+          () => {
+            voice = 'theo'
+            return tts
+          },
+          () => tts,
+        ),
+      ),
     )
     .finally(() => {
       files.clear()
@@ -57,7 +70,7 @@ export const phonon: SpeechProvider = {
       if (onFetching) watchers.delete(onFetching)
     }
     signal.throwIfAborted()
-    const stream = tts.stream(text, { signal })
+    const stream = tts.stream(text, { signal, voice })
     // A generation that fails says so through the blocks; nothing else waits on this.
     stream.done.catch(() => {})
     return { sampleRate: stream.sampleRate, blocks: stream }

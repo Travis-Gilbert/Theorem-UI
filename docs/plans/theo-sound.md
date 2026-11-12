@@ -203,9 +203,23 @@ fetched from its pinned Hugging Face commit the first time someone presses
 Read aloud and kept in the browser's cache; a page that never speaks never
 fetches it.
 
-`phonon-tts` is pinned at 0.6.0. 0.7.0 was two days old when this was
-built, inside the three days this repository waits before installing a
-release (`bunfig.toml`); its API differs from 0.6.0's only in comments.
+The voice it speaks with ships in the repo:
+`src/lib/speech/voice-theo.safetensors`, a Phonon speaker latent the owner's
+ears chose on 2026-11-12 — a clone of the Buttery v4+v2 join (Gradium voice
+`KtDVnkQ8XhyVLI1w`), its provenance and the consent caveat in
+`docs/learnings/2026-11-11-buttery-reference-voice-and-phonon-cloning.md`.
+`phonon.ts` adds it to the model with `addVoice` once the model is loaded,
+and falls back to the model's default voice if the add fails. Directed
+prosody is deferred: ordinary sentences ship as the model reads them.
+
+`phonon-tts` is pinned at 0.7.0, bumped at the owner's ask on 2026-11-12,
+two days and 21 hours after its release — inside the three days this
+repository waits before installing a release (`bunfig.toml`) — so it lands
+under `minimumReleaseAgeExcludes` with a dated comment, as dockview did
+before it. Against 0.6.0 the typings differ only in comments, but
+`worker.js`, `hub.js` and the wasm binaries differ and a `gpu/` directory
+(the WebGPU path) is added: the bump is not comment-only, and the next
+listening pass in a browser doubles as its verification.
 
 `speechAdapter` (`src/lib/speech/adapter.ts`) is assistant-ui's
 `SpeechSynthesisAdapter` over the seam. An utterance is `starting` until
@@ -394,7 +408,17 @@ itself was not pressed there. What was checked:
   not depend on what Hugging Face will answer, and works on a Workers
   preview. The model is Apache-2.0. Where it would be kept is the owner's
   decision.
-- Choosing a voice, and a setting for which provider speaks.
+- The voice ships: `src/lib/speech/voice-theo.safetensors`, the Buttery
+  v4+v2 join the owner picked by ear, added to the model with `addVoice` on
+  load (2026-11-12, provenance and consent caveat recorded in
+  `docs/learnings/2026-11-11-buttery-reference-voice-and-phonon-cloning.md`).
+  Serving the model from Theorem's own origin is still the owner's call, and
+  a setting for which voice or provider speaks remains.
+- Directed prosody — reference-matched vocal gestures for sentences like s2
+  — is deferred. The measured recipe (segments, measured gaps, seed casts,
+  contour grafts through a WORLD vocoder) lands the gestures on paper and
+  still sounds processed in the ear; ordinary sentences ship as the model
+  reads them.
 - Reading a reply as it streams. Read aloud is pressed on a finished one.
 - Word timings from a provider, for a mouth that shapes vowels.
 - Other devices.
