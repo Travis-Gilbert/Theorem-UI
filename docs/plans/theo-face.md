@@ -127,9 +127,9 @@ A face is a list of **features**. Every feature is the same primitive:
 - **rings**, **bars** and a **mesh**: its matter gathered into that many
   rings from the middle out, that many rows, or dots inside a rim, for the
   devices the face turns into (`theo-sound.md`);
-- a **globe**: its matter set as dots on a ball that turns (`spin`) and can
-  be stirred (`stir`), with grains in orbit: the thinking orb the face is
-  while a run works (`theo-orb.md`);
+- a **globe**: its matter set as dots on a ball that turns (`spin`), can
+  be stirred (`stir`) and can lose its shape (`loose`), with grains in
+  orbit: the thinking orb the face is while a run works (`theo-orb.md`);
 - a **place**: position, turn and scale on the visor;
 - an **alpha**, and a **share** of the face's matter.
 
@@ -152,13 +152,13 @@ Every number above is a **channel** with a name, bounds and a rest value.
 Names address meaning, never grains: `eye.left.lid`, `eye.right.lidTilt`,
 `gaze.x`, `face.tilt`, `matter.cohesion`. `eyes.<param>` means both eyes.
 
-| Group    | Channels                                                                                                                                                                                        |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Feature  | `x`, `y`, `w`, `h`, `round`, `r0`..`r7`, `lid`, `lidTilt`, `lidBow`, `low`, `lowTilt`, `lowBow`, `hollow`, `rings`, `slats`, `mesh`, `globe`, `spin`, `stir`, `turn`, `scale`, `alpha`, `share` |
-| Face     | `face.tilt`, `face.scale`, `face.dx`, `face.dy`, `face.squash`, `emit.left`, `emit.right` (what leaves its sides, drawn outside the visor)                                                      |
-| Gaze     | `gaze.x`, `gaze.y`                                                                                                                                                                              |
-| Matter   | `matter.cohesion`, `matter.jitter`, `matter.drift`, `matter.size`, `matter.glow`, `matter.hue`                                                                                                  |
-| Autonomy | `auto.blink`, `auto.saccade`, `auto.breath` (how much the face does unasked)                                                                                                                    |
+| Group    | Channels                                                                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feature  | `x`, `y`, `w`, `h`, `round`, `r0`..`r7`, `lid`, `lidTilt`, `lidBow`, `low`, `lowTilt`, `lowBow`, `hollow`, `rings`, `slats`, `mesh`, `globe`, `spin`, `stir`, `loose`, `turn`, `scale`, `alpha`, `share` |
+| Face     | `face.tilt`, `face.scale`, `face.dx`, `face.dy`, `face.squash`, `emit.left`, `emit.right` (what leaves its sides, drawn outside the visor)                                                               |
+| Gaze     | `gaze.x`, `gaze.y`                                                                                                                                                                                       |
+| Matter   | `matter.cohesion`, `matter.jitter`, `matter.drift`, `matter.size`, `matter.glow`, `matter.hue`                                                                                                           |
+| Autonomy | `auto.blink`, `auto.saccade`, `auto.breath` (how much the face does unasked)                                                                                                                             |
 
 Layers, lowest first: **mood** (the run's liveness, sleep, and the agent's
 `theorem-expression`), **form** (what the face is for as long as something

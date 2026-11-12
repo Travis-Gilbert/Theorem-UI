@@ -33,9 +33,9 @@
     },
     {
       "id": "boombox",
-      "item": "The boombox form: two mesh speaker covers under a dial, nothing between them below, moving with the sound's bands",
+      "item": "The boombox form: two mesh speaker covers, ten dots across, under a dial, nothing between them below, moving with the sound's bands",
       "status": "done",
-      "evidence": "src/lib/face/book.ts; sound.test.ts 'as a loudspeaker its eyes are mesh covers under a dial...'; evidence/theo-sound/boombox.png, boombox-light.png (re-rendered after the owner's two changes)"
+      "evidence": "src/lib/face/book.ts; sound.test.ts 'as a loudspeaker its eyes are mesh covers under a dial...'; evidence/theo-sound/boombox.png, boombox-light.png (re-rendered after the owner's changes: no deck, mesh covers, then ten finer dots across)"
     },
     {
       "id": "arcs",
@@ -51,7 +51,7 @@
     },
     {
       "id": "reduced-motion",
-      "item": "With motion reduced nothing follows; that something is sounding is shown by still arcs",
+      "item": "With motion reduced nothing follows the sound; that something is sounding is shown by still arcs",
       "status": "done",
       "evidence": "player.ts follow, engine.ts emitting; sound.test.ts 'with motion reduced, nothing follows', 'with motion reduced a tie with `for` still ends when it is due to', 'with motion reduced the loudspeaker does not pump...'; evidence/theo-sound/reduced-motion.png"
     },

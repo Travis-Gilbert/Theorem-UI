@@ -17,7 +17,7 @@
       "id": "pace",
       "item": "run.pace rises with each tool call that starts or ends, harder for a failed one, each push with a strength of its own, and dies away",
       "status": "done",
-      "evidence": "src/lib/face/work.ts, signals.ts; orb.test.ts 'the work meter' (6)"
+      "evidence": "src/lib/face/work.ts, signals.ts; orb.test.ts 'the work meter' (7)"
     },
     {
       "id": "effort",
@@ -57,9 +57,9 @@
     },
     {
       "id": "reduced-motion",
-      "item": "With motion reduced the orb is a ball that does not turn",
+      "item": "With motion reduced the orb does not turn, and still shows what holds for the whole run: its size and its shape",
       "status": "done",
-      "evidence": "engine.ts pose; orb.test.ts 'with motion reduced it is a ball that does not turn...'; evidence/theo-orb/reduced-motion.png. Its size does not follow the effort then"
+      "evidence": "engine.ts pose; signals.ts steady, player.ts follow; orb.test.ts 'with motion reduced it does not turn, and still shows what holds for the whole run...'; evidence/theo-orb/reduced-motion.png (re-taken: the largest size, still)"
     },
     {
       "id": "started-late",
@@ -68,10 +68,34 @@
       "evidence": "src/components/face/driver.ts start; evidence/theo-orb/in-shell.png, phone.png (the story mounted, then the run set to work)"
     },
     {
+      "id": "loose",
+      "item": "A globe can lose its shape: bulged into a lump, its dots frayed, some grains strayed, its orbits wavering",
+      "status": "done",
+      "evidence": "src/lib/face/feature.ts, channels.ts loose; orb.test.ts 'loosened, it is no longer a ball...'"
+    },
+    {
+      "id": "context",
+      "item": "run.context is how full the conversation is past 400,000 tokens, up to the model's window, from the usage the server last reported",
+      "status": "done",
+      "evidence": "work.ts contextShare, COMPOSED_UNTIL; operations.ts contextOf; orb.test.ts 'a conversation is as composed as ever up to 400,000 tokens...'; operations.test.ts 'the context is the newest usage the server reported...'. The usage part's shape is read from the server's source, not from a live stream"
+    },
+    {
+      "id": "looser",
+      "item": "The orb loses its shape as the conversation fills, and stays inside the visor at its largest, busiest and loosest",
+      "status": "done",
+      "evidence": "book.ts orb; orb.test.ts 'the fuller the conversation is past 400,000 tokens, the less it keeps its shape...'; evidence/theo-orb/context.png"
+    },
+    {
       "id": "live-run",
       "item": "The orb moved by an agent's own tool calls in the signed-in app",
       "status": "todo",
       "evidence": "Not seen. The renders drive the same meter from a script"
+    },
+    {
+      "id": "live-context",
+      "item": "The orb loosened by a real conversation past 400,000 tokens",
+      "status": "todo",
+      "evidence": "Not seen. The renders set the share from a script"
     }
   ]
 }

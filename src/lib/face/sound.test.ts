@@ -311,8 +311,11 @@ describe('forms', () => {
     expect(features(face)).toContain('dial')
     // Nothing sits under the dial, between the speakers.
     expect(features(face)).not.toContain('deck')
-    expect(face.rig.read('eye.left.mesh')).toBeCloseTo(5, 1)
-    expect(face.rig.read('eye.right.mesh')).toBeCloseTo(5, 1)
+    // Ten dots across each cover: a fine mesh.
+    expect(face.rig.read('eye.left.mesh')).toBeCloseTo(10, 1)
+    expect(face.rig.read('eye.right.mesh')).toBeCloseTo(10, 1)
+    // Its grains are finer than the face's, so that many dots stay apart.
+    expect(face.rig.read('matter.size')).toBeCloseTo(0.5, 2)
     expect(face.rig.read('eye.left.rings')).toBe(0)
     expect(face.emitting()).toEqual({ left: 0, right: 0 })
     face.feed({ 'sound.level': 0.8 })

@@ -1,11 +1,11 @@
-// SOURCING: Theorem's client operations, as lib/blocks/app-operations.ts and lib/kit/operations.ts use them (a page declares operations on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); the server's limits on a declaration (theorem rustyred-thg-server theorem_agent_stream/client_operations.rs: 16 operations a send, a description of at most 1024 bytes, a schema of at most 8 KB). Kit and the App check use ten of the sixteen, so the face is three operations and its vocabulary is data, not tools: one to read the manual, one to perform, one to teach.
+// SOURCING: Theorem's client operations, as lib/blocks/app-operations.ts and lib/kit/operations.ts use them (a page declares operations on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); the server's limits on a declaration (theorem rustyred-thg-server theorem_agent_stream/client_operations.rs: 16 operations a send, a description of at most 1024 bytes, a schema of at most 8 KB). Kit and the App check use ten of the sixteen, so the face is three operations and its vocabulary is data, not tools: one to read the manual, one to perform, one to teach. How full a conversation is comes from the `usage` part of theorem-chat/1 (theorem_agent_stream.rs append_native_usage_as: `contextTokens`, the prompt's occupancy at the last request, and `contextWindow`, the model's window from the catalogue), which @theoremharness/sdk hands on as a `theorem-usage` data part.
 import type { ThreadMessage } from '@assistant-ui/react'
 import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { hasStatus, mutate, theorem } from '@/lib/theorem/client'
 import type { Face } from './engine'
 import { theFace, useFaceStage } from './store'
-import { effortShare, theWork } from './work'
+import { contextShare, effortShare, theWork } from './work'
 
 export const FACE_READ = 'face.read'
 export const FACE_PERFORM = 'face.perform'
@@ -429,6 +429,35 @@ export function toolFactsOf(
   return { id: last.id, called, done, failed }
 }
 
+/**
+ * How many tokens the conversation's model was last sent, and how many its
+ * window holds: the newest usage the server reported (the `usage` part of
+ * theorem-chat/1, which carries `contextTokens` and `contextWindow`).
+ * Undefined where none was, as in a conversation's first turn.
+ */
+export function contextOf(messages: readonly ThreadMessage[]) {
+  for (let at = messages.length - 1; at >= 0; at--) {
+    const content = messages[at]?.content ?? []
+    for (let index = content.length - 1; index >= 0; index--) {
+      const part = content[index]
+      if (part?.type !== 'data' || part.name !== 'theorem-usage') continue
+      const data = part.data as
+        { contextTokens?: unknown; contextWindow?: unknown } | null | undefined
+      const tokens = data?.contextTokens
+      if (typeof tokens !== 'number' || !Number.isFinite(tokens)) continue
+      const window = data?.contextWindow
+      return {
+        tokens,
+        window:
+          typeof window === 'number' && Number.isFinite(window)
+            ? window
+            : undefined,
+      }
+    }
+  }
+  return undefined
+}
+
 /** The id of the conversation's last reply if it ended in an error, so the face can take it in once. */
 export function runErrorOf(messages: readonly ThreadMessage[]) {
   const last = messages.at(-1)
@@ -443,8 +472,9 @@ export function runErrorOf(messages: readonly ThreadMessage[]) {
  * Serves face requests from one conversation for as long as it is mounted,
  * and tells the face what the run's tools are doing: each one that finishes
  * is an event, and one that fails is a different one. Each call that starts
- * or ends is counted into the run's pace too, and `effort` says what
- * reasoning effort the conversation's sends ask for.
+ * or ends is counted into the run's pace too, `effort` says what
+ * reasoning effort the conversation's sends ask for, and the newest usage
+ * the server reported says how full the conversation is.
  */
 export function useFaceRequests(
   runtime: ThreadSource,
@@ -477,7 +507,12 @@ export function useFaceRequests(
           work.tool(now)
         }
       }
-      if (isRunning) theWork().effort = effortShare(effort?.())
+      if (isRunning) {
+        const work = theWork()
+        const context = contextOf(messages)
+        work.effort = effortShare(effort?.())
+        work.context = contextShare(context?.tokens, context?.window)
+      }
       seen = facts ?? seen
       const error = runErrorOf(messages)
       if (

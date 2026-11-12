@@ -4,8 +4,9 @@ While the agent works, a small dotted orb turns beside the words that say
 so. This plan makes Theo that orb: when Theo is on and a run is at work,
 the eyes give their matter to one ball of dots that turns, with a few
 grains in orbit round it. It is held by the run itself, and the run moves
-it: each tool call makes it turn faster and stirs it, and the harder the
-run was asked to think, the larger it is.
+it: each tool call makes it turn faster and stirs it, the harder the run
+was asked to think the larger it is, and as the conversation fills past
+400,000 tokens it loses its shape.
 
 It is a form, as the loudspeaker is (`theo-sound.md`): a performance held
 from one event until another, under whatever else the face does.
@@ -27,6 +28,11 @@ thinking effort setting. So basically, a more variable form of
 https://github.com/Jakubantalik/thinking-orbs made from luma gl". It is not
 a file, so it has no hash.
 
+On seeing it the owner asked for one more thing, on 2026-11-11: "an
+interesting idea might be if it gets a bit less composed becoming a less
+consistent sphere shape as the current models context window gets higher
+maybe starting past 400,000 tokens".
+
 The orb they point to is `thinking-orbs` by Jakub Antalik (MIT), which the
 app's inline indicator already uses
 (`components/assistant-ui/elements/thinking-indicator.tsx`). It draws on a
@@ -40,7 +46,7 @@ Nothing new draws. The orb is Theo's own 1200 grains, seated differently,
 painted by the painter the face already has (luma.gl instanced quads,
 Canvas2D where there is no WebGL).
 
-A feature has three new numbers (`lib/face/channels.ts`,
+A feature has four new numbers (`lib/face/channels.ts`,
 `lib/face/feature.ts`):
 
 - **globe**: its matter set as dots on a ball seen from the side, this many
@@ -51,6 +57,11 @@ A feature has three new numbers (`lib/face/channels.ts`,
 - **spin**: how fast the globe turns, in turns a second.
 - **stir**: how much it is stirred: its rows slide past each other, its
   axis wanders, its orbits quicken and tilt.
+- **loose**: how far it has lost its shape. 0 is a ball. Toward 1 its
+  radius is bent by two slow waves over the sphere, so it bulges into a
+  lump; its dots spread toward a plain scatter; three grains in ten stand
+  off it, the furthest by 0.3 of its radius; and its orbits waver. The
+  lumps drift as it is stirred.
 
 What the globe has turned, and how much it has been stirred, are kept by
 the matter and added to each step (`lib/face/particles.ts`). They are not a
@@ -59,7 +70,7 @@ it is at any moment depends on everything the run has done so far.
 
 ## What moves it
 
-Two signals, measured from the run (`lib/face/signals.ts`,
+Three signals, measured from the run (`lib/face/signals.ts`,
 `lib/face/work.ts`), fed to the face each frame by the driver:
 
 | Signal       | 0..1                                                                                                                                                                                                                           |
@@ -67,7 +78,9 @@ Two signals, measured from the run (`lib/face/signals.ts`,
 | `run.pace`   | How busy the run is with tools. Each call that starts or ends pushes it up; it halves every 2.4 seconds. A failed call pushes 1.6 times as hard. Each push lands with a strength of its own, between 0.7 and 1.3 of the usual. |
 | `run.effort` | The reasoning effort the run was asked for: low 0, medium 0.25, high 0.5, xhigh 0.75, max 1. The middle where none was asked for.                                                                                              |
 
-While nothing runs both are 0.
+| `run.context` | How full the conversation is past 400,000 tokens: 0 up to there, 1 at the model's window. |
+
+While nothing runs all three are 0.
 
 The tool calls are counted where the face already hears of them
 (`useFaceRequests` in `lib/face/operations.ts`): a call is counted when its
@@ -76,16 +89,35 @@ effort is the conversation's own setting, else the account's default
 (`requestedEffort` in `lib/theorem/generation.ts`). A model's own default
 effort is not read, so with neither set the orb is the middle size.
 
+The context is what the server last reported. Its `usage` part of
+theorem-chat/1 carries `contextTokens`, the prompt's occupancy at the last
+request, and `contextWindow`, the model's window from the catalogue
+(`append_native_usage_as` in the server's `theorem_agent_stream.rs`); the
+SDK hands it on as a `theorem-usage` data part, and `contextOf` reads the
+newest one in the thread. Three things follow from that:
+
+- The 400,000 is a count of tokens, as asked, not a share of the window.
+  A model whose window is 400,000 or smaller never loosens the orb.
+- Where no window is reported it is taken to be a million.
+- The number is one request behind: a conversation's first run has none,
+  and a run shows what the last report said until its own arrives.
+
 The form (`orb` in `lib/face/book.ts`) follows them:
 
-| Channel     | At rest | Follows      | By   | So                             |
-| ----------- | ------- | ------------ | ---- | ------------------------------ |
-| `orb.spin`  | 0.11    | `run.pace`   | 0.7  | a turn every 9 s, up to 1.2 s  |
-| `orb.stir`  | 0.14    | `run.pace`   | 0.8  | barely stirred, up to 0.94     |
-| `orb.scale` | 0.76    | `run.effort` | 0.54 | radius 10.6 to 18.2 face units |
+| Channel     | At rest | Follows       | By   | So                             |
+| ----------- | ------- | ------------- | ---- | ------------------------------ |
+| `orb.spin`  | 0.11    | `run.pace`    | 0.7  | a turn every 9 s, up to 1.2 s  |
+| `orb.stir`  | 0.14    | `run.pace`    | 0.8  | barely stirred, up to 0.94     |
+| `orb.scale` | 0.76    | `run.effort`  | 0.54 | radius 10.6 to 18.2 face units |
+| `orb.loose` | 0       | `run.context` | 1    | a ball, to a frayed lump       |
 
 The visor is 100 by 64 face units; at its largest the ball and its orbits
-reach 27 from the middle.
+reach 27 from the middle, and at its largest and loosest its furthest
+grain is 29.8 from it.
+
+`run.effort` and `run.context` are marked steady in `signals.ts`: they
+hold for a whole run or longer, so a channel that follows one does not
+move for effect.
 
 ## When it is held
 
@@ -115,40 +147,50 @@ then done) still finds them next to each other.
   stops. A run that starts during a reading replaces the loudspeaker.
 - **The inline indicators are not changed.** The small `thinking-orbs` orb
   beside "Working" still shows whether Theo is on or not.
-- **Reduced motion.** The ball does not turn and is not stirred, and
-  nothing is followed, as with sound: the orb is there, at the size it has
-  at rest, for as long as the run works.
+- **Reduced motion.** The ball does not turn and is not stirred, and the
+  pace is not followed, as sound is not. The two steady signals are: the
+  orb has the size the effort gives it and the shape the context gives
+  it, and holds still (`follow` in `lib/face/player.ts`). Before the
+  context was read the size was not followed either; a size and a shape
+  that say something and do not move are not motion.
+- **Loosening is absolute.** It starts at 400,000 tokens whatever the
+  model. A share of the window instead would loosen every model alike; it
+  was not asked for and not built.
 
 ## Files
 
 ```
 src/lib/face/
-  channels.ts     globe, spin, stir
+  channels.ts     globe, spin, stir, loose
   feature.ts      the globe's seats and each grain's light
   particles.ts    what a globe has turned and been stirred, kept per feature
-  signals.ts      run.pace, run.effort
-  work.ts         the run's pace and effort as numbers
+  signals.ts      run.pace, run.effort, run.context; which signals are steady
+  work.ts         the run's pace, effort and context as numbers
+  player.ts       a steady signal is followed with motion reduced
   engine.ts       run.work, run.rest; nothing turns with motion reduced
   reactions.ts    work-orb
   book.ts         the orb form
-  operations.ts   counts tool calls, reads the effort asked for
+  operations.ts   counts tool calls, reads the effort asked for and the context reported
   orb.test.ts
-src/components/face/driver.ts   feeds the two signals each frame
+src/components/face/driver.ts   feeds the signals each frame
 src/lib/theorem/generation.ts   requestedEffort
 src/lib/theorem/runtime.tsx     passes it to useFaceRequests
 ```
 
 ## Tests and evidence
 
-`bun test src/lib/face/orb.test.ts`: 21 tests. The work meter (a push per
+`bun test src/lib/face/orb.test.ts`: 24 tests. The work meter (a push per
 call, the decay, the cap, a failure pushing harder, pushes that differ,
-nothing while nothing runs, the effort levels); the globe (on a ball, in
-dots, far side dim, a whole turn brings it back, orbits outside the ball
-and not piled at their ends, flat with no rows); the form (held from work
-to rest, never left out by chance, back after an ask, faster and more
-stirred with pace, no jump on a change of speed, larger with effort and
-inside the visor, still with motion reduced, the relief sequence kept, the
-program compiles and the manual lists the signals).
+nothing while nothing runs, the effort levels, the context share); the
+globe (on a ball, in dots, far side dim, a whole turn brings it back,
+orbits outside the ball and not piled at their ends, loosened it is no
+ball, flat with no rows); the form (held from work to rest, never left
+out by chance, back after an ask, faster and more stirred with pace, no
+jump on a change of speed, larger with effort and inside the visor,
+looser with context and inside the visor, with motion reduced not
+turning and still showing its size and shape, the relief sequence kept,
+the program compiles and the manual lists the signals). `contextOf` is
+tested in `operations.test.ts`.
 
 Renders under `evidence/theo-orb/`, from the stories `face-sound` and
 `face-in-shell` in headless Chromium on software WebGL. The run in them is
@@ -159,7 +201,11 @@ through the same meter the runtime uses.
   and high in the light theme.
 - `run.png`: seven frames through one run at high effort: forming, calm
   twice, twice after four tool calls, the run finishing, and after.
-- `reduced-motion.png`: max effort and four tool calls with motion reduced.
+- `context.png`: the conversation filling: nothing past 400,000 tokens, a
+  third, two thirds and all of the way to the window; above at high
+  effort and calm, below at max effort after four tool calls.
+- `reduced-motion.png`: max effort and four tool calls with motion
+  reduced: the largest size, not turning.
 - `in-shell.png`, `phone.png`: the orb beside a reply in the app's shell,
   at desktop width and on a phone.
 
@@ -168,6 +214,9 @@ through the same meter the runtime uses.
 - No live run has moved it. The counting was checked by a unit test of the
   message parts and by driving the meter from a script, not by an agent
   calling tools in the signed-in app.
+- No conversation of 400,000 tokens has loosened it. The reading was
+  checked by a unit test of the usage part's shape as the server's source
+  writes it, and the look by setting the share from a script.
 - A still image does not show the turning. That it turns, and how fast for
   a given pace, is asserted by the tests, not judged by eye.
 - Real WebGL on a real phone has not drawn it; the renders are software

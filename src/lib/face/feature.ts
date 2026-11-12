@@ -1,4 +1,4 @@
-// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The rings, bars and mesh a feature's matter can be gathered into are this app's, for the devices the face turns into (docs/plans/theo-sound.md). The globe is an orthographic sphere of dots in rows of latitude, each row turned about the pole and the whole leaned toward the viewer, with grains on tilted circular orbits: the dotted thought-orb of agent interfaces (thinking-orbs by Jakub Antalik, MIT, which the app's inline indicator uses; none of its code is here), remade from this face's own matter so that what it has turned is integrated from a speed that events change, where that one is a function of the clock (docs/plans/theo-orb.md). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
+// SOURCING: the superellipse (Lamé curve) for a box that rounds into an ellipse or pinches into a diamond; eight radial gains interpolated around it, the study rig's way of bending one outline into many (theorem-face-study src/rig.js, docs/plans/theo-face.md Sources). The rings, bars and mesh a feature's matter can be gathered into are this app's, for the devices the face turns into (docs/plans/theo-sound.md). The globe is an orthographic sphere of dots in rows of latitude, each row turned about the pole and the whole leaned toward the viewer, with grains on tilted circular orbits: the dotted thought-orb of agent interfaces (thinking-orbs by Jakub Antalik, MIT, which the app's inline indicator uses; none of its code is here), remade from this face's own matter so that what it has turned is integrated from a speed that events change, where that one is a function of the clock; loosened, its radius is bent by two low waves over the sphere, its dots spread toward a plain scatter and a share of its grains stand off it, all this app's (docs/plans/theo-orb.md). The lids that gather cut matter onto their line are this app's, after the reference robot's eyes, which close to a bright line rather than vanishing.
 import { FEATURE_PARAMS, FEATURE_PARAM_NAMES } from './channels'
 import type { FeatureDef, FeatureParam } from './channels'
 
@@ -25,6 +25,7 @@ export interface Shape {
   globe: number
   spin: number
   stir: number
+  loose: number
   /** How far a globe has turned, in turns, and how much it has been stirred: kept by the matter (particles), not read off the rig. */
   spun: number
   stirred: number
@@ -61,6 +62,7 @@ export function restShape(side: -1 | 0 | 1 = 0): Shape {
     globe: 0,
     spin: 0,
     stir: 0,
+    loose: 0,
     spun: 0,
     stirred: 0,
     turn: 0,
@@ -93,7 +95,7 @@ const RESIDUE = 0.07
 /** How much of the gap between two rings, or two bars, the matter of one fills. */
 const BAND = 0.34
 /** How much of the step between two dots of a mesh the matter of one fills. */
-const DOT = 0.46
+const DOT = 0.3
 /** How far apart the rows of a mesh are, in steps: every other row sits between the dots of the last. */
 const ROW = Math.sqrt(3) / 2
 /** How much of a meshed feature's matter is its rim, how wide the rim is and how far the dots keep from it, as parts of the feature. */
@@ -112,6 +114,13 @@ const ORBIT_SHARE = 0.5
 const ORBITS = 3
 const ORBIT_REACH = 1.5
 const TAIL = 1.3
+/** A globe that has lost its shape: how far its two lumps stand out, how far a strayed grain goes, and how much an orbit's reach wavers, in radii; the part of its grains that stray; how much of a dot's fraying is left to do. */
+const LUMP = 0.2
+const LUMP_SMALL = 0.14
+const STRAY = 0.3
+const STRAYS = 0.3
+const WAVER = 0.12
+const FRAY = 0.5
 /** How dim the far side of a globe is. */
 const FAR = 0.1
 const fraction = (value: number) => value - Math.floor(value)
@@ -220,9 +229,13 @@ export function seatPoint(
       // How open the orbit is to whoever looks: never edge on, where its grains would pile up at the two ends, and each one different.
       const tip = 0.35 + 0.2 * orbit + 0.12 * Math.sin(stirred * 0.31 + orbit)
       const roll = (orbit * TAU) / ORBITS + 0.4
-      const ox = Math.cos(angle) * ORBIT_REACH
-      const oy = Math.sin(angle) * ORBIT_REACH * Math.sin(tip)
-      const oz = Math.sin(angle) * ORBIT_REACH * Math.cos(tip)
+      // A globe that has lost its shape has orbits that are no longer circles.
+      const wide =
+        ORBIT_REACH *
+        (1 + shape.loose * WAVER * Math.sin(3 * angle + orbit * 1.7))
+      const ox = Math.cos(angle) * wide
+      const oy = Math.sin(angle) * wide * Math.sin(tip)
+      const oz = Math.sin(angle) * wide * Math.cos(tip)
       px = ox * Math.cos(roll) - oy * Math.sin(roll)
       py = ox * Math.sin(roll) + oy * Math.cos(roll)
       pz = oz
@@ -237,16 +250,18 @@ export function seatPoint(
       const rowLat = ((row + 0.5) / rows - 0.5) * Math.PI
       const dots = Math.max(1, Math.round(rows * AROUND * Math.cos(rowLat)))
       const along = (theta / TAU) * dots
+      // The looser it is, the more each dot frays toward where its matter would lie if nothing gathered it.
+      const bead = BEAD + (1 - BEAD) * FRAY * shape.loose
       const dot = Math.floor(along)
       // Each row turns with the ball, and slides past its neighbours by as much as the ball has been stirred.
       const lon =
-        ((dot + 0.5 + (along - dot - 0.5) * BEAD) / dots) * TAU +
+        ((dot + 0.5 + (along - dot - 0.5) * bead) / dots) * TAU +
         (row & 1) * (Math.PI / dots) +
         turned +
         own(row) * stirred * 0.6
       const up =
         rowLat +
-        (lat - rowLat) * BEAD +
+        (lat - rowLat) * bead +
         shape.stir * 0.1 * Math.sin(2 * lon + stirred * 1.3 + row)
       // The ball's axis leans toward whoever looks, and wanders the more it is stirred.
       const lean = LEAN + WANDER * shape.stir * Math.sin(stirred * 0.23 + 1.3)
@@ -254,6 +269,21 @@ export function seatPoint(
       px = Math.cos(up) * Math.sin(lon)
       py = Math.sin(up) * Math.cos(lean) - flat * Math.sin(lean)
       pz = Math.sin(up) * Math.sin(lean) + flat * Math.cos(lean)
+      if (shape.loose > 0) {
+        // Two lumps that ride the turning surface, so the outline changes as it turns, and a part of the grains strayed from their dots, each as far as is its own.
+        const lump =
+          LUMP * Math.sin(2 * lon + 1.3 * up + stirred * 0.7) +
+          LUMP_SMALL * Math.sin(3 * up - lon + 2.1 + stirred * 0.45)
+        const drawn = fraction(theta * 131.7 + u * 57.3)
+        const strayed =
+          drawn > 1 - STRAYS
+            ? ((drawn - (1 - STRAYS)) / STRAYS) ** 2 * STRAY
+            : 0
+        const reach = 1 + shape.loose * (lump + strayed)
+        px *= reach
+        py *= reach
+        pz *= reach
+      }
     }
     // Ball and orbits sway together, the more it is stirred.
     const sway = WANDER * shape.stir * Math.sin(stirred * 0.17)

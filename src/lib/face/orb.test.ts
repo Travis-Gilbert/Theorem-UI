@@ -7,7 +7,7 @@ import { restShape, seatPoint } from './feature'
 import { THEO } from './identity'
 import { compile } from './program'
 import { SIGNALS } from './signals'
-import { Work, effortShare } from './work'
+import { COMPOSED_UNTIL, Work, contextShare, effortShare } from './work'
 
 /** A face on a clock the test turns. */
 const theo = (seed = 7) => {
@@ -77,12 +77,21 @@ describe('the work meter', () => {
     expect(second).toBeGreaterThan(first * 1.5)
   })
 
-  test('while nothing runs both numbers are 0, and the next run starts from nothing', () => {
+  test('while nothing runs every number is 0, and the next run starts from nothing', () => {
     const work = steady()
     work.effort = effortShare('max')
+    work.context = 0.5
     work.tool(0)
-    expect(work.measure(0, false)).toEqual({ 'run.pace': 0, 'run.effort': 0 })
-    expect(work.measure(8, true)).toEqual({ 'run.pace': 0, 'run.effort': 1 })
+    expect(work.measure(0, false)).toEqual({
+      'run.pace': 0,
+      'run.effort': 0,
+      'run.context': 0,
+    })
+    expect(work.measure(8, true)).toEqual({
+      'run.pace': 0,
+      'run.effort': 1,
+      'run.context': 0.5,
+    })
   })
 
   test('an effort level is where it lies from least to most; one not listed, or none, is the middle', () => {
@@ -93,6 +102,22 @@ describe('the work meter', () => {
     expect(effortShare('max')).toBe(1)
     expect(effortShare(undefined)).toBe(0.5)
     expect(effortShare('strenuous')).toBe(0.5)
+  })
+
+  test('a conversation is as composed as ever up to 400,000 tokens, and less so from there to its window', () => {
+    expect(COMPOSED_UNTIL).toBe(400_000)
+    expect(contextShare(undefined, 1_000_000)).toBe(0)
+    expect(contextShare(120_000, 1_000_000)).toBe(0)
+    expect(contextShare(400_000, 1_000_000)).toBe(0)
+    expect(contextShare(700_000, 1_000_000)).toBeCloseTo(0.5, 5)
+    expect(contextShare(1_000_000, 1_000_000)).toBe(1)
+    expect(contextShare(1_300_000, 1_000_000)).toBe(1)
+    // A window that is not known is taken to be a million.
+    expect(contextShare(700_000, undefined)).toBeCloseTo(0.5, 5)
+    // A larger window loosens it more slowly; one no larger than 400,000 never does.
+    expect(contextShare(700_000, 2_000_000)).toBeCloseTo(0.1875, 5)
+    expect(contextShare(190_000, 200_000)).toBe(0)
+    expect(contextShare(450_000, 400_000)).toBe(0)
   })
 })
 
@@ -173,6 +198,28 @@ describe('a globe', () => {
     // Seen edge on, an orbit's grains would crowd its two ends.
     const far = out.filter((at) => Math.hypot(at.x, at.y) > 14.6)
     expect(far.length).toBeLessThan(out.length / 2)
+  })
+
+  test('loosened, it is no longer a ball: it bulges, its dots fray and some grains stray', () => {
+    const lump = { ...ball, loose: 1 }
+    const radii = inside(lump, 3000).map((at) => Math.hypot(at.x, at.y) / 10)
+    // Some of it stands well outside where the ball was, and none of it past its orbits.
+    expect(radii.filter((radius) => radius > 1.15).length).toBeGreaterThan(60)
+    expect(Math.max(...radii)).toBeLessThan(1.7)
+    // Half loosened is between the two.
+    const half = inside({ ...ball, loose: 0.5 }, 3000).map(
+      (at) => Math.hypot(at.x, at.y) / 10,
+    )
+    expect(Math.max(...half)).toBeGreaterThan(1.05)
+    expect(Math.max(...half)).toBeLessThan(Math.max(...radii))
+    // Its dots are frayed: the near side's matter covers more of the disc than a composed ball's does.
+    const lit = (shape: typeof ball) =>
+      new Set(
+        inside(shape, 6000)
+          .filter((at) => at.light > 0.6)
+          .map((at) => `${Math.round(at.x / 0.7)},${Math.round(at.y / 0.7)}`),
+      ).size
+    expect(lit(lump)).toBeGreaterThan(lit(ball) * 1.3)
   })
 
   test('with no rows a feature is filled as it always was', () => {
@@ -282,15 +329,38 @@ describe('the orb', () => {
     expect(orb.h * orb.scale * 1.5).toBeLessThan(32)
   })
 
-  test('with motion reduced it is a ball that does not turn, at the size it has before anything is followed', () => {
+  test('the fuller the conversation is past 400,000 tokens, the less it keeps its shape, and it stays inside the visor', () => {
+    const loose = (context: number) => {
+      const { face, run } = theo()
+      face.setLiveness('work')
+      face.feed({ 'run.pace': 1, 'run.effort': 1, 'run.context': context })
+      run(1_500)
+      return orbOf(face)
+    }
+    expect(loose(0).loose).toBe(0)
+    expect(loose(0.5).loose).toBeCloseTo(0.5, 2)
+    const most = loose(1)
+    expect(most.loose).toBeCloseTo(1, 2)
+    // At its largest, busiest and loosest, every grain is inside the visor: 100 by 64.
+    const out = new Float32Array(2)
+    for (let i = 0; i < 1200; i++) {
+      const u = i % 4 === 0 ? 1 : (i + 0.5) / 1200
+      seatPoint(most, (i * 2.399963) % (Math.PI * 2), u, out, 0)
+      expect(Math.abs(out[0] as number)).toBeLessThan(50)
+      expect(Math.abs(out[1] as number)).toBeLessThan(32)
+    }
+  })
+
+  test('with motion reduced it does not turn, and still shows what holds for the whole run: its size and how loose it is', () => {
     const { face, run } = theo()
     face.still = true
     face.setLiveness('work')
-    face.feed({ 'run.pace': 1, 'run.effort': 1 })
+    face.feed({ 'run.pace': 1, 'run.effort': 1, 'run.context': 0.6 })
     run(2_000)
     const orb = orbOf(face)
     expect(orb.globe).toBeCloseTo(9, 1)
-    expect(orb.scale).toBeCloseTo(0.76, 2)
+    expect(orb.scale).toBeCloseTo(1.3, 2)
+    expect(orb.loose).toBeCloseTo(0.6, 2)
     expect(orb.spin).toBe(0)
     expect(orb.stir).toBe(0)
     expect(orb.spun).toBe(0)
@@ -322,5 +392,6 @@ describe('the orb', () => {
     const manual = JSON.stringify(face.manual('all'))
     expect(manual).toContain('run.pace')
     expect(manual).toContain('run.effort')
+    expect(manual).toContain('run.context')
   })
 })

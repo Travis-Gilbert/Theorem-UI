@@ -5,6 +5,8 @@ export interface SignalSpec {
   readonly min: number
   readonly max: number
   readonly note: string
+  /** It holds for a whole run or longer, so a channel that follows it does not move for effect: it is followed with motion reduced too. */
+  readonly steady?: true
 }
 
 /**
@@ -12,7 +14,8 @@ export interface SignalSpec {
  * page itself is playing (lib/sound): they are 0 while nothing plays, so
  * nothing that follows them moves for a flag. They never come from a
  * microphone. The run ones are counted from the run's own tool calls and
- * read from the effort it was sent with (./work).
+ * read from the effort it was sent with and the tokens its model was last
+ * sent (./work).
  */
 export const SIGNALS = {
   'sound.level': {
@@ -49,6 +52,13 @@ export const SIGNALS = {
     min: 0,
     max: 1,
     note: 'The reasoning effort the run was asked for, least 0 to most 1, the middle where none was. 0 while nothing runs.',
+    steady: true,
+  },
+  'run.context': {
+    min: 0,
+    max: 1,
+    note: "How full the conversation is past 400,000 tokens: 0 up to there, 1 at the model's window (a million where it is not known). 0 while nothing runs, and where the window is no larger than that.",
+    steady: true,
   },
   'body.speed': {
     min: 0,

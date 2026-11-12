@@ -472,10 +472,11 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
     ],
   }),
   // What the face is while a run is at work (docs/plans/theo-orb.md). It keeps, and follows the run itself:
-  // how fast it turns and how stirred it is come from the tool calls, and its size from the effort asked for.
+  // how fast it turns and how stirred it is come from the tool calls, its size from the effort asked for, and how
+  // well it keeps its shape from how full the conversation's context is.
   own(
     'orb',
-    'While the agent works: the eyes give their matter to one ball of dots that turns, with a few grains in orbit. It turns faster and is stirred more with each tool call, and is larger the harder the run was asked to think.',
+    'While the agent works: the eyes give their matter to one ball of dots that turns, with a few grains in orbit. It turns faster and is stirred more with each tool call, is larger the harder the run was asked to think, and loses its shape as the conversation fills past 400,000 tokens.',
     {
       keep: true,
       steps: [
@@ -524,6 +525,12 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
               signal: 'run.effort',
               amp: 0.54,
             },
+            {
+              op: 'follow',
+              channel: 'orb.loose',
+              signal: 'run.context',
+              amp: 1,
+            },
           ],
         },
       ],
@@ -563,7 +570,7 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
                 'eyes.w': 13,
                 'eyes.h': 13,
                 'eyes.round': 2,
-                'eyes.mesh': 5,
+                'eyes.mesh': 10,
                 'eyes.lid': 0,
                 'eyes.low': 0,
                 'eyes.lidTilt': 0,
@@ -572,6 +579,9 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
                 'gaze.y': 0,
                 'matter.cohesion': 0.96,
                 'matter.drift': 0.03,
+                // Ten dots across a cover are closer together than a grain is wide: finer grains, and brighter for it.
+                'matter.size': 0.5,
+                'matter.glow': 1.35,
                 'auto.blink': 0,
                 'auto.saccade': 0,
               },

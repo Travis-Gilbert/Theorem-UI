@@ -1,6 +1,8 @@
 // SOURCING: a cue list played against a clock, as a timeline player does; one performance per layer with the newer one interrupting, and a record of how each ended, after the handoff's split of a definition from its invocations (docs/plans/theo-face.md). What a cue does to the rig is this app's.
 import type { Layer, Rig } from './layers'
 import type { Cue, Place, Score, Thing } from './program'
+import { SIGNALS } from './signals'
+import type { SignalSpec } from './signals'
 import type { ThingSeen, Where } from './things'
 
 /** What the player asks of wherever the face is shown. */
@@ -53,6 +55,10 @@ const TAU = Math.PI * 2
 const HISTORY = 12
 /** How long a tie to a signal takes to come in and to go out, in milliseconds. */
 const FOLLOW_EDGE = 140
+
+/** Whether a signal holds still for as long as a run does. */
+const steady = (name: string) =>
+  (SIGNALS as Record<string, SignalSpec | undefined>)[name]?.steady === true
 
 /** Runs scores on the rig, one per layer, and remembers how each ended. */
 export class Player {
@@ -194,8 +200,8 @@ export class Player {
         playing.follows.splice(index, 1)
         continue
       }
-      // With motion reduced nothing follows, but a tie still ends when it is due to.
-      if (this.rig.still) continue
+      // With motion reduced nothing follows what moves, but a tie still ends when it is due to. What holds for a whole run is still shown.
+      if (this.rig.still && !steady(cue.signal)) continue
       const into = (playing.elapsed - cue.at) / FOLLOW_EDGE
       const left =
         cue.until === undefined

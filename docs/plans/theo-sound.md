@@ -32,7 +32,9 @@ ElevenLabs or similar provider keys". It is not a file, so it has no hash.
 On seeing the first loudspeaker the owner asked for two changes, made
 here: "remove the middle piece on the bottom", which "looks like a bear's
 nose", and make the eyes "less subwoofer shaped and more like the mesh of
-a speaker cover".
+a speaker cover". On seeing that, of the mesh: "not quite granular
+enough, like what if we reduced the size of the dots by a little bit more
+than half and instead used 10 dots?". That is made here too.
 
 Two limits were agreed with it and are kept here:
 
@@ -73,7 +75,7 @@ opens because the level is above nothing, and it is above nothing only
 while audio is going out of the loudspeaker. A pause in a sentence shuts
 it.
 
-With motion reduced nothing follows. A tie still ends when it is due to,
+With motion reduced nothing follows the sound. A tie still ends when it is due to,
 so what reads the ties (the steady arcs) does not show one that is over.
 
 ## Forms
@@ -112,8 +114,10 @@ an ordinary reaction to a sound getting loud.
 three additions to what a feature can be (`src/lib/face/feature.ts`):
 
 - `mesh`: the matter gathered into dots inside a rim, that many across the
-  middle, every other row set between the dots of the last. Five is a
-  speaker's cover.
+  middle, every other row set between the dots of the last. Ten is a
+  speaker's cover: it was five, and the owner asked for ten with dots
+  less than half the size. A dot is now 0.3 of the step between two,
+  which with half the step is a third of the width it had.
 - `slats`: the matter gathered into that many bars. Seven, turned a
   quarter, is a tuner strip.
 - `rings`: the matter gathered into that many rings from the middle out.
@@ -124,6 +128,14 @@ The eyes become the mesh covers of two speakers and move apart, with a
 `dial` above and between them. Nothing sits under the dial: the first
 version had a cassette deck there, and it read as a nose. The speakers
 swell with `sound.low` and `sound.beat`, the dial with `sound.high`.
+
+Ten dots across a cover are 2.6 face units apart, and a grain at its
+usual size is wider than that, so the first render of ten was a filled
+disc. The form therefore draws its matter at half size and a third
+brighter (`matter.size` 0.5, `matter.glow` 1.35) for as long as it is
+held. The rim and the dial are finer for it too. In the gutter the dots
+are about two CSS pixels apart: a 2x screen shows them as dots, and a 1x
+screen as a texture.
 
 What leaves the sides is not matter. Matter is clipped to the visor, so
 the arcs are drawn by the page outside it (`.face-waves`, three arcs a

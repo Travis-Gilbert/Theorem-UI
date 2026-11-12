@@ -89,9 +89,9 @@ export const FEATURE_PARAMS = {
   },
   mesh: {
     min: 0,
-    max: 9,
+    max: 12,
     rest: 0,
-    note: 'Its matter gathered into dots, this many across the middle, inside a rim: 0 filled, 5 a speaker cover.',
+    note: 'Its matter gathered into dots, this many across the middle, inside a rim: 0 filled, 10 a speaker cover.',
   },
   globe: {
     min: 0,
@@ -110,6 +110,12 @@ export const FEATURE_PARAMS = {
     max: 1,
     rest: 0,
     note: 'How much a globe is stirred: its rows slide past each other, its axis wanders and its orbits quicken.',
+  },
+  loose: {
+    min: 0,
+    max: 1,
+    rest: 0,
+    note: 'How far a globe has lost its shape: 0 a ball, 1 a lump that bulges, its dots frayed and some of its matter strayed.',
   },
   turn: {
     min: -180,

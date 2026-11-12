@@ -17,6 +17,7 @@ import {
   resetFaceRequests,
   runErrorOf,
   serveFaceRequests,
+  contextOf,
   toolFactsOf,
 } from './operations'
 import type { FaceReceipt, FaceRequest } from './operations'
@@ -195,6 +196,41 @@ describe('reading requests off a conversation', () => {
       failed: 1,
     })
     expect(toolFactsOf([message], false)).toBeUndefined()
+  })
+
+  test('the context is the newest usage the server reported, whichever message carries it', () => {
+    const message = (id: string, content: Array<unknown>) =>
+      ({ id, role: 'assistant', content }) as unknown as ThreadMessage
+    const usage = (data: unknown) => ({
+      type: 'data',
+      name: 'theorem-usage',
+      data,
+    })
+    expect(contextOf([])).toBeUndefined()
+    expect(
+      contextOf([message('m1', [{ type: 'text', text: 'Hello.' }])]),
+    ).toBeUndefined()
+    const earlier = message('m1', [
+      usage({ contextTokens: 120_000, contextWindow: 1_000_000 }),
+    ])
+    const later = message('m2', [
+      usage({ contextTokens: 380_000, contextWindow: 1_000_000 }),
+      usage({ contextTokens: 455_000 }),
+      { type: 'text', text: 'Done.' },
+    ])
+    expect(contextOf([earlier, later])).toEqual({
+      tokens: 455_000,
+      window: undefined,
+    })
+    // A live reply that has reported nothing yet leaves the last report standing.
+    expect(contextOf([earlier, message('m3', [])])).toEqual({
+      tokens: 120_000,
+      window: 1_000_000,
+    })
+    // A usage with no count of the context is passed over.
+    expect(
+      contextOf([earlier, message('m4', [usage({ contextTokens: null })])]),
+    ).toEqual({ tokens: 120_000, window: 1_000_000 })
   })
 
   test('a reply that ended in an error is told apart from one that did not', () => {
