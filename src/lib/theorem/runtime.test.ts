@@ -16,7 +16,11 @@ import { TheoremError } from '@theoremharness/sdk'
 import type { ChatModelRunOptions } from '@assistant-ui/react'
 import { act, createElement, useEffect, useState } from 'react'
 import { cleanup, render, waitFor } from '../../../test/workspace'
-import { usePlanning, useWebSearch } from '@/components/chat/composer-tools'
+import {
+  ComposerPlanToggle,
+  usePlanning,
+  useWebSearch,
+} from '@/components/chat/composer-tools'
 import {
   mutateThread,
   pendingSendKey,
@@ -60,6 +64,8 @@ let titleEvents: string[] = []
 let concurrentTitle: string | undefined
 let titleReadGate: (() => Promise<void>) | undefined
 let titleReads: string[] = []
+/** The event streams the next runs answer with; a run past them answers with `closedRun`. */
+let runEvents: string[] = []
 
 function titleSnapshot(threadId: string) {
   const saved = titleThreads.get(threadId)!
@@ -90,13 +96,47 @@ const closedRun = [
   .map((event) => `data: ${JSON.stringify(event)}\n\n`)
   .join('')
 
+/** A run that answers by drafting a plan: a finished `draft_plan` call. */
+const draftingRun = [
+  {
+    seq: 1,
+    sourceEventType: 'CHAT.MESSAGE.PART',
+    payload: {
+      part: {
+        partId: 'call-1',
+        type: 'tool_call',
+        toolCallId: 'plan-call',
+        toolName: 'draft_plan',
+        safeArguments: {},
+      },
+    },
+  },
+  {
+    seq: 2,
+    sourceEventType: 'CHAT.MESSAGE.PART',
+    payload: {
+      part: {
+        partId: 'result-1',
+        type: 'tool_result',
+        toolCallId: 'plan-call',
+        toolName: 'draft_plan',
+        safeOutput: { planId: 'plan:1' },
+        status: 'completed',
+      },
+    },
+  },
+  { seq: 3, sourceEventType: 'RUN.CLOSED', payload: {} },
+]
+  .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+  .join('')
+
 async function theoremApi(input: RequestInfo | URL, init?: RequestInit) {
   const request = new Request(input, init)
   const path = new URL(request.url).pathname
   if (path.endsWith('/bootstrap'))
     return Response.json({ csrfToken: 'csrf', tenantId: 't' })
   if (path.endsWith('/events')) {
-    return new Response(closedRun, {
+    return new Response(runEvents.shift() ?? closedRun, {
       headers: { 'content-type': 'text/event-stream' },
     })
   }
@@ -190,8 +230,9 @@ beforeEach(() => {
   concurrentTitle = undefined
   titleReadGate = undefined
   titleReads = []
+  runEvents = []
   useWebSearch.setState({ on: false })
-  usePlanning.setState({ on: false })
+  usePlanning.setState({ byThread: {} })
   useToolSelections.setState({ byThread: {} })
 })
 afterEach(cleanup)
@@ -410,8 +451,8 @@ test.each<[boolean, boolean]>([
   [false, false],
 ])('a send with Web %p and Plan %p keeps research additive', async (on, planning) => {
   useWebSearch.setState({ on })
-  usePlanning.setState({ on: planning })
   const threadId = `thread-${crypto.randomUUID()}`
+  usePlanning.getState().set(threadId, planning)
   function Sender() {
     const aui = useAui()
     useEffect(() => {
@@ -435,6 +476,126 @@ test.each<[boolean, boolean]>([
     ...(on ? { webResearch: true } : {}),
     ...(planning ? { planning: true } : {}),
   })
+})
+
+/**
+ * A chat whose composer row holds the Plan chip, opened on `threadId` (a new
+ * conversation when undefined) and switchable to another, as the rail does.
+ */
+async function chatWithPlanChip(threadId: string | undefined) {
+  let aui: ReturnType<typeof useAui> | undefined
+  let switchTo = (_: string | undefined) => {}
+  function Composer() {
+    aui = useAui()
+    const open = useAuiState(
+      (s) => s.threadListItem.remoteId ?? s.threadListItem.id,
+    )
+    return createElement(
+      'div',
+      { 'data-open': open },
+      createElement(ComposerPlanToggle),
+    )
+  }
+  function Chat() {
+    const [open, setOpen] = useState(threadId)
+    switchTo = setOpen
+    return createElement(TheoremRuntimeProvider, {
+      projectId: 'project',
+      threadId: open,
+      onThreadIdChange: () => {},
+      children: createElement(Composer),
+    })
+  }
+  const { container } = await render(createElement(Chat))
+  const chip = () =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Plan"]')!
+  const open = () =>
+    container.querySelector<HTMLElement>('[data-open]')?.dataset.open
+  await waitFor(() => chip())
+  return {
+    pressed: () => chip().getAttribute('aria-pressed') === 'true',
+    async press() {
+      await act(async () => chip().click())
+    },
+    async switchChat(to: string | undefined) {
+      const from = open()
+      await act(async () => switchTo(to))
+      await waitFor(() => (to ? open() === to : open() !== from))
+    },
+    /** Sends `text`, waits for its run to end, and gives back what went out. */
+    async send(text: string) {
+      const before = sends.length
+      await act(async () => {
+        aui!.composer.setText(text)
+        aui!.composer.send()
+      })
+      await waitFor(() => sends.length === before + 1)
+      await waitFor(() => !aui!.thread.getState().isRunning)
+      return sends.at(-1)!
+    },
+  }
+}
+
+test("Plan pressed in one conversation is not on in another, and that one's sends carry no planning", async () => {
+  const first = `thread-${crypto.randomUUID()}`
+  const second = `thread-${crypto.randomUUID()}`
+  const chat = await chatWithPlanChip(first)
+  await chat.press()
+  expect(chat.pressed()).toBe(true)
+
+  await chat.switchChat(second)
+  expect(chat.pressed()).toBe(false)
+  expect(
+    (await chat.send('What does this error mean?')).planning,
+  ).toBeUndefined()
+
+  // The first conversation still has it on.
+  await chat.switchChat(first)
+  expect(chat.pressed()).toBe(true)
+  expect((await chat.send('Plan my move to Denver')).planning).toBe(true)
+})
+
+test('a new conversation starts with Plan off, and Plan pressed before its first send goes with it', async () => {
+  const created = `thread-${crypto.randomUUID()}`
+  type Created = Awaited<
+    ReturnType<ReturnType<typeof theorem>['chat']['threads']['create']>
+  >
+  const createThread = spyOn(
+    theorem().chat.threads,
+    'create',
+  ).mockResolvedValue({
+    record: { threadId: created },
+  } as Created)
+  try {
+    const chat = await chatWithPlanChip(`thread-${crypto.randomUUID()}`)
+    await chat.press()
+
+    await chat.switchChat(undefined)
+    expect(chat.pressed()).toBe(false)
+    await chat.press()
+    expect((await chat.send('Plan a launch')).planning).toBe(true)
+    // It belongs to the conversation's durable id once it has one, so it is still on.
+    expect(chat.pressed()).toBe(true)
+  } finally {
+    createThread.mockRestore()
+  }
+})
+
+test('inside one conversation Plan stays on across a clarifying question, then turns off once a plan is drafted', async () => {
+  const chat = await chatWithPlanChip(`thread-${crypto.randomUUID()}`)
+  await chat.press()
+
+  // The model answers with a question rather than a plan.
+  expect((await chat.send('Plan my move')).planning).toBe(true)
+  expect(chat.pressed()).toBe(true)
+
+  runEvents.push(draftingRun)
+  expect((await chat.send('To Denver, in March')).planning).toBe(true)
+  await waitFor(() => !chat.pressed())
+
+  expect(
+    (await chat.send('What should I pack first?')).planning,
+  ).toBeUndefined()
 })
 
 test('existing New Chat rows get meaningful projected titles without revision writes', async () => {

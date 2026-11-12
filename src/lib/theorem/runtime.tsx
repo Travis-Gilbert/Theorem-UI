@@ -647,7 +647,7 @@ function useTheoremThreadRuntime() {
           const custom = options.runConfig.custom ?? {}
           const configured = custom.theoremTurnOptions as Record<string,unknown> | undefined
           // The composer's context, Web and Plan toggles, client surface and connection choice, read at each send like the model pick.
-          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(),...clientSurfaceTurnOptions(),...connectionTurnOptions(localId,remoteId),...generationTurnOptions(remoteId)}
+          const added = {...(references.length ? {contextReferences:references} : {}),...webTurnOptions(),...planningTurnOptions(localId,remoteId),...clientSurfaceTurnOptions(),...connectionTurnOptions(localId,remoteId),...generationTurnOptions(remoteId)}
           const composed = Object.keys(added).length ? {
             ...options,
             runConfig:{...options.runConfig,custom:{...custom,theoremTurnOptions:{...configured,...added}}},
@@ -657,8 +657,8 @@ function useTheoremThreadRuntime() {
             useComposerReferences.setState(state=>({references:state.references.filter(reference=>!references.includes(reference))}))
           })
           for await (const step of timed(turn)) {
-            // Plan stays on until a plan is written; the turn that writes one turns it off.
-            if (draftedPlan(step)) usePlanning.getState().set(false)
+            // Plan stays on until a plan is written; the turn that writes one turns it off for this conversation.
+            if (draftedPlan(step)) usePlanning.getState().set(remoteId,false)
             yield step
           }
         } catch (error) {

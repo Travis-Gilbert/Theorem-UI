@@ -94,7 +94,7 @@ afterEach(async () => {
   await cleanup()
   window.fetch = realFetch
   useWebSearch.setState({ on: false })
-  usePlanning.setState({ on: false })
+  usePlanning.setState({ byThread: {} })
   useGenerationOverrides.setState({ byThread: {} })
   useGenerationDefaults.setState({ defaults: {} })
   usePickedModels.setState({ selected: undefined, starred: [] })
@@ -442,11 +442,13 @@ test('the Plan chip makes the next turns planning turns, and stays on across a s
   const { container } = await mount(<Harness text="Plan my move to Denver" sent={sent} />)
   const plan = container.querySelector<HTMLButtonElement>('[aria-label="Plan"]')!
   expect(plan.getAttribute('aria-pressed')).toBe('false')
-  expect(planningTurnOptions()).toEqual({})
+  expect(usePlanning.getState().byThread).toEqual({})
 
   await act(() => plan.click())
   expect(plan.getAttribute('aria-pressed')).toBe('true')
-  expect(planningTurnOptions()).toEqual({ planning: true })
+  // Plan is this conversation's: the chip keeps it under the thread it sits in.
+  const [thread] = Object.keys(usePlanning.getState().byThread)
+  expect(planningTurnOptions(thread!, undefined)).toEqual({ planning: true })
 
   // The message goes as typed; the turn option, not a line of text, asks for the plan.
   const send = container.querySelector<HTMLButtonElement>('[aria-label="Send message"]')!
@@ -457,7 +459,7 @@ test('the Plan chip makes the next turns planning turns, and stays on across a s
   expect(plan.getAttribute('aria-pressed')).toBe('true')
 
   // The runtime turns it off once a plan is written.
-  await act(async () => usePlanning.getState().set(false))
+  await act(async () => usePlanning.getState().set(thread!, false))
   expect(plan.getAttribute('aria-pressed')).toBe('false')
 })
 
