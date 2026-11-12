@@ -96,8 +96,9 @@ describe('the phonon provider', () => {
     const sine = new Float32Array(2400)
     for (let i = 0; i < sine.length; i++)
       sine[i] = Math.sin((2 * Math.PI * 3200 * i) / 24_000) * 0.3
-    // Silence first: a block after a sounded one carries the filter's
-    // decay tail, which is the filter working, not silence failing.
+    // Silence first: a fresh filter has no tail, so it must stay silence.
+    // (A block after a sounded one carries the filter's decay tail, which
+    // is the filter working, not silence failing.)
     FakePhonon.blocks = [new Float32Array(2400), sine]
     const stream = await speak('one')
     const out: Float32Array[] = []
