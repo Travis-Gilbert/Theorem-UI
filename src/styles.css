@@ -1732,18 +1732,32 @@
   --face-eye: oklch(0.9 0.11 205);
 }
 .face-plate {
+  position: relative;
   border-radius: 21.6px;
+}
+/* What is dark behind the matter. It is the whole plate until the face is an
+   orb, when the driver draws it in to a ball under the orb's dots
+   (components/face/plate); the matter's own canvas keeps the plate's outline. */
+.face-plate-back {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--face-plate);
   box-shadow:
     inset 0 0 0 1.5px oklch(1 0 0 / 0.1),
     0 3px 10px rgb(0 0 0 / 0.28);
+}
+.face-plate-screen {
+  position: relative;
+  border-radius: inherit;
   overflow: hidden;
 }
 /* Bare: no plate, and matter that reaches the edge of its canvas thins out
    there, where the plate's rim would have cut it. */
-.face-plate[data-visor='off'] {
-  background: none;
-  box-shadow: none;
+.face-plate[data-visor='off'] .face-plate-back {
+  display: none;
+}
+.face-plate[data-visor='off'] .face-plate-screen {
   mask-image:
     linear-gradient(to right, transparent, #000 9%, #000 91%, transparent),
     linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);

@@ -32,6 +32,13 @@ export interface Head {
   squash: number
 }
 
+/** A ball the face's matter is gathered into, in face units. */
+export interface Ball {
+  x: number
+  y: number
+  r: number
+}
+
 export interface FaceOptions {
   readonly identity?: Identity
   readonly seed?: number
@@ -716,6 +723,28 @@ export class Face {
       dx: rig.read('face.dx'),
       dy: rig.read('face.dy'),
       squash: rig.read('face.squash'),
+    }
+  }
+
+  /**
+   * The ball the face's matter is gathered into, while a globe has most of
+   * it, for whoever draws what is behind the matter. A globe beside other
+   * features is one feature among them, not what the face is.
+   */
+  ball(): Ball | undefined {
+    let globe: Shape | undefined
+    let all = 0
+    for (const shape of this.shapes) {
+      const share = Math.max(0, shape.share)
+      all += share
+      if (Math.round(shape.globe) >= 1 && share > (globe?.share ?? 0))
+        globe = shape
+    }
+    if (!globe || globe.share < all * 0.5) return undefined
+    return {
+      x: globe.side === 0 ? globe.x : globe.side * globe.x,
+      y: globe.y,
+      r: Math.max(globe.w, globe.h) * globe.scale,
     }
   }
 

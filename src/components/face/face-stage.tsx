@@ -1,4 +1,4 @@
-// SOURCING: components/kit/kit-stage.tsx for the layer (fixed over the whole shell, taking pointer events only in the figure itself, below popups) and for the status node a screen reader gets; lib/kit/store for the run's liveness and the agent's authored expression, which both figures read. The visor plate is this app's reading of the reference robot's dark screen; whether it is there is the person's setting (./look).
+// SOURCING: components/kit/kit-stage.tsx for the layer (fixed over the whole shell, taking pointer events only in the figure itself, below popups) and for the status node a screen reader gets; lib/kit/store for the run's liveness and the agent's authored expression, which both figures read. The visor plate is this app's reading of the reference robot's dark screen; whether it is there is the person's setting (./look), and its dark is an element of its own so the driver can draw it in to a ball behind an orb (./plate).
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { THEO } from '@/lib/face/identity'
@@ -21,6 +21,7 @@ const WAVES = ['l0', 'l1', 'l2', 'r0', 'r1', 'r2'] as const
 export function FaceStage() {
   const holder = useRef<HTMLDivElement | null>(null)
   const plate = useRef<HTMLDivElement | null>(null)
+  const back = useRef<HTMLDivElement | null>(null)
   const screen = useRef<HTMLDivElement | null>(null)
   const mark = useRef<HTMLDivElement | null>(null)
   const waves = useRef<SVGSVGElement | null>(null)
@@ -35,6 +36,7 @@ export function FaceStage() {
     if (
       !holder.current ||
       !plate.current ||
+      !back.current ||
       !screen.current ||
       !mark.current ||
       !waves.current
@@ -44,6 +46,7 @@ export function FaceStage() {
       theFace(),
       holder.current,
       plate.current,
+      back.current,
       screen.current,
       mark.current,
       [...waves.current.querySelectorAll('path')],
@@ -63,8 +66,8 @@ export function FaceStage() {
   }, [])
 
   useEffect(() => {
-    if (driving.current) driving.current.ink = look.ink
-  }, [look.ink])
+    if (driving.current) driving.current.look = look
+  }, [look])
   useEffect(() => {
     theFace().setLiveness(liveness)
   }, [liveness])
@@ -109,7 +112,9 @@ export function FaceStage() {
           className="face-plate size-full"
           style={{ willChange: 'transform' }}
         >
-          <div ref={screen} className="size-full" />
+          {/* What is dark behind the matter. Behind an orb the driver draws it in to a ball. */}
+          <div ref={back} className="face-plate-back" />
+          <div ref={screen} className="face-plate-screen size-full" />
         </div>
         {/* The arcs that leave Theo's sides while it sounds. They are outside the visor, which clips its matter; the driver draws them. */}
         <svg

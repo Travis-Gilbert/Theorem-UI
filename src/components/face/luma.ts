@@ -1,4 +1,4 @@
-// SOURCING: luma.gl 9.3 (@luma.gl/core createDevice and Buffer, @luma.gl/engine Model and ShaderInputs, @luma.gl/webgl webgl2Adapter): one instanced triangle strip, a quad per grain, as the study's renderer drew its cells (theorem-face-study src/renderer.js, written against 9.4; this is the 9.3.6 that @cosmos.gl/graph already brings). The grain's look, light that adds so piled grains burn toward white inside a soft halo, is this app's reading of the reference robot's glowing eyes.
+// SOURCING: luma.gl 9.3 (@luma.gl/core createDevice and Buffer, @luma.gl/engine Model and ShaderInputs, @luma.gl/webgl webgl2Adapter): one instanced triangle strip, a quad per grain, as the study's renderer drew its cells (theorem-face-study src/renderer.js, written against 9.4; this is the 9.3.6 that @cosmos.gl/graph already brings). The grain's look, light that adds so piled grains burn toward white inside a soft halo, is this app's reading of the reference robot's glowing eyes. Which grains are ink is decided a fragment at a time by the signed distance to the plate's rounded box (Inigo Quilez, "2D distance functions"; ./plate has the same in TypeScript).
 import { Buffer, luma } from '@luma.gl/core'
 import type { Device } from '@luma.gl/core'
 import { Model, ShaderInputs } from '@luma.gl/engine'
@@ -12,16 +12,31 @@ const REACH = 2.6
 
 // luma checks the block against uniformTypes one field to a line.
 const VIEW_BLOCK = `layout(std140) uniform viewUniforms {
+  vec4 plate;
   vec2 extent;
+  float corner;
   float ink;
+  float inked;
 } view;`
 
 const viewModule = {
   name: 'view',
   vs: VIEW_BLOCK,
   fs: VIEW_BLOCK,
-  uniformTypes: { extent: 'vec2<f32>', ink: 'f32' },
-  defaultUniforms: { extent: [1, 1], ink: 0 },
+  uniformTypes: {
+    plate: 'vec4<f32>',
+    extent: 'vec2<f32>',
+    corner: 'f32',
+    ink: 'f32',
+    inked: 'f32',
+  },
+  defaultUniforms: {
+    plate: [0, 0, -1e4, -1e4],
+    extent: [1, 1],
+    corner: 0,
+    ink: 0,
+    inked: 0,
+  },
 } as const
 
 const vs = `#version 300 es
@@ -29,20 +44,28 @@ precision highp float;
 in vec4 seat;
 in vec4 tint;
 out vec2 uv;
+out vec2 spot;
 out vec4 colour;
 void main() {
   vec2 corner = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1)) * 2.0 - 1.0;
   vec2 at = seat.xy + corner * seat.z * ${REACH.toFixed(1)};
   gl_Position = vec4(at.x / view.extent.x, -at.y / view.extent.y, 0.0, 1.0);
   uv = corner * ${REACH.toFixed(1)};
+  spot = at;
   colour = tint;
 }`
 
 const fs = `#version 300 es
 precision highp float;
 in vec2 uv;
+in vec2 spot;
 in vec4 colour;
 out vec4 fragColor;
+// How far outside the plate a point is: a rounded box, which is a ball when its half sizes are its corner.
+float offPlate(vec2 point) {
+  vec2 q = abs(point - view.plate.xy) - (view.plate.zw - view.corner);
+  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - view.corner;
+}
 void main() {
   float d = length(uv);
   float core = 1.0 - smoothstep(0.55, 1.15, d);
@@ -52,7 +75,11 @@ void main() {
   // Ink covers: the grain's own hue with the light taken out, piling up to solid, with less of a smudge round it.
   float cover = colour.a * (core * 0.5 + halo * 0.4);
   vec4 dark = vec4(colour.rgb / max(colour.a, 0.0001) * ${INK.toFixed(2)} * cover, cover);
-  fragColor = mix(light, dark, view.ink);
+  // Matter is ink only where it is off the plate; with no plate, that is everywhere. The edge is a pixel wide.
+  float out_ = offPlate(spot);
+  float inky = view.ink * clamp(out_ / max(fwidth(out_), 0.0001) + 0.5, 0.0, 1.0);
+  // Light and ink are blended differently, so each is a draw of its own.
+  fragColor = view.inked > 0.5 ? dark * inky : light * (1.0 - inky);
 }`
 
 /** Light adds to what is under it. */
@@ -119,7 +146,8 @@ export async function lumaPainter(canvas: HTMLCanvasElement): Promise<Painter> {
     let buffer: Buffer | undefined
     return {
       kind: 'luma',
-      draw(grains, count, width, height, ink = false) {
+      draw(grains, count, width, height, look = {}) {
+        const { ink = false, plate } = look
         const bytes = count * GRAIN_STRIDE * 4
         if (!buffer || buffer.byteLength < bytes) {
           buffer?.destroy()
@@ -131,15 +159,27 @@ export async function lumaPainter(canvas: HTMLCanvasElement): Promise<Painter> {
         }
         buffer.write(grains.subarray(0, count * GRAIN_STRIDE))
         model.setInstanceCount(count)
-        model.setParameters(ink ? COVERS : ADDS)
-        inputs.setProps({
-          view: { extent: [width / 2, height / 2], ink: ink ? 1 : 0 },
-        })
         const pass = device.beginRenderPass({
           framebuffer: device.getDefaultCanvasContext().getCurrentFramebuffer(),
           clearColor: [0, 0, 0, 0],
         })
-        model.draw(pass)
+        // All light, all ink, or (ink off a plate) the ink and then the light on the plate.
+        const draws = !ink ? [false] : plate ? [true, false] : [true]
+        for (const inked of draws) {
+          model.setParameters(inked ? COVERS : ADDS)
+          inputs.setProps({
+            view: {
+              plate: plate
+                ? [plate.x, plate.y, plate.hw, plate.hh]
+                : [0, 0, -1e4, -1e4],
+              extent: [width / 2, height / 2],
+              corner: plate?.corner ?? 0,
+              ink: ink ? 1 : 0,
+              inked: inked ? 1 : 0,
+            },
+          })
+          model.draw(pass)
+        }
         pass.end()
         device.submit()
       },

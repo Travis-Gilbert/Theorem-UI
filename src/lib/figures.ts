@@ -21,6 +21,8 @@ export interface FaceLook {
   visor: boolean
   /** The eyes are drawn as dark ink, not as light: bare eyes on a light page. */
   ink: boolean
+  /** The page is light: whatever of the face's matter has no plate under it is ink, as when the plate has drawn in to a ball (components/face/plate). */
+  paper: boolean
 }
 
 /**
@@ -31,7 +33,7 @@ export interface FaceLook {
  */
 export function faceLook(visor: Visor, dark: boolean): FaceLook {
   const shown = visor === 'on' || (visor === 'auto' && !dark)
-  return { visor: shown, ink: !shown && !dark }
+  return { visor: shown, ink: !shown && !dark, paper: !dark }
 }
 
 interface FiguresState {
