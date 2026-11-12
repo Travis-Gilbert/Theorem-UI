@@ -4,18 +4,18 @@ import { VISORS, faceLook, useFigures } from './figures'
 
 describe('Theo’s visor', () => {
   test('auto keeps the visor on a light page and drops it on a dark one', () => {
-    expect(faceLook('auto', false)).toEqual({ visor: true, ink: false })
-    expect(faceLook('auto', true)).toEqual({ visor: false, ink: false })
+    expect(faceLook('auto', false)).toMatchObject({ visor: true, ink: false })
+    expect(faceLook('auto', true)).toMatchObject({ visor: false, ink: false })
   })
 
   test('on is the visor in both themes, with light eyes', () => {
-    expect(faceLook('on', false)).toEqual({ visor: true, ink: false })
-    expect(faceLook('on', true)).toEqual({ visor: true, ink: false })
+    expect(faceLook('on', false)).toMatchObject({ visor: true, ink: false })
+    expect(faceLook('on', true)).toMatchObject({ visor: true, ink: false })
   })
 
   test('off is bare in both themes: light eyes on dark, ink on light', () => {
-    expect(faceLook('off', true)).toEqual({ visor: false, ink: false })
-    expect(faceLook('off', false)).toEqual({ visor: false, ink: true })
+    expect(faceLook('off', true)).toMatchObject({ visor: false, ink: false })
+    expect(faceLook('off', false)).toMatchObject({ visor: false, ink: true })
   })
 
   test('eyes are ink only where nothing dark is behind them', () => {
@@ -24,6 +24,13 @@ describe('Theo’s visor', () => {
         const look = faceLook(value, dark)
         expect(look.ink).toBe(!look.visor && !dark)
       }
+  })
+
+  test('matter with no plate under it is ink on a light page, whatever the setting', () => {
+    for (const { value } of VISORS) {
+      expect(faceLook(value, false).paper).toBe(true)
+      expect(faceLook(value, true).paper).toBe(false)
+    }
   })
 
   test('the setting starts at auto and takes each choice', () => {

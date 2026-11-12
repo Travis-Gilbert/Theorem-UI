@@ -42,7 +42,7 @@ dots that turns, with grains on tilted orbits.
 
 ## What is drawn
 
-Nothing new draws. The orb is Theo's own 1200 grains, seated differently,
+Nothing new draws, bar the plate changing shape ("On the plate" below). The orb is Theo's own 1200 grains, seated differently,
 painted by the painter the face already has (luma.gl instanced quads,
 Canvas2D where there is no WebGL).
 
@@ -136,6 +136,38 @@ work takes up the orb (`components/face/driver.ts`).
 so a rule that waits for two events in order (`done-relief`: a failed tool,
 then done) still finds them next to each other.
 
+## On the plate
+
+Where Theo has its plate (a light page by default, any page with the visor
+set on), the orb is made of both of the face's materials: its light and
+its dark. The owner, on seeing the orb in the whole dark plate on a light
+page and then bare as ink: "what if we instead compose the orb of the
+color of the eyes and the black background? That way the entire component
+is used."
+
+- **The plate draws in to a ball.** While a globe has most of the face's
+  matter, the engine says where the ball is and how large (`Face.ball()`,
+  `lib/face/engine.ts`), and the dark behind the matter goes from the
+  whole plate to a circle round the ball, 3.2 face units wider than it
+  (`components/face/plate.ts`). It is one outline, a rounded box whose
+  half sizes and corner all become the ball's radius, so the plate is
+  seen to shrink into the ball and to open out of it again when the run
+  rests. It keeps the plate's rim and shadow.
+- **What is off the ball is ink.** The orbits, and the grains a loosened
+  orb sends astray, pass outside the ball. On a light page light cannot
+  show there, so matter with no plate under it is drawn as ink, the
+  grain's own hue with the light taken out, which is close to the plate's
+  colour. A grain half over the edge is half each. On a dark page with
+  the visor set on, it stays light.
+- **Two draws, where there are two materials.** Light adds and ink covers,
+  which are different blends, so the luma painter draws the ink and then
+  the light, each leaving out the other's part (`components/face/luma.ts`).
+  A face that is all light or all ink is one draw, as before. The Canvas2D
+  painter makes a grain one or the other by where its middle is.
+- **Nothing else moves.** Bare (no visor) the orb is as it was: light on a
+  dark page, ink on a light one. Eyes and devices keep the whole plate.
+  With motion reduced the plate is the ball at once.
+
 ## Decisions
 
 - **One orb, not two.** The eyes give all their matter to one ball in the
@@ -175,14 +207,19 @@ src/lib/face/
   book.ts         the orb form
   operations.ts   counts tool calls, reads the effort asked for and the context reported
   orb.test.ts
-src/components/face/driver.ts   feeds the signals each frame
+src/lib/figures.ts              whether the page is light (`paper`)
+src/components/face/driver.ts   feeds the signals each frame; steps the plate
+src/components/face/plate.ts    the plate's outline, drawn in to a ball and out
+src/components/face/painter.ts  ink off the plate, light on it (Canvas2D)
+src/components/face/luma.ts     the same, as two draws
+src/styles.css                  the plate's dark as its own element
 src/lib/theorem/generation.ts   requestedEffort
 src/lib/theorem/runtime.tsx     passes it to useFaceRequests
 ```
 
 ## Tests and evidence
 
-`bun test src/lib/face/orb.test.ts`: 24 tests. The work meter (a push per
+`bun test src/lib/face/orb.test.ts`: 25 tests. The work meter (a push per
 call, the decay, the cap, a failure pushing harder, pushes that differ,
 nothing while nothing runs, the effort levels, the context share); the
 globe (on a ball, in dots, far side dim, a whole turn brings it back,
@@ -192,8 +229,12 @@ out by chance, back after an ask, faster and more stirred with pace, no
 jump on a change of speed, larger with effort and inside the visor,
 looser with context and inside the visor, with motion reduced not
 turning and still showing its size and shape, the relief sequence kept,
-the program compiles and the manual lists the signals). `contextOf` and
-the effort held for a run are tested in `operations.test.ts`.
+the program compiles and the manual lists the signals, the face says
+where its ball is only while it is one). `contextOf` and the effort held
+for a run are tested in `operations.test.ts`. The plate's outline, what is
+off it, its drawing in and out, and what it writes to its element are
+tested in `components/face/plate.test.ts` (10 tests); that a light page
+makes bare matter ink, in `lib/figures.test.ts`.
 
 Renders under `evidence/theo-orb/`, from the stories `face-sound` and
 `face-in-shell` in headless Chromium on software WebGL. The run in them is
@@ -201,7 +242,11 @@ set by the capture script: the liveness, the effort, and tool calls counted
 through the same meter the runtime uses.
 
 - `efforts.png`: low and calm, high and calm, max after four tool calls,
-  and high in the light theme.
+  and high in the light theme (re-taken with the plate drawn in).
+- `plate.png`: the plate drawn in. Above, on a light page at high effort:
+  just formed, calm, after four tool calls, and the plate whole again as
+  the run finishes. Below: low effort, max effort after four tool calls,
+  the conversation nine tenths full, and a dark page with the visor on.
 - `run.png`: seven frames through one run at high effort: forming, calm
   twice, twice after four tool calls, the run finishing, and after.
 - `context.png`: the conversation filling: nothing past 400,000 tokens, a
@@ -224,3 +269,5 @@ through the same meter the runtime uses.
   a given pace, is asserted by the tests, not judged by eye.
 - Real WebGL on a real phone has not drawn it; the renders are software
   WebGL.
+- The plate drawing in and out is seen only as stills at its two ends; the
+  motion between them was not judged by eye.

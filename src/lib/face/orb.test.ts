@@ -329,6 +329,32 @@ describe('the orb', () => {
     expect(orb.h * orb.scale * 1.5).toBeLessThan(32)
   })
 
+  test('the face says where its ball is and how large, only while it is one', () => {
+    const { face, run } = theo()
+    run(400)
+    expect(face.ball()).toBeUndefined()
+    face.setLiveness('work')
+    face.feed({ 'run.pace': 0, 'run.effort': 0 })
+    run(1_500)
+    const small = face.ball()
+    expect(small).toBeDefined()
+    expect(small?.x).toBeCloseTo(0)
+    expect(small?.y).toBeCloseTo(0)
+    expect(small?.r).toBeCloseTo(orbOf(face).w * orbOf(face).scale)
+    face.feed({ 'run.pace': 0, 'run.effort': 1 })
+    run(1_500)
+    expect(face.ball()?.r).toBeGreaterThan((small?.r ?? 0) * 1.4)
+    // Even at its largest, a rim round it fits the visor's height.
+    expect(face.ball()?.r).toBeLessThan(THEO.height / 2 - 4)
+    face.setLiveness('done')
+    run(3_000)
+    expect(face.ball()).toBeUndefined()
+    // A device is not a ball, whatever its speakers are made of.
+    face.perform('boombox', { owner: 'test' })
+    run(1_500)
+    expect(face.ball()).toBeUndefined()
+  })
+
   test('the fuller the conversation is past 400,000 tokens, the less it keeps its shape, and it stays inside the visor', () => {
     const loose = (context: number) => {
       const { face, run } = theo()

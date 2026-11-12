@@ -9,6 +9,8 @@ import type { Place, Thing } from '@/lib/face/program'
 import { noteOf, stand, wantsBringing } from '@/lib/face/things'
 import type { Standing } from '@/lib/face/things'
 import { theWork } from '@/lib/face/work'
+import { THEO } from '@/lib/face/identity'
+import type { FaceLook } from '@/lib/figures'
 import { kitDriver } from '@/lib/kit/driver'
 import { KIT_SIZE, useKitStage } from '@/lib/kit/stage'
 import { prefersReducedMotion } from '@/lib/motion'
@@ -16,6 +18,7 @@ import { theSound } from '@/lib/sound/graph'
 import { enterWorld, leaveWorld, loadRapier, theWorld } from '@/lib/world'
 import { createPainter } from './painter'
 import type { Painter } from './painter'
+import { PlateMotion } from './plate'
 import { forget, locate, reveal, thingsOnPage } from './things'
 
 /** The canvas's own width in CSS pixels; the face is scaled from this. */
@@ -81,8 +84,10 @@ const SILENT = {
  * and hands them over; nothing here renders through React.
  */
 export class FaceDriver {
-  /** Draw the matter as ink: a bare face on a light page. The stage sets it. */
-  ink = false
+  /** Whether the face has its plate, and whether matter with none under it is ink. The stage sets it. */
+  look: FaceLook = { visor: true, ink: false, paper: false }
+  /** The plate, which draws in to a ball behind an orb. */
+  private readonly plateMotion = new PlateMotion(THEO.width, THEO.height)
   private painter: Painter | undefined
   private frameId = 0
   private place: Place = 'home'
@@ -128,6 +133,8 @@ export class FaceDriver {
     private readonly face: Face,
     private readonly holder: HTMLElement,
     private readonly plate: HTMLElement,
+    /** What is dark behind the matter: the plate's own shape, which the driver changes. */
+    private readonly back: HTMLElement,
     /** The element the canvas is put in. Each driver makes its own canvas: a WebGL context cannot be handed on. */
     private readonly host: HTMLElement,
     /** What is laid over the thing the figure points at. */
@@ -767,12 +774,18 @@ export class FaceDriver {
     this.placed = true
 
     const grains = face.frame(now)
+    // With a plate, an orb is the face's light on a ball of its dark: the plate draws in round it, and what is left outside is ink on a light page.
+    if (this.look.visor) this.plateMotion.step(face.ball(), dt, still)
+    const drawnIn = this.look.visor && !this.plateMotion.whole
+    this.plateMotion.lay(this.back, VISOR_PX / face.identity.width)
     this.painter?.draw(
       grains,
       face.field.count,
       face.identity.width,
       face.identity.height,
-      this.ink,
+      drawnIn
+        ? { ink: this.look.paper, plate: this.plateMotion.plate }
+        : { ink: this.look.ink },
     )
 
     const head = face.head()

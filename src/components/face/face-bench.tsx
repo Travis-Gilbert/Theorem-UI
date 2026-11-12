@@ -5,6 +5,7 @@ import { THEO } from '@/lib/face/identity'
 import { useFaceHue, useFaceLook } from './look'
 import { canvasPainter, createPainter } from './painter'
 import type { Painter } from './painter'
+import { PlateMotion } from './plate'
 
 const RATIO = THEO.height / THEO.width
 
@@ -25,7 +26,8 @@ export function FaceView({
 }) {
   const box = useRef<HTMLDivElement | null>(null)
   const plate = useRef<HTMLDivElement | null>(null)
-  const { visor, ink } = useFaceLook()
+  const back = useRef<HTMLDivElement | null>(null)
+  const { visor, ink, paper } = useFaceLook()
   const hue = useFaceHue()
 
   useEffect(() => {
@@ -38,8 +40,22 @@ export function FaceView({
     let painter: Painter | undefined
     let frame = 0
     let gone = false
-    const draw = () => {
-      painter?.draw(face.buffer, face.field.count, THEO.width, THEO.height, ink)
+    // A face that is not running is drawn as it stands: the plate is where it would have come to.
+    const motion = new PlateMotion(THEO.width, THEO.height)
+    let last = 0
+    const draw = (now = 0) => {
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
+      last = now
+      if (visor) motion.step(face.ball(), dt, !running)
+      const drawnIn = visor && !motion.whole
+      if (back.current) motion.lay(back.current, width / THEO.width)
+      painter?.draw(
+        face.buffer,
+        face.field.count,
+        THEO.width,
+        THEO.height,
+        drawnIn ? { ink: paper, plate: motion.plate } : { ink },
+      )
       const head = face.head()
       const unit = width / THEO.width
       if (plate.current)
@@ -48,7 +64,7 @@ export function FaceView({
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop)
       face.frame(now)
-      draw()
+      draw(now)
     }
     const ready = (made: Painter | undefined) => {
       if (gone) return made?.destroy()
@@ -78,7 +94,7 @@ export function FaceView({
       cancelAnimationFrame(frame)
       painter?.destroy()
     }
-  }, [face, width, running, plain, onPainter, ink, hue])
+  }, [face, width, running, plain, onPainter, visor, ink, paper, hue])
 
   return (
     <div
@@ -87,7 +103,8 @@ export function FaceView({
       className="face-plate"
       style={{ width, height: width * RATIO, borderRadius: width * 0.18 }}
     >
-      <div ref={box} className="size-full" />
+      <div ref={back} className="face-plate-back" />
+      <div ref={box} className="face-plate-screen size-full" />
     </div>
   )
 }

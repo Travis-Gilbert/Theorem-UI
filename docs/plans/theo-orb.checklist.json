@@ -86,6 +86,12 @@
       "evidence": "book.ts orb; orb.test.ts 'the fuller the conversation is past 400,000 tokens, the less it keeps its shape...'; evidence/theo-orb/context.png"
     },
     {
+      "id": "plate",
+      "item": "Where Theo has its plate, the plate draws in to a ball under the orb's dots and opens again after; matter outside the ball is ink on a light page",
+      "status": "done",
+      "evidence": "components/face/plate.ts (plateOf, offPlate, PlateMotion), Face.ball() in lib/face/engine.ts, the two draws in components/face/luma.ts, the per-grain choice in components/face/painter.ts; plate.test.ts (10 tests), 'the face says where its ball is and how large, only while it is one' in orb.test.ts; evidence/theo-orb/plate.png"
+    },
+    {
       "id": "live-run",
       "item": "The orb moved by an agent's own tool calls in the signed-in app",
       "status": "todo",

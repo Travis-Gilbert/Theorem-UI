@@ -365,6 +365,12 @@ the same motion with the blend turned over. The rule is one function
 Without the plate, matter that reaches the edge of its canvas thins out over
 the last tenth instead of being cut by a rim that is no longer drawn.
 
+Where there is a plate it is not always the whole visor: behind the thinking
+orb it draws in to a ball, and matter left outside it on a light page is ink
+(`docs/plans/theo-orb.md`, "On the plate"). So the painters take a look, not
+a flag: whether bare matter is ink, and the plate's outline when it is not
+the whole canvas.
+
 ### The hue follows the theme
 
 The hue of the matter is read from the page's theme
