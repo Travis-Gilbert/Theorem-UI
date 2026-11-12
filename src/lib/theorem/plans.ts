@@ -1,5 +1,6 @@
-// SOURCING: lib/theorem/graphql (Theorem's `plan(planId)` query, the plan substrate's own inspect), @tanstack/react-query (the live plan while its card is on screen), @dagrejs/dagre (layered layout of the task dependency graph)
-import { Graph, layout } from '@dagrejs/dagre'
+// SOURCING: lib/theorem/graphql (Theorem's `plan(planId)` query, the plan substrate's own inspect), @tanstack/react-query (the live plan while its card is on screen), elkjs (layered layout of the task dependency graph over the nodes' measured sizes, with its orthogonal edge router giving each edge its own track, as lib/program/flow lays out programs)
+import ELK from 'elkjs/lib/elk.bundled.js'
+import type { ElkNode } from 'elkjs/lib/elk-api'
 import { queryOptions } from '@tanstack/react-query'
 import { graphql } from './graphql'
 
@@ -7,7 +8,7 @@ import { graphql } from './graphql'
 export const DRAFT_PLAN = 'draft_plan'
 
 /** How a task reads at a glance, from its status and what it waits on. */
-export type TaskTone = 'done' | 'active' | 'ready' | 'waiting' | 'attention' | 'dropped'
+export type TaskTone = 'done' | 'active' | 'ready' | 'waiting' | 'attention' | 'deviating' | 'dropped'
 
 export type PlanTaskView = {
   /** The task id once Theorem wrote it; the draft's alias before. */
@@ -157,6 +158,8 @@ const DONE = new Set(['done', 'completed'])
 const ACTIVE = new Set(['claimed', 'in_progress', 'working', 'patch_proposed', 'verifying'])
 const ATTENTION = new Set(['blocked', 'failed', 'input_required'])
 const DROPPED = new Set(['cancelled', 'superseded'])
+/** The worker left the plan's path and a decision is owed (the plan substrate's `deviating` transition). */
+const DEVIATING = 'deviating'
 
 /**
  * Each task's tone. A pending task whose dependencies are all done is ready:
@@ -178,40 +181,142 @@ export function taskTones(tasks: readonly PlanTaskView[]): Map<string, TaskTone>
           ? 'active'
           : ATTENTION.has(status)
             ? 'attention'
-            : DROPPED.has(status)
-              ? 'dropped'
-              : task.dependencies.every(finished)
-                ? 'ready'
-                : 'waiting'
+            : status === DEVIATING
+              ? 'deviating'
+              : DROPPED.has(status)
+                ? 'dropped'
+                : task.dependencies.every(finished)
+                  ? 'ready'
+                  : 'waiting'
       return [task.id, tone]
     }),
   )
 }
 
-export type Point = { x: number; y: number }
+/** An alias the model wrote as words (`audit-agent-friction`), not an opaque id. */
+const WORDED_ALIAS = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+$/i
 
 /**
- * Top-left positions for task nodes of the given size, left to right in
- * dependency order: a task sits to the right of everything it waits on.
- * Dependencies on tasks outside the plan are ignored.
+ * What a task's node says: its alias in words when the model wrote one
+ * (`audit-agent-friction` reads "Audit agent friction"), else its title.
+ * The full title stays the task's name everywhere else.
  */
-export function layoutPlan(
-  tasks: readonly PlanTaskView[],
-  size: { width: number; height: number },
-): Record<string, Point> {
-  const graph = new Graph()
-  graph.setGraph({ rankdir: 'LR', nodesep: 16, ranksep: 40, marginx: 8, marginy: 8 })
-  graph.setDefaultEdgeLabel(() => ({}))
-  const ids = new Set(tasks.map((task) => task.id))
-  for (const task of tasks) graph.setNode(task.id, { ...size })
-  for (const task of tasks)
-    for (const dependency of task.dependencies)
-      if (ids.has(dependency) && dependency !== task.id) graph.setEdge(dependency, task.id)
-  layout(graph)
-  const positions: Record<string, Point> = {}
-  for (const id of graph.nodes()) {
-    const { x, y } = graph.node(id)
-    positions[id] = { x: x - size.width / 2, y: y - size.height / 2 }
+export function taskLabel(task: PlanTaskView): string {
+  if (!WORDED_ALIAS.test(task.alias)) return task.title
+  const words = task.alias.replace(/[-_]+/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/**
+ * The tasks in the order they can happen: each after everything it waits on,
+ * the plan's own order among tasks at the same depth. A dependency cycle or a
+ * task outside the plan does not hold a task back.
+ */
+export function taskOrder(tasks: readonly PlanTaskView[]): PlanTaskView[] {
+  const byId = new Map(tasks.map((task) => [task.id, task]))
+  const depth = new Map<string, number>()
+  const depthOf = (id: string, seen: ReadonlySet<string>): number => {
+    const known = depth.get(id)
+    if (known !== undefined) return known
+    const task = byId.get(id)
+    if (!task || seen.has(id)) return -1
+    const inner = new Set(seen).add(id)
+    const value = 1 + Math.max(-1, ...task.dependencies.map((dependency) => depthOf(dependency, inner)))
+    depth.set(id, value)
+    return value
   }
-  return positions
+  return tasks
+    .map((task, index) => ({ task, index, depth: depthOf(task.id, new Set()) }))
+    .sort((a, b) => a.depth - b.depth || a.index - b.index)
+    .map(({ task }) => task)
+}
+
+export type Point = { x: number; y: number }
+export type Size = { width: number; height: number }
+/** Which way dependencies run: left to right, or top to bottom. */
+export type Direction = 'RIGHT' | 'DOWN'
+
+export type PlanLayout = {
+  direction: Direction
+  /** Each task node's top left. */
+  positions: Record<string, Point>
+  /** Each dependency edge (`dependency->task`) as the router drew it, from the waited-on task to the waiting one. */
+  routes: Record<string, Point[]>
+  width: number
+  height: number
+}
+
+/** The id of the edge from a dependency to the task that waits on it. */
+export const edgeId = (dependency: string, task: string) => `${dependency}->${task}`
+
+const elk = new ELK()
+
+/**
+ * Lays the tasks out at the sizes their nodes measured, in dependency order:
+ * a task sits past everything it waits on. Columns keep room between them for
+ * edges, and the orthogonal router gives edges from different tasks their own
+ * tracks rather than one shared midline. Dependencies on tasks outside the
+ * plan are ignored.
+ */
+export async function layoutPlan(
+  tasks: readonly PlanTaskView[],
+  sizes: Readonly<Record<string, Size>>,
+  direction: Direction = 'RIGHT',
+): Promise<PlanLayout> {
+  const ids = new Set(tasks.map((task) => task.id))
+  const input: ElkNode = {
+    id: 'plan',
+    layoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': direction,
+      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '64',
+      'elk.layered.spacing.edgeNodeBetweenLayers': '20',
+      'elk.layered.spacing.edgeEdgeBetweenLayers': '14',
+      'elk.spacing.nodeNode': '24',
+      'elk.spacing.edgeEdge': '14',
+      'elk.spacing.edgeNode': '16',
+      // The plan's own order among side-by-side tasks, so a refresh does not reshuffle them.
+      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      'elk.padding': '[top=8,left=8,bottom=8,right=8]',
+    },
+    children: tasks.map((task) => ({ id: task.id, ...(sizes[task.id] ?? { width: 160, height: 40 }) })),
+    edges: tasks.flatMap((task) =>
+      task.dependencies
+        .filter((dependency) => ids.has(dependency) && dependency !== task.id)
+        .map((dependency) => ({ id: edgeId(dependency, task.id), sources: [dependency], targets: [task.id] })),
+    ),
+  }
+  const graph = await elk.layout(input)
+  const positions: Record<string, Point> = {}
+  for (const child of graph.children ?? []) positions[child.id] = { x: child.x ?? 0, y: child.y ?? 0 }
+  const routes: Record<string, Point[]> = {}
+  for (const edge of graph.edges ?? []) {
+    const section = edge.sections?.[0]
+    if (section) routes[edge.id] = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
+  }
+  return { direction, positions, routes, width: graph.width ?? 0, height: graph.height ?? 0 }
+}
+
+/** How far a layout must shrink to fit a box; never past its own size. */
+export const fitScale = (layout: Pick<PlanLayout, 'width' | 'height'>, box: Size) =>
+  Math.min(1, box.width / Math.max(layout.width, 1), box.height / Math.max(layout.height, 1))
+
+/** The smallest scale at which a node's text still reads at its size. */
+export const READABLE_SCALE = 0.8
+
+/**
+ * The layout for a box: left to right while that still reads at the box's
+ * size, otherwise whichever direction shrinks less. A narrow column usually
+ * takes the plan top to bottom.
+ */
+export async function fittedLayout(
+  tasks: readonly PlanTaskView[],
+  sizes: Readonly<Record<string, Size>>,
+  box: Size,
+): Promise<PlanLayout> {
+  const across = await layoutPlan(tasks, sizes, 'RIGHT')
+  if (fitScale(across, box) >= READABLE_SCALE) return across
+  const down = await layoutPlan(tasks, sizes, 'DOWN')
+  return fitScale(down, box) > fitScale(across, box) ? down : across
 }
