@@ -52,3 +52,33 @@ export function poseFor(liveness: Liveness, steps = 24): Pose {
 }
 
 export const POSE_LIVENESS: Liveness[] = ['idle', 'attend', 'work', 'ask', 'done']
+
+/** One eye as a rounded box, for surfaces that have rectangles but no paths (a Live Activity). */
+export type EyeBox = { w: number; h: number; r: number }
+
+/**
+ * The pose reduced to boxes: each outline's bounding box, in units of the
+ * visor's height, left to right. A lid that has come down shows as a shorter
+ * box, so the pose still reads without the outline.
+ */
+export function eyeBoxes(pose: Pose): EyeBox[] {
+  return pose.outlines
+    .map((outline) => {
+      let minX = Infinity
+      let maxX = -Infinity
+      let minY = Infinity
+      let maxY = -Infinity
+      for (let i = 0; i < outline.length; i += 2) {
+        minX = Math.min(minX, outline[i]!)
+        maxX = Math.max(maxX, outline[i]!)
+        minY = Math.min(minY, outline[i + 1]!)
+        maxY = Math.max(maxY, outline[i + 1]!)
+      }
+      const w = (maxX - minX) / pose.height
+      const h = (maxY - minY) / pose.height
+      const round2 = (value: number) => Math.round(value * 100) / 100
+      return { x: minX, w: round2(w), h: round2(h), r: round2(Math.min(w, h) * 0.3) }
+    })
+    .sort((a, b) => a.x - b.x)
+    .map(({ w, h, r }) => ({ w, h, r }))
+}
