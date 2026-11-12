@@ -855,6 +855,57 @@
   }
 }
 
+/* Liquid glass (Settings, Appearance): the frost above, thinner, with a lens
+   drawn on top by liquid-lens.tsx. The lens bends the Life field at the
+   rim, splits its colour a little and lights the bevel, after ybouane's
+   liquidglass shader; the frost under it still softens the conversation,
+   which the lens cannot see. The --liquid-* numbers are the shader's. */
+:root {
+  --liquid-blur: 10px;
+  --liquid-tint: color-mix(in oklab, var(--surface-composer) 26%, transparent);
+  --liquid-tint-solid: color-mix(in oklab, var(--surface-composer) 94%, transparent);
+  --liquid-edge: rgb(0 0 0 / 0.06);
+  --liquid-edge-focus: rgb(0 0 0 / 0.14);
+  --liquid-depth: 1;
+  --liquid-refract: 1.3;
+  --liquid-bevel: 22;
+  --liquid-chroma: 0.2;
+  --liquid-gain: 1.8;
+  --liquid-frost: 3.5;
+  --liquid-specular: 0.9;
+  --liquid-rim: 0.75;
+  --liquid-shade: 0.2;
+}
+
+.dark {
+  --liquid-blur: 10px;
+  --liquid-tint: color-mix(in oklab, var(--surface-composer) 42%, transparent);
+  --liquid-edge: rgb(255 255 255 / 0.04);
+  --liquid-edge-focus: rgb(255 255 255 / 0.1);
+  --liquid-depth: 2.5;
+  --liquid-gain: 1.7;
+  --liquid-specular: 0.14;
+  --liquid-rim: 0.16;
+  --liquid-shade: 0.12;
+}
+
+@utility surface-liquid {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--liquid-tint);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(1.4);
+  box-shadow:
+    0 1px 2px rgb(var(--shadow-tint) / calc(0.06 * var(--liquid-depth))),
+    0 14px 36px -14px rgb(var(--shadow-tint) / calc(0.22 * var(--liquid-depth)));
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    background-color: var(--liquid-tint-solid);
+  }
+}
+
 /* The glass composer's footer is clear, so the composer frosts the messages
    scrolling under it. Below the pane they would show sharp in the footer's
    gutter, so the footer frosts its lower half too, the frost fading in from

@@ -44,6 +44,8 @@ export function mountLife2d(
 ): LifeGame {
   const canvas = document.createElement('canvas')
   canvas.className = 'absolute inset-0'
+  // The liquid glass composer's lens reads the field from here.
+  canvas.dataset.lifeField = ''
   canvas.setAttribute('aria-hidden', 'true')
   canvas.style.pointerEvents = 'none'
   host.append(canvas)

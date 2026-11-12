@@ -118,6 +118,8 @@ export function mountLife(
 ): LifeGame {
   const canvas = document.createElement('canvas')
   canvas.className = 'absolute inset-0'
+  // The liquid glass composer's lens reads the field from here.
+  canvas.dataset.lifeField = ''
   // textmode.js paints its own dark loading screen until its font is ready,
   // whatever the theme, so the canvas shows from the field's first frame.
   canvas.style.visibility = 'hidden'

@@ -31,7 +31,9 @@ import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useGlassComposer } from '@/lib/surfaces'
+import { LiquidLens } from '@/components/glass/liquid-lens'
+import { useComposerSurface, useGlassComposer } from '@/lib/surfaces'
+import type { ComposerSurface } from '@/lib/surfaces'
 import { cn } from '@/lib/utils'
 import {
   ActionBarMorePrimitive,
@@ -565,7 +567,8 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   // chat's own send is left out.
   const review = useComposerReview()
   const shellRef = useRef<HTMLDivElement>(null)
-  const glass = useGlassComposer()
+  const surface = useComposerSurface()
+  const glass = surface !== 'paper'
   const busyInput = useBusyComposerInput({
     hasReferences: () => useComposerReferences.getState().references.length > 0,
     onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
@@ -620,12 +623,13 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
               data-kit-perch="composer"
               data-face-perch="composer"
               className={cn(
-                composerSurface(glass),
+                composerSurface(surface),
                 'data-[dragging=true]:border-focus flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected',
               )}
             />
           }
         >
+          {surface === 'liquid' && <LiquidLens />}
           <RunInputStatus />
           {review && <ComposerReviewTarget target={review} />}
           <ComposerReferences />
@@ -647,13 +651,15 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 
 /**
  * The composer's material (Settings, Appearance): paper with its grain, or
- * frosted glass. Each keeps the shell's border, which follows focus, and sets
+ * frosted glass, or liquid glass with its lens. Each keeps the shell's border, which follows focus, and sets
  * its colour at rest and while focused.
  */
-const composerSurface = (glass: boolean) =>
-  glass
-    ? 'surface-glass border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
-    : 'surface-paper border-(color:--paper-edge) focus-within:border-control'
+const composerSurface = (surface: ComposerSurface) =>
+  surface === 'liquid'
+    ? 'surface-liquid border-(color:--liquid-edge) focus-within:border-(color:--liquid-edge-focus)'
+    : surface === 'glass'
+      ? 'surface-glass border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
+      : 'surface-paper border-(color:--paper-edge) focus-within:border-control'
 
 const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
   const chatDisabled = useRunInputSendDisabled()
@@ -1216,7 +1222,8 @@ const UserActionBar: FC = () => {
 }
 
 const EditComposer: FC = () => {
-  const glass = useGlassComposer()
+  const surface = useComposerSurface()
+  const glass = surface !== 'paper'
   return (
     // No content-visibility here, unlike the message rows: its paint
     // containment would clip the composer's shadow and glow, and only the
@@ -1236,9 +1243,10 @@ const EditComposer: FC = () => {
           <ComposerPrimitive.Root
             className={cn(
               'aui-edit-composer-root flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
-              composerSurface(glass),
+              composerSurface(surface),
             )}
           >
+            {surface === 'liquid' && <LiquidLens />}
             <ComposerToolTrigger />
             <ComposerEditor
               label="Edit message"
