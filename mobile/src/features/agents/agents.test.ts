@@ -412,7 +412,11 @@ describe('tmux scripts against a private tmux server', () => {
   })
 
   test('startScript names what is missing', () => {
-    expect(afterMark(sh(startScript('codex', join(root, 'project dir'), 'x', 's', 't'), env()))).toEqual(['missing\tcodex'])
+    // Not the runner's PATH, which may hold a real codex (HOME is the test's own, so
+    // the script's fallback $HOME/.local/bin is empty too).
+    expect(afterMark(sh(startScript('codex', join(root, 'project dir'), 'x', 's', 't'), '/usr/bin:/bin'))).toEqual([
+      'missing\tcodex',
+    ])
     const agentBin = join(root, 'agent-bin')
     expect(afterMark(sh(startScript('claude', join(root, 'no-such-dir'), 'x', 's2', 't'), `${agentBin}:${env()}`))).toEqual([
       'missing\tfolder',
