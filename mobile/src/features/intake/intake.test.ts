@@ -102,6 +102,18 @@ describe('a delivery', () => {
     expect(again.log).toEqual([])
   })
 
+  test('a stop reason without a full stop still reads as its own sentence', () => {
+    const stopped: Delivery = {
+      ...fresh([photo('a')]),
+      stage: 'failed',
+      stoppedAt: 'sending',
+      error: 'Bootstrap did not provide an authenticated conversation identity',
+    }
+    expect(describeStage(stopped).detail).toBe(
+      'Bootstrap did not provide an authenticated conversation identity. It stopped while sending the message.',
+    )
+  })
+
   test('a failed upload keeps what was stored and resumes with the same keys', async () => {
     let fail = true
     const { value, log } = deps({
