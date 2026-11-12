@@ -14,14 +14,16 @@ type SidePanel = {
  * conversation), `share` of the dock wide. When the dock has no room left for
  * the column's minimum width, the panel joins a side group as a tab instead:
  * Dockview would otherwise squeeze the new group far below its minimum.
+ * `room` is width the open panels keep beyond their minimums.
  */
 export function openBeside(
   api: DockviewApi,
   panel: SidePanel,
   besidePanelId: string,
   share: number,
+  room = 0,
 ) {
-  if (api.minimumWidth + panel.minimumWidth > api.width) {
+  if (api.minimumWidth + room + panel.minimumWidth > api.width) {
     const side =
       api.panels.find((p) => p.id !== besidePanelId) ??
       api.getPanel(besidePanelId)

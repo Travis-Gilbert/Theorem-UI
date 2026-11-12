@@ -67,6 +67,8 @@ import { flyFrom, kick, recordLaunch, takeLaunch } from '@/lib/motion'
 
 import { ComposerReferences, useComposerReferences } from '@/components/chat/composer-references'
 import { RunInputStatus, useBusyComposerInput, useRunInputSendDisabled } from '@/components/chat/run-input'
+import { ComposerReviewTarget, useComposerReview } from '@/components/review/review-target'
+import type { ComposerReview } from '@/components/review/review-target'
 import { SCENE_PART } from '@/components/chat/scene-model'
 import { answerBody } from '@/lib/theorem/reviews'
 import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
@@ -551,8 +553,11 @@ const AttachmentRefusals: FC = () => {
   return <ToastProvider position="top-center" />
 }
 
-const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const aui = useAui()
+  // While the composer answers a review, sending submits the review and the
+  // chat's own send is left out.
+  const review = useComposerReview()
   const shellRef = useRef<HTMLDivElement>(null)
   const busyInput = useBusyComposerInput({
     hasReferences: () => useComposerReferences.getState().references.length > 0,
@@ -578,7 +583,15 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   return (
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root
-        onSubmit={(event) => { if (!busyInput.onSubmit(event)) recordLaunches() }}
+        onSubmit={(event) => {
+          // A review's answer goes to the review, also while a response runs.
+          if (review) {
+            event.preventDefault()
+            if (review.canSend) review.send()
+            return
+          }
+          if (!busyInput.onSubmit(event)) recordLaunches()
+        }}
         onKeyDown={busyInput.onKeyDown}
         className="aui-composer-root relative flex w-full flex-col"
       >
@@ -601,6 +614,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
           }
         >
           <RunInputStatus />
+          {review && <ComposerReviewTarget target={review} />}
           <ComposerReferences />
           <ComposerAttachments />
           <ComposerEditor
@@ -611,15 +625,17 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
             onFocus={() => attendKit(true)}
             onBlur={() => attendKit(false)}
           />
-          <ComposerAction />
+          <ComposerAction review={review} />
         </ComposerPrimitive.AttachmentDropzone>
       </ComposerPrimitive.Root>
     </ComposerPrimitive.TriggerPopoverRoot>
   )
 }
 
-const ComposerAction: FC = () => {
-  const sendDisabled = useRunInputSendDisabled()
+const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
+  const chatDisabled = useRunInputSendDisabled()
+  // A choice can be sent with nothing written.
+  const sendDisabled = review ? !review.canSend : chatDisabled
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -689,7 +705,7 @@ const ComposerAction: FC = () => {
         >
           <Magnet>
             <TooltipIconButton
-              tooltip="Send message"
+              tooltip={review ? 'Send feedback' : 'Send message'}
               delay={COMPOSER_TOOLTIP_DELAY}
               side="top"
               type="submit"
@@ -697,7 +713,7 @@ const ComposerAction: FC = () => {
               variant="default"
               size="icon"
               className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed dark:bg-transparent dark:hover:bg-hover dark:active:bg-selected size-9 rounded-lg disabled:opacity-40 p-2"
-              aria-label="Send message"
+              aria-label={review ? 'Send feedback' : 'Send message'}
             >
               {/* In dark the plane stands without its button, filled with the accent the button would have been. */}
               <Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2 dark:*:data-[layer=paper]:bg-redwood" />
