@@ -71,7 +71,7 @@
       "id": "intake-model-receipt",
       "item": "The delivery state says whether the model received the item",
       "status": "blocked",
-      "evidence": "Theorem reports no such thing. The last stage is 'In the conversation' and says so. Plan, owner decision 5."
+      "evidence": "Theorem reports no such thing yet. The last stage is 'In the conversation' and says so. Owner decided 2026-11-12: Theorem should report which uploads the model was given, as a setting the person can turn on or off. Needs the report on Theorem's side first."
     },
     {
       "id": "app-intents",

@@ -256,9 +256,13 @@ Each has a recommendation and the reversible default this work took.
    Codex over SSH, the recommendation is to transfer the file with Remux's
    existing attachment transfer and type its path, with the delivery ending
    at "on the computer" and never "accepted" until the agent's log shows it.
-5. **A signal that the model received an item.** Theorem needs to report it,
-   for example a run event naming the upload ids given to the model and in
-   what form. Until then the phone's last stage is "In the conversation".
+5. **A signal that the model received an item.** Decided by the owner on
+   2026-11-12: Theorem should be able to report which uploads the model was
+   actually given, and whether it does is a setting the person turns on or
+   off. Still to build: the report on Theorem's side (for example a run event
+   naming the upload ids given to the model and in what form), the setting,
+   and a stage after "In the conversation" that appears only when the setting
+   is on and the report has arrived. Until then that is the phone's last stage.
 6. **The presence contract.** The phone's `Activity` needs comparing with
    Platinum `crates/presence` on `claude/theo-desktop-host`: field names, the
    values of phase, standing and form, and what a generation counts. The
