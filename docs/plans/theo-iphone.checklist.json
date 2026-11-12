@@ -59,7 +59,7 @@
       "id": "intake-share",
       "item": "The share sheet delivers items to intake",
       "status": "in_progress",
-      "evidence": "expo-sharing plugin in mobile/app.config.ts; mobile/src/app/+native-intent.ts; acquire.ts fromShare. prebuild-verified: target rs.theorem.app.ShareExtension with group.rs.theorem.app. expo-sharing's receiving is experimental and its extension opens the app, which Apple does not document for share extensions. Not built, not observed."
+      "evidence": "expo-sharing plugin in mobile/app.config.ts; mobile/src/app/+native-intent.ts; acquire.ts fromShare. prebuild-verified: target rs.theorem.app.ShareExtension with group.rs.theorem.app. built for the iOS Simulator: EAS build dccbb349 (simulator profile, Debug) and EAS build 321364ec (preview-simulator, Release, Hermes bundle embedded) produced PlugIns/expo-sharing-extension.appex (rs.theorem.app.ShareExtension, com.apple.share-services, principal class expo_sharing_extension.ShareIntoViewController, activation: text, 1 web URL, 10 images, 10 files, MinimumOSVersion 16.4). built for the device SDK, unsigned: EAS build ed461e9f (device-compile: iphoneos 27.1 SDK, Debug, signing off) compiled and linked it with no diagnostics from our sources. Neither build is signed, and simulator builds carry no entitlements, so the App Group is not yet provisioned or signed. expo-sharing's receiving is experimental and its extension opens the app, which Apple does not document for share extensions. Not observed."
     },
     {
       "id": "intake-agents",
@@ -77,7 +77,7 @@
       "id": "app-intents",
       "item": "Theo's actions in Shortcuts, Siri, Spotlight and on the Action button",
       "status": "in_progress",
-      "evidence": "mobile/app-intents/TheoIntents.swift, AppShortcuts.swift (expo-app-intents 0.5.16, alpha); mobile/src/features/invocation. test-verified: routing (invocation.test.ts, 5 tests). prebuild-verified: inline modules watch app-intents. The Swift has never been compiled."
+      "evidence": "mobile/app-intents/TheoIntents.swift, AppShortcuts.swift, AppIntentsSetup.swift (expo-app-intents 0.5.16, alpha); mobile/src/features/invocation. test-verified: routing (invocation.test.ts, 5 tests). built for the iOS Simulator 27.1 SDK: EAS build dccbb349 (simulator profile, Debug) and EAS build 321364ec (preview-simulator, Release, Hermes bundle embedded) compiled the three Swift files into the app target with no diagnostics; ExtractAppIntentsMetadata wrote Theorem.app/Metadata.appintents and the build trained the three phrase sets (capture, share, continue). The binary links AppIntents.framework. built for the device SDK, unsigned: EAS build ed461e9f (device-compile: iphoneos 27.1 SDK, Debug, signing off) compiled and linked it with no diagnostics from our sources. Not observed: no simulator or phone has run it, so the Shortcuts app has not been seen to list the actions."
     },
     {
       "id": "control",
@@ -89,7 +89,7 @@
       "id": "live-activity",
       "item": "A Live Activity for a real ongoing task",
       "status": "in_progress",
-      "evidence": "mobile/src/features/presence/task-activity.tsx, live.ts, use-task-presence.ts (expo-widgets 58.0.27). source-implemented; bundled; prebuild-verified: target rs.theorem.app.ExpoWidgetsTarget, NSSupportsLiveActivities. Updates only while the app runs. Not built, not observed."
+      "evidence": "mobile/src/features/presence/task-activity.tsx, live.ts, use-task-presence.ts (expo-widgets 58.0.27). source-implemented; bundled; prebuild-verified: target rs.theorem.app.ExpoWidgetsTarget, NSSupportsLiveActivities. built for the iOS Simulator: EAS build dccbb349 (simulator profile, Debug) and EAS build 321364ec (preview-simulator, Release, Hermes bundle embedded) produced PlugIns/ExpoWidgetsTarget.appex (rs.theorem.app.ExpoWidgetsTarget, com.apple.widgetkit-extension); the app's Info.plist has NSSupportsLiveActivities = true and the binary links ActivityKit. built for the device SDK, unsigned: EAS build ed461e9f (device-compile: iphoneos 27.1 SDK, Debug, signing off) compiled and linked it with no diagnostics from our sources. Updates only while the app runs. Not observed."
     },
     {
       "id": "live-activity-push",
@@ -107,13 +107,13 @@
       "id": "capture-interface",
       "item": "One interface for every way of capturing the screen",
       "status": "done",
-      "evidence": "mobile/modules/theo-capture/ios/CaptureRoute.swift. source-implemented; never compiled."
+      "evidence": "mobile/modules/theo-capture/ios/CaptureRoute.swift. built for the iOS Simulator (EAS build dccbb349 (simulator profile, Debug), EAS build 321364ec (preview-simulator, Release, Hermes bundle embedded)) under Swift 6. There canImport(ScreenCaptureKit) is false, so describe() reports route none with the reason that the simulator has no ScreenCaptureKit; that string is in the built binary. built for the device SDK, unsigned (EAS build ed461e9f (device-compile: iphoneos 27.1 SDK, Debug, signing off))."
     },
     {
       "id": "capture-sck",
       "item": "The ScreenCaptureKit route on iOS 27",
       "status": "in_progress",
-      "evidence": "mobile/modules/theo-capture/ios/ScreenCaptureKitRoute.swift, TheoCaptureModule.swift. source-implemented from Apple's sample and reference; never compiled. prebuild-verified: UIBackgroundModes screen-capture and audio, NSScreenCaptureUsageDescription; autolinking resolves pod TheoCapture."
+      "evidence": "mobile/modules/theo-capture/ios/ScreenCaptureKitRoute.swift, TheoCaptureModule.swift, TheoCapture.podspec. prebuild-verified: UIBackgroundModes screen-capture and audio, NSScreenCaptureUsageDescription; autolinking resolves pod TheoCapture. built for the device SDK, unsigned: EAS build ed461e9f (device-compile: iphoneos 27.1 SDK, Debug, signing off) compiled and linked it with no diagnostics from our sources, after four fixes the compiler forced: the module is @unchecked Sendable for Expo 58's Sendable AsyncFunction closures; ScreenCaptureKit is weak-linked for iphoneos only because the iPhoneSimulator 27.1 SDK has no ScreenCaptureKit; SCStreamConfiguration.minimumFrameInterval is unavailable on iOS, so the route throttles to one frame a second itself; the route's isolation is stated for Swift 6 region checking. On the simulator the route compiles out and describe() says so. Not signed, not run, not observed: the seven device checks wait for a signed build on an iPhone with iOS 27."
     },
     {
       "id": "capture-replaykit",
@@ -125,7 +125,7 @@
       "id": "capture-screen",
       "item": "A prototype screen with state, counts, the newest still and the device checks",
       "status": "in_progress",
-      "evidence": "mobile/src/app/screen-share.tsx, features/screen-share/session.ts. test-verified: the session model (screen-share.test.ts, 6 tests). bundled. The seven device checks are the owner's to make."
+      "evidence": "mobile/src/app/screen-share.tsx, features/screen-share/session.ts. test-verified: the session model (screen-share.test.ts, 6 tests). bundled; in the Hermes bundle of EAS build 321364ec. Not observed: no simulator or device has shown the screen. The seven device checks are the owner's to make."
     },
     {
       "id": "capture-voice",
@@ -154,14 +154,14 @@
     {
       "id": "native-build",
       "item": "A native build of the app with its two extensions",
-      "status": "not_started",
-      "evidence": "No Xcode here and no EAS build was started. expo-doctor: 1 check failed (17 packages one patch behind releases of 2026-11-11, held by the three-day gate)."
+      "status": "in_progress",
+      "evidence": "built on EAS 2026-11-12 with Xcode 27.1 (27A9275): dccbb349 (simulator, Debug dev client, arm64+x86_64), 321364ec (preview-simulator, Release, Hermes bundle embedded) and ed461e9f (device-compile, iphoneos 27.1, signing off), each with the app, ExpoWidgetsTarget.appex and expo-sharing-extension.appex. Not done: a signed development build (needs the owner's device registered and the App Group provisioned), and any run in a simulator (EAS's hosted simulator is not available on this account; this Mac has no Xcode). mobile/eas.json device-compile and .eas/build/device-compile.yml rerun the unsigned device compile. expo-doctor's one failing check (packages one patch behind, held by the three-day gate) was not rerun."
     },
     {
       "id": "device",
       "item": "Observed on an iPhone",
       "status": "not_started",
-      "evidence": "Nothing. The plan lists 24 things to try."
+      "evidence": "Nothing observed on a device or in a simulator. Of the plan's 24 checks: 1 and 2 passed by build (not by observation); 3 (signing, App Group provisioning) not attempted; 4 to 24 not attempted, each needing a signed build on an iPhone, and 18 to 24 an iPhone on iOS 27."
     }
   ]
 }

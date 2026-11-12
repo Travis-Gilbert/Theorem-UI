@@ -6,24 +6,27 @@ platform claims were checked against Apple's and Expo's current documentation,
 names what is missing, and lists the decisions that are the owner's.
 `theo-iphone.checklist.json` tracks each item with its evidence.
 
-Written 2026-11-12 on Linux, with no Xcode, simulator or phone.
+Written 2026-11-12 on Linux, with no Xcode, simulator or phone. Built the
+same day on EAS; "Native build" says what that showed and changed.
 
 ## How to read the evidence
 
 Every claim in this plan and its checklist carries one of these, and no more
 than it earned:
 
-| Word                   | What it means here                                                                                   |
-| ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| **source-implemented** | The code is written. Nothing has run it.                                                             |
-| **test-verified**      | `bun test` exercises it. For native features this covers only the logic that has no native part.     |
-| **bundled**            | `expo export --platform ios` put it in a Hermes bundle. JavaScript resolves; it has not run.         |
-| **prebuild-verified**  | `expo prebuild` generated the Xcode project, and the target, identifier, entitlement or key is in it |
-| **built**              | Xcode or EAS compiled and linked it. **Nothing in this plan is built.**                              |
-| **observed on device** | A person saw it happen on an iPhone. **Nothing in this plan has been observed.**                     |
+| Word                   | What it means here                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **source-implemented** | The code is written. Nothing has run it.                                                                   |
+| **test-verified**      | `bun test` exercises it. For native features this covers only the logic that has no native part.           |
+| **bundled**            | `expo export --platform ios` put it in a Hermes bundle. JavaScript resolves; it has not run.               |
+| **prebuild-verified**  | `expo prebuild` generated the Xcode project, and the target, identifier, entitlement or key is in it       |
+| **built**              | Xcode or EAS compiled and linked it. Say for which SDK: the simulator and the device are separate          |
+| **observed on device** | A person saw it happen on an iPhone. A simulator observation is not this, and is called simulator-observed |
 
-No Swift in this work has been compiled. That includes the App Intents, the
-capture module, and whatever `expo-sharing` and `expo-widgets` generate.
+The app and both extensions are built for the iOS Simulator, and compiled and
+linked unsigned for the device SDK. The ScreenCaptureKit route is only in the
+device build: the simulator SDK has no ScreenCaptureKit. Nothing is signed,
+and nothing has run on a simulator or a phone.
 
 ## Where this sits
 
@@ -81,7 +84,7 @@ Expo SDK 58, read the same day:
 
 | Concept                                                       | Here                                                                                                                                                                            | Evidence                                                     |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| User-started sharing of the whole screen, with microphone     | `mobile/modules/theo-capture`: `CaptureRoute` is the one interface; `ScreenCaptureKitRoute` is the iOS 27 route (system picker, `SCStream`, microphone output, audio session)   | source-implemented; never compiled                           |
+| User-started sharing of the whole screen, with microphone     | `mobile/modules/theo-capture`: `CaptureRoute` is the one interface; `ScreenCaptureKitRoute` is the iOS 27 route (system picker, `SCStream`, microphone output, audio session)   | built (device SDK, unsigned); not observed                   |
 | Clear capture state and recovery                              | `mobile/src/features/screen-share/session.ts` and the screen at Settings → Prototypes → Screen sharing: state with the system's reason, counts, the newest still, device checks | test-verified (the model); bundled; prebuild-verified (keys) |
 | An annotation stays attached to the frame it describes        | A still has a sequence number and a capture time, is called live only for three seconds while sharing, and an older frame never replaces a newer one                            | test-verified                                                |
 | Switching from a screenshot to the screen in one conversation | A still goes to a conversation through intake ("Give this still to a conversation")                                                                                             | source-implemented                                           |
@@ -90,15 +93,15 @@ Expo SDK 58, read the same day:
 
 ### §2 Native places to appear
 
-| Concept                              | Here                                                                                                                                                                                                                                                                      | Evidence                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Action button, Shortcuts, Siri       | `mobile/app-intents/`: three App Intents with App Shortcuts (capture, share, continue). `features/invocation` opens the same screens a person reaches by hand                                                                                                             | source-implemented (Swift); test-verified (routing); never compiled |
-| Control Center control               | **Not built.** A `ControlWidget` is Swift in a widget extension; `expo-widgets` offers none                                                                                                                                                                               | owner decision 8                                                    |
-| Share sheet                          | `expo-sharing` share extension `rs.theorem.app.ShareExtension`; `+native-intent.ts` sends it to intake                                                                                                                                                                    | prebuild-verified; bundled                                          |
-| Dynamic Island and Lock Screen       | `features/presence/task-activity.tsx` (`TheoTask`) through `expo-widgets`, target `rs.theorem.app.ExpoWidgetsTarget`. It shows a pose, the task, its status and where it runs. It follows a running conversation, refuses stale updates, and says "Last known" when stale | source-implemented; test-verified (the record); prebuild-verified   |
-| Recognisable poses, not particles    | `features/theo/poses.ts`: the core's engine settles into the mood of a liveness and is read off as outlines, then as boxes, because `@expo/ui` has rounded rectangles and no paths                                                                                        | test-verified                                                       |
-| Home Screen widget                   | **Not built**                                                                                                                                                                                                                                                             | —                                                                   |
-| The full character in a working view | **Not built.** The phone has the core and no renderer for it                                                                                                                                                                                                              | owner decision 2                                                    |
+| Concept                              | Here                                                                                                                                                                                                                                                                      | Evidence                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Action button, Shortcuts, Siri       | `mobile/app-intents/`: three App Intents with App Shortcuts (capture, share, continue). `features/invocation` opens the same screens a person reaches by hand                                                                                                             | built (simulator and device SDK); test-verified (routing)              |
+| Control Center control               | **Not built.** A `ControlWidget` is Swift in a widget extension; `expo-widgets` offers none                                                                                                                                                                               | owner decision 8                                                       |
+| Share sheet                          | `expo-sharing` share extension `rs.theorem.app.ShareExtension`; `+native-intent.ts` sends it to intake                                                                                                                                                                    | built (simulator and device SDK, unsigned); bundled                    |
+| Dynamic Island and Lock Screen       | `features/presence/task-activity.tsx` (`TheoTask`) through `expo-widgets`, target `rs.theorem.app.ExpoWidgetsTarget`. It shows a pose, the task, its status and where it runs. It follows a running conversation, refuses stale updates, and says "Last known" when stale | built (simulator and device SDK, unsigned); test-verified (the record) |
+| Recognisable poses, not particles    | `features/theo/poses.ts`: the core's engine settles into the mood of a liveness and is read off as outlines, then as boxes, because `@expo/ui` has rounded rectangles and no paths                                                                                        | test-verified                                                          |
+| Home Screen widget                   | **Not built**                                                                                                                                                                                                                                                             | —                                                                      |
+| The full character in a working view | **Not built.** The phone has the core and no renderer for it                                                                                                                                                                                                              | owner decision 2                                                       |
 
 The Live Activity updates only while the app runs. Theorem has no route that
 sends ActivityKit pushes, so `enablePushNotifications` is off. When the app is
@@ -219,7 +222,7 @@ not committed.
 | Info.plist       | `NSCameraUsageDescription`                                                                                                                     | expo-image-picker                                                              |
 | Info.plist       | `NSCalendarsUsageDescription`, `NSCalendarsFullAccessUsageDescription`, `NSRemindersUsageDescription`, `NSRemindersFullAccessUsageDescription` | expo-calendar adds these whether or not it is configured; the text is now ours |
 | App target Swift | `mobile/app-intents/*.swift` through inline modules (`experiments.inlineModules`)                                                              | expo-app-intents                                                               |
-| Local module     | `mobile/modules/theo-capture` (pod `TheoCapture`, weak-links ScreenCaptureKit)                                                                 | this work                                                                      |
+| Local module     | `mobile/modules/theo-capture` (pod `TheoCapture`, weak-links ScreenCaptureKit for the device SDK only)                                         | this work                                                                      |
 | Share activation | text, one web URL, up to ten images, up to ten files                                                                                           | expo-sharing                                                                   |
 
 Not added: push (`aps-environment`), photo library permission, any calendar
@@ -287,11 +290,60 @@ Each has a recommendation and the reversible default this work took.
     operation that lets the phone report a later outcome to a finished run.
 12. **A share made while signed out** is not kept. It should be.
 
+## Native build
+
+Done on 2026-11-12 on EAS Build, because the Mac this ran on had only the
+Command Line Tools (no Xcode, no simulator). EAS used Xcode 27.1 (27A9275),
+the iPhoneSimulator 27.1 and iPhoneOS 27.1 SDKs, and Swift 6 language mode for
+the local modules.
+
+| Build                                  | Profile             | Result                                                                                                                                     |
+| -------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dccbb349-e608-456f-8e51-46917519ed03` | `simulator`         | Debug dev client for the simulator, arm64 and x86_64. Built and linked: the app, `ExpoWidgetsTarget.appex`, `expo-sharing-extension.appex` |
+| `321364ec-7f1e-4033-b6b7-e951c3d2f298` | `preview-simulator` | Release for the simulator, arm64, with the Hermes bundle (`main.jsbundle`, bytecode v99) embedded. Same three targets                      |
+| `ed461e9f-7eda-45dc-8fca-6edf40fb307a` | `device-compile`    | Debug for `generic/platform=iOS` with signing off. All targets compiled and linked; nothing installable, nothing signed                    |
+
+What the compiler found, and what changed:
+
+1. `TheoCaptureModule.swift`: Expo 58's `AsyncFunction` closures are
+   `@Sendable`, and the module captured a non-Sendable `self`. The module is
+   now `@unchecked Sendable`, as `expo-app-intents`' own module is, with its
+   route and synthesizer on the main actor and its counts under a lock.
+2. Linking for the simulator failed on `-weak_framework ScreenCaptureKit`:
+   **the iPhoneSimulator 27.1 SDK has no ScreenCaptureKit.** The pod now adds
+   the flag for `iphoneos` only. On the simulator `canImport(ScreenCaptureKit)`
+   is false, the route compiles out, and the screen says why.
+3. `SCStreamConfiguration.minimumFrameInterval` is `API_UNAVAILABLE(ios)` in
+   the iPhoneOS 27.1 SDK; this plan's reading of Apple's sample had assumed it.
+   The route now passes on at most one frame a second of presentation time
+   itself, so a frame and a still stay one-to-one.
+4. Swift 6 region isolation rejected the hop from the picker observer to the
+   main actor (sending `self` and the `SCContentFilter`). The route is now
+   `@unchecked Sendable` with its isolation written on the class.
+5. A test assumed `codex` was missing from the runner's `PATH`; it now runs
+   with a fixed `PATH`. Six others need `tmux` installed, and failed until
+   it was.
+
+The App Intents compiled with no diagnostics, `ExtractAppIntentsMetadata`
+wrote `Metadata.appintents`, and the build trained the three phrase sets. No
+warning in the build came from `app-intents/` or `modules/theo-capture/`.
+
+What the simulator bundle contains: `UIBackgroundModes` `screen-capture` and
+`audio`, `NSScreenCaptureUsageDescription`, `NSSupportsLiveActivities`,
+`NSCameraUsageDescription`, minimum iOS 18.0 (16.4 for both extensions), and
+links to AppIntents and ActivityKit. Simulator builds carry no entitlements,
+so the App Group is not yet signed or provisioned anywhere.
+
+Not done: no simulator ran it (EAS's hosted simulator is not available on
+this account, and there is no local Xcode), no signed build, no device.
+
 ## What to try on a real phone
 
-Nothing below has been observed. A development build is needed
-(`bunx eas-cli build --profile development --platform ios`, or `bun run ios`
-on a Mac with Xcode). The screen-sharing checks also need Xcode 27 and iOS 27.
+Nothing below has been observed on a device or in a simulator. Items 1 and 2
+are now built (see "Native build"); everything else needs a signed
+development build on an iPhone
+(`bunx eas-cli build --profile development --platform ios`, after the device
+is registered). The screen-sharing checks also need iOS 27.
 
 First, does it build:
 
