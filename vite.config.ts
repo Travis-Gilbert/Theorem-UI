@@ -34,6 +34,24 @@ const loroForWorkers: Plugin = {
 }
 const serverOnlyPackages = ['trash', '@rustyreddb/node']
 
+// Pierre's diffs build their wasm highlighter at import time, which no server
+// bundle here survives: the import throws before a request is answered. A
+// diff is only ever shown when a person opens a change row, in the browser,
+// so servers get components that render nothing and the browser keeps the
+// real package, lazily (delegation-parts).
+const diffsServerStub: Plugin = {
+  name: 'theorem:diffs-server-stub',
+  enforce: 'pre',
+  applyToEnvironment: (environment) => environment.name !== 'client',
+  resolveId(id) {
+    if (id === '@pierre/diffs/react') return '\0theorem:pierre-diffs-react'
+  },
+  load(id) {
+    if (id === '\0theorem:pierre-diffs-react')
+      return 'export const PatchDiff = () => null;\nexport const MultiFileDiff = () => null;\n'
+  },
+}
+
 // The personal Theorem serves the API and is its OAuth issuer; it grants the
 // theorem-ui client models:invoke.
 const theoremVars = {
@@ -55,6 +73,7 @@ const config = defineConfig({
   },
   plugins: [
     cloudflare && loroForWorkers,
+    diffsServerStub,
     tailwindcss(),
     // Noun icons are filled contours on a 100 viewBox with no declared fill.
     svgr({

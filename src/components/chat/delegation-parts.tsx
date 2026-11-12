@@ -8,10 +8,9 @@
 // a reference to the delegation or the change in the composer; "Open in IDE"
 // shows the changes in Theia.
 import type { DataMessagePartComponent } from '@assistant-ui/react'
-import { MultiFileDiff, PatchDiff } from '@pierre/diffs/react'
 import { useTheme } from 'next-themes'
 import type { FC, ReactNode } from 'react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import {
   CollapsibleContent,
   CollapsibleRoot,
@@ -49,6 +48,19 @@ import type {
 } from '@/lib/theorem/delegations'
 import { cn } from '@/lib/utils'
 import { thingProps } from '@/lib/face/things'
+
+/**
+ * Pierre's diffs build their wasm highlighter at import time, which the
+ * server bundle cannot do: the import throws before any request is answered.
+ * A diff is only ever shown when a person opens a change row, in the browser,
+ * so the components load lazily there and never on the server.
+ */
+const PatchDiff = lazy(() =>
+  import('@pierre/diffs/react').then((m) => ({ default: m.PatchDiff })),
+)
+const MultiFileDiff = lazy(() =>
+  import('@pierre/diffs/react').then((m) => ({ default: m.MultiFileDiff })),
+)
 
 const card =
   'my-3 flex w-full max-w-2xl flex-col rounded-artifact border border-separator bg-artifact'
@@ -186,17 +198,19 @@ const ChangeDiff: FC<{
     overflow: 'scroll' as const,
   }
   return (
-    <div className="max-h-96 overflow-auto border-t border-separator text-xs">
-      {patch.data !== undefined ? (
-        <PatchDiff patch={gitPatch(patch.data, change)} options={options} />
-      ) : (
-        <MultiFileDiff
-          oldFile={{ name: change.path, contents: before.data ?? '' }}
-          newFile={{ name: change.path, contents: after.data ?? '' }}
-          options={options}
-        />
-      )}
-    </div>
+    <Suspense fallback={null}>
+      <div className="max-h-96 overflow-auto border-t border-separator text-xs">
+        {patch.data !== undefined ? (
+          <PatchDiff patch={gitPatch(patch.data, change)} options={options} />
+        ) : (
+          <MultiFileDiff
+            oldFile={{ name: change.path, contents: before.data ?? '' }}
+            newFile={{ name: change.path, contents: after.data ?? '' }}
+            options={options}
+          />
+        )}
+      </div>
+    </Suspense>
   )
 }
 
