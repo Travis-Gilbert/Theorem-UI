@@ -85,7 +85,7 @@ export const phonon: SpeechProvider = {
     stream.done.catch(() => {})
     return {
       sampleRate: stream.sampleRate,
-      blocks: tilt(stream.blocks, stream.sampleRate),
+      blocks: tilt(stream, stream.sampleRate),
     }
   },
 }

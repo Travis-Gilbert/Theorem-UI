@@ -21,10 +21,16 @@ class FakePhonon {
   static blocks: Float32Array[] = []
   stream(text: string, options: { signal: AbortSignal; voice?: string }) {
     FakePhonon.streamed.push({ text, voice: options.voice })
-    const blocks = (async function* () {
-      for (const block of FakePhonon.blocks) yield block
-    })()
-    return { sampleRate: 24_000, blocks, done: Promise.resolve() }
+    const blocks = FakePhonon.blocks
+    // The package's SpeechStream is itself the async iterable, carrying
+    // sampleRate and done; the fake keeps that shape so the seam cannot
+    // drift from the package the way stream.blocks once did.
+    return Object.assign(
+      (async function* () {
+        for (const block of blocks) yield block
+      })(),
+      { sampleRate: 24_000, done: Promise.resolve({ cancelled: false }) },
+    )
   }
 }
 mock.module('phonon-tts', () => ({ PhononTTS: FakePhonon }))

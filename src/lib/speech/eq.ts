@@ -58,7 +58,7 @@ const highShelf = (sampleRate: number, f0: number, gain: number): Biquad => {
 
 const run = (f: Biquad, input: Float32Array, out: Float32Array) => {
   for (let i = 0; i < input.length; i++) {
-    const x = input[i]
+    const x = input[i] ?? 0
     const y = f.b0 * x + f.b1 * f.x1 + f.b2 * f.x2 - f.a1 * f.y1 - f.a2 * f.y2
     f.x2 = f.x1
     f.x1 = x
