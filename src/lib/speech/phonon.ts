@@ -56,6 +56,12 @@ function load() {
   return model
 }
 
+/** Lets a test forget the loaded model and the voice it registered, so each case starts before first use. */
+export const resetForTest = () => {
+  model = undefined
+  voice = undefined
+}
+
 /** Phonon, running in this browser: no key, and nothing leaves the page but the fetch of the model. */
 export const phonon: SpeechProvider = {
   id: 'phonon',
