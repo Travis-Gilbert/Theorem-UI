@@ -98,6 +98,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
+      // The Live Activity for an ongoing task (features/presence). The plugin
+      // adds a widget extension (`<bundle id>.ExpoWidgetsTarget`) in the same
+      // App Group. No home-screen widget is declared, and push updates are off:
+      // Theorem has no route that sends them yet, so the phone only updates
+      // the activity while the app runs.
+      'expo-widgets',
+      {
+        bundleIdentifier: `${bundleIdentifier}.ExpoWidgetsTarget`,
+        groupIdentifier: appGroup,
+        enablePushNotifications: false,
+        widgets: [],
+      },
+    ],
+    // Theo's actions for Shortcuts, Siri, Spotlight and the Action button. The
+    // Swift in app-intents/ is compiled into the app target (inline modules),
+    // which is where Apple's build reads App Intents from. Alpha in SDK 58.
+    'expo-app-intents',
+    [
       'expo-build-properties',
       // The Remux session feature and its GhosttyKit build target iOS 18.
       { ios: { deploymentTarget: '18.0' } },
@@ -105,7 +123,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Puts Remux's images in the app's asset catalog (see the plugin for why).
     './modules/theorem-session/app.plugin.js',
   ],
-  experiments: { typedRoutes: true },
+  experiments: { typedRoutes: true, inlineModules: { watchedDirectories: ['app-intents'] } },
   extra: {
     theorem: { authority, oauthClientId, oauthRedirectUri },
     eas: { projectId: easProjectId },

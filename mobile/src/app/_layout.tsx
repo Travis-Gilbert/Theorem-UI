@@ -17,6 +17,8 @@ import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400R
 import { BrowserHost } from '@/features/browser/browser-host'
 import { resetConversations } from '@/features/chat/runtime'
 import { intake } from '@/features/intake/queue'
+import { SystemActions } from '@/features/invocation/handler'
+import { liveActivities } from '@/features/presence/live'
 import { restore, useAuth } from '@/lib/auth'
 import { clearAccountData } from '@/lib/local-db'
 import { rememberDestination, takeDestination } from '@/lib/pending-destination'
@@ -51,8 +53,11 @@ function Navigation() {
   useEffect(() => {
     if (!signedIn) return
     void intake.load()
+    void liveActivities.reconcile()
     const subscription = AppState.addEventListener('change', (status) => {
-      if (status === 'active') intake.resume()
+      if (status !== 'active') return
+      intake.resume()
+      void liveActivities.reconcile()
     })
     return () => subscription.remove()
   }, [signedIn])
@@ -95,6 +100,7 @@ function Navigation() {
         </Stack.Protected>
       </Stack>
       {signedIn ? <BrowserHost /> : null}
+      {signedIn ? <SystemActions /> : null}
     </>
   )
 }

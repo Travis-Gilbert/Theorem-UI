@@ -1,4 +1,5 @@
 // SOURCING: ./conversation-surface over useConversation (HeadlessConversation through assistant-ui's external store); expo-router Stack.Screen header
+import { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Stack } from 'expo-router'
 import type { ConversationPhase } from '@theoremharness/sdk'
@@ -7,6 +8,8 @@ import { Button } from '@/ui/button'
 import { ShareButton } from '@/ui/header'
 import { useTheme } from '@/ui/theme'
 import { Unavailable } from '@/ui/unavailable'
+import { rememberLastThread } from '../invocation/handler'
+import { useTaskPresence } from '../presence/use-task-presence'
 import { ConversationSurface, EmptyConversation, type SurfaceNote } from './conversation-surface'
 import { conversations, useConversation } from './runtime'
 import { threadTitle } from './threads'
@@ -40,6 +43,9 @@ export function ConversationPane({
 }) {
   const { palette } = useTheme()
   const { runtime, state, sendError } = useConversation(threadId)
+  useTaskPresence(threadId, state)
+  // "Continue the conversation" from a Shortcut or the Action button opens this one.
+  useEffect(() => rememberLastThread(threadId), [threadId])
   const title = state.snapshot ? threadTitle(state.snapshot.thread) : 'Conversation'
   const status = state.phase === 'failed' ? statusOf(state.error) : undefined
   if (status === 404 || status === 403)
