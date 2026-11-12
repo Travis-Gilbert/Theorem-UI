@@ -19,6 +19,7 @@ import { onDraftChanged, readDraft, setCurrentThread, writeDraft } from '@/lib/d
 import { db } from '@/lib/local-db'
 import { createJournalStore } from '@/lib/journal-store'
 import { theorem } from '@/lib/theorem'
+import { phoneTurnOptions } from '../phone-actions/calendar'
 import { ConversationBinding, type Lease } from './binding'
 
 let shared: ConversationBinding | undefined
@@ -91,7 +92,8 @@ export function useConversation(threadId: string): ConversationView {
       setSendError(undefined)
       writeDraft(threadId, '')
       try {
-        await lease.send(text)
+        // The turn may propose a calendar event for the person to save on this phone.
+        await lease.send(text, phoneTurnOptions())
       } catch (error) {
         // A refused send is dropped from the journal; give the words back.
         setSendError(error)
