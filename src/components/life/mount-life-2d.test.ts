@@ -195,6 +195,42 @@ test('selected pattern is previewed at the pointer, then removed on leave', () =
   expect(useLifeCounts.getState().population).toBe(PATTERNS.glider.cells.length)
 })
 
+test('brush preview wraps horizontally like stamp and clips beyond vertical edges', () => {
+  const { game, drawn, frame } = setup()
+  game.clear()
+  useLifeControls.setState({ brush: 'glider' })
+
+  // A glider centered on the rightmost column wraps two preview cells left.
+  drawn.length = 0
+  game.hover(235, 56) // centre (23, 3), field is 24 columns wide
+  const preview = drawn.filter((entry) => entry.glyph === 'o')
+  expect(preview).toHaveLength(PATTERNS.glider.cells.length)
+  expect(preview.map(({ x, y }) => [x, y])).toEqual([
+    [235, 40],
+    [5, 56],
+    [225, 72],
+    [235, 72],
+    [5, 72],
+  ])
+  game.press(235, 56)
+  frame()
+  expect(useLifeCounts.getState().population).toBe(preview.length)
+  expect(
+    drawn.filter((entry) => entry.glyph === '@').some((entry) => entry.x === 5),
+  ).toBe(true)
+
+  // Top edge clips rows instead of wrapping them to the bottom.
+  game.clear()
+  drawn.length = 0
+  game.hover(5, 8) // centre (0, 0), first pattern row is above canvas
+  const topPreview = drawn.filter((entry) => entry.glyph === 'o')
+  expect(topPreview).toHaveLength(4)
+  expect(topPreview.every((entry) => entry.y >= 0)).toBe(true)
+  game.press(5, 8)
+  frame()
+  expect(useLifeCounts.getState().population).toBe(4)
+})
+
 test('real Canvas 2D path handles drawing, resize, palette repaint, and teardown', () => {
   const { host, canvas, game, ctx, drawn, scheduled, frame } = setup()
   expect(canvas.style.pointerEvents).toBe('none')
