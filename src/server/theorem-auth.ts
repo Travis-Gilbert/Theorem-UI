@@ -41,6 +41,7 @@ type Session = {
 export type IdentityProvider = { id: string; name: string }
 
 export type SignInOptions = {
+  /** Empty when the issuer names none and asks the person itself. */
   providers: IdentityProvider[]
   /** Whether Theorem's issuer offers sign-in with a code. */
   codeSignIn: boolean
@@ -71,9 +72,8 @@ export type CodeSignInStatus =
  * which sit behind graph:read, and programs and life doors write under
  * graph:write.
  */
-const SCOPE =
+const THEOREM_SCOPE =
   'run:read run:write models:invoke graph:read graph:write agency:approve'
-const SCOPES = SCOPE.split(' ')
 
 /** Refresh this long before the access token expires. */
 const REFRESH_MARGIN_SECONDS = 60
@@ -83,6 +83,14 @@ type Config = {
   client: oauth.Client
   clientAuth: oauth.ClientAuth
   password: string
+  /**
+   * What a sign-in asks for, space separated. Theorem's own issuer grants
+   * Theorem's scopes; another issuer (WorkOS AuthKit, say) is asked for its
+   * own, and Theorem decides what the person may do from who they are.
+   */
+  scope: string
+  /** The resource tokens are bound to; the issuer's /mcp when unset. */
+  resource?: string
 }
 
 export function oauthConfigured() {
@@ -104,6 +112,10 @@ function config(): Config | string {
     client: { client_id: clientId },
     clientAuth: secret ? oauth.ClientSecretPost(secret) : oauth.None(),
     password,
+    scope:
+      process.env.THEOREM_OAUTH_SCOPE?.split(/\s+/).filter(Boolean).join(' ') ||
+      THEOREM_SCOPE,
+    resource: process.env.THEOREM_OAUTH_RESOURCE || undefined,
   }
 }
 
@@ -112,35 +124,42 @@ function httpOptions(url: URL) {
   return { [oauth.allowInsecureRequests]: url.protocol === 'http:' }
 }
 
-// Theorem's metadata comes from configuration, not from any request.
-let metadata: Promise<oauth.AuthorizationServer> | undefined
+// An issuer's metadata comes from configuration, not from any request.
+const metadata = new Map<string, Promise<oauth.AuthorizationServer>>()
 
 function authorizationServer({ issuer }: Config) {
-  metadata ??= oauth
-    .discoveryRequest(issuer, { algorithm: 'oauth2', ...httpOptions(issuer) })
-    .then((response) => oauth.processDiscoveryResponse(issuer, response))
-    .catch((error: unknown) => {
-      metadata = undefined
-      throw error
-    })
-  return metadata
+  let found = metadata.get(issuer.href)
+  if (!found) {
+    found = oauth
+      .discoveryRequest(issuer, { algorithm: 'oauth2', ...httpOptions(issuer) })
+      .then((response) => oauth.processDiscoveryResponse(issuer, response))
+      .catch((error: unknown) => {
+        metadata.delete(issuer.href)
+        throw error
+      })
+    metadata.set(issuer.href, found)
+  }
+  return found
 }
 
-/** Theorem binds tokens to its MCP resource. */
-const resourceOf = (as: oauth.AuthorizationServer) =>
-  `${as.issuer.replace(/\/$/, '')}/mcp`
-
-/** An issuer from before it named its providers signs in with GitHub only. */
-const GITHUB: IdentityProvider = { id: 'github', name: 'GitHub' }
+/**
+ * Theorem binds tokens to its MCP resource. Its own issuer serves that
+ * resource beside itself; an issuer elsewhere is told where it is.
+ */
+const resourceOf = ({ resource }: Config, as: oauth.AuthorizationServer) =>
+  resource ?? `${as.issuer.replace(/\/$/, '')}/mcp`
 
 /**
- * The ways in Theorem's metadata offers, in its order. The list is Theorem's
- * own `theorem_identity_providers` member; anything malformed in it is skipped.
+ * The ways in the issuer's metadata offers, in its order. The list is
+ * Theorem's own `theorem_identity_providers` member; anything malformed in it
+ * is skipped. An issuer that lists none asks the person on its own page.
  */
-function identityProvidersOf(as: oauth.AuthorizationServer) {
+function identityProvidersOf(
+  as: oauth.AuthorizationServer,
+): IdentityProvider[] {
   const listed = as.theorem_identity_providers
-  if (!Array.isArray(listed)) return [GITHUB]
-  const providers = listed.flatMap((entry) =>
+  if (!Array.isArray(listed)) return []
+  return listed.flatMap((entry) =>
     entry &&
     typeof entry === 'object' &&
     !Array.isArray(entry) &&
@@ -149,13 +168,11 @@ function identityProvidersOf(as: oauth.AuthorizationServer) {
       ? [{ id: entry.id, name: entry.name }]
       : [],
   )
-  return providers.length ? providers : [GITHUB]
 }
 
 export async function signInOptions(): Promise<SignInOptions> {
   const settings = config()
-  if (typeof settings === 'string')
-    return { providers: [GITHUB], codeSignIn: false }
+  if (typeof settings === 'string') return { providers: [], codeSignIn: false }
   try {
     const as = await authorizationServer(settings)
     return {
@@ -164,7 +181,7 @@ export async function signInOptions(): Promise<SignInOptions> {
     }
   } catch {
     // Sign-in reports the outage when it is chosen.
-    return { providers: [GITHUB], codeSignIn: false }
+    return { providers: [], codeSignIn: false }
   }
 }
 
@@ -190,9 +207,14 @@ function session({ password }: Config) {
   )
 }
 
-function keep(target: Session, tokens: oauth.TokenEndpointResponse) {
+/** A response that names no scope granted what was asked (RFC 6749, 5.1). */
+function keep(
+  target: Session,
+  tokens: oauth.TokenEndpointResponse,
+  asked: string,
+) {
   target.accessToken = tokens.access_token
-  target.scope = tokens.scope ?? target.scope ?? SCOPE
+  target.scope = tokens.scope ?? target.scope ?? asked
   if (tokens.refresh_token) target.refreshToken = tokens.refresh_token
   target.expiresAt = tokens.expires_in
     ? Math.floor(Date.now() / 1000) + tokens.expires_in
@@ -258,11 +280,11 @@ export async function signIn(request: Request) {
       response_type: 'code',
       client_id: settings.client.client_id,
       redirect_uri: callbackUrl(request),
-      scope: SCOPE,
+      scope: settings.scope,
       state,
       code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
       code_challenge_method: 'S256',
-      resource: resourceOf(as),
+      resource: resourceOf(settings, as),
       ...(provider && { identity_provider: provider.id }),
     }).toString()
     return redirect(authorize.href)
@@ -306,7 +328,7 @@ export async function signInCallback(request: Request) {
       callbackUrl(request),
       pending.verifier,
       {
-        additionalParameters: { resource: resourceOf(as) },
+        additionalParameters: { resource: resourceOf(settings, as) },
         ...httpOptions(new URL(as.token_endpoint!)),
       },
     )
@@ -317,6 +339,7 @@ export async function signInCallback(request: Request) {
         settings.client,
         response,
       ),
+      settings.scope,
     )
   } catch (error) {
     await current.save()
@@ -368,7 +391,7 @@ export async function startCodeSignIn(
       as,
       settings.client,
       settings.clientAuth,
-      { scope: SCOPE, resource: resourceOf(as) },
+      { scope: settings.scope, resource: resourceOf(settings, as) },
       httpOptions(new URL(as.device_authorization_endpoint)),
     ),
   )
@@ -416,7 +439,7 @@ export async function pollCodeSignIn(): Promise<CodeSignInStatus> {
         settings.clientAuth,
         device.deviceCode,
         {
-          additionalParameters: { resource: resourceOf(as) },
+          additionalParameters: { resource: resourceOf(settings, as) },
           ...httpOptions(new URL(as.token_endpoint!)),
         },
       ),
@@ -445,7 +468,7 @@ export async function pollCodeSignIn(): Promise<CodeSignInStatus> {
     }
   }
   current.device = undefined
-  keep(current, tokens)
+  keep(current, tokens, settings.scope)
   await current.save()
   return { status: 'signed_in', returnTo: device.returnTo }
 }
@@ -469,7 +492,7 @@ function refresh(settings: Config, refreshToken: string) {
           settings.clientAuth,
           refreshToken,
           {
-            additionalParameters: { resource: resourceOf(as) },
+            additionalParameters: { resource: resourceOf(settings, as) },
             ...httpOptions(new URL(as.token_endpoint!)),
           },
         ),
@@ -497,7 +520,7 @@ export async function personBearer(): Promise<string | undefined> {
   // A session from before a scope was added cannot gain it by refreshing; a
   // sign-in grants the whole set.
   const granted = current.scope?.split(' ') ?? []
-  if (!SCOPES.every((scope) => granted.includes(scope))) {
+  if (!settings.scope.split(' ').every((scope) => granted.includes(scope))) {
     current.destroy()
     return undefined
   }
@@ -509,7 +532,7 @@ export async function personBearer(): Promise<string | undefined> {
     return undefined
   }
   try {
-    keep(current, await refresh(settings, current.refreshToken))
+    keep(current, await refresh(settings, current.refreshToken), settings.scope)
   } catch (error) {
     // While Theorem is unreachable (a deploy, say) the session stays and a
     // later request refreshes it. A refused refresh token signs the person

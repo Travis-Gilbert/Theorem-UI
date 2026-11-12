@@ -56,6 +56,8 @@ People sign in at the personal Theorem (`travis-theorem-personal.fly.dev`), whic
 openssl rand -hex 32 | bunx wrangler secret put THEOREM_SESSION_SECRET --name theorem-ui
 ```
 
+The issuer does not have to be Theorem. `THEOREM_OAUTH_ISSUER`, `THEOREM_OAUTH_SCOPE` and `THEOREM_OAUTH_RESOURCE` point sign-in at another OAuth 2.1 issuer, such as WorkOS AuthKit; `.env.example` says what each is. Unset, sign-in is as above.
+
 `bunfig.toml` holds back package versions published less than three days ago. Exemptions are listed there with the reason.
 
 ## Layout
