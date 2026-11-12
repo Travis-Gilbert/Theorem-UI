@@ -4,6 +4,7 @@ import { Stack } from 'expo-router'
 import type { ConversationPhase } from '@theoremharness/sdk'
 import { describeError, statusOf } from '@/lib/theorem'
 import { Button } from '@/ui/button'
+import { ShareButton } from '@/ui/header'
 import { useTheme } from '@/ui/theme'
 import { Unavailable } from '@/ui/unavailable'
 import { ConversationSurface, EmptyConversation, type SurfaceNote } from './conversation-surface'
@@ -73,7 +74,9 @@ export function ConversationPane({
 
   return (
     <>
-      {titled ? <Stack.Screen options={{ title }} /> : null}
+      {titled ? (
+        <Stack.Screen options={{ title, headerRight: () => <ShareButton threadId={threadId} /> }} />
+      ) : null}
       <ConversationSurface
         runtime={runtime}
         recipient={{ name: 'Theorem', detail: state.snapshot?.project.title }}
@@ -81,6 +84,7 @@ export function ConversationPane({
         notes={notes}
         empty={<EmptyConversation title="Theorem" detail="Ask anything about this project." />}
         stopLabel="Stop the run"
+        controls={titled ? undefined : <ShareButton threadId={threadId} />}
       />
     </>
   )

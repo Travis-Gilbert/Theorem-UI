@@ -1,6 +1,7 @@
 // SOURCING: expo-router Stack with Stack.Protected (signed-in routes), expo-font useFonts with @expo-google-fonts families, react-native-safe-area-context
 import '@/lib/polyfills'
 import { useEffect, useState } from 'react'
+import { AppState } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import * as Linking from 'expo-linking'
 import { router, Stack } from 'expo-router'
@@ -15,6 +16,7 @@ import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono/400Regu
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400Regular'
 import { BrowserHost } from '@/features/browser/browser-host'
 import { resetConversations } from '@/features/chat/runtime'
+import { intake } from '@/features/intake/queue'
 import { restore, useAuth } from '@/lib/auth'
 import { clearAccountData } from '@/lib/local-db'
 import { rememberDestination, takeDestination } from '@/lib/pending-destination'
@@ -36,6 +38,7 @@ function Navigation() {
       // Another account must not inherit this one's journals or drafts.
       resetConversations()
       clearAccountData()
+      intake.reset()
     }
     if (wasSignedIn === false && signedIn) {
       const destination = takeDestination()
@@ -43,6 +46,16 @@ function Navigation() {
     }
     setWasSignedIn(signedIn)
   }, [auth.status, signedIn, wasSignedIn])
+
+  // Deliveries saved before the app stopped carry on once the account is back.
+  useEffect(() => {
+    if (!signedIn) return
+    void intake.load()
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') intake.resume()
+    })
+    return () => subscription.remove()
+  }, [signedIn])
 
   // A link that arrives while the sign-in screen is up opens after sign-in, as the launch link does.
   useEffect(() => {
@@ -70,6 +83,10 @@ function Navigation() {
           <Stack.Screen
             name="computer"
             options={{ presentation: 'modal', headerShown: true, title: 'Add a computer' }}
+          />
+          <Stack.Screen
+            name="intake"
+            options={{ presentation: 'modal', headerShown: true, title: 'Share into a conversation' }}
           />
           <Stack.Screen name="terminal" options={{ presentation: 'fullScreenModal', headerShown: true }} />
         </Stack.Protected>
