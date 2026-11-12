@@ -1,5 +1,5 @@
 // SOURCING: lib/face's own parts (rig, matter, player, autonomy, memory, reactions, book) put together behind one object with a fixed-step clock, the way lib/kit/driver.ts owns Kit's motion; liveness is lib/kit/liveness's reading of the runs, shared rather than derived twice. Which performance each liveness settles into, when the face sleeps, and what the figure's motion on the page does to the face inside it (lib/face/body moves the figure; the lean, the trailing visor and the flinch here are this app's) are this app's.
-import type { KitExpression, Liveness } from '@/lib/kit/liveness'
+import type { KitExpression, Liveness } from '../kit/liveness'
 import { Autonomy } from './autonomy'
 import { Book } from './book'
 import type { Shelf } from './book'
