@@ -17,10 +17,13 @@ import {
   resetFaceRequests,
   runErrorOf,
   serveFaceRequests,
+  contextOf,
   toolFactsOf,
+  watchFace,
 } from './operations'
 import type { FaceReceipt, FaceRequest } from './operations'
 import { useFaceStage } from './store'
+import { theWork } from './work'
 
 /** A client operation part on a live run's message, as the installed SDK maps it onto assistant-ui. */
 const liveMessage = (
@@ -190,10 +193,100 @@ describe('reading requests off a conversation', () => {
     } as unknown as ThreadMessage
     expect(toolFactsOf([message], true)).toEqual({
       id: 'm1',
+      called: 3,
       done: 2,
       failed: 1,
     })
     expect(toolFactsOf([message], false)).toBeUndefined()
+  })
+
+  test('the context is the newest usage the server reported, whichever message carries it', () => {
+    const message = (id: string, content: Array<unknown>) =>
+      ({ id, role: 'assistant', content }) as unknown as ThreadMessage
+    const usage = (data: unknown) => ({
+      type: 'data',
+      name: 'theorem-usage',
+      data,
+    })
+    expect(contextOf([])).toBeUndefined()
+    expect(
+      contextOf([message('m1', [{ type: 'text', text: 'Hello.' }])]),
+    ).toBeUndefined()
+    const earlier = message('m1', [
+      usage({ contextTokens: 120_000, contextWindow: 1_000_000 }),
+    ])
+    const later = message('m2', [
+      usage({ contextTokens: 380_000, contextWindow: 1_000_000 }),
+      usage({ contextTokens: 455_000 }),
+      { type: 'text', text: 'Done.' },
+    ])
+    expect(contextOf([earlier, later])).toEqual({
+      tokens: 455_000,
+      window: undefined,
+    })
+    // A live reply that has reported nothing yet leaves the last report standing.
+    expect(contextOf([earlier, message('m3', [])])).toEqual({
+      tokens: 120_000,
+      window: 1_000_000,
+    })
+    // A usage with no count of the context is passed over.
+    expect(
+      contextOf([earlier, message('m4', [usage({ contextTokens: null })])]),
+    ).toEqual({ tokens: 120_000, window: 1_000_000 })
+  })
+
+  test('a run keeps the effort it was sent with, and its context keeps up with what the server reports', () => {
+    const usage = (contextTokens: number) =>
+      ({
+        id: 'm1',
+        role: 'assistant',
+        status: { type: 'running' },
+        metadata: { custom: {} },
+        content: [
+          {
+            type: 'data',
+            name: 'theorem-usage',
+            data: { contextTokens, contextWindow: 1_000_000 },
+          },
+        ],
+      }) as unknown as ThreadMessage
+    let state: { messages: readonly ThreadMessage[]; isRunning: boolean } = {
+      messages: [],
+      isRunning: false,
+    }
+    const listeners = new Set<() => void>()
+    const update = (next: typeof state) => {
+      state = next
+      for (const listener of listeners) listener()
+    }
+    let asked = 'low'
+    const stop = watchFace(
+      {
+        thread: {
+          getState: () => state,
+          subscribe: (listener) => {
+            listeners.add(listener)
+            return () => listeners.delete(listener)
+          },
+        },
+      },
+      () => asked,
+    )
+    const work = theWork()
+    update({ messages: [], isRunning: true })
+    expect(work.effort).toBe(0)
+    // The menu is changed for the next message while this one works.
+    asked = 'max'
+    update({ messages: [usage(700_000)], isRunning: true })
+    expect(work.effort).toBe(0)
+    expect(work.context).toBe(0.5)
+    update({ messages: [usage(700_000)], isRunning: false })
+    update({ messages: [usage(700_000)], isRunning: true })
+    expect(work.effort).toBe(1)
+    stop()
+    expect(listeners.size).toBe(0)
+    work.effort = 0.5
+    work.context = 0
   })
 
   test('a reply that ended in an error is told apart from one that did not', () => {

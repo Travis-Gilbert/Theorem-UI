@@ -1784,6 +1784,15 @@
   background: color-mix(in oklch, var(--face-point) 16%, transparent);
   box-shadow: inset 2px 0 0 var(--face-point-stroke);
 }
+/* The arcs that leave Theo's sides while it sounds (components/face/driver):
+   its own colour, leaning to the ink as the mark above does, so they read on
+   a light page as on a dark one. */
+.face-waves path {
+  fill: none;
+  stroke: color-mix(in oklch, var(--face-wave) 62%, var(--ink));
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
 .face-mark-plate {
   fill: var(--face-plate);
 }

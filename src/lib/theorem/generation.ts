@@ -190,6 +190,17 @@ export const useGenerationOverrides = create<OverridesState>()(
 )
 
 /**
+ * The reasoning effort a send from this conversation asks for: its own, else
+ * the account's. Undefined leaves the level to the model.
+ */
+export function requestedEffort(thread: string = DRAFT) {
+  return (
+    useGenerationOverrides.getState().byThread[thread]?.effort ??
+    useGenerationDefaults.getState().defaults.effort
+  )
+}
+
+/**
  * Turn options for a send, retry or edit in `thread`: whatever Theorem does
  * not already hold. The account defaults go along until the account's
  * preferences are confirmed to hold exactly them — a change made since the

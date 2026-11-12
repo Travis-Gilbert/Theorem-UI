@@ -1,0 +1,137 @@
+{
+  "spec": "docs/plans/theo-sound.md",
+  "items": [
+    {
+      "id": "signals",
+      "item": "Signals are named, bounded numbers the page measures; a program cannot set one",
+      "status": "done",
+      "evidence": "src/lib/face/signals.ts; sound.test.ts 'a signal is kept inside its bounds...', 'only what is away from nothing is reported'"
+    },
+    {
+      "id": "follow",
+      "item": "A `follow` step ties a channel to a signal, for a time or for as long as the performance holds or until the channel is let go; a wrong signal or channel is refused by path",
+      "status": "done",
+      "evidence": "src/lib/face/program.ts, player.ts; sound.test.ts 'a channel tied to a signal moves as the signal does...', 'with `for` the tie lasts that long...', 'a performance that keeps its hold keeps its ties', 'a signal nobody measures...', 'letting go of a channel ends what it followed...', 'letting go of everything ends every tie...'"
+    },
+    {
+      "id": "forms",
+      "item": "A rule with `until` gives the face a form on its own layer, held from one event to another, never left out by chance",
+      "status": "done",
+      "evidence": "src/lib/face/reactions.ts, layers.ts, engine.ts; sound.test.ts 'sound starting gives the face a form, held until the sound stops', 'a form is never left out by chance, and both forms turn up'"
+    },
+    {
+      "id": "forms-under",
+      "item": "The face still reacts and performs over a form, does not sleep while one is held, and reports it in its state",
+      "status": "done",
+      "evidence": "sound.test.ts 'the face still reacts over a form...', 'a form keeps the face from falling asleep...'; state().form"
+    },
+    {
+      "id": "rings-bars",
+      "item": "A feature's matter can be gathered into rings, bars or a mesh of dots inside a rim",
+      "status": "done",
+      "evidence": "src/lib/face/feature.ts, channels.ts; sound.test.ts 'rings gather the matter into that many bands...', 'bars gather it into that many rows', 'a mesh gathers it into dots inside a rim...', 'with none of them, a feature is filled as it always was'"
+    },
+    {
+      "id": "boombox",
+      "item": "The boombox form: two mesh speaker covers, ten dots across, under a dial, nothing between them below, moving with the sound's bands",
+      "status": "done",
+      "evidence": "src/lib/face/book.ts; sound.test.ts 'as a loudspeaker its eyes are mesh covers under a dial...'; evidence/theo-sound/boombox.png, boombox-light.png (re-rendered after the owner's changes: no deck, mesh covers, then ten finer dots across)"
+    },
+    {
+      "id": "arcs",
+      "item": "Arcs leave both sides by how loud the sound is, drawn outside the visor and clear of the words",
+      "status": "done",
+      "evidence": "emit.left/right in channels.ts; driver.ts emit, formSize; face-stage.tsx; .face-waves in styles.css; boombox.png (face 34..107 px, words from 133 px)"
+    },
+    {
+      "id": "mouth",
+      "item": "The mouth form opens by the level of audio really playing and shuts in a pause",
+      "status": "done",
+      "evidence": "book.ts speak; sound.test.ts 'as a mouth it opens by how loud the sound is...'; evidence/theo-sound/speak.png"
+    },
+    {
+      "id": "reduced-motion",
+      "item": "With motion reduced nothing follows the sound; that something is sounding is shown by still arcs",
+      "status": "done",
+      "evidence": "player.ts follow, engine.ts emitting; sound.test.ts 'with motion reduced, nothing follows', 'with motion reduced a tie with `for` still ends when it is due to', 'with motion reduced the loudspeaker does not pump...'; evidence/theo-sound/reduced-motion.png"
+    },
+    {
+      "id": "graph",
+      "item": "One audio graph for the page: streamed blocks played back to back, an audio file, cancel, woken inside the press; outputs only",
+      "status": "done",
+      "evidence": "src/lib/sound/graph.ts; exercised in the browser by the story (reading.png) and by the stop check recorded in theo-sound.md, not by a unit test: happy-dom has no Web Audio. With Chromium's own autoplay rule on, the context did not exist before the press and was running 0.15 s after it. Not pressed in Safari"
+    },
+    {
+      "id": "meter",
+      "item": "A meter reads level, three bands and a beat, and says when sound starts, stops and gets loud; a pause with more due is not a stop",
+      "status": "done",
+      "evidence": "src/lib/sound/meter.ts; meter.test.ts (9)"
+    },
+    {
+      "id": "hear",
+      "item": "The driver feeds the face the signals and events each frame, and one that starts while sound plays takes up the form; nothing reads a microphone",
+      "status": "done",
+      "evidence": "driver.ts hear; graph.ts has no input node; in the browser a played tone gave sound.start, the form, and sound.stop; with a tone playing, swapping the story left Theo a loudspeaker, and with the driver's line taken out left it at rest"
+    },
+    {
+      "id": "provider",
+      "item": "A speech provider seam: text in, raw audio out, keyed or not",
+      "status": "done",
+      "evidence": "src/lib/speech/provider.ts; adapter.test.ts uses a provider of its own"
+    },
+    {
+      "id": "phonon",
+      "item": "Phonon 31M English runs in the browser with no key, fetched on first use",
+      "status": "done",
+      "evidence": "src/lib/speech/phonon.ts; phonon-tts 0.6.0 in package.json; in headless Chromium the model (65,049,306 bytes) was fetched and the story's reply read to the end"
+    },
+    {
+      "id": "speakable",
+      "item": "A reply is spoken as it would be read aloud",
+      "status": "done",
+      "evidence": "src/lib/speech/speakable.ts; speakable.test.ts (10)"
+    },
+    {
+      "id": "adapter",
+      "item": "assistant-ui's speech adapter over the seam: starting until audio is on its way, running, ended; one at a time; cancel",
+      "status": "done",
+      "evidence": "src/lib/speech/adapter.ts, wired in src/lib/theorem/runtime.tsx; adapter.test.ts (7)"
+    },
+    {
+      "id": "button",
+      "item": "Read aloud on an assistant message, saying when the voice is being fetched, and Stop reading while it reads",
+      "status": "done",
+      "evidence": "src/components/chat/read-aloud.tsx, thread.aui.tsx, icons.tsx; evidence/theo-sound/reading.png; Stop reading silenced the voice and Theo was at rest within 0.5 s"
+    },
+    {
+      "id": "failure-said",
+      "item": "A reading that fails says so beside the button of the reply it was asked for, until something is read again",
+      "status": "done",
+      "evidence": "useVoice asked/failed in src/lib/speech/adapter.ts, read-aloud.tsx; adapter.test.ts; evidence/theo-sound/could-not-read.png (the model's host blocked in the browser)"
+    },
+    {
+      "id": "operations",
+      "item": "The manual lists the signals; face.perform and face.define mention `follow` and `until` inside Theorem's limits",
+      "status": "done",
+      "evidence": "engine.ts manual; operations.ts (face.perform 1006 bytes of 1024); sound.test.ts 'the manual says what can be followed...'; operations.test.ts 'what a turn declares'"
+    },
+    {
+      "id": "build",
+      "item": "The production build takes the voice package",
+      "status": "done",
+      "evidence": "NITRO_PRESET=cloudflare_module bun --bun vite build finished; worker and wasm emitted as public assets, none in the server bundle"
+    },
+    {
+      "id": "keyed-provider",
+      "item": "A provider the person brings a key for (ElevenLabs or similar)",
+      "status": "todo",
+      "evidence": "Not built. Where the key is kept is the owner's decision and comes first; see theo-sound.md, Not yet"
+    },
+    {
+      "id": "deployed",
+      "item": "The voice heard from the deployed build",
+      "status": "partial",
+      "evidence": "Workers preview of 538f74f: the voice's chunk, worker and four WebAssembly files are served and are byte-identical (SHA-256) to the local production build, which fetched the model and spoke 4.08 s of audio when served from localhost. On the preview's own origin the model could not be fetched: Hugging Face answers 404 to any Referer on workers.dev. theorem.rs is not refused, but Read aloud has not been pressed in the signed-in app there"
+    }
+  ]
+}

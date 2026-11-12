@@ -33,6 +33,13 @@ export interface Rule {
   readonly when?: Partial<Record<Gauge, readonly [number, number]>>
   /** A performance from the book by name, or a program. */
   readonly do: string | Program
+  /**
+   * The event kind that ends it. With this the rule gives the face a form,
+   * not a passing reaction: what it does is held, beneath reactions and
+   * performances, from the event in `on` until this one. A trailing `*`
+   * matches any ending.
+   */
+  readonly until?: string
   /** Scales the performance; the event's novelty and the mood scale it further. */
   readonly intensity?: number
   /** How likely against the other rules that fit; 1 unless said. */
@@ -196,6 +203,22 @@ export const DEFAULT_RULES: ReadonlyArray<Rule> = [
     note: 'Finished right after a failure: relief, not cheer.',
   }),
   rule('done-wink', 'run.done', 'wink', { when: { habit: [0.5, 1] } }),
+  // A form: held for as long as the run is at work.
+  rule('work-orb', 'run.work', 'orb', {
+    until: 'run.rest',
+    note: 'While the agent works, the face is a thinking orb.',
+  }),
+  // Sound the page plays. The first two are forms: held from the sound's start to its stop.
+  rule('sound-boombox', 'sound.start', 'boombox', {
+    until: 'sound.stop',
+    weight: 3,
+    note: 'What plays aloud is shown as a loudspeaker.',
+  }),
+  rule('sound-speak', 'sound.start', 'speak', {
+    until: 'sound.stop',
+    note: 'Or as a mouth, now and then.',
+  }),
+  rule('sound-thump', 'sound.loud', 'thump', { cooldown: 3_000 }),
   // The environment.
   rule('resize-startle', 'env.resize', 'startle', {
     when: { streak: [1, 1] },
@@ -276,7 +299,8 @@ export class Reactions {
       reason,
     })
     if (!isRecord(input)) return refuse('rule', 'A rule is {id, on, do, ...}.')
-    const { id, on, within, when, intensity, weight, cooldown, note } = input
+    const { id, on, within, when, intensity, weight, cooldown, note, until } =
+      input
     if (typeof id !== 'string' || !RULE_LIMITS.id.test(id))
       return refuse(
         'rule.id',
@@ -295,6 +319,14 @@ export class Reactions {
       return refuse(
         'rule.on',
         'on is an event kind such as "person.poke", or up to six in order; a trailing * matches any ending.',
+      )
+    if (
+      until !== undefined &&
+      (typeof until !== 'string' || !RULE_LIMITS.kind.test(until))
+    )
+      return refuse(
+        'rule.until',
+        'until is the event kind that ends it, such as "sound.stop".',
       )
     const gauges: Partial<Record<Gauge, readonly [number, number]>> = {}
     if (when !== undefined) {
@@ -359,6 +391,7 @@ export class Reactions {
         ? {}
         : { cooldown: num(cooldown, 0, 3_600_000) }),
       ...(typeof note === 'string' ? { note: note.slice(0, 200) } : {}),
+      ...(typeof until === 'string' ? { until } : {}),
       by,
     }
     if (replaces >= 0) this.added[replaces] = made
@@ -403,6 +436,34 @@ export class Reactions {
   }
 
   /**
+   * The form the face takes for something that has begun and will last: one
+   * of the fitting rules that say what ends it, drawn by weight. Doing nothing
+   * is not a candidate here. A form is how the face shows a thing is going
+   * on, so it is not left out by chance.
+   */
+  form(
+    event: FaceEvent,
+    reading: Reading,
+    mood: Mood,
+    memory: Memory,
+  ): Reaction | undefined {
+    const fitting = this.fitting(event, reading, mood, memory).filter(
+      (item) => item.until !== undefined,
+    )
+    const chosen = weighted(this.random, fitting, (item) => item.weight ?? 1)
+    if (!chosen) return undefined
+    const named = typeof chosen.do === 'string' ? chosen.do : undefined
+    const program = named ? this.book.lookup(named) : (chosen.do as Program)
+    if (!program) return undefined
+    return {
+      rule: chosen,
+      program,
+      ...(named ? { name: named } : {}),
+      intensity: clamp(chosen.intensity ?? 1, 0.3, 1.6),
+    }
+  }
+
+  /**
    * Decides. `undefined` is a decision too: sometimes the face lets a thing
    * pass, and more often the more habitual the thing is.
    */
@@ -412,7 +473,9 @@ export class Reactions {
     mood: Mood,
     memory: Memory,
   ): Reaction | undefined {
-    const fitting = this.fitting(event, reading, mood, memory)
+    const fitting = this.fitting(event, reading, mood, memory).filter(
+      (item) => item.until === undefined,
+    )
     if (fitting.length === 0) return undefined
     const weightOf = (item: Rule) => {
       const since = event.at - (this.fired.get(item.id) ?? -Infinity)

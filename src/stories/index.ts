@@ -168,6 +168,12 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 1280, height: 800 },
   },
   {
+    id: 'face-sound',
+    title: 'Theo on a page with a reply to read aloud',
+    lane: 'original',
+    viewport: { width: 1280, height: 800 },
+  },
+  {
     id: 'tool-pills',
     title: 'Tool pills: done, failed and running',
     lane: 'original',

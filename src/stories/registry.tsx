@@ -1,7 +1,7 @@
 // SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message; the activity and composer stories hand committed messages to the thread itself the same way, converted by the SDK's toAssistantMessages.
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 import {
   AssistantRuntimeProvider,
@@ -19,6 +19,7 @@ import { LIBRARY_ID, LIBRARY_VERSION } from '@/components/artifacts/openui/libra
 import { Canvas } from '@/components/canvas/canvas'
 import { FaceBench, FaceBook } from '@/components/face/face-bench'
 import { FaceStage } from '@/components/face/face-stage'
+import { speechAdapter } from '@/lib/speech/adapter'
 import { NoteNodeView } from '@/components/program/program-annotations'
 import { NoteEditor } from '@/components/notes/note-editor'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
@@ -383,6 +384,58 @@ function FacePointStory() {
   )
 }
 
+const SOUND_MESSAGES: ThreadMessageLike[] = [
+  {
+    id: 'sound-ask',
+    role: 'user',
+    content: [{ type: 'text', text: 'What did the build turn up?' }],
+  },
+  {
+    id: 'sound-reply',
+    role: 'assistant',
+    status: { type: 'complete', reason: 'stop' },
+    content: [
+      {
+        type: 'text',
+        text: [
+          'The build passed, with **two things** worth a look.',
+          '',
+          '1. The map loader now reads tiles in parallel, which took the cold start from nine seconds to four.',
+          '2. One test is slow: `tiles.test.ts` spends most of its time waiting on a timer.',
+          '',
+          'Nothing failed. I would fix the timer next, then cut the release.',
+        ].join('\n'),
+      },
+    ],
+  },
+]
+
+/**
+ * Theo on a conversation with a reply to read aloud. Pressing "Read aloud"
+ * speaks it with the page's voice through the page's sound graph, and Theo
+ * hears what plays: it is the thread as the shell has it, with nothing told
+ * to the face but the sound.
+ */
+function FaceSoundStory() {
+  const speech = useMemo(() => speechAdapter(), [])
+  const runtime = useExternalStoreRuntime({
+    messages: SOUND_MESSAGES,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+    adapters: { speech },
+  })
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <div className="h-dvh">
+        <Thread autoFocus={false} />
+      </div>
+      <FaceStage />
+    </AssistantRuntimeProvider>
+  )
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
   'chat-program': programStory,
@@ -398,6 +451,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'face-in-shell': ShellCompareStory,
   'face-visit': FaceVisitStory,
   'face-point': FacePointStory,
+  'face-sound': FaceSoundStory,
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,

@@ -1,4 +1,4 @@
-// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit)
+// SOURCING: @assistant-ui/react (useRemoteThreadListRuntime + useLocalRuntime) with @theoremharness/sdk/assistant-ui (createTheoremChatAdapter, toAssistantMessages); each thread runtime also reports to Kit (lib/kit) and reads replies aloud through lib/speech
 //
 // Theorem owns durable history, execution and approvals. assistant-ui owns the
 // view state. The thread list maps onto Theorem threads in the active project;
@@ -30,7 +30,7 @@ import {
 import type { TheoremChatAdapterOptions } from '@theoremharness/sdk/assistant-ui'
 import { createAssistantStream } from 'assistant-stream'
 import pMap from 'p-map'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { create } from 'zustand'
 import { refreshConversation } from './conversation-refresh'
 import type { ReactNode } from 'react'
@@ -59,7 +59,7 @@ import {
 import type { Theorem } from './client'
 import { chatAttachments, turnUploads } from './chat-attachments'
 import { RefusedSend } from './send-recovery'
-import { generationTurnOptions, useGenerationOverrides } from './generation'
+import { generationTurnOptions, requestedEffort, useGenerationOverrides } from './generation'
 import { saveThreadGeneration, takeThreadGeneration } from './thread-generation'
 import { modelTurnOptions } from './models'
 import { bindRunInput } from './run-input-runtime'
@@ -71,6 +71,7 @@ import { Figures } from '@/components/face/figures'
 import { useKitRequests } from '@/lib/kit/operations'
 import { useAppRequests } from '@/lib/blocks/app-operations'
 import { useFaceRequests } from '@/lib/face/operations'
+import { speechAdapter } from '@/lib/speech/adapter'
 import { clientSurfaceTurnOptions } from './client-surface'
 
 type RemoteThreadMetadata = Awaited<
@@ -670,18 +671,22 @@ function useTheoremThreadRuntime() {
     }),
     [aui],
   )
-  const runtime = useLocalRuntime(adapter)
+  // Replies are read aloud by the page's own voice, when the person asks.
+  const speech = useMemo(() => speechAdapter(), [])
+  const runtime = useLocalRuntime(adapter, { adapters: { speech } })
   useEffect(() => bindRunInput(runtime, {
     threadKey: aui.threadListItem.getState().id,
     threadId: () => aui.threadListItem.getState().remoteId,
     liveRuns: useLiveRuns,
   }), [aui, runtime])
+  // The effort this conversation's sends ask for, for Theo to show while one runs.
+  const faceEffort = useCallback(() => requestedEffort(aui.threadListItem.getState().remoteId ?? undefined), [aui])
   useKitSource(runtime)
   useKitRequests(runtime)
   // The agent checks Apps with the page's compiler; this answers it.
   useAppRequests(runtime)
   // The agent drives Theo, its face, through the page; this answers it.
-  useFaceRequests(runtime)
+  useFaceRequests(runtime, faceEffort)
   useEffect(() => {
     let busy = false
     const abort = new AbortController()

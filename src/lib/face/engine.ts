@@ -11,7 +11,7 @@ import { THEO } from './identity'
 import type { Identity } from './identity'
 import { Rig } from './layers'
 import type { Layer } from './layers'
-import { Memory } from './memory'
+import { Memory, matches } from './memory'
 import type { FaceEvent } from './memory'
 import { Field, GRAIN_STRIDE, oklch, shapesFor } from './particles'
 import type { Matter } from './particles'
@@ -21,6 +21,7 @@ import { LIMITS, STEP_MANUAL, THING_MANUAL, compile, isThing } from './program'
 import type { Place, Program } from './program'
 import { Reactions } from './reactions'
 import { seeded } from './random'
+import { SIGNALS, Signals } from './signals'
 
 /** How the head sits, for whatever draws the visor. */
 export interface Head {
@@ -57,6 +58,8 @@ const MOODS: Partial<Record<Liveness, string>> = {
 
 /** Idle this long, the face sleeps. */
 export const SLEEP_AFTER_MS = 90_000
+/** With motion reduced, what leaves the face's sides does not follow the sound: it is this much while a signal it is tied to is over this, and nothing otherwise. */
+const STEADY = { over: 0.05, amount: 0.6 }
 const STEP = 1 / 120
 /** What the figure's motion on the page does to the face. Speeds are face units per second. */
 const SWAY = {
@@ -95,6 +98,8 @@ export class Face {
   readonly reactions: Reactions
   readonly player: Player
   readonly buffer: Float32Array
+  /** What the page measures as it happens, for programs that follow it. */
+  readonly signals = new Signals()
   private readonly autonomy: Autonomy
   private readonly clock: () => number
   private readonly shapes: Array<Shape> = []
@@ -130,6 +135,8 @@ export class Face {
   /** A knock that is dying away: which way it threw the head, and which eye it closed on. */
   private readonly knock = { x: 0, y: 0, squash: 0, eye: 0, amount: 0 }
   private seeds: number
+  /** The event that ends the form the face has taken, while it has one. */
+  private formUntil: string | undefined
   asleep = false
 
   constructor(options: FaceOptions = {}) {
@@ -156,6 +163,7 @@ export class Face {
         burst: (x, y, strength) => this.field.burst(x, y, strength),
       },
       this.clock,
+      this.signals.read,
     )
     this.buffer = new Float32Array(this.field.count * GRAIN_STRIDE)
     this.idleSince = this.clock()
@@ -192,6 +200,8 @@ export class Face {
       seed?: number
       /** A thing the program names that is not on the page refuses it. */
       strict?: boolean
+      /** What it sets stays when it ends, whether or not the program says so. */
+      keep?: boolean
     },
   ): Performed {
     let name: string | undefined
@@ -219,7 +229,8 @@ export class Face {
     if (!checked.ok) return checked
     const layer = how.layer ?? 'performance'
     if (layer !== 'mood') this.rouse()
-    const invocation = this.player.play(checked.score, {
+    const score = how.keep ? { ...checked.score, keep: true } : checked.score
+    const invocation = this.player.play(score, {
       layer,
       owner: how.owner,
       ...(name ? { name } : {}),
@@ -237,6 +248,14 @@ export class Face {
     return this.seeds
   }
 
+  /**
+   * What the page measured this frame, by signal name: how loud the sound it
+   * is playing is, and the like. Programs that follow a signal move with it.
+   */
+  feed(measured: Readonly<Record<string, number>>) {
+    this.signals.feed(measured)
+  }
+
   // Events ----------------------------------------------------------------
 
   /**
@@ -248,6 +267,30 @@ export class Face {
     const event: FaceEvent = { kind, at: this.clock(), weight }
     const reading = this.memory.note(event)
     if (kind.startsWith('person.')) this.idleSince = event.at
+    // What a form was waiting for has come.
+    if (this.formUntil !== undefined && matches(this.formUntil, kind))
+      this.unform()
+    // Something that will last has begun: the face takes a form for it, beneath whatever else it does, asleep or not.
+    const lasting = this.reactions.form(
+      event,
+      reading,
+      this.memory.mood,
+      this.memory,
+    )
+    let formed: Invocation | undefined
+    if (lasting) {
+      const performed = this.perform(lasting.name ?? lasting.program, {
+        layer: 'form',
+        owner: `rule:${lasting.rule.id}`,
+        intensity: lasting.intensity,
+        keep: true,
+      })
+      if (performed.ok) {
+        formed = performed.invocation
+        this.formUntil = lasting.rule.until
+      }
+    }
+    if (formed) return formed
     if (this.asleep) {
       // Only the person or a run wakes it; the window resizing does not, nor its own body settling.
       if (kind.startsWith('env.') || kind.startsWith('body.')) return undefined
@@ -272,6 +315,14 @@ export class Face {
     return performed.ok ? performed.invocation : undefined
   }
 
+  /** Lets go of the form the face has taken, if it has one: what it was a form for is over. */
+  unform() {
+    this.formUntil = undefined
+    if (!this.player.holding('form')) return
+    this.player.stop('form')
+    this.idleSince = this.clock()
+  }
+
   /** Follows the run: each liveness settles the face into its own manner. */
   setLiveness(liveness: Liveness) {
     if (liveness === this.liveness) return
@@ -285,6 +336,15 @@ export class Face {
     if (liveness === 'work' && before !== 'ask') this.notice('run.start')
     if (liveness === 'ask') this.notice('run.ask')
     if (liveness === 'done') this.notice('run.done')
+    // Working has begun, or begun again after a question, or is over whatever came next: what lasts for as long
+    // as the work does starts and ends here. Said last, so the events a rule waits for in order stay next to each other.
+    if (liveness === 'work') this.notice('run.work')
+    if (before === 'work') this.notice('run.rest')
+  }
+
+  /** Whether a run is at work now. */
+  get working() {
+    return this.liveness === 'work'
   }
 
   /** The manner the agent authored for its turn, laid on the mood layer. */
@@ -466,6 +526,9 @@ export class Face {
     const quick = 1 - Math.exp(-dt * SWAY.quick)
     motion.vx += ((motion.fresh ? motion.x : 0) - motion.vx) * quick
     motion.vy += ((motion.fresh ? motion.y : 0) - motion.vy) * quick
+    this.signals.feed({
+      'body.speed': Math.hypot(motion.vx, motion.vy) / SWAY.fastest,
+    })
     const slow = 1 - Math.exp(-dt * SWAY.slow)
     motion.slowX += (motion.vx - motion.slowX) * slow
     motion.slowY += (motion.vy - motion.slowY) * slow
@@ -560,7 +623,8 @@ export class Face {
       !this.asleep &&
       this.liveness === 'idle' &&
       now - this.idleSince > SLEEP_AFTER_MS &&
-      !this.player.active('performance')
+      !this.player.active('performance') &&
+      !this.player.holding('form')
     ) {
       this.asleep = true
       this.perform('sleep', { layer: 'mood', owner: 'liveness' })
@@ -597,10 +661,12 @@ export class Face {
   private colourByMood(now: number) {
     if (this.rig.still || this.asleep) return
     const mood = this.memory.settle(now)
+    // In a form the eyes are something else: a smile on a loudspeaker is a dent in it.
+    const formed = this.player.holding('form') !== undefined
     const pleased = Math.max(0, mood.valence - 0.2)
     const sour = Math.max(0, -mood.valence)
     for (const feature of this.rig.channels.features()) {
-      if (!feature.id.startsWith('eye')) continue
+      if (formed || !feature.id.startsWith('eye')) continue
       this.rig.offset(`${feature.id}.lowBow`, pleased * 0.35)
       this.rig.offset(`${feature.id}.lidTilt`, sour * 0.35)
     }
@@ -625,6 +691,8 @@ export class Face {
       shape.y += gazeY * 6 * depth
       if (shape.side !== 0) shape.w *= 1 - 0.1 * gazeX * shape.side
       shape.h *= 1 - 0.06 * Math.abs(gazeY)
+      // With motion reduced a globe is a ball of dots that does not turn.
+      if (rig.still) shape.spin = shape.stir = 0
     })
     const { matter } = this
     matter.cohesion = rig.read('matter.cohesion')
@@ -651,13 +719,32 @@ export class Face {
     }
   }
 
+  /** How much leaves each side of the face, 0 to 1, for whoever draws it: it is outside the visor, so it is no matter of the face's. */
+  emitting(): { left: number; right: number } {
+    if (this.rig.still) {
+      // With motion reduced nothing follows the sound. That something is sounding is still shown: steadily, there or not.
+      const steady = (channel: string) =>
+        this.player
+          .tied(channel)
+          .some((signal) => this.signals.read(signal) > STEADY.over)
+          ? STEADY.amount
+          : 0
+      return { left: steady('emit.left'), right: steady('emit.right') }
+    }
+    return {
+      left: this.rig.read('emit.left'),
+      right: this.rig.read('emit.right'),
+    }
+  }
+
   /** What the face is doing, in a few words, for a status a screen reader gets. */
   words() {
     if (this.asleep) return 'asleep'
     const active =
       this.player.active('hand') ??
       this.player.active('performance') ??
-      this.player.active('reaction')
+      this.player.active('reaction') ??
+      this.player.holding('form')
     const name = active?.name?.split('@')[0]
     if (name) return name
     return this.liveness === 'idle'
@@ -675,11 +762,17 @@ export class Face {
   /** What the face is doing and has lately done: the part of the manual that changes. */
   state() {
     const pointing = this.stage.pointing?.()
+    const form = this.player.holding('form')
+    const signals = this.signals.away()
     return {
       liveness: this.liveness,
       asleep: this.asleep,
       doing: this.words(),
       ...(pointing ? { pointing } : {}),
+      ...(form?.name && this.formUntil
+        ? { form: { name: form.name, until: this.formUntil } }
+        : {}),
+      ...(Object.keys(signals).length > 0 ? { signals } : {}),
       features: this.rig.channels
         .features()
         .map((feature) => ({ id: feature.id, side: feature.side })),
@@ -728,8 +821,17 @@ export class Face {
         'Every feature has these params; its channels are "<feature id>.<param>", e.g. "eye.left.lid". "eyes.<param>" means both eyes.',
       featureParams: bounds(FEATURE_PARAMS),
       face: bounds(FACE_CHANNELS),
+      signals: {
+        how: 'Numbers the page measures as it happens. A follow step ties a channel to one; you cannot set them.',
+        ...Object.fromEntries(
+          Object.entries(SIGNALS).map(([name, spec]) => [
+            name,
+            `${spec.min}..${spec.max}. ${spec.note}`,
+          ]),
+        ),
+      },
       layers:
-        'Lowest to highest: mood, reaction, performance, hand. Your programs play on performance; the person’s hand overrides them while it holds the face.',
+        'Lowest to highest: mood, form, reaction, performance, hand. Your programs play on performance; the person’s hand overrides them while it holds the face.',
     }
     if (part === 'channels') return { channels, state }
     const book = {
@@ -743,6 +845,7 @@ export class Face {
         on: item.on,
         do: typeof item.do === 'string' ? item.do : '(program)',
         ...(item.when ? { when: item.when } : {}),
+        ...(item.until ? { until: item.until } : {}),
         ...(item.by && item.by !== 'theo' ? { by: item.by } : {}),
       })),
     }

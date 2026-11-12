@@ -2,6 +2,7 @@
 import { Channels, FEATURE_ID, clamp } from './channels'
 import type { FeatureSide } from './channels'
 import { between, seeded, weighted } from './random'
+import { SIGNAL_NAMES, isSignal } from './signals'
 import type { Random } from './random'
 
 /** A number, a draw between two bounds, or an argument the caller passes. */
@@ -69,6 +70,13 @@ export type Step =
       for: number
       shape?: 'sine' | 'square' | 'noise'
     }
+  | {
+      op: 'follow'
+      channel: string
+      signal: string
+      amp: Value
+      for?: number
+    }
   | { op: 'wait'; ms: Value }
   | { op: 'seq'; steps: Array<Step> }
   | { op: 'par'; steps: Array<Step> }
@@ -98,6 +106,8 @@ export const STEP_MANUAL: Record<Step['op'], string> = {
   to: '{op:"to", set:{channel:value,...}, over?:ms, bounce?:0..1, hold?:ms} moves channels to values, then waits `hold`.',
   by: '{op:"by", set:{channel:delta,...}, over?, bounce?, hold?} moves channels by an amount from where they are headed.',
   wave: '{op:"wave", channel, amp, period:ms, for:ms, shape?:"sine"|"square"|"noise"} oscillates a channel around wherever it is; put it in a par to run beside other steps.',
+  follow:
+    '{op:"follow", channel, signal, amp, for?:ms} ties a channel to a signal the page measures as it happens ("sound.level", "sound.low", "sound.beat", ...): each frame the channel is `amp` times the signal away from wherever it is, so it moves only as the thing measured does. With `for` it lasts that long; without, as long as the performance holds, which with keep is until something lets go.',
   wait: '{op:"wait", ms} does nothing for a while.',
   seq: '{op:"seq", steps:[...]} one after another.',
   par: '{op:"par", steps:[...]} all at once; lasts as long as the longest.',
@@ -114,7 +124,7 @@ export const STEP_MANUAL: Record<Step['op'], string> = {
     '{op:"burst", x?, y?, strength?} kicks the matter outward from a point in face units.',
   use: '{op:"use", name, args?, intensity?} plays a named performance from the book inside this one.',
   release:
-    '{op:"release", channels?:[...], over?} lets go of channels so they return to what lies beneath.',
+    '{op:"release", channels?:[...], over?} lets go of channels so they return to what lies beneath, and ends what they followed.',
 }
 
 /** The place that is a particular thing on the page, for the same manual. */
@@ -148,6 +158,15 @@ export type Cue =
       until: number
       shape: 'sine' | 'square' | 'noise'
       phase: number
+    }
+  | {
+      at: number
+      kind: 'follow'
+      channel: string
+      signal: string
+      amp: number
+      /** When it lets go; left out, it holds as long as the performance does. */
+      until?: number
     }
   | { at: number; kind: 'look'; place: Place; over: number }
   | {
@@ -588,6 +607,35 @@ function place(
           path,
         )
       return length
+    }
+    case 'follow': {
+      if (typeof step.channel !== 'string')
+        throw new Failure(`${path}.channel`, 'channel is a channel name.')
+      const signal = step.signal
+      if (typeof signal !== 'string' || !isSignal(signal))
+        throw new Failure(
+          `${path}.signal`,
+          `signal is one of ${SIGNAL_NAMES.join(', ')}.`,
+        )
+      const length =
+        step.for === undefined
+          ? undefined
+          : duration(step.for, `${path}.for`, 0)
+      const amp = number(step.amp, `${path}.amp`, run, frame) * frame.intensity
+      for (const channel of channelsOf(step.channel, `${path}.channel`, run))
+        push(
+          run,
+          {
+            at,
+            kind: 'follow',
+            channel,
+            signal,
+            amp,
+            ...(length === undefined ? {} : { until: at + length }),
+          },
+          path,
+        )
+      return length ?? 0
     }
     case 'wait':
       return Math.max(

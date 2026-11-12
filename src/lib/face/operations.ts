@@ -1,10 +1,11 @@
-// SOURCING: Theorem's client operations, as lib/blocks/app-operations.ts and lib/kit/operations.ts use them (a page declares operations on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); the server's limits on a declaration (theorem rustyred-thg-server theorem_agent_stream/client_operations.rs: 16 operations a send, a description of at most 1024 bytes, a schema of at most 8 KB). Kit and the App check use ten of the sixteen, so the face is three operations and its vocabulary is data, not tools: one to read the manual, one to perform, one to teach.
+// SOURCING: Theorem's client operations, as lib/blocks/app-operations.ts and lib/kit/operations.ts use them (a page declares operations on its send, each becomes a tool of the turn, a call streams a `client_operation` part in state `pending`, the page answers with a `client-operation-receipt` command through @theoremharness/sdk's chat.runs.command); the server's limits on a declaration (theorem rustyred-thg-server theorem_agent_stream/client_operations.rs: 16 operations a send, a description of at most 1024 bytes, a schema of at most 8 KB). Kit and the App check use ten of the sixteen, so the face is three operations and its vocabulary is data, not tools: one to read the manual, one to perform, one to teach. How full a conversation is comes from the `usage` part of theorem-chat/1 (theorem_agent_stream.rs append_native_usage_as: `contextTokens`, the prompt's occupancy at the last request, and `contextWindow`, the model's window from the catalogue), which @theoremharness/sdk hands on as a `theorem-usage` data part.
 import type { ThreadMessage } from '@assistant-ui/react'
 import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { hasStatus, mutate, theorem } from '@/lib/theorem/client'
 import type { Face } from './engine'
 import { theFace, useFaceStage } from './store'
+import { contextShare, effortShare, theWork } from './work'
 
 export const FACE_READ = 'face.read'
 export const FACE_PERFORM = 'face.perform'
@@ -39,7 +40,7 @@ export const FACE_OPERATIONS = [
   {
     name: FACE_PERFORM,
     description:
-      'Makes Theo perform, visibly, now. Pass `use` to play a named performance from the book ("blink", "glare", "think", ...), or `program` to play one you write: {steps:[...]} where each step is {op:"to", set:{"eyes.lid":0.4,"face.tilt":8}, over:200, hold:600}, a wave, seq, par, stagger, repeat, vary, look, go, feature (adds a new facial feature made of the same matter, e.g. brows or a mouth), burst, use or release. You are not limited to named expressions: any point in the channels is a face, and any program is a performance. To point at something, go to it: {op:"go", to:{thing:"tool:failed"}} stands Theo beside that tool call, looking at it, with a mark on it. A wrong program is refused with the path and the reason and nothing plays. The receipt comes when it starts, with its id and length in ms; pass `wait: true` to get how it ended instead. `stop: true` ends your current performance. Call face.read first for the channels and steps.',
+      'Makes Theo perform, visibly, now. Pass `use` to play a named performance from the book ("blink", "glare", "think", ...), or `program` to play one you write: {steps:[...]} where each step is {op:"to", set:{"eyes.lid":0.4,"face.tilt":8}, over:200, hold:600}, a wave, follow (ties a channel to a live signal, e.g. "sound.level"), seq, par, stagger, repeat, vary, look, go, feature (adds a new facial feature made of the same matter, e.g. brows or a mouth), burst, use or release. You are not limited to named expressions: any point in the channels is a face, and any program is a performance. To point at something, go to it: {op:"go", to:{thing:"tool:failed"}} stands Theo beside that tool call, looking at it, with a mark on it. A wrong program is refused with the path and the reason and nothing plays. The receipt comes when it starts, with its id and length in ms; pass `wait: true` to get how it ended instead. `stop: true` ends your current performance. Call face.read first for the channels and steps.',
     effect: 'presentation',
     inputSchema: {
       type: 'object',
@@ -86,7 +87,7 @@ export const FACE_OPERATIONS = [
   {
     name: FACE_DEFINE,
     description:
-      'Teaches Theo something that lasts on this device. Pass `name` and `program` (and a `note` saying what it is for) to save a performance to the book: saving a name again adds a version, and earlier versions keep meaning what they meant. Pass `rule` to add or replace a reaction: {id, on:"person.poke" or a list of event kinds in order, when?:{streak:[4,99], arousal:[0.5,1]}, do:"name" or a program, weight?, cooldown?, intensity?}; Theo then does it by itself when that happens, drawn against the other rules that fit. Pass `remove` as {performance:"name"}, {performance:"name@2"} for one version, or {rule:"id"} to take one you added away; a version another performance uses stays until that one goes. The program or rule is checked first; a wrong one is refused with the path and the reason.',
+      'Teaches Theo something that lasts on this device. Pass `name` and `program` (and a `note` saying what it is for) to save a performance to the book: saving a name again adds a version, and earlier versions keep meaning what they meant. Pass `rule` to add or replace a reaction: {id, on:"person.poke" or a list of event kinds in order, when?:{streak:[4,99], arousal:[0.5,1]}, do:"name" or a program, weight?, cooldown?, intensity?, until?:"sound.stop" (held from `on` until that event)}; Theo then does it by itself when that happens, drawn against the other rules that fit. Pass `remove` as {performance:"name"}, {performance:"name@2"} for one version, or {rule:"id"} to take one you added away; a version another performance uses stays until that one goes. The program or rule is checked first; a wrong one is refused with the path and the reason.',
     effect: 'presentation',
     inputSchema: {
       type: 'object',
@@ -415,14 +416,46 @@ export function toolFactsOf(
 ) {
   const last = messages.at(-1)
   if (!running || last?.role !== 'assistant') return undefined
+  let called = 0
   let done = 0
   let failed = 0
   for (const part of last.content) {
-    if (part.type !== 'tool-call' || part.result === undefined) continue
+    if (part.type !== 'tool-call') continue
+    called++
+    if (part.result === undefined) continue
     done++
     if (part.isError) failed++
   }
-  return { id: last.id, done, failed }
+  return { id: last.id, called, done, failed }
+}
+
+/**
+ * How many tokens the conversation's model was last sent, and how many its
+ * window holds: the newest usage the server reported (the `usage` part of
+ * theorem-chat/1, which carries `contextTokens` and `contextWindow`).
+ * Undefined where none was, as in a conversation's first turn.
+ */
+export function contextOf(messages: readonly ThreadMessage[]) {
+  for (let at = messages.length - 1; at >= 0; at--) {
+    const content = messages[at]?.content ?? []
+    for (let index = content.length - 1; index >= 0; index--) {
+      const part = content[index]
+      if (part?.type !== 'data' || part.name !== 'theorem-usage') continue
+      const data = part.data as
+        { contextTokens?: unknown; contextWindow?: unknown } | null | undefined
+      const tokens = data?.contextTokens
+      if (typeof tokens !== 'number' || !Number.isFinite(tokens)) continue
+      const window = data?.contextWindow
+      return {
+        tokens,
+        window:
+          typeof window === 'number' && Number.isFinite(window)
+            ? window
+            : undefined,
+      }
+    }
+  }
+  return undefined
 }
 
 /** The id of the conversation's last reply if it ended in an error, so the face can take it in once. */
@@ -436,41 +469,67 @@ export function runErrorOf(messages: readonly ThreadMessage[]) {
 }
 
 /**
- * Serves face requests from one conversation for as long as it is mounted,
- * and tells the face what the run's tools are doing: each one that finishes
- * is an event, and one that fails is a different one.
+ * Serves face requests from one conversation until the returned function is
+ * called, and tells the face what the run's tools are doing: each one that
+ * finishes is an event, and one that fails is a different one. Each call
+ * that starts or ends is counted into the run's pace too, `effort` says what
+ * reasoning effort the conversation's sends ask for, and the newest usage
+ * the server reported says how full the conversation is.
  */
-export function useFaceRequests(runtime: ThreadSource) {
-  useEffect(() => {
-    let seen: ReturnType<typeof toolFactsOf>
-    let errored: string | undefined
-    // Tools that finished before this page was looking are not news.
-    let first = true
-    const serve = () => {
-      const { messages, isRunning } = runtime.thread.getState()
-      void serveFaceRequests(faceRequestsOf(messages, isRunning))
-      const facts = toolFactsOf(messages, isRunning)
-      if (facts && !first && useFaceStage.getState().mounted) {
-        const before = seen?.id === facts.id ? seen : { done: 0, failed: 0 }
-        const face = theFace()
-        for (let index = before.failed; index < facts.failed; index++)
-          face.notice('run.tool.fail')
-        const passed = facts.done - facts.failed - (before.done - before.failed)
-        for (let index = 0; index < passed; index++) face.notice('run.tool')
+export function watchFace(
+  runtime: ThreadSource,
+  effort?: () => string | undefined,
+) {
+  let seen: ReturnType<typeof toolFactsOf>
+  let errored: string | undefined
+  // Tools that finished before this page was looking are not news.
+  let first = true
+  let running = false
+  const serve = () => {
+    const { messages, isRunning } = runtime.thread.getState()
+    void serveFaceRequests(faceRequestsOf(messages, isRunning))
+    const facts = toolFactsOf(messages, isRunning)
+    if (facts && !first && useFaceStage.getState().mounted) {
+      const before =
+        seen?.id === facts.id ? seen : { called: 0, done: 0, failed: 0 }
+      const face = theFace()
+      const work = theWork()
+      const now = performance.now()
+      for (let index = before.called; index < facts.called; index++)
+        work.tool(now)
+      for (let index = before.failed; index < facts.failed; index++) {
+        face.notice('run.tool.fail')
+        work.tool(now, true)
       }
-      seen = facts ?? seen
-      const error = runErrorOf(messages)
-      if (
-        error &&
-        error !== errored &&
-        !first &&
-        useFaceStage.getState().mounted
-      )
-        theFace().notice('run.error')
-      errored = error
-      first = false
+      const passed = facts.done - facts.failed - (before.done - before.failed)
+      for (let index = 0; index < passed; index++) {
+        face.notice('run.tool')
+        work.tool(now)
+      }
     }
-    serve()
-    return runtime.thread.subscribe(serve)
-  }, [runtime])
+    if (isRunning) {
+      const work = theWork()
+      const context = contextOf(messages)
+      // A run keeps the effort it was sent with: the setting can be changed for the next message while it works.
+      if (!running) work.effort = effortShare(effort?.())
+      work.context = contextShare(context?.tokens, context?.window)
+    }
+    running = isRunning
+    seen = facts ?? seen
+    const error = runErrorOf(messages)
+    if (error && error !== errored && !first && useFaceStage.getState().mounted)
+      theFace().notice('run.error')
+    errored = error
+    first = false
+  }
+  serve()
+  return runtime.thread.subscribe(serve)
+}
+
+/** `watchFace` for as long as a conversation is mounted. */
+export function useFaceRequests(
+  runtime: ThreadSource,
+  effort?: () => string | undefined,
+) {
+  useEffect(() => watchFace(runtime, effort), [runtime, effort])
 }

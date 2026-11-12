@@ -471,6 +471,210 @@ export const BUILT_IN: ReadonlyArray<Entry> = [
       },
     ],
   }),
+  // What the face is while a run is at work (docs/plans/theo-orb.md). It keeps, and follows the run itself:
+  // how fast it turns and how stirred it is come from the tool calls, its size from the effort asked for, and how
+  // well it keeps its shape from how full the conversation's context is.
+  own(
+    'orb',
+    'While the agent works: the eyes give their matter to one ball of dots that turns, with a few grains in orbit. It turns faster and is stirred more with each tool call, is larger the harder the run was asked to think, and loses its shape as the conversation fills past 400,000 tokens.',
+    {
+      keep: true,
+      steps: [
+        {
+          op: 'par',
+          steps: [
+            {
+              op: 'feature',
+              id: 'orb',
+              side: 'centre',
+              set: {
+                x: 0,
+                y: 0,
+                w: 14,
+                h: 14,
+                round: 2,
+                globe: 9,
+                spin: 0.11,
+                stir: 0.14,
+                scale: 0.76,
+                alpha: 0.45,
+                share: 1,
+              },
+            },
+            {
+              op: 'to',
+              set: {
+                'eyes.share': 0,
+                'eyes.lid': 0,
+                'eyes.low': 0,
+                'gaze.x': 0,
+                'gaze.y': 0,
+                'matter.cohesion': 0.9,
+                'matter.drift': 0.02,
+                'auto.blink': 0,
+                'auto.saccade': 0,
+              },
+              over: 420,
+              bounce: 0.2,
+            },
+            { op: 'follow', channel: 'orb.spin', signal: 'run.pace', amp: 0.7 },
+            { op: 'follow', channel: 'orb.stir', signal: 'run.pace', amp: 0.8 },
+            {
+              op: 'follow',
+              channel: 'orb.scale',
+              signal: 'run.effort',
+              amp: 0.54,
+            },
+            {
+              op: 'follow',
+              channel: 'orb.loose',
+              signal: 'run.context',
+              amp: 1,
+            },
+          ],
+        },
+      ],
+    },
+  ),
+  // What the face is while the page plays sound (docs/plans/theo-sound.md). Both keep, and both follow the
+  // sound itself: with nothing playing, nothing in them moves.
+  own(
+    'boombox',
+    'While sound plays: the eyes become the mesh covers of two loudspeakers that throb with it, a tuner opens above and between them, and arcs leave its sides.',
+    {
+      keep: true,
+      steps: [
+        {
+          op: 'par',
+          steps: [
+            {
+              op: 'feature',
+              id: 'dial',
+              side: 'centre',
+              set: {
+                x: 0,
+                y: -12,
+                w: 2.6,
+                h: 10,
+                turn: 90,
+                round: 8,
+                slats: 7,
+                share: 0.24,
+              },
+            },
+            {
+              op: 'to',
+              set: {
+                'eyes.x': 27,
+                'eyes.y': 3,
+                'eyes.w': 13,
+                'eyes.h': 13,
+                'eyes.round': 2,
+                'eyes.mesh': 10,
+                'eyes.lid': 0,
+                'eyes.low': 0,
+                'eyes.lidTilt': 0,
+                'eyes.lowBow': 0,
+                'gaze.x': 0,
+                'gaze.y': 0,
+                'matter.cohesion': 0.96,
+                'matter.drift': 0.03,
+                // Ten dots across a cover are closer together than a grain is wide: finer grains, and brighter for it.
+                'matter.size': 0.5,
+                'matter.glow': 1.35,
+                'auto.blink': 0,
+                'auto.saccade': 0,
+              },
+              over: 340,
+              bounce: 0.3,
+            },
+            // The cones move with the low end and jump with each onset; the arcs are as many as it is loud.
+            {
+              op: 'follow',
+              channel: 'eyes.scale',
+              signal: 'sound.low',
+              amp: 0.14,
+            },
+            {
+              op: 'follow',
+              channel: 'eyes.scale',
+              signal: 'sound.beat',
+              amp: 0.07,
+            },
+            {
+              op: 'follow',
+              channel: 'dial.h',
+              signal: 'sound.high',
+              amp: 2.4,
+            },
+            {
+              op: 'follow',
+              channel: 'emit.left',
+              signal: 'sound.level',
+              amp: 1,
+            },
+            {
+              op: 'follow',
+              channel: 'emit.right',
+              signal: 'sound.level',
+              amp: 1,
+            },
+          ],
+        },
+      ],
+    },
+  ),
+  own(
+    'speak',
+    'While sound plays: a mouth that opens as far as the sound is loud. The mouth is a feature this adds.',
+    {
+      keep: true,
+      steps: [
+        {
+          op: 'par',
+          steps: [
+            {
+              op: 'feature',
+              id: 'mouth',
+              side: 'centre',
+              set: { x: 0, y: 19, w: 6.5, h: 0.9, round: 2.4, share: 0.3 },
+            },
+            { op: 'to', set: { 'eyes.y': -5, 'eyes.h': 11.5 }, over: 260 },
+            {
+              op: 'follow',
+              channel: 'mouth.h',
+              signal: 'sound.level',
+              amp: 6,
+            },
+            {
+              op: 'follow',
+              channel: 'mouth.w',
+              signal: 'sound.mid',
+              amp: -1.6,
+            },
+            {
+              op: 'follow',
+              channel: 'face.dy',
+              signal: 'sound.beat',
+              amp: -0.8,
+            },
+          ],
+        },
+      ],
+    },
+  ),
+  own('thump', 'A jolt through the whole face, as at a loud sound.', {
+    steps: [
+      { op: 'burst', strength: { arg: 'kick', or: 50 } },
+      {
+        op: 'to',
+        set: { 'face.scale': 1.12, 'face.squash': -0.06, 'matter.jitter': 0.3 },
+        over: 70,
+        bounce: 0.6,
+        hold: 160,
+      },
+    ],
+  }),
 ]
 
 /** The channels a blink and the lids use, for layers that must let them go together. */

@@ -8,6 +8,7 @@ import {
   thingName,
   thingProps,
   toolState,
+  wantsBringing,
   whereOf,
 } from './things'
 import type { Box, Found } from './things'
@@ -46,10 +47,26 @@ const over = (at: { x: number; y: number }, target: Box) =>
 describe('names', () => {
   test('a name is a kind and an id', () => {
     expect(kindOf('tool:call_1')).toBe('tool')
-    expect(thingName('change', 'dlg 1/src/a b.ts')).toBe(
-      'change:dlg-1/src/a-b.ts',
+    expect(thingName('change', 'dlg_1/src/a b.ts')).toBe(
+      'change:dlg_1/src/a%20b.ts',
     )
     expect(thingName('tool', 'x'.repeat(400)).length).toBe(125)
+  })
+
+  test('two ids never share a name', () => {
+    const names = [
+      'a b.ts',
+      'a-b.ts',
+      'a%20b.ts',
+      'a\tb.ts',
+      'app/(a)/page.tsx',
+      'app/[a]/page.tsx',
+      `${'deep/'.repeat(30)}one.ts`,
+      `${'deep/'.repeat(30)}two.ts`,
+    ].map((id) => thingName('change', id))
+    expect(new Set(names).size).toBe(names.length)
+    // Each is still a name: no white space, and no longer than a name may be.
+    for (const name of names) expect(name).toMatch(/^change:\S{1,120}$/)
   })
 
   test('last and failed name whichever is newest', () => {
@@ -74,7 +91,7 @@ describe('names', () => {
 
   test('a component names what it draws with attributes', () => {
     expect(thingProps('tool', 'call 1', { label: 'Read file' })).toEqual({
-      'data-face-thing': 'tool:call-1',
+      'data-face-thing': 'tool:call%201',
       'data-face-label': 'Read file',
     })
     expect(thingProps('message', 'm1', { state: 'failed' })).toEqual({
@@ -228,6 +245,62 @@ describe('where the face stands to point', () => {
     expect(standing.where).toBe('closed')
     expect(standing.mark).toEqual({ box: holder, kind: 'whole' })
     expect(over(standing.at, holder)).toBe(false)
+  })
+})
+
+describe('whether a press brings it', () => {
+  const card = box(300, 100, 700, 400)
+  const standingFor = (about: Found) => stand(about, SIZE, PAGE, MARGIN)
+
+  test('not when the thing, or the part asked for, is there to see', () => {
+    const whole = found({ box: card })
+    expect(wantsBringing({ thing: 'tool:a' }, whole, standingFor(whole))).toBe(
+      false,
+    )
+    const words = found({
+      box: card,
+      part: box(310, 200, 400, 216),
+      partKind: 'text',
+    })
+    expect(
+      wantsBringing(
+        { thing: 'tool:a', text: 'exit 1' },
+        words,
+        standingFor(words),
+      ),
+    ).toBe(false)
+  })
+
+  test('when it is out of view or folded away, when the part is missing, and when the part is scrolled off sideways', () => {
+    const below = found({ box: box(300, 900, 700, 960) })
+    expect(wantsBringing({ thing: 'tool:a' }, below, standingFor(below))).toBe(
+      true,
+    )
+    const folded = found({ box: card, closed: true })
+    expect(
+      wantsBringing({ thing: 'tool:a' }, folded, standingFor(folded)),
+    ).toBe(true)
+    const missing = found({ box: card })
+    expect(
+      wantsBringing(
+        { thing: 'tool:a', text: 'exit 1' },
+        missing,
+        standingFor(missing),
+      ),
+    ).toBe(true)
+    // A long line in a diff that scrolls sideways: level with what shows, and beyond its right edge.
+    const sideways = found({
+      box: card,
+      part: box(900, 200, 1100, 216),
+      partKind: 'line',
+      view: box(300, 0, 700, 800),
+    })
+    const standing = standingFor(sideways)
+    expect(standing.where).toBe('in view')
+    expect(standing.mark).toBeUndefined()
+    expect(
+      wantsBringing({ thing: 'change:d/a.ts', line: 3 }, sideways, standing),
+    ).toBe(true)
   })
 })
 

@@ -25,6 +25,7 @@ import {
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
 import { ModelPicker } from '@/components/chat/model-picker'
+import { ReadAloud } from '@/components/chat/read-aloud'
 import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -996,7 +997,7 @@ const AssistantActionBar: FC = () => {
         'aui-assistant-action-bar-root text-muted-foreground col-start-3 row-start-2 -ms-1 flex gap-1',
         // When a live reply finishes, its actions pop in one after another.
         'in-data-live:[&>*]:animate-in in-data-live:[&>*]:fade-in in-data-live:[&>*]:zoom-in-50 in-data-live:[&>*]:fill-mode-both in-data-live:[&>*]:ease-snap in-data-live:[&>*]:duration-(--duration-snap)',
-        'in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms]',
+        'in-data-live:[&>*:nth-child(2)]:[animation-delay:50ms] in-data-live:[&>*:nth-child(3)]:[animation-delay:100ms] in-data-live:[&>*:nth-child(4)]:[animation-delay:150ms]',
       )}
     >
       <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}>
@@ -1007,6 +1008,7 @@ const AssistantActionBar: FC = () => {
           <Icon.Copy className="animate-in fade-in zoom-in-75" />
         </AuiIf>
       </ActionBarPrimitive.Copy>
+      <ReadAloud />
       <ActionBarPrimitive.Reload
         render={<TooltipIconButton tooltip="Regenerate" />}
       >
