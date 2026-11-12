@@ -31,7 +31,7 @@ import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useLiquidBackdrop } from '@/components/glass/liquid-backdrop'
+import { useLiquidGlass } from '@/components/glass/liquid-glass/use-liquid-glass'
 import { useComposerSurface } from '@/lib/surfaces'
 import type { ComposerSurface } from '@/lib/surfaces'
 import { cn } from '@/lib/utils'
@@ -571,7 +571,7 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const shellRef = useRef<HTMLDivElement>(null)
   const surface = useComposerSurface()
   const glass = surface !== 'paper'
-  useLiquidBackdrop(shellRef, surface === 'liquid')
+  useLiquidGlass(shellRef, surface === 'liquid')
   const busyInput = useBusyComposerInput({
     hasReferences: () => useComposerReferences.getState().references.length > 0,
     onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
@@ -652,13 +652,14 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 }
 
 /**
- * The composer's material (Settings, Appearance): paper with its grain, or
- * frosted glass, or liquid glass with its lens. Each keeps the shell's border, which follows focus, and sets
- * its colour at rest and while focused.
+ * The composer's material (Settings, Appearance): paper with its grain,
+ * frosted glass, or liquid glass (glass/liquid-glass). Each sets the shell's
+ * border colour at rest and while focused; live liquid glass draws its own
+ * contour over the border instead (styles.css surface-liquid).
  */
 const composerSurface = (surface: ComposerSurface) =>
   surface === 'liquid'
-    ? 'surface-liquid border-(color:--liquid-edge) focus-within:border-(color:--liquid-edge-focus)'
+    ? 'surface-liquid border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
     : surface === 'glass'
       ? 'surface-glass border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
       : 'surface-paper border-(color:--paper-edge) focus-within:border-control'
@@ -1227,7 +1228,7 @@ const EditComposer: FC = () => {
   const surface = useComposerSurface()
   const glass = surface !== 'paper'
   const rootRef = useRef<HTMLFormElement>(null)
-  useLiquidBackdrop(rootRef, surface === 'liquid')
+  useLiquidGlass(rootRef, surface === 'liquid')
   return (
     // No content-visibility here, unlike the message rows: its paint
     // containment would clip the composer's shadow and glow, and only the

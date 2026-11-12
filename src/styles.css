@@ -734,6 +734,13 @@
   }
 }
 
+/* The composer's shape (thread.aui.tsx). The thread sets these on its root;
+   the defaults keep a composer mounted anywhere else the same shape. */
+:root {
+  --composer-radius: 20px;
+  --composer-padding: 16px;
+}
+
 /* Frosted glass: the composer's other material (Settings, Appearance; lib/surfaces.ts).
    The recipe is liquidGL's (naughtyduk/liquidGL): frost, a tint, a bevel lit
    at the rim and a specular sheen. liquidGL refracts a snapshot it rasterises
@@ -855,100 +862,207 @@
   }
 }
 
-/* Liquid glass (Settings, Appearance): in Chromium, glass/liquid-backdrop.ts
-   replaces this backdrop-filter with an SVG filter that frosts what is
-   behind lightly and bends it at the beveled rim, the conversation and the
-   Life field alike, after ybouane/liquidglass. Elsewhere the frost below
-   stands alone. The light on the rim is CSS: a ring brightest where the
-   light falls, top left, and a softer counter-light bottom right.
-   --liquid-blur, -bevel and -refract are CSS pixels, unitless for the
-   filter; -chroma is how far apart the colours bend at the rim. */
+/* Liquid glass (Settings, Appearance; glass/liquid-glass). A WebGL pane
+   over the Life field, its renderer and shader adapted from
+   ybouane/liquidglass. The pane has two jobs. Its body is where you read and
+   type: the field and the sheet behind it, blurred and settled toward the
+   pane's tone, so bright and dark behind it come out close to one value. Its
+   rim says it is glass: across --lg-bevel the surface curves, what lies
+   behind bends inward and shows clearer, and the light from the top left
+   catches the curve and runs along a hairline contour, shaded on the far
+   side. The conversation is not drawn into the glass: it fades out under the
+   footer's scroll edge before it reaches the pane, so no line of text smears
+   behind the input.
+   --lg-* are the pane's material, read by use-liquid-glass.ts (lengths in
+   CSS pixels, unitless; the rest 0 to 1 unless noted):
+   - blur: the body's blur radius;
+   - bevel: how far the curve runs in from the edge;
+   - refract: how far the rim bends what is behind it;
+   - clarity: how much of the unblurred scene the very edge shows;
+   - tone, body, rim-body: the colour the pane settles toward, and how far
+     in the body and at the edge;
+   - lift: added to the body, -1 to 1; saturate: of what shows through, 1 is
+     unchanged;
+   - light: the narrow reflection on the curve facing the light; sheen: a
+     broad one over the whole curve;
+   - stroke, shade: the contour, lit and shaded.
+   Separation from what is behind is the element's own, in CSS: a hairline
+   ring and a contact and an ambient shadow (--liquid-elevation). The pane's
+   ink steps up a shade (--glass-ink-*), since what shows through it is
+   never quite as even as paper.
+   Three studies: smoked (the default), curved (a deeper, clearer rim with
+   more light) and satin (a softer, more even pane); data-glass-study on
+   <html> picks one. Until the pane draws, and wherever it cannot (no WebGL,
+   reduced transparency), the CSS frost below shows instead. */
 :root {
-  --liquid-blur: 4.5;
-  --liquid-bevel: 22;
-  --liquid-refract: 22;
-  --liquid-chroma: 0.06;
-  --liquid-saturate: 1.6;
-  --liquid-tint: color-mix(in oklab, var(--surface-composer) 40%, transparent);
-  --liquid-tint-solid: color-mix(in oklab, var(--surface-composer) 94%, transparent);
-  --liquid-rim: rgb(255 255 255 / 0.95);
-  --liquid-rim-low: rgb(255 255 255 / 0.5);
-  --liquid-glow: rgb(255 255 255 / 0.55);
-  --liquid-edge: rgb(0 0 0 / 0.08);
-  --liquid-edge-focus: rgb(0 0 0 / 0.16);
-  --liquid-depth: 1;
+  --lg-tone: var(--surface-composer);
+  --lg-blur: 14;
+  --lg-bevel: 16;
+  --lg-refract: 9;
+  --lg-clarity: 0.85;
+  --lg-body: 0.55;
+  --lg-rim-body: 0.22;
+  --lg-lift: 0;
+  --lg-saturate: 1.35;
+  --lg-light: 0.55;
+  --lg-sheen: 0.05;
+  --lg-stroke: 0.5;
+  --lg-shade: 0.12;
+  --liquid-fallback: color-mix(in oklab, var(--surface-composer) 72%, transparent);
+  --liquid-fallback-solid: color-mix(in oklab, var(--surface-composer) 96%, transparent);
+  --liquid-focus: rgb(var(--shadow-tint) / 0.16);
+  --liquid-elevation:
+    0 0 0 1px rgb(var(--shadow-tint) / 0.08),
+    0 1px 2px rgb(var(--shadow-tint) / 0.06),
+    0 10px 24px -12px rgb(var(--shadow-tint) / 0.22),
+    0 32px 64px -32px rgb(var(--shadow-tint) / 0.28);
+  --glass-ink: color-mix(in oklab, var(--ink) 85%, #000);
+  --glass-ink-muted: color-mix(in oklab, var(--ink-muted) 60%, var(--ink));
+  --glass-ink-faint: color-mix(in oklab, var(--ink-faint) 55%, var(--ink-muted));
 }
 
 .dark {
-  --liquid-blur: 5;
-  --liquid-saturate: 1.4;
-  --liquid-tint: color-mix(in oklab, var(--surface-composer) 55%, transparent);
-  --liquid-rim: rgb(255 255 255 / 0.16);
-  --liquid-rim-low: rgb(255 255 255 / 0.05);
-  --liquid-glow: rgb(255 255 255 / 0.03);
-  --liquid-edge: rgb(255 255 255 / 0.05);
-  --liquid-edge-focus: rgb(255 255 255 / 0.1);
-  --liquid-depth: 2.5;
+  --lg-body: 0.6;
+  --lg-rim-body: 0.3;
+  --lg-saturate: 1.25;
+  --lg-light: 0.2;
+  --lg-sheen: 0.02;
+  --lg-stroke: 0.08;
+  --lg-shade: 0.4;
+  --liquid-focus: rgb(255 255 255 / 0.1);
+  --liquid-elevation:
+    0 0 0 1px rgb(0 0 0 / 0.55),
+    0 1px 1px rgb(0 0 0 / 0.35),
+    0 10px 22px -8px rgb(0 0 0 / 0.55),
+    0 30px 60px -24px rgb(0 0 0 / 0.65);
+  --glass-ink: color-mix(in oklab, var(--ink) 82%, #fff);
+}
+
+:root[data-glass-study='curved'] {
+  --lg-bevel: 26;
+  --lg-refract: 18;
+  --lg-clarity: 1;
+  --lg-body: 0.45;
+  --lg-rim-body: 0.08;
+  --lg-light: 0.85;
+  --lg-sheen: 0.08;
+}
+
+:root.dark[data-glass-study='curved'] {
+  --lg-body: 0.5;
+  --lg-rim-body: 0.12;
+  --lg-light: 0.45;
+  --lg-sheen: 0.035;
+  --lg-stroke: 0.12;
+}
+
+:root[data-glass-study='satin'] {
+  --lg-blur: 28;
+  --lg-bevel: 20;
+  --lg-refract: 5;
+  --lg-clarity: 0.35;
+  --lg-body: 0.62;
+  --lg-rim-body: 0.4;
+  --lg-light: 0.12;
+  --lg-sheen: 0.14;
+  --lg-stroke: 0.35;
+}
+
+:root.dark[data-glass-study='satin'] {
+  --lg-body: 0.7;
+  --lg-rim-body: 0.55;
+  --lg-light: 0.05;
+  --lg-sheen: 0.06;
+  --lg-stroke: 0.06;
 }
 
 @utility surface-liquid {
   position: relative;
   isolation: isolate;
-  background-color: var(--liquid-tint);
-  -webkit-backdrop-filter: blur(calc(var(--liquid-blur) * 2px)) saturate(1.4);
-  backdrop-filter: blur(calc(var(--liquid-blur) * 2px)) saturate(1.4);
-  box-shadow:
-    inset 0 0 18px -6px var(--liquid-glow),
-    0 1px 2px rgb(var(--shadow-tint) / calc(0.06 * var(--liquid-depth))),
-    0 14px 36px -14px rgb(var(--shadow-tint) / calc(0.22 * var(--liquid-depth)));
+  background-color: var(--liquid-fallback);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: var(--liquid-elevation);
 
-  /* The lit rim, a 1.5px ring over the border. */
-  &::after {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1.5px;
-    pointer-events: none;
-    background: linear-gradient(
-      135deg,
-      var(--liquid-rim),
-      transparent 28%,
-      transparent 72%,
-      var(--liquid-rim-low)
-    );
-    mask:
-      linear-gradient(#000 0 0) content-box exclude,
-      linear-gradient(#000 0 0);
+  /* The pane draws its own body and contour, over the border. */
+  &[data-liquid='live'] {
+    --ink: var(--glass-ink);
+    --ink-muted: var(--glass-ink-muted);
+    --ink-faint: var(--glass-ink-faint);
+    background-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: transparent;
   }
 
-  @supports not (mask-image: none) {
-    &::after {
-      content: none;
-    }
+  &[data-liquid='live']:focus-within {
+    outline: 1px solid var(--liquid-focus);
+    outline-offset: -1px;
+  }
+
+  /* A file held over the composer shows the drop state, not the glass. */
+  &[data-dragging='true'] > [data-liquid-canvas] {
+    opacity: 0;
   }
 
   @supports not (
     (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
   ) {
-    background-color: var(--liquid-tint-solid);
+    background-color: var(--liquid-fallback-solid);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--liquid-fallback-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 
-/* Under liquid glass the footer frosts only its gutter below the pane:
-   frost behind the pane would blur what the pane is meant to bend. */
+/* The scroll edge: the conversation and the field soften and fade as they
+   pass under the footer, so they reach the pane already quiet. */
 @utility liquid-footer {
+  /* The glass shows the field, never the conversation, so the conversation
+     has to leave before it reaches the glass: over the last 2.5rem above
+     the composer it blurs and settles into the sheet's own colour, and in
+     the gutter below it is gone. The veil runs 2rem past the column
+     on each side and feathers there, beyond the text, so it never draws a
+     box over the field. */
   &::before {
     content: '';
     position: absolute;
-    inset-inline: 0;
+    inset-inline: calc(var(--spacing) * -8);
+    top: calc(var(--spacing) * -10);
     bottom: 0;
-    height: calc(var(--spacing) * 6);
     z-index: -1;
     pointer-events: none;
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    mask-image: linear-gradient(to bottom, transparent, #000 70%);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--sheet-shade) 40%, transparent),
+      color-mix(in oklab, var(--sheet-shade) 88%, transparent)
+        calc(var(--spacing) * 16)
+    );
+    -webkit-mask-image:
+      linear-gradient(to bottom, transparent, #000 calc(var(--spacing) * 10)),
+      linear-gradient(
+        to right,
+        transparent,
+        #000 calc(var(--spacing) * 8),
+        #000 calc(100% - var(--spacing) * 8),
+        transparent
+      );
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to bottom, transparent, #000 calc(var(--spacing) * 10)),
+      linear-gradient(
+        to right,
+        transparent,
+        #000 calc(var(--spacing) * 8),
+        #000 calc(100% - var(--spacing) * 8),
+        transparent
+      );
+    mask-composite: intersect;
   }
 
   @supports not (mask-image: none) {
@@ -958,14 +1072,40 @@
   }
 }
 
-/* The side panel under liquid glass: glass-panel's veil and frost, its edge
-   toward the conversation beveled by liquid-backdrop.ts and lit here. */
+/* The side panel: the same material, quieter. It is attached to the window,
+   so only its edge toward the conversation curves (use-liquid-glass edges),
+   and its body is steadier behind the navigation's text. */
 @utility glass-panel-liquid {
-  /* The frost the panel had as plain glass, with a broad bevel. */
-  --liquid-blur: 3;
-  --liquid-bevel: 28;
-  --liquid-refract: 24;
-  box-shadow: inset -1px 0 0 var(--liquid-rim-low);
+  --lg-tone: var(--surface-sidebar);
+  --lg-blur: 10;
+  --lg-bevel: 12;
+  --lg-refract: 6;
+  --lg-clarity: 0.6;
+  --lg-body: 0.62;
+  --lg-rim-body: 0.4;
+  --lg-light: 0.2;
+  --lg-sheen: 0.03;
+  --lg-stroke: 0.25;
+  --lg-shade: 0.06;
+
+  /* The pane draws the veil and the frost glass-panel paints. */
+  &[data-liquid='live'] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+
+    &::before {
+      content: none;
+    }
+  }
+}
+
+.dark .glass-panel-liquid {
+  --lg-body: 0.72;
+  --lg-rim-body: 0.45;
+  --lg-light: 0.08;
+  --lg-sheen: 0.01;
+  --lg-stroke: 0.05;
+  --lg-shade: 0.3;
 }
 
 /* The glass composer's footer is clear, so the composer frosts the messages

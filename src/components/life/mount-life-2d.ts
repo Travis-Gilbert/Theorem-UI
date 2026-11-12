@@ -31,6 +31,7 @@ import { cellLook } from '@/lib/life/look'
 import { PATTERNS } from '@/lib/life/patterns'
 import { advance, companion, createPresence, figure } from '@/lib/life/presence'
 import { useLifeControls, useLifeCounts } from '@/lib/life/store'
+import { publishLifeFrame } from './frames'
 import type { LifeGame } from './mount-life'
 
 const CELL_W = 10
@@ -184,6 +185,7 @@ export function mountLife2d(
       }
     }
     ctx.globalAlpha = 1
+    publishLifeFrame(canvas)
   }
 
   const tick = (now: number) => {
