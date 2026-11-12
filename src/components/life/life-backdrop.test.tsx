@@ -6,6 +6,7 @@ import type { ThreadMessageLike } from '@assistant-ui/react'
 import { cleanup, render } from '../../../test/blocks/render'
 import { useLifeControls } from '@/lib/life/store'
 import * as life from './mount-life'
+import * as life2d from './mount-life-2d'
 import { LifeBackdrop } from './life-backdrop'
 
 const press = mock(() => {})
@@ -81,4 +82,29 @@ test('empty field space still draws while the composer keeps its input events', 
   await act(async () => { document.querySelector('[data-testid="field"]')!.dispatchEvent(context) })
   expect(context.defaultPrevented).toBe(true)
   expect(document.querySelector('[data-life-backdrop][data-popup-open]')).not.toBeNull()
+})
+
+
+test('a phone uses transparent Canvas 2D instead of WebGL', async () => {
+  const media = Object.getOwnPropertyDescriptor(window, 'matchMedia')
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: () => ({ matches: true }),
+  })
+  const context = spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as CanvasRenderingContext2D)
+  const mobile = spyOn(life2d, 'mountLife2d').mockReturnValue(game)
+  const webgl = spyOn(life, 'mountLife').mockReturnValue(game)
+  useLifeControls.setState({ shown: true })
+  try {
+    await render(<Harness />)
+    expect(mobile).toHaveBeenCalledTimes(1)
+    expect(webgl).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-life-backdrop]')).not.toBeNull()
+  } finally {
+    if (media) Object.defineProperty(window, 'matchMedia', media)
+    else Reflect.deleteProperty(window, 'matchMedia')
+    context.mockRestore()
+    mobile.mockRestore()
+    webgl.mockRestore()
+  }
 })
