@@ -12,6 +12,7 @@
     "e2e:models": "node scripts/e2e/models.mjs",
     "e2e:keys": "node scripts/e2e/keys.mjs",
     "e2e:notes": "node scripts/e2e/notes.mjs",
+    "e2e:composer": "node scripts/e2e/composer.mjs",
     "e2e:sidebar": "node scripts/e2e/sidebar.mjs",
     "e2e:app-db": "node scripts/e2e/app-db.mjs",
     "e2e:app-ts": "node scripts/e2e/app-ts.mjs",
@@ -26,7 +27,8 @@
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "test:composer": "bun test src/components/chat src/components/assistant-ui src/components/notes src/lib/theorem src/stories"
   },
   "dependencies": {
     "@assistant-ui/core": "0.3.30",
@@ -249,6 +251,7 @@
   "patchedDependencies": {
     "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch",
     "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
-    "@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.5.tgz": "patches/@theoremharness%2Fsdk@vendor%2Ftheoremharness-sdk-0.6.0-alpha.5.tgz.patch"
+    "@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.5.tgz": "patches/@theoremharness%2Fsdk@vendor%2Ftheoremharness-sdk-0.6.0-alpha.5.tgz.patch",
+    "@milkdown/components@7.22.3": "patches/@milkdown%2Fcomponents@7.22.3.patch"
   }
 }

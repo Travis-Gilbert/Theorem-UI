@@ -2,6 +2,7 @@
 import { afterAll, afterEach, beforeAll, expect, test } from 'bun:test'
 import { installFakeTheorem } from '@/stories/fake-theorem'
 import type { FakeRoutes } from '@/stories/fake-theorem'
+import { bootstrap } from './client'
 import { generationTurnOptions, useGenerationDefaults, useGenerationOverrides } from './generation'
 import { saveThreadGeneration, takeThreadGeneration } from './thread-generation'
 
@@ -15,7 +16,7 @@ let patches: Patch[] = []
 let restore: () => void = () => {}
 
 /** A Theorem holding one thread at `revision`, answering each patch with `answer`. */
-function theoremWith(revision: number, answer: () => unknown = () => ({})) {
+async function theoremWith(revision: number, answer: () => unknown = () => ({})) {
   const routes: FakeRoutes = {
     'GET /api/chat/v1/bootstrap': () => ({ csrfToken: 'csrf', tenantId: 't' }),
     'GET /api/chat/v1/threads/:threadId': ({ threadId }) => ({
@@ -32,6 +33,7 @@ function theoremWith(revision: number, answer: () => unknown = () => ({})) {
     },
   }
   restore = installFakeTheorem(routes)
+  await bootstrap(true)
 }
 
 afterEach(() => {
@@ -44,7 +46,7 @@ afterEach(() => {
 const overrides = () => useGenerationOverrides.getState()
 
 test('a changed override is written onto its thread at the thread revision, and the turn then carries none of it', async () => {
-  theoremWith(7)
+  await theoremWith(7)
   overrides().change('t1', { responseDetail: 'thorough', runBudget: { maxSteps: 12 } })
   expect(generationTurnOptions('t1')).toEqual({ responseDetail: 'thorough', runBudget: { maxSteps: 12 } })
 
@@ -67,7 +69,7 @@ test('a changed override is written onto its thread at the thread revision, and 
 })
 
 test('a reset override clears the thread with an empty object', async () => {
-  theoremWith(2)
+  await theoremWith(2)
   overrides().change('t1', { effort: 'high' })
   await saveThreadGeneration('t1')
   overrides().reset('t1')
@@ -80,7 +82,7 @@ test('a reset override clears the thread with an empty object', async () => {
 })
 
 test('a Theorem that refuses the field leaves the override waiting, and the turn carries it', async () => {
-  theoremWith(1, () =>
+  await theoremWith(1, () =>
     new Response(JSON.stringify({ code: 'invalid_json', title: 'unknown field `generation`' }), {
       status: 422,
       headers: { 'content-type': 'application/problem+json' },
@@ -115,7 +117,7 @@ test('a change made while the write was in flight stays waiting', async () => {
   const held = new Promise<void>((resolve) => {
     release = resolve
   })
-  theoremWith(4, async () => {
+  await theoremWith(4, async () => {
     await held
     return {}
   })

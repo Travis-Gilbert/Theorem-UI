@@ -23,6 +23,9 @@ function Harness({ messages }: { messages: ThreadMessageLike[] }) {
 }
 afterEach(cleanup)
 
+/** Links in the conversation; the composer's editor keeps a link preview of its own. */
+const links = (container: HTMLElement) => container.querySelectorAll('[data-role] a')
+
 function storedCitation(
   url?: string,
   sourceKind: string | undefined = 'document',
@@ -55,7 +58,7 @@ for (const url of ['javascript:alert(1)', 'data:text/html,bad', 'file:///etc/pas
   test(`a source with an unsafe or missing URL stays visible without a link: ${url}`, async () => {
     const { container } = await render(<Harness messages={toAssistantMessages([storedCitation(url)])} />)
     await waitFor(() => container.textContent.includes('Browser comparison'))
-    expect(container.querySelectorAll('a').length).toBe(0)
+    expect(links(container).length).toBe(0)
   })
 }
 
@@ -75,5 +78,5 @@ test('GFM renders supplied Markdown URLs but does not guess URLs for plain sourc
   const link = await waitFor(() => container.querySelector('a[href="https://www.mozilla.org/"]'))
   expect(link.textContent).toBe('Mozilla')
   expect(container.textContent).toContain('[PCMag]')
-  expect(container.querySelectorAll('a')).toHaveLength(1)
+  expect(links(container)).toHaveLength(1)
 })

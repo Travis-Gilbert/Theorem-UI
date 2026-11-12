@@ -24,6 +24,7 @@ import {
   isStandaloneToolCall,
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
+import { ComposerEditor } from '@/components/chat/composer-editor'
 import { ModelPicker } from '@/components/chat/model-picker'
 import { ReadAloud } from '@/components/chat/read-aloud'
 import { FaceSlot } from '@/components/face/face-mark'
@@ -83,7 +84,7 @@ import {
 import { ComposerConnections } from '@/components/chat/composer-connections'
 import { EffortPicker } from '@/components/chat/effort-picker'
 import { ResponseControl } from '@/components/chat/response-control'
-import { DirectiveText } from './directive-text.aui'
+import { UserMarkdown } from '@/components/chat/user-markdown'
 import { ChatCollapsibleMessage } from '@/components/coss/chat/chat-collapsible-message'
 import {
   UnseenDivider,
@@ -453,7 +454,7 @@ const SpokenActionBar: FC = () => {
 }
 
 const FOCUSABLE_SELECTOR =
-  "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1']):not([disabled])"
+  "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [contenteditable='true'], [tabindex]:not([tabindex='-1']):not([disabled])"
 
 const nextFocusable = (start: Element) => {
   for (
@@ -568,7 +569,7 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   const recordLaunches = () => {
     const shell = shellRef.current
     if (!shell || !aui.composer.getState().canSend) return
-    const input = shell.querySelector('textarea') ?? shell
+    const input = shell.querySelector('.aui-composer-input') ?? shell
     recordLaunch(input.getBoundingClientRect())
     const footer = shell.closest('.aui-thread-viewport-footer')
     if (footer) recordLaunch(footer.getBoundingClientRect(), 'composer-dock')
@@ -616,13 +617,11 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
           {review && <ComposerReviewTarget target={review} />}
           <ComposerReferences />
           <ComposerAttachments />
-          <ComposerPrimitive.Input
+          <ComposerEditor
+            label="Message input"
             placeholder="Message Theorem, / for tools"
-            className="aui-composer-input caret-redwood placeholder:text-ink-faint max-h-96 min-h-9 w-full resize-none bg-transparent px-2 pt-1 pb-1 text-[1rem] leading-7 outline-none focus-visible:outline-none"
-            rows={1}
+            className="aui-composer-input w-full"
             autoFocus={autoFocus}
-            enterKeyHint="send"
-            aria-label="Message input"
             onFocus={() => attendKit(true)}
             onBlur={() => attendKit(false)}
           />
@@ -637,6 +636,7 @@ const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) 
   const chatDisabled = useRunInputSendDisabled()
   // A choice can be sent with nothing written.
   const sendDisabled = review ? !review.canSend : chatDisabled
+  const running = useAuiState((s) => s.thread.isRunning)
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -706,7 +706,13 @@ const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) 
         >
           <Magnet>
             <TooltipIconButton
-              tooltip={review ? 'Send feedback' : 'Send message'}
+              tooltip={
+                review
+                  ? 'Send feedback'
+                  : running
+                    ? 'Send to current response (⌘/Ctrl+Enter)'
+                    : 'Send message (⌘/Ctrl+Enter)'
+              }
               delay={COMPOSER_TOOLTIP_DELAY}
               side="top"
               type="submit"
@@ -715,6 +721,7 @@ const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) 
               size="icon"
               className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed dark:bg-transparent dark:hover:bg-hover dark:active:bg-selected size-9 rounded-lg disabled:opacity-40 p-2"
               aria-label={review ? 'Send feedback' : 'Send message'}
+              aria-keyshortcuts="Control+Enter Meta+Enter"
             >
               {/* In dark the plane stands without its button, filled with the accent the button would have been. */}
               <Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2 dark:*:data-[layer=paper]:bg-redwood" />
@@ -1162,7 +1169,7 @@ const UserTextPart: TextMessagePartComponent = (part) => {
       side="outgoing"
       showMoreLabel="Show more"
       showLessLabel="Show less"
-      renderText={(shown) => <DirectiveText {...part} text={shown} />}
+      renderText={(shown) => <UserMarkdown text={shown} />}
     />
   )
 }
@@ -1202,8 +1209,9 @@ const EditComposer: FC = () => {
         <ComposerPrimitive.TriggerPopoverRoot>
           <ComposerPrimitive.Root className="aui-edit-composer-root border-(color:--paper-edge) focus-within:border-control surface-paper flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100">
             <ComposerToolTrigger />
-            <ComposerPrimitive.Input
-              className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
+            <ComposerEditor
+              label="Edit message"
+              className="aui-edit-composer-input w-full"
               autoFocus
             />
             <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">

@@ -36,7 +36,10 @@ export async function recoverPendingSend(
 ) {
   theorem()
   if (!sendRecovery?.has(threadId)) return undefined
-  const session = await theorem().session.bootstrap({}, { abortSignal })
+  const session = await theorem().session.bootstrap(
+    {},
+    { abortSignal, timeoutInSeconds: 30, maxRetries: 0 },
+  )
   return sendRecovery.resume(
     threadId,
     window.location.origin,
@@ -88,7 +91,7 @@ let bootstrapPromise: Promise<Theorem.Bootstrap> | undefined
 export function bootstrap(force = false): Promise<Theorem.Bootstrap> {
   if (force || !bootstrapPromise) {
     bootstrapPromise = theorem()
-      .session.bootstrap()
+      .session.bootstrap({}, { timeoutInSeconds: 30, maxRetries: 0 })
       .catch((error: unknown) => {
         bootstrapPromise = undefined
         throw error

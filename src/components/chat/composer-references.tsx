@@ -67,8 +67,8 @@ export function askAbout(reference: ComposerReference) {
  * Returns whether one was focused.
  */
 export function focusComposer(): boolean {
-  const composers = document.querySelectorAll<HTMLTextAreaElement>(
-    'textarea.aui-composer-input',
+  const composers = document.querySelectorAll<HTMLElement>(
+    '.aui-composer-input .ProseMirror',
   )
   for (const composer of composers) {
     const shown =

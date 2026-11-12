@@ -149,7 +149,8 @@ check('Review badge on the row', /Review/.test(inSidebar))
 
 // A draft survives everything short of sending it.
 const checkDraft = async (name, input) => {
-  const words = await input.inputValue().catch(() => '')
+  // The composer is an editor: it has text where a text area had a value.
+  const words = (await input.innerText().catch(() => '')).trim()
   check(name, words === FEEDBACK, words === FEEDBACK ? '' : JSON.stringify(words))
 }
 await open_card.click()

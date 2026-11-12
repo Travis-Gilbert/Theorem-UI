@@ -1,5 +1,6 @@
 // The uploads route's real response shape, served in-process; no hosted backend is running.
 import { afterAll, beforeAll, beforeEach, expect, spyOn, test } from 'bun:test'
+import { bootstrap } from './client'
 import { isLearning, uploadFile } from './imports'
 import type { ImportRecord } from './imports'
 
@@ -27,7 +28,7 @@ afterAll(() => {
   fetchSpy.mockRestore()
   page.setURL('about:blank')
 })
-beforeEach(() => {
+beforeEach(async () => {
   uploads = []
   // `{ record: ChatUpload }`, as rustyred-thg-server's uploads route answers.
   uploadReply = () =>
@@ -35,6 +36,7 @@ beforeEach(() => {
       { record: { uploadId: 'upl_7', projectId: 'proj_1', state: 'ready' } },
       { status: 201 },
     )
+  await bootstrap(true)
 })
 
 test('a file goes through the project uploads route and yields its upload id', async () => {

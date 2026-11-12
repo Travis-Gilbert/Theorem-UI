@@ -1,12 +1,13 @@
 // SOURCING: the real components, wrapped only in the providers the app itself gives them. Loaded lazily by the story route so none of this reaches production. Artifact stories hand a committed OpenUI program to the thread's own part renderers inside an assistant-ui external-store message; the activity and composer stories hand committed messages to the thread itself the same way, converted by the SDK's toAssistantMessages.
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 import {
   AssistantRuntimeProvider,
   MessagePrimitive,
   ThreadPrimitive,
+  useAui,
   useExternalStoreRuntime,
 } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
@@ -315,13 +316,36 @@ const ACTIVITY_STATUS: Record<ActivityState, ThreadMessageLike['status']> = {
   },
 }
 
+/** Every kind of formatting the composer takes, as the Markdown a draft holds. */
+const COMPOSER_DRAFT = `## Release notes
+
+Ship the **composer** with *Markdown* and \`inline code\`, as the [Milkdown docs](https://milkdown.dev) describe.
+
+- Lists stay lists
+- with a second item
+
+> A quote reads as a quote.
+
+\`\`\`ts
+const sent = composer.text
+\`\`\``
+
+/** Writes a draft into the thread's composer the way any other writer does. */
+function ComposerDraft({ text }: { text: string }) {
+  const aui = useAui()
+  useEffect(() => aui.composer.setText(text), [aui, text])
+  return null
+}
+
 /**
  * The thread itself, composer and all, over committed messages: none for a new
  * conversation, or one question and its reply in a state of the activity line.
+ * A `draft` is already in the composer.
  */
 function threadStory(
   state?: ActivityState,
   stored = state ? activityMessages(state) : [],
+  draft?: string,
 ) {
   const messages: ThreadMessageLike[] = state
     ? toAssistantMessages(stored).map((message) =>
@@ -341,6 +365,7 @@ function threadStory(
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <TheoremPartRenderers />
+        {draft && <ComposerDraft text={draft} />}
         <div className="h-dvh">
           <Thread autoFocus={false} />
         </div>
@@ -441,6 +466,7 @@ function FaceSoundStory() {
 
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
+  'composer-markdown': threadStory(undefined, [], COMPOSER_DRAFT),
   'chat-program': programStory,
   ...Object.fromEntries(
     ACTIVITY_STATES.map((state) => [`activity-${state}`, threadStory(state)]),
