@@ -209,7 +209,13 @@ ears chose on 2026-11-12 — a clone of the Buttery v4+v2 join (Gradium voice
 `KtDVnkQ8XhyVLI1w`), its provenance and the consent caveat in
 `docs/learnings/2026-11-11-buttery-reference-voice-and-phonon-cloning.md`.
 `phonon.ts` adds it to the model with `addVoice` once the model is loaded,
-and falls back to the model's default voice if the add fails. Directed
+and falls back to the model's default voice if the add fails. What ships is
+a touch quicker than the model's own pace (`duration_delta` -0.05, fixed at
+load as the package asks) and carries `lib/speech/eq`'s tilt — +2.5 dB
+peaking at 3.2 kHz, +1.5 dB high shelf at 7 kHz — the owner's pick of
+2026-11-12 (`tune2-fast05-crisp`). The tilt raises the spectral centroid
+about 9% with the f0 median untouched, crispness without pitch, and the
+in-app biquads match the approved ffmpeg render to 0.46% rms. Directed
 prosody is deferred: ordinary sentences ship as the model reads them.
 
 `phonon-tts` is pinned at 0.7.0, bumped at the owner's ask on 2026-11-12,
