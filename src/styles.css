@@ -593,50 +593,43 @@
   }
 }
 
-/* The sheet's field: four layers down the sheet's height, each with its own
-   falloff, listed top layer first.
-   - The lower vignette: nothing above the middle, then it deepens toward the
-     composer and holds --sheet-shade along the bottom edge.
-   - The coloured light: a soft band of --sheet-light between the other two,
-     the palette's own warm container colour, so it follows every palette.
-   - The broad gradient: starts just under the sheet's top edge and carries
-     --sheet-fall of the way to --sheet-to by the bottom.
-   - The base, --sheet-from: the reading plane.
-   Every layer runs top to bottom only, so an element of any width that paints
-   the field (the rail's tab, the composer's footer) samples the same colours
-   at the same height. Light never goes past --sheet-to, the darkest sheet the
-   palette's inks are placed against; dark has room below it, where a darker
-   sheet only adds contrast, and its light stays under --sheet-from. */
+/* The sheet's field: --sheet-from at the top edge darkening to --sheet-shade
+   under the composer, and never lightening on the way. Two contributions are
+   added into one curve:
+   - the broad field, a straight fall that carries a little over half the way,
+     so the sheet darkens the whole way down and has no bright shelf;
+   - the lower vignette, a cubic that is next to nothing above the middle and
+     gathers toward the foot, so the end is deeper than a straight fall leaves
+     it.
+   The stops below are that sum, 0.55 y + 0.45 y^3 with y running to 1 at 94%
+   of the height, sampled closely enough that the rate of darkening changes
+   smoothly. They are opaque stops of one gradient, not translucent layers:
+   layers are rounded to 8 bits one at a time and can step the sheet back up a
+   level, and every stop here is a mix of the same two colours, so each
+   channel only moves one way. The hue stays the palette's own; nothing is
+   tinted.
+   It runs top to bottom only, so an element of any width that paints the
+   field (the rail's tab, the composer's footer) samples the same colours at
+   the same height. Light ends at --sheet-to, the darkest sheet the palette's
+   inks are placed against; dark has room below it, where a darker sheet only
+   adds contrast. */
 :root {
-  --sheet-fall: 42%;
   --sheet-shade: var(--sheet-to);
-  --sheet-light: color-mix(in srgb, var(--ochre-container) 24%, transparent);
-  --sheet-field:
-    linear-gradient(to bottom, transparent 52%, 76%, var(--sheet-shade) 94%),
-    linear-gradient(
-      to bottom,
-      transparent 12%,
-      color-mix(in srgb, var(--sheet-light) 15%, transparent) 19%,
-      color-mix(in srgb, var(--sheet-light) 50%, transparent) 26%,
-      color-mix(in srgb, var(--sheet-light) 85%, transparent) 33%,
-      var(--sheet-light) 40%,
-      color-mix(in srgb, var(--sheet-light) 85%, transparent) 47%,
-      color-mix(in srgb, var(--sheet-light) 50%, transparent) 54%,
-      color-mix(in srgb, var(--sheet-light) 15%, transparent) 61%,
-      transparent 68%
-    ),
-    linear-gradient(
-      to bottom,
-      transparent 6%,
-      color-mix(in srgb, var(--sheet-to) var(--sheet-fall), transparent)
-    ),
-    linear-gradient(var(--sheet-from), var(--sheet-from));
+  --sheet-field: linear-gradient(
+    to bottom,
+    var(--sheet-from),
+    color-mix(in srgb, var(--sheet-shade) 11%, var(--sheet-from)) 18.8%,
+    color-mix(in srgb, var(--sheet-shade) 25%, var(--sheet-from)) 37.6%,
+    color-mix(in srgb, var(--sheet-shade) 43%, var(--sheet-from)) 56.4%,
+    color-mix(in srgb, var(--sheet-shade) 54%, var(--sheet-from)) 65.8%,
+    color-mix(in srgb, var(--sheet-shade) 67%, var(--sheet-from)) 75.2%,
+    color-mix(in srgb, var(--sheet-shade) 82%, var(--sheet-from)) 84.6%,
+    var(--sheet-shade) 94%
+  );
 }
 
 .dark {
-  --sheet-fall: 70%;
   --sheet-shade: color-mix(in srgb, var(--sheet-to), #000 22%);
-  --sheet-light: color-mix(in srgb, var(--ochre-container) 14%, transparent);
 }
 
 /* The field, sized to the whole sheet (--sheet-h, set by the shell) so every
