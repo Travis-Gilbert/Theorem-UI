@@ -5,7 +5,7 @@
 // below names something that was confirmed, by this phone or by Theorem. No
 // stage says the model read an item: Theorem does not report that.
 
-export type ItemSource = 'camera' | 'library' | 'files' | 'share' | 'paste'
+export type ItemSource = 'camera' | 'library' | 'files' | 'share' | 'paste' | 'screen'
 
 export type FileItem = {
   kind: 'file'

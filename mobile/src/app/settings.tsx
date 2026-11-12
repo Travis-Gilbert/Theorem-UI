@@ -172,6 +172,16 @@ export default function SettingsScreen() {
         )}
       </Section>
 
+      <Section title="Prototypes">
+        <Row
+          wrap
+          title="Screen sharing"
+          detail="Share your whole screen and microphone with this app while you use others, and see what the system delivers. Nothing is sent anywhere. Needs iOS 27."
+          trailing={<Text tone="faint">›</Text>}
+          onPress={() => router.push('/screen-share' as never)}
+        />
+      </Section>
+
       <Section title="Terminal">
         <Row
           wrap

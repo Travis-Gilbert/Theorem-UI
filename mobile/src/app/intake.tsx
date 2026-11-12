@@ -14,6 +14,7 @@ import { DeliveryCard } from '@/features/intake/delivery-card'
 import { discard } from '@/features/intake/files'
 import type { IntakeItem, Receiver } from '@/features/intake/model'
 import { intake, useDeliveries } from '@/features/intake/queue'
+import { takeStaged } from '@/features/intake/staged'
 import { lastReceiver, ReceiverPicker, receiverOfThread, rememberReceiver } from '@/features/intake/receiver'
 import { sizeWords } from '@/features/intake/wire'
 import { describeError } from '@/lib/theorem'
@@ -72,7 +73,7 @@ export default function IntakeScreen() {
   const { palette } = useTheme()
   const share = useIncomingShare()
   const deliveries = useDeliveries()
-  const [items, setItems] = useState<IntakeItem[]>([])
+  const [items, setItems] = useState<IntakeItem[]>(takeStaged)
   const [instruction, setInstruction] = useState(params.text ?? '')
   const [receiver, setReceiver] = useState<Receiver | undefined>(() => (params.thread ? undefined : lastReceiver()))
   const [receiverError, setReceiverError] = useState<unknown>()

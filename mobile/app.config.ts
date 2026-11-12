@@ -49,6 +49,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSLocalNetworkUsageDescription:
         'Theorem connects to computers on your network when you open a terminal session on them.',
       UIApplicationSupportsIndirectInputEvents: true,
+      // The screen-sharing prototype (modules/theo-capture, iOS 27): the whole
+      // screen keeps being captured in other apps only with `screen-capture`,
+      // and the microphone only with `audio`. Review both before a store build.
+      UIBackgroundModes: ['screen-capture', 'audio'],
+      NSScreenCaptureUsageDescription:
+        'Theorem captures your screen only after you start sharing it, so Theo can follow what you are doing.',
     },
   },
   plugins: [

@@ -93,6 +93,10 @@ function Navigation() {
             name="intake"
             options={{ presentation: 'modal', headerShown: true, title: 'Share into a conversation' }}
           />
+          <Stack.Screen
+            name="screen-share"
+            options={{ presentation: 'modal', headerShown: true, title: 'Screen sharing (prototype)' }}
+          />
           <Stack.Screen name="terminal" options={{ presentation: 'fullScreenModal', headerShown: true }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
