@@ -22,8 +22,7 @@ build:
         working_directory: ios
         command: |
           set -o pipefail
-          # -derivedDataPath as EAS's own build passes it: TheoremSession's podspec finds its Swift
-          # packages at $(MODULE_CACHE_DIR)/../SourcePackages, which holds only inside a project's derived data.
+          # -derivedDataPath as EAS's own build passes it, so this compile lays out derived data as EAS does.
           xcodebuild -workspace Theorem.xcworkspace -scheme Theorem -configuration Debug \
             -derivedDataPath ./build -sdk iphoneos -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO -quiet build
