@@ -72,9 +72,12 @@ src/
     api/chat/v1/$.ts      proxy to the Theorem chat API
     v1/theorem/agent/stream/$.ts  proxy to the agent event stream
     api/scene/v1/$.ts     proxy to the page that draws a reply's scene
+    api/observe/v1/$.ts   proxy to the node's turn observations (read only)
+    settings/observe/     /settings/observe and /settings/observe/runs/:run
   lib/theorem/
     client.ts             SDK client, CSRF bootstrap, idempotent mutations
     runtime.tsx           assistant-ui runtime over Theorem threads, history and live-run resume
+    observe.ts            the observe API's responses parsed with zod, polling queries, span and wait wording
   components/
     shell/                rail, context panel, project switcher, sheet and dock layout
     chat/theorem-parts.tsx  renderers for Theorem message parts (artifacts, scenes, approvals, progress, citations, errors)
@@ -86,6 +89,12 @@ src/
 `mobile/` holds the iOS app: Expo and React Native with native assistant-ui over the Theorem SDK. It is its own Bun workspace, and the root typecheck, lint, format and tests leave it out; see `mobile/README.md`. `/.well-known/apple-app-site-association` names that app for its sign-in callback on theorem.rs once `THEOREM_IOS_APP_IDS` is set (`mobile/docs/sign-in.md`).
 
 `ide/` holds the IDE: an Eclipse Theia app on Bun with a Zed look. It installs, builds and runs on its own; see `ide/README.md`. The rail's IDE mode shows it in the sheet, served at `/theia`. Until `ide/` is built, `/theia` answers 503 with the build command. `patches/` carries nitro's merged dev fix (nitrojs/nitro#4159), which stops the dev server brotli-compressing Theia's bundle on every load. Drop it once a nitro release includes that fix.
+
+## Observe
+
+`/settings/observe` is a section of Settings. It shows what the Theorem node observed of the signed-in identity's turns: whether the node is serving, the alert rules as they stand, what each running turn is waiting for, and how recent turns ended. `/settings/observe/runs/:run` shows one turn's trace: where its time went and each step with its state. Both read `/api/observe/v1` every five seconds while open, and a turn that has ended is read once.
+
+The pages show what the node reports and label what it does not record. A value that was never measured is a dash, a state that was not observed is a hollow mark, and each page ends with the limits of what it can tell you. The node does not learn whether a page drew what a stream delivered, so "sent" is never shown as "seen".
 
 ## Artifacts
 

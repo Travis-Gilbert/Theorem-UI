@@ -50,12 +50,14 @@ import { Route as AuthNeonSplatRouteImport } from './routes/auth/neon.$'
 import { Route as DesktopBlocksIndexRouteImport } from './routes/desktop/blocks/index'
 import { Route as DesktopBlocksAppTokenRouteImport } from './routes/desktop/blocks/app-token'
 import { Route as DesktopWorkspaceIndexRouteImport } from './routes/desktop/workspace/index'
+import { Route as SettingsObserveIndexRouteImport } from './routes/settings/observe/index'
 import { Route as ApiArtifactsV1SplatRouteImport } from './routes/api/artifacts/v1/$'
 import { Route as ApiCapabilitiesV1SplatRouteImport } from './routes/api/capabilities/v1/$'
 import { Route as ApiChatV1SplatRouteImport } from './routes/api/chat/v1/$'
 import { Route as ApiDocumentsV2SplatRouteImport } from './routes/api/documents/v2/$'
 import { Route as ApiEnvironmentV1SplatRouteImport } from './routes/api/environment/v1/$'
 import { Route as ApiFilesV1SplatRouteImport } from './routes/api/files/v1/$'
+import { Route as ApiObserveV1SplatRouteImport } from './routes/api/observe/v1/$'
 import { Route as ApiProjectFilesV1SplatRouteImport } from './routes/api/project-files/v1/$'
 import { Route as ApiSceneV1SplatRouteImport } from './routes/api/scene/v1/$'
 import { Route as ApiSpacesV1SplatRouteImport } from './routes/api/spaces/v1/$'
@@ -78,6 +80,7 @@ import { Route as DesktopWorkspaceWorkspaceIdStateEventsRouteImport } from './ro
 import { Route as DesktopWorkspaceWorkspaceIdTagsRouteImport } from './routes/desktop/workspace/$workspaceId/tags'
 import { Route as DesktopWorkspaceWorkspaceIdTreeRouteImport } from './routes/desktop/workspace/$workspaceId/tree'
 import { Route as DesktopWorkspaceWorkspaceIdTrustRouteImport } from './routes/desktop/workspace/$workspaceId/trust'
+import { Route as SettingsObserveRunsRunIdRouteImport } from './routes/settings/observe/runs.$runId'
 import { Route as V1TheoremAgentStreamSplatRouteImport } from './routes/v1/theorem/agent/stream/$'
 
 const ChatRoute = ChatRouteImport.update({
@@ -285,6 +288,11 @@ const DesktopWorkspaceIndexRoute = DesktopWorkspaceIndexRouteImport.update({
   path: '/desktop/workspace/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsObserveIndexRoute = SettingsObserveIndexRouteImport.update({
+  id: '/observe/',
+  path: '/observe/',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ApiArtifactsV1SplatRoute = ApiArtifactsV1SplatRouteImport.update({
   id: '/api/artifacts/v1/$',
   path: '/api/artifacts/v1/$',
@@ -313,6 +321,11 @@ const ApiEnvironmentV1SplatRoute = ApiEnvironmentV1SplatRouteImport.update({
 const ApiFilesV1SplatRoute = ApiFilesV1SplatRouteImport.update({
   id: '/api/files/v1/$',
   path: '/api/files/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiObserveV1SplatRoute = ApiObserveV1SplatRouteImport.update({
+  id: '/api/observe/v1/$',
+  path: '/api/observe/v1/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProjectFilesV1SplatRoute = ApiProjectFilesV1SplatRouteImport.update({
@@ -444,6 +457,12 @@ const DesktopWorkspaceWorkspaceIdTrustRoute =
     path: '/desktop/workspace/$workspaceId/trust',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SettingsObserveRunsRunIdRoute =
+  SettingsObserveRunsRunIdRouteImport.update({
+    id: '/observe/runs/$runId',
+    path: '/observe/runs/$runId',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const V1TheoremAgentStreamSplatRoute =
   V1TheoremAgentStreamSplatRouteImport.update({
     id: '/v1/theorem/agent/stream/$',
@@ -492,12 +511,14 @@ export interface FileRoutesByFullPath {
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/settings/observe/': typeof SettingsObserveIndexRoute
   '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
+  '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/scene/v1/$': typeof ApiSceneV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
@@ -519,6 +540,7 @@ export interface FileRoutesByFullPath {
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
+  '/settings/observe/runs/$runId': typeof SettingsObserveRunsRunIdRoute
   '/desktop/workspace/$workspaceId/': typeof DesktopWorkspaceWorkspaceIdIndexRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -562,12 +584,14 @@ export interface FileRoutesByTo {
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks': typeof DesktopBlocksIndexRoute
   '/desktop/workspace': typeof DesktopWorkspaceIndexRoute
+  '/settings/observe': typeof SettingsObserveIndexRoute
   '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
+  '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/scene/v1/$': typeof ApiSceneV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
@@ -589,6 +613,7 @@ export interface FileRoutesByTo {
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
+  '/settings/observe/runs/$runId': typeof SettingsObserveRunsRunIdRoute
   '/desktop/workspace/$workspaceId': typeof DesktopWorkspaceWorkspaceIdIndexRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -635,12 +660,14 @@ export interface FileRoutesById {
   '/desktop/blocks/app-token': typeof DesktopBlocksAppTokenRoute
   '/desktop/blocks/': typeof DesktopBlocksIndexRoute
   '/desktop/workspace/': typeof DesktopWorkspaceIndexRoute
+  '/settings/observe/': typeof SettingsObserveIndexRoute
   '/api/artifacts/v1/$': typeof ApiArtifactsV1SplatRoute
   '/api/capabilities/v1/$': typeof ApiCapabilitiesV1SplatRoute
   '/api/chat/v1/$': typeof ApiChatV1SplatRoute
   '/api/documents/v2/$': typeof ApiDocumentsV2SplatRoute
   '/api/environment/v1/$': typeof ApiEnvironmentV1SplatRoute
   '/api/files/v1/$': typeof ApiFilesV1SplatRoute
+  '/api/observe/v1/$': typeof ApiObserveV1SplatRoute
   '/api/project-files/v1/$': typeof ApiProjectFilesV1SplatRoute
   '/api/scene/v1/$': typeof ApiSceneV1SplatRoute
   '/api/spaces/v1/$': typeof ApiSpacesV1SplatRoute
@@ -662,6 +689,7 @@ export interface FileRoutesById {
   '/desktop/workspace/$workspaceId/tags': typeof DesktopWorkspaceWorkspaceIdTagsRoute
   '/desktop/workspace/$workspaceId/tree': typeof DesktopWorkspaceWorkspaceIdTreeRoute
   '/desktop/workspace/$workspaceId/trust': typeof DesktopWorkspaceWorkspaceIdTrustRoute
+  '/settings/observe/runs/$runId': typeof SettingsObserveRunsRunIdRoute
   '/desktop/workspace/$workspaceId/': typeof DesktopWorkspaceWorkspaceIdIndexRoute
   '/v1/theorem/agent/stream/$': typeof V1TheoremAgentStreamSplatRoute
 }
@@ -708,12 +736,14 @@ export interface FileRouteTypes {
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/settings/observe/'
     | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
     | '/api/files/v1/$'
+    | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
     | '/api/scene/v1/$'
     | '/api/spaces/v1/$'
@@ -735,6 +765,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
+    | '/settings/observe/runs/$runId'
     | '/desktop/workspace/$workspaceId/'
     | '/v1/theorem/agent/stream/$'
   fileRoutesByTo: FileRoutesByTo
@@ -778,12 +809,14 @@ export interface FileRouteTypes {
     | '/desktop/blocks/app-token'
     | '/desktop/blocks'
     | '/desktop/workspace'
+    | '/settings/observe'
     | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
     | '/api/files/v1/$'
+    | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
     | '/api/scene/v1/$'
     | '/api/spaces/v1/$'
@@ -805,6 +838,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
+    | '/settings/observe/runs/$runId'
     | '/desktop/workspace/$workspaceId'
     | '/v1/theorem/agent/stream/$'
   id:
@@ -850,12 +884,14 @@ export interface FileRouteTypes {
     | '/desktop/blocks/app-token'
     | '/desktop/blocks/'
     | '/desktop/workspace/'
+    | '/settings/observe/'
     | '/api/artifacts/v1/$'
     | '/api/capabilities/v1/$'
     | '/api/chat/v1/$'
     | '/api/documents/v2/$'
     | '/api/environment/v1/$'
     | '/api/files/v1/$'
+    | '/api/observe/v1/$'
     | '/api/project-files/v1/$'
     | '/api/scene/v1/$'
     | '/api/spaces/v1/$'
@@ -877,6 +913,7 @@ export interface FileRouteTypes {
     | '/desktop/workspace/$workspaceId/tags'
     | '/desktop/workspace/$workspaceId/tree'
     | '/desktop/workspace/$workspaceId/trust'
+    | '/settings/observe/runs/$runId'
     | '/desktop/workspace/$workspaceId/'
     | '/v1/theorem/agent/stream/$'
   fileRoutesById: FileRoutesById
@@ -911,6 +948,7 @@ export interface RootRouteChildren {
   ApiDocumentsV2SplatRoute: typeof ApiDocumentsV2SplatRoute
   ApiEnvironmentV1SplatRoute: typeof ApiEnvironmentV1SplatRoute
   ApiFilesV1SplatRoute: typeof ApiFilesV1SplatRoute
+  ApiObserveV1SplatRoute: typeof ApiObserveV1SplatRoute
   ApiProjectFilesV1SplatRoute: typeof ApiProjectFilesV1SplatRoute
   ApiSceneV1SplatRoute: typeof ApiSceneV1SplatRoute
   ApiSpacesV1SplatRoute: typeof ApiSpacesV1SplatRoute
@@ -1225,6 +1263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/observe/': {
+      id: '/settings/observe/'
+      path: '/observe'
+      fullPath: '/settings/observe/'
+      preLoaderRoute: typeof SettingsObserveIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/api/artifacts/v1/$': {
       id: '/api/artifacts/v1/$'
       path: '/api/artifacts/v1/$'
@@ -1265,6 +1310,13 @@ declare module '@tanstack/react-router' {
       path: '/api/files/v1/$'
       fullPath: '/api/files/v1/$'
       preLoaderRoute: typeof ApiFilesV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/observe/v1/$': {
+      id: '/api/observe/v1/$'
+      path: '/api/observe/v1/$'
+      fullPath: '/api/observe/v1/$'
+      preLoaderRoute: typeof ApiObserveV1SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/project-files/v1/$': {
@@ -1421,6 +1473,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesktopWorkspaceWorkspaceIdTrustRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/observe/runs/$runId': {
+      id: '/settings/observe/runs/$runId'
+      path: '/observe/runs/$runId'
+      fullPath: '/settings/observe/runs/$runId'
+      preLoaderRoute: typeof SettingsObserveRunsRunIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/v1/theorem/agent/stream/$': {
       id: '/v1/theorem/agent/stream/$'
       path: '/v1/theorem/agent/stream/$'
@@ -1489,6 +1548,8 @@ interface SettingsRouteChildren {
   SettingsKeysRoute: typeof SettingsKeysRoute
   SettingsWorkRoute: typeof SettingsWorkRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  SettingsObserveIndexRoute: typeof SettingsObserveIndexRoute
+  SettingsObserveRunsRunIdRoute: typeof SettingsObserveRunsRunIdRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -1499,6 +1560,8 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsKeysRoute: SettingsKeysRoute,
   SettingsWorkRoute: SettingsWorkRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  SettingsObserveIndexRoute: SettingsObserveIndexRoute,
+  SettingsObserveRunsRunIdRoute: SettingsObserveRunsRunIdRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
@@ -1536,6 +1599,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocumentsV2SplatRoute: ApiDocumentsV2SplatRoute,
   ApiEnvironmentV1SplatRoute: ApiEnvironmentV1SplatRoute,
   ApiFilesV1SplatRoute: ApiFilesV1SplatRoute,
+  ApiObserveV1SplatRoute: ApiObserveV1SplatRoute,
   ApiProjectFilesV1SplatRoute: ApiProjectFilesV1SplatRoute,
   ApiSceneV1SplatRoute: ApiSceneV1SplatRoute,
   ApiSpacesV1SplatRoute: ApiSpacesV1SplatRoute,
@@ -1573,3 +1637,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
