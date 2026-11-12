@@ -24,6 +24,13 @@
         "simulator": true
       }
     },
+    "device-compile": {
+      "extends": "development",
+      "withoutCredentials": true,
+      "ios": {
+        "config": "device-compile.yml"
+      }
+    },
     "production": {
       "bun": "1.4.4",
       "autoIncrement": true

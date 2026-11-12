@@ -1,0 +1,27 @@
+# Compiles and links the app and both extensions against the iPhoneOS SDK with
+# code signing off. It produces nothing installable: it exists to check the
+# device-only Swift (the ScreenCaptureKit route) before signing is set up.
+build:
+  name: Unsigned device compile
+  steps:
+    - eas/checkout
+    - eas/use_npm_token
+    # Custom builds do not run package.json's eas-build-pre-install hook.
+    - run:
+        name: Fetch GhosttyKit
+        command: bash modules/theorem-session/scripts/fetch-ghosttykit.sh
+    - eas/install_node_modules
+    - eas/resolve_build_config
+    - eas/prebuild
+    - run:
+        name: Install pods
+        working_directory: ios
+        command: pod install
+    - run:
+        name: Compile for iphoneos without signing
+        working_directory: ios
+        command: |
+          set -o pipefail
+          xcodebuild -workspace Theorem.xcworkspace -scheme Theorem -configuration Debug \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO -quiet build
