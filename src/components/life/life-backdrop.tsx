@@ -12,6 +12,7 @@ import { useLifeControls, useLifeCounts } from '@/lib/life/store'
 import type { Brush } from '@/lib/life/store'
 import { prefersReducedMotion } from '@/lib/motion'
 import { mountLife } from './mount-life'
+import { mountLife2d } from './mount-life-2d'
 import type { LifeGame } from './mount-life'
 
 const BRUSHES: ReadonlyArray<Brush> = ['cell', ...(Object.keys(PATTERNS) as PatternName[])]
@@ -20,8 +21,17 @@ const brushLabel = (brush: Brush) => (brush === 'cell' ? 'Cell' : PATTERN_LABELS
 
 const isBrush = (value: unknown): value is Brush => BRUSHES.some((brush) => brush === value)
 
-const supportsWebGL2 = () =>
-  typeof document !== 'undefined' && !!document.createElement('canvas').getContext('webgl2')
+// Mobile Safari sometimes composites the transparent WebGL textmode layer as
+// broad opaque bands. Canvas 2D preserves the same simulation over the CSS
+// gradient on narrow viewports without going through that WebGL path.
+const lifeRenderer = (): 'webgl' | 'canvas2d' | undefined => {
+  if (typeof document === 'undefined') return undefined
+  const canvas = document.createElement('canvas')
+  const narrow = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches
+  if (narrow) return canvas.getContext('2d') ? 'canvas2d' : undefined
+  if (canvas.getContext('webgl2')) return 'webgl'
+  return canvas.getContext('2d') ? 'canvas2d' : undefined
+}
 
 /**
  * The empty space of the conversation: a press there draws on the field and a
@@ -45,7 +55,7 @@ const menuPopup =
 /** A Game of Life behind the conversation, livelier the harder the model works. */
 export function LifeBackdrop({ children }: { children: ReactNode }) {
   const shown = useLifeControls((state) => state.shown)
-  const [supported] = useState(supportsWebGL2)
+  const [renderer] = useState(lifeRenderer)
   const [game, setGame] = useState<LifeGame>()
   const stroking = useRef(false)
   useTurnPulses(game)
@@ -56,7 +66,9 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
     if (!host) return
     const reducedMotion = prefersReducedMotion()
     if (reducedMotion) useLifeControls.setState({ playing: false })
-    const mounted = mountLife(host, { reducedMotion })
+    const mounted = renderer === 'canvas2d'
+      ? mountLife2d(host, { reducedMotion })
+      : mountLife(host, { reducedMotion })
     setGame(mounted)
     const resize = new ResizeObserver(() => mounted.resize(host.clientWidth, host.clientHeight))
     resize.observe(host)
@@ -72,9 +84,9 @@ export function LifeBackdrop({ children }: { children: ReactNode }) {
       mounted.destroy()
       setGame(undefined)
     }
-  }, [])
+  }, [renderer])
 
-  if (!supported) return children
+  if (!renderer) return children
   const draws = shown
 
   // Touch scrolls the conversation, so only a mouse or pen draws.
