@@ -33,7 +33,8 @@ const BROKEN: ConversationState['phase'][] = ['failed', 'authentication-required
 let store: DeliveryStore | undefined
 let list: Delivery[] = []
 let loaded: Promise<void> | undefined
-const running = new Set<string>()
+/** Replaced, never changed in place, so a hook reading it sees each change. */
+let running: ReadonlySet<string> = new Set()
 /** Why a delivery is waiting right now. Not saved: it is only true while the app is doing it. */
 let notes: Record<string, string> = {}
 const listeners = new Set<() => void>()
@@ -135,7 +136,7 @@ async function drive(id: string) {
   if (running.has(id)) return
   const delivery = list.find((entry) => entry.id === id)
   if (!delivery) return
-  running.add(id)
+  running = new Set(running).add(id)
   publish()
   try {
     await deliver(delivery, deps)
@@ -143,7 +144,7 @@ async function drive(id: string) {
     // deliver settles its own failures; this is the store itself failing.
     put({ ...delivery, stage: 'failed', stoppedAt: delivery.stoppedAt, error: describeError(error) })
   } finally {
-    running.delete(id)
+    running = new Set([...running].filter((entry) => entry !== id))
     publish()
   }
 }
@@ -216,6 +217,7 @@ export function useDeliveries(): Delivery[] {
 export function useDelivery(id: string | undefined): { delivery?: Delivery; busy: boolean; note?: string } {
   const all = useDeliveries()
   const waiting = useSyncExternalStore(subscribe, () => notes)
+  const working = useSyncExternalStore(subscribe, () => running)
   const delivery = id ? all.find((entry) => entry.id === id) : undefined
-  return { delivery, busy: !!id && running.has(id), note: id ? waiting[id] : undefined }
+  return { delivery, busy: !!id && working.has(id), note: id ? waiting[id] : undefined }
 }
