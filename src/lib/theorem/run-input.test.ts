@@ -9,7 +9,7 @@ const receipt = (status: InputReceipt['status'] = 'queued', reason?: string): In
 function harness() {
   const storage = new Map<string, string>()
   const local = { threadId: 'thread-1' as string | undefined, runId: 'run-1' as string | undefined, isRunning: true, isLoading: false, inputs: [] as InputReceipt[] }
-  const durable = { active: true, runId: 'run-1' as string | undefined, inputs: [] as InputReceipt[] }
+  const durable = { active: true, runId: 'run-1' as string | undefined, inputs: [] as InputReceipt[], userTexts: [] as string[] }
   const host: RunInputHost = {
     snapshot: () => local,
     refresh: mock(async () => durable),
@@ -18,6 +18,7 @@ function harness() {
     append: mock(() => {}),
     changed: mock(() => {}),
     describeError: (error) => error instanceof Error ? error.message : 'Request failed.',
+    attemptId: 'attempt-1',
     storage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => { storage.set(key, value) },
@@ -54,6 +55,146 @@ test('input entered before the first run event waits for durable thread and run 
   await settle()
   expect(h.host.send).toHaveBeenCalledTimes(1)
   expect(h.queue.getSnapshot()[0]?.runId).toBe('run-1')
+})
+
+test('a chat that already has an id leaves input saved for a chat still being created', () => {
+  const h = harness()
+  h.storage.set(
+    'theorem.run-input.pending:',
+    JSON.stringify([{ id: 'early', text: 'Keep this aside', state: 'waiting' }]),
+  )
+  h.queue.observe()
+  expect(h.queue.getSnapshot()).toEqual([])
+  h.local.threadId = undefined
+  h.queue.submit('Stays with this chat')
+  expect(h.storage.get('theorem.run-input.pending:')).toContain('Keep this aside')
+  expect(h.storage.get('theorem.run-input.thread-1')).toContain('Stays with this chat')
+})
+
+test('input accepted while a new chat is being created survives a remount of that chat and moves to its durable id', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  expect(h.queue.submit('Use the smaller design')).toBe(true)
+  const saved = JSON.parse(h.storage.get('theorem.run-input.pending:')!) as {
+    attemptId: string
+    items: Array<{ id: string; text: string }>
+  }
+  expect(saved.attemptId).toBe('attempt-1')
+  const pendingId = saved.items[0]
+  expect(pendingId?.text).toBe('Use the smaller design')
+  expect(h.storage.has('theorem.run-input.thread-1')).toBe(false)
+
+  h.queue.dispose()
+  const reloaded = createRunInputQueue(h.host)
+  reloaded.observe()
+  expect(reloaded.getSnapshot()[0]?.id).toBe(pendingId?.id)
+  expect(reloaded.getSnapshot()[0]?.state).toBe('waiting')
+
+  h.local.threadId = 'thread-1'
+  h.local.runId = 'run-1'
+  reloaded.observe()
+  await settle()
+  expect(h.storage.has('theorem.run-input.pending:')).toBe(false)
+  expect(h.storage.get('theorem.run-input.thread-1')).toContain('Use the smaller design')
+  expect(h.host.send).toHaveBeenCalledWith('run-1', 'Use the smaller design', pendingId?.id)
+})
+
+test('a follow-up saved for one new chat is not sent when a later chat is created', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  expect(h.queue.submit('Use the smaller design')).toBe(true)
+  h.queue.dispose()
+
+  h.host.attemptId = 'attempt-2'
+  const later = createRunInputQueue(h.host)
+  later.observe()
+  const recovered = later.getSnapshot()[0]
+  expect(recovered?.text).toBe('Use the smaller design')
+  expect(recovered?.state).toBe('failed')
+  expect(recovered?.retryAsTurn).toBe(true)
+
+  h.local.threadId = 'thread-2'
+  h.local.runId = 'run-2'
+  h.durable.runId = 'run-2'
+  later.observe()
+  await settle()
+  expect(h.host.send).not.toHaveBeenCalled()
+  expect(h.host.append).not.toHaveBeenCalled()
+
+  h.local.isRunning = false
+  h.local.runId = undefined
+  h.durable.active = false
+  h.durable.runId = undefined
+  later.retry(recovered!.id)
+  await settle()
+  expect(h.host.send).not.toHaveBeenCalled()
+  expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
+})
+
+test('retry on a fresh chat keeps the text until the send is saved', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  h.queue.submit('Use the smaller design')
+  h.queue.dispose()
+
+  h.host.attemptId = 'attempt-2'
+  h.local.isRunning = false
+  const later = createRunInputQueue(h.host)
+  later.observe()
+  const recovered = later.getSnapshot()[0]!
+  expect(recovered.state).toBe('failed')
+  later.retry(recovered.id)
+  await settle()
+  expect(h.host.append).toHaveBeenCalledWith('Use the smaller design')
+  expect(h.host.send).not.toHaveBeenCalled()
+  expect(h.storage.get('theorem.run-input.pending:')).toContain('Use the smaller design')
+
+  later.dispose()
+  h.host.attemptId = 'attempt-3'
+  const reloaded = createRunInputQueue(h.host)
+  reloaded.observe()
+  expect(reloaded.getSnapshot()[0]?.text).toBe('Use the smaller design')
+  expect(reloaded.getSnapshot()[0]?.state).toBe('failed')
+  expect(h.host.append).toHaveBeenCalledTimes(1)
+})
+
+test('a saved send or durable user message releases the retried text', async () => {
+  const h = harness()
+  h.local.threadId = undefined
+  h.local.runId = undefined
+  h.local.isRunning = false
+  h.host.attemptId = 'attempt-2'
+  h.storage.set('theorem.run-input.pending:', JSON.stringify({
+    attemptId: 'attempt-1',
+    items: [{ id: 'early', text: 'Use the smaller design', state: 'failed', retryAsTurn: true }],
+  }))
+  const later = createRunInputQueue(h.host)
+  later.observe()
+  later.retry(later.getSnapshot()[0]!.id)
+  h.local.threadId = 'thread-9'
+  h.host.savedSend = () => 'Use the smaller design'
+  later.observe()
+  expect(later.getSnapshot()).toEqual([])
+  expect(h.storage.has('theorem.run-input.pending:')).toBe(false)
+
+  h.storage.set('theorem.run-input.pending:', JSON.stringify({
+    attemptId: 'attempt-1',
+    items: [{ id: 'early', text: 'Use the smaller design', state: 'failed', retryAsTurn: true }],
+  }))
+  h.host.savedSend = () => undefined
+  h.local.threadId = undefined
+  const byHistory = createRunInputQueue(h.host)
+  byHistory.observe()
+  byHistory.retry(byHistory.getSnapshot()[0]!.id)
+  h.local.threadId = 'thread-9'
+  h.durable.userTexts = ['Use the smaller design']
+  h.durable.active = false
+  byHistory.observe()
+  await settle()
+  expect(byHistory.getSnapshot()).toEqual([])
 })
 
 test('an ambiguous command response is not resent automatically and explicit retry keeps its identity', async () => {
@@ -189,7 +330,7 @@ test('switching away while checking settlement does not append to a detached run
   h.local.isRunning = false
   h.queue.submit('Use the smaller design')
   h.queue.dispose()
-  finish({ active: false, inputs: [], runId: undefined })
+  finish({ active: false, inputs: [], runId: undefined, userTexts: [] })
   await settle()
   expect(h.host.append).not.toHaveBeenCalled()
   expect(h.storage.size).toBe(1)

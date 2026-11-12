@@ -678,6 +678,7 @@ function useTheoremThreadRuntime() {
     threadKey: aui.threadListItem.getState().id,
     threadId: () => aui.threadListItem.getState().remoteId,
     liveRuns: useLiveRuns,
+    subscribe: (listener) => aui.subscribe(listener),
   }), [aui, runtime])
   // The effort this conversation's sends ask for, for Theo to show while one runs.
   const faceEffort = useCallback(() => requestedEffort(aui.threadListItem.getState().remoteId ?? undefined), [aui])

@@ -1,18 +1,20 @@
 import type { AssistantRuntime } from '@assistant-ui/react'
-import { describeError, mutate, TERMINAL_RUN_EVENTS, theorem } from './client'
+import { describeError, mutate, pendingSendText, TERMINAL_RUN_EVENTS, theorem } from './client'
 import { createRunInputQueue, inputReceipt, runInputReceipt } from './run-input'
 import { registerRunInputQueue, useRunInputs } from './run-input-store'
 
 /** Binds native input to one assistant-ui observer without replacing its stream. */
 export function bindRunInput(
   runtime: Pick<AssistantRuntime, 'thread'>,
-  { threadKey, threadId, liveRuns }: {
+  { threadKey, threadId, liveRuns, subscribe }: {
     threadKey: string
     threadId: () => string | undefined
     liveRuns: {
       getState: () => Partial<Record<string, string>>
       subscribe: (listener: () => void) => () => void
     }
+    /** Notifies when the open chat may have received its durable id. */
+    subscribe?: (listener: () => void) => () => void
   },
 ) {
   const visibleInputs = () => runtime.thread.getState().messages.flatMap((message) =>
@@ -25,8 +27,18 @@ export function bindRunInput(
   const queue = createRunInputQueue({
     snapshot() {
       const remoteId = threadId()
-      const { isRunning, isLoading } = runtime.thread.getState()
-      return { threadId: remoteId, runId: remoteId ? liveRuns.getState()[remoteId] : undefined, isRunning, isLoading, inputs: visibleInputs() }
+      const state = runtime.thread.getState()
+      return {
+        threadId: remoteId,
+        runId: remoteId ? liveRuns.getState()[remoteId] : undefined,
+        isRunning: state.isRunning,
+        isLoading: state.isLoading,
+        inputs: visibleInputs(),
+        localUserTexts: state.messages.flatMap((message) =>
+          message.role === 'user'
+            ? message.content.flatMap((part) => part.type === 'text' ? [part.text] : [])
+            : []),
+      }
     },
     async refresh() {
       const remoteId = threadId()
@@ -39,6 +51,15 @@ export function bindRunInput(
           const receipt = part.type === 'user_input' ? inputReceipt(part.payload) : undefined
           return receipt ? [receipt] : []
         })),
+        userTexts: snapshot.messages.flatMap((message) =>
+          message.role === 'user'
+            ? message.parts.flatMap((part) => {
+                const text = part.type === 'text' && part.payload && typeof part.payload === 'object' && 'text' in part.payload
+                  ? part.payload.text
+                  : undefined
+                return typeof text === 'string' ? [text] : []
+              })
+            : []),
       }
     },
     async send(runId, text, key) {
@@ -77,14 +98,23 @@ export function bindRunInput(
     }),
     changed: (items) => useRunInputs.setState({ [threadKey]: items }),
     describeError,
+    attemptId: threadKey,
+    savedSend: pendingSendText,
     storage: window.sessionStorage,
   })
   const unregister = registerRunInputQueue(threadKey, queue)
   const stopThread = runtime.thread.subscribe(queue.observe)
   const stopRuns = liveRuns.subscribe(queue.observe)
+  let knownThreadId = threadId()
+  const stopIdentity = subscribe?.(() => {
+    const next = threadId()
+    if (next === knownThreadId) return
+    knownThreadId = next
+    queue.observe()
+  })
   const timer = setInterval(() => {
     if (queue.getSnapshot().length) queue.observe()
   }, 2_000)
   queue.observe()
-  return () => { clearInterval(timer); stopThread(); stopRuns(); unregister() }
+  return () => { clearInterval(timer); stopThread(); stopRuns(); stopIdentity?.(); unregister() }
 }
