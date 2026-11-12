@@ -11,16 +11,16 @@ This is an early slice. Hosted Theorem conversations are implemented. Areas Theo
 
 ## Stack
 
-| Concern           | Library                                                                                                              |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
-| App, navigation   | Expo SDK 58, Expo Router (`src/app`), native tabs with the adaptable iPad sidebar                                    |
-| Conversation      | `@assistant-ui/react-native` over `@theoremharness/sdk` `HeadlessConversation` (external store, `projectThreadView`) |
-| Theorem API       | `@theoremharness/sdk` 0.6.0-alpha.1, packed from Theorem `claude/theorem-ios-app-knkszc` into `vendor/`              |
-| Sign-in           | `expo-web-browser` (ASWebAuthenticationSession), `expo-crypto`, `expo-secure-store` (Keychain)                       |
-| Local data        | `expo-sqlite`: conversation journal, drafts, small preferences                                                       |
-| Browser           | `react-native-webview` (WKWebView)                                                                                   |
-| Computers         | `modules/theorem-session`: Remux (MIT) and GhosttyKit, headless behind chat, see its README                          |
-| Type              | Manrope, IBM Plex Sans, IBM Plex Mono, JetBrains Mono (`@expo-google-fonts`)                                         |
+| Concern         | Library                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| App, navigation | Expo SDK 58, Expo Router (`src/app`), native tabs with the adaptable iPad sidebar                                    |
+| Conversation    | `@assistant-ui/react-native` over `@theoremharness/sdk` `HeadlessConversation` (external store, `projectThreadView`) |
+| Theorem API     | `@theoremharness/sdk` 0.6.0-alpha.1, packed from Theorem `claude/theorem-ios-app-knkszc` into `vendor/`              |
+| Sign-in         | `expo-web-browser` (ASWebAuthenticationSession), `expo-crypto`, `expo-secure-store` (Keychain)                       |
+| Local data      | `expo-sqlite`: conversation journal, drafts, small preferences                                                       |
+| Browser         | `react-native-webview` (WKWebView)                                                                                   |
+| Computers       | `modules/theorem-session`: Remux (MIT) and GhosttyKit, headless behind chat, see its README                          |
+| Type            | Manrope, IBM Plex Sans, IBM Plex Mono, JetBrains Mono (`@expo-google-fonts`)                                         |
 
 ## Setup
 
@@ -76,14 +76,14 @@ docs/                     sign-in setup, Phase 0 record
 
 `../docs/plans/theo-iphone.md` says what each of these is, what was checked, and what to try on a phone. None of it has been built natively or run on a device.
 
-| Feature | Where | Depends on |
-| --- | --- | --- |
-| Share a photo, file, link or note into an existing conversation | `src/app/intake.tsx`, `src/features/intake` | `expo-image-picker`, `expo-document-picker`, `expo-file-system`, `expo-sharing` (share extension, experimental) |
-| A Live Activity for a running conversation | `src/features/presence` | `expo-widgets`, `@expo/ui` |
-| Capture, Share and Continue in Shortcuts and on the Action button | `app-intents/` (Swift, compiled into the app target), `src/features/invocation` | `expo-app-intents` (alpha) |
-| A proposed calendar event as a card with the system editor | `src/features/phone-actions` | `expo-calendar/legacy` |
-| Screen sharing prototype (iOS 27) | `modules/theo-capture`, `src/app/screen-share.tsx`, `src/features/screen-share` | ScreenCaptureKit |
-| Theo's core and still poses | `src/features/theo` | the repository root's `src/lib/face`, through `metro.config.js` |
+| Feature                                                           | Where                                                                           | Depends on                                                                                                      |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Share a photo, file, link or note into an existing conversation   | `src/app/intake.tsx`, `src/features/intake`                                     | `expo-image-picker`, `expo-document-picker`, `expo-file-system`, `expo-sharing` (share extension, experimental) |
+| A Live Activity for a running conversation                        | `src/features/presence`                                                         | `expo-widgets`, `@expo/ui`                                                                                      |
+| Capture, Share and Continue in Shortcuts and on the Action button | `app-intents/` (Swift, compiled into the app target), `src/features/invocation` | `expo-app-intents` (alpha)                                                                                      |
+| A proposed calendar event as a card with the system editor        | `src/features/phone-actions`                                                    | `expo-calendar/legacy`                                                                                          |
+| Screen sharing prototype (iOS 27)                                 | `modules/theo-capture`, `src/app/screen-share.tsx`, `src/features/screen-share` | ScreenCaptureKit                                                                                                |
+| Theo's core and still poses                                       | `src/features/theo`                                                             | the repository root's `src/lib/face`, through `metro.config.js`                                                 |
 
 The app now has two extension targets (`<bundle id>.ShareExtension`, `<bundle id>.ExpoWidgetsTarget`) and one App Group (`group.<bundle id>`, or `THEOREM_IOS_APP_GROUP`). EAS has to sign and provision all three.
 
