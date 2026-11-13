@@ -2,7 +2,7 @@
 // stand-in. Live Cloudflare and native server acceptance remain separate gates.
 import { afterAll, expect, test } from 'bun:test'
 import { H3 } from 'nitro/h3'
-import { sealData } from 'iron-session'
+import { sealData, unsealData } from 'iron-session'
 import filesProxy from './files-proxy'
 
 const settings = [
@@ -25,6 +25,54 @@ afterAll(() => {
   )
 })
 const app = new H3().all('/api/files/v1/**', filesProxy)
+
+test('Files token refresh returns its rotated session through the H3 response', async () => {
+  const cookie = await sealData(
+    {
+      accessToken: 'expired-files-bearer',
+      refreshToken: 'test-only-files-refresh',
+      scope:
+        'run:read run:write models:invoke graph:read graph:write agency:approve',
+      expiresAt: 1,
+    },
+    { password },
+  )
+  globalThis.fetch = (async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    if (url.pathname === '/.well-known/oauth-authorization-server')
+      return Response.json({
+        issuer: 'https://files-authority.test',
+        authorization_endpoint: 'https://files-authority.test/oauth/authorize',
+        token_endpoint: 'https://files-authority.test/oauth/token',
+      })
+    if (url.pathname === '/oauth/token')
+      return Response.json({
+        access_token: 'refreshed-files-bearer',
+        refresh_token: 'rotated-files-refresh',
+        token_type: 'bearer',
+        expires_in: 3600,
+      })
+    expect(new Headers(init?.headers).get('authorization')).toBe(
+      'Bearer refreshed-files-bearer',
+    )
+    return Response.json({ vaultId: 'test-vault' })
+  }) as typeof fetch
+  const response = await app.fetch(
+    new Request('https://ui.test/api/files/v1/vault', {
+      headers: { cookie: `theorem_session=${cookie}` },
+    }),
+  )
+  expect(response.status).toBe(200)
+  const updated = response.headers
+    .getSetCookie()
+    .find((value) => value.startsWith('theorem_session='))
+  expect(updated).toBeDefined()
+  const sealed = updated!.split(';')[0].slice('theorem_session='.length)
+  expect(await unsealData(sealed, { password })).toMatchObject({
+    accessToken: 'refreshed-files-bearer',
+    refreshToken: 'rotated-files-refresh',
+  })
+})
 
 test('Files proxy reads the sealed session without the TanStack router context', async () => {
   const cookie = await sealData(

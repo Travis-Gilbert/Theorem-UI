@@ -15,8 +15,8 @@ and the shared icon module exports only the icons its callers actually use.
 
 ## Evidence
 
-- Focused H3/session/error tests pass 10/10. They cover sealed session reading,
-  sign-out/refusal, refresh, binary PUT/precondition forwarding, and response
+- Focused H3/session/error tests pass 11/11. They cover sealed session reading,
+  sign-out/refusal, refresh with rotated Set-Cookie, binary PUT/precondition forwarding, and response
   streaming before upstream closes, plus the rendered Retry action. Upstream
   HTTP in these tests is an explicitly named stand-in.
 - The Cloudflare build passes. Terminal WASM was rebuilt from this checkout's
@@ -48,7 +48,7 @@ and the shared icon module exports only the icons its callers actually use.
 
 No production data or worker was changed. Local request interception was
 removed and the two workerd measurement processes were stopped. Evidence logs
-are `/tmp/pr1066-ui-stream-tests.log`, `/tmp/pr1066-ui-worker-build4.log`,
+are `/tmp/pr1066-ui-refresh-tests.log`, `/tmp/pr1066-ui-worker-build4.log`,
 `/tmp/pr1066-worker-heap-final.jsonl`, and
 `/tmp/pr1066-worker-heap-after-home.jsonl`. Downloaded worker artifacts are
 retained under the SSD's `codex-rebuildable-cache/pr1066-worker-evidence`.
