@@ -30,6 +30,8 @@ import { fonts, radius, space, touchTarget, type as typeScale } from '@/theme/to
 import { Button } from '@/ui/button'
 import { Text } from '@/ui/text'
 import { useTheme } from '@/ui/theme'
+import { TheoPresence } from '../theo/theo-presence'
+import { theoStateOf, type TheoSignals } from '../theo/presence'
 import { MessageView } from './message-view'
 
 /** Distance from the end, in points, past which the jump-to-latest button shows. */
@@ -192,6 +194,7 @@ export function ConversationSurface({
   recipient,
   placeholder,
   notes = [],
+  theo,
   queue,
   empty,
   header,
@@ -204,6 +207,8 @@ export function ConversationSurface({
   placeholder: string
   /** Why sending is off, a failed send, a state to know about. Floats over the transcript above the composer, so a status never resizes the writing area. */
   notes?: SurfaceNote[]
+  /** What Theo's presence is read from. The surface adds whether the person is composing. */
+  theo?: Omit<TheoSignals, 'composing'>
   /** Messages waiting for the run to end. */
   queue?: QueueView
   /** The transcript before the first message. */
@@ -283,8 +288,9 @@ export function ConversationSurface({
             ) : null}
 
             {/* Status floats above the composer without taking part in its layout: the card and its input never move for it. */}
-            {notes.length > 0 && composerHeight !== undefined ? (
+            {(notes.length > 0 || theo) && composerHeight !== undefined ? (
               <View pointerEvents="box-none" style={[styles.notes, { bottom: composerHeight + space.xs }]}>
+                {theo ? <PresenceLine signals={theo} /> : null}
                 {notes.map((note, index) => (
                   <NoteStrip key={`${note.text}-${index}`} note={note} floating />
                 ))}
@@ -363,6 +369,17 @@ export function ConversationSurface({
       </SafeAreaView>
     </AssistantRuntimeProvider>
   )
+}
+
+/** Theo's presence above the composer, read from the conversation and the composer's draft. Outside the card, so it never moves the input. */
+function PresenceLine({ signals }: { signals: Omit<TheoSignals, 'composing'> }) {
+  const composing = useAuiState((s) => !!s.composer.text.trim())
+  const state = theoStateOf({ ...signals, composing })
+  return state ? (
+    <View style={styles.presence}>
+      <TheoPresence state={state} />
+    </View>
+  ) : null
 }
 
 function SendButton({ name, blocked }: { name: string; blocked?: boolean }) {
@@ -462,6 +479,7 @@ const styles = StyleSheet.create({
   },
   jump: { position: 'absolute', alignSelf: 'center', borderWidth: StyleSheet.hairlineWidth },
   stopGlyph: { width: 12, height: 12, borderRadius: 2 },
+  presence: { paddingHorizontal: space.sm },
   notes: { position: 'absolute', left: 0, right: 0, paddingHorizontal: space.sm, gap: space.xs },
   note: {
     gap: space.xs,

@@ -7,6 +7,7 @@ import { Button } from '@/ui/button'
 import { ShareButton } from '@/ui/header'
 import { useTheme } from '@/ui/theme'
 import { Unavailable } from '@/ui/unavailable'
+import { useDeliveries } from '../intake/queue'
 import { rememberLastThread } from '../invocation/handler'
 import { useTaskPresence } from '../presence/use-task-presence'
 import { ConversationSurface, EmptyConversation, type SurfaceNote } from './conversation-surface'
@@ -33,6 +34,10 @@ export function ConversationPane({
   const { runtime, state, sendError, queued, paused, removeQueued, editQueued, recover, recoveryError } =
     useConversation(threadId)
   useTaskPresence(threadId, state)
+  // The newest delivery the person made to this conversation: Theo says what became of it.
+  const delivery = useDeliveries()
+    .filter((entry) => entry.receiver.threadId === threadId)
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]
   // "Continue the conversation" from a Shortcut or the Action button opens this one.
   useEffect(() => rememberLastThread(threadId), [threadId])
   const title = state.snapshot ? threadTitle(state.snapshot.thread) : 'Conversation'
@@ -79,6 +84,7 @@ export function ConversationPane({
         recipient={{ name: 'Theo', detail: state.snapshot?.project.title }}
         placeholder="Reply to Theo"
         notes={notes}
+        theo={{ conversation: state, delivery }}
         queue={{ items: queued, paused, onRemove: removeQueued, onEdit: editQueued }}
         empty={<EmptyConversation title="Theorem" detail="Ask anything about this project." />}
         stopLabel="Stop the run"

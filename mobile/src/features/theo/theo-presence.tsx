@@ -41,7 +41,8 @@ export function TheoPresence({ state }: { state: TheoState }) {
   const opacity = useBreath(motion, reduceMotion)
   const color: Record<Accent, string> = {
     identity: palette.accent,
-    gold: palette.gold,
+    // The palette has no gold role yet; attention is the semantic one for ready, active and needs-you.
+    gold: palette.attentionInk,
     success: palette.successInk,
     error: palette.errorInk,
     quiet: palette.inkFaint,
