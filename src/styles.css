@@ -1115,26 +1115,24 @@
   }
 }
 
-/* The side panel: the same material, quieter. It is attached to the window,
-   so only its edge toward the conversation curves (use-liquid-glass edges),
-   and its body is steadier behind the navigation's text. */
+/* The side panel: the composer's material (the --lg-* above, inherited),
+   on the sidebar's own surface colour. It is attached to the window, so
+   only its edge toward the conversation curves (use-liquid-glass edges);
+   with the light from the top left that edge sits on the shaded side, so
+   it stays quiet without its own values. Only the field lies behind it,
+   so the body stays closed (--lg-show: 0) and skips the backdrop blur. Its
+   ink steps up as the composer's does. */
 @utility glass-panel-liquid {
   --lg-tone: var(--surface-sidebar);
-  --lg-blur: 10;
-  --lg-bevel: 12;
-  --lg-refract: 6;
-  --lg-clarity: 0.6;
-  --lg-body: 0.62;
-  --lg-rim-body: 0.4;
-  --lg-light: 0.2;
-  --lg-sheen: 0.03;
-  --lg-stroke: 0.25;
-  --lg-shade: 0.06;
-  /* The navigation reads on a steady pane: nothing shows through it. */
   --lg-show: 0;
 
   /* The pane draws the veil and the frost glass-panel paints. */
   &[data-liquid='live'] {
+    --ink: var(--glass-ink);
+    --ink-muted: var(--glass-ink-muted);
+    --ink-faint: var(--glass-ink-faint);
+    --foreground: var(--glass-ink);
+    --muted-foreground: var(--glass-ink-muted);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 
@@ -1142,15 +1140,6 @@
       content: none;
     }
   }
-}
-
-.dark .glass-panel-liquid {
-  --lg-body: 0.72;
-  --lg-rim-body: 0.45;
-  --lg-light: 0.08;
-  --lg-sheen: 0.01;
-  --lg-stroke: 0.05;
-  --lg-shade: 0.3;
 }
 
 /* The glass composer's footer is clear, so the composer frosts the messages
