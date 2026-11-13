@@ -1,6 +1,8 @@
 // SOURCING: @theoremharness/sdk chat.projects (list, create) and chat.threads (list, create), the same calls the web client makes (Theorem-UI src/components/shell/projects.ts, src/lib/theorem/runtime.tsx)
 import * as Crypto from 'expo-crypto'
 import { mutate, theorem, type Theorem } from '@/lib/theorem'
+export { mostRecentThread, threadActivityMs, threadDetail, threadDetails, threadState, threadTitle } from './thread-model'
+export type { ThreadState } from './thread-model'
 
 /** The project chats live in when a workspace has none yet; the web client uses the same name. */
 const DEFAULT_PROJECT = 'Chats'
@@ -25,14 +27,4 @@ export function loadThreads(projectId: string, cursor?: string): Promise<Theorem
 export async function createThread(projectId: string, key: string): Promise<Theorem.Thread> {
   const { record } = await mutate(key, (headers) => theorem().chat.threads.create({ projectId, ...headers }))
   return record
-}
-
-export function threadTitle(thread: Theorem.Thread): string {
-  return thread.title.trim() || 'New conversation'
-}
-
-export function threadDetail(thread: Theorem.Thread): string {
-  const when = new Date(thread.lastMessageAtMs ?? thread.updatedAtMs)
-  const live = thread.activeRunId ? 'Run in progress · ' : ''
-  return `${live}${when.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
 }

@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native'
 import { Stack } from 'expo-router'
 import { describeError, statusOf } from '@/lib/theorem'
 import { Button } from '@/ui/button'
-import { ShareButton } from '@/ui/header'
+import { ShareButton, ShareToolbar } from '@/ui/header'
 import { useTheme } from '@/ui/theme'
 import { Unavailable } from '@/ui/unavailable'
 import { useDeliveries } from '../intake/queue'
@@ -77,7 +77,10 @@ export function ConversationPane({
   return (
     <>
       {titled ? (
-        <Stack.Screen options={{ title, headerRight: () => <ShareButton threadId={threadId} /> }} />
+        <>
+          <Stack.Screen options={{ title }} />
+          <ShareToolbar threadId={threadId} />
+        </>
       ) : null}
       <ConversationSurface
         runtime={runtime}

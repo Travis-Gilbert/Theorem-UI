@@ -4,10 +4,11 @@
 // in a project, then Claude Code and Codex on each saved computer. One button
 // starts a new conversation; the composer there chooses who receives it.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { describeError, type Theorem } from '@/lib/theorem'
 import { useRequest } from '@/lib/use-request'
+import { fullTime, recency } from '@/lib/time'
 import { radius, space } from '@/theme/tokens'
 import { Button } from '@/ui/button'
 import { Row } from '@/ui/row'
@@ -18,7 +19,7 @@ import { refreshComputers, useComputers } from '../agents/computers'
 import { folderName, type AgentConversation } from '../agents/discovery'
 import { agentName } from '../agents/shell'
 import { sameSelection, type Selection } from './selection'
-import { loadProjects, loadThreads, threadDetail, threadTitle } from './threads'
+import { loadProjects, loadThreads, threadActivityMs, threadDetails, threadState, threadTitle } from './threads'
 
 /** Window width (points) from which the conversation sits beside the list. */
 export const SPLIT_WIDTH = 768
@@ -43,28 +44,31 @@ type Older = {
 
 const noOlder = (projectId?: string): Older => ({ projectId, threads: [], loaded: false, status: 'idle' })
 
-const when = (ms: number) => new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-
 function conversationTitle(conversation: AgentConversation) {
   return conversation.title?.trim() || folderName(conversation.cwd) || agentName[conversation.agent]
 }
 
 function conversationDetail(conversation: AgentConversation) {
-  return [agentName[conversation.agent], folderName(conversation.cwd), when(conversation.mtime * 1000)]
-    .filter(Boolean)
-    .join(' · ')
+  return [agentName[conversation.agent], folderName(conversation.cwd)].filter(Boolean).join(' · ')
 }
 
 export function ThreadList({
   selected,
   onOpen,
+  projectId: chosenProject,
+  onProject,
 }: {
   selected: Selection | undefined
   onOpen: (selection: Selection) => void
+  /** The project shown, when the caller holds it (in the URL); otherwise the list does. */
+  projectId?: string
+  onProject?: (projectId: string) => void
 }) {
   const { palette } = useTheme()
   const projects = useRequest(loadProjects, [])
-  const [projectId, setProjectId] = useState<string>()
+  const [ownProject, setOwnProject] = useState<string>()
+  const projectId = onProject ? chosenProject : ownProject
+  const setProjectId = onProject ?? setOwnProject
   const project = projects.data?.find((item) => item.projectId === projectId) ?? projects.data?.[0]
   const threads = useRequest(
     () => (project ? loadThreads(project.projectId) : Promise.resolve({ items: [] })),
@@ -323,8 +327,20 @@ export function ThreadList({
           case 'thread':
             return (
               <Row
+                prominence="regular"
                 title={threadTitle(item.thread)}
-                detail={threadDetail(item.thread)}
+                detail={threadState(item.thread) ? `${threadState(item.thread)!.symbol} ${threadState(item.thread)!.label}` : undefined}
+                detailTone={threadState(item.thread)?.tone}
+                meta={recency(threadActivityMs(item.thread))}
+                accessibilityLabel={[
+                  threadTitle(item.thread),
+                  threadState(item.thread)?.label,
+                  fullTime(threadActivityMs(item.thread)),
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                accessibilityHint="Long press for details"
+                onLongPress={() => Alert.alert(threadTitle(item.thread), threadDetails(item.thread, project?.title))}
                 selected={sameSelection(selected, { kind: 'theorem', threadId: item.thread.threadId })}
                 onPress={() => onOpen({ kind: 'theorem', threadId: item.thread.threadId })}
               />
@@ -339,8 +355,10 @@ export function ThreadList({
             }
             return (
               <Row
+                prominence="regular"
                 title={conversationTitle(conversation)}
                 detail={conversationDetail(conversation)}
+                meta={recency(conversation.mtime * 1000)}
                 selected={sameSelection(selected, target)}
                 trailing={
                   conversation.liveness.kind === 'live' ? (
