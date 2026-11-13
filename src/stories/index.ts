@@ -193,6 +193,18 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 760, height: 560 },
   },
   {
+    id: 'plan-card',
+    title: "Plan card: the harness plan as drafted, in the thread",
+    lane: 'original',
+    viewport: { width: 1280, height: 900 },
+  },
+  {
+    id: 'plan-card-under-way',
+    title: 'Plan card: the harness plan under way, one task deviating',
+    lane: 'original',
+    viewport: { width: 1280, height: 720 },
+  },
+  {
     id: 'tool-calls-check',
     title: 'Tool calls: an App check with its problems',
     lane: 'original',

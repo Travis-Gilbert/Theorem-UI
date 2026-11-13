@@ -1,20 +1,78 @@
-// SOURCING: bun:test over the plan card, rendered with React into happy-dom under React Flow's own test shim (test/layout), with Theorem's /graphql answered in-process
+// SOURCING: bun:test over the plan card, rendered with React into happy-dom under React Flow's own test shim (test/layout) with task nodes measured from their labels the way a browser wraps them, over the committed eight-task plan (src/stories/fixtures/plan), with Theorem's /graphql answered in-process
 import { afterAll, afterEach, beforeAll, expect, test } from 'bun:test'
 import type { ToolCallMessagePartProps } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { mockLayout } from '../../../test/layout'
-import { cleanup, click, render, waitFor } from '../../../test/blocks/render'
+import {
+  buttonNamed,
+  cleanup,
+  click,
+  render,
+  waitFor,
+} from '../../../test/blocks/render'
 import { act } from 'react'
 import { PlanGraph, PlanToolCall } from './plan-graph'
-import { LIVE_PLAN_REFRESH_MS } from '@/lib/theorem/plans'
-import type { PlanView } from '@/lib/theorem/plans'
+import {
+  LIVE_PLAN_REFRESH_MS,
+  layoutPlan,
+  taskLabel,
+} from '@/lib/theorem/plans'
+import type { Size } from '@/lib/theorem/plans'
+import {
+  PLAN_ARGS,
+  PLAN_RESULT,
+  PLAN_UNDER_WAY,
+  PLAN_VIEW,
+  livePlanPayload,
+} from '@/stories/fixtures/plan'
 
-const page = (window as unknown as { happyDOM: { setURL: (url: string) => void } }).happyDOM
+const page = (
+  window as unknown as { happyDOM: { setURL: (url: string) => void } }
+).happyDOM
 let unmockLayout: () => void
+let unmeasure: () => void
 const realFetch = window.fetch
+
+/**
+ * A task node measures as a browser lays its label out: as wide as the words
+ * up to the node's 208px measure, a 19px line for every 174px of words, and
+ * the node's padding. happy-dom does no layout, so without this every node
+ * would measure as the whole viewport.
+ */
+const nodeSize = (label: string): Size => ({
+  width: Math.min(208, 34 + label.length * 7),
+  height: 14 + 19 * Math.ceil((label.length * 7) / 174),
+})
+function measureNodes() {
+  const saved = (['offsetWidth', 'offsetHeight'] as const).map(
+    (key) =>
+      [
+        key,
+        Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)!,
+      ] as const,
+  )
+  for (const [key, descriptor] of saved)
+    Object.defineProperty(HTMLElement.prototype, key, {
+      configurable: true,
+      get(this: HTMLElement) {
+        const label = this.classList.contains('react-flow__node')
+          ? this.querySelector('[data-plan-label]')?.textContent
+          : undefined
+        if (label === undefined) return descriptor.get!.call(this)
+        const size = nodeSize(label)
+        return key === 'offsetWidth' ? size.width : size.height
+      },
+    })
+  return () => {
+    for (const [key, descriptor] of saved)
+      Object.defineProperty(HTMLElement.prototype, key, descriptor)
+  }
+}
+
 beforeAll(() => {
   page.setURL('http://localhost:3000/')
   unmockLayout = mockLayout()
+  unmeasure = measureNodes()
   // The thinking indicator splits its label into words, which waits on fonts; happy-dom has none.
   Object.defineProperty(document, 'fonts', {
     configurable: true,
@@ -23,6 +81,7 @@ beforeAll(() => {
 })
 afterAll(() => {
   page.setURL('about:blank')
+  unmeasure()
   unmockLayout()
   Reflect.deleteProperty(document, 'fonts')
 })
@@ -31,57 +90,237 @@ afterEach(async () => {
   window.fetch = realFetch
 })
 
-const VIEW: PlanView = {
-  planId: 'plan:1',
-  title: 'Move to Denver',
-  objective: 'Live in Denver by March',
-  tasks: [
-    { id: 'find-flat', alias: 'find-flat', title: 'Find a flat', goal: 'A signed lease', acceptanceCriteria: ['Lease signed'], dependencies: [] },
-    { id: 'book-movers', alias: 'book-movers', title: 'Book movers', acceptanceCriteria: [], dependencies: ['find-flat'] },
-  ],
-}
-
-const node = (label: string) =>
-  [...document.querySelectorAll<HTMLElement>('.react-flow__node')].find((element) =>
-    element.getAttribute('aria-label')?.startsWith(label),
+const byAlias = (alias: string) =>
+  PLAN_VIEW.tasks.find((t) => t.alias === alias)!
+const card = () => document.querySelector<HTMLElement>('[data-plan-card]')!
+const workspace = () =>
+  document.querySelector<HTMLElement>('[data-plan-workspace]')
+const nodes = (root: ParentNode = card()) => [
+  ...root.querySelectorAll<HTMLElement>('.react-flow__node'),
+]
+const node = (title: string, root: ParentNode = card()) =>
+  nodes(root).find((element) =>
+    element.getAttribute('aria-label')?.startsWith(title),
   )
+/** The card's graph once its nodes have measured and ELK has placed them. */
+const laidOut = (root: ParentNode = card()) =>
+  waitFor(() => {
+    const flow = root.querySelector('.react-flow')
+    return (
+      flow &&
+      !flow.classList.contains('opacity-0') &&
+      nodes(root).length === PLAN_VIEW.tasks.length &&
+      flow
+    )
+  })
+const positionOf = (element: HTMLElement) => {
+  const [, x, y] =
+    /translate\((-?[\d.]+)px, ?(-?[\d.]+)px\)/.exec(element.style.transform) ??
+    []
+  return { x: Number(x), y: Number(y) }
+}
+const openTask = (alias: string) =>
+  click(node(byAlias(alias).title)!.querySelector('button')!)
 
-test('a plan draws each task as a node, with its state, and an edge for each dependency', async () => {
-  await render(<PlanGraph view={VIEW} />)
-  await waitFor(() => node('Book movers'))
-  expect(node('Find a flat')?.getAttribute('aria-label')).toBe('Find a flat, Ready')
-  expect(node('Book movers')?.getAttribute('aria-label')).toBe('Book movers, Waiting')
-  await waitFor(() => document.querySelector('.react-flow__edge'))
-  expect(document.querySelectorAll('.react-flow__edge')).toHaveLength(1)
-  expect(document.body.textContent).toContain('0 of 2 done')
+test('the harness plan draws each task as a node saying its label in full, its status a mark beside it, an edge per dependency', async () => {
+  await render(<PlanGraph view={PLAN_VIEW} />)
+  await laidOut()
+  expect(card().textContent).toContain(
+    "Make Theorem's harness easier for agents to use",
+  )
+  expect(card().textContent).toContain('0 of 8 done')
+  for (const task of PLAN_VIEW.tasks) {
+    const element = node(task.title)!
+    const tone = ['audit-agent-friction', 'pin-scope'].includes(task.alias)
+      ? 'Ready'
+      : 'Waiting'
+    expect(element.getAttribute('aria-label')).toBe(`${task.title}, ${tone}`)
+    // The label whole: no clamp, truncation or fixed size anywhere between it and the node.
+    const label = element.querySelector<HTMLElement>('[data-plan-label]')!
+    expect(label.textContent).toBe(taskLabel(task))
+    for (
+      let at: HTMLElement | null = label;
+      at && at !== element.parentElement;
+      at = at.parentElement
+    ) {
+      expect(at.className).not.toMatch(
+        /line-clamp|truncate|text-ellipsis|overflow-hidden|\bh-\d/,
+      )
+      expect(at.style.height).toBe('')
+      expect(at.style.width).toBe('')
+    }
+    // Status takes no row: the mark sits in the label's own row and says nothing visible.
+    const mark = element.querySelector<HTMLElement>('[data-plan-mark]')!
+    expect(mark.parentElement).toBe(label.parentElement)
+    expect(mark.parentElement!.className).toMatch(/\bflex\b/)
+    expect(mark.parentElement!.className).not.toMatch(/flex-col/)
+    expect(mark.parentElement!.children).toHaveLength(2)
+    expect(element.textContent).toBe(taskLabel(task))
+    // The full title is a hover away, and in the inspector.
+    expect(element.querySelector('button')!.title).toBe(task.title)
+  }
+  await waitFor(() => card().querySelectorAll('.react-flow__edge').length === 9)
 })
 
-test('selecting a task shows its detail, and its neighbours select from there', async () => {
-  await render(<PlanGraph view={VIEW} />)
-  await click(await waitFor(() => node('Book movers')))
-  const detail = await waitFor(() => document.querySelector('section[aria-label="Book movers"]'))
+test('the tasks are laid out at the sizes React Flow measured, and no two of them overlap', async () => {
+  await render(<PlanGraph view={PLAN_VIEW} />)
+  await laidOut()
+  const sizes = Object.fromEntries(
+    PLAN_VIEW.tasks.map((t) => [t.id, nodeSize(taskLabel(t))]),
+  )
+  // A long label wraps, so the nodes are not one fixed size.
+  expect(
+    new Set(Object.values(sizes).map((s) => s.height)).size,
+  ).toBeGreaterThan(1)
+  const expected = await layoutPlan(PLAN_VIEW.tasks, sizes, 'RIGHT')
+  const placed = PLAN_VIEW.tasks.map((t) => ({
+    id: t.alias,
+    ...positionOf(node(t.title)!),
+    ...sizes[t.id]!,
+  }))
+  for (const [index, t] of PLAN_VIEW.tasks.entries()) {
+    expect(placed[index]!.x).toBeCloseTo(expected.positions[t.id]!.x, 3)
+    expect(placed[index]!.y).toBeCloseTo(expected.positions[t.id]!.y, 3)
+  }
+  for (const [index, a] of placed.entries())
+    for (const b of placed.slice(index + 1)) {
+      const overlap =
+        a.x < b.x + b.width &&
+        b.x < a.x + a.width &&
+        a.y < b.y + b.height &&
+        b.y < a.y + a.height
+      expect({ a: a.id, b: b.id, overlap }).toEqual({
+        a: a.id,
+        b: b.id,
+        overlap: false,
+      })
+    }
+  // Each edge follows its own route rather than a step on the columns' midline.
+  await waitFor(
+    () => card().querySelectorAll('.react-flow__edge-path').length === 9,
+  )
+  const paths = [...card().querySelectorAll('.react-flow__edge-path')].map(
+    (p) => p.getAttribute('d'),
+  )
+  expect(new Set(paths).size).toBe(9)
+  for (const d of paths) expect(d).toMatch(/^M[\d.,-]+(L[\d.,-]+)+$/)
+})
+
+test('the objective is held to two lines on the card, and reads in full in the workspace', async () => {
+  await render(<PlanGraph view={PLAN_VIEW} />)
+  const objective = card().querySelector<HTMLElement>('[data-plan-objective]')!
+  expect(objective.className).toContain('line-clamp-2')
+  expect(objective.textContent).toBe(PLAN_ARGS.objective)
+  await click(buttonNamed(card(), 'Expand plan')!)
+  const dialog = await waitFor(workspace)
+  expect(dialog.getAttribute('role')).toBe('dialog')
+  expect(dialog.textContent).toContain(PLAN_ARGS.objective)
+  // Nothing selected yet: the inspector lists the tasks to pick from.
+  expect(
+    dialog.querySelectorAll('[aria-label="Task inspector"] li'),
+  ).toHaveLength(8)
+})
+
+test('a task on the card opens the workspace on it, with its full title, and its neighbours select from the inspector', async () => {
+  await render(<PlanGraph view={PLAN_VIEW} />)
+  await laidOut()
+  await openTask('continuity-contract')
+  const dialog = await waitFor(workspace)
+  await laidOut(dialog)
+  const contract = byAlias('continuity-contract')
+  const detail = await waitFor(() =>
+    dialog.querySelector(`section[aria-label="${contract.title}"]`),
+  )
+  expect(detail.querySelector('h4')!.textContent).toBe(contract.title)
+  expect(detail.textContent).toContain('continuity-contract')
   expect(detail.textContent).toContain('Waits on')
-  const neighbour = [...detail.querySelectorAll('button')].find((button) => button.textContent === 'Find a flat')!
+  await waitFor(() =>
+    node(contract.title, dialog)?.classList.contains('selected'),
+  )
+  const neighbour = [...detail.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Pin scope',
+  )!
+  expect(neighbour.title).toBe(byAlias('pin-scope').title)
   await click(neighbour)
-  const next = await waitFor(() => document.querySelector('section[aria-label="Find a flat"]'))
-  expect(next.textContent).toContain('A signed lease')
-  expect(next.textContent).toContain('Lease signed')
+  const pin = byAlias('pin-scope')
+  const next = await waitFor(() =>
+    dialog.querySelector(`section[aria-label="${pin.title}"]`),
+  )
+  expect(next.textContent).toContain(pin.goal!)
+  expect(next.textContent).toContain(
+    'Out-of-scope areas listed with the reason for each',
+  )
   expect(next.textContent).toContain('Unblocks')
+  await waitFor(() => node(pin.title, dialog)?.classList.contains('selected'))
 })
 
 test('Backspace on a selected task leaves it in the plan', async () => {
-  await render(<PlanGraph view={VIEW} />)
-  await click(await waitFor(() => node('Book movers')))
-  await waitFor(() => document.querySelector('section[aria-label="Book movers"]'))
+  await render(<PlanGraph view={PLAN_VIEW} />)
+  await laidOut()
+  await openTask('agent-quickstart')
+  const dialog = await waitFor(workspace)
+  await laidOut(dialog)
   // React Flow deletes on the render where the key reads pressed, so the key comes up separately.
   for (const type of ['keydown', 'keyup']) {
     await act(async () => {
-      document.dispatchEvent(new KeyboardEvent(type, { key: 'Backspace', code: 'Backspace', bubbles: true }))
+      document.dispatchEvent(
+        new KeyboardEvent(type, {
+          key: 'Backspace',
+          code: 'Backspace',
+          bubbles: true,
+        }),
+      )
       await new Promise((resolve) => setTimeout(resolve, 50))
     })
   }
-  expect(node('Book movers')).toBeDefined()
-  expect(document.querySelectorAll('.react-flow__node')).toHaveLength(2)
+  expect(node(byAlias('agent-quickstart').title, dialog)).toBeDefined()
+  expect(nodes(dialog)).toHaveLength(8)
+})
+
+test('under way, a claimed task reads in progress and a deviating one as owing a decision', async () => {
+  await render(<PlanGraph view={PLAN_UNDER_WAY} />)
+  await laidOut()
+  const audit = node(byAlias('audit-agent-friction').title)!
+  const pin = node(byAlias('pin-scope').title)!
+  expect(audit.getAttribute('aria-label')).toEndWith(', In progress')
+  expect(pin.getAttribute('aria-label')).toEndWith(
+    ', Deviating: needs a decision',
+  )
+  expect(
+    pin.querySelector('[data-plan-mark]')!.getAttribute('data-plan-mark'),
+  ).toBe('deviating')
+  expect(card().textContent).toContain('0 of 8 done')
+})
+
+test('on a narrow card the plan is a list in the order it can happen, and a task opens the workspace', async () => {
+  unmockLayout()
+  const unmockNarrow = mockLayout({ width: 360, height: 800 })
+  try {
+    await render(<PlanGraph view={PLAN_VIEW} />)
+    const list = await waitFor(() => card().querySelector('ol'))
+    expect(card().querySelector('.react-flow')).toBeNull()
+    const rows = [...list.querySelectorAll('button')]
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Audit agent frictionReady',
+      'Pin scopeReady',
+      'Tool surface mapWaiting · after Audit agent friction, Pin scope',
+      'Error guidanceWaiting · after Audit agent friction',
+      'Continuity contractWaiting · after Pin scope',
+      'Front door toolsWaiting · after Tool surface map',
+      'Agent quickstartWaiting · after Front door tools, Continuity contract',
+      'Friction regression checkWaiting · after Error guidance, Agent quickstart',
+    ])
+    await click(rows[4]!)
+    const dialog = await waitFor(workspace)
+    await waitFor(() =>
+      dialog.querySelector(
+        `section[aria-label="${byAlias('continuity-contract').title}"]`,
+      ),
+    )
+  } finally {
+    unmockNarrow()
+    unmockLayout = mockLayout()
+  }
 })
 
 const call = (overrides: Partial<ToolCallMessagePartProps>) =>
@@ -90,48 +329,27 @@ const call = (overrides: Partial<ToolCallMessagePartProps>) =>
     toolCallId: 'call-1',
     toolName: 'draft_plan',
     argsText: '',
-    args: {
-      title: 'Move to Denver',
-      objective: 'Live in Denver by March',
-      tasks: [
-        { alias: 'find-flat', title: 'Find a flat' },
-        { alias: 'book-movers', title: 'Book movers', dependencies: ['find-flat'] },
-      ],
-    },
+    args: PLAN_ARGS,
     status: { type: 'complete' },
     addResult: () => {},
     resume: () => {},
     ...overrides,
   }) as unknown as ToolCallMessagePartProps
 
-/** Theorem's copy as /graphql answers it: `status` is the task protocol's, `planStatus` the plan's own. */
-const LIVE = {
-  planId: 'plan:1',
-  reason: null,
-  plan: { title: 'Move to Denver', objective: 'Live in Denver by March', status: 'active' },
-  tasks: [
-    { id: 't1', alias: 'find-flat', title: 'Find a flat', goal: '', description: '', acceptanceCriteria: [], status: 'completed', planStatus: 'done', dependencies: [] },
-    { id: 't2', alias: 'book-movers', title: 'Book movers', goal: '', description: '', acceptanceCriteria: [], status: 'working', planStatus: 'pending', dependencies: ['t1'] },
-  ],
-}
+/** Theorem's copy once the audit is done. */
+const LIVE = livePlanPayload({ 'audit-agent-friction': 'done' })
 
-/** The draft_plan result: the plan id and each alias's task id. */
-const WRITTEN = {
-  planId: 'plan:1',
-  title: 'Move to Denver',
-  tasks: [
-    { alias: 'find-flat', taskId: 't1', title: 'Find a flat', dependencies: [] },
-    { alias: 'book-movers', taskId: 't2', title: 'Book movers', dependencies: ['find-flat'] },
-  ],
-}
-
-const queryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } })
+const queryClient = () =>
+  new QueryClient({ defaultOptions: { queries: { retry: false } } })
+const audit = byAlias('audit-agent-friction')
+const errors = byAlias('error-guidance')
 
 test("a written plan reads Theorem's copy, so its tasks show their live status", async () => {
   const asked: unknown[] = []
   window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
-    if (new URL(request.url).pathname !== '/graphql') return Response.json({}, { status: 404 })
+    if (new URL(request.url).pathname !== '/graphql')
+      return Response.json({}, { status: 404 })
     asked.push(await request.json())
     return Response.json({ data: { plan: LIVE } })
   }) as typeof fetch
@@ -139,13 +357,26 @@ test("a written plan reads Theorem's copy, so its tasks show their live status",
   const Call = PlanToolCall
   await render(
     <QueryClientProvider client={client}>
-      <Call {...call({ result: { planId: 'plan:1', title: 'Move to Denver', tasks: [] } })} />
+      <Call
+        {...call({
+          result: {
+            planId: PLAN_RESULT.planId,
+            title: PLAN_ARGS.title,
+            tasks: [],
+          },
+        })}
+      />
     </QueryClientProvider>,
   )
-  await waitFor(() => node('Find a flat')?.getAttribute('aria-label') === 'Find a flat, Done')
-  expect(node('Book movers')?.getAttribute('aria-label')).toBe('Book movers, Ready')
-  expect(document.body.textContent).toContain('1 of 2 done')
-  expect(asked[0]).toMatchObject({ variables: { planId: 'plan:1' } })
+  await waitFor(
+    () =>
+      node(audit.title)?.getAttribute('aria-label') === `${audit.title}, Done`,
+  )
+  expect(node(errors.title)?.getAttribute('aria-label')).toBe(
+    `${errors.title}, Ready`,
+  )
+  expect(document.body.textContent).toContain('1 of 8 done')
+  expect(asked[0]).toMatchObject({ variables: { planId: PLAN_RESULT.planId } })
   client.clear()
 })
 
@@ -162,20 +393,30 @@ test("a task selected on the drafted plan stays selected when Theorem's copy arr
   const Call = PlanToolCall
   await render(
     <QueryClientProvider client={client}>
-      <Call {...call({ result: WRITTEN })} />
+      <Call {...call({ result: PLAN_RESULT })} />
     </QueryClientProvider>,
   )
-  await click(await waitFor(() => node('Book movers')))
-  const drafted = await waitFor(() => document.querySelector('section[aria-label="Book movers"]'))
+  await laidOut()
+  await openTask('error-guidance')
+  const dialog = await waitFor(workspace)
+  const drafted = await waitFor(() =>
+    dialog.querySelector(`section[aria-label="${errors.title}"]`),
+  )
   expect(drafted.textContent).toContain('Waiting')
   answer()
-  await waitFor(() => node('Find a flat')?.getAttribute('aria-label') === 'Find a flat, Done')
-  expect(document.querySelector('section[aria-label="Book movers"]')?.textContent).toContain('Ready')
+  await waitFor(
+    () =>
+      node(audit.title)?.getAttribute('aria-label') === `${audit.title}, Done`,
+  )
+  expect(
+    dialog.querySelector(`section[aria-label="${errors.title}"]`)?.textContent,
+  ).toContain('Ready')
   client.clear()
 })
 
 test('a plan card polls Theorem only while it is in view', async () => {
-  window.fetch = (async () => Response.json({ data: { plan: LIVE } })) as unknown as typeof fetch
+  window.fetch = (async () =>
+    Response.json({ data: { plan: LIVE } })) as unknown as typeof fetch
   // happy-dom never reports an intersection; this observer reports what the test
   // says. Under happy-dom an element is not an instance of the global EventTarget,
   // so framer-motion never calls observe(); it keys entries by target only, so a
@@ -200,13 +441,19 @@ test('a plan card polls Theorem only while it is in view', async () => {
     const Call = PlanToolCall
     await render(
       <QueryClientProvider client={client}>
-        <Call {...call({ result: WRITTEN })} />
+        <Call {...call({ result: PLAN_RESULT })} />
       </QueryClientProvider>,
     )
     const interval = () =>
-      client.getQueryCache().find({ queryKey: ['theorem', 'plan', 'plan:1'] })?.observers[0]?.options
-        .refetchInterval
-    await waitFor(() => node('Find a flat')?.getAttribute('aria-label') === 'Find a flat, Done')
+      client
+        .getQueryCache()
+        .find({ queryKey: ['theorem', 'plan', PLAN_RESULT.planId] })
+        ?.observers[0]?.options.refetchInterval
+    await waitFor(
+      () =>
+        node(audit.title)?.getAttribute('aria-label') ===
+        `${audit.title}, Done`,
+    )
     expect(interval()).toBe(false)
     await act(async () => report(true))
     await waitFor(() => interval() === LIVE_PLAN_REFRESH_MS)
@@ -221,6 +468,8 @@ test('a plan card polls Theorem only while it is in view', async () => {
 test('while the model writes the plan, the call is a pending line', async () => {
   const Call = PlanToolCall
   await render(<Call {...call({ status: { type: 'running' } })} />)
-  expect(document.body.textContent).toContain('Drafting a plan: Move to Denver')
+  expect(document.body.textContent).toContain(
+    `Drafting a plan: ${PLAN_ARGS.title}`,
+  )
   expect(document.querySelector('.react-flow')).toBeNull()
 })
