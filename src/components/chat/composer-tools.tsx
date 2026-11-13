@@ -1,4 +1,5 @@
-// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web and Plan toggle state the composer and the runtime share), Base UI Toggle (the Web and Plan chips), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's webResearch option requests research without narrowing the turn's tools; planning independently requests a durable plan through draft_plan
+// SOURCING: assistant-ui ComposerPrimitive.TriggerPopover through the vendored registry element ComposerTriggerPopover, with its TriggerAdapter and TriggerMatcher seams; the default directive formatter writes the pick into the message; the native tool catalog from lib/theorem/tools; zustand (the Web toggle and the per-conversation Plan toggle state the composer and the runtime share, Plan keyed by the thread as useAuiState names it), Base UI Toggle (the Web and Plan chips), ui/tooltip over Base UI Tooltip, the shared useSpin over anime.js; the SDK's webResearch option requests research without narrowing the turn's tools; planning independently requests a durable plan through draft_plan
+import { useAuiState } from '@assistant-ui/react'
 import type {
   TriggerAdapter,
   TriggerItem,
@@ -41,25 +42,59 @@ export const useWebSearch = create<WebSearchState>()((set) => ({
 export const webTurnOptions = (): { webResearch?: true } =>
   useWebSearch.getState().on ? { webResearch: true } : {}
 
-type PlanningState = { on: boolean; set: (on: boolean) => void }
+type PlanningState = {
+  /** The conversations with Plan on, by the composer's thread key. */
+  byThread: Readonly<Record<string, true>>
+  set: (thread: string, on: boolean) => void
+  /** A new conversation's Plan moves to its durable id once it has one. */
+  adopt: (from: string, to: string) => void
+}
+
+const without = (map: Readonly<Record<string, true>>, key: string) => {
+  const { [key]: _dropped, ...rest } = map
+  return rest
+}
 
 /**
- * Whether the next turn plans. It stays on until a plan is drafted, so a
+ * Whether a conversation's next turn plans, keyed like its connection choice:
+ * the thread's durable id, or its local id before the first send. Each
+ * conversation starts with it off. It stays on until a plan is drafted, so a
  * turn where the model first asks a question is followed by another planning
  * turn, and then turns itself off: the conversation after a plan is about it.
  */
 export const usePlanning = create<PlanningState>()((set) => ({
-  on: false,
-  set: (on) => set({ on }),
+  byThread: {},
+  set: (thread, on) =>
+    set(({ byThread }) => ({
+      byThread: on
+        ? { ...byThread, [thread]: true }
+        : without(byThread, thread),
+    })),
+  adopt: (from, to) =>
+    set(({ byThread }) =>
+      byThread[from]
+        ? { byThread: { ...without(byThread, from), [to]: true } }
+        : {},
+    ),
 }))
 
 /**
- * The turn option Plan adds, read at send time. Theorem gives a planning turn
- * its `draft_plan` operation and tells the model to write the request as one
+ * The turn option Plan adds for the conversation sending, read at send time.
+ * A conversation that was new when Plan was pressed has its durable id by the
+ * time it sends, so Plan moves there first. Theorem gives a planning turn its
+ * `draft_plan` operation and tells the model to write the request as one
  * durable plan.
  */
-export const planningTurnOptions = (): { planning?: true } =>
-  usePlanning.getState().on ? { planning: true } : {}
+export function planningTurnOptions(
+  localId: string,
+  remoteId: string | undefined,
+): { planning?: true } {
+  const { adopt } = usePlanning.getState()
+  if (remoteId && remoteId !== localId) adopt(localId, remoteId)
+  return usePlanning.getState().byThread[remoteId ?? localId]
+    ? { planning: true }
+    : {}
+}
 
 const CHIP =
   'text-ink-muted hover:bg-hover hover:text-ink data-pressed:bg-redwood/15 data-pressed:text-redwood data-pressed:hover:bg-redwood/25 flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:outline-focus'
@@ -108,7 +143,11 @@ export function ComposerWebToggle() {
 
 /** The Plan chip beside Web: pressed, the next turn writes a Theorem plan the person sees as a graph. */
 export function ComposerPlanToggle() {
-  const on = usePlanning((state) => state.on)
+  // A new conversation has only its local id until its first send gives it the durable one.
+  const threadKey = useAuiState(
+    (state) => state.threadListItem.remoteId ?? state.threadListItem.id,
+  )
+  const on = usePlanning((state) => state.byThread[threadKey] === true)
   const set = usePlanning((state) => state.set)
   return (
     <TooltipProvider>
@@ -118,7 +157,7 @@ export function ComposerPlanToggle() {
           render={
             <Toggle
               pressed={on}
-              onPressedChange={set}
+              onPressedChange={(pressed) => set(threadKey, pressed)}
               aria-label="Plan"
               className={CHIP}
             />
