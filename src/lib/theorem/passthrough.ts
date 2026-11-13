@@ -22,7 +22,9 @@ export async function theoremJson<T>(
     method: init.method ?? 'GET',
     headers: {
       Accept: 'application/json',
-      ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(init.body === undefined
+        ? {}
+        : { 'Content-Type': 'application/json' }),
       ...init.headers,
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -34,15 +36,26 @@ export async function theoremJson<T>(
   const response = init.keepalive
     ? await window.fetch(url, { ...request, keepalive: true })
     : await theorem().fetch(url, request)
+  return readTheoremJson<T>(response)
+}
+
+/** Preserve the HTTP status even when a relay sends a non-JSON refusal. */
+export async function readTheoremJson<T>(response: Response): Promise<T> {
   const text = await response.text()
-  const body: unknown = text ? JSON.parse(text) : undefined
-  if (!response.ok)
+  if (!response.ok) {
+    let body: unknown
+    try {
+      body = text ? JSON.parse(text) : undefined
+    } catch {
+      // An intermediary can refuse the request without a Theorem problem.
+    }
     throw new TheoremError({
-      message: `${init.method ?? 'GET'} ${path} answered ${response.status}`,
+      message: `Theorem answered ${response.status}`,
       statusCode: response.status,
       body,
     })
-  return body as T
+  }
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 /** The route is not there: this Theorem predates the contract. */

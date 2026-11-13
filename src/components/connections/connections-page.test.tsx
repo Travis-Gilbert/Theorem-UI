@@ -530,6 +530,33 @@ test('a server that is added shows the tools it was found to have', async () => 
   expect(buttonNamed('Review tools')).toBeDefined()
 })
 
+test('the GitHub MCP option fills the hosted address and requires a bearer token', async () => {
+  await mount(<McpServers />)
+  await press(await waitFor(() => buttonNamed('Add server')))
+  await press(await waitFor(() => buttonNamed('Use GitHub MCP')))
+  const token = await waitFor(() =>
+    document.querySelector<HTMLInputElement>('input[type="password"]'),
+  )
+  const form = token.closest('form')!
+  const submit = form.querySelector('button[type="submit"]')!
+  await press(submit)
+  await waitFor(() => text().includes('Enter the token the server expects.'))
+  expect(seen).toEqual([])
+
+  await type(token, 'fixture-token')
+  await press(submit)
+  await waitFor(() => text().includes('Found 2 tools'))
+  expect(seen.find((request) => request.method === 'POST')).toMatchObject({
+    path: `${root}/mcp`,
+    body: {
+      label: 'GitHub MCP',
+      transport: 'http',
+      url: 'https://api.githubcopilot.com/mcp/',
+      auth: { type: 'bearer', token: 'fixture-token' },
+    },
+  })
+})
+
 test('a server Theorem refuses keeps the form open and shows the refusal in its words', async () => {
   refuse['POST mcp'] = { status: 422, detail: 'That address resolves to a private network.' }
   await mount(<McpServers />)

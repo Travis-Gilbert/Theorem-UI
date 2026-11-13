@@ -1,5 +1,5 @@
 // SOURCING: @tanstack/react-query (read once, publish when stale), the Index's
-// response reader and GET helper over platform fetch, the shared
+// GET helper and the shared Theorem response reader over platform fetch, the
 // CSRF/idempotency helper from lib/theorem/client; the same publication the
 // Index makes for its library (components/index/queries).
 //
@@ -8,7 +8,8 @@
 // show and the backend can check one before it publishes it.
 import { useQuery } from '@tanstack/react-query'
 import { hasStatus, isSignedOut, mutate } from '@/lib/theorem/client'
-import { get, read } from '@/components/index/api'
+import { readTheoremJson } from '@/lib/theorem/passthrough'
+import { get } from '@/components/index/api'
 import { LIBRARY_ID, LIBRARY_VERSION, libraryRecord } from './library'
 import type { LibraryRecord } from './library'
 
@@ -29,7 +30,7 @@ export async function readPublished(): Promise<PublishedLibrary | undefined> {
 
 export const publish = (record: LibraryRecord) =>
   mutate(async (headers) =>
-    read<PublishedLibrary>(
+    readTheoremJson<PublishedLibrary>(
       await fetch(LIBRARY_PATH, {
         method: 'PUT',
         credentials: 'same-origin',
