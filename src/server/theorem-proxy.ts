@@ -8,6 +8,7 @@
 // buffered.
 import type { ServerRequest } from 'srvx'
 import { oauthConfigured, personBearer } from './theorem-auth'
+import type { SessionCookies } from './theorem-auth'
 
 const REQUEST_HEADERS_DROPPED = [
   'host',
@@ -83,7 +84,7 @@ function problem(status: number, code: string, title: string, detail: string) {
 }
 
 /** The bearer for this request, or the response that refuses it. */
-async function bearer(): Promise<string | Response> {
+async function bearer(cookies?: SessionCookies): Promise<string | Response> {
   if (!oauthConfigured()) {
     return (
       process.env.THEOREM_API_TOKEN ||
@@ -97,7 +98,7 @@ async function bearer(): Promise<string | Response> {
   }
   try {
     return (
-      (await personBearer()) ??
+      (await personBearer(cookies)) ??
       problem(
         401,
         'theorem_signed_out',
@@ -115,7 +116,10 @@ async function bearer(): Promise<string | Response> {
   }
 }
 
-export async function proxyToTheorem(request: Request): Promise<Response> {
+export async function proxyToTheorem(
+  request: Request,
+  cookies?: SessionCookies,
+): Promise<Response> {
   const base = process.env.THEOREM_API_URL
   if (!base) {
     return problem(
@@ -125,7 +129,7 @@ export async function proxyToTheorem(request: Request): Promise<Response> {
       'Set THEOREM_API_URL in .env (see .env.example).',
     )
   }
-  const token = await bearer()
+  const token = await bearer(cookies)
   if (token instanceof Response) return token
 
   // Set on the base rather than resolved against it: a path starting `//`

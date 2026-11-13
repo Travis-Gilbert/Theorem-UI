@@ -188,23 +188,25 @@ export async function signInOptions(): Promise<SignInOptions> {
 const callbackUrl = (request: Request) =>
   new URL('/auth/callback', request.url).href
 
-function session({ password }: Config) {
-  return getIronSession<Session>(
-    { read: getCookie, write: setCookie },
-    {
-      // Cookies are kept per host, not per port, so a local stack beside
-      // another on localhost names its own cookie (scripts/e2e/stack.mjs).
-      cookieName: process.env.THEOREM_SESSION_COOKIE || 'theorem_session',
-      password,
-      ttl: 30 * 24 * 60 * 60,
-      cookieOptions: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-      },
+export type SessionCookies = { read: typeof getCookie; write: typeof setCookie }
+
+function session(
+  { password }: Config,
+  cookies: SessionCookies = { read: getCookie, write: setCookie },
+) {
+  return getIronSession<Session>(cookies, {
+    // Cookies are kept per host, not per port, so a local stack beside
+    // another on localhost names its own cookie (scripts/e2e/stack.mjs).
+    cookieName: process.env.THEOREM_SESSION_COOKIE || 'theorem_session',
+    password,
+    ttl: 30 * 24 * 60 * 60,
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
     },
-  )
+  })
 }
 
 /** A response that names no scope granted what was asked (RFC 6749, 5.1). */
@@ -512,10 +514,12 @@ function refresh(settings: Config, refreshToken: string) {
  * The signed-in person's access token, refreshed when it is about to expire;
  * undefined when nobody is signed in or the session can no longer refresh.
  */
-export async function personBearer(): Promise<string | undefined> {
+export async function personBearer(
+  cookies?: SessionCookies,
+): Promise<string | undefined> {
   const settings = config()
   if (typeof settings === 'string') throw new Error(settings)
-  const current = await session(settings)
+  const current = await session(settings, cookies)
   if (!current.accessToken) return undefined
   // A session from before a scope was added cannot gain it by refreshing; a
   // sign-in grants the whole set.

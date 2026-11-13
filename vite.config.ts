@@ -99,6 +99,7 @@ const config = defineConfig({
     // served beside the app so it shares this origin, its proxy and its session.
     nitro({
       preset: cloudflare ? 'cloudflare_module' : 'bun',
+      minify: cloudflare,
       cloudflare: {
         deployConfig: true,
         nodeCompat: true,
@@ -115,6 +116,14 @@ const config = defineConfig({
           previews: { vars: theoremVars },
         },
       },
+      ...(cloudflare && {
+        routes: {
+          '/api/files/v1/**': { handler: './src/server/files-proxy.ts' },
+          '/api/project-files/v1/**': {
+            handler: './src/server/files-proxy.ts',
+          },
+        },
+      }),
       publicAssets: [
         // The page a webview (the markdown preview) runs in, which Theia's
         // build puts beside the frontend for a backend to serve at /webview.

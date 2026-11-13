@@ -20,6 +20,7 @@ import { FilesystemMarks } from '@/components/ui/filesystem-item'
 import { hostActions } from '@/lib/handlers/actions'
 import { signInHref, useSignInConfigured } from '@/lib/theorem/sign-in'
 import { cn } from '@/lib/utils'
+import { describeError } from '@/lib/theorem/client'
 import { openTodaysNote } from '@/lib/workspace/notes'
 import { isTheoremWorkspace } from '@/lib/workspace/theorem-client'
 import type { WorkspaceSummary } from '@/lib/workspace/types'
@@ -168,36 +169,73 @@ function WorkspaceSection({
 const groupLabel =
   'flex h-8 items-center ps-2 pe-1 text-sm text-ink-faint-sheet'
 
-/**
- * Why Home has no vault to show: the folders or the session are still loading,
- * or Theorem answered that no one is signed in. A signed-in person without a
- * vault, or a session that could not be read, shows no Home at all rather
- * than an offer to sign in again.
- */
+/** Preserve the reason Home could not open, including signed-in failures. */
+type HomeAbsence =
+  | 'loading'
+  | 'signed-out'
+  | 'forbidden'
+  | 'unsupported'
+  | 'unconfigured'
+  | 'failed'
 export function homeAbsence({
   isPending,
   signIn,
   signedOut,
+  vaultAbsence,
 }: {
   isPending: boolean
   signIn: boolean
   signedOut: boolean
-}): 'loading' | 'signed-out' | null {
+  vaultAbsence?: Exclude<HomeAbsence, 'loading'>
+}): HomeAbsence | null {
   if (isPending) return 'loading'
-  return signIn && signedOut ? 'signed-out' : null
+  if (signIn && (signedOut || vaultAbsence === 'signed-out'))
+    return 'signed-out'
+  return vaultAbsence && vaultAbsence !== 'signed-out' ? vaultAbsence : null
 }
-/** Home while there is no Theorem vault to show. */
-function HomeAbsent({ absence }: { absence: 'loading' | 'signed-out' }) {
+
+/** Home remains visible when its authority fails, with an explicit retry. */
+export function HomeAbsent({
+  absence,
+  error,
+  retry,
+  retrying = false,
+}: {
+  absence: HomeAbsence
+  error?: unknown
+  retry: () => void
+  retrying?: boolean
+}) {
   if (absence === 'loading')
     return <p className="px-2 text-sm text-ink-faint-sheet">Loading…</p>
+  if (absence === 'signed-out')
+    return (
+      <div className="flex flex-col items-start gap-2 px-2 pb-2">
+        <p className="text-sm text-ink-faint-sheet">
+          Sign in to keep your files in Home.
+        </p>
+        <a href={signInHref()} className={buttonVariants({ size: 'sm' })}>
+          Sign in
+        </a>
+      </div>
+    )
+  const message = {
+    forbidden: 'Your account cannot open Home.',
+    unsupported: 'Theorem is not serving Files yet.',
+    unconfigured: 'Theorem Files is not configured.',
+    failed: 'Home could not load. Your files have not been changed.',
+  }[absence]
   return (
     <div className="flex flex-col items-start gap-2 px-2 pb-2">
-      <p className="text-sm text-ink-faint-sheet">
-        Sign in to keep your files in Home.
+      <p role="alert" className="text-sm text-error-ink">
+        {message}
       </p>
-      <a href={signInHref()} className={buttonVariants({ size: 'sm' })}>
-        Sign in
-      </a>
+      {error instanceof Error && (
+        <p className="text-xs text-ink-muted">{describeError(error)}</p>
+      )}
+      <Button size="sm" variant="ghost" disabled={retrying} onClick={retry}>
+        {retrying ? 'Retrying…' : 'Retry'}
+      </Button>
     </div>
   )
 }
@@ -245,13 +283,21 @@ export function FoldersSection({ fill = false }: { fill?: boolean }) {
 
 /** Home, then the folders on this device, with no heading of their own. */
 export function FolderTrees({ fill = false }: { fill?: boolean }) {
-  const { workspaces } = useWorkspaces()
+  const {
+    workspaces,
+    isPending,
+    vaultAbsence,
+    vaultError,
+    retryVault,
+    vaultFetching,
+  } = useWorkspaces()
   const openFolder = useOpenFolder()
   const home = workspaces.find(isTheoremWorkspace)
   const device = workspaces.filter((workspace) => workspace !== home)
   const session = useSessionState()
   const absence = homeAbsence({
-    isPending: useWorkspaces().isPending || session.isPending,
+    isPending: isPending || session.isPending,
+    vaultAbsence,
     signIn: useSignInConfigured(),
     signedOut: session.signedOut,
   })
@@ -263,11 +309,18 @@ export function FolderTrees({ fill = false }: { fill?: boolean }) {
           <WorkspaceSection workspace={home} name="Home" />
         </section>
       ) : (
-        fill &&
+        (fill || absence !== 'signed-out') &&
         absence && (
           <section aria-label="Home">
             <h3 className={groupLabel}>Home</h3>
-            <HomeAbsent absence={absence} />
+            <HomeAbsent
+              absence={absence}
+              error={vaultError}
+              retry={() => {
+                void retryVault()
+              }}
+              retrying={vaultFetching}
+            />
           </section>
         )
       )}

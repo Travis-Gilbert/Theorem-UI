@@ -118,6 +118,9 @@ export function useWorkspaces() {
     ],
     /** Why there is no Theorem vault, once that is known. */
     vaultAbsence: vaultAbsence(vault.data, vault.isError),
+    vaultError: vault.error,
+    retryVault: vault.refetch,
+    vaultFetching: vault.isFetching,
   }
 }
 
