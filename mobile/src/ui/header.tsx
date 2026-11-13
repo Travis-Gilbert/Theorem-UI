@@ -1,5 +1,6 @@
 // SOURCING: expo-router Link and native-stack screen options
 import { Link } from 'expo-router'
+import { Image } from 'expo-image'
 import { Pressable } from 'react-native'
 import { Text } from './text'
 import { useTheme } from './theme'
@@ -8,6 +9,9 @@ import { useTheme } from './theme'
 export function useHeaderColors() {
   const { palette } = useTheme()
   return {
+    // iOS 26 draws a large title as an empty band (react-native-screens#3100,
+    // reproducible in UIKit), so headers are compact until that is fixed.
+    headerLargeTitle: false,
     headerTintColor: palette.accent,
     headerStyle: { backgroundColor: palette.neutral },
     headerTitleStyle: { color: palette.ink },
@@ -33,13 +37,13 @@ export function ShareButton({ threadId }: { threadId?: string }) {
   )
 }
 
+/** Settings is a quiet mark, not a word: the screen's title and its one action carry the header. */
 export function SettingsButton() {
+  const { palette } = useTheme()
   return (
     <Link href="/settings" asChild>
       <Pressable accessibilityRole="button" accessibilityLabel="Settings" hitSlop={12}>
-        <Text variant="strong" tone="accent">
-          Settings
-        </Text>
+        <Image source="sf:gearshape" tintColor={palette.inkMuted} style={{ width: 22, height: 22 }} contentFit="contain" />
       </Pressable>
     </Link>
   )

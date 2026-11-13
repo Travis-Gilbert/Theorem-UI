@@ -7,7 +7,7 @@ export default function InboxLayout() {
     <Stack screenOptions={useHeaderColors()}>
       <Stack.Screen
         name="index"
-        options={{ title: 'Inbox', headerLargeTitle: true, headerRight: () => <SettingsButton /> }}
+        options={{ title: 'Inbox', headerRight: () => <SettingsButton /> }}
       />
     </Stack>
   )

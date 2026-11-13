@@ -20,7 +20,7 @@ export default function TabsLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="platinum">
         <NativeTabs.Trigger.Icon sf="desktopcomputer" />
-        <NativeTabs.Trigger.Label>Platinum</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Computer</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   )
