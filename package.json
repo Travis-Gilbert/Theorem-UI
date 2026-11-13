@@ -13,6 +13,7 @@
     "e2e:keys": "node scripts/e2e/keys.mjs",
     "e2e:notes": "node scripts/e2e/notes.mjs",
     "e2e:composer": "node scripts/e2e/composer.mjs",
+    "e2e:plan-graph": "node scripts/e2e/plan-graph.mjs",
     "e2e:sidebar": "node scripts/e2e/sidebar.mjs",
     "e2e:app-db": "node scripts/e2e/app-db.mjs",
     "e2e:app-ts": "node scripts/e2e/app-ts.mjs",

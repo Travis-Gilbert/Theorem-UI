@@ -11,6 +11,7 @@ import {
   useExternalStoreRuntime,
 } from '@assistant-ui/react'
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import type { ReadonlyJSONObject } from 'assistant-stream/utils'
 import { toAssistantMessages } from '@theoremharness/sdk/assistant-ui'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ARTIFACT_PART, readArtifact } from '@/components/artifacts/artifact-model'
@@ -48,6 +49,8 @@ import type { ArtifactStory } from './fixtures/artifacts'
 import { documentFixtures } from './fixtures/notes'
 import { PROGRAM_PART } from './fixtures/program'
 import { pointingMessages } from './fixtures/pointing'
+import { PLAN_ARGS, PLAN_RESULT, PLAN_UNDER_WAY } from './fixtures/plan'
+import { PlanGraph } from '@/components/chat/plan-graph'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
@@ -465,6 +468,63 @@ function FaceSoundStory() {
   )
 }
 
+/**
+ * The harness plan as the thread draws its draft_plan call, at the thread's
+ * own reading width. The result names no plan id, so the card shows the plan
+ * as drafted and reads no live copy.
+ */
+function PlanCardStory() {
+  const { planId: _written, ...result } = PLAN_RESULT
+  const messages = useMemo<ThreadMessageLike[]>(
+    () => [
+      {
+        id: 'plan-ask',
+        role: 'user',
+        content: [{ type: 'text', text: 'Make the harness easier for agents to use. Plan it before you start.' }],
+      },
+      {
+        id: 'plan-answer',
+        role: 'assistant',
+        status: { type: 'complete', reason: 'stop' },
+        content: [
+          { type: 'text', text: 'Here is the plan. The audit and the scope can start together.' },
+          {
+            type: 'tool-call',
+            toolCallId: 'call-plan',
+            toolName: 'draft_plan',
+            args: PLAN_ARGS as unknown as ReadonlyJSONObject,
+            result,
+          },
+        ],
+      },
+    ],
+    [result],
+  )
+  const runtime = useExternalStoreRuntime({
+    messages,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <TheoremPartRenderers />
+      <div className="h-dvh">
+        <Thread autoFocus={false} />
+      </div>
+    </AssistantRuntimeProvider>
+  )
+}
+
+/** The same plan from Theorem's copy, one root claimed and the other deviating, at the reading width. */
+function PlanCardUnderWayStory() {
+  return (
+    <div className="mx-auto w-full max-w-(--spacing-reading) px-4 py-4">
+      <PlanGraph view={PLAN_UNDER_WAY} />
+    </div>
+  )
+}
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'composer-paper': threadStory(),
   'composer-markdown': threadStory(undefined, [], COMPOSER_DRAFT),
@@ -478,6 +538,8 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'activity-approval-high': threadStory('approval', activityMessages('approval', 'high')),
   'tool-pills': threadStory('working', toolPillMessages()),
   'tool-calls-check': threadStory('finished', appCheckMessages()),
+  'plan-card': PlanCardStory,
+  'plan-card-under-way': PlanCardUnderWayStory,
   'face-bench': FaceBench,
   'face-book': FaceBook,
   'face-in-shell': ShellCompareStory,

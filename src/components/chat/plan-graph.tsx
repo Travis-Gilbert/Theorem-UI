@@ -1,157 +1,512 @@
-// SOURCING: @xyflow/react 12 (custom task nodes with hidden Handles, smoothstep edges with closed-arrow markers, useNodesState for drag and selection, Controls, dotted Background, fitView) after the records data-model diagram's conventions, laid out by @dagrejs/dagre through lib/theorem/plans; @tanstack/react-query for Theorem's live copy of the plan, polled while framer-motion's useInView sees the card; assistant-ui's ToolCallMessagePartComponent for the draft_plan call, with the installed ToolFallback and ThinkingIndicator for its failed and running states
+// SOURCING: @xyflow/react 12 (custom task nodes sized by their content and measured by React Flow, useNodesInitialized to know when every node has measured, BaseEdge and getSmoothStepPath for edges, useInternalNode to tell whether a dragged task left its routed place, useNodesState for drag and selection, Controls, dotted Background, fitView) laid out by elkjs through lib/theorem/plans over those measured sizes, its orthogonal routes drawn with d3-shape's line; @radix-ui/react-use-size for the card's width (graph or compact summary); ui/dialog (Base UI Dialog) for the expanded workspace; @tanstack/react-query for Theorem's live copy of the plan, polled while framer-motion's useInView sees the card; assistant-ui's ToolCallMessagePartComponent for the draft_plan call, with the installed ToolFallback and ThinkingIndicator for its failed and running states
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
   Handle,
   MarkerType,
   Position,
   ReactFlow,
   ReactFlowProvider,
+  getSmoothStepPath,
+  useInternalNode,
+  useNodesInitialized,
   useNodesState,
+  useReactFlow,
+  useStore,
+  useUpdateNodeInternals,
 } from '@xyflow/react'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
+import type {
+  Edge,
+  EdgeProps,
+  Node,
+  NodeChange,
+  NodeProps,
+} from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react'
+import { useSize } from '@radix-ui/react-use-size'
 import { useQuery } from '@tanstack/react-query'
+import { line } from 'd3-shape'
 import { useInView } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { FC } from 'react'
 import { ThinkingIndicator } from '@/components/assistant-ui/elements/thinking-indicator'
 import { ToolFallback } from '@/components/assistant-ui/elements/tool-fallback.aui'
 import { Icon } from '@/components/icons'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { describeError } from '@/lib/theorem/client'
 import {
   LIVE_PLAN_REFRESH_MS,
   draftPlanView,
-  layoutPlan,
+  edgeId,
+  fitScale,
+  fittedLayout,
   livePlanQuery,
+  taskLabel,
+  taskOrder,
   taskTones,
 } from '@/lib/theorem/plans'
-import type { PlanTaskView, PlanView, TaskTone } from '@/lib/theorem/plans'
+import type {
+  Direction,
+  PlanLayout,
+  PlanTaskView,
+  PlanView,
+  Point,
+  Size,
+  TaskTone,
+} from '@/lib/theorem/plans'
 import { cn } from '@/lib/utils'
 
-const NODE = { width: 176, height: 60 }
+/**
+ * Each tone in words and as a mark. The shape carries the state as well as
+ * the colour: filled for settled, a ring for open, a diamond for a decision
+ * owed, a bar for dropped.
+ */
+export const TONE: Readonly<Record<TaskTone, { label: string; mark: string }>> =
+  {
+    done: { label: 'Done', mark: 'rounded-full bg-teal' },
+    active: {
+      label: 'In progress',
+      mark: 'rounded-full border-2 border-ochre bg-ochre/40 animate-pulse motion-reduce:animate-none',
+    },
+    ready: { label: 'Ready', mark: 'rounded-full border-2 border-redwood' },
+    waiting: { label: 'Waiting', mark: 'rounded-full border border-ink-faint' },
+    attention: {
+      label: 'Needs attention',
+      mark: 'scale-90 rotate-45 rounded-[1px] bg-ochre',
+    },
+    deviating: {
+      label: 'Deviating: needs a decision',
+      mark: 'scale-90 rotate-45 rounded-[1px] border-2 border-ochre',
+    },
+    dropped: { label: 'Dropped', mark: '!h-0.5 rounded-full bg-ink-faint' },
+  }
 
-const TONE: Readonly<Record<TaskTone, { label: string; dot: string }>> = {
-  done: { label: 'Done', dot: 'bg-teal' },
-  active: { label: 'In progress', dot: 'bg-ochre animate-pulse motion-reduce:animate-none' },
-  ready: { label: 'Ready', dot: 'bg-redwood' },
-  waiting: { label: 'Waiting', dot: 'border border-ink-faint' },
-  attention: { label: 'Needs attention', dot: 'bg-ochre' },
-  dropped: { label: 'Dropped', dot: 'bg-ink-faint' },
+/** A task's status as a mark beside its label: it takes no row of its own. */
+function StatusMark({
+  tone,
+  className,
+}: {
+  tone: TaskTone
+  className?: string
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      data-plan-mark={tone}
+      title={TONE[tone].label}
+      // Centred on the first line of the label beside it.
+      className={cn(
+        'mt-[calc((1lh-0.5rem)/2)] size-2 shrink-0',
+        TONE[tone].mark,
+        className,
+      )}
+    />
+  )
 }
 
-type TaskNodeData = { title: string; tone: TaskTone }
+type TaskNodeData = {
+  label: string
+  title: string
+  tone: TaskTone
+  direction: Direction
+  /** On the reading surface a task is a button that opens the workspace on it. */
+  open?: (() => void) | undefined
+}
 type TaskNode = Node<TaskNodeData, 'task'>
 
 const hidden = '!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent'
 
 function TaskNodeView({ data, selected }: NodeProps<TaskNode>) {
-  const tone = TONE[data.tone]
-  return (
-    <div
-      className={cn(
-        'flex flex-col justify-center gap-1 rounded-lg border bg-raised px-2.5 text-xs shadow-sm transition-colors duration-100',
-        selected ? 'border-redwood ring-1 ring-redwood' : 'border-separator',
-        data.tone === 'dropped' && 'opacity-60',
-      )}
-      style={NODE}
-    >
-      <Handle type="target" position={Position.Left} className={hidden} />
-      <Handle type="source" position={Position.Right} className={hidden} />
-      <span className="flex items-center gap-1.5 text-ink-faint">
-        <span aria-hidden="true" className={cn('size-2 shrink-0 rounded-full', tone.dot)} />
-        {tone.label}
-      </span>
+  const across = data.direction === 'RIGHT'
+  const body = (
+    <>
+      <StatusMark tone={data.tone} />
       <span
+        data-plan-label
         className={cn(
-          'line-clamp-2 text-sm leading-tight font-medium text-ink',
+          'min-w-0 font-medium text-ink',
           data.tone === 'dropped' && 'line-through',
         )}
       >
-        {data.title}
+        {data.label}
       </span>
-    </div>
+    </>
+  )
+  const frame = cn(
+    // Sized by its label: as wide as the words up to a measure, as tall as they wrap.
+    'flex w-max max-w-52 items-start gap-1.5 rounded-lg border bg-raised px-2.5 py-1.5 text-left text-[13px] leading-snug shadow-sm transition-colors duration-100',
+    selected ? 'border-redwood ring-1 ring-redwood' : 'border-separator',
+    data.tone === 'dropped' && 'opacity-60',
+  )
+  return (
+    <>
+      <Handle
+        type="target"
+        position={across ? Position.Left : Position.Top}
+        className={hidden}
+      />
+      {data.open ? (
+        <button
+          type="button"
+          title={data.title}
+          aria-label={`${data.title}, ${TONE[data.tone].label}`}
+          onClick={data.open}
+          className={cn(
+            frame,
+            'hover:bg-hover focus-visible:outline-2 focus-visible:outline-focus',
+          )}
+        >
+          {body}
+        </button>
+      ) : (
+        <div title={data.title} className={frame}>
+          {body}
+        </div>
+      )}
+      <Handle
+        type="source"
+        position={across ? Position.Right : Position.Bottom}
+        className={hidden}
+      />
+    </>
   )
 }
 
-const nodeTypes = { task: TaskNodeView }
+type RouteData = {
+  route?: Point[] | undefined
+  from?: Point | undefined
+  to?: Point | undefined
+}
+type RouteEdge = Edge<RouteData, 'route'>
 
-function graphOf(view: PlanView) {
-  const tones = taskTones(view.tasks)
-  const positions = layoutPlan(view.tasks, NODE)
-  const ids = new Set(view.tasks.map((task) => task.id))
-  const nodes: TaskNode[] = view.tasks.map((task) => {
-    const tone = tones.get(task.id) ?? 'waiting'
-    return {
-      id: task.id,
-      type: 'task',
-      position: positions[task.id] ?? { x: 0, y: 0 },
-      data: { title: task.title, tone },
-      ariaLabel: `${task.title}, ${TONE[tone].label}`,
-    }
-  })
-  const edges: Edge[] = view.tasks.flatMap((task) =>
-    task.dependencies
-      .filter((dependency) => ids.has(dependency))
-      .map((dependency) => ({
-        id: `${dependency}->${task.id}`,
-        source: dependency,
-        target: task.id,
-        type: 'smoothstep',
-        selectable: false,
-        focusable: false,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
-        style: { stroke: 'var(--color-ink-faint)', strokeWidth: 1.25 },
-      })),
+const near = (a: Point | undefined, b: Point | undefined) =>
+  a !== undefined &&
+  b !== undefined &&
+  Math.abs(a.x - b.x) < 0.5 &&
+  Math.abs(a.y - b.y) < 0.5
+const polyline = line<Point>()
+  .x((point) => point.x)
+  .y((point) => point.y)
+
+/** The edge as the layout routed it; once a person drags either end away, a step path between the handles. */
+function RouteEdgeView(props: EdgeProps<RouteEdge>) {
+  const { id, source, target, data, markerEnd, style } = props
+  const from = useInternalNode(source)?.internals.positionAbsolute
+  const to = useInternalNode(target)?.internals.positionAbsolute
+  const routed =
+    data?.route && near(from, data.from) && near(to, data.to)
+      ? polyline(data.route)
+      : null
+  const path = routed ?? getSmoothStepPath({ ...props, borderRadius: 6 })[0]
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />
+}
+
+const nodeTypes = { task: TaskNodeView }
+const edgeTypes = { route: RouteEdgeView }
+
+/** A key that changes only when the plan's tasks or dependencies do, not with each live read. */
+const shapeOf = (view: PlanView) =>
+  view.tasks
+    .map((task) => `${task.id}<${task.dependencies.join(',')}`)
+    .join('|')
+
+type FlowProps = {
+  view: PlanView
+  tones: ReadonlyMap<string, TaskTone>
+  /** The space to fit the plan into; layout waits for it. */
+  box: Size | undefined
+  /** The workspace: tasks drag, select, pan and zoom. Otherwise the reading surface, where a task opens the workspace. */
+  interactive: boolean
+  selected?: string | undefined
+  onSelect: (id: string | undefined) => void
+  onOpen?: (id: string) => void
+  onLayout?: (layout: PlanLayout) => void
+  padding: number
+}
+
+/** The plan's graph. Nodes render at their content's size first; once React Flow has measured them all, ELK lays them out. */
+function PlanFlow(props: FlowProps) {
+  return (
+    <ReactFlowProvider>
+      <FlowBody {...props} />
+    </ReactFlowProvider>
   )
-  const height = Math.max(...nodes.map((node) => node.position.y)) + NODE.height
-  return { nodes, edges, tones, height }
+}
+
+function FlowBody({
+  view,
+  tones,
+  box,
+  interactive,
+  selected,
+  onSelect,
+  onOpen,
+  onLayout,
+  padding,
+}: FlowProps) {
+  const flow = useReactFlow<TaskNode, RouteEdge>()
+  const updateNodeInternals = useUpdateNodeInternals()
+  const measuredAll = useNodesInitialized()
+  const paneWidth = useStore((state) => state.width)
+  const paneHeight = useStore((state) => state.height)
+  const [layout, setLayout] = useState<PlanLayout>()
+  const moved = useRef(new Set<string>())
+  const openRef = useRef(onOpen)
+  useLayoutEffect(() => {
+    openRef.current = onOpen
+  })
+
+  const base = useMemo(
+    () =>
+      view.tasks.map((task): TaskNode => {
+        const tone = tones.get(task.id) ?? 'waiting'
+        return {
+          id: task.id,
+          type: 'task',
+          position: { x: 0, y: 0 },
+          data: {
+            label: taskLabel(task),
+            title: task.title,
+            tone,
+            direction: 'RIGHT',
+            open: interactive ? undefined : () => openRef.current?.(task.id),
+          },
+          ariaLabel: `${task.title}, ${TONE[tone].label}`,
+          focusable: interactive,
+        }
+      }),
+    [view, tones, interactive],
+  )
+  const [nodes, setNodes, applyNodeChanges] = useNodesState<TaskNode>(
+    base.map((node) => ({ ...node, selected: node.id === selected })),
+  )
+  // React Flow reports a selection the person made (a click, Enter on a focused task, a click on
+  // the pane) as `select` changes; the selection passed in reaches the nodes without one.
+  const onNodesChange = (changes: NodeChange<TaskNode>[]) => {
+    applyNodeChanges(changes)
+    const selections = changes.filter((change) => change.type === 'select')
+    if (selections.length)
+      onSelect(selections.find((change) => change.selected)?.id)
+  }
+
+  // A refreshed plan keeps where each task sits, how it measured, and where the person dragged it.
+  useEffect(() => {
+    setNodes((current) => {
+      const before = new Map(current.map((node) => [node.id, node]))
+      return base.map((node) => {
+        const previous = before.get(node.id)
+        return previous
+          ? {
+              ...previous,
+              data: { ...node.data, direction: previous.data.direction },
+              ariaLabel: node.ariaLabel,
+            }
+          : node
+      })
+    })
+  }, [base, setNodes])
+
+  useEffect(() => {
+    setNodes((current) =>
+      current.map((node) =>
+        (node.selected ?? false) === (node.id === selected)
+          ? node
+          : { ...node, selected: node.id === selected },
+      ),
+    )
+  }, [selected, setNodes])
+
+  // Lay out at the measured sizes, again when a size, the plan's shape or the space changes.
+  const sizes = measuredAll
+    ? nodes
+        .map(
+          (node) =>
+            `${node.id}:${node.measured?.width}x${node.measured?.height}`,
+        )
+        .join('|')
+    : undefined
+  const shape = shapeOf(view)
+  const space = box && `${Math.round(box.width)}x${Math.round(box.height)}`
+  // The layout reads these as they stand when a key changes, not as further keys.
+  const latest = useRef({ nodes, view, box, onLayout })
+  useLayoutEffect(() => {
+    latest.current = { nodes, view, box, onLayout }
+  })
+  useEffect(() => {
+    const { nodes: measured, view: plan, box: area } = latest.current
+    if (!sizes || !area) return
+    let live = true
+    const of = Object.fromEntries(
+      measured.map((node) => [
+        node.id,
+        {
+          width: node.measured?.width ?? 0,
+          height: node.measured?.height ?? 0,
+        },
+      ]),
+    )
+    void fittedLayout(plan.tasks, of, area).then((next) => {
+      if (!live) return
+      setLayout(next)
+      latest.current.onLayout?.(next)
+      setNodes((current) =>
+        current.map((node) => ({
+          ...node,
+          position: moved.current.has(node.id)
+            ? node.position
+            : (next.positions[node.id] ?? node.position),
+          data: { ...node.data, direction: next.direction },
+        })),
+      )
+    })
+    return () => {
+      live = false
+    }
+  }, [sizes, shape, space, setNodes])
+
+  // The handles move to the sides the layout's direction faces.
+  const direction = layout?.direction
+  useEffect(() => {
+    if (direction)
+      updateNodeInternals(latest.current.nodes.map((node) => node.id))
+  }, [direction, updateNodeInternals])
+
+  useEffect(() => {
+    if (layout) void flow.fitView({ padding: `${padding}px`, maxZoom: 1 })
+  }, [layout, paneWidth, paneHeight, padding, flow])
+
+  const edges = useMemo(() => {
+    const ids = new Set(view.tasks.map((task) => task.id))
+    return view.tasks.flatMap((task) =>
+      task.dependencies
+        .filter((dependency) => ids.has(dependency) && dependency !== task.id)
+        .map((dependency): RouteEdge => {
+          const id = edgeId(dependency, task.id)
+          return {
+            id,
+            source: dependency,
+            target: task.id,
+            type: 'route',
+            selectable: false,
+            focusable: false,
+            data: {
+              route: layout?.routes[id],
+              from: layout?.positions[dependency],
+              to: layout?.positions[task.id],
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 14,
+              height: 14,
+              color: 'var(--color-ink-faint)',
+            },
+            style: { stroke: 'var(--color-ink-faint)', strokeWidth: 1.25 },
+          }
+        }),
+    )
+  }, [view.tasks, layout])
+
+  return (
+    <ReactFlow<TaskNode, RouteEdge>
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onNodeDragStop={(_, node) => moved.current.add(node.id)}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      // Hidden until laid out, so the measuring pass never shows.
+      className={cn(!layout && 'opacity-0')}
+      minZoom={0.2}
+      maxZoom={1.5}
+      nodesConnectable={false}
+      nodesDraggable={interactive}
+      elementsSelectable={interactive}
+      panOnDrag={interactive}
+      zoomOnPinch={interactive}
+      // Tasks are Theorem's to remove; a key here would only hide one from the card.
+      deleteKeyCode={null}
+      multiSelectionKeyCode={null}
+      // The card sits in a scrolling transcript: the wheel scrolls the page, pinch and the controls zoom.
+      zoomOnScroll={false}
+      preventScrolling={false}
+      zoomOnDoubleClick={false}
+      proOptions={{ hideAttribution: true }}
+    >
+      {interactive && (
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+      )}
+      {interactive && (
+        <Controls position="bottom-left" showInteractive={false} />
+      )}
+    </ReactFlow>
+  )
 }
 
 function TaskDetail({
   task,
-  tone,
+  tones: toneOf,
   view,
   onSelect,
 }: {
   task: PlanTaskView
-  tone: TaskTone
+  tones: ReadonlyMap<string, TaskTone>
   view: PlanView
   onSelect: (id: string) => void
 }) {
+  const tone = toneOf.get(task.id) ?? 'waiting'
   const byId = new Map(view.tasks.map((t) => [t.id, t]))
   const waitsOn = task.dependencies.flatMap((id) => byId.get(id) ?? [])
   const unblocks = view.tasks.filter((t) => t.dependencies.includes(task.id))
   const related = (label: string, tasks: PlanTaskView[]) =>
     tasks.length > 0 && (
-      <div className="flex flex-wrap items-baseline gap-1.5">
-        <span className="text-ink-faint">{label}</span>
-        {tasks.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => onSelect(t.id)}
-            className="rounded-md border border-separator px-1.5 py-0.5 text-ink hover:bg-hover focus-visible:outline-2 focus-visible:outline-focus"
-          >
-            {t.title}
-          </button>
-        ))}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-ink-faint">{label}</span>
+        <ul className="flex flex-wrap gap-1.5">
+          {tasks.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                title={t.title}
+                onClick={() => onSelect(t.id)}
+                className="flex items-start gap-1.5 rounded-md border border-separator px-1.5 py-0.5 text-start text-ink hover:bg-hover focus-visible:outline-2 focus-visible:outline-focus pointer-coarse:min-h-11 pointer-coarse:items-center"
+              >
+                <StatusMark tone={toneOf.get(t.id) ?? 'waiting'} />
+                {taskLabel(t)}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     )
   return (
-    <section aria-label={task.title} className="flex flex-col gap-2 border-t border-separator px-3 py-2.5 text-sm">
-      <div className="flex items-center gap-2">
-        <span aria-hidden="true" className={cn('size-2 shrink-0 rounded-full', TONE[tone].dot)} />
-        <h4 className="min-w-0 flex-1 font-medium text-ink">{task.title}</h4>
-        <span className="text-xs text-ink-faint">{TONE[tone].label}</span>
-      </div>
+    <section
+      aria-label={task.title}
+      className="flex flex-col gap-3 p-3 text-sm"
+    >
+      <header className="flex flex-col gap-1">
+        <h4 className="font-medium text-pretty text-ink">{task.title}</h4>
+        <p className="flex items-start gap-1.5 text-xs text-ink-muted">
+          <StatusMark tone={tone} />
+          <span>{TONE[tone].label}</span>
+          <span className="ms-auto font-mono text-ink-faint">{task.alias}</span>
+        </p>
+      </header>
       {task.goal && <p className="text-ink-muted">{task.goal}</p>}
-      {task.description && <p className="whitespace-pre-wrap text-ink-muted">{task.description}</p>}
+      {task.description && (
+        <p className="whitespace-pre-wrap text-ink-muted">{task.description}</p>
+      )}
       {task.acceptanceCriteria.length > 0 && (
         <div>
-          <span className="text-ink-faint">Done when</span>
+          <span className="text-xs text-ink-faint">Done when</span>
           <ul className="ms-4 list-disc text-ink-muted">
             {task.acceptanceCriteria.map((criterion) => (
               <li key={criterion}>{criterion}</li>
@@ -165,77 +520,306 @@ function TaskDetail({
   )
 }
 
-/** The plan as a graph: tasks left to right in the order they can happen, each selectable for its detail. */
-export function PlanGraph({ view, note }: { view: PlanView; note?: string | undefined }) {
-  const graph = useMemo(() => graphOf(view), [view])
-  const [nodes, setNodes, onNodesChange] = useNodesState<TaskNode>(graph.nodes)
+/** The plan as a list in the order it can happen: what a narrow screen shows instead of the graph. */
+function PlanSummary({
+  view,
+  tones: toneOf,
+  onOpen,
+  className,
+}: {
+  view: PlanView
+  tones: ReadonlyMap<string, TaskTone>
+  onOpen: (id: string) => void
+  className?: string
+}) {
+  const byId = new Map(view.tasks.map((task) => [task.id, task]))
+  return (
+    <ol
+      aria-label="Tasks in the order they can happen"
+      className={cn('flex flex-col py-1', className)}
+    >
+      {taskOrder(view.tasks).map((task) => {
+        const tone = toneOf.get(task.id) ?? 'waiting'
+        const after = task.dependencies
+          .flatMap((id) => byId.get(id) ?? [])
+          .map(taskLabel)
+        return (
+          <li key={task.id}>
+            <button
+              type="button"
+              title={task.title}
+              aria-label={`${task.title}, ${TONE[tone].label}`}
+              onClick={() => onOpen(task.id)}
+              className="flex min-h-11 w-full items-start gap-2 px-3 py-1.5 text-start text-sm hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+            >
+              <StatusMark tone={tone} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span
+                  className={cn(
+                    'text-ink',
+                    tone === 'dropped' && 'line-through',
+                  )}
+                >
+                  {taskLabel(task)}
+                </span>
+                <span className="text-xs text-ink-faint">
+                  {TONE[tone].label}
+                  {after.length > 0 && ` · after ${after.join(', ')}`}
+                </span>
+              </span>
+            </button>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/** The objective, two lines at most, with a way to read the rest when it runs longer. */
+function Objective({
+  text,
+  as: Paragraph = 'p',
+}: {
+  text: string
+  as?: 'p' | typeof DialogDescription
+}) {
+  const paragraph = useRef<HTMLParagraphElement>(null)
+  const [open, setOpen] = useState(false)
+  const [clamped, setClamped] = useState(false)
+  useLayoutEffect(() => {
+    const element = paragraph.current
+    if (!element || open) return
+    const check = () =>
+      setClamped(element.scrollHeight > element.clientHeight + 1)
+    check()
+    const observer = new ResizeObserver(check)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [text, open])
+  return (
+    <div className="flex flex-col items-start">
+      <Paragraph
+        ref={paragraph}
+        data-plan-objective
+        className={cn(
+          'text-sm text-pretty text-ink-muted',
+          !open && 'line-clamp-2',
+        )}
+      >
+        {text}
+      </Paragraph>
+      {(clamped || open) && (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="text-xs text-ink-faint underline-offset-2 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus pointer-coarse:min-h-11"
+        >
+          {open ? 'Show less' : 'Show all'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Below this card width the graph would not read; the card lists the tasks instead. */
+export const NARROW_CARD = 480
+/** The tallest the reading surface's graph grows before it shrinks to fit. */
+const INLINE_MAX = 480
+const INLINE_PAD = 12
+
+/** The expanded workspace: the graph to pan, zoom and drag, beside an inspector for the selected task. */
+function PlanWorkspace({
+  view,
+  tones: toneOf,
+  open,
+  onOpenChange,
+  selected,
+  onSelect,
+  done,
+}: {
+  view: PlanView
+  tones: ReadonlyMap<string, TaskTone>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  selected: string | undefined
+  onSelect: (id: string | undefined) => void
+  done: number
+}) {
+  const [region, setRegion] = useState<HTMLDivElement | null>(null)
+  const size = useSize(region)
+  const task = view.tasks.find((t) => t.id === selected)
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        data-plan-workspace
+        className="flex h-[calc(100dvh-2rem)] w-[min(1400px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden bg-artifact p-0 sm:max-w-none"
+      >
+        <header className="flex flex-col gap-1 border-b border-separator py-3 ps-4 pe-12">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <Icon.Plan className="size-4 shrink-0 self-center text-ink-muted" />
+            <DialogTitle className="min-w-0 flex-[1_1_14rem] text-base leading-snug font-medium text-pretty text-ink">
+              {view.title}
+            </DialogTitle>
+            <span className="shrink-0 text-xs text-ink-faint tabular-nums">
+              {done} of {view.tasks.length} done
+            </span>
+          </div>
+          {view.objective && (
+            <Objective text={view.objective} as={DialogDescription} />
+          )}
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <div ref={setRegion} className="relative min-h-0 flex-1">
+            {open && (
+              <PlanFlow
+                view={view}
+                tones={toneOf}
+                box={
+                  size && { width: size.width - 48, height: size.height - 48 }
+                }
+                interactive
+                selected={selected}
+                onSelect={onSelect}
+                padding={24}
+              />
+            )}
+          </div>
+          <aside
+            aria-label="Task inspector"
+            className="max-h-[45%] shrink-0 overflow-y-auto border-t border-separator md:max-h-none md:w-(--spacing-inspector) md:border-s md:border-t-0"
+          >
+            {task ? (
+              <TaskDetail
+                task={task}
+                tones={toneOf}
+                view={view}
+                onSelect={onSelect}
+              />
+            ) : (
+              <>
+                <p className="px-3 pt-3 text-xs text-ink-faint">
+                  Select a task to read it in full.
+                </p>
+                <PlanSummary view={view} tones={toneOf} onOpen={onSelect} />
+              </>
+            )}
+          </aside>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * The plan in the conversation: a quiet reading surface (the graph fitted to
+ * the column, or on a narrow card the tasks in order) that opens an expanded
+ * workspace for inspecting it.
+ */
+export function PlanGraph({
+  view,
+  note,
+}: {
+  view: PlanView
+  note?: string | undefined
+}) {
+  const toneOf = useMemo(() => taskTones(view.tasks), [view])
+  const [card, setCard] = useState<HTMLDivElement | null>(null)
+  const width = useSize(card)?.width
+  const [layout, setLayout] = useState<PlanLayout>()
+  const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState<string>()
 
-  // A refreshed plan keeps where the person dragged a task and what they selected.
-  useEffect(() => {
-    setNodes((current) => {
-      const before = new Map(current.map((node) => [node.id, node]))
-      return graph.nodes.map((node) => {
-        const previous = before.get(node.id)
-        return previous
-          ? { ...node, position: previous.position, selected: previous.selected ?? false }
-          : node
-      })
-    })
-  }, [graph, setNodes])
-
-  const select = (id: string) => {
+  const open = (id?: string) => {
     setSelected(id)
-    setNodes((current) => current.map((node) => ({ ...node, selected: node.id === id })))
+    setExpanded(true)
   }
-
-  const done = view.tasks.filter((task) => graph.tones.get(task.id) === 'done').length
-  const task = view.tasks.find((t) => t.id === selected)
-  const height = Math.min(Math.max(graph.height + 48, 200), 420)
+  const done = view.tasks.filter(
+    (task) => toneOf.get(task.id) === 'done',
+  ).length
+  const narrow = width !== undefined && width < NARROW_CARD
+  const box =
+    width === undefined
+      ? undefined
+      : { width: width - 2 * INLINE_PAD, height: INLINE_MAX - 2 * INLINE_PAD }
+  const height =
+    layout && box
+      ? Math.min(
+          INLINE_MAX,
+          Math.max(
+            96,
+            Math.ceil(layout.height * fitScale(layout, box)) + 2 * INLINE_PAD,
+          ),
+        )
+      : 200
 
   return (
-    <div className="my-3 overflow-hidden rounded-artifact border border-separator bg-artifact">
-      <header className="flex flex-col gap-0.5 px-3 pt-2.5 pb-2">
-        <div className="flex items-center gap-2">
-          <Icon.Plan className="size-4 shrink-0 text-ink-muted" />
-          <h3 className="min-w-0 flex-1 truncate font-medium text-ink">{view.title}</h3>
-          <span className="shrink-0 text-xs text-ink-faint tabular-nums">
-            {done} of {view.tasks.length} done
-          </span>
+    <div
+      ref={setCard}
+      data-plan-card
+      className="my-3 overflow-hidden rounded-artifact border border-separator bg-artifact"
+    >
+      <header className="flex items-start gap-2 px-3 pt-2.5 pb-2">
+        <Icon.Plan className="mt-0.5 size-4 shrink-0 text-ink-muted" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <h3 className="min-w-0 flex-[1_1_14rem] font-medium text-pretty text-ink">
+              {view.title}
+            </h3>
+            <span className="shrink-0 text-xs text-ink-faint tabular-nums">
+              {done} of {view.tasks.length} done
+            </span>
+          </div>
+          {view.objective && <Objective text={view.objective} />}
         </div>
-        {view.objective && <p className="text-sm text-ink-muted">{view.objective}</p>}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => open()}
+          className="-me-1 shrink-0 text-ink-muted hover:text-ink pointer-coarse:size-11"
+        >
+          <Icon.Expand aria-hidden />
+          <span className="sr-only">Expand plan</span>
+        </Button>
       </header>
-      <div className="relative border-t border-separator" style={{ height }}>
-        <ReactFlowProvider>
-          <ReactFlow<TaskNode, Edge>
-            nodes={nodes}
-            edges={graph.edges}
-            onNodesChange={onNodesChange}
-            onSelectionChange={({ nodes: picked }) => setSelected(picked[0]?.id)}
-            nodeTypes={nodeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.12, maxZoom: 1 }}
-            minZoom={0.2}
-            maxZoom={1.5}
-            nodesConnectable={false}
-            // Tasks are Theorem's to remove; a key here would only hide one from the card.
-            deleteKeyCode={null}
-            multiSelectionKeyCode={null}
-            // The card sits in a scrolling transcript: the wheel scrolls the page, pinch and the controls zoom.
-            zoomOnScroll={false}
-            preventScrolling={false}
-            zoomOnDoubleClick={false}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-            <Controls position="bottom-left" showInteractive={false} />
-          </ReactFlow>
-        </ReactFlowProvider>
-      </div>
-      {task && (
-        <TaskDetail task={task} tone={graph.tones.get(task.id) ?? 'waiting'} view={view} onSelect={select} />
+      {narrow ? (
+        <PlanSummary
+          view={view}
+          tones={toneOf}
+          onOpen={open}
+          className="border-t border-separator"
+        />
+      ) : (
+        <div className="relative border-t border-separator" style={{ height }}>
+          {box && (
+            <PlanFlow
+              view={view}
+              tones={toneOf}
+              box={box}
+              interactive={false}
+              onSelect={() => {}}
+              onOpen={open}
+              onLayout={setLayout}
+              padding={INLINE_PAD}
+            />
+          )}
+        </div>
       )}
-      {note && <p className="border-t border-separator px-3 py-2 text-xs text-ink-faint">{note}</p>}
+      {note && (
+        <p className="border-t border-separator px-3 py-2 text-xs text-ink-faint">
+          {note}
+        </p>
+      )}
+      <PlanWorkspace
+        view={view}
+        tones={toneOf}
+        open={expanded}
+        onOpenChange={setExpanded}
+        selected={selected}
+        onSelect={setSelected}
+        done={done}
+      />
     </div>
   )
 }
@@ -267,7 +851,10 @@ const WrittenPlan: FC<{ draft: PlanView }> = ({ draft }) => {
 export const PlanToolCall: ToolCallMessagePartComponent = (props) => {
   const { args, result, isError, status } = props
   const draft = useMemo(
-    () => (result !== undefined && !isError ? draftPlanView(args, result) : undefined),
+    () =>
+      result !== undefined && !isError
+        ? draftPlanView(args, result)
+        : undefined,
     [args, result, isError],
   )
   if (draft) return <WrittenPlan draft={draft} />
