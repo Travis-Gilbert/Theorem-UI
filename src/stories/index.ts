@@ -86,6 +86,13 @@ export const STORIES: readonly StoryMeta[] = [
     threadId: 'thread-app-gallery',
   },
   {
+    id: 'glass-compare',
+    title: 'Glass materials over the Life field',
+    lane: 'original',
+    viewport: { width: 1440, height: 900 },
+    threadId: 'thread-app-gallery',
+  },
+  {
     id: 'shell-compare',
     title: 'Shell with Compare open',
     lane: 'translation',
@@ -135,14 +142,12 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     viewport: { width: 760, height: 560 },
   },
-  ...ACTIVITY_STATES.map(
-    (state): StoryMeta => ({
-      id: `activity-${state}`,
-      title: `Activity line: ${state}`,
-      lane: 'original',
-      viewport: { width: 760, height: 560 },
-    }),
-  ),
+  ...ACTIVITY_STATES.map((state): StoryMeta => ({
+    id: `activity-${state}`,
+    title: `Activity line: ${state}`,
+    lane: 'original',
+    viewport: { width: 760, height: 560 },
+  })),
   {
     id: 'activity-approval-high',
     title: 'Activity line: an approval Theorem marks high risk',
@@ -210,14 +215,13 @@ export const STORIES: readonly StoryMeta[] = [
     lane: 'original',
     viewport: { width: 760, height: 560 },
   },
-  ...ARTIFACT_STORIES.map(
-    ({ id, title }): StoryMeta => ({
-      id,
-      title: `Artifact: ${title}`,
-      lane: 'original',
-      viewport: { width: 760, height: 900 },
-    }),
-  ),
+  ...ARTIFACT_STORIES.map(({ id, title }): StoryMeta => ({
+    id,
+    title: `Artifact: ${title}`,
+    lane: 'original',
+    viewport: { width: 760, height: 900 },
+  })),
 ]
 
-export const findStory = (id: string) => STORIES.find((story) => story.id === id)
+export const findStory = (id: string) =>
+  STORIES.find((story) => story.id === id)

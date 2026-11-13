@@ -31,6 +31,9 @@ import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useLiquidGlass } from '@/components/glass/liquid-glass/use-liquid-glass'
+import { useComposerSurface } from '@/lib/surfaces'
+import type { ComposerSurface } from '@/lib/surfaces'
 import { cn } from '@/lib/utils'
 import {
   ActionBarMorePrimitive,
@@ -260,6 +263,7 @@ const ThreadRoot: FC<{
 }> = ({ isEmpty, autoFocus, covered }) => {
   const footerRef = useRef<HTMLDivElement>(null)
   const unseen = useUnseenFrom(covered)
+  const surface = useComposerSurface()
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
   // edge, so it glides rather than overshooting past it.
@@ -319,10 +323,16 @@ const ThreadRoot: FC<{
             ref={footerRef}
             className={cn(
               'aui-thread-viewport-footer flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
+              !isEmpty && 'sticky bottom-0 mt-auto',
               // Pinned to the sheet's bottom edge, it covers the messages
-              // scrolling under it with the stretch of gradient it sits on.
+              // scrolling under it with the stretch of gradient it sits on;
+              // under a glass composer it is clear, so the glass frosts them.
               !isEmpty &&
-                'bg-sheet sticky bottom-0 mt-auto rounded-t-(--composer-radius) bg-bottom',
+                {
+                  paper: 'bg-sheet rounded-t-(--composer-radius) bg-bottom',
+                  glass: 'glass-footer',
+                  liquid: 'liquid-footer',
+                }[surface],
             )}
           >
             <ThreadScrollToBottom />
@@ -559,6 +569,9 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
   // chat's own send is left out.
   const review = useComposerReview()
   const shellRef = useRef<HTMLDivElement>(null)
+  const surface = useComposerSurface()
+  const glass = surface !== 'paper'
+  useLiquidGlass(shellRef, surface === 'liquid')
   const busyInput = useBusyComposerInput({
     hasReferences: () => useComposerReferences.getState().references.length > 0,
     onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
@@ -596,11 +609,14 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
         className="aui-composer-root relative flex w-full flex-col"
       >
         <ComposerToolTrigger />
-        {/* The composer lifts off the sheet as the sheet lifts off the rail. */}
-        <div
-          aria-hidden="true"
-          className="lift-glow [--glow-radius:var(--composer-radius)]"
-        />
+        {/* The composer lifts off the sheet as the sheet lifts off the rail.
+            Glass casts its own shadow, and the glow would show through it. */}
+        {!glass && (
+          <div
+            aria-hidden="true"
+            className="lift-glow [--glow-radius:var(--composer-radius)]"
+          />
+        )}
         <AttachmentRefusals />
         <ComposerPrimitive.AttachmentDropzone
           render={
@@ -609,7 +625,10 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
               data-slot="aui_composer-shell"
               data-kit-perch="composer"
               data-face-perch="composer"
-              className="border-(color:--paper-edge) focus-within:border-control data-[dragging=true]:border-focus surface-paper flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected"
+              className={cn(
+                composerSurface(surface),
+                'data-[dragging=true]:border-focus flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected',
+              )}
             />
           }
         >
@@ -631,6 +650,19 @@ export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
     </ComposerPrimitive.TriggerPopoverRoot>
   )
 }
+
+/**
+ * The composer's material (Settings, Appearance): paper with its grain,
+ * frosted glass, or liquid glass (glass/liquid-glass). Each sets the shell's
+ * border colour at rest and while focused; live liquid glass draws its own
+ * contour over the border instead (styles.css surface-liquid).
+ */
+const composerSurface = (surface: ComposerSurface) =>
+  surface === 'liquid'
+    ? 'surface-liquid border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
+    : surface === 'glass'
+      ? 'surface-glass border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
+      : 'surface-paper border-(color:--paper-edge) focus-within:border-control'
 
 const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
   const chatDisabled = useRunInputSendDisabled()
@@ -1193,6 +1225,10 @@ const UserActionBar: FC = () => {
 }
 
 const EditComposer: FC = () => {
+  const surface = useComposerSurface()
+  const glass = surface !== 'paper'
+  const rootRef = useRef<HTMLFormElement>(null)
+  useLiquidGlass(rootRef, surface === 'liquid')
   return (
     // No content-visibility here, unlike the message rows: its paint
     // containment would clip the composer's shadow and glow, and only the
@@ -1202,12 +1238,20 @@ const EditComposer: FC = () => {
       className="flex flex-col px-2"
     >
       <div className="relative ms-auto w-full max-w-[70%]">
-        <div
-          aria-hidden="true"
-          className="lift-glow [--glow-radius:var(--composer-radius)]"
-        />
+        {!glass && (
+          <div
+            aria-hidden="true"
+            className="lift-glow [--glow-radius:var(--composer-radius)]"
+          />
+        )}
         <ComposerPrimitive.TriggerPopoverRoot>
-          <ComposerPrimitive.Root className="aui-edit-composer-root border-(color:--paper-edge) focus-within:border-control surface-paper flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100">
+          <ComposerPrimitive.Root
+            ref={rootRef}
+            className={cn(
+              'aui-edit-composer-root flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
+              composerSurface(surface),
+            )}
+          >
             <ComposerToolTrigger />
             <ComposerEditor
               label="Edit message"

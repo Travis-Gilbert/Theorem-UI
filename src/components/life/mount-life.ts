@@ -25,6 +25,7 @@ import { PATTERNS } from '@/lib/life/patterns'
 import { advance, companion, createPresence, figure } from '@/lib/life/presence'
 import type { Point, Presence } from '@/lib/life/presence'
 import { useLifeControls, useLifeCounts } from '@/lib/life/store'
+import { publishLifeFrame } from './frames'
 
 type Rgb = readonly [number, number, number]
 
@@ -357,6 +358,7 @@ export function mountLife(
         glyph.glyph,
         mix(palette.background, palette.accent, glyph.weight),
       )
+    publishLifeFrame(canvas)
   })
 
   return {

@@ -1,4 +1,4 @@
-// SOURCING: dockview-react via DockShell (desktop layout), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
+// SOURCING: dockview-react via DockShell (desktop layout), the Life field under the desktop sheet (LifeSheet) seen through the side panel's frosted glass (styles.css glass-panel; under liquid glass, glass/liquid-glass with only its conversation edge curved), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
@@ -6,6 +6,9 @@ import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
 import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
+import { LifeSheet } from '@/components/life/life-backdrop'
+import { useLiquidGlass } from '@/components/glass/liquid-glass/use-liquid-glass'
+import { useComposerSurface } from '@/lib/surfaces'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
 import { NotePanel } from '@/components/notes/note-panel'
@@ -24,6 +27,7 @@ import {
   lazy,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import { ComparePane } from '@/components/review/compare-pane'
@@ -209,8 +213,35 @@ function DockView() {
 }
 const PANEL = 'panel'
 
+const CONVERSATION_EDGE = {
+  top: false,
+  right: true,
+  bottom: false,
+  left: false,
+}
+
+/**
+ * The side panel as frosted glass: the Life field runs under the whole sheet,
+ * so it shows through the panel, blurred, instead of stopping at its edge.
+ * Under liquid glass it is a liquid pane attached to the window, curved
+ * only along its edge toward the conversation.
+ */
+function GlassPanel() {
+  const ref = useRef<HTMLDivElement>(null)
+  const liquid = useComposerSurface() === 'liquid'
+  useLiquidGlass(ref, liquid, CONVERSATION_EDGE)
+  return (
+    <div
+      ref={ref}
+      className={cn('glass-panel h-full', liquid && 'glass-panel-liquid')}
+    >
+      <ContextPanel />
+    </div>
+  )
+}
+
 const splitComponents = {
-  [PANEL]: ContextPanel,
+  [PANEL]: GlassPanel,
   dock: DockView,
 }
 
@@ -301,7 +332,11 @@ function DesktopShell(route: DockRoute) {
           {/* Dockview layers its panels with z-index; isolate keeps them under the Vault. */}
           <div inert={vault} className="isolate flex h-full flex-col">
             <div className="min-h-0 flex-1">
-              <SheetSplit {...route} />
+              {/* The field runs under the panel as well as the conversation,
+                  while the conversation is the sheet's view. */}
+              <LifeSheet active={mode === 'chat'}>
+                <SheetSplit {...route} />
+              </LifeSheet>
             </div>
             {ide && <IdeStatusBar />}
           </div>
