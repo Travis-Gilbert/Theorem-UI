@@ -9,6 +9,7 @@
 // On a page whose conversation has no dock beside it (the IDE's), the artifact
 // stays in the message as it is written, and Open takes it to chat's larger
 // panel.
+import { appearancePair } from '@/lib/appearance-policy'
 import { useAuiState } from '@assistant-ui/react'
 import {
   createContext,
@@ -128,14 +129,18 @@ function ArtifactMessageCard({
     <div
       ref={cardRef}
       data-slot="theorem-artifact-card"
+      data-appearance-part="artifact"
+      data-appearance-radius-role="artifact"
+      data-surface-role="artifact"
       data-face-perch="artifact"
       {...thingProps('artifact', artifact.artifactId, {
         label: artifact.title,
       })}
       data-artifact-id={artifact.artifactId}
       data-selected={selected || undefined}
+      data-appearance-expanded={wide || undefined}
       className={cn(
-        'flex w-full flex-col overflow-hidden rounded-artifact border border-separator bg-artifact',
+        'appearance-artifact-card flex w-full flex-col overflow-hidden rounded-artifact border border-separator bg-artifact',
         !wide && 'max-w-md',
         'transition-colors duration-100',
         selected && 'bg-selected outline outline-1 outline-redwood-ink',
@@ -147,6 +152,7 @@ function ArtifactMessageCard({
           onClick={show}
           className="flex min-w-0 flex-1 items-center gap-3 text-start"
           aria-label={`Open ${artifact.title}`}
+          {...appearancePair('primary', selected ? 'selected' : 'artifact')}
         >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-muted">
             <Icon.Artifact className="size-5 animate-float motion-reduce:animate-none" />
@@ -160,7 +166,7 @@ function ArtifactMessageCard({
             >
               {artifact.title}
             </span>
-            <span className="truncate text-xs text-ink-faint">
+            <span data-appearance-recipe="metadata" {...appearancePair('secondary', selected ? 'selected' : 'artifact')} className="truncate text-ink-muted">
               {kindLabel(artifact)}
               {version}
             </span>

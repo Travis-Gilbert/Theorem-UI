@@ -1,6 +1,7 @@
 // SOURCING: coss ui tooltip (vendored as-is from https://coss.com/ui/r/tooltip.json; registry imports point at this folder)
 "use client";
 
+import { appearancePair } from '@/lib/appearance-policy'
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import type React from "react";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,11 @@ export function TooltipPopup({
             className,
           )}
           data-slot="tooltip-popup"
+          data-appearance-part="tooltip"
+          data-appearance-radius-role="field"
+          data-appearance-recipe="metadata"
+          data-surface-role="popover"
+          {...appearancePair('primary', 'popover')}
           {...props}
         >
           <TooltipPrimitive.Viewport

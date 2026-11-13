@@ -9,6 +9,7 @@ on:
       - 'bun.lock'
       - 'bunfig.toml'
       - 'tsconfig.json'
+      - 'vite.config.ts'
       - 'test/**'
       - 'patches/**'
       - 'vendor/theoremharness-sdk-*.tgz'
@@ -25,6 +26,29 @@ on:
       - 'src/server/theorem-*'
       - 'src/stories/**'
       - 'src/styles.css'
+      - 'src/appearance.css'
+      - 'src/palettes.css'
+      - 'src/lib/appearance*'
+      - 'src/lib/code-contrast*'
+      - 'src/lib/codemirror-theme.ts'
+      - 'src/routes/__root.tsx'
+      - 'src/lib/paper-texture.ts'
+      - 'src/lib/palette.ts'
+      - 'src/lib/surfaces.ts'
+      - 'src/components/settings/**'
+      - 'src/components/organize/**'
+      - 'src/components/review/**'
+      - 'src/components/artifacts/**'
+      - 'src/components/coss/**'
+      - 'src/components/ui/**'
+      - 'src/components/life/**'
+      - 'src/lib/life/**'
+      - 'src/lib/motion.ts'
+      - 'src/components/shell/**'
+      - 'src/routes/settings/appearance.tsx'
+      - 'scripts/palettes.ts'
+      - 'scripts/design-oracles/**'
+      - 'tests/design-oracles/**'
       - 'scripts/e2e/**'
       - 'terminal/**'
   workflow_dispatch:
@@ -73,3 +97,27 @@ jobs:
       - name: Check native composer interactions
         if: ${{ !cancelled() && steps.browser.outcome == 'success' }}
         run: bun run e2e:composer --built
+      - name: Check appearance policy and emitted color pairs
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun run test:appearance
+          bun run oracle:colors
+          bun test src/components/shell/responsive-dock.test.ts
+      - name: Check appearance changes through the real controls
+        if: ${{ !cancelled() && steps.browser.outcome == 'success' }}
+        run: |
+          bun --bun vite dev --host 127.0.0.1 --port 3117 > /tmp/appearance-vite.log 2>&1 &
+          appearance_server=$!
+          trap 'kill "$appearance_server"' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3117/story/shell-compare > /dev/null; then break; fi
+            sleep 1
+          done
+          bun run oracle:interactions
+          bun run oracle:continuity
+          bun run oracle:reflow
+          bun run oracle:runtime
+          bun run oracle:composition
+          bun run oracle:code
+          ORACLE_ENGINE=chromium bun run oracle:states
+          bun run oracle:touch

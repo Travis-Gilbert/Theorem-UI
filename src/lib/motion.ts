@@ -29,7 +29,9 @@ const reduceQuery =
     : window.matchMedia('(prefers-reduced-motion: reduce)')
 
 /** Reduced motion keeps crossfades and drops movement, scale and bounce. */
-export const prefersReducedMotion = () => reduceQuery?.matches ?? true
+export const prefersReducedMotion = () =>
+  (reduceQuery?.matches ?? true) ||
+  document.documentElement.dataset.appearanceMotion === 'reduced'
 
 /**
  * Publishes each spring as `--ease-<name>` (a CSS linear() curve) and

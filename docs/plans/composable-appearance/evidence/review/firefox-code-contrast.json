@@ -1,0 +1,2059 @@
+{
+  "engine": "firefox",
+  "version": "157.0",
+  "minimum": 4.5,
+  "results": [
+    {
+      "preset": "calm",
+      "palette": "github-sharp",
+      "mode": "light",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "github-sharp",
+        "dark": false,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(207, 34, 46)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 5.355309574522374
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(5, 80, 174)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 7.594618616820652
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(207, 34, 46)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 5.355309574522374
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 15.797619425332647
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(10, 48, 105)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 12.807446413901234
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 15.797619425332647
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(5, 80, 174)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 7.594618616820652
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 15.797619425332647
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "foreground": "rgb(36, 41, 45)",
+          "minimumRatio": 11.026414167786742
+        },
+        "caretRatio": null,
+        "minimumRatio": 5.355309574522374,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "github-sharp",
+        "dark": false,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(40, 99, 148)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 6.358659318548131
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 14.684481233331656
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 14.684481233331656
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 14.684481233331656
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "color(srgb 1 1 1 / 0.6)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "minimumRatio": 4.774646790996022
+        },
+        "caret": "rgb(40, 99, 148)",
+        "caretRatio": 6.358659318548131,
+        "minimumRatio": 6.358659318548131,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "github-sharp",
+      "mode": "dark",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "github-sharp",
+        "dark": true,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 40, 41)"
+          ],
+          "ratio": 8.626597047234611
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 5.873385404807686
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 7.614406192768115
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 5.873385404807686
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 12.533933738573335
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(165, 214, 255)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 9.635387139483658
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 12.533933738573335
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 7.614406192768115
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 12.533933738573335
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 40, 41)"
+          ],
+          "ratio": 8.626597047234611
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "foreground": "rgb(195, 198, 200)",
+          "minimumRatio": 7.351575312330644
+        },
+        "caretRatio": null,
+        "minimumRatio": 5.873385404807686,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "github-sharp",
+        "dark": true,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 40, 41)"
+          ],
+          "ratio": 8.626597047234611
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(126, 189, 247)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 7.4115768075467034
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 8.626597047234611
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 8.626597047234611
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 8.626597047234611
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "color(srgb 0.14902 0.156863 0.160784 / 0.6)"
+          ],
+          "ratio": 8.626590081926
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "minimumRatio": 6.31613656989685
+        },
+        "caret": "rgb(126, 189, 247)",
+        "caretRatio": 7.4115768075467034,
+        "minimumRatio": 7.4115768075467034,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "expressive",
+      "palette": "github-sharp",
+      "mode": "light",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "github-sharp",
+        "dark": false,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(207, 34, 46)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 5.355309574522374
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(5, 80, 174)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 7.594618616820652
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(207, 34, 46)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 5.355309574522374
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 15.797619425332647
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(10, 48, 105)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 12.807446413901234
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 15.797619425332647
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(5, 80, 174)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 7.594618616820652
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 15.797619425332647
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "foreground": "rgb(36, 41, 45)",
+          "minimumRatio": 11.026414167786742
+        },
+        "caretRatio": null,
+        "minimumRatio": 5.355309574522374,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "github-sharp",
+        "dark": false,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(40, 99, 148)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 6.358659318548131
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 14.684481233331656
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 14.684481233331656
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 14.684481233331656
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "color(srgb 1 1 1 / 0.6)"
+          ],
+          "ratio": 14.684481233331656
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "minimumRatio": 4.774646790996022
+        },
+        "caret": "rgb(40, 99, 148)",
+        "caretRatio": 6.358659318548131,
+        "minimumRatio": 6.358659318548131,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "expressive",
+      "palette": "github-sharp",
+      "mode": "dark",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "github-sharp",
+        "dark": true,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 40, 41)"
+          ],
+          "ratio": 8.626597047234611
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 5.873385404807686
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 7.614406192768115
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 5.873385404807686
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 12.533933738573335
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(165, 214, 255)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 9.635387139483658
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 12.533933738573335
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 7.614406192768115
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 12.533933738573335
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 40, 41)"
+          ],
+          "ratio": 8.626597047234611
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "foreground": "rgb(195, 198, 200)",
+          "minimumRatio": 7.351575312330644
+        },
+        "caretRatio": null,
+        "minimumRatio": 5.873385404807686,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "github-sharp",
+        "dark": true,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 40, 41)"
+          ],
+          "ratio": 8.626597047234611
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(126, 189, 247)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 7.4115768075467034
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 8.626597047234611
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 8.626597047234611
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 40, 41)"
+            ],
+            "ratio": 8.626597047234611
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "color(srgb 0.14902 0.156863 0.160784 / 0.6)"
+          ],
+          "ratio": 8.626590081926
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "minimumRatio": 6.31613656989685
+        },
+        "caret": "rgb(126, 189, 247)",
+        "caretRatio": 7.4115768075467034,
+        "minimumRatio": 7.4115768075467034,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "stone",
+      "mode": "light",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "stone",
+        "dark": false,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(50, 48, 46)",
+          "background": [
+            "rgb(194, 190, 187)"
+          ],
+          "ratio": 7.120061324014079
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(153, 22, 31)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 4.5708206116796735
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(4, 74, 162)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 4.53910598514467
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(153, 22, 31)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 4.5708206116796735
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 8.55841322139563
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(10, 48, 105)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 6.938476979973223
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 8.55841322139563
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(4, 74, 162)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 4.53910598514467
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 8.55841322139563
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(50, 48, 46)",
+          "background": [
+            "rgb(194, 190, 187)"
+          ],
+          "ratio": 7.120061324014079
+        },
+        "selection": {
+          "background": "rgb(163, 159, 154)",
+          "foreground": "rgb(50, 48, 46)",
+          "minimumRatio": 4.9961876077415805
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.53910598514467,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "stone",
+        "dark": false,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(50, 48, 46)",
+          "background": [
+            "rgb(194, 190, 187)"
+          ],
+          "ratio": 7.120061324014079
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(87, 40, 46)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 6.507676375002392
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(50, 48, 46)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 7.120061324014079
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(50, 48, 46)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 7.120061324014079
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(50, 48, 46)",
+            "background": [
+              "rgb(194, 190, 187)"
+            ],
+            "ratio": 7.120061324014079
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(50, 48, 46)",
+          "background": [
+            "color(srgb 0.760784 0.745098 0.733333 / 0.6)"
+          ],
+          "ratio": 7.120059001048597
+        },
+        "selection": {
+          "background": "rgb(163, 159, 154)",
+          "minimumRatio": 4.566473599085438
+        },
+        "caret": "rgb(87, 40, 46)",
+        "caretRatio": 6.507676375002392,
+        "minimumRatio": 6.507676375002392,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "stone",
+      "mode": "dark",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "stone",
+        "dark": true,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(206, 204, 202)",
+          "background": [
+            "rgb(34, 33, 32)"
+          ],
+          "ratio": 10.038429394769834
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 6.374819520948832
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 8.264478131872437
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 6.374819520948832
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 13.604005179965322
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(165, 214, 255)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 10.45799820634978
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 13.604005179965322
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 8.264478131872437
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 13.604005179965322
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(206, 204, 202)",
+          "background": [
+            "rgb(34, 33, 32)"
+          ],
+          "ratio": 10.038429394769834
+        },
+        "selection": {
+          "background": "rgb(41, 40, 38)",
+          "foreground": "rgb(206, 204, 202)",
+          "minimumRatio": 9.197973483239164
+        },
+        "caretRatio": null,
+        "minimumRatio": 6.374819520948832,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "stone",
+        "dark": true,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(206, 204, 202)",
+          "background": [
+            "rgb(34, 33, 32)"
+          ],
+          "ratio": 10.038429394769834
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(125, 211, 240)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 9.528326064376566
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(206, 204, 202)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 10.038429394769834
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(206, 204, 202)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 10.038429394769834
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(206, 204, 202)",
+            "background": [
+              "rgb(34, 33, 32)"
+            ],
+            "ratio": 10.038429394769834
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(206, 204, 202)",
+          "background": [
+            "color(srgb 0.133333 0.129412 0.12549 / 0.6)"
+          ],
+          "ratio": 10.03842691391741
+        },
+        "selection": {
+          "background": "rgb(41, 40, 38)",
+          "minimumRatio": 8.730577965259645
+        },
+        "caret": "rgb(125, 211, 240)",
+        "caretRatio": 9.528326064376566,
+        "minimumRatio": 9.528326064376566,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "vitesse",
+      "mode": "light",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "vitesse",
+        "dark": false,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(57, 58, 52)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 11.48306197412463
+        },
+        "tokens": [
+          {
+            "text": "const ",
+            "foreground": "rgb(171, 89, 89)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.878286118522128
+          },
+          {
+            "text": "appearance",
+            "foreground": "rgb(153, 108, 61)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.59833528305708
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(112, 112, 112)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.952143998137195
+          },
+          {
+            "text": " { ",
+            "foreground": "rgb(112, 112, 112)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.952143998137195
+          },
+          {
+            "text": "material",
+            "foreground": "rgb(132, 114, 19)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.7755104774137065
+          },
+          {
+            "text": ": ",
+            "foreground": "rgb(112, 112, 112)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.952143998137195
+          },
+          {
+            "text": "\"",
+            "foreground": "rgb(136, 113, 109)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.535907231643722
+          },
+          {
+            "text": "flat",
+            "foreground": "rgb(169, 98, 83)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.6062905766653595
+          },
+          {
+            "text": "\"",
+            "foreground": "rgb(136, 113, 109)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.535907231643722
+          },
+          {
+            "text": ", ",
+            "foreground": "rgb(112, 112, 112)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.952143998137195
+          },
+          {
+            "text": "contentScale",
+            "foreground": "rgb(132, 114, 19)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.7755104774137065
+          },
+          {
+            "text": ": ",
+            "foreground": "rgb(112, 112, 112)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.952143998137195
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(47, 121, 138)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.972989545787779
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(112, 112, 112)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 4.952143998137195
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(57, 58, 52)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 11.48306197412463
+        },
+        "selection": {
+          "background": "rgb(201, 232, 214)",
+          "foreground": "rgb(57, 58, 52)",
+          "minimumRatio": 8.747443614481773
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.535907231643722,
+        "distinctTokenColors": 7
+      },
+      "editor": {
+        "palette": "vitesse",
+        "dark": false,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(57, 58, 52)",
+          "background": [
+            "rgb(255, 255, 255)"
+          ],
+          "ratio": 11.48306197412463
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(21, 97, 65)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 7.451844233124335
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(57, 58, 52)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 11.48306197412463
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(57, 58, 52)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 11.48306197412463
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(57, 58, 52)",
+            "background": [
+              "rgb(255, 255, 255)"
+            ],
+            "ratio": 11.48306197412463
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(57, 58, 52)",
+          "background": [
+            "color(srgb 1 1 1 / 0.6)"
+          ],
+          "ratio": 11.48306197412463
+        },
+        "selection": {
+          "background": "rgb(201, 232, 214)",
+          "minimumRatio": 5.676585861858105
+        },
+        "caret": "rgb(21, 97, 65)",
+        "caretRatio": 7.451844233124335,
+        "minimumRatio": 7.451844233124335,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "vitesse",
+      "mode": "dark",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "vitesse",
+        "dark": true,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(207, 203, 191)",
+          "background": [
+            "rgb(41, 41, 41)"
+          ],
+          "ratio": 8.969845263927839
+        },
+        "tokens": [
+          {
+            "text": "const ",
+            "foreground": "rgb(206, 125, 124)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.744691101788979
+          },
+          {
+            "text": "appearance",
+            "foreground": "rgb(189, 151, 106)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 5.402597062982511
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(145, 145, 145)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.615918089814606
+          },
+          {
+            "text": " { ",
+            "foreground": "rgb(145, 145, 145)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.615918089814606
+          },
+          {
+            "text": "material",
+            "foreground": "rgb(184, 169, 101)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 6.166477900328084
+          },
+          {
+            "text": ": ",
+            "foreground": "rgb(145, 145, 145)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.615918089814606
+          },
+          {
+            "text": "\"",
+            "foreground": "rgb(163, 142, 137)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.7023483783078195
+          },
+          {
+            "text": "flat",
+            "foreground": "rgb(201, 138, 125)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 5.136918088000969
+          },
+          {
+            "text": "\"",
+            "foreground": "rgb(163, 142, 137)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.7023483783078195
+          },
+          {
+            "text": ", ",
+            "foreground": "rgb(145, 145, 145)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.615918089814606
+          },
+          {
+            "text": "contentScale",
+            "foreground": "rgb(184, 169, 101)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 6.166477900328084
+          },
+          {
+            "text": ": ",
+            "foreground": "rgb(145, 145, 145)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.615918089814606
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(86, 159, 150)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.707619129201957
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(145, 145, 145)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 4.615918089814606
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(207, 203, 191)",
+          "background": [
+            "rgb(41, 41, 41)"
+          ],
+          "ratio": 8.969845263927839
+        },
+        "selection": {
+          "background": "rgb(44, 52, 48)",
+          "foreground": "rgb(207, 203, 191)",
+          "minimumRatio": 7.890310099176698
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.615918089814606,
+        "distinctTokenColors": 7
+      },
+      "editor": {
+        "palette": "vitesse",
+        "dark": true,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(207, 203, 191)",
+          "background": [
+            "rgb(41, 41, 41)"
+          ],
+          "ratio": 8.969845263927839
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(120, 200, 164)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 7.340876679055889
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(207, 203, 191)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 8.969845263927839
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(207, 203, 191)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 8.969845263927839
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(207, 203, 191)",
+            "background": [
+              "rgb(41, 41, 41)"
+            ],
+            "ratio": 8.969845263927839
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(207, 203, 191)",
+          "background": [
+            "color(srgb 0.160784 0.160784 0.160784 / 0.6)"
+          ],
+          "ratio": 8.969854879781755
+        },
+        "selection": {
+          "background": "rgb(44, 52, 48)",
+          "minimumRatio": 6.4573904781275795
+        },
+        "caret": "rgb(120, 200, 164)",
+        "caretRatio": 7.340876679055889,
+        "minimumRatio": 7.340876679055889,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "custom",
+      "mode": "light",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "custom",
+        "dark": false,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(228, 244, 255)"
+          ],
+          "ratio": 13.064342076763387
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(207, 34, 46)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.764458144406164
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(5, 80, 174)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 6.756704167899951
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(207, 34, 46)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.764458144406164
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 14.054667706108853
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(10, 48, 105)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 11.394400552688781
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 14.054667706108853
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(5, 80, 174)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 6.756704167899951
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(31, 35, 40)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 14.054667706108853
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(228, 244, 255)"
+          ],
+          "ratio": 13.064342076763387
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "foreground": "rgb(36, 41, 45)",
+          "minimumRatio": 11.026414167786742
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.764458144406164,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "custom",
+        "dark": false,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(228, 244, 255)"
+          ],
+          "ratio": 13.064342076763387
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(40, 99, 148)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 5.657108287799175
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 13.064342076763387
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 13.064342076763387
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 13.064342076763387
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "color(srgb 0.894118 0.956863 1 / 0.6)"
+          ],
+          "ratio": 13.064349606176068
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "minimumRatio": 4.774646790996022
+        },
+        "caret": "rgb(40, 99, 148)",
+        "caretRatio": 5.657108287799175,
+        "minimumRatio": 5.657108287799175,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "calm",
+      "palette": "custom",
+      "mode": "dark",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "custom",
+        "dark": true,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 57, 74)"
+          ],
+          "ratio": 6.924286868255446
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.714374069871518
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.1118344257251245
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(255, 123, 114)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.714374069871518
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 10.060578037710552
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(165, 214, 255)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 7.734009630352636
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 10.060578037710552
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(121, 192, 255)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.1118344257251245
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(230, 237, 243)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 10.060578037710552
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 57, 74)"
+          ],
+          "ratio": 6.924286868255446
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "foreground": "rgb(195, 198, 200)",
+          "minimumRatio": 7.351575312330644
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.714374069871518,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "custom",
+        "dark": true,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 57, 74)"
+          ],
+          "ratio": 6.924286868255446
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(126, 189, 247)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 5.949029922292897
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.924286868255446
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.924286868255446
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.924286868255446
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "color(srgb 0.14902 0.223529 0.290196 / 0.6)"
+          ],
+          "ratio": 6.924293728578948
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "minimumRatio": 6.31613656989685
+        },
+        "caret": "rgb(126, 189, 247)",
+        "caretRatio": 5.949029922292897,
+        "minimumRatio": 5.949029922292897,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "expressive",
+      "palette": "custom",
+      "mode": "light",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "custom",
+        "dark": false,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 57, 74)"
+          ],
+          "ratio": 6.924286868255446
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(235, 136, 129)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.738674900070753
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(134, 168, 218)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.883600098914132
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(235, 136, 129)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.738674900070753
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(169, 171, 173)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 5.160118565171168
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(151, 168, 195)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.927658001199544
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(169, 171, 173)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 5.160118565171168
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(134, 168, 218)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 4.883600098914132
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(169, 171, 173)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 5.160118565171168
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 57, 74)"
+          ],
+          "ratio": 6.924286868255446
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "foreground": "rgb(195, 198, 200)",
+          "minimumRatio": 7.351575312330644
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.738674900070753,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "custom",
+        "dark": false,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "rgb(38, 57, 74)"
+          ],
+          "ratio": 6.924286868255446
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(126, 189, 247)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 5.949029922292897
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.924286868255446
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.924286868255446
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(195, 198, 200)",
+            "background": [
+              "rgb(38, 57, 74)"
+            ],
+            "ratio": 6.924286868255446
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(195, 198, 200)",
+          "background": [
+            "color(srgb 0.14902 0.223529 0.290196 / 0.6)"
+          ],
+          "ratio": 6.924293728578948
+        },
+        "selection": {
+          "background": "rgb(45, 52, 58)",
+          "minimumRatio": 6.31613656989685
+        },
+        "caret": "rgb(126, 189, 247)",
+        "caretRatio": 5.949029922292897,
+        "minimumRatio": 5.949029922292897,
+        "distinctTokenColors": 2
+      }
+    },
+    {
+      "preset": "expressive",
+      "palette": "custom",
+      "mode": "dark",
+      "passed": true,
+      "errors": [],
+      "transcript": {
+        "palette": "custom",
+        "dark": true,
+        "base": {
+          "text": "const appearance = { material: \"flat\", contentScale: 1 }",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(228, 244, 255)"
+          ],
+          "ratio": 13.064342076763387
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(174, 82, 75)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.547693776676507
+          },
+          {
+            "text": " appearance",
+            "foreground": "rgb(65, 106, 143)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 5.072770272692947
+          },
+          {
+            "text": " =",
+            "foreground": "rgb(174, 82, 75)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.547693776676507
+          },
+          {
+            "text": " { material: ",
+            "foreground": "rgb(102, 105, 108)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.913845284329036
+          },
+          {
+            "text": "\"flat\"",
+            "foreground": "rgb(81, 106, 128)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 5.0180378250525965
+          },
+          {
+            "text": ", contentScale: ",
+            "foreground": "rgb(102, 105, 108)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.913845284329036
+          },
+          {
+            "text": "1",
+            "foreground": "rgb(65, 106, 143)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 5.072770272692947
+          },
+          {
+            "text": " }",
+            "foreground": "rgb(102, 105, 108)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 4.913845284329036
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(228, 244, 255)"
+          ],
+          "ratio": 13.064342076763387
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "foreground": "rgb(36, 41, 45)",
+          "minimumRatio": 11.026414167786742
+        },
+        "caretRatio": null,
+        "minimumRatio": 4.547693776676507,
+        "distinctTokenColors": 4
+      },
+      "editor": {
+        "palette": "custom",
+        "dark": true,
+        "base": {
+          "text": "const sent = composer.text",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "rgb(228, 244, 255)"
+          ],
+          "ratio": 13.064342076763387
+        },
+        "tokens": [
+          {
+            "text": "const",
+            "foreground": "rgb(40, 99, 148)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 5.657108287799175
+          },
+          {
+            "text": "sent",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 13.064342076763387
+          },
+          {
+            "text": "composer",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 13.064342076763387
+          },
+          {
+            "text": "text",
+            "foreground": "rgb(36, 41, 45)",
+            "background": [
+              "rgb(228, 244, 255)"
+            ],
+            "ratio": 13.064342076763387
+          }
+        ],
+        "inline": {
+          "text": "inline code",
+          "foreground": "rgb(36, 41, 45)",
+          "background": [
+            "color(srgb 0.894118 0.956863 1 / 0.6)"
+          ],
+          "ratio": 13.064349606176068
+        },
+        "selection": {
+          "background": "rgb(210, 225, 240)",
+          "minimumRatio": 4.774646790996022
+        },
+        "caret": "rgb(40, 99, 148)",
+        "caretRatio": 5.657108287799175,
+        "minimumRatio": 5.657108287799175,
+        "distinctTokenColors": 2
+      }
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { useAui } from '@assistant-ui/react'
 import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { Composer } from '@/components/assistant-ui/elements/thread.aui'
+import { Composer } from '@/components/chat/composer'
 import { focusComposer } from '@/components/chat/composer-references'
 import { Badge } from '@/components/coss/badge'
 import { CheckboxPrimitive } from '@/components/coss/checkbox'
@@ -139,9 +139,9 @@ function PickBox({
       checked={checked}
       disabled={disabled}
       onCheckedChange={onToggle}
-      className="flex size-4.5 shrink-0 items-center justify-center rounded-[5px] border border-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-checked:border-focus data-checked:bg-focus data-disabled:opacity-60"
+      className="flex size-4.5 shrink-0 items-center justify-center rounded-[5px] border border-ink-muted outline-none transition-colors duration-(--duration-snap) ease-snap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus data-checked:border-redwood data-checked:bg-redwood data-disabled:opacity-60"
     >
-      <CheckboxPrimitive.Indicator className="text-white">
+      <CheckboxPrimitive.Indicator className="text-on-redwood">
         <Check aria-hidden className="size-3" strokeWidth={3.5} />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
@@ -535,8 +535,8 @@ function Loaded({
         )}
       </div>
       {carriesComposer && (
-        <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-3 [--composer-padding:12px] [--composer-radius:16px]">
-          <Composer autoFocus={false} />
+        <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-3">
+          <Composer autoFocus={false} layout="sidecar" />
         </div>
       )}
     </div>

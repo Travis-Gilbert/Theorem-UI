@@ -396,6 +396,8 @@ const ThreadListItemGroups: FC<{
         <Fragment key={group.label}>
           <div
             data-slot="aui_thread-list-group-label"
+            data-appearance-part="navigation-section"
+            data-appearance-recipe="ui.section"
             className="text-ink-faint-sheet px-2 pt-4 pb-1 text-sm"
           >
             {group.label}
@@ -588,6 +590,10 @@ export const ThreadListItem: FC = () => {
           render={
             <ThreadListItemPrimitive.Root
               data-slot="aui_thread-list-item"
+              data-appearance-part="navigation-row"
+              data-appearance-radius-role="control"
+              data-appearance-recipe="ui.label"
+              data-appearance-pair={isCurrent ? "primary/selected" : "primary/navigation"}
               data-active={isCurrent || undefined}
               aria-current={isCurrent || undefined}
               className="group hover:bg-hover has-focus-visible:bg-hover has-data-[state=open]:bg-hover data-popup-open:bg-hover data-active:bg-transparent relative flex h-8 items-center gap-1 rounded-md ps-2 pe-1 text-base transition-colors duration-100"

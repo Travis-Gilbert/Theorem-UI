@@ -1,0 +1,224 @@
+{
+  "fixture": "/story/shell-compare",
+  "platform": "macOS arm64",
+  "viewportSequence": [
+    [
+      1920,
+      900
+    ],
+    [
+      660,
+      900
+    ],
+    [
+      1920,
+      900
+    ],
+    [
+      660,
+      900
+    ],
+    [
+      1920,
+      900
+    ]
+  ],
+  "procedure": "Use the application Open a panel menu to select Explore. Capture the Links and Graph DOM nodes and their boxes. Resize narrow and wide. Resize narrow again, close Links through the same menu, and read saved shell layout while Graph remains open. Widen to verify Links stays closed.",
+  "results": [
+    {
+      "engine": "chromium",
+      "version": "156.0.8078.4",
+      "errors": [],
+      "before": {
+        "Links": {
+          "x": 1120,
+          "y": 3,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        },
+        "Graph": {
+          "x": 1120,
+          "y": 450,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        }
+      },
+      "narrow": {
+        "Links": {
+          "x": 45,
+          "y": 114,
+          "width": 611,
+          "height": 638,
+          "overlay": "true",
+          "same": true
+        },
+        "Graph": {
+          "x": 45,
+          "y": 114,
+          "width": 611,
+          "height": 638,
+          "overlay": "true",
+          "same": true
+        }
+      },
+      "after": {
+        "Links": {
+          "x": 1120,
+          "y": 3,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        },
+        "Graph": {
+          "x": 1120,
+          "y": 450,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        }
+      },
+      "exactRestorationAndSameDomWithinOneCssPx": true,
+      "closedLinksAbsentFromSavedLayout": true,
+      "savedGraphPresent": true,
+      "savedGraphAsTemporaryOverlay": false,
+      "graphRemainedOverlaidWhenLinksClosed": true,
+      "linksResurrectedAfterWidening": false
+    },
+    {
+      "engine": "firefox",
+      "version": "157.0",
+      "errors": [],
+      "before": {
+        "Links": {
+          "x": 1120,
+          "y": 3,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        },
+        "Graph": {
+          "x": 1120,
+          "y": 450,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        }
+      },
+      "narrow": {
+        "Links": {
+          "x": 45,
+          "y": 114,
+          "width": 611,
+          "height": 638,
+          "overlay": "true",
+          "same": true
+        },
+        "Graph": {
+          "x": 45,
+          "y": 114,
+          "width": 611,
+          "height": 638,
+          "overlay": "true",
+          "same": true
+        }
+      },
+      "after": {
+        "Links": {
+          "x": 1120,
+          "y": 3,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        },
+        "Graph": {
+          "x": 1120,
+          "y": 450,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        }
+      },
+      "exactRestorationAndSameDomWithinOneCssPx": true,
+      "closedLinksAbsentFromSavedLayout": true,
+      "savedGraphPresent": true,
+      "savedGraphAsTemporaryOverlay": false,
+      "graphRemainedOverlaidWhenLinksClosed": true,
+      "linksResurrectedAfterWidening": false
+    },
+    {
+      "engine": "webkit",
+      "version": "27.2",
+      "errors": [],
+      "before": {
+        "Links": {
+          "x": 1120,
+          "y": 3,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        },
+        "Graph": {
+          "x": 1120,
+          "y": 450,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        }
+      },
+      "narrow": {
+        "Links": {
+          "x": 45,
+          "y": 114,
+          "width": 611,
+          "height": 638,
+          "overlay": "true",
+          "same": true
+        },
+        "Graph": {
+          "x": 45,
+          "y": 114,
+          "width": 611,
+          "height": 638,
+          "overlay": "true",
+          "same": true
+        }
+      },
+      "after": {
+        "Links": {
+          "x": 1120,
+          "y": 3,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        },
+        "Graph": {
+          "x": 1120,
+          "y": 450,
+          "width": 797,
+          "height": 447,
+          "overlay": "false",
+          "same": true
+        }
+      },
+      "exactRestorationAndSameDomWithinOneCssPx": true,
+      "closedLinksAbsentFromSavedLayout": true,
+      "savedGraphPresent": true,
+      "savedGraphAsTemporaryOverlay": false,
+      "graphRemainedOverlaidWhenLinksClosed": true,
+      "linksResurrectedAfterWidening": false
+    }
+  ]
+}

@@ -61,6 +61,7 @@ import { PlanGraph } from '@/components/chat/plan-graph'
 
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
 import { NOTEBOOK_DOCUMENTS, notebookPart } from './fixtures/notebook-parts'
+import { LATIN_PROSE_V1_PARAGRAPHS } from '@/lib/appearance-corpus.mjs'
 
 function WithRuntime({ children }: { children: React.ReactNode }) {
   const [threadId, setThreadId] = useState<string | undefined>(
@@ -97,11 +98,12 @@ function LibrarianFooterStory() {
   )
 }
 
-function ComparePaneStory() {
+function ComparePaneStory({ standalone = false }: { standalone?: boolean }) {
   return (
     <WithRuntime>
       <div className="h-dvh w-[380px]">
         <ComparePane
+          standalone={standalone}
           reviewId="review-app-gallery"
           onClose={() => undefined}
           onDetach={() => undefined}
@@ -361,6 +363,7 @@ function threadStory(
   state?: ActivityState,
   stored = state ? activityMessages(state) : [],
   draft?: string,
+  fixtureId?: string,
 ) {
   const messages: ThreadMessageLike[] = state
     ? toAssistantMessages(stored).map((message) =>
@@ -368,20 +371,28 @@ function threadStory(
           ? { ...message, status: ACTIVITY_STATUS[state] }
           : message,
       )
-    : []
+    : fixtureId === 'F05'
+      ? [{
+          id: 'design-oracle-draft-context',
+          role: 'assistant',
+          status: { type: 'complete', reason: 'stop' },
+          content: [{ type: 'text', text: 'A short conversation response gives the draft editor a real prose track for typography and alignment measurements.' }],
+        }]
+      : []
   const isRunning = state === 'working' || state === 'approval'
   return function ThreadStory() {
     const runtime = useExternalStoreRuntime({
       messages,
       isRunning,
       onNew: async () => {},
+      ...(fixtureId === 'F06' && { onCancel: async () => {} }),
       convertMessage: (message: ThreadMessageLike) => message,
     })
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <TheoremPartRenderers />
         {draft && <ComposerDraft text={draft} />}
-        <div className="h-dvh">
+        <div data-appearance-fixture={fixtureId} className="h-dvh">
           <Thread autoFocus={false} />
         </div>
       </AssistantRuntimeProvider>
@@ -535,7 +546,147 @@ function PlanCardUnderWayStory() {
   )
 }
 
+/** Fixed Latin calibration prose rendered by the actual assistant-ui Thread. */
+const ORACLE_F02_CONTENT = [
+  '# Conversation reading fixture',
+  '',
+  'Prepared for the fixed Latin calibration corpus. **Six paragraphs** remain plain so browser line measurement is reproducible.',
+  '',
+  '# Reading and writing',
+  '',
+  'The article uses the same measure as the draft editor.',
+  '',
+  '## Reading settings',
+  '',
+  'The displayed text follows the selected content size.',
+  '',
+  '### Stable reading measure',
+  '',
+  LATIN_PROSE_V1_PARAGRAPHS.join('\n\n'),
+  '',
+  'Reviewed against the current appearance policy · metadata',
+  '',
+  '```ts',
+  'const reading = { fixture: "latin-prose-v1", paragraphs: 6 }',
+  '```',
+].join('\n')
+
+function DesignOracleThreadStory({ empty = false, fixtureId = empty ? 'F01' : 'F02', content, draft = empty ? undefined : 'Draft a follow-up question.' }: { empty?: boolean; fixtureId?: string; content?: string; draft?: string }) {
+  const messages: ThreadMessageLike[] = empty ? [] : [
+    {
+      id: 'appearance-oracle-long-answer',
+      role: 'assistant',
+      status: { type: 'complete', reason: 'stop' },
+      content: [
+        // The real Activity metadata line is part of the reading fixture. Two
+        // settled progress steps make its Details label visible through the
+        // production MessageMetadata slot without duplicating that component.
+        { type: 'data', name: 'theorem-progress', data: { label: 'Reading the conversation', status: 'complete' } },
+        { type: 'data', name: 'theorem-progress', data: { label: 'Checking the measure', status: 'complete' } },
+        { type: 'text', text: content ?? ORACLE_F02_CONTENT },
+      ],
+    },
+  ]
+  const runtime = useExternalStoreRuntime({
+    messages,
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  return (
+    <div data-appearance-fixture={fixtureId}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <TheoremPartRenderers />
+        {draft && <ComposerDraft text={draft} />}
+        <div className="h-dvh"><Thread autoFocus={false} /></div>
+      </AssistantRuntimeProvider>
+    </div>
+  )
+}
+
+const ORACLE_PREVIEW_USER = [
+  'Please compare these workspace choices. '.repeat(22),
+  'I need to understand which source is current, what changed since the last review, and how to keep the draft while moving between conversations. '.repeat(4),
+].join('')
+
+function DesignOraclePreviewStory() {
+  const runtime = useExternalStoreRuntime({
+    messages: [
+      { id: 'design-oracle-preview-user', role: 'user', content: [{ type: 'text', text: ORACLE_PREVIEW_USER }] },
+      { id: 'design-oracle-preview-answer', role: 'assistant', status: { type: 'complete', reason: 'stop' }, content: [{ type: 'text', text: 'Short answer.' }] },
+    ],
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  return <div data-appearance-fixture="F03"><AssistantRuntimeProvider runtime={runtime}><TheoremPartRenderers /><div className="h-dvh"><Thread autoFocus={false} /></div></AssistantRuntimeProvider></div>
+}
+
+const ORACLE_MARKUP_CONTENT = [
+  '## Expanded content fixture',
+  '',
+  'A paragraph with **strong text**, *emphasis*, `inline code`, and [a link](https://example.com/a-long-reference-path).',
+  '',
+  'A long URL should wrap or scroll locally: https://example.com/reference/this/is/a/very/long/unbroken/path/used/to/verify/reflow-and-horizontal-overflow',
+  '',
+  '| Role | State | Meaning |',
+  '| --- | --- | --- |',
+  '| Composer | Ready | Draft remains editable |',
+  '| Navigation | Selected | Current location stays visible |',
+  '',
+  '```ts',
+  'const appearance = { material: "flat", contentScale: 1 }',
+  '```',
+].join('\n')
+
+function DesignOracleContentStory({ fixtureId, content, direction = 'ltr', lang = 'en', includeArtifact = false }: { fixtureId: string; content: string; direction?: 'ltr' | 'rtl'; lang?: string; includeArtifact?: boolean }) {
+  const artifact = ARTIFACT_STORIES[0] as ArtifactStory
+  const contentItems: ThreadMessageLike['content'] = [{ type: 'text', text: content }]
+  if (includeArtifact && Array.isArray(contentItems)) {
+    contentItems.push({ type: 'data', name: ARTIFACT_PART, data: {
+      artifactId: `art_${artifact.id}`, artifactRevision: 'rev_1', artifactKind: 'openui',
+      rendererId: 'theorem-openui', contractVersion: 'theorem-artifact-v1', lifecycle: 'ready',
+      patchSequence: 1, fallbackText: artifact.title,
+      payload: { documentId: `doc_${artifact.id}`, revision: { position: 1 }, title: artifact.title,
+        content: artifact.program, language: 'openui', form: 'openui', formVersion: 1,
+        library: { id: LIBRARY_ID, version: artifact.version ?? LIBRARY_VERSION }, program: artifact.program },
+    } } as ThreadMessageLike['content'][number])
+  }
+  const runtime = useExternalStoreRuntime({
+    messages: [{ id: `design-oracle-${fixtureId}`, role: 'assistant', status: { type: 'complete', reason: 'stop' }, content: contentItems }],
+    isRunning: false,
+    onNew: async () => {},
+    convertMessage: (message: ThreadMessageLike) => message,
+  })
+  return (
+    <div data-appearance-fixture={fixtureId} dir={direction} lang={lang}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <TheoremPartRenderers />
+        <div className="h-dvh"><Thread autoFocus={false} /></div>
+      </AssistantRuntimeProvider>
+    </div>
+  )
+}
+
+const ORACLE_RTL_CONTENT = [
+  'مرحبا، هذا نص تجريبي للتحقق من اتجاه القراءة والمحاذاة في الواجهة.',
+  '日本語の文章も表示し、ラテン文字と日本語のフォールバックが混在する状態を確認します。',
+  ...LATIN_PROSE_V1_PARAGRAPHS.slice(0, 2),
+].join('\n\n')
+
 export const REGISTRY: Readonly<Record<string, ComponentType>> = {
+  'design-oracle-empty': () => <DesignOracleThreadStory empty />,
+  'design-oracle-long': DesignOracleThreadStory,
+  'design-oracle-reflow': () => <DesignOracleThreadStory fixtureId="F09" />,
+  'design-oracle-draft': threadStory(undefined, [], COMPOSER_DRAFT, 'F05'),
+  'design-oracle-stream': threadStory('working', activityMessages('working'), undefined, 'F06'),
+  'design-oracle-failure': threadStory('unfinished', activityMessages('unfinished'), undefined, 'F07'),
+  'design-oracle-continuity': threadStory(undefined, [], COMPOSER_DRAFT, 'F11'),
+  'design-oracle-preview': DesignOraclePreviewStory,
+  'design-oracle-content': () => <DesignOracleContentStory fixtureId="F04" content={ORACLE_MARKUP_CONTENT} includeArtifact />,
+  'design-oracle-error': threadStory('unfinished'),
+  'design-oracle-navigation': () => <div data-appearance-fixture="F08"><ShellCompareStory /></div>,
+  'design-oracle-rtl': () => <DesignOracleContentStory fixtureId="F10" content={ORACLE_RTL_CONTENT} direction="rtl" lang="ar" />,
   'composer-paper': threadStory(),
   'composer-markdown': threadStory(undefined, [], COMPOSER_DRAFT),
   'chat-program': programStory,
@@ -562,6 +713,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'organized-sidebar': OrganizedSidebarStory,
   'librarian-footer': LibrarianFooterStory,
   'compare-pane': ComparePaneStory,
+  'compare-pane-standalone': () => <ComparePaneStory standalone />,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
   'glass-compare': () => (

@@ -1,3 +1,4 @@
+import { appearancePair } from "@/lib/appearance-policy"
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
@@ -50,6 +51,11 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        data-appearance-part="popover"
+        data-appearance-recipe="ui.label"
+        data-appearance-radius-role="field"
+        data-surface-role="popover"
+        {...appearancePair("primary", "popover")}
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-90 data-open:ease-settle data-open:duration-(--duration-settle) data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className

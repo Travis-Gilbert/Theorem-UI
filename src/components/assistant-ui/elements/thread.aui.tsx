@@ -1,13 +1,8 @@
 'use client'
 
-import { ToastProvider, toastManager } from '@/components/coss/toast'
 import { ProjectContextChip } from '@/components/organize/thread-header'
 import { ThreadReviewCards } from '@/components/review/review-card'
-import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageAttachments,
-} from '@/components/assistant-ui/elements/attachment.aui'
+import { UserMessageAttachments } from '@/components/assistant-ui/elements/attachment.aui'
 import { File, getFileHref } from '@/components/assistant-ui/elements/file'
 import { Image } from '@/components/assistant-ui/elements/image'
 import { MarkdownText } from '@/components/assistant-ui/elements/markdown-text'
@@ -25,7 +20,8 @@ import {
   TheoremToolCall,
 } from '@/components/chat/theorem-parts'
 import { ComposerEditor } from '@/components/chat/composer-editor'
-import { ModelPicker } from '@/components/chat/model-picker'
+import { Composer, composerSurface } from '@/components/chat/composer'
+import type { ComposerLayout, ComposerSlots } from '@/components/chat/composer'
 import { ReadAloud } from '@/components/chat/read-aloud'
 import { FaceSlot } from '@/components/face/face-mark'
 import { Icon } from '@/components/icons'
@@ -33,8 +29,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useLiquidGlass } from '@/components/glass/liquid-glass/use-liquid-glass'
 import { useComposerSurface } from '@/lib/surfaces'
-import type { ComposerSurface } from '@/lib/surfaces'
+import { useSurfaceMaterial } from '@/lib/appearance'
+import { appearancePair } from '@/lib/appearance-policy'
 import { cn } from '@/lib/utils'
+import { useComposedRefs } from '@/lib/composition'
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -45,8 +43,6 @@ import {
   groupPartByType,
   MessagePrimitive,
   ThreadPrimitive,
-  useAui,
-  useAuiEvent,
   useAuiState,
 } from '@assistant-ui/react'
 import type {
@@ -59,34 +55,22 @@ import type {
 import {
   createContext,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
 } from 'react'
-import type { ComponentType, FC, PropsWithChildren } from 'react'
+import type { ComponentType, FC, PropsWithChildren, ReactNode } from 'react'
 
-import { Magnet, useArrivedLive } from '@/components/motion'
-import { flyFrom, kick, recordLaunch, takeLaunch } from '@/lib/motion'
+import { useArrivedLive } from '@/components/motion'
+import { flyFrom, takeLaunch } from '@/lib/motion'
 
-import { ComposerReferences, useComposerReferences } from '@/components/chat/composer-references'
-import { RunInputStatus, useBusyComposerInput, useRunInputSendDisabled } from '@/components/chat/run-input'
-import { ComposerReviewTarget, useComposerReview } from '@/components/review/review-target'
-import type { ComposerReview } from '@/components/review/review-target'
-import { SCENE_PART } from '@/components/chat/scene-model'
 import { answerBody } from '@/lib/theorem/reviews'
 import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
 
 import { hasTheoremError } from '@/lib/theorem/message-history'
 
-import {
-  COMPOSER_TOOLTIP_DELAY,
-  ComposerPlanToggle,
-  ComposerToolTrigger,
-  ComposerWebToggle,
-} from '@/components/chat/composer-tools'
-import { ComposerConnections } from '@/components/chat/composer-connections'
-import { EffortPicker } from '@/components/chat/effort-picker'
-import { ResponseControl } from '@/components/chat/response-control'
+import { ComposerToolTrigger } from '@/components/chat/composer-tools'
 import { UserMarkdown } from '@/components/chat/user-markdown'
 import { ChatCollapsibleMessage } from '@/components/coss/chat/chat-collapsible-message'
 import {
@@ -94,14 +78,12 @@ import {
   UnseenFromProvider,
   useUnseenFrom,
 } from './unseen-divider.aui'
-import { attendKit } from '@/lib/kit/store'
 import { messageLabel, messageSurface } from '@/lib/kit/stage'
 import { thingProps } from '@/lib/face/things'
 
-export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart
+export { Composer } from '@/components/chat/composer'
 
-const shouldShowComposerResume = (s: AssistantState) =>
-  !!s.thread.canResume && s.composer.type === 'thread' && s.composer.isEmpty
+export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart
 
 const reasoningDuration = (timing: ThreadGroupPart['timing']) =>
   timing?.completedAt === undefined
@@ -127,6 +109,8 @@ export type ThreadComponents = {
   ReasoningGroup?:
     ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>> | undefined
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined
+  MessageMetadata?: ComponentType<{ speaker?: string | undefined; work?: ReactNode }>
+  MessageActions?: ComponentType
 }
 
 const defaultGroupBy = groupPartByType({
@@ -192,10 +176,13 @@ const taskAwareWorkGroupBy = workOnly(taskAwareGroupBy)
 export type ThreadProps = {
   components?: ThreadComponents | undefined
   autoFocus?: boolean | undefined
+  composerSlots?: ComposerSlots
   /** The composer sits at the bottom before the first message too, as it does beside the IDE. */
   composerDocked?: boolean | undefined
   /** Another view lies over the thread while it stays laid out, as Theia and the Vault do on the desktop. */
   covered?: boolean | undefined
+  /** Context tools move above the shared editor when space is dedicated to another view. */
+  composerLayout?: ComposerLayout
 }
 
 const EMPTY_COMPONENTS: ThreadComponents = {}
@@ -240,7 +227,9 @@ export const Thread: FC<ThreadProps> = ({
   components = EMPTY_COMPONENTS,
   autoFocus = true,
   composerDocked = false,
+  composerSlots,
   covered = false,
+  composerLayout = composerDocked ? 'sidecar' : undefined,
 }) => {
   const isEmpty = useAuiState(isNewChatView)
 
@@ -250,6 +239,8 @@ export const Thread: FC<ThreadProps> = ({
         isEmpty={isEmpty && !composerDocked}
         autoFocus={autoFocus}
         covered={covered}
+        composerLayout={composerLayout}
+        composerSlots={composerSlots}
       />
     </ThreadComponentsContext.Provider>
   )
@@ -260,9 +251,14 @@ const ThreadRoot: FC<{
   isEmpty: boolean
   autoFocus: boolean
   covered: boolean
-}> = ({ isEmpty, autoFocus, covered }) => {
+  composerLayout?: ComposerLayout | undefined
+  composerSlots?: ComposerSlots | undefined
+}> = ({ isEmpty, autoFocus, covered, composerLayout, composerSlots }) => {
   const footerRef = useRef<HTMLDivElement>(null)
   const unseen = useUnseenFrom(covered)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const viewport = useComposedRefs(viewportRef, unseen.ref)
+  useAppearanceScrollAnchor(viewportRef)
   const surface = useComposerSurface()
   // The first send hands the composer from the middle of the page down to
   // the bottom, on a spring rather than a jump. It lands against the bottom
@@ -275,26 +271,19 @@ const ThreadRoot: FC<{
 
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col"
-      style={{
-        // The reading measure is the text's width; the column's side padding sits outside it.
-        ['--thread-max-width' as string]: 'calc(var(--spacing-reading) + 2rem)',
-        ['--composer-bg' as string]: 'var(--surface-composer)',
-        // A composer with room to write in: three lines at rest, and a frame to match.
-        ['--composer-radius' as string]: '20px',
-        ['--composer-padding' as string]: '16px',
-      }}
+      className="aui-root aui-thread-root @container flex h-full min-w-0 flex-col"
     >
       <ThreadPrimitive.Viewport
-        ref={unseen.ref}
+        ref={viewport}
         turnAnchor="top"
         data-slot="aui_thread-viewport"
         data-kit-clip
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-auto scroll-smooth [scrollbar-gutter:stable]"
+        className="appearance-thread-viewport relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto"
       >
         <div
+          data-appearance-part="conversation-track"
           className={cn(
-            'mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4',
+            'appearance-conversation-track mx-auto flex w-full flex-1 flex-col pt-4',
             isEmpty && 'justify-center',
           )}
         >
@@ -322,13 +311,14 @@ const ThreadRoot: FC<{
           <ThreadPrimitive.ViewportFooter
             ref={footerRef}
             className={cn(
-              'aui-thread-viewport-footer flex flex-col gap-4 overflow-visible pb-4 md:pb-6',
+              'appearance-composer-track aui-thread-viewport-footer flex flex-col overflow-visible pb-4 md:pb-6',
               !isEmpty && 'sticky bottom-0 mt-auto',
               // Pinned to the sheet's bottom edge, it covers the messages
               // scrolling under it with the stretch of gradient it sits on;
               // under a glass composer it is clear, so the glass frosts them.
               !isEmpty &&
                 {
+                  flat: 'appearance-flat-footer',
                   paper: 'bg-sheet rounded-t-(--composer-radius) bg-bottom',
                   glass: 'glass-footer',
                   liquid: 'liquid-footer',
@@ -336,12 +326,57 @@ const ThreadRoot: FC<{
             )}
           >
             <ThreadScrollToBottom />
-            <Composer autoFocus={autoFocus} />
+            <Composer autoFocus={autoFocus} layout={composerLayout} slots={composerSlots} />
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   )
+}
+
+function useAppearanceScrollAnchor(ref: { current: HTMLDivElement | null }) {
+  useEffect(() => {
+    let frame = 0
+    let revision = 0
+    const preserve = () => {
+      const viewport = ref.current
+      if (!viewport || !viewport.clientHeight) return
+      const edge = viewport.getBoundingClientRect().top
+      const message = Array.from(viewport.querySelectorAll<HTMLElement>('[data-role="assistant"], [data-role="user"]'))
+        .find((item) => item.getBoundingClientRect().bottom > edge)
+      if (!message) return
+      const anchor = Array.from(message.querySelectorAll<HTMLElement>('p, h1, h2, h3, h4, h5, h6'))
+        .find((block) => block.getClientRects().length > 0 && block.getBoundingClientRect().bottom > edge) ?? message
+      const offset = anchor.getBoundingClientRect().top - edge
+      const current = ++revision
+      const correct = () => {
+        if (current !== revision || !anchor.isConnected) return
+        const delta = anchor.getBoundingClientRect().top - viewport.getBoundingClientRect().top - offset
+        if (Math.abs(delta) > 0.5) viewport.scrollBy({ top: delta, behavior: 'instant' })
+      }
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => {
+          correct()
+          // The first frame commits layout; correcting it also resolves any
+          // new font faces before checking their load status.
+          if (document.fonts?.status !== 'loading') return
+          void document.fonts.ready.then(() => {
+            if (current !== revision) return
+            frame = requestAnimationFrame(() => {
+              frame = requestAnimationFrame(correct)
+            })
+          })
+        })
+      })
+    }
+    document.addEventListener('theorem-appearance-reflow', preserve)
+    return () => {
+      document.removeEventListener('theorem-appearance-reflow', preserve)
+      revision++
+      cancelAnimationFrame(frame)
+    }
+  }, [ref])
 }
 
 const ThreadMessage: FC = () => {
@@ -547,267 +582,6 @@ const ThreadScrollToBottom: FC = () => {
   )
 }
 
-/** A file the composer refuses never reaches its tray, so the refusal is said here. */
-const AttachmentRefusals: FC = () => {
-  useAuiEvent('composer.attachmentAddError', (event) => {
-    toastManager.add({
-      type: 'error',
-      title:
-        event.reason === 'not-accepted'
-          ? 'Theorem does not take this kind of file'
-          : 'That file could not be added',
-      description:
-        event.reason === 'not-accepted' ? event.contentType : event.message,
-    })
-  })
-  return <ToastProvider position="top-center" />
-}
-
-export const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
-  const aui = useAui()
-  // While the composer answers a review, sending submits the review and the
-  // chat's own send is left out.
-  const review = useComposerReview()
-  const shellRef = useRef<HTMLDivElement>(null)
-  const surface = useComposerSurface()
-  const glass = surface !== 'paper'
-  useLiquidGlass(shellRef, surface === 'liquid')
-  const busyInput = useBusyComposerInput({
-    hasReferences: () => useComposerReferences.getState().references.length > 0,
-    onError: (description) => toastManager.add({ type: 'error', title: 'Message kept in composer', description }),
-  })
-  // Where the text was, for the new user message to fly up from. Recorded on
-  // submit because the composer.send event arrives a microtask after the
-  // message has already mounted.
-  const recordLaunches = () => {
-    const shell = shellRef.current
-    if (!shell || !aui.composer.getState().canSend) return
-    const input = shell.querySelector('.aui-composer-input') ?? shell
-    recordLaunch(input.getBoundingClientRect())
-    const footer = shell.closest('.aui-thread-viewport-footer')
-    if (footer) recordLaunch(footer.getBoundingClientRect(), 'composer-dock')
-  }
-  // The composer gives a small kick once the send goes through.
-  useAuiEvent('composer.send', (event) => {
-    if (event.messageId === undefined && shellRef.current)
-      kick(shellRef.current)
-  })
-
-  return (
-    <ComposerPrimitive.TriggerPopoverRoot>
-      <ComposerPrimitive.Root
-        onSubmit={(event) => {
-          // A review's answer goes to the review, also while a response runs.
-          if (review) {
-            event.preventDefault()
-            if (review.canSend) review.send()
-            return
-          }
-          if (!busyInput.onSubmit(event)) recordLaunches()
-        }}
-        onKeyDown={busyInput.onKeyDown}
-        className="aui-composer-root relative flex w-full flex-col"
-      >
-        <ComposerToolTrigger />
-        {/* The composer lifts off the sheet as the sheet lifts off the rail.
-            Glass casts its own shadow, and the glow would show through it. */}
-        {!glass && (
-          <div
-            aria-hidden="true"
-            className="lift-glow [--glow-radius:var(--composer-radius)]"
-          />
-        )}
-        <AttachmentRefusals />
-        <ComposerPrimitive.AttachmentDropzone
-          render={
-            <div
-              ref={shellRef}
-              data-slot="aui_composer-shell"
-              data-kit-perch="composer"
-              data-face-perch="composer"
-              className={cn(
-                composerSurface(surface),
-                'data-[dragging=true]:border-focus flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] duration-100 data-[dragging=true]:border-dashed data-[dragging=true]:bg-selected',
-              )}
-            />
-          }
-        >
-          <RunInputStatus />
-          {review && <ComposerReviewTarget target={review} />}
-          <ComposerReferences />
-          <ComposerAttachments />
-          <ComposerEditor
-            label="Message input"
-            placeholder="Message Theorem, / for tools"
-            className="aui-composer-input w-full"
-            autoFocus={autoFocus}
-            onFocus={() => attendKit(true)}
-            onBlur={() => attendKit(false)}
-          />
-          <ComposerAction review={review} />
-        </ComposerPrimitive.AttachmentDropzone>
-      </ComposerPrimitive.Root>
-    </ComposerPrimitive.TriggerPopoverRoot>
-  )
-}
-
-/**
- * The composer's material (Settings, Appearance): paper with its grain,
- * frosted glass, or liquid glass (glass/liquid-glass). Each sets the shell's
- * border colour at rest and while focused; live liquid glass draws its own
- * contour over the border instead (styles.css surface-liquid).
- */
-const composerSurface = (surface: ComposerSurface) =>
-  surface === 'liquid'
-    ? 'surface-liquid border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
-    : surface === 'glass'
-      ? 'surface-glass border-(color:--glass-edge) focus-within:border-(color:--glass-edge-focus)'
-      : 'surface-paper border-(color:--paper-edge) focus-within:border-control'
-
-const ComposerAction: FC<{ review: ComposerReview | undefined }> = ({ review }) => {
-  const chatDisabled = useRunInputSendDisabled()
-  // A choice can be sent with nothing written.
-  const sendDisabled = review ? !review.canSend : chatDisabled
-  const running = useAuiState((s) => s.thread.isRunning)
-  // The stop control only cancels the send while no run it could stop is going.
-  const isSending = useAuiState(
-    (s) =>
-      s.composer.submission !== undefined &&
-      !(s.thread.isRunning && s.thread.capabilities.cancel),
-  )
-
-  return (
-    <div className="aui-composer-action-wrapper flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-      <div className="flex items-center gap-1.5">
-        <ComposerAddAttachment />
-        <ComposerWebToggle />
-        <ComposerPlanToggle />
-        <ComposerConnections />
-      </div>
-      {/* Claims 8rem beside the attachment button, Web and Plan, so a long
-          model name truncates first; the row wraps only when less than that is left. */}
-      <div className="flex min-w-0 flex-[1_1_8rem] items-center justify-end gap-1.5">
-        <ModelPicker />
-        <EffortPicker />
-        <ResponseControl />
-        <AuiIf condition={(s) => s.thread.capabilities.dictation}>
-          <AuiIf condition={(s) => s.composer.dictation == null}>
-            <ComposerPrimitive.Dictate
-              render={
-                <TooltipIconButton
-                  tooltip="Voice input"
-                  delay={COMPOSER_TOOLTIP_DELAY}
-                  side="top"
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="aui-composer-dictate text-ink-muted hover:text-ink size-9 rounded-lg"
-                  aria-label="Start voice input"
-                />
-              }
-            >
-              <Icon.Microphone className="aui-composer-dictate-icon size-4" />
-            </ComposerPrimitive.Dictate>
-          </AuiIf>
-          <AuiIf condition={(s) => s.composer.dictation != null}>
-            <ComposerPrimitive.StopDictation
-              render={
-                <TooltipIconButton
-                  tooltip="Stop dictation"
-                  delay={COMPOSER_TOOLTIP_DELAY}
-                  side="top"
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="aui-composer-stop-dictation text-error-ink size-9 rounded-lg"
-                  aria-label="Stop voice input"
-                />
-              }
-            >
-              <Icon.Stop className="aui-composer-stop-dictation-icon size-4 animate-pulse" />
-            </ComposerPrimitive.StopDictation>
-          </AuiIf>
-        </AuiIf>
-        <AuiIf
-          condition={(s) =>
-            (s.thread.isRunning || !s.composer.canCancel ||
-              (s.thread.voice !== undefined &&
-                s.composer.submission === undefined)) &&
-            !shouldShowComposerResume(s)
-          }
-        >
-          <Magnet>
-            <TooltipIconButton
-              tooltip={
-                review
-                  ? 'Send feedback'
-                  : running
-                    ? 'Send to current response (⌘/Ctrl+Enter)'
-                    : 'Send message (⌘/Ctrl+Enter)'
-              }
-              delay={COMPOSER_TOOLTIP_DELAY}
-              side="top"
-              type="submit"
-              disabled={sendDisabled}
-              variant="default"
-              size="icon"
-              className="aui-composer-send bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed dark:bg-transparent dark:hover:bg-hover dark:active:bg-selected size-9 rounded-lg disabled:opacity-40 p-2"
-              aria-label={review ? 'Send feedback' : 'Send message'}
-              aria-keyshortcuts="Control+Enter Meta+Enter"
-            >
-              {/* In dark the plane stands without its button, filled with the accent the button would have been. */}
-              <Icon.Send className="aui-composer-send-icon size-5 animate-in fade-in zoom-in-50 slide-in-from-bottom-2 dark:*:data-[layer=paper]:bg-redwood" />
-            </TooltipIconButton>
-          </Magnet>
-        </AuiIf>
-        <AuiIf condition={shouldShowComposerResume}>
-          <Magnet>
-            <ComposerPrimitive.Resume
-              render={
-                <TooltipIconButton
-                  tooltip="Resume generating"
-                  delay={COMPOSER_TOOLTIP_DELAY}
-                  side="top"
-                  type="button"
-                  variant="default"
-                  size="icon"
-                  className="aui-composer-resume bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-9 rounded-lg disabled:opacity-40 p-2"
-                  aria-label="Resume generating"
-                />
-              }
-            >
-              <Icon.Refresh className="aui-composer-resume-icon size-5 animate-in fade-in zoom-in-50 -spin-in-180 ease-lift duration-(--duration-lift)" />
-            </ComposerPrimitive.Resume>
-          </Magnet>
-        </AuiIf>
-        <AuiIf
-          condition={(s) =>
-            s.composer.canCancel &&
-            (s.thread.voice === undefined ||
-              s.composer.submission !== undefined)
-          }
-        >
-          <Magnet>
-            <ComposerPrimitive.Cancel
-              render={
-                <Button
-                  type="button"
-                  variant="default"
-                  size="icon"
-                  className="aui-composer-cancel bg-redwood text-on-redwood hover:bg-redwood-hover active:bg-redwood-pressed size-9 rounded-lg disabled:opacity-40"
-                  aria-label={isSending ? 'Cancel sending' : 'Stop generating'}
-                />
-              }
-            >
-              <Icon.Stop className="aui-composer-cancel-icon size-5 animate-in fade-in zoom-in-30 spin-in-90" />
-            </ComposerPrimitive.Cancel>
-          </Magnet>
-        </AuiIf>
-      </div>
-    </div>
-  )
-}
-
 const MessageError: FC = () => {
   const hasErrorPart = useAuiState((s) => {
     const status = s.message.status
@@ -819,7 +593,7 @@ const MessageError: FC = () => {
   if (hasErrorPart) return null
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root bg-error-container text-error-ink mt-2 rounded-lg px-4 py-3 text-sm">
+      <ErrorPrimitive.Root data-surface-role="status" {...appearancePair('error', 'status')} className="aui-message-error-root bg-error-container text-error-ink mt-2 rounded-lg px-4 py-3 text-sm">
         <ErrorPrimitive.Message className="aui-message-error-message break-words" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
@@ -925,7 +699,9 @@ const MessageParts: FC<{ work?: boolean }> = ({ work = false }) => {
 export const AssistantMessageContent: FC<{ speaker?: string }> = ({
   speaker,
 }) => {
-  const { TaskGroup } = useContext(ThreadComponentsContext)
+  const { TaskGroup, MessageMetadata = Activity } = useContext(ThreadComponentsContext)
+  const messageId = useAuiState((state) => state.message.id)
+  const material = useSurfaceMaterial('assistant-reading')
   const groupBy = TaskGroup ? taskAwareGroupBy : messageGroupBy
   const parts = useAuiState((s) => s.message.parts)
   const toolUIs = useAuiState((s) => s.tools.toolUIs)
@@ -935,24 +711,32 @@ export const AssistantMessageContent: FC<{ speaker?: string }> = ({
   )
 
   return (
-    <>
-      <Activity
+    <div
+      data-surface-role="assistant-reading"
+      data-surface-material={material}
+      className="appearance-reading-plane"
+    >
+      <MessageMetadata
         speaker={speaker}
         work={hasWork ? <MessageParts work /> : undefined}
       />
       <div
         data-slot="aui_assistant-message-content"
-        className="text-foreground px-2 leading-6 wrap-break-word"
+        data-appearance-part="prose-track"
+        data-appearance-id={`${messageId}:prose`}
+        data-appearance-recipe="prose"
+        {...appearancePair('primary', 'assistant-reading')}
+        className="appearance-assistant-prose text-foreground wrap-break-word"
       >
         <MessageParts />
         <MessageError />
       </div>
-    </>
+    </div>
   )
 }
 /** A mark, then who spoke above what they said, as in docs/plans/evidence/refs/sidebar-compare@2026-11-05.webp. */
 /** The agent speaks from the left of the column, under its mark and name. */
-const MESSAGE_GRID = 'grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 ps-2'
+const MESSAGE_GRID = 'appearance-message-grid grid'
 
 /** The attributes that make a message a surface Kit can stand on, named and labelled for the agent. */
 function useKitSurface() {
@@ -975,14 +759,8 @@ function useKitSurface() {
 
 const AssistantMessage: FC = () => {
   const live = useArrivedLive()
+  const { MessageActions = AssistantActionBar } = useContext(ThreadComponentsContext)
   const surface = useKitSurface()
-  // Theorem: a scene is wider than the row, and `content-visibility: auto`
-  // paint-contains the row, which would clip it.
-  const hasScene = useAuiState((s) =>
-    s.message.content.some(
-      (part) => part.type === 'data' && part.name === SCENE_PART,
-    ),
-  )
   const ACTION_BAR_PT = 'pt-1.5'
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`
@@ -996,20 +774,18 @@ const AssistantMessage: FC = () => {
       className={cn(
         MESSAGE_GRID,
         'data-live:animate-in data-live:fade-in data-live:slide-in-from-bottom-3 data-live:ease-settle data-live:duration-(--duration-settle) relative -mb-7.5 pb-7.5',
-        !hasScene &&
-          '[contain-intrinsic-size:auto_200px] [content-visibility:auto]',
       )}
     >
-      <FaceSlot />
-      <div className="min-w-0">
+      <div data-appearance-part="avatar-gutter" className="appearance-avatar-gutter"><FaceSlot /></div>
+      <div className="appearance-message-prose min-w-0">
         <AssistantMessageContent speaker="Theorem" />
 
         <div
           data-slot="aui_assistant-message-footer"
-          className={cn('ms-2 flex items-center', ACTION_BAR_HEIGHT)}
+          className={cn('appearance-reading-plane flex items-center', ACTION_BAR_HEIGHT)}
         >
           <BranchPicker />
-          <AssistantActionBar />
+          <MessageActions />
         </div>
       </div>
     </MessagePrimitive.Root>
@@ -1129,6 +905,7 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
 )
 
 const UserMessage: FC = () => {
+  const material = useSurfaceMaterial('user-message')
   const contentRef = useRef<HTMLDivElement>(null)
   const surface = useKitSurface()
   // A message just sent from the composer flies up from where it was typed.
@@ -1166,7 +943,12 @@ const UserMessage: FC = () => {
         </div>
         <div
           ref={contentRef}
-          className="aui-user-message-content surface-paper border-(color:--paper-edge) text-ink min-w-0 rounded-2xl border px-3.5 py-2 leading-6 whitespace-pre-wrap wrap-break-word empty:hidden"
+          data-appearance-part="user-message"
+          data-appearance-radius-role="user-message"
+          data-surface-role="user-message"
+          data-material={material}
+          {...appearancePair('primary', 'user-message')}
+          className={cn('appearance-surface aui-user-message-content text-ink min-w-0 border border-separator px-3 py-2 whitespace-pre-wrap wrap-break-word empty:hidden', composerSurface(material))}
         >
           <MessagePrimitive.Parts
             components={{
@@ -1226,7 +1008,6 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   const surface = useComposerSurface()
-  const glass = surface !== 'paper'
   const rootRef = useRef<HTMLFormElement>(null)
   useLiquidGlass(rootRef, surface === 'liquid')
   return (
@@ -1238,7 +1019,7 @@ const EditComposer: FC = () => {
       className="flex flex-col px-2"
     >
       <div className="relative ms-auto w-full max-w-[70%]">
-        {!glass && (
+        {surface === 'paper' && (
           <div
             aria-hidden="true"
             className="lift-glow [--glow-radius:var(--composer-radius)]"
@@ -1247,18 +1028,20 @@ const EditComposer: FC = () => {
         <ComposerPrimitive.TriggerPopoverRoot>
           <ComposerPrimitive.Root
             ref={rootRef}
+            data-surface-role="composer"
+            data-material={surface}
             className={cn(
-              'aui-edit-composer-root flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
+              'appearance-surface aui-edit-composer-root flex w-full cursor-text flex-col rounded-(--composer-radius) border transition-[border-color] duration-100',
               composerSurface(surface),
             )}
           >
             <ComposerToolTrigger />
             <ComposerEditor
               label="Edit message"
-              className="aui-edit-composer-input w-full"
+              className="appearance-reading-plane aui-edit-composer-input w-full"
               autoFocus
             />
-            <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
+            <div className="appearance-reading-plane aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
               <ComposerPrimitive.Cancel
                 render={
                   <Button variant="ghost" size="sm" className="h-8 px-3" />

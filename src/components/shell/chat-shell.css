@@ -1,0 +1,77 @@
+/* Shell policy; material and typography recipes are supplied by appearance.css. */
+.appearance-navigation-drawer {
+  width: min(24rem, 100vw);
+  overflow: auto;
+}
+.appearance-navigation-drawer > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+.appearance-navigation-drawer .appearance-surface {
+  flex: 1;
+  min-height: 0;
+}
+.appearance-docked-rail {
+  flex: none;
+  height: 100%;
+}
+@media (max-width: 38rem) {
+  .appearance-docked-rail {
+    display: none;
+  }
+  .appearance-shell {
+    --sheet-inset: 0px;
+  }
+}
+.appearance-navigation [data-slot='aui_thread-list-item'],
+.appearance-navigation [data-appearance-part='navigation-row'],
+.appearance-navigation [data-sidebar='menu-button'],
+.appearance-menu-item {
+  height: auto;
+  min-height: var(--appearance-navigation-min, 2rem);
+  padding-block: var(--appearance-gap-within, 0.25rem);
+  border-radius: 0.375rem;
+}
+.appearance-navigation [data-sidebar='menu-button'] {
+  font: var(--recipe-ui-label);
+  letter-spacing: 0.01em;
+}
+[data-appearance-part='navigation-row']
+  [data-slot='aui_thread-list-item-trigger'] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.appearance-navigation [data-sidebar='group-label'],
+[data-slot='aui_thread-list-group-label'] {
+  height: auto;
+  min-height: 2rem;
+  font: var(--recipe-ui-section);
+  letter-spacing: 0.01em;
+}
+.appearance-navigation button {
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+}
+.appearance-navigation [data-appearance-spacing-role='group-controls'] {
+  gap: var(--appearance-gap-group);
+}
+[data-appearance-preset='calm'] .appearance-shell .sheet {
+  border-radius: 0;
+  box-shadow: none;
+}
+[data-appearance-preset='calm'] .appearance-shell .lift-glow {
+  display: none;
+}
+[data-appearance-part='rail'] button,
+[data-appearance-part='rail'] a {
+  min-width: var(--appearance-control-min, 2rem);
+  min-height: var(--appearance-control-min, 2rem);
+}
+[data-appearance-part='navigation-row']
+  [data-slot='aui_thread-list-item-branches-toggle'],
+[data-appearance-part='navigation-row']
+  [data-slot='aui_thread-list-item-more'] {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+}

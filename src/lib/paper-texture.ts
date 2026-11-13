@@ -109,7 +109,8 @@ async function bake(): Promise<Blob> {
     await new Promise<void>((resolve) => {
       const observer = new ResizeObserver(() => {
         observer.disconnect()
-        resolve()
+        // Encoding and disposal can affect canvas layout in WebKit.
+        requestAnimationFrame(() => resolve())
       })
       observer.observe(host)
     })

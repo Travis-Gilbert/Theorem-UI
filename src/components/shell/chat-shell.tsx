@@ -1,17 +1,18 @@
 // SOURCING: dockview-react via DockShell (desktop layout), the Life field under the desktop sheet (LifeSheet) seen through the side panel's frosted glass (styles.css glass-panel; under liquid glass, glass/liquid-glass with only its conversation edge curved), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
 import { AgentComposer } from '@/components/canvas/agent-composer'
-import { ArtifactPanel } from '@/components/artifacts/artifact-panel'
 import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
 import { Drawer } from '@base-ui/react/drawer'
 import { Icon } from '@/components/icons'
+import { AppearanceDialog } from '@/components/settings/appearance-dialog'
 import { LifeSheet } from '@/components/life/life-backdrop'
 import { useLiquidGlass } from '@/components/glass/liquid-glass/use-liquid-glass'
-import { useComposerSurface } from '@/lib/surfaces'
+import { useSurfaceMaterial } from '@/lib/appearance'
+import { appearancePair } from '@/lib/appearance-policy'
+import './chat-shell.css'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
-import { ModeView, modeLabel, navigatorMode, useShellMode } from './modes'
-import { NotePanel } from '@/components/notes/note-panel'
+import { modeLabel, navigatorMode, useShellMode } from './modes'
 import { PANEL_WIDTH, useShell } from './shell-state'
 import { Rail } from './rail'
 import { SideTerminal } from '@/components/terminal/side-terminal'
@@ -19,7 +20,6 @@ import { TerminalDrawer } from '@/components/terminal/terminal-drawer'
 import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { WorkspaceCommands } from '@/components/workspace/workspace-commands'
-import { WorkspaceFileOverlay } from '@/components/workspace/workspace-file-panel'
 import { cn } from '@/lib/utils'
 import {
   Suspense,
@@ -30,13 +30,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import { ComparePane } from '@/components/review/compare-pane'
-import { useArtifactView } from '@/components/artifacts/artifact-view'
-import { useReviewDock } from '@/lib/theorem/reviews'
-import { useCanvasView } from '@/components/canvas/canvas-view'
-import { useMediaQuery } from '@base-ui/react/unstable-use-media-query'
-import { useNoteView } from '@/components/notes/note-view'
-import { useParams } from '@tanstack/react-router'
 
 import { ModePage } from '@/components/pages/mode-page'
 import { IdePageShown, OnIdePage } from '@/components/ide/ide-page'
@@ -57,6 +50,7 @@ function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     <header className="flex h-14 shrink-0 items-center gap-1 px-2">
       <TooltipIconButton
         tooltip="Open sidebar"
+        aria-label="Open sidebar"
         className={iconButton}
         onClick={onOpenSidebar}
       >
@@ -70,99 +64,47 @@ function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       <h1 className="min-w-0 truncate px-2 text-sm text-ink-muted">
         {mode === 'chat' ? title || 'New chat' : modeLabel(mode)}
       </h1>
+      <div className="ms-auto">
+        <AppearanceDialog />
+      </div>
     </header>
   )
 }
 
-/**
- * Phone shell: the conversation fills the screen and the rail and its panel
- * open together in a drawer. The open artifact covers the conversation.
- */
-function PhoneShell() {
-  const openId = useArtifactView((s) => s.openId)
-  const close = useArtifactView((s) => s.close)
-  const noteId = useNoteView((s) => s.openId)
-  const closeNote = useNoteView((s) => s.close)
-  const reviewId = useReviewDock((s) => s.phoneReviewId)
-
-  // A different conversation starts with the artifact closed.
-  const threadId = useAuiState((s) => s.threadListItem.id)
-  useEffect(() => useArtifactView.getState().reset(), [threadId])
-
-  // The drawer belongs to the thread, mode, open note (beside a chat, or the
-  // route's in Notes mode) and canvas focus it was opened from, so picking a
-  // chat, a mode or a note in it closes it without an effect.
-  const mode = useShellMode()
-  const focusCount = useCanvasView((s) => s.focusCount)
-  const { documentId } = useParams({ strict: false })
-  const view = `${mode}:${threadId}:${noteId}:${documentId}:${focusCount}`
-  const [drawerView, setDrawerView] = useState<string | null>(null)
-  const drawerOpen = drawerView === view
-  const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
-
+/** Navigation becomes an overlay without replacing the mounted conversation. */
+function NavigationDrawer({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   return (
-    <>
-      <Drawer.Root
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        swipeDirection="left"
-      >
-        <Drawer.Portal>
-          <Drawer.Backdrop className="fixed inset-0 bg-black/30 opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-300 data-ending-style:opacity-0 data-starting-style:opacity-0 data-swiping:duration-0" />
-          <Drawer.Viewport className="fixed inset-0 flex items-stretch justify-start">
-            <Drawer.Popup
-              style={{
-                width: `min(calc(var(--spacing-rail) + ${PANEL_WIDTH.default}px), 90vw)`,
-              }}
-              className="flex h-full bg-rail outline-none [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px] [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-(--duration-settle) ease-settle data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)] data-swiping:duration-0"
-            >
-              <Drawer.Title className="sr-only">Navigation</Drawer.Title>
-              <Rail />
-              <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
-                <div aria-hidden="true" className="lift-glow" />
-                <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
-                  <ContextPanel />
-                </div>
+    <Drawer.Root open={open} onOpenChange={onOpenChange} swipeDirection="left">
+      <Drawer.Portal>
+        <Drawer.Backdrop className="fixed inset-0 z-40 bg-black/30" />
+        <Drawer.Viewport className="fixed inset-0 z-50 flex items-stretch justify-start">
+          <Drawer.Popup
+            data-appearance-part="drawer"
+            className="appearance-navigation-drawer flex h-full max-w-full bg-sidebar outline-none"
+          >
+            <Drawer.Title className="sr-only">Navigation</Drawer.Title>
+            <Rail />
+            <div className="min-w-0 flex-1">
+              <div className="flex justify-end p-2">
+                <TooltipIconButton
+                  tooltip="Close navigation"
+                  onClick={() => onOpenChange(false)}
+                >
+                  <Icon.X />
+                </TooltipIconButton>
               </div>
-            </Drawer.Popup>
-          </Drawer.Viewport>
-        </Drawer.Portal>
-      </Drawer.Root>
-
-      <div className="flex h-full min-w-0 flex-1 flex-col bg-sheet [--sheet-h:100dvh] [--sheet-inset:0px]">
-        <ChatHeader onOpenSidebar={() => setDrawerOpen(true)} />
-        <div className="min-h-0 flex-1">
-          <ModeView />
-        </div>
-      </div>
-
-      {openId && (
-        <ArtifactPanel
-          artifactId={openId}
-          onClose={() => close(openId)}
-          className="fixed inset-0 z-40"
-        />
-      )}
-
-      {noteId && (
-        <NotePanel
-          documentId={noteId}
-          onClose={closeNote}
-          className="fixed inset-0 z-40"
-        />
-      )}
-
-      {reviewId && (
-        <ComparePane
-          reviewId={reviewId}
-          onClose={() => useReviewDock.setState({ phoneReviewId: undefined })}
-          standalone
-          className="fixed inset-0 z-40"
-        />
-      )}
-
-      <WorkspaceFileOverlay />
-    </>
+              <GlassPanel />
+            </div>
+          </Drawer.Popup>
+        </Drawer.Viewport>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }
 
@@ -228,14 +170,26 @@ const CONVERSATION_EDGE = {
  */
 function GlassPanel() {
   const ref = useRef<HTMLDivElement>(null)
-  const liquid = useComposerSurface() === 'liquid'
+  const material = useSurfaceMaterial('navigation')
+  const liquid = material === 'liquid'
   useLiquidGlass(ref, liquid, CONVERSATION_EDGE)
   return (
     <div
       ref={ref}
-      className={cn('glass-panel h-full', liquid && 'glass-panel-liquid')}
+      data-appearance-part="navigation"
+      data-appearance-width-role="navigation"
+      data-surface-role="navigation"
+      data-material={material}
+      {...appearancePair('primary', 'navigation')}
+      className={cn(
+        'appearance-surface h-full',
+        material === 'glass' && 'glass-panel',
+        liquid && 'glass-panel glass-panel-liquid',
+      )}
     >
-      <ContextPanel />
+      <div className="appearance-reading-plane h-full">
+        <ContextPanel />
+      </div>
     </div>
   )
 }
@@ -256,6 +210,55 @@ function SheetSplit(route: DockRoute) {
   const panelMode = navigatorMode(useShellMode())
   const panelOpen = useShell((s) => !s.panelCollapsed[panelMode])
   const [split, setSplit] = useState<SplitviewApi>()
+  const host = useRef<HTMLDivElement>(null)
+  const lastFocus = useRef<{ element: HTMLElement; inShell: boolean } | null>(
+    null,
+  )
+  const preferredWidth = useShell((s) => s.panelWidth)
+  const [overlay, setOverlay] = useState(false)
+  const view = `${panelMode}:${route.threadId}`
+  const [drawerView, setDrawerView] = useState<string | null>(null)
+  const drawerOpen = drawerView === view
+  const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
+  useEffect(() => {
+    const remember = (event: FocusEvent) => {
+      if (
+        !(event.target instanceof HTMLElement) ||
+        event.target === document.body
+      )
+        return
+      lastFocus.current = {
+        element: event.target,
+        inShell: Boolean(
+          host.current?.closest('.appearance-shell')?.contains(event.target),
+        ),
+      }
+    }
+    document.addEventListener('focusin', remember)
+    return () => document.removeEventListener('focusin', remember)
+  }, [])
+  useEffect(() => {
+    const element = host.current
+    if (!element) return
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      const root = parseFloat(
+        getComputedStyle(document.documentElement).fontSize,
+      )
+      setOverlay(element.clientWidth - preferredWidth < 35 * root)
+    }
+    const observer = new ResizeObserver(() => {
+      if (!frame) frame = requestAnimationFrame(measure)
+    })
+    observer.observe(element)
+    observer.observe(document.documentElement)
+    measure()
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+    }
+  }, [preferredWidth])
 
   const onReady = ({ api }: SplitviewReadyEvent) => {
     const panelWidth = useShell.getState().panelWidth
@@ -273,15 +276,52 @@ function SheetSplit(route: DockRoute) {
       id: 'dock',
       component: 'dock',
       size: api.width - panelWidth,
-      minimumSize: 360,
+      minimumSize: 0,
       priority: LayoutPriority.High,
     })
     setSplit(api)
   }
 
   useEffect(() => {
-    split?.getPanel(PANEL)?.api.setVisible(panelOpen)
-  }, [split, panelOpen])
+    split?.getPanel(PANEL)?.api.setVisible(panelOpen && !overlay)
+    const element = host.current?.querySelector<HTMLElement>('.sheet-split')
+    const frame = requestAnimationFrame(() => {
+      if (element) split?.layout(element.clientWidth, element.clientHeight)
+      const previous = lastFocus.current
+      if (!previous?.inShell) return
+      const navigationHidden =
+        overlay &&
+        previous.element.closest('[data-appearance-part="navigation"]')
+      if (
+        !navigationHidden &&
+        previous.element.checkVisibility({ visibilityProperty: true })
+      )
+        return
+      if (
+        document.activeElement !== document.body &&
+        document.activeElement !== previous.element
+      )
+        return
+      const shell = host.current?.closest('.appearance-shell')
+      const controls = [
+        ...(shell?.querySelectorAll<HTMLElement>('button,a,[role="button"]') ??
+          []),
+      ].filter((control) =>
+        control.checkVisibility({ visibilityProperty: true }),
+      )
+      // A hidden navigation command hands focus to its visible counterpart,
+      // otherwise to the drawer trigger (or the first docked rail command).
+      const label = previous.element.getAttribute('aria-label')
+      const counterpart = controls.find(
+        (control) => label && control.getAttribute('aria-label') === label,
+      )
+      const trigger = controls.find(
+        (control) => control.getAttribute('aria-label') === 'Open sidebar',
+      )
+      ;(counterpart ?? trigger ?? controls[0])?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [split, panelOpen, overlay])
 
   // The width a drag leaves the panel at is the width it reopens with.
   useEffect(() => {
@@ -296,13 +336,27 @@ function SheetSplit(route: DockRoute) {
 
   return (
     <DockRouteContext.Provider value={route}>
-      <SplitviewReact
-        className="sheet-split dockview-theme-theorem h-full w-full"
-        orientation={Orientation.HORIZONTAL}
-        proportionalLayout={false}
-        components={splitComponents}
-        onReady={onReady}
-      />
+      <div
+        ref={host}
+        className="flex h-full min-w-0 flex-col"
+        data-appearance-part="shell-allocation"
+      >
+        {(overlay || !panelOpen) && (
+          <div className="appearance-compact-header">
+            <ChatHeader onOpenSidebar={() => setDrawerOpen(true)} />
+          </div>
+        )}
+        <div className="min-h-0 flex-1">
+          <SplitviewReact
+            className="sheet-split dockview-theme-theorem h-full w-full"
+            orientation={Orientation.HORIZONTAL}
+            proportionalLayout={false}
+            components={splitComponents}
+            onReady={onReady}
+          />
+        </div>
+      </div>
+      <NavigationDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </DockRouteContext.Provider>
   )
 }
@@ -324,9 +378,18 @@ function DesktopShell(route: DockRoute) {
   const [vaultLoaded, setVaultLoaded] = useState(vault)
   if (vault && !vaultLoaded) setVaultLoaded(true)
   return (
-    <div className="flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]">
-      <Rail collapsible />
-      <div className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1">
+    <div
+      data-appearance-part="shell"
+      data-appearance-width-role="usable"
+      className="appearance-shell flex h-full w-full [--sheet-h:calc(100dvh-2*var(--sheet-inset))] [--sheet-inset:3px]"
+    >
+      <div className="appearance-docked-rail" data-appearance-width-role="rail">
+        <Rail collapsible />
+      </div>
+      <div
+        className="relative my-(--sheet-inset) me-(--sheet-inset) min-w-0 flex-1"
+        data-appearance-part="sheet-frame"
+      >
         <div aria-hidden="true" className="lift-glow" />
         <div className="sheet relative h-full overflow-hidden rounded-xl bg-sheet shadow-sheet">
           {/* Dockview layers its panels with z-index; isolate keeps them under the Vault. */}
@@ -366,14 +429,9 @@ export function ChatShell({
   projectId: string
   threadId: string | undefined
 }) {
-  const desktop = useMediaQuery('(min-width: 768px)', { noSsr: true })
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-rail text-ink">
-      {desktop ? (
-        <DesktopShell projectId={projectId} threadId={threadId} />
-      ) : (
-        <PhoneShell />
-      )}
+      <DesktopShell projectId={projectId} threadId={threadId} />
       <AgentComposer projectId={projectId} />
       <WorkspaceCommands />
       <TerminalDrawer />

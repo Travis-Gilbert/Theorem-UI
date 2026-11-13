@@ -1,0 +1,133 @@
+{
+  "engine": "webkit",
+  "version": "27.2",
+  "checks": [
+    {
+      "name": "Second consumer imports shared Composer and mounts one editor",
+      "pass": true,
+      "observed": {
+        "source": "src/components/review/compare-pane.tsx",
+        "layout": "sidecar",
+        "editorCount": 1
+      }
+    },
+    {
+      "name": "Sidecar theme change preserves document, logical selection, focus and geometry",
+      "pass": true,
+      "observed": {
+        "before": {
+          "sameEditor": true,
+          "text": "Keep the artifact-side feedback across theme changes.",
+          "selection": ".",
+          "focused": true,
+          "type": [
+            "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "24px"
+          ],
+          "box": {
+            "x": 16,
+            "y": 674,
+            "width": 348,
+            "height": 214,
+            "top": 674,
+            "right": 364,
+            "bottom": 888,
+            "left": 16
+          },
+          "state": {
+            "preset": "calm",
+            "palette": "github-sharp",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          }
+        },
+        "after": {
+          "sameEditor": true,
+          "text": "Keep the artifact-side feedback across theme changes.",
+          "selection": ".",
+          "focused": true,
+          "type": [
+            "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "24px"
+          ],
+          "box": {
+            "x": 16,
+            "y": 674,
+            "width": 348,
+            "height": 214,
+            "top": 674,
+            "right": 364,
+            "bottom": 888,
+            "left": 16
+          },
+          "state": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "glass",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          }
+        }
+      }
+    },
+    {
+      "name": "Shared sidecar action submits feedback exactly once without chat dispatch",
+      "pass": true,
+      "observed": [
+        {
+          "path": "/api/chat/v1/reviews/review-app-gallery/submit",
+          "body": {
+            "pickedIds": [
+              "option-groups"
+            ],
+            "none": false,
+            "reply": "Keep the artifact-side feedback across theme changes.",
+            "observations": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "No runtime errors",
+      "pass": true,
+      "observed": []
+    }
+  ]
+}
