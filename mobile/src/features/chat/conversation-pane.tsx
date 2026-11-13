@@ -5,7 +5,7 @@ import { Stack } from 'expo-router'
 import type { ConversationPhase } from '@theoremharness/sdk'
 import { describeError, statusOf } from '@/lib/theorem'
 import { Button } from '@/ui/button'
-import { ShareButton } from '@/ui/header'
+import { ShareButton, ShareToolbar } from '@/ui/header'
 import { useTheme } from '@/ui/theme'
 import { Unavailable } from '@/ui/unavailable'
 import { rememberLastThread } from '../invocation/handler'
@@ -81,7 +81,10 @@ export function ConversationPane({
   return (
     <>
       {titled ? (
-        <Stack.Screen options={{ title, headerRight: () => <ShareButton threadId={threadId} /> }} />
+        <>
+          <Stack.Screen options={{ title }} />
+          <ShareToolbar threadId={threadId} />
+        </>
       ) : null}
       <ConversationSurface
         runtime={runtime}

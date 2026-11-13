@@ -36,6 +36,7 @@ type Section =
   | { key: string; title?: string; kind: 'folders'; data: Array<{ path: string; count: number }> }
 
 export default function LibraryScreen() {
+  const { palette } = useTheme()
   const params = useLocalSearchParams<{ type?: string }>()
   const filter: Filter = isFilter(params.type) ? params.type : 'all'
   const [query, setQuery] = useState('')
@@ -84,6 +85,10 @@ export default function LibraryScreen() {
           headerSearchBarOptions: {
             placeholder: 'Search the library',
             hideWhenScrolling: false,
+            // The system field defaults to black text and icon; in dark that is unreadable.
+            textColor: palette.ink,
+            hintTextColor: palette.inkMuted,
+            headerIconColor: palette.inkMuted,
             onChangeText: (event) => setQuery(event.nativeEvent.text),
             onCancelButtonPress: () => setQuery(''),
           },

@@ -1,5 +1,5 @@
-// SOURCING: expo-router Link and native-stack screen options
-import { Link } from 'expo-router'
+// SOURCING: expo-router Link, native-stack screen options and Stack.Toolbar (native header items)
+import { Link, router, Stack } from 'expo-router'
 import { Image } from 'expo-image'
 import { Pressable } from 'react-native'
 import { Text } from './text'
@@ -13,7 +13,6 @@ export function useHeaderColors() {
     // reproducible in UIKit), so headers are compact until that is fixed.
     headerLargeTitle: false,
     headerTintColor: palette.accent,
-    headerStyle: { backgroundColor: palette.neutral },
     headerTitleStyle: { color: palette.ink },
     headerLargeTitleStyle: { color: palette.ink },
     contentStyle: { backgroundColor: palette.neutral },
@@ -37,7 +36,7 @@ export function ShareButton({ threadId }: { threadId?: string }) {
   )
 }
 
-/** Settings is a quiet mark, not a word: the screen's title and its one action carry the header. */
+/** The Pressable form, for headers still on `headerRight` (Platinum). Prefer `SettingsToolbar`. */
 export function SettingsButton() {
   const { palette } = useTheme()
   return (
@@ -46,5 +45,33 @@ export function SettingsButton() {
         <Image source="sf:gearshape" tintColor={palette.inkMuted} style={{ width: 22, height: 22 }} contentFit="contain" />
       </Pressable>
     </Link>
+  )
+}
+
+/**
+ * Settings as a native header item: the system draws the glyph and label with
+ * a legible contrast in both schemes and gives it a 44pt target. Put it in a
+ * screen, or inside a layout's `Stack.Screen`.
+ */
+export function SettingsToolbar() {
+  return (
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
+    </Stack.Toolbar>
+  )
+}
+
+/** Opens intake from a header, as a native item: hand a photo, file or note to a conversation. */
+export function ShareToolbar({ threadId }: { threadId?: string }) {
+  return (
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button
+        icon="paperclip"
+        accessibilityLabel={threadId ? 'Add a photo or file to this conversation' : 'Share into a conversation'}
+        onPress={() =>
+          router.push(threadId ? { pathname: '/intake', params: { thread: threadId } } : '/intake')
+        }
+      />
+    </Stack.Toolbar>
   )
 }
