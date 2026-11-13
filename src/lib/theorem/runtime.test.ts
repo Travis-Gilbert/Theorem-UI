@@ -517,6 +517,12 @@ async function chatWithPlanChip(threadId: string | undefined) {
     async press() {
       await act(async () => chip().click())
     },
+    /** Gives a new conversation its durable id without a send, as an attachment upload does. */
+    async initialize() {
+      await act(async () => {
+        await aui!.threadListItem.initialize()
+      })
+    },
     async switchChat(to: string | undefined) {
       const from = open()
       await act(async () => switchTo(to))
@@ -576,6 +582,35 @@ test('a new conversation starts with Plan off, and Plan pressed before its first
     expect((await chat.send('Plan a launch')).planning).toBe(true)
     // It belongs to the conversation's durable id once it has one, so it is still on.
     expect(chat.pressed()).toBe(true)
+  } finally {
+    createThread.mockRestore()
+  }
+})
+
+test('Plan pressed in a new conversation stays on when an attachment upload gives it its durable id', async () => {
+  const created = `thread-${crypto.randomUUID()}`
+  type Created = Awaited<
+    ReturnType<ReturnType<typeof theorem>['chat']['threads']['create']>
+  >
+  const createThread = spyOn(
+    theorem().chat.threads,
+    'create',
+  ).mockResolvedValue({
+    record: { threadId: created },
+  } as Created)
+  try {
+    const chat = await chatWithPlanChip(undefined)
+    await chat.press()
+
+    // An upload creates the thread before any send; if it then fails, nothing is sent.
+    await chat.initialize()
+    await waitFor(() => usePlanning.getState().byThread[created] === true)
+    expect(chat.pressed()).toBe(true)
+
+    // Turned off now, it stays off: the send that follows asks for no plan.
+    await chat.press()
+    expect(chat.pressed()).toBe(false)
+    expect((await chat.send('What is in this file?')).planning).toBeUndefined()
   } finally {
     createThread.mockRestore()
   }

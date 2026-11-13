@@ -680,6 +680,15 @@ function useTheoremThreadRuntime() {
     liveRuns: useLiveRuns,
     subscribe: (listener) => aui.subscribe(listener),
   }), [aui, runtime])
+  // A new chat can get its durable id before any send (an attachment upload creates the thread); Plan moves with it then, so the chip shows what the next send asks for.
+  useEffect(() => {
+    const follow = () => {
+      const { id, remoteId } = aui.threadListItem.getState()
+      if (remoteId && remoteId !== id) usePlanning.getState().adopt(id, remoteId)
+    }
+    follow()
+    return aui.subscribe(follow)
+  }, [aui])
   // The effort this conversation's sends ask for, for Theo to show while one runs.
   const faceEffort = useCallback(() => requestedEffort(aui.threadListItem.getState().remoteId ?? undefined), [aui])
   useKitSource(runtime)
