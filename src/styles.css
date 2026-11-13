@@ -870,9 +870,9 @@
    rim says it is glass: across --lg-bevel the surface curves, what lies
    behind it, just past the edge, bends in and shows clearer, and the light from the top left
    catches the curve and runs along a hairline contour, shaded on the far
-   side. The conversation is not drawn into the glass: it fades out under the
-   footer's scroll edge before it reaches the pane, so no line of text smears
-   behind the input.
+   side. The pane draws the field, never the conversation; the conversation
+   shows through the thinned body instead, blurred by the browser, so it
+   reads as soft lines behind the input rather than words.
    --lg-* are the pane's material, read by use-liquid-glass.ts (lengths in
    CSS pixels, unitless; the rest 0 to 1 unless noted):
    - blur: the body's blur radius;
@@ -885,7 +885,10 @@
      unchanged;
    - light: the narrow reflection on the curve facing the light; sheen: a
      broad one over the whole curve;
-   - stroke, shade: the contour, lit and shaded.
+   - stroke, shade: the contour, lit and shaded;
+   - show: how far the body thins over the element's own backdrop blur
+     (--liquid-see-blur), so the conversation behind shows through softened;
+     0 is a closed pane.
    Separation from what is behind is the element's own, in CSS: a hairline
    ring and a contact and an ambient shadow (--liquid-elevation). The pane's
    ink steps up a shade (--glass-ink-*), since what shows through it is
@@ -899,34 +902,52 @@
    reduced transparency), the CSS frost below shows instead. */
 :root {
   --lg-tone: var(--surface-composer);
-  --lg-blur: 20;
+  --lg-blur: 11;
   --lg-bevel: 23;
   --lg-refract: 12;
   --lg-clarity: 0.65;
-  --lg-body: 0.54;
-  --lg-rim-body: 0.22;
+  --lg-body: 0.36;
+  --lg-rim-body: 0.16;
   --lg-lift: 0;
   --lg-saturate: 1.35;
   --lg-light: 0.32;
   --lg-sheen: 0.11;
   --lg-stroke: 0.42;
   --lg-shade: 0.12;
-  --liquid-fallback: color-mix(in oklab, var(--surface-composer) 72%, transparent);
-  --liquid-fallback-solid: color-mix(in oklab, var(--surface-composer) 96%, transparent);
+  --liquid-fallback: color-mix(
+    in oklab,
+    var(--surface-composer) 72%,
+    transparent
+  );
+  --liquid-fallback-solid: color-mix(
+    in oklab,
+    var(--surface-composer) 96%,
+    transparent
+  );
   --liquid-focus: rgb(var(--shadow-tint) / 0.16);
   --liquid-elevation:
     0 0 0 1px rgb(var(--shadow-tint) / 0.08),
     0 1px 2px rgb(var(--shadow-tint) / 0.06),
     0 10px 24px -12px rgb(var(--shadow-tint) / 0.22),
     0 32px 64px -32px rgb(var(--shadow-tint) / 0.28);
-  --glass-ink: color-mix(in oklab, var(--ink) 85%, #000);
-  --glass-ink-muted: color-mix(in oklab, var(--ink-muted) 60%, var(--ink));
-  --glass-ink-faint: color-mix(in oklab, var(--ink-faint) 55%, var(--ink-muted));
+  --glass-ink: color-mix(in oklab, var(--ink) 72%, #000);
+  --glass-ink-muted: color-mix(
+    in oklab,
+    var(--ink-muted) 38%,
+    var(--glass-ink)
+  );
+  --glass-ink-faint: color-mix(
+    in oklab,
+    var(--ink-faint) 40%,
+    var(--ink-muted)
+  );
+  --liquid-see-blur: 6px;
+  --lg-show: 0.55;
 }
 
 .dark {
-  --lg-body: 0.6;
-  --lg-rim-body: 0.3;
+  --lg-body: 0.42;
+  --lg-rim-body: 0.22;
   --lg-saturate: 1.25;
   --lg-light: 0.2;
   --lg-sheen: 0.045;
@@ -934,11 +955,10 @@
   --lg-shade: 0.4;
   --liquid-focus: rgb(255 255 255 / 0.1);
   --liquid-elevation:
-    0 0 0 1px rgb(0 0 0 / 0.55),
-    0 1px 1px rgb(0 0 0 / 0.35),
-    0 10px 22px -8px rgb(0 0 0 / 0.55),
-    0 30px 60px -24px rgb(0 0 0 / 0.65);
-  --glass-ink: color-mix(in oklab, var(--ink) 82%, #fff);
+    0 0 0 1px rgb(0 0 0 / 0.55), 0 1px 1px rgb(0 0 0 / 0.35),
+    0 10px 22px -8px rgb(0 0 0 / 0.55), 0 30px 60px -24px rgb(0 0 0 / 0.65);
+  --glass-ink: color-mix(in oklab, var(--ink) 55%, #fff);
+  --lg-show: 0.5;
 }
 
 :root[data-glass-study='curved'] {
@@ -992,9 +1012,13 @@
     --ink: var(--glass-ink);
     --ink-muted: var(--glass-ink-muted);
     --ink-faint: var(--glass-ink-faint);
+    --foreground: var(--glass-ink);
+    --muted-foreground: var(--glass-ink-muted);
     background-color: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    /* What shows through the thinned body (--lg-show), the conversation
+       with the field, softened by the browser. */
+    -webkit-backdrop-filter: blur(var(--liquid-see-blur));
+    backdrop-filter: blur(var(--liquid-see-blur));
     border-color: transparent;
   }
 
@@ -1024,52 +1048,68 @@
 /* The scroll edge: the conversation and the field soften and fade as they
    pass under the footer, so they reach the pane already quiet. */
 @utility liquid-footer {
-  /* The glass shows the field, never the conversation, so the conversation
-     has to leave before it reaches the glass: over the last 2.5rem above
-     the composer it blurs and settles into the sheet's own colour, and in
-     the gutter below it is gone. The veil runs 2rem past the column
-     on each side and feathers there, beyond the text, so it never draws a
-     box over the field. */
-  &::before {
+  /* The scroll edge under liquid glass. Above the composer the conversation
+     softens as it approaches (a blur that ramps in over 2.5rem, with no
+     colour, so it never draws a band over the field); behind the composer
+     it is left alone, for the pane's own backdrop blur to show through its
+     thinned body (--lg-show); in the gutter below it settles into the
+     sheet's colour and is gone. Both run 2rem past the column on each side
+     and feather there, beyond the text. */
+  --liquid-gutter: calc(var(--spacing) * 4);
+  --liquid-feather: linear-gradient(
+    to right,
+    transparent,
+    #000 calc(var(--spacing) * 8),
+    #000 calc(100% - var(--spacing) * 8),
+    transparent
+  );
+  @media (width >= 48rem) {
+    --liquid-gutter: calc(var(--spacing) * 6);
+  }
+
+  &::before,
+  &::after {
     content: '';
     position: absolute;
     inset-inline: calc(var(--spacing) * -8);
-    top: calc(var(--spacing) * -10);
-    bottom: 0;
     z-index: -1;
     pointer-events: none;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    background: linear-gradient(
-      to bottom,
-      color-mix(in oklab, var(--sheet-shade) 40%, transparent),
-      color-mix(in oklab, var(--sheet-shade) 88%, transparent)
-        calc(var(--spacing) * 16)
-    );
+  }
+
+  &::before {
+    top: calc(var(--spacing) * -10);
+    bottom: 0;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     -webkit-mask-image:
       linear-gradient(to bottom, transparent, #000 calc(var(--spacing) * 10)),
-      linear-gradient(
-        to right,
-        transparent,
-        #000 calc(var(--spacing) * 8),
-        #000 calc(100% - var(--spacing) * 8),
-        transparent
-      );
+      var(--liquid-feather);
     -webkit-mask-composite: source-in;
     mask-image:
       linear-gradient(to bottom, transparent, #000 calc(var(--spacing) * 10)),
-      linear-gradient(
-        to right,
-        transparent,
-        #000 calc(var(--spacing) * 8),
-        #000 calc(100% - var(--spacing) * 8),
-        transparent
-      );
+      var(--liquid-feather);
+    mask-composite: intersect;
+  }
+
+  &::after {
+    bottom: 0;
+    height: calc(var(--liquid-gutter) + var(--spacing) * 2);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    background: color-mix(in oklab, var(--sheet-shade) 88%, transparent);
+    -webkit-mask-image:
+      linear-gradient(to bottom, transparent, #000 calc(var(--spacing) * 2)),
+      var(--liquid-feather);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to bottom, transparent, #000 calc(var(--spacing) * 2)),
+      var(--liquid-feather);
     mask-composite: intersect;
   }
 
   @supports not (mask-image: none) {
-    &::before {
+    &::before,
+    &::after {
       content: none;
     }
   }
@@ -1090,6 +1130,8 @@
   --lg-sheen: 0.03;
   --lg-stroke: 0.25;
   --lg-shade: 0.06;
+  /* The navigation reads on a steady pane: nothing shows through it. */
+  --lg-show: 0;
 
   /* The pane draws the veil and the frost glass-panel paints. */
   &[data-liquid='live'] {

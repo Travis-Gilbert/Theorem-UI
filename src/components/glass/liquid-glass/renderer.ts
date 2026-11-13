@@ -25,6 +25,10 @@ export interface Material {
   sheen: number
   stroke: number
   shade: number
+  /** How much of what lies behind shows through the body unchanged, 0 to 1:
+   *  the pane's own blur there is the browser's backdrop-filter, which sees
+   *  the conversation as well as the field. The rim stays the pane's. */
+  show: number
 }
 
 /** What a pane sits on: the sheet's gradient and the field drawn over it. */
@@ -79,6 +83,7 @@ const UNIFORMS = [
   'u_sheen',
   'u_stroke',
   'u_shade',
+  'u_show',
 ] as const
 
 type Uniforms = Record<(typeof UNIFORMS)[number], WebGLUniformLocation | null>
@@ -258,6 +263,7 @@ export class GlassRenderer {
     gl.uniform1f(u.u_sheen, material.sheen)
     gl.uniform1f(u.u_stroke, material.stroke)
     gl.uniform1f(u.u_shade, material.shade)
+    gl.uniform1f(u.u_show, material.show)
     this.quadDraw(program)
     gl.activeTexture(gl.TEXTURE0)
 

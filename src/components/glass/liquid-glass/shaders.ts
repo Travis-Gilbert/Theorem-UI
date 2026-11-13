@@ -1,4 +1,4 @@
-// SOURCING: adapted from ybouane/liquidglass (MIT, src/shaders.ts): the rounded-rect SDF, the half-circle bevel height field and its finite-difference normal, the separable 9-tap Gaussian, and Blinn-Phong light from that normal. Changed here: the panel samples a scene in CSS pixels with a margin, so refraction near the edge reads real pixels; the body and the rim mix blur, smoke and clarity separately (the library blurs the centre fully and the rim 85%); the bevel can run past chosen sides (a pane attached to the window edge); one directional reflection, with a dimmer counterpart at the far corner, replaces four lights; shadow, chromatic aberration, micro-distortion and fresnel whitening are left out (elevation is CSS, on the element). WebGL 1 / GLSL ES 1.0.
+// SOURCING: adapted from ybouane/liquidglass (MIT, src/shaders.ts): the rounded-rect SDF, the half-circle bevel height field and its finite-difference normal, the separable 9-tap Gaussian, and Blinn-Phong light from that normal. Changed here: the panel samples a scene in CSS pixels with a margin, so refraction near the edge reads real pixels; the body and the rim mix blur, smoke and clarity separately (the library blurs the centre fully and the rim 85%); the bevel can run past chosen sides (a pane attached to the window edge); one directional reflection, with a dimmer counterpart at the far corner, replaces four lights; shadow, chromatic aberration, micro-distortion and fresnel whitening are left out (elevation is CSS, on the element); the body can thin (u_show) over the element's own CSS backdrop blur, so the conversation shows through softened. WebGL 1 / GLSL ES 1.0.
 
 /** A quad over the whole viewport, with UVs from its bottom-left corner. */
 export const VS_QUAD = `
@@ -48,6 +48,9 @@ void main() {
  * the top left: a narrow reflection where the curve faces it, strongest at the near corner, with a dimmer one at the far corner (u_light), a
  * broad sheen over the same curve (u_sheen), and a hairline contour that is
  * lit on that side (u_stroke) and shaded on the other (u_shade).
+ *
+ * Across the body the pane thins by u_show, so the browser's own blur of
+ * what lies behind, conversation included, shows through it.
  */
 export const FS_GLASS = `
 precision highp float;
@@ -73,6 +76,7 @@ uniform float u_light;
 uniform float u_sheen;
 uniform float u_stroke;
 uniform float u_shade;
+uniform float u_show;
 
 varying vec2 v_uv;
 
@@ -160,5 +164,9 @@ void main() {
   col += contour * u_stroke * (0.3 + 0.7 * smoothstep(-0.2, 1.0, lit));
   col *= 1.0 - contour * u_shade * smoothstep(-0.1, 1.0, -lit);
 
-  gl_FragColor = vec4(clamp(col, 0.0, 1.0), mask);
+  // Across the body the pane thins by u_show, so what the browser's own
+  // backdrop blur sees, the conversation with the field, comes through
+  // softened; toward the edge it closes, and the rim is all the pane's.
+  float alpha = mask * (1.0 - u_show * (1.0 - rim) * (1.0 - contour));
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), alpha);
 }`

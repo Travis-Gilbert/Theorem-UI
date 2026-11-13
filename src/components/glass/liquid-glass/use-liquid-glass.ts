@@ -74,6 +74,7 @@ function readMaterial(element: Element) {
       sheen: number('--lg-sheen', 0),
       stroke: number('--lg-stroke', 0.1),
       shade: number('--lg-shade', 0.2),
+      show: number('--lg-show', 0),
     },
   }
 }
