@@ -1,7 +1,8 @@
-// SOURCING: @theoremharness/sdk files (entries, search, read, links, backlinks, suggestions) and documents.get, the typed Files routes (schema theorem-files/1)
-import { theorem, statusOf, type Theorem } from '@/lib/theorem'
+// SOURCING: @theoremharness/sdk files (entries, search, read, write, links, backlinks, suggestions) and documents.get, the typed Files routes (schema theorem-files/1)
+import { mutate, theorem, statusOf, type Theorem } from '@/lib/theorem'
 import { loadProjects, loadThreads } from '@/features/chat/threads'
 import { hitsToItems, itemsOf, type LibraryItem } from './model'
+import { noteBody, notePath } from './note-model'
 import { explicitRelated, suggestedRelated, type Related } from './related'
 
 const FILES = 'theorem-files/1'
@@ -96,4 +97,24 @@ async function findThreadForRun(runId: string): Promise<Theorem.Thread | undefin
   return pages
     .flatMap((page) => page?.items ?? [])
     .find((thread) => thread.activeRunId === runId || thread.lastRun?.runId === runId)
+}
+
+/**
+ * Creates a note named by the person: a `.md` path that does not exist yet, which
+ * Theorem stores as a user-authored document placed there. `If-None-Match: *`
+ * makes an existing name a 412 instead of an overwrite. `key` is the caller's, so
+ * pressing Create again after a lost answer is the same write.
+ */
+export async function createNote(title: string, key: string): Promise<Theorem.FilesEntry> {
+  const receipt = await mutate(key, (headers) =>
+    theorem().files.write({
+      schema: FILES,
+      path: notePath(title),
+      encoding: 'utf8',
+      data: noteBody(title),
+      'If-None-Match': '*',
+      ...headers,
+    }),
+  )
+  return receipt.entry
 }

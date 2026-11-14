@@ -1,8 +1,10 @@
 // SOURCING: expo-router Stack.Screen and router; chat.projects and chat.threads through features/chat/threads; ui/row, ui/group-header
 //
 // A project's page, after Claude's: what the agent is told in this project (its
-// instructions), then the project's conversations, and a New chat pill. Adding
-// files is not here: Theorem has no route that puts a file into a project.
+// instructions), the files added from this screen (project uploads, the route
+// intake uses), then the project's conversations, and a New chat pill. Theorem
+// has no route that lists a project's earlier uploads, so only this visit's
+// additions are shown.
 import { useCallback, useRef } from 'react'
 import { FlatList, Pressable, StyleSheet, View } from 'react-native'
 import { Image } from 'expo-image'
@@ -11,7 +13,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { paramsOf } from '@/features/chat/selection'
 import { rememberDestination } from '@/features/chat/recipient-picker'
 import { ThreadRow } from '@/features/chat/thread-row'
+import { addedDetail } from '@/features/chat/added-files'
 import { loadProject, loadThreads } from '@/features/chat/threads'
+import { useAddFiles } from '@/features/chat/use-add-files'
 import { describeError } from '@/lib/theorem'
 import { useRequest } from '@/lib/use-request'
 import { radius, space, touchTarget } from '@/theme/tokens'
@@ -44,6 +48,7 @@ export default function ProjectScreen() {
   )
 
   const current = project.data
+  const files = useAddFiles(current?.projectId)
   const open = (threadId: string) =>
     router.dismissTo({ pathname: '/chat', params: { ...paramsOf({ kind: 'theorem', threadId }), project: projectId } })
   const startChat = () => {
@@ -72,6 +77,23 @@ export default function ProjectScreen() {
                 onPress={() => router.push({ pathname: '/chat/instructions', params: { project: current.projectId } })}
               />
             ) : null}
+            <GroupHeader title="Files" onAdd={current ? () => void files.pick() : undefined} addLabel="Add files to this project" />
+            {files.pickError ? (
+              <Text tone="error" style={styles.note}>
+                {files.pickError}
+              </Text>
+            ) : null}
+            {files.added.map((entry) => (
+              <Row
+                key={entry.id}
+                title={entry.name}
+                prominence="regular"
+                detail={addedDetail(entry)}
+                detailTone={entry.state === 'failed' ? 'error' : entry.state === 'stored' ? 'success' : 'muted'}
+                wrap={entry.state === 'failed'}
+                trailing={entry.state === 'failed' ? <Button label="Retry" onPress={() => files.retry(entry.id)} /> : undefined}
+              />
+            ))}
             <GroupHeader title="Conversations" onAdd={current ? startChat : undefined} addLabel="New chat in this project" />
           </View>
         }
@@ -122,6 +144,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { paddingBottom: space.xl * 3 },
   message: { padding: space.xl, gap: space.md, alignItems: 'center' },
+  note: { paddingHorizontal: space.lg, paddingVertical: space.sm },
   pill: {
     position: 'absolute',
     right: space.lg,
