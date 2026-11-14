@@ -22,6 +22,10 @@
 // key and reaches OpenRouter through scripts/e2e/provider-standin.mjs. That takes only
 // a generated test key and swaps in the real one as it forwards, so a page never
 // holds a real key.
+//
+// With E2E_UI=off, the web UI is not started: a client that signs in with its own
+// bearer (the iOS app) needs only the issuer and the server, and a UI that dies
+// cannot then take the server down with it.
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import {
@@ -277,23 +281,35 @@ start('server', server, [], {
 })
 await ready('server', `${API}/.well-known/oauth-authorization-server`)
 
-const { THEOREM_API_TOKEN: _deploymentToken, ...uiEnv } = process.env
-start(
-  'ui',
-  process.execPath,
-  ['node_modules/.bin/vite', 'dev', '--port', String(UI_PORT), '--strictPort'],
-  {
-    ...uiEnv,
-    ...signIn.ui,
-    THEOREM_API_URL: API,
-    THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
-    THEOREM_SESSION_SECRET: secret.uiSessionSecret,
-    // Another stack on another port would otherwise overwrite this sign-in.
-    THEOREM_SESSION_COOKIE: `theorem_session_${UI_PORT}`,
-  },
-)
-await ready('ui', `${UI}/login`)
+if (process.env.E2E_UI === 'off') {
+  console.log(
+    `Stack is up without the web UI. Theorem: ${API}. Logs: ${DATA_DIR}/logs`,
+  )
+} else {
+  const { THEOREM_API_TOKEN: _deploymentToken, ...uiEnv } = process.env
+  start(
+    'ui',
+    process.execPath,
+    [
+      'node_modules/.bin/vite',
+      'dev',
+      '--port',
+      String(UI_PORT),
+      '--strictPort',
+    ],
+    {
+      ...uiEnv,
+      ...signIn.ui,
+      THEOREM_API_URL: API,
+      THEOREM_OAUTH_CLIENT_ID: CLIENT_ID,
+      THEOREM_SESSION_SECRET: secret.uiSessionSecret,
+      // Another stack on another port would otherwise overwrite this sign-in.
+      THEOREM_SESSION_COOKIE: `theorem_session_${UI_PORT}`,
+    },
+  )
+  await ready('ui', `${UI}/login`)
 
-console.log(
-  `Stack is up. Sign in at ${UI} as ${ACCOUNT}. Logs: ${DATA_DIR}/logs`,
-)
+  console.log(
+    `Stack is up. Sign in at ${UI} as ${ACCOUNT}. Logs: ${DATA_DIR}/logs`,
+  )
+}
