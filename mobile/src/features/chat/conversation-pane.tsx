@@ -10,6 +10,7 @@ import { Unavailable } from '@/ui/unavailable'
 import { useDeliveries } from '../intake/queue'
 import { rememberLastThread } from '../invocation/handler'
 import { useTaskPresence } from '../presence/use-task-presence'
+import { AttachButton } from './attach'
 import { ConversationSurface, EmptyConversation, type SurfaceNote } from './conversation-surface'
 import { connectionNotice } from './recovery'
 import { useConversation } from './runtime'
@@ -91,7 +92,12 @@ export function ConversationPane({
         queue={{ items: queued, paused, onRemove: removeQueued, onEdit: editQueued }}
         empty={<EmptyConversation title="Theorem" detail="Ask anything about this project." />}
         stopLabel="Stop the run"
-        controls={titled ? undefined : <ShareButton threadId={threadId} />}
+        controls={
+          <>
+            <AttachButton threadId={threadId} />
+            {titled ? null : <ShareButton threadId={threadId} />}
+          </>
+        }
       />
     </>
   )
