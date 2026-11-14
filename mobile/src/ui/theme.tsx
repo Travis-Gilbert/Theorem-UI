@@ -1,6 +1,6 @@
 // SOURCING: react-native useColorScheme and AccessibilityInfo (reduced motion); preference kept in the device kv table
 import { createContext, use, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, useColorScheme } from 'react-native'
+import { AccessibilityInfo, Appearance, useColorScheme } from 'react-native'
 import { kv } from '@/lib/local-db'
 import { palettes, type Palette, type Scheme } from '@/theme/tokens'
 
@@ -28,6 +28,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
     return () => subscription.remove()
   }, [])
+  // Native chrome (navigation bars, sheets, system glass) takes its light or dark from the window,
+  // not from our palette. Pin the window to the chosen scheme; 'unspecified' hands it back to the system.
+  useEffect(() => {
+    Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference)
+  }, [preference])
   const scheme: Scheme = preference === 'system' ? (system === 'light' ? 'light' : 'dark') : preference
   const value = useMemo<Theme>(
     () => ({
