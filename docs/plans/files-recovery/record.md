@@ -28,9 +28,10 @@ and the shared icon module exports only the icons its callers actually use.
   with loopback bindings. After a Files GET, `Runtime.getHeapUsage` reported
   146,723,900 bytes for production and 94,224,408 bytes for the candidate. After
   also loading the candidate's root route, its used heap was 108,495,492 bytes.
-  That root request returned 500 because this measurement used an absent
-  loopback authority. These are local memory measurements, not production
-  capacity or rendered-product claims.
+  That root request returned 500; the earlier attribution to an absent
+  loopback authority was not established. The later hosted startup defect
+  below was reproduced against real Worker output. These are local memory
+  measurements, not production capacity or rendered-product claims.
 - The server icon module shrank from 7,786,951 to 13,630 bytes. Candidate
   JavaScript modules total 34,650,943 bytes. The production module download
   was 59,010,705 bytes including WASM and multipart metadata; those totals are
@@ -171,3 +172,44 @@ composition. A report-reader check loaded all five existing receipts from the
 external evidence directory, including the second-consumer composition result.
 The check deliberately had no browser installed and retained the browser
 failure; it verifies report routing only and is not a new rendered pass.
+
+## Hosted Worker startup repair, November 14
+
+The integration owner uploaded the `a9a6632e` artifact and reproduced HTTP 500
+on HTML routes. Browser-only Neon Auth code was eagerly grouped into the
+Worker's Zod chunk and failed during global initialization. Commit `de0028cb`
+adopts `4ffaafbb0ea048d6e8e455ad5c9fa7b72ca763d9` with the identical source
+tree: auth adapters load on their request paths and recursive dependency
+grouping is disabled in Worker output. This is distinct from the original
+Files request memory failure.
+
+The repair passes 87 focused auth/Files/workspace/IDE tests and TypeScript.
+An app-only Nitro build cold-started in local workerd with explicit fixture
+configuration: auth pages returned 200, Files and Project Files returned typed
+signed-out 401, and unconfigured Neon returned its expected 503. That local
+build omitted Theia assets and does not establish live backend behavior.
+
+The complete Cloudflare build published preview
+`e68158f4-1bb7-44a8-b0dd-dea003040165` with source annotation `de0028c`.
+Its immutable URL serves Home, IDE, Index, Canvas and auth pages with HTTP 200,
+Files and Project Files with signed-out 401, and the packaged Theia page
+after its `/theia/` redirect. The auth page also renders in Chromium.
+The initial Python HTTP client received generic 403 responses; subsequent
+curl and browser observations are retained separately. No signed-in claim is
+based on these checks.
+
+Linux Composer run `43591338025` passes, including all nine rendered review
+suites. Cloudflare Builds and Greptile pass. The source-bound runtime and
+HTTP receipts are under
+`/Volumes/SSD Samsung/codex-rebuildable-cache/pr1066-worker-evidence/ui-neon-startup-de0028cb/`.
+`hosted-preview-verified.json` has SHA-256
+`a24b6c6d064692cf72061b56f41c37fffe36d475c29959a8541968cb19a093a3`.
+The complete CI log is `ui-composer-de0028cb.log` in the parent directory,
+SHA-256 `655d19506df4ffa35c2c9ed6a47297de738ac97672764e0bf873fee817ee71cd`.
+The viewed screenshot is `output/playwright/hosted-de0028cb-auth.png`.
+Only this chat's local browser/workerd processes were stopped.
+
+The referenced integration chat separately owns its live store/frontend
+release. This chat has not deployed production. The backend candidate still
+requires its own packaged Linux runtime and fresh restored-journal checks;
+final signed-in theorem.rs Files acceptance remains open.
