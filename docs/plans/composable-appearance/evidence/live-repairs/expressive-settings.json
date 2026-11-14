@@ -1,0 +1,195 @@
+{
+  "browser": "156.0.8078.4",
+  "checks": [
+    {
+      "name": "github-sharp light: Expressive shares the unchanged gradient across preset switches",
+      "passed": true,
+      "observed": {
+        "paint": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "gradient": "linear-gradient(rgb(255, 255, 255), color(srgb 0.992667 0.993529 0.994392) 18.8%, color(srgb 0.983333 0.985294 0.987255) 37.6%, color(srgb 0.971333 0.974706 0.978078) 56.4%, color(srgb 0.964 0.968235 0.972471) 65.8%, color(srgb 0.955333 0.960588 0.965843) 75.2%, color(srgb 0.945333 0.951765 0.958196) 84.6%, rgb(238, 240, 242) 94%)",
+          "footer": "rgba(0, 0, 0, 0)",
+          "colors": {
+            "--ink": "#24292d",
+            "--ink-muted": "#586069",
+            "--sheet-from": "#ffffff",
+            "--sheet-to": "#eef0f2"
+          }
+        },
+        "minimumEndpointContrast": 5.583600092397625
+      }
+    },
+    {
+      "name": "github-sharp dark: Expressive shares the unchanged gradient across preset switches",
+      "passed": true,
+      "observed": {
+        "paint": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "gradient": "linear-gradient(rgb(40, 41, 43), color(srgb 0.148356 0.152183 0.1595) 18.8%, color(srgb 0.137529 0.141235 0.147882) 37.6%, color(srgb 0.123609 0.12716 0.132946) 56.4%, color(srgb 0.115103 0.118558 0.123818) 65.8%, color(srgb 0.105049 0.108393 0.113031) 75.2%, color(srgb 0.0934494 0.0966635 0.100584) 84.6%, color(srgb 0.0795294 0.0825882 0.0856471) 94%)",
+          "footer": "rgba(0, 0, 0, 0)",
+          "colors": {
+            "--ink": "#c3c6c8",
+            "--ink-muted": "#a2a5a8",
+            "--sheet-from": "#28292b",
+            "--sheet-to": "#1a1b1c"
+          }
+        },
+        "minimumEndpointContrast": 5.882178309076834
+      }
+    },
+    {
+      "name": "stone light: Expressive shares the unchanged gradient across preset switches",
+      "passed": true,
+      "observed": {
+        "paint": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "gradient": "linear-gradient(rgb(207, 204, 201), color(srgb 0.797529 0.785333 0.773137) 18.8%, color(srgb 0.779412 0.766667 0.753922) 37.6%, color(srgb 0.756118 0.742667 0.729216) 56.4%, color(srgb 0.741882 0.728 0.714118) 65.8%, color(srgb 0.725059 0.710667 0.696275) 75.2%, color(srgb 0.705647 0.690667 0.675686) 84.6%, rgb(174, 170, 166) 94%)",
+          "footer": "rgba(0, 0, 0, 0)",
+          "colors": {
+            "--ink": "#32302e",
+            "--ink-muted": "#383532",
+            "--sheet-from": "#cfccc9",
+            "--sheet-to": "#aeaaa6"
+          }
+        },
+        "minimumEndpointContrast": 5.28025807958825
+      }
+    },
+    {
+      "name": "stone dark: Expressive shares the unchanged gradient across preset switches",
+      "passed": true,
+      "observed": {
+        "paint": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "gradient": "linear-gradient(rgb(37, 36, 34), color(srgb 0.136876 0.133049 0.125733) 18.8%, color(srgb 0.126412 0.122706 0.116059) 37.6%, color(srgb 0.112958 0.109407 0.103621) 56.4%, color(srgb 0.104736 0.10128 0.0960204) 65.8%, color(srgb 0.0950188 0.0916753 0.0870377) 75.2%, color(srgb 0.0838071 0.0805929 0.0766729) 84.6%, color(srgb 0.0703529 0.0672941 0.0642353) 94%)",
+          "footer": "rgba(0, 0, 0, 0)",
+          "colors": {
+            "--ink": "#ceccca",
+            "--ink-muted": "#979491",
+            "--sheet-from": "#252422",
+            "--sheet-to": "#171615"
+          }
+        },
+        "minimumEndpointContrast": 5.140409323110899
+      }
+    },
+    {
+      "name": "vitesse light: Expressive shares the unchanged gradient across preset switches",
+      "passed": true,
+      "observed": {
+        "paint": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "gradient": "linear-gradient(rgb(255, 255, 255), color(srgb 0.993529 0.993529 0.993529) 18.8%, color(srgb 0.985294 0.985294 0.985294) 37.6%, color(srgb 0.974706 0.974706 0.974706) 56.4%, color(srgb 0.968235 0.968235 0.968235) 65.8%, color(srgb 0.960588 0.960588 0.960588) 75.2%, color(srgb 0.951765 0.951765 0.951765) 84.6%, rgb(240, 240, 240) 94%)",
+          "footer": "rgba(0, 0, 0, 0)",
+          "colors": {
+            "--ink": "#393a34",
+            "--ink-muted": "#4e4f47",
+            "--sheet-from": "#ffffff",
+            "--sheet-to": "#f0f0f0"
+          }
+        },
+        "minimumEndpointContrast": 7.27399040516573
+      }
+    },
+    {
+      "name": "vitesse dark: Expressive shares the unchanged gradient across preset switches",
+      "passed": true,
+      "observed": {
+        "paint": {
+          "background": "rgba(0, 0, 0, 0)",
+          "image": "none",
+          "gradient": "linear-gradient(rgb(41, 41, 41), color(srgb 0.152183 0.152183 0.152183) 18.8%, color(srgb 0.141235 0.141235 0.141235) 37.6%, color(srgb 0.12716 0.12716 0.12716) 56.4%, color(srgb 0.118558 0.118558 0.118558) 65.8%, color(srgb 0.108393 0.108393 0.108393) 75.2%, color(srgb 0.0966635 0.0966635 0.0966635) 84.6%, color(srgb 0.0825882 0.0825882 0.0825882) 94%)",
+          "footer": "rgba(0, 0, 0, 0)",
+          "colors": {
+            "--ink": "#cfcbbf",
+            "--ink-muted": "#bfbaaa",
+            "--sheet-from": "#292929",
+            "--sheet-to": "#1b1b1b"
+          }
+        },
+        "minimumEndpointContrast": 7.495295118544955
+      }
+    },
+    {
+      "name": "Appearance uses coss controls with keyboard selection and bounded numeric input",
+      "passed": true
+    },
+    {
+      "name": "AI settings give the TanStack table a wide page and retain working coss controls",
+      "passed": true,
+      "observed": {
+        "contentWidth": 1232
+      }
+    },
+    {
+      "name": "390px settings wrap controls without document overflow",
+      "passed": true,
+      "observed": {
+        "width": 390,
+        "scroll": 390,
+        "controls": [
+          {
+            "left": 37,
+            "right": 344.703125
+          },
+          {
+            "left": 37,
+            "right": 197
+          },
+          {
+            "left": 37,
+            "right": 197
+          },
+          {
+            "left": 37,
+            "right": 197
+          },
+          {
+            "left": 37,
+            "right": 197
+          }
+        ]
+      }
+    },
+    {
+      "name": "320px settings wrap controls without document overflow",
+      "passed": true,
+      "observed": {
+        "width": 320,
+        "scroll": 320,
+        "controls": [
+          {
+            "left": 37,
+            "right": 277
+          },
+          {
+            "left": 37,
+            "right": 197
+          },
+          {
+            "left": 37,
+            "right": 197
+          },
+          {
+            "left": 37,
+            "right": 197
+          },
+          {
+            "left": 37,
+            "right": 197
+          }
+        ]
+      }
+    },
+    {
+      "name": "No uncaught browser errors",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

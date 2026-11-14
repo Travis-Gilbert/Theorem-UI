@@ -134,6 +134,12 @@ export const STORIES: readonly StoryMeta[] = [
     viewport: { width: 390, height: 844 },
   },
   {
+    id: 'settings-ai',
+    title: 'AI settings and model table',
+    lane: 'original',
+    viewport: { width: 1920, height: 1080 },
+  },
+  {
     id: 'cpu-gpu-tradeoff',
     title: 'CPU or GPU: the tradeoff notebook',
     lane: 'original',

@@ -82,6 +82,26 @@ const toolRows = (root: ParentNode) => root.querySelectorAll('[data-slot="tool-f
 const reasoningRows = (root: ParentNode) => root.querySelectorAll('[data-slot="reasoning-root"]')
 const approvalCards = (root: ParentNode) => root.querySelectorAll('[data-slot="approval-card"]')
 
+test('unrecognized runtime data does not create unsupported-content bubbles in a running reply', async () => {
+  const messages = withStatus(turn([
+    { partId: 'receipt', type: 'turn_receipt', payload: { receiptId: 'receipt-1' } },
+    { partId: 'metadata', type: 'future_runtime_metadata', payload: { phase: 'started' } },
+  ], 'running'), { type: 'running' })
+  const { container } = await render(<Harness isRunning messages={messages} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  expect(container.textContent).not.toContain("This content can't be shown here.")
+  expect(activity(container).textContent).toContain('Searching the web')
+})
+
+test('a malformed supported artifact still reports its rendering failure', async () => {
+  const { container } = await render(<Harness messages={turn([
+    { partId: 'artifact', type: 'artifact', payload: {} },
+  ])} />)
+  await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))
+  expect(container.querySelector('[data-part="theorem-artifact"]')?.textContent)
+    .toContain("This content can't be shown here.")
+})
+
 test('a finished turn is one line by the name, and Details opens its tool calls on a sheet', async () => {
   const { container } = await render(<Harness messages={turn([...search('s1', 'denver sun'), ...search('s2', 'denver snow')])} />)
   await waitFor(() => container.textContent.includes('Denver gets 300 days of sun.'))

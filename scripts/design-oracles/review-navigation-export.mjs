@@ -1,3 +1,4 @@
+import { chooseOption } from './browser-controls.mjs'
 // PR #101 regressions: real shell/router, Base UI drawer, Milkdown and settings.
 // The development story supplies deterministic SDK responses, not a live server.
 import assert from 'node:assert/strict'
@@ -5,7 +6,9 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright-core'
 
 const base = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
-const output = 'docs/plans/composable-appearance/evidence/review'
+const output =
+  process.env.ORACLE_REVIEW_OUT ??
+  'docs/plans/composable-appearance/evidence/review'
 const browser = await chromium.launch()
 const checks = []
 const errors = []
@@ -180,14 +183,12 @@ try {
         const imported = { ...original, overrides: { density: 'compact' } }
         await field.fill(JSON.stringify(imported))
         await apply.click()
-        await page.waitForFunction(
-          () =>
-            document.querySelector('select[aria-label="Density"]').value ===
-            'compact',
+        await page.waitForFunction(() =>
+          document
+            .querySelector('[role="combobox"][aria-label="Density"]')
+            .textContent.includes('Compact'),
         )
-        await dialog
-          .getByRole('combobox', { name: 'Density', exact: true })
-          .selectOption('touch')
+        await chooseOption(page, dialog, 'Density', 'Touch')
         assert.equal(
           JSON.parse(await field.inputValue()).overrides.density,
           'touch',
@@ -195,9 +196,7 @@ try {
 
         const draft = '{"unsaved":'
         await field.fill(draft)
-        await dialog
-          .getByRole('combobox', { name: 'Density', exact: true })
-          .selectOption('comfortable')
+        await chooseOption(page, dialog, 'Density', 'Comfortable')
         assert.equal(await field.inputValue(), draft)
         await dialog
           .getByRole('button', { name: 'Copy current settings', exact: true })

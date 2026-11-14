@@ -118,6 +118,7 @@ jobs:
           bun run oracle:navigation-export
           bun run oracle:reflow
           bun run oracle:runtime
+          bun run oracle:expressive
           bun run oracle:composition
           bun run oracle:code
           ORACLE_ENGINE=chromium bun run oracle:states

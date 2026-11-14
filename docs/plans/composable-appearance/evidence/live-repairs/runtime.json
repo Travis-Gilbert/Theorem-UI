@@ -1,0 +1,514 @@
+{
+  "browser": "156.0.8078.4",
+  "environment": "local Vite story with deterministic SDK HTTP and asynchronous SSE responses",
+  "fixtures": [
+    "/story/shell-compare",
+    "/story/design-oracle-draft"
+  ],
+  "viewport": [
+    1440,
+    900
+  ],
+  "checks": [
+    {
+      "name": "F08 unread transcript divider reflects the saved visit",
+      "passed": true,
+      "observed": "New since you were here"
+    },
+    {
+      "name": "F08 a thread never previously visited has no unread marker",
+      "passed": true,
+      "observed": "PR learning loop1h ago"
+    },
+    {
+      "name": "F08 a newer assistant reply gives a non-color unread row cue",
+      "passed": true,
+      "observed": "Donaudampfschifffahrtsgesellschaftskapitän und die ausführliche Entscheidungsvorbereitung für den nächsten Forschungsbericht, unread reply, running"
+    },
+    {
+      "name": "F08 long translated running row retains name and disclosure without widening its panel",
+      "passed": true,
+      "observed": {
+        "name": "Donaudampfschifffahrtsgesellschaftskapitän und die ausführliche Entscheidungsvorbereitung für den nächsten Forschungsbericht, unread reply, running",
+        "title": "Donaudampfschifffahrtsgesellschaftskapitän und die ausführliche Entscheidungsvorbereitung für den nächsten Forschungsbericht",
+        "width": 239,
+        "clientWidth": 239,
+        "scrollWidth": 239
+      }
+    },
+    {
+      "name": "F05/F11 real Appearance controls preserve the editor, draft, attachment and reference nodes",
+      "passed": true,
+      "observed": {
+        "before": {
+          "editor": true,
+          "draft": "Draft with a file and source",
+          "selection": "e"
+        },
+        "after": {
+          "editor": true,
+          "draft": "Draft with a file and source",
+          "selection": "e"
+        },
+        "sameTile": true,
+        "sameReference": true
+      }
+    },
+    {
+      "name": "F07 the in-flight upload node remains visible while changing appearance",
+      "passed": true,
+      "observed": {
+        "upload": {
+          "sameNode": true,
+          "label": "Document attachment fixture-reference.txt, uploading"
+        },
+        "runtime": {
+          "calls": [
+            {
+              "type": "read-nav"
+            },
+            {
+              "type": "upload",
+              "bytes": 18,
+              "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+            }
+          ],
+          "active": false,
+          "emitted": [],
+          "failedUpload": false
+        }
+      }
+    },
+    {
+      "name": "F07 failed upload returns attachment, draft and readable help before any turn dispatch",
+      "passed": true,
+      "observed": {
+        "error": "File rejected by the fixture intake",
+        "runtime": {
+          "calls": [
+            {
+              "type": "read-nav"
+            },
+            {
+              "type": "upload",
+              "bytes": 18,
+              "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+            }
+          ],
+          "active": false,
+          "emitted": [],
+          "failedUpload": true
+        }
+      }
+    },
+    {
+      "name": "F07 explicit retry uploads the same bytes and dispatches one recovered turn",
+      "passed": true,
+      "observed": {
+        "calls": [
+          {
+            "type": "read-nav"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "send",
+            "text": "Draft with a file and source",
+            "uploads": [
+              "appearance-upload"
+            ],
+            "key": "eb6f07cb-001b-4fc0-a50b-80f6a754b0d6"
+          },
+          {
+            "type": "subscribe",
+            "runId": "run-appearance-stream"
+          }
+        ],
+        "active": true,
+        "emitted": [
+          {
+            "runId": "run-appearance-stream",
+            "seq": 1,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains."
+              }
+            }
+          }
+        ],
+        "failedUpload": true
+      }
+    },
+    {
+      "name": "F06/F11 the same run streams a later chunk through an appearance change",
+      "passed": true,
+      "observed": {
+        "first": {
+          "calls": [
+            {
+              "type": "read-nav"
+            },
+            {
+              "type": "upload",
+              "bytes": 18,
+              "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+            },
+            {
+              "type": "upload",
+              "bytes": 18,
+              "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+            },
+            {
+              "type": "send",
+              "text": "Draft with a file and source",
+              "uploads": [
+                "appearance-upload"
+              ],
+              "key": "eb6f07cb-001b-4fc0-a50b-80f6a754b0d6"
+            },
+            {
+              "type": "subscribe",
+              "runId": "run-appearance-stream"
+            }
+          ],
+          "active": true,
+          "emitted": [
+            {
+              "runId": "run-appearance-stream",
+              "seq": 1,
+              "sourceEventType": "CHAT.MESSAGE.PART",
+              "payload": {
+                "part": {
+                  "partId": "appearance-answer",
+                  "type": "text",
+                  "text": "The first chunk remains."
+                }
+              }
+            }
+          ],
+          "failedUpload": true
+        },
+        "second": {
+          "calls": [
+            {
+              "type": "read-nav"
+            },
+            {
+              "type": "upload",
+              "bytes": 18,
+              "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+            },
+            {
+              "type": "upload",
+              "bytes": 18,
+              "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+            },
+            {
+              "type": "send",
+              "text": "Draft with a file and source",
+              "uploads": [
+                "appearance-upload"
+              ],
+              "key": "eb6f07cb-001b-4fc0-a50b-80f6a754b0d6"
+            },
+            {
+              "type": "subscribe",
+              "runId": "run-appearance-stream"
+            }
+          ],
+          "active": true,
+          "emitted": [
+            {
+              "runId": "run-appearance-stream",
+              "seq": 1,
+              "sourceEventType": "CHAT.MESSAGE.PART",
+              "payload": {
+                "part": {
+                  "partId": "appearance-answer",
+                  "type": "text",
+                  "text": "The first chunk remains."
+                }
+              }
+            },
+            {
+              "runId": "run-appearance-stream",
+              "seq": 2,
+              "sourceEventType": "CHAT.MESSAGE.PART",
+              "payload": {
+                "part": {
+                  "partId": "appearance-answer",
+                  "type": "text",
+                  "text": "The first chunk remains. A second chunk arrived after the appearance changed."
+                }
+              }
+            }
+          ],
+          "failedUpload": true
+        }
+      }
+    },
+    {
+      "name": "F07 busy text-only validation preserves the draft and reference",
+      "passed": true,
+      "observed": {
+        "calls": [
+          {
+            "type": "read-nav"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "send",
+            "text": "Draft with a file and source",
+            "uploads": [
+              "appearance-upload"
+            ],
+            "key": "eb6f07cb-001b-4fc0-a50b-80f6a754b0d6"
+          },
+          {
+            "type": "subscribe",
+            "runId": "run-appearance-stream"
+          }
+        ],
+        "active": true,
+        "emitted": [
+          {
+            "runId": "run-appearance-stream",
+            "seq": 1,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains."
+              }
+            }
+          },
+          {
+            "runId": "run-appearance-stream",
+            "seq": 2,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains. A second chunk arrived after the appearance changed."
+              }
+            }
+          }
+        ],
+        "failedUpload": true
+      }
+    },
+    {
+      "name": "F06 follow-up sends one inbox command with stable run identity",
+      "passed": true,
+      "observed": {
+        "calls": [
+          {
+            "type": "read-nav"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "send",
+            "text": "Draft with a file and source",
+            "uploads": [
+              "appearance-upload"
+            ],
+            "key": "eb6f07cb-001b-4fc0-a50b-80f6a754b0d6"
+          },
+          {
+            "type": "subscribe",
+            "runId": "run-appearance-stream"
+          },
+          {
+            "type": "input",
+            "runId": "run-appearance-stream",
+            "command": "input",
+            "text": "Use the short version",
+            "key": "40f739ce-0959-4eb6-9135-5f1478e0dfe0"
+          }
+        ],
+        "active": true,
+        "emitted": [
+          {
+            "runId": "run-appearance-stream",
+            "seq": 1,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains."
+              }
+            }
+          },
+          {
+            "runId": "run-appearance-stream",
+            "seq": 2,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains. A second chunk arrived after the appearance changed."
+              }
+            }
+          }
+        ],
+        "failedUpload": true
+      }
+    },
+    {
+      "name": "F06 stop sends one separate cancel command for the same run",
+      "passed": true,
+      "observed": {
+        "calls": [
+          {
+            "type": "read-nav"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "upload",
+            "bytes": 18,
+            "sha256": "ce24b6bb33c0231dd1d1395c82df21c0556e694fd0e24da0dc3f91531ac11b57"
+          },
+          {
+            "type": "send",
+            "text": "Draft with a file and source",
+            "uploads": [
+              "appearance-upload"
+            ],
+            "key": "eb6f07cb-001b-4fc0-a50b-80f6a754b0d6"
+          },
+          {
+            "type": "subscribe",
+            "runId": "run-appearance-stream"
+          },
+          {
+            "type": "input",
+            "runId": "run-appearance-stream",
+            "command": "input",
+            "text": "Use the short version",
+            "key": "40f739ce-0959-4eb6-9135-5f1478e0dfe0"
+          },
+          {
+            "type": "cancel",
+            "runId": "run-appearance-stream"
+          },
+          {
+            "type": "subscribe",
+            "runId": "run-appearance-stream"
+          }
+        ],
+        "active": false,
+        "emitted": [
+          {
+            "runId": "run-appearance-stream",
+            "seq": 1,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains."
+              }
+            }
+          },
+          {
+            "runId": "run-appearance-stream",
+            "seq": 2,
+            "sourceEventType": "CHAT.MESSAGE.PART",
+            "payload": {
+              "part": {
+                "partId": "appearance-answer",
+                "type": "text",
+                "text": "The first chunk remains. A second chunk arrived after the appearance changed."
+              }
+            }
+          },
+          {
+            "runId": "run-appearance-stream",
+            "seq": 3,
+            "sourceEventType": "RUN.CANCELLED",
+            "payload": {}
+          }
+        ],
+        "failedUpload": true
+      }
+    },
+    {
+      "name": "F08 recording a newer visit clears the unread row cue",
+      "passed": true,
+      "observed": "Donaudampfschifffahrtsgesellschaftskapitän und die ausführliche Entscheidungsvorbereitung für den nächsten Forschungsbericht, running"
+    },
+    {
+      "name": "TYP-03 composer inline and fenced code honor the custom code family and independent scale",
+      "passed": true,
+      "observed": {
+        "expectedCodeFamily": "Menlo",
+        "styles": {
+          ".ProseMirror p": {
+            "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "size": "16px",
+            "lineHeight": "24px"
+          },
+          ".ProseMirror p code": {
+            "font": "Menlo, \"JetBrains Mono Variable\", \"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace",
+            "size": "19.5px",
+            "lineHeight": "30px"
+          },
+          ".cm-content": {
+            "font": "Menlo, \"JetBrains Mono Variable\", \"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace",
+            "size": "19.5px",
+            "lineHeight": "30px",
+            "recipe": "code"
+          },
+          ".cm-line": {
+            "font": "Menlo, \"JetBrains Mono Variable\", \"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace",
+            "size": "19.5px",
+            "lineHeight": "30px"
+          }
+        }
+      }
+    },
+    {
+      "name": "No uncaught browser errors",
+      "passed": true,
+      "observed": []
+    }
+  ],
+  "pageErrors": []
+}

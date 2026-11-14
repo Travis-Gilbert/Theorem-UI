@@ -96,6 +96,18 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     return review
   }
   return {
+    [`GET ${BASE}/models`]: () => ({
+      defaultRef: 'example/research',
+      models: ['Research', 'Writing', 'Code', 'Vision', 'Fast', 'Reasoning', 'Local', 'Compact'].map((name) => ({
+        ref: `example/${name.toLowerCase()}`,
+        name: `${name} model`,
+        source: 'catalog',
+        context_length: 128000,
+        architecture: { input_modalities: ['text', 'image'] },
+        supported_parameters: ['tools', 'reasoning'],
+        pricing: { prompt: '0.000001', completion: '0.000003' },
+      })),
+    }),
     [`GET ${BASE}/bootstrap`]: () => ({
       schema: 'theorem.chat.bootstrap.v1',
       tenantId: 'story',

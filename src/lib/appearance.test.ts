@@ -88,6 +88,31 @@ describe('appearance selection', () => {
     ).toEqual(DEFAULT_APPEARANCE)
   })
 
+  test('old reply materials are retired without losing other theme preferences', () => {
+    const legacy = {
+      palette: 'stone',
+      density: 'touch',
+      scales: { content: 1.25 },
+      materials: {
+        canvas: 'paper',
+        composer: 'glass',
+        'assistant-reading': 'liquid',
+      },
+    } as const
+    const expected = {
+      ...legacy,
+      materials: { canvas: 'paper', composer: 'glass' },
+    } as const
+    expect(appearanceOverridesSchema.parse(legacy)).toEqual(expected)
+    const document = appearanceDocumentSchema.parse({
+      version: APPEARANCE_VERSION,
+      preset: 'expressive',
+      overrides: legacy,
+    })
+    expect(document.overrides).toEqual(expected)
+    expect(JSON.stringify(document)).not.toContain('assistant-reading')
+  })
+
   test('portable documents reject unsupported versions, fields, fonts and role names', () => {
     const portable = {
       version: APPEARANCE_VERSION,
