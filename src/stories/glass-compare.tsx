@@ -1,5 +1,6 @@
 // SOURCING: the app's glass materials side by side over one scene: the frost it ships (styles.css surface-glass, glass-panel) and liquid glass (glass/liquid-glass, its renderer and shader adapted from ybouane/liquidglass; styles.css surface-liquid, glass-panel-liquid), with the liquid studies (data-glass-study) selectable. The scene is the app's own: the Life field (mountLife), the sidebar (ContextPanel) and the composer (Composer) under the story runtime. A development comparison, not a shipped surface.
 import { useEffect, useRef, useState } from 'react'
+import { createJSONStorage } from 'zustand/middleware'
 import { Composer } from '@/components/assistant-ui/elements/thread.aui'
 import { useLiquidGlass } from '@/components/glass/liquid-glass/use-liquid-glass'
 import { mountLife } from '@/components/life/mount-life'
@@ -15,6 +16,35 @@ type Study = 'default' | 'curved' | 'satin'
 const PANEL_EDGES = { top: false, right: true, bottom: false, left: false }
 
 const params = () => new URLSearchParams(window.location.search)
+
+/** A store that keeps nothing: the scene's choices never become saved settings. */
+const blank = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+}
+
+/**
+ * While the scene is open, the persisted stores it drives write nowhere, so
+ * its overrides (the composer's material, the field shown, the companion
+ * off) stay in memory and a refresh or a closed tab leaves the person's
+ * saved settings as they were. Declared before the effects that write, so
+ * it runs first.
+ */
+function useUnsavedScene() {
+  useEffect(() => {
+    const surfaces = useSurfaces.persist.getOptions().storage
+    const life = useLifeControls.persist.getOptions().storage
+    useSurfaces.persist.setOptions({ storage: createJSONStorage(() => blank) })
+    useLifeControls.persist.setOptions({
+      storage: createJSONStorage(() => blank),
+    })
+    return () => {
+      useSurfaces.persist.setOptions({ storage: surfaces })
+      useLifeControls.persist.setOptions({ storage: life })
+    }
+  }, [])
+}
 
 /** The scene's controls, read once from the URL. */
 function readOptions() {
@@ -81,6 +111,7 @@ export function GlassCompareStory() {
   const sidebar = useRef<HTMLElement>(null)
   const [streamed, setStreamed] = useState(0)
   const [rate, setRate] = useState(0)
+  useUnsavedScene()
   useLiquidGlass(sidebar, material === 'liquid', PANEL_EDGES)
 
   // Frames the page actually painted each second.

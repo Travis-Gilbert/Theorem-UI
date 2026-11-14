@@ -49,6 +49,13 @@ function rgb(value: string): Rgb {
   return [r, g, b]
 }
 
+/** The body thins over the element's own backdrop blur; without one, what
+ *  showed through would be the conversation unblurred, so it stays closed. */
+const backdropBlur =
+  typeof CSS !== 'undefined' &&
+  (CSS.supports('backdrop-filter', 'blur(1px)') ||
+    CSS.supports('-webkit-backdrop-filter', 'blur(1px)'))
+
 function readMaterial(element: Element) {
   const style = getComputedStyle(element)
   const value = (name: string) => style.getPropertyValue(name).trim()
@@ -74,7 +81,7 @@ function readMaterial(element: Element) {
       sheen: number('--lg-sheen', 0),
       stroke: number('--lg-stroke', 0.1),
       shade: number('--lg-shade', 0.2),
-      show: number('--lg-show', 0),
+      show: backdropBlur ? number('--lg-show', 0) : 0,
     },
   }
 }

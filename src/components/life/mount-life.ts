@@ -16,7 +16,16 @@ import {
 } from '@/lib/life/life'
 import type { Field } from '@/lib/life/life'
 import { emit, fill } from '@/lib/life/emitter'
-import { RESTING, beat, decay, glow, pace, pulse, restSeconds, sustain } from '@/lib/life/energy'
+import {
+  RESTING,
+  beat,
+  decay,
+  glow,
+  pace,
+  pulse,
+  restSeconds,
+  sustain,
+} from '@/lib/life/energy'
 import type { Energy, PulseKind } from '@/lib/life/energy'
 import { createLight, settle, shine } from '@/lib/life/light'
 import type { Light } from '@/lib/life/light'
@@ -36,7 +45,8 @@ interface Palette {
   muted: Rgb
 }
 
-const probe = typeof document === 'undefined' ? undefined : document.createElement('canvas')
+const probe =
+  typeof document === 'undefined' ? undefined : document.createElement('canvas')
 
 /** Resolves any CSS colour (hex, oklch, color-mix) to sRGB through a 1px canvas. */
 function rgb(css: string): Rgb {
@@ -65,7 +75,9 @@ function readPalette(element: Element): Palette {
   const token = (name: string) => rgb(value(name))
   const sheet = value('--sheet-from') && value('--sheet-to')
   return {
-    background: sheet ? mix(token('--sheet-from'), token('--sheet-to'), 0.5) : token('--background'),
+    background: sheet
+      ? mix(token('--sheet-from'), token('--sheet-to'), 0.5)
+      : token('--background'),
     accent: token('--primary'),
     ink: token('--foreground'),
     muted: token('--muted-foreground'),
@@ -159,12 +171,17 @@ export function mountLife(
 
   const toCell = (clientX: number, clientY: number): Point | undefined => {
     const position = t.projectClientToGrid(clientX, clientY, t.grid)
-    if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) return undefined
-    return { x: Math.round(position.x) + left(), y: Math.round(position.y) + top() }
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+      return undefined
+    return {
+      x: Math.round(position.x) + left(),
+      y: Math.round(position.y) + top(),
+    }
   }
 
   const settleAll = () => {
-    for (let i = 0; i < field.age.length; i++) settle(light, i, ageAt(field, i), ghostAt(field, i))
+    for (let i = 0; i < field.age.length; i++)
+      settle(light, i, ageAt(field, i), ghostAt(field, i))
   }
 
   /** A new field blooms in from nothing; a resized one shows as it stands. */
@@ -188,12 +205,16 @@ export function mountLife(
     const before = field
     field = change(field)
     for (let i = 0; i < field.age.length; i++)
-      if (ageAt(before, i) !== ageAt(field, i) || ghostAt(before, i) !== ghostAt(field, i))
+      if (
+        ageAt(before, i) !== ageAt(field, i) ||
+        ghostAt(before, i) !== ghostAt(field, i)
+      )
         settle(light, i, ageAt(field, i), ghostAt(field, i))
   }
 
   const advanceField = (steps: number) => {
-    for (let i = 0; i < steps; i++) field = step(emit(field, energy.level, Math.random))
+    for (let i = 0; i < steps; i++)
+      field = step(emit(field, energy.level, Math.random))
   }
 
   /** How long cell `i` takes to move, as a share of the usual time. */
@@ -201,7 +222,10 @@ export function mountLife(
     const x = i % field.cols
     const y = Math.floor(i / field.cols)
     const drift = t.noise(x * DRIFT.x, y * DRIFT.y, t.secs * DRIFT.t)
-    return utils.clamp(utils.mapRange(drift, 0.25, 0.75, ...STRETCH), ...STRETCH)
+    return utils.clamp(
+      utils.mapRange(drift, 0.25, 0.75, ...STRETCH),
+      ...STRETCH,
+    )
   }
 
   const publish = () => {
@@ -287,8 +311,12 @@ export function mountLife(
     phase = tick.steps >= MAX_STEPS_PER_FRAME ? 0 : tick.phase
     advanceField(Math.min(tick.steps, MAX_STEPS_PER_FRAME))
 
-    const personActive = stroke !== undefined || t.secs - lastActivity < ACTIVE_SECONDS
-    presence = advance(presence, seconds, { still: reducedMotion, quiet: personActive })
+    const personActive =
+      stroke !== undefined || t.secs - lastActivity < ACTIVE_SECONDS
+    presence = advance(presence, seconds, {
+      still: reducedMotion,
+      quiet: personActive,
+    })
     if (playsAlong) {
       const next = companion(presence, field, {
         random: Math.random,
@@ -297,7 +325,13 @@ export function mountLife(
       })
       presence = next.presence
       // The agent's seeds are not the person's edits, so they bloom in.
-      if (next.seed) field = stamp(field, PATTERNS[next.seed.pattern].cells, next.seed.x, next.seed.y)
+      if (next.seed)
+        field = stamp(
+          field,
+          PATTERNS[next.seed.pattern].cells,
+          next.seed.x,
+          next.seed.y,
+        )
     }
     publish()
 
@@ -317,7 +351,10 @@ export function mountLife(
         const glyph = light.glyph[i]
         if (!glyph) continue
         const near = playsAlong
-          ? Math.max(0, 1 - Math.hypot((x - at.x) / 2, y - at.y) / ATTENTION_RADIUS)
+          ? Math.max(
+              0,
+              1 - Math.hypot((x - at.x) / 2, y - at.y) / ATTENTION_RADIUS,
+            )
           : 0
         drawGlyph(x, y, glyph, shade(i, faint * (0.75 + 0.5 * near)))
       }
@@ -336,28 +373,30 @@ export function mountLife(
           mix(palette.background, palette.accent, 0.5),
         )
       }
-    if (!playsAlong) return
-    for (const spark of presence.sparks)
-      drawGlyph(
-        Math.round(spark.x),
-        Math.round(spark.y),
-        spark.life > 0.6 ? '+' : spark.life > 0.3 ? ':' : '.',
-        mix(palette.background, palette.accent, spark.life * 0.8),
-      )
-    if (presence.activity === 'attending') {
-      const { target } = presence
-      const marker = mix(palette.background, palette.accent, 0.45)
-      drawGlyph(target.x - 1, target.y, '[', marker)
-      drawGlyph(target.x + 1, target.y, ']', marker)
+    if (playsAlong) {
+      for (const spark of presence.sparks)
+        drawGlyph(
+          Math.round(spark.x),
+          Math.round(spark.y),
+          spark.life > 0.6 ? '+' : spark.life > 0.3 ? ':' : '.',
+          mix(palette.background, palette.accent, spark.life * 0.8),
+        )
+      if (presence.activity === 'attending') {
+        const { target } = presence
+        const marker = mix(palette.background, palette.accent, 0.45)
+        drawGlyph(target.x - 1, target.y, '[', marker)
+        drawGlyph(target.x + 1, target.y, ']', marker)
+      }
+      const aspect = (t.grid?.cellHeight ?? 2) / (t.grid?.cellWidth ?? 1)
+      for (const glyph of figure(presence, t.secs, aspect))
+        drawGlyph(
+          Math.round(presence.at.x + glyph.dx),
+          Math.round(presence.at.y + glyph.dy),
+          glyph.glyph,
+          mix(palette.background, palette.accent, glyph.weight),
+        )
     }
-    const aspect = (t.grid?.cellHeight ?? 2) / (t.grid?.cellWidth ?? 1)
-    for (const glyph of figure(presence, t.secs, aspect))
-      drawGlyph(
-        Math.round(presence.at.x + glyph.dx),
-        Math.round(presence.at.y + glyph.dy),
-        glyph.glyph,
-        mix(palette.background, palette.accent, glyph.weight),
-      )
+    // Every frame, companion or not: liquid glass samples the field from it.
     publishLifeFrame(canvas)
   })
 
