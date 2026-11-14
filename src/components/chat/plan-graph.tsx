@@ -1,4 +1,4 @@
-// SOURCING: @xyflow/react 12 (custom task nodes sized by their content and measured by React Flow, useNodesInitialized to know when every node has measured, BaseEdge and getSmoothStepPath for edges, useInternalNode to tell whether a dragged task left its routed place, useNodesState for drag and selection, Controls, dotted Background, fitView) laid out by elkjs through lib/theorem/plans over those measured sizes, its orthogonal routes drawn with d3-shape's line; @radix-ui/react-use-size for the card's width (graph or compact summary); ui/dialog (Base UI Dialog) for the expanded workspace; @tanstack/react-query for Theorem's live copy of the plan, polled while framer-motion's useInView sees the card; assistant-ui's ToolCallMessagePartComponent for the draft_plan call, with the installed ToolFallback and ThinkingIndicator for its failed and running states
+// SOURCING: @xyflow/react 12 (custom task nodes sized by their content and measured by React Flow, useNodesInitialized to know when every node has measured, BaseEdge and getSmoothStepPath for edges, useInternalNode to tell whether a dragged task left its routed place, a fixed handle on each side with edges naming the pair their layout faces, useNodesState for drag and selection, Controls, dotted Background, fitView) laid out by elkjs through lib/theorem/plans over those measured sizes, its orthogonal routes drawn with d3-shape's line; @radix-ui/react-use-size for the card's width (graph or compact summary); ui/dialog (Base UI Dialog) for the expanded workspace; @tanstack/react-query for Theorem's live copy of the plan, polled while framer-motion's useInView sees the card; assistant-ui's ToolCallMessagePartComponent for the draft_plan call, with the installed ToolFallback and ThinkingIndicator for its failed and running states
 import {
   Background,
   BackgroundVariant,
@@ -55,7 +55,6 @@ import {
   taskTones,
 } from '@/lib/theorem/plans'
 import type {
-  Direction,
   PlanLayout,
   PlanTaskView,
   PlanView,
@@ -117,7 +116,6 @@ type TaskNodeData = {
   label: string
   title: string
   tone: TaskTone
-  direction: Direction
   /** On the reading surface a task is a button that opens the workspace on it. */
   open?: (() => void) | undefined
 }
@@ -126,7 +124,6 @@ type TaskNode = Node<TaskNodeData, 'task'>
 const hidden = '!size-1.5 !min-h-0 !min-w-0 !border-0 !bg-transparent'
 
 function TaskNodeView({ data, selected }: NodeProps<TaskNode>) {
-  const across = data.direction === 'RIGHT'
   const body = (
     <>
       <StatusMark tone={data.tone} />
@@ -149,9 +146,17 @@ function TaskNodeView({ data, selected }: NodeProps<TaskNode>) {
   )
   return (
     <>
+      {/* A handle on every side, fixed, so React Flow measures them once; each edge names the pair its layout faces. */}
       <Handle
+        id="left"
         type="target"
-        position={across ? Position.Left : Position.Top}
+        position={Position.Left}
+        className={hidden}
+      />
+      <Handle
+        id="top"
+        type="target"
+        position={Position.Top}
         className={hidden}
       />
       {data.open ? (
@@ -173,8 +178,15 @@ function TaskNodeView({ data, selected }: NodeProps<TaskNode>) {
         </div>
       )}
       <Handle
+        id="right"
         type="source"
-        position={across ? Position.Right : Position.Bottom}
+        position={Position.Right}
+        className={hidden}
+      />
+      <Handle
+        id="bottom"
+        type="source"
+        position={Position.Bottom}
         className={hidden}
       />
     </>
@@ -224,13 +236,15 @@ type FlowProps = {
   tones: ReadonlyMap<string, TaskTone>
   /** The space to fit the plan into; layout waits for it. */
   box: Size | undefined
-  /** The workspace: tasks drag, select, pan and zoom. Otherwise the reading surface, where a task opens the workspace. */
+  /** The workspace: tasks drag, select, pan and zoom. Otherwise the reading surface, where tasks drag within the card and a click opens the workspace. */
   interactive: boolean
   selected?: string | undefined
   onSelect: (id: string | undefined) => void
   onOpen?: (id: string) => void
   onLayout?: (layout: PlanLayout) => void
   padding: number
+  /** Changes once a scaled container has settled; React Flow measures handles again, as a scaled ancestor skews them. */
+  settled?: number | undefined
 }
 
 /** The plan's graph. Nodes render at their content's size first; once React Flow has measured them all, ELK lays them out. */
@@ -252,12 +266,14 @@ function FlowBody({
   onOpen,
   onLayout,
   padding,
+  settled,
 }: FlowProps) {
   const flow = useReactFlow<TaskNode, RouteEdge>()
   const updateNodeInternals = useUpdateNodeInternals()
   const measuredAll = useNodesInitialized()
   const paneWidth = useStore((state) => state.width)
   const paneHeight = useStore((state) => state.height)
+  const [panX, panY, zoom] = useStore((state) => state.transform)
   const [layout, setLayout] = useState<PlanLayout>()
   const moved = useRef(new Set<string>())
   const openRef = useRef(onOpen)
@@ -277,7 +293,6 @@ function FlowBody({
             label: taskLabel(task),
             title: task.title,
             tone,
-            direction: 'RIGHT',
             open: interactive ? undefined : () => openRef.current?.(task.id),
           },
           ariaLabel: `${task.title}, ${TONE[tone].label}`,
@@ -307,7 +322,7 @@ function FlowBody({
         return previous
           ? {
               ...previous,
-              data: { ...node.data, direction: previous.data.direction },
+              data: node.data,
               ariaLabel: node.ariaLabel,
             }
           : node
@@ -364,7 +379,6 @@ function FlowBody({
           position: moved.current.has(node.id)
             ? node.position
             : (next.positions[node.id] ?? node.position),
-          data: { ...node.data, direction: next.direction },
         })),
       )
     })
@@ -373,19 +387,18 @@ function FlowBody({
     }
   }, [sizes, shape, space, setNodes])
 
-  // The handles move to the sides the layout's direction faces.
-  const direction = layout?.direction
-  useEffect(() => {
-    if (direction)
-      updateNodeInternals(latest.current.nodes.map((node) => node.id))
-  }, [direction, updateNodeInternals])
-
   useEffect(() => {
     if (layout) void flow.fitView({ padding: `${padding}px`, maxZoom: 1 })
   }, [layout, paneWidth, paneHeight, padding, flow])
 
+  useEffect(() => {
+    if (settled)
+      updateNodeInternals(latest.current.view.tasks.map((task) => task.id))
+  }, [settled, updateNodeInternals])
+
   const edges = useMemo(() => {
     const ids = new Set(view.tasks.map((task) => task.id))
+    const down = layout?.direction === 'DOWN'
     return view.tasks.flatMap((task) =>
       task.dependencies
         .filter((dependency) => ids.has(dependency) && dependency !== task.id)
@@ -395,6 +408,8 @@ function FlowBody({
             id,
             source: dependency,
             target: task.id,
+            sourceHandle: down ? 'bottom' : 'right',
+            targetHandle: down ? 'top' : 'left',
             type: 'route',
             selectable: false,
             focusable: false,
@@ -421,6 +436,7 @@ function FlowBody({
       edges={edges}
       onNodesChange={onNodesChange}
       onNodeDragStop={(_, node) => moved.current.add(node.id)}
+      data-plan-direction={layout?.direction}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       // Hidden until laid out, so the measuring pass never shows.
@@ -428,7 +444,20 @@ function FlowBody({
       minZoom={0.2}
       maxZoom={1.5}
       nodesConnectable={false}
-      nodesDraggable={interactive}
+      nodesDraggable
+      // The card neither pans nor fits on demand, so a task drags within what the card shows.
+      autoPanOnNodeDrag={interactive}
+      nodeExtent={
+        interactive || !layout
+          ? undefined
+          : [
+              [(EDGE_GAP - panX) / zoom, (EDGE_GAP - panY) / zoom],
+              [
+                (paneWidth - EDGE_GAP - panX) / zoom,
+                (paneHeight - EDGE_GAP - panY) / zoom,
+              ],
+            ]
+      }
       elementsSelectable={interactive}
       panOnDrag={interactive}
       zoomOnPinch={interactive}
@@ -627,6 +656,8 @@ export const NARROW_CARD = 480
 /** The tallest the reading surface's graph grows before it shrinks to fit. */
 const INLINE_MAX = 480
 const INLINE_PAD = 12
+/** How near the card's edge a dragged task may come, in screen pixels. */
+const EDGE_GAP = 4
 
 /** The expanded workspace: the graph to pan, zoom and drag, beside an inspector for the selected task. */
 function PlanWorkspace({
@@ -649,8 +680,16 @@ function PlanWorkspace({
   const [region, setRegion] = useState<HTMLDivElement | null>(null)
   const size = useSize(region)
   const task = view.tasks.find((t) => t.id === selected)
+  // The dialog scales in, and React Flow measures handles against its own zoom only: measure them again once it has.
+  const [settled, setSettled] = useState(0)
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={(isOpen) => {
+        if (isOpen) setSettled((count) => count + 1)
+      }}
+    >
       <DialogContent
         data-plan-workspace
         className="flex h-[calc(100dvh-2rem)] w-[min(1400px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden bg-artifact p-0 sm:max-w-none"
@@ -682,6 +721,7 @@ function PlanWorkspace({
                 selected={selected}
                 onSelect={onSelect}
                 padding={24}
+                settled={settled}
               />
             )}
           </div>
