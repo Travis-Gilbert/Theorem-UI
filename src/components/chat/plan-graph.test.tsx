@@ -221,6 +221,22 @@ test('the objective is held to two lines on the card, and reads in full in the w
   ).toHaveLength(8)
 })
 
+/** The tasks React Flow will not let a person drag, by id: ids, not elements, so a failure prints a short list. */
+const undraggable = (root: ParentNode = card()) =>
+  nodes(root)
+    .filter((element) => !element.classList.contains('draggable'))
+    .map((element) => element.dataset.id)
+
+test('tasks drag on the card as they do in the workspace', async () => {
+  await render(<PlanGraph view={PLAN_VIEW} />)
+  await laidOut()
+  expect(undraggable()).toEqual([])
+  await openTask('pin-scope')
+  const dialog = await waitFor(workspace)
+  await laidOut(dialog)
+  expect(undraggable(dialog)).toEqual([])
+})
+
 test('a task on the card opens the workspace on it, with its full title, and its neighbours select from the inspector', async () => {
   await render(<PlanGraph view={PLAN_VIEW} />)
   await laidOut()

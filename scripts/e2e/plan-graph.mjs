@@ -165,6 +165,160 @@ async function run(story, name, options, scheme, scenario) {
   }
 }
 
+/** Drags a task by (dx, dy) with the mouse, as a person would, and reads where it and its edges ended up. */
+async function dragTask(page, root, label, dx, dy) {
+  const node = root.locator('.react-flow__node', { hasText: label })
+  const before = await node.boundingBox()
+  const x = before.x + before.width / 2
+  const y = before.y + before.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  for (let step = 1; step <= 10; step++)
+    await page.mouse.move(x + (dx * step) / 10, y + (dy * step) / 10)
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+  const after = await node.boundingBox()
+  const id = await node.getAttribute('data-id')
+  // Where each edge touching the task meets it, and where the handle it should meet sits, in page coordinates.
+  const edges = await root.evaluate((element, task) => {
+    const at = (path, length) => {
+      const point = path.getPointAtLength(length)
+      const m = path.getScreenCTM()
+      return {
+        x: point.x * m.a + point.y * m.c + m.e,
+        y: point.x * m.b + point.y * m.d + m.f,
+      }
+    }
+    const node = element.querySelector(`.react-flow__node[data-id="${task}"]`)
+    // The task's handle of this kind nearest the edge's end: the one the edge meets.
+    const handle = (kind, end) => {
+      const [nearest] = [
+        ...node.querySelectorAll(`.react-flow__handle.${kind}`),
+      ]
+        .map((found) => {
+          const box = found.getBoundingClientRect()
+          const hx = box.x + box.width / 2
+          const hy = box.y + box.height / 2
+          return {
+            handleSide: /react-flow__handle-(left|right|top|bottom)/.exec(
+              found.className,
+            )?.[1],
+            hx,
+            hy,
+            distance: Math.hypot(end.x - hx, end.y - hy),
+          }
+        })
+        .sort((a, b) => a.distance - b.distance)
+      return { ...end, ...nearest }
+    }
+    return {
+      direction: element
+        .querySelector('[data-plan-direction]')
+        ?.getAttribute('data-plan-direction'),
+      ends: [...element.querySelectorAll('.react-flow__edge')].flatMap(
+        (edge) => {
+          const [source, target] = (edge.getAttribute('data-id') ?? '').split(
+            '->',
+          )
+          const path = edge.querySelector('.react-flow__edge-path')
+          if (source === task)
+            return [{ side: 'out', ...handle('source', at(path, 0)) }]
+          if (target === task)
+            return [
+              {
+                side: 'in',
+                ...handle('target', at(path, path.getTotalLength())),
+              },
+            ]
+          return []
+        },
+      ),
+    }
+  }, id)
+  return { before, after, ...edges }
+}
+
+const FACING = {
+  RIGHT: { in: 'left', out: 'right' },
+  DOWN: { in: 'top', out: 'bottom' },
+}
+
+/** Every edge touching the task meets it at its handle, and the handles sit on the sides the layout faces. */
+const attached = ({ direction, ends }) =>
+  ends.length > 0 &&
+  ends.every(
+    (end) =>
+      end.handleSide === FACING[direction]?.[end.side] &&
+      Math.hypot(end.x - end.hx, end.y - end.hy) <= 6,
+  )
+
+const describeEnds = ({ direction, ends }) =>
+  `${direction}: ` +
+  ends
+    .map(
+      (end) =>
+        `${end.side} on ${end.handleSide}, ${Math.hypot(end.x - end.hx, end.y - end.hy).toFixed(1)}px from its handle`,
+    )
+    .join('; ')
+
+/** Moved with the pointer: React Flow starts a drag past its threshold, so the first pointer step does not count. */
+const followed = (moved, asked) =>
+  moved * Math.sign(asked) >= Math.abs(asked) * 0.8 &&
+  Math.abs(moved) <= Math.abs(asked) + 2
+
+async function inlineDrag(page, card, scope, shot) {
+  const flow = await card.locator('.react-flow').boundingBox()
+  const moved = await dragTask(page, card, 'Front door tools', 40, 24)
+  check(
+    `${scope}: a task drags in the card`,
+    followed(moved.after.x - moved.before.x, 40) &&
+      followed(moved.after.y - moved.before.y, 24),
+    `moved ${(moved.after.x - moved.before.x).toFixed(1)}, ${(moved.after.y - moved.before.y).toFixed(1)}`,
+  )
+  check(
+    `${scope}: a drag does not open the workspace`,
+    (await page.locator('[data-plan-workspace]').count()) === 0,
+  )
+  check(
+    `${scope}: the dragged task's edges follow it`,
+    attached(moved),
+    describeEnds(moved),
+  )
+  const far = await dragTask(page, card, 'Friction regression check', 600, 400)
+  const right = flow.x + flow.width - (far.after.x + far.after.width)
+  const bottom = flow.y + flow.height - (far.after.y + far.after.height)
+  check(
+    `${scope}: a task dragged hard stops at the card's edge`,
+    right >= -1 && bottom >= -1 && right <= 8 && bottom <= 8,
+    `${right.toFixed(1)}px from the right, ${bottom.toFixed(1)}px from the bottom`,
+  )
+  await shot('card-dragged')
+  await card
+    .locator('.react-flow__node', { hasText: 'Front door tools' })
+    .click()
+  const dialog = page.locator('[data-plan-workspace]')
+  await dialog.waitFor()
+  check(
+    `${scope}: a click after dragging still opens the task`,
+    (await dialog
+      .locator('section[aria-label^="Consolidate the pinned front door"]')
+      .count()) === 1,
+  )
+  await page.keyboard.press('Escape')
+  await dialog.waitFor({ state: 'detached' })
+}
+
+async function workspaceDrag(page, dialog, scope) {
+  const moved = await dragTask(page, dialog, 'Error guidance', -30, 40)
+  check(
+    `${scope}: a task drags in the workspace, its edges following`,
+    followed(moved.after.x - moved.before.x, -30) &&
+      followed(moved.after.y - moved.before.y, 40) &&
+      attached(moved),
+    `moved ${(moved.after.x - moved.before.x).toFixed(1)}, ${(moved.after.y - moved.before.y).toFixed(1)}; ${describeEnds(moved)}`,
+  )
+}
+
 async function desktop({ page, card, scope, shot }) {
   await graphChecks(page, card, scope)
   const objective = card.locator('[data-plan-objective]')
@@ -191,6 +345,7 @@ async function desktop({ page, card, scope, shot }) {
   )
   await shot('objective-open')
   await card.getByRole('button', { name: 'Show less' }).click()
+  await inlineDrag(page, card, scope, shot)
 
   await card.getByRole('button', { name: 'Expand plan' }).click()
   const dialog = page.locator('[data-plan-workspace]')
@@ -213,6 +368,7 @@ async function desktop({ page, card, scope, shot }) {
     title,
   )
   await shot('workspace-selected', page)
+  await workspaceDrag(page, dialog, `${scope} workspace`)
   await page.keyboard.press('Escape')
   await dialog.waitFor({ state: 'detached' })
   check(`${scope}: Escape closes the workspace`, true)
@@ -225,14 +381,12 @@ async function phone({ page, card, scope, shot }) {
     `${scope}: a narrow card lists the tasks instead of the graph`,
     (await card.locator('.react-flow').count()) === 0,
   )
-  const rows = await list
-    .locator('button')
-    .evaluateAll((buttons) =>
-      buttons.map((b) => ({
-        height: b.getBoundingClientRect().height,
-        clipped: b.scrollWidth > b.clientWidth + 0.5,
-      })),
-    )
+  const rows = await list.locator('button').evaluateAll((buttons) =>
+    buttons.map((b) => ({
+      height: b.getBoundingClientRect().height,
+      clipped: b.scrollWidth > b.clientWidth + 0.5,
+    })),
+  )
   check(
     `${scope}: eight rows, each a 44px target, none clipped`,
     rows.length === 8 && rows.every((r) => r.height >= 44 && !r.clipped),
@@ -268,6 +422,7 @@ async function phone({ page, card, scope, shot }) {
   )
   await page.waitForTimeout(400)
   await shot('workspace', page)
+  await workspaceDrag(page, dialog, `${scope} workspace`)
 }
 
 async function underWay({ page, card, scope, shot }) {
