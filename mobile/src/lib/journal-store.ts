@@ -1,4 +1,4 @@
-// SOURCING: @theoremharness/sdk ConversationStore contract (headless.ts): load by identity, atomic replace on save, never a token; the SDK's own parseJson/stringifyJson (lossless-json), because the SDK parses wire integers above 2^53 as bigint and plain JSON cannot write them
+// SOURCING: @theoremharness/sdk ConversationStore contract (headless.ts): load by identity, atomic replace on save, never a token; the SDK's parseJson/stringifyJson keep wire integers past 2^53 as bigint, as its own FileConversationStore does
 import {
   parseJson,
   stringifyJson,
@@ -27,10 +27,10 @@ export function createJournalStore(database: JournalDatabase): ConversationStore
         'SELECT body FROM conversation_journal WHERE key = ?',
         [journalKey(identity)],
       )
-      return row ? (parseJson(row.body) as ConversationJournal) : undefined
+      return row ? parseJson<ConversationJournal>(row.body) : undefined
     },
     async save(journal) {
-      const body = stringifyJson(journal) as string
+      const body = stringifyJson(journal)
       if (CREDENTIAL_KEYS.test(body))
         throw new Error('Refusing to persist a conversation journal that carries credentials')
       // One statement replaces the row atomically; the promise resolves after commit.

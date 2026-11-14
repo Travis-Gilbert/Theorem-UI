@@ -45,14 +45,6 @@ describe('journal store', () => {
     expect(db.rows()).toBe(1)
   })
 
-  test('a wire integer above 2^53 is a bigint and survives a save and a load', async () => {
-    const store = createJournalStore(database())
-    const big = 18446744073709551615n
-    await store.save(journal({ events: [{ position: big }] as unknown as ConversationJournal['events'] }))
-    const loaded = await store.load(identity)
-    expect((loaded?.events[0] as unknown as { position: bigint }).position).toBe(big)
-  })
-
   test('another principal, tenant or authority never loads this journal', async () => {
     const store = createJournalStore(database())
     await store.save(journal({ runId: 'run-1' }))
@@ -68,6 +60,16 @@ describe('journal store', () => {
     })
     await expect(store.save(leaking)).rejects.toThrow(/credentials/)
     expect(db.rows()).toBe(0)
+  })
+
+  // The SDK parses wire integers past 2^53 as bigint (a run's "seed" is one);
+  // the journal must keep them exactly, as the SDK's own file store does.
+  test('saves and loads a journal holding an unsafe wire integer', async () => {
+    const store = createJournalStore(database())
+    const events = [{ seq: 1, payload: { seed: 10873825030357999663n } }] as unknown as ConversationJournal['events']
+    await store.save(journal({ runId: 'run-1', events }))
+    const loaded = await store.load(identity)
+    expect((loaded?.events[0] as unknown as { payload: { seed: bigint } }).payload.seed).toBe(10873825030357999663n)
   })
 
   test('the key covers every identity field', () => {
