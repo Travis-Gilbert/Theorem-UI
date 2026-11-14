@@ -133,5 +133,9 @@ export function hitsToItems(hits: readonly Theorem.FilesSearchHit[], items: read
 export const togglePath = (pins: readonly string[], path: string) =>
   pins.includes(path) ? pins.filter((pinned) => pinned !== path) : [path, ...pins]
 
+/** `path` moved to the front of the recently viewed, once, keeping at most `max`. */
+export const pushRecent = (recent: readonly string[], path: string, max = 20) =>
+  [path, ...recent.filter((viewed) => viewed !== path)].slice(0, max)
+
 /** "Note · Mott proposal · 12 minutes ago" */
 export const metaLine = (item: LibraryItem, when: string) => [item.label, item.folder, when].filter(Boolean).join(' · ')

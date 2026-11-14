@@ -8,7 +8,9 @@ import { StyleSheet, View } from 'react-native'
 import { recency } from '@/lib/time'
 import { Row } from '@/ui/row'
 import { useTheme } from '@/ui/theme'
-import { metaLine, type ItemType, type LibraryItem } from './model'
+import { DEFAULT_DISPLAY, metaFor, type Display } from './display-model'
+import type { ItemType, LibraryItem } from './model'
+import { markViewed } from './recents'
 
 const SYMBOL: Record<ItemType | 'folder', string> = {
   note: 'doc.text',
@@ -33,20 +35,40 @@ function Mark({ type }: { type: ItemType | 'folder' }) {
   )
 }
 
-export const openItem = (path: string) => router.push({ pathname: '/library/item', params: { path } })
+export const openItem = (path: string) => {
+  markViewed(path)
+  router.push({ pathname: '/library/item', params: { path } })
+}
+/** Opens an item inside the Search tab's own stack, so Back returns to the results. */
+export const openItemFromSearch = (path: string) => {
+  markViewed(path)
+  router.push({ pathname: '/search/item', params: { path } })
+}
 export const openFolder = (path: string) => router.push({ pathname: '/library/folder', params: { path } })
 
-export function ItemRow({ item, showFolder = true }: { item: LibraryItem; showFolder?: boolean }) {
+export function ItemRow({
+  item,
+  showFolder = true,
+  show = DEFAULT_DISPLAY.show,
+  open = openItem,
+}: {
+  item: LibraryItem
+  showFolder?: boolean
+  /** Which properties the row shows; the title always does. */
+  show?: Display['show']
+  /** How the row opens its item; the Library's own screen by default. */
+  open?: (path: string) => void
+}) {
   const when = recency(item.modifiedMs)
   return (
     <Row
       prominence="regular"
       leading={<Mark type={item.type} />}
       title={item.title}
-      detail={item.excerpt}
-      meta={metaLine(showFolder ? item : { ...item, folder: undefined }, when)}
+      detail={show.excerpt ? item.excerpt : undefined}
+      meta={metaFor(item, when, show, showFolder)}
       accessibilityLabel={[item.title, item.label, showFolder ? item.folder : undefined, when].filter(Boolean).join(', ')}
-      onPress={() => openItem(item.path)}
+      onPress={() => open(item.path)}
     />
   )
 }

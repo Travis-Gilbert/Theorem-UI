@@ -65,3 +65,9 @@ export function threadDetail(thread: Theorem.Thread): string {
   const live = thread.activeRunId ? 'Run in progress · ' : ''
   return `${live}${when.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
 }
+
+/** Threads whose title contains `query`, ignoring case, in the order given. Search runs over titles only. */
+export function matchThreads(threads: readonly Theorem.Thread[], query: string): Theorem.Thread[] {
+  const needle = query.trim().toLowerCase()
+  return needle ? threads.filter((thread) => threadTitle(thread).toLowerCase().includes(needle)) : []
+}

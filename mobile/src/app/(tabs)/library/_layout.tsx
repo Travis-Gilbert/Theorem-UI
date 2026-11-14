@@ -1,15 +1,22 @@
-// SOURCING: expo-router Stack
+// SOURCING: expo-router Stack (formSheet for the display options)
 import { Stack } from 'expo-router'
-import { SettingsToolbar, useHeaderColors } from '@/ui/header'
+import { useHeaderColors } from '@/ui/header'
 
 export default function LibraryLayout() {
   return (
     <Stack screenOptions={useHeaderColors()}>
-      <Stack.Screen name="index" options={{ title: 'Library' }}>
-        <SettingsToolbar />
-      </Stack.Screen>
+      <Stack.Screen name="index" options={{ title: 'Library', headerLargeTitle: true }} />
       <Stack.Screen name="folder" options={{ title: 'Folder' }} />
       <Stack.Screen name="item" options={{ title: 'Item' }} />
+      <Stack.Screen
+        name="display"
+        options={{
+          presentation: 'formSheet',
+          headerShown: false,
+          sheetAllowedDetents: [0.5],
+          sheetGrabberVisible: true,
+        }}
+      />
     </Stack>
   )
 }
