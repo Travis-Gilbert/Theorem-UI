@@ -99,10 +99,14 @@ export class Outbox {
     if (entry.lease) return
     const lease = this.options.binding.retain(threadId)
     entry.lease = lease
-    entry.unsubscribe = lease.conversation.subscribe((state) =>
-      this.apply(threadId, { type: 'availability', availability: availability(state.phase) }),
-    )
-    // Not through apply(): an empty outbox would hand the lease straight back.
+    // subscribe() reports the current state at once. Through apply() that would let an empty
+    // outbox hand the lease straight back before the message that asked for it is admitted.
+    let attached = false
+    entry.unsubscribe = lease.conversation.subscribe((state) => {
+      if (attached) this.apply(threadId, { type: 'availability', availability: availability(state.phase) })
+    })
+    attached = true
+    // Not through apply(): the same reason.
     entry.state = reduce(entry.state, {
       type: 'availability',
       availability: availability(lease.conversation.state.phase),

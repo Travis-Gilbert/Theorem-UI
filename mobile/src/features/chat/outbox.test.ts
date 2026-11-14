@@ -17,6 +17,8 @@ function harness(options: { refuse?: string[] } = {}) {
     },
     subscribe(listener) {
       listeners.add(listener)
+      // Like the SDK's HeadlessConversation.subscribe: the listener hears the current state at once.
+      listener(state)
       return () => listeners.delete(listener)
     },
     async connect() {},
