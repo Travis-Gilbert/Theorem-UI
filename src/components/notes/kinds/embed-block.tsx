@@ -8,7 +8,7 @@ import { useCanvasView } from '@/components/canvas/canvas-view'
 import { parseDelimited } from '@/components/handlers/data/delimited'
 import { FileMessage } from '@/components/handlers/file-status'
 import { Icon } from '@/components/icons'
-import { ThreadGlyph } from '@/components/organize/glyphs'
+import { SessionGlyph } from '@/components/organize/glyphs'
 import type { EmbedRef } from '@/lib/theorem/embeds'
 import { fileShape } from '@/lib/theorem/note-kinds'
 import { attentionLabel, useOrganizedViews } from '@/lib/theorem/organization'
@@ -145,8 +145,8 @@ function ThreadBlock({ embed, fill }: { embed: EmbedRef; fill?: boolean }) {
       params={{ threadId: embed.id }}
       className={cn(CARD, fill && 'h-full')}
     >
-      <ThreadGlyph
-        glyph={thread?.glyph}
+      <SessionGlyph
+        threadId={embed.id}
         className="size-4 shrink-0 text-ink-muted"
       />
       <Details title={thread?.title ?? embed.title ?? 'Conversation'} detail={detail} />

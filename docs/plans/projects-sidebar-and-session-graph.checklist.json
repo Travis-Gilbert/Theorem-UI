@@ -1,0 +1,125 @@
+{
+  "plan": "docs/plans/projects-sidebar-and-session-graph.md",
+  "spec": "THEOREM-PROJECTS-SIDEBAR-AND-SESSION-GRAPH-SPEC.md (attached by the owner in chat, 2026-11-14; not yet in a repository)",
+  "items": [
+    {
+      "id": "NAV-01",
+      "requirement": "Default sidebar has Pinned, Projects, Chats and visible Search; the activity sections are absent",
+      "status": "done",
+      "evidence": [
+        "src/components/organize/organized-panel.tsx",
+        "Rendered: /story/organized-sidebar and /story/project-home, light and dark, 1280 and 1440 wide"
+      ]
+    },
+    {
+      "id": "NAV-02",
+      "requirement": "Replies, prompt edits and regenerations add zero session rows",
+      "status": "partial",
+      "evidence": [
+        "nestingSource and nestByOrigin in src/lib/theorem/organization.ts, tested in organization.test.ts",
+        "thread-row.tsx draws no version-branch rows",
+        "Not exercised against a live backend: the e2e stack needs rustyred-thg-server and provider keys"
+      ]
+    },
+    {
+      "id": "NAV-03",
+      "requirement": "An explicit session fork creates one distinct session and its provenance relation",
+      "status": "partial",
+      "evidence": [
+        "Forks nest under their source (organization.test.ts)",
+        "Fork creation and retry recovery are Theorem's; not exercised live"
+      ]
+    },
+    {
+      "id": "NAV-04",
+      "requirement": "Explicit child creation nests; continuation-only provenance does not",
+      "status": "partial",
+      "evidence": [
+        "Continuations stay at the top level (organization.test.ts)",
+        "Theorem records no child-session origin yet"
+      ]
+    },
+    {
+      "id": "NAV-05",
+      "requirement": "Opening a session keeps the selected conversation version",
+      "status": "done",
+      "evidence": ["src/components/organize/thread-row.tsx"]
+    },
+    {
+      "id": "NAV-06",
+      "requirement": "Pin and unpin change only the user's pin preference",
+      "status": "partial",
+      "evidence": [
+        "src/lib/theorem/sidebar-prefs.ts with sidebar-prefs.test.ts; distinct from Membership.pinned ('Keep in…')",
+        "Stored per browser, not per user, until Theorem serves a pin route"
+      ]
+    },
+    {
+      "id": "NAV-07",
+      "requirement": "Missing parents, filters or malformed cycles hide no session",
+      "status": "done",
+      "evidence": ["parentsIn in src/lib/theorem/organization.ts, cycle and missing-source tests in organization.test.ts"]
+    },
+    {
+      "id": "NAV-08",
+      "requirement": "Project-title navigation and disclosure are separate, usable actions",
+      "status": "done",
+      "evidence": [
+        "ProjectNode in organized-panel.tsx: a link to /projects/$projectId and a separate 'Show/Hide sessions in …' trigger",
+        "scripts/e2e/sidebar.mjs updated to the link and disclosure (not run here)",
+        "Clicked in /story/project-home: the Platinum link opens Platinum's home"
+      ]
+    },
+    {
+      "id": "project-home",
+      "requirement": "Project navigation, scoped composer, recent sessions, project editing, context and connection summaries (slice B)",
+      "status": "partial",
+      "evidence": [
+        "src/components/projects/project-home.tsx, project-edit-dialog.tsx, project-outputs.tsx",
+        "Documents, repositories, links and connections are labelled 'Not served yet'; Theorem has no project resource binding"
+      ]
+    },
+    {
+      "id": "VIEW-01",
+      "requirement": "Opening or switching views emits zero domain-changing commands",
+      "status": "done",
+      "evidence": [
+        "projectGraph is pure; session-graph.test.ts checks frozen inputs are unchanged",
+        "The React Flow view is not draggable or connectable and has no delete key"
+      ]
+    },
+    {
+      "id": "graph-lenses",
+      "requirement": "Lineage, Team, Related and Tasks lenses over the same records (slice C)",
+      "status": "partial",
+      "evidence": [
+        "Lineage and Projects are drawn from Thread.origin and memberships",
+        "Delegation, Team and Related say why they are not served; they need relation routes in Theorem"
+      ]
+    },
+    {
+      "id": "INPUT-02",
+      "requirement": "All relationship operations are available without canvas dragging",
+      "status": "done",
+      "evidence": ["'Show as list' in session-graph.tsx gives every node and relation as text; the inspector lists relations in words"]
+    },
+    {
+      "id": "TYPE-01",
+      "requirement": "Headings are distinguishable and larger than row labels",
+      "status": "done",
+      "evidence": ["ui.group recipe (600, 15px/20px) in src/lib/appearance-policy.ts and src/appearance.css, against 14px rows"]
+    },
+    {
+      "id": "TYPE-02",
+      "requirement": "New thread is less prominent while readable",
+      "status": "done",
+      "evidence": ["organized-panel.tsx: regular weight, muted ink"]
+    },
+    {
+      "id": "AUTH-04",
+      "requirement": "Icon and type changes grant no capability and start no run",
+      "status": "done",
+      "evidence": ["Session types live only in sidebar-prefs.ts and are read only by glyphs.tsx"]
+    }
+  ]
+}

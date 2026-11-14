@@ -47,7 +47,12 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.appearance-navigation [data-sidebar='group-label'],
+.appearance-navigation [data-sidebar='group-label'] {
+  height: auto;
+  min-height: 2rem;
+  font: var(--recipe-ui-group);
+  letter-spacing: normal;
+}
 [data-slot='aui_thread-list-group-label'] {
   height: auto;
   min-height: 2rem;

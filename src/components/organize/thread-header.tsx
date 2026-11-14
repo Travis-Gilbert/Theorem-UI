@@ -29,7 +29,8 @@ const headerButton =
 
 /** Where the thread sits and what can be done to it; the dock's layout and follow buttons sit at its end. */
 export function ThreadHeader({ actions }: { actions?: ReactNode }) {
-  const { threadId } = useParams({ strict: false })
+  // On a project's home there is no open thread: the header names the project.
+  const { threadId, projectId: home } = useParams({ strict: false })
   const title = useAuiState((s) => s.threadListItem.title)
   const running = useAuiState((s) => s.thread.isRunning)
   const { data: organization } = useOrganization()
@@ -43,9 +44,15 @@ export function ThreadHeader({ actions }: { actions?: ReactNode }) {
   const thread = threadId ? views.byId.get(threadId) : undefined
   const primary = thread && primaryProjectId(thread)
   const project = organization?.projects.find((p) => p.projectId === primary)
+  const homeProject =
+    home === undefined
+      ? undefined
+      : organization?.projects.find((p) => p.projectId === home)
   const pin = thread?.memberships.find((m) => m.projectId === primary)
   const served = organization?.served ?? false
-  const shownTitle = thread?.title || title || 'New chat'
+  const shownTitle = homeProject
+    ? homeProject.title
+    : thread?.title || title || 'New chat'
 
   return (
     // The line is lighter than the sidebar's: it runs the full width over the
@@ -53,14 +60,13 @@ export function ThreadHeader({ actions }: { actions?: ReactNode }) {
     <header className="appearance-thread-header flex shrink-0 items-center gap-1 border-b border-separator/60 px-3 text-sm">
       <Breadcrumb aria-label="Thread location" className="min-w-0">
         <BreadcrumbList className="flex-nowrap gap-1.5 text-ink-muted sm:gap-1.5">
-          {project && !project.isInbox && (
+          {!homeProject && project && !project.isInbox && (
             <>
               <BreadcrumbItem
                 title={project.state?.text}
                 className="max-w-48 shrink-0"
               >
                 <ProjectGlyph
-                  glyph={project.glyph}
                   aria-hidden
                   className="size-3.5 shrink-0"
                 />
@@ -189,7 +195,6 @@ export function ProjectContextChip() {
   return (
     <p className="mb-4 flex min-h-10.5 items-center gap-2.5 rounded-lg bg-hover px-3 py-1.5 text-sm">
       <ProjectGlyph
-        glyph={first.glyph}
         aria-hidden
         className="size-4 shrink-0 text-ink-muted"
       />

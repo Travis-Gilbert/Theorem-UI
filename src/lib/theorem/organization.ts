@@ -428,31 +428,73 @@ export function primaryProjectId(thread: ThreadEntry) {
   return first?.projectId ?? thread.homeProjectId
 }
 
-/** A forked or continued thread sits under its source when the source is in the same list. */
+/**
+ * The session a thread was created from, when that creation nests it in
+ * navigation. Only an explicit new-session fork does: a continuation keeps its
+ * source as a provenance reference and stands at the top level, and edits,
+ * regenerations and other conversation branches never become sessions at all.
+ * (An explicit child-session origin joins this once Theorem records one.)
+ */
+export const nestingSource = (thread: ThreadEntry) =>
+  thread.origin?.kind === 'forked' ? thread.origin.threadId : undefined
+
+/**
+ * Each thread's parent in this list. A source that is missing, filtered out
+ * or the thread itself leaves the thread a root. A malformed cycle of origins
+ * is broken at its oldest member, so every thread in the list stays visible.
+ */
+function parentsIn(threads: readonly ThreadEntry[]) {
+  const byId = new Map(threads.map((thread) => [thread.threadId, thread]))
+  const parent = new Map<string, string>()
+  for (const thread of threads) {
+    const source = nestingSource(thread)
+    if (source && source !== thread.threadId && byId.has(source))
+      parent.set(thread.threadId, source)
+  }
+  const settled = new Set<string>()
+  for (const thread of threads) {
+    const path: string[] = []
+    const onPath = new Set<string>()
+    let at: string | undefined = thread.threadId
+    while (at !== undefined && !settled.has(at) && !onPath.has(at)) {
+      path.push(at)
+      onPath.add(at)
+      at = parent.get(at)
+    }
+    if (at !== undefined && onPath.has(at)) {
+      const cycle = path.slice(path.indexOf(at))
+      const oldest = cycle
+        .map((id) => byId.get(id)!)
+        .sort(
+          (a, b) =>
+            a.createdAtMs - b.createdAtMs ||
+            a.threadId.localeCompare(b.threadId),
+        )[0]!
+      parent.delete(oldest.threadId)
+    }
+    for (const id of path) settled.add(id)
+  }
+  return parent
+}
+
+/** A forked thread sits under its source when the source is in the same list. */
 export function nestByOrigin(threads: readonly ThreadEntry[]) {
-  const here = new Set(threads.map((thread) => thread.threadId))
+  const parent = parentsIn(threads)
   const children = new Map<string, ThreadEntry[]>()
   const roots: ThreadEntry[] = []
   for (const thread of threads) {
-    const source = thread.origin?.threadId
-    if (source && source !== thread.threadId && here.has(source))
-      children.set(source, [...(children.get(source) ?? []), thread])
+    const source = parent.get(thread.threadId)
+    if (source) children.set(source, [...(children.get(source) ?? []), thread])
     else roots.push(thread)
   }
   return { roots, children } as const
 }
 
-/** The root a thread nests under in this list, by following its origins up. */
+/** The root a thread nests under in this list, by following its forks up. */
 export function rootOf(threads: readonly ThreadEntry[], threadId: string) {
-  const byId = new Map(threads.map((thread) => [thread.threadId, thread]))
-  const seen = new Set<string>()
+  const parent = parentsIn(threads)
   let at = threadId
-  while (!seen.has(at)) {
-    seen.add(at)
-    const source = byId.get(at)?.origin?.threadId
-    if (!source || !byId.has(source)) break
-    at = source
-  }
+  for (let next = parent.get(at); next; next = parent.get(at)) at = next
   return at
 }
 
@@ -793,7 +835,7 @@ export function useProjectState() {
 }
 
 /**
- * A section's edits: a new title, or archiving its project, which takes the
+ * A section's edits: a new title, new instructions, or archiving its project, which takes the
  * section away and sends its sessions back to Recent. Theorem has no way to
  * delete a project, and archiving keeps it to restore.
  */
@@ -806,7 +848,7 @@ export function useProjectEdits() {
     ])
   const update = (
     projectId: string,
-    change: { title?: string; archived?: boolean },
+    change: { title?: string; instructions?: string; archived?: boolean },
   ) =>
     mutateProject(projectId, (headers) =>
       theorem().chat.projects.update({ projectId, ...change, ...headers }),
@@ -824,6 +866,19 @@ export function useProjectEdits() {
     }),
     archive: useMutation({
       mutationFn: (projectId: string) => update(projectId, { archived: true }),
+      onSettled: settled,
+    }),
+    /** The project's title and instructions, together, as the project home edits them. */
+    describe: useMutation({
+      mutationFn: ({
+        projectId,
+        title,
+        instructions,
+      }: {
+        projectId: string
+        title: string
+        instructions: string
+      }) => update(projectId, { title, instructions }),
       onSettled: settled,
     }),
   }

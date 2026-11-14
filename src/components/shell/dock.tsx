@@ -31,6 +31,7 @@ import { INSPECTOR_TOOLS } from '@/components/inspector/inspector-state'
 import type { InspectorTool } from '@/components/inspector/inspector-state'
 import { NotePanel } from '@/components/notes/note-panel'
 import { ThreadHeader } from '@/components/organize/thread-header'
+import { useProjectHomeTitle } from '@/components/projects/project-home'
 import { useNoteView } from '@/components/notes/note-view'
 import { Button } from '@/components/ui/button'
 import {
@@ -115,7 +116,8 @@ function subscribe(event: (listener: () => void) => { dispose: () => void }) {
 
 /** The main panel: the conversation, or the mode's view in the Index, Pages, Spaces and the canvas. Theia covers the dock in IDE mode. */
 function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
-  const title = useAuiState((s) => s.threadListItem.title)
+  const threadTitle = useAuiState((s) => s.threadListItem.title)
+  const title = useProjectHomeTitle() ?? threadTitle
   const mode = useShellMode()
   useEffect(
     () =>

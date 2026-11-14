@@ -38,7 +38,7 @@ const sidebar = () =>
     const label = [...document.querySelectorAll('*')].find(
       (node) =>
         node.children.length === 0 &&
-        node.textContent.trim() === 'Attention Worthy',
+        node.textContent.trim() === 'Projects',
     )
     let box = label
     for (let up = 0; up < 8 && box; up++) {

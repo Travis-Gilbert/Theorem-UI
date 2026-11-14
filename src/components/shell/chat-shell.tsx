@@ -14,6 +14,7 @@ import { appearancePair } from '@/lib/appearance-policy'
 import './chat-shell.css'
 import { LayoutPriority, Orientation, SplitviewReact } from 'dockview-react'
 import { modeLabel, navigatorMode, useShellMode } from './modes'
+import { useProjectHomeTitle } from '@/components/projects/project-home'
 import { PANEL_WIDTH, useShell } from './shell-state'
 import { Rail } from './rail'
 import { SideTerminal } from '@/components/terminal/side-terminal'
@@ -45,7 +46,8 @@ const VaultWorkspace = lazy(() =>
 const iconButton = 'size-9 p-2'
 
 function ChatHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
-  const title = useAuiState((s) => s.threadListItem.title)
+  const threadTitle = useAuiState((s) => s.threadListItem.title)
+  const title = useProjectHomeTitle() ?? threadTitle
   const mode = useShellMode()
   return (
     <header className="flex h-14 shrink-0 items-center gap-1 px-2">

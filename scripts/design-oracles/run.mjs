@@ -103,6 +103,7 @@ const RECIPE_REFERENCE = {
   'composer.content': { size: 1, lineHeight: 1.5, weight: 400, family: 'IBM Plex Sans', scale: 'content' },
   'ui.label': { size: 0.875, lineHeight: 20 / 14, weight: 400, family: 'IBM Plex Sans', scale: 'ui', tracking: 0.01 },
   'ui.section': { size: 0.875, lineHeight: 20 / 14, weight: 500, family: 'IBM Plex Sans', scale: 'ui', tracking: 0.01 },
+  'ui.group': { size: 0.9375, lineHeight: 20 / 15, weight: 600, family: 'IBM Plex Sans', scale: 'ui' },
   metadata: { size: 0.75, lineHeight: 1.5, weight: 400, family: 'IBM Plex Sans', scale: 'ui', tracking: 0.01 },
   code: { size: 0.8125, lineHeight: 20 / 13, weight: 400, family: 'JetBrains Mono', scale: 'code' },
   'heading.small': { size: 1.125, lineHeight: 24 / 18, weight: 600, family: 'IBM Plex Sans', scale: 'content' },

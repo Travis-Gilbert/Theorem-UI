@@ -17,14 +17,17 @@ const shot = (name) =>
 
 const list = page.getByRole('navigation', { name: 'Threads' })
 const named = (title) => ({ name: title, exact: true })
-const header = (title) => list.getByRole('button', named(title))
+// A project's row links to its home; its folder is the disclosure beside it.
+const header = (title) => list.getByRole('link', named(title))
+const disclosure = (title) =>
+  list.getByRole('button', { name: new RegExp(`^(Show|Hide) sessions in ${title}$`) })
 const place = (title) =>
   list
     .getByRole('listitem')
-    .filter({ has: page.getByRole('button', named(title)) })
+    .filter({ has: page.getByRole('link', named(title)) })
 const opened = async (title) => {
-  if ((await header(title).getAttribute('aria-expanded')) !== 'true')
-    await header(title).click()
+  if ((await disclosure(title).getAttribute('aria-expanded')) !== 'true')
+    await disclosure(title).click()
 }
 /** The middle of something, once it has stopped moving: a project opens with a spring. */
 const centre = async (locator) => {
@@ -63,7 +66,7 @@ const [one, two] = PROJECTS
 const from = (await place(two).locator(ROW).count()) ? two : one
 const to = from === one ? two : one
 if (!(await place(from).locator(ROW).count())) {
-  await list.getByRole('button', { name: `New thread in ${from}` }).click()
+  await list.getByRole('button', { name: `New session in ${from}` }).click()
   const box = page.getByRole('textbox').first()
   await box.click()
   await box.pressSequentially('Reply with the single word ok.')

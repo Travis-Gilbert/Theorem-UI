@@ -49,7 +49,7 @@ for(const oracle of ORACLES){
   let status='not-measurable', special=null
   if(oracle.id==='TYP-01'){
     const measured=relevant.flatMap(({report})=>Array.isArray(resultFor(report,'TYP-01')?.observed)?resultFor(report,'TYP-01').observed:[])
-    const expectedRoles=['prose','composer.content','ui.label','ui.section','metadata','code','heading.small','heading.medium','heading.large']
+    const expectedRoles=['prose','composer.content','ui.label','ui.section','ui.group','metadata','code','heading.small','heading.medium','heading.large']
     const covered=Object.fromEntries(expectedRoles.map(role=>[role,measured.filter(item=>item.role===role&&item.result!=='not-measurable')]))
     const missing=expectedRoles.filter(role=>!covered[role].length)
     const failures=measured.filter(item=>item.result==='fail')

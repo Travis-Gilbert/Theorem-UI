@@ -47,6 +47,7 @@ import { LibrarianFooter } from '@/components/organize/librarian-footer'
 import { ContextPanel } from '@/components/shell/sidebar'
 import { ChatShell } from '@/components/shell/chat-shell'
 import { LifeBackdrop } from '@/components/life/life-backdrop'
+import { projectSearch } from '@/lib/theorem/project-views'
 import { GlassCompareStory } from './glass-compare'
 import { useNote } from '@/lib/theorem/notes'
 import { useOrganization } from '@/lib/theorem/organization'
@@ -159,6 +160,40 @@ function ShellNavigationStory() {
         ),
       ]),
       history: createMemoryHistory({ initialEntries: ['/vault'] }),
+    })
+  })
+  return <RouterProvider router={router} />
+}
+
+/** A project's home in the real shell: the projects route over the story transport, opened at the tab the story's own search names. */
+function ProjectHomeStory() {
+  const [router] = useState(() => {
+    const root = createRootRoute({ component: Outlet })
+    const shell = createRoute({
+      getParentRoute: () => root,
+      id: '_chat',
+      component: ShellCompareStory,
+    })
+    const from = new URLSearchParams(window.location.search)
+    const search = new URLSearchParams(
+      [...from].filter(([key]) => key === 'view' || key === 'lens'),
+    ).toString()
+    return createRouter({
+      routeTree: root.addChildren([
+        shell.addChildren([
+          createRoute({
+            getParentRoute: () => shell,
+            path: 'projects/$projectId',
+            validateSearch: projectSearch,
+          }),
+          createRoute({ getParentRoute: () => shell, path: 'c/$threadId' }),
+        ]),
+      ]),
+      history: createMemoryHistory({
+        initialEntries: [
+          `/projects/project-theorem${search ? `?${search}` : ''}`,
+        ],
+      }),
     })
   })
   return <RouterProvider router={router} />
@@ -757,6 +792,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'compare-pane-standalone': () => <ComparePaneStory standalone />,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'project-home': ProjectHomeStory,
   'shell-navigation': ShellNavigationStory,
   'glass-compare': () => (
     <WithRuntime>
