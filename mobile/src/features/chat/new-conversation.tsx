@@ -26,9 +26,8 @@ import {
   lastDestination,
   RecipientPicker,
   rememberDestination,
-  type Destination,
 } from './recipient-picker'
-import { resolveDestination } from './destination'
+import { resolveDestination, type Destination } from './destination'
 import { conversations } from './runtime'
 import type { Selection } from './selection'
 import { createThread, loadProjects } from './threads'
