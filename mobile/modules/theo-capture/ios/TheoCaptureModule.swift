@@ -6,10 +6,14 @@ import ExpoModulesCore
 /// The screen-sharing prototype as React Native sees it. It reports what the
 /// system did and counts what the system delivered; it measures nothing else.
 /// A frame leaves this module only as a file the app asks to keep.
-public final class TheoCaptureModule: Module, CaptureSink {
-  private var route: CaptureRoute?
+///
+/// `@unchecked Sendable`, as expo-app-intents' own module is: the route and the
+/// synthesizer are touched only on the main actor, and the counts and kept
+/// files only under `lock`. Frames arrive on the route's sample queue.
+public final class TheoCaptureModule: Module, CaptureSink, @unchecked Sendable {
+  @MainActor private var route: CaptureRoute?
   private let context = CIContext()
-  private let speech = AVSpeechSynthesizer()
+  @MainActor private let speech = AVSpeechSynthesizer()
   private let lock = NSLock()
   private var frames = 0
   private var microphoneBuffers = 0
@@ -24,19 +28,11 @@ public final class TheoCaptureModule: Module, CaptureSink {
 
     /// Presents the system picker. Resolves once it is up, not once sharing starts: that arrives as `onState`.
     AsyncFunction("start") { (askForMicrophone: Bool) in
-      try await MainActor.run {
-        guard let route = CaptureSupport.makeRoute() else {
-          throw Exception(name: "ERR_CAPTURE_UNAVAILABLE", description: CaptureSupport.describe()["reason"] as? String ?? "")
-        }
-        self.reset()
-        self.route = route
-      }
-      try await self.route?.start(askForMicrophone: askForMicrophone, sink: self)
+      try await self.start(askForMicrophone: askForMicrophone)
     }
 
     AsyncFunction("stop") {
-      await self.route?.stop()
-      await MainActor.run { self.route = nil }
+      await self.stop()
     }
 
     /// What has been delivered since the last start. Counts only.
@@ -48,8 +44,29 @@ public final class TheoCaptureModule: Module, CaptureSink {
 
     /// Speaks a line through the phone, to check that speech still plays while the screen and microphone are shared.
     AsyncFunction("speak") { (text: String) in
-      await MainActor.run { self.speech.speak(AVSpeechUtterance(string: text)) }
+      await self.speak(text)
     }
+  }
+
+  @MainActor
+  private func start(askForMicrophone: Bool) async throws {
+    guard let route = CaptureSupport.makeRoute() else {
+      throw Exception(name: "ERR_CAPTURE_UNAVAILABLE", description: CaptureSupport.describe()["reason"] as? String ?? "")
+    }
+    reset()
+    self.route = route
+    try await route.start(askForMicrophone: askForMicrophone, sink: self)
+  }
+
+  @MainActor
+  private func stop() async {
+    await route?.stop()
+    route = nil
+  }
+
+  @MainActor
+  private func speak(_ text: String) {
+    speech.speak(AVSpeechUtterance(string: text))
   }
 
   private func reset() {

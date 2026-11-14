@@ -1,4 +1,4 @@
-// SOURCING: Apple's "Capturing screen content on iOS" sample and the ScreenCaptureKit reference as read on 2026-11-12 (iOS 27.0: SCContentSharingPicker.shared with present() for the whole display, SCContentSharingPickerConfiguration.showsMicrophoneControl, SCContentSharingPickerObserver, SCContentFilter.isMicrophoneEnabled, SCStream with .screen and .microphone outputs, an AVAudioSession in playAndRecord before a full-display capture). Never compiled: there was no Xcode where this was written.
+// SOURCING: Apple's "Capturing screen content on iOS" sample and the ScreenCaptureKit reference as read on 2026-11-12 (iOS 27.0: SCContentSharingPicker.shared with present() for the whole display, SCContentSharingPickerConfiguration.showsMicrophoneControl, SCContentSharingPickerObserver, SCContentFilter.isMicrophoneEnabled, SCStream with .screen and .microphone outputs, an AVAudioSession in playAndRecord before a full-display capture). Compiled against the iPhoneOS 27.1 SDK on EAS; that SDK marks SCStreamConfiguration.minimumFrameInterval unavailable on iOS.
 #if canImport(ScreenCaptureKit)
 import AVFoundation
 import CoreMedia
@@ -6,17 +6,25 @@ import ScreenCaptureKit
 
 /// The iOS 27 route: the system picker, then an SCStream that keeps running
 /// while the person uses other apps (with the `screen-capture` background mode).
+///
+/// `@unchecked Sendable`, as the capture module is: the picker, `stream` and
+/// `microphone` are touched only on the main actor, `lastFrame` only on
+/// `samples`, and `sink` is set on the main actor before any stream exists.
+/// The system calls the observer and delegate methods on threads of its own,
+/// so they hop to the main actor before touching that state.
 @available(iOS 27.0, *)
 final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPickerObserver, SCStreamDelegate,
-  SCStreamOutput
+  SCStreamOutput, @unchecked Sendable
 {
   static let name = "screencapturekit"
 
   private let picker = SCContentSharingPicker.shared
   private let samples = DispatchQueue(label: "rs.theorem.capture.samples")
   private weak var sink: CaptureSink?
-  private var stream: SCStream?
-  private var microphone = false
+  @MainActor private var stream: SCStream?
+  @MainActor private var microphone = false
+  /// Touched only on `samples`, where the system calls the stream output.
+  private var lastFrame = CMTime.invalid
 
   @MainActor
   func start(askForMicrophone: Bool, sink: CaptureSink) async throws {
@@ -45,6 +53,8 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   // MARK: SCContentSharingPickerObserver
 
   func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
+    // The filter describes what the person chose; the system does not change it after handing it over.
+    nonisolated(unsafe) let filter = filter
     Task { @MainActor in await self.begin(with: filter) }
   }
 
@@ -60,6 +70,7 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   private func begin(with filter: SCContentFilter) async {
     try? await stream?.stopCapture()
     microphone = filter.isMicrophoneEnabled
+    samples.sync { lastFrame = .invalid }
     do {
       if microphone {
         // Apple's sample: without an active playAndRecord session the microphone stops producing samples in the background.
@@ -67,10 +78,7 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
         try audio.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
         try audio.setActive(true)
       }
-      let configuration = SCStreamConfiguration()
-      // A frame a second is enough to follow what someone is doing, and keeps the phone cool.
-      configuration.minimumFrameInterval = CMTime(value: 1, timescale: 1)
-      let next = SCStream(filter: filter, configuration: configuration, delegate: self)
+      let next = SCStream(filter: filter, configuration: SCStreamConfiguration(), delegate: self)
       try next.addStreamOutput(self, type: .screen, sampleHandlerQueue: samples)
       if microphone {
         try next.addStreamOutput(self, type: .microphone, sampleHandlerQueue: samples)
@@ -91,7 +99,12 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
     switch type {
     case .screen:
       guard let frame = sampleBuffer.imageBuffer else { return }
-      sink?.captureDelivered(frame: frame, at: sampleBuffer.presentationTimeStamp)
+      // A frame a second is enough to follow what someone is doing, and keeps the phone cool. iOS has no
+      // minimumFrameInterval, so the route passes on at most one frame a second of presentation time.
+      let time = sampleBuffer.presentationTimeStamp
+      if lastFrame.isValid, CMTimeGetSeconds(CMTimeSubtract(time, lastFrame)) < 1 { return }
+      lastFrame = time
+      sink?.captureDelivered(frame: frame, at: time)
     case .microphone:
       sink?.captureDeliveredMicrophone()
     default:
@@ -102,7 +115,10 @@ final class ScreenCaptureKitRoute: NSObject, CaptureRoute, SCContentSharingPicke
   // MARK: SCStreamDelegate
 
   func stream(_ stream: SCStream, didStopWithError error: Error) {
-    self.stream = nil
+    let stopped = ObjectIdentifier(stream)
+    Task { @MainActor in
+      if let current = self.stream, ObjectIdentifier(current) == stopped { self.stream = nil }
+    }
     // The system ended it: the person stopped sharing from the system's control, a call arrived, or it failed.
     sink?.captureChanged(to: .stopped, reason: error.localizedDescription, microphone: false)
   }

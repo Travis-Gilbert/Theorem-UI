@@ -1,7 +1,9 @@
 // SOURCING: react-native Modal (pageSheet presentation on iOS), TextInput; chat.projects through ./threads; saved computers through features/agents/computers; kv (local-db.ts) for the last choice
 //
-// Who a new conversation goes to: Theorem's agent in a project, or Claude Code
-// or Codex in a folder on a saved computer. The last choice is remembered on
+// Who receives the message: Theo in a project, or Claude Code or Codex in a
+// folder on a saved computer. Only recipients this phone has are listed:
+// the projects Theorem returned and the computers saved here. Which model or
+// harness answers is not a choice made here. The last choice is remembered on
 // this device; it holds no credential.
 import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native'
@@ -37,7 +39,7 @@ export function rememberDestination(destination: Destination) {
 }
 
 export const destinationName = (destination: Destination) =>
-  destination.kind === 'theorem' ? 'Theorem' : agentName[destination.agent]
+  destination.kind === 'theorem' ? 'Theo' : agentName[destination.agent]
 
 export const destinationDetail = (destination: Destination) =>
   destination.kind === 'theorem'
@@ -135,7 +137,7 @@ export function RecipientPicker({
       <View style={[styles.sheet, { backgroundColor: palette.neutral }]}>
         <View style={styles.sheetHead}>
           <Text variant="title" accessibilityRole="header">
-            Send to
+            Who receives this
           </Text>
           <Pressable accessibilityRole="button" onPress={onClose} hitSlop={12}>
             <Text variant="strong" tone="accent">
@@ -146,7 +148,7 @@ export function RecipientPicker({
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.group}>
             <Text variant="label" tone="muted" accessibilityRole="header" style={styles.groupHead}>
-              THEOREM
+              THEO
             </Text>
             <View style={[styles.card, { backgroundColor: palette.raised, borderColor: palette.lineSeparator }]}>
               {projects?.length ? (
@@ -155,8 +157,8 @@ export function RecipientPicker({
                   return (
                     <Row
                       key={project.projectId}
-                      title="Theorem"
-                      detail={project.title}
+                      title="Theo"
+                      detail={`In the project ${project.title}`}
                       selected={selected}
                       trailing={selected ? <Text tone="accent">✓</Text> : undefined}
                       onPress={() =>
@@ -166,7 +168,7 @@ export function RecipientPicker({
                   )
                 })
               ) : (
-                <Row title="Theorem" detail="Loading projects…" />
+                <Row title="Theo" detail="Loading projects…" />
               )}
             </View>
           </View>

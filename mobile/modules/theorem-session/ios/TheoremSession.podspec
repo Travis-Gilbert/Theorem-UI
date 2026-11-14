@@ -50,11 +50,16 @@ Pod::Spec.new do |s|
   # that depend on the packages, which is this pod, not the app. The package
   # objects are already archived into libTheoremSession.a, so the app gets the
   # same module maps and include paths the pod gets, and links nothing twice.
-  # Checkouts sit in <DerivedData>/SourcePackages; MODULE_CACHE_DIR is
-  # <DerivedData>/ModuleCache.noindex for both build and archive (BUILD_DIR moves
-  # under ArchiveIntermediates). Package-generated maps sit in GENERATED_MODULEMAP_DIR.
+  # Checkouts sit in the project's <DerivedData>/SourcePackages, which no build setting
+  # names. OBJROOT is <DerivedData>/Build/Intermediates.noindex for a build and three
+  # levels deeper (ArchiveIntermediates/<scheme>/IntermediateBuildFilesPath) for an
+  # archive, so the app gets both include roots; the one that does not exist is ignored.
+  # MODULE_CACHE_DIR is no anchor: under Xcode's default DerivedData it is the shared
+  # DerivedData/ModuleCache.noindex, outside any project. The package maps are named
+  # include/module.modulemap, which clang finds in an include directory by itself, so
+  # only the package-generated maps (in GENERATED_MODULEMAP_DIR) are passed by file.
   # GhosttyKit and this pod have no x86_64 simulator slice, so neither does the app.
-  package_maps = %w[
+  package_includes = %w[
     swift-atomics/Sources/_AtomicsShims
     swift-nio/Sources/CNIOWindows
     swift-crypto/Sources/CCryptoBoringSSLShims
@@ -62,12 +67,11 @@ Pod::Spec.new do |s|
     Citadel/Sources/CCitadelBcrypt
   ]
   generated_maps = %w[CNIOAtomics CNIODarwin CNIOLinux CNIOOpenBSD CNIOPosix CNIOWASI]
-  generated_includes = generated_maps.map { |name| "swift-nio/Sources/#{name}" }
-  checkouts = '$(MODULE_CACHE_DIR)/../SourcePackages/checkouts'
+  package_includes += generated_maps.map { |name| "swift-nio/Sources/#{name}" }
+  checkouts = ['$(OBJROOT)/../..', '$(OBJROOT)/../../../../..'].map { |root| "#{root}/SourcePackages/checkouts" }
   swift_flags = ['$(inherited)']
-  swift_flags += package_maps.map { |dir| %(-Xcc -fmodule-map-file="#{checkouts}/#{dir}/include/module.modulemap") }
   swift_flags += generated_maps.map { |name| %(-Xcc -fmodule-map-file="$(GENERATED_MODULEMAP_DIR)/#{name}.modulemap") }
-  swift_flags += (package_maps + generated_includes).map { |dir| %(-Xcc -I"#{checkouts}/#{dir}/include") }
+  swift_flags += checkouts.product(package_includes).map { |root, dir| %(-Xcc -I"#{root}/#{dir}/include") }
   s.user_target_xcconfig = {
     'OTHER_SWIFT_FLAGS' => swift_flags.join(' '),
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'x86_64',

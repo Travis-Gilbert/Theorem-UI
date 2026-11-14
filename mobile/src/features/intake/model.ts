@@ -197,11 +197,14 @@ export function describeStage(delivery: Delivery): StageLine {
     case 'failed':
       return {
         label: 'Not sent',
-        detail: `${delivery.error ?? 'Something went wrong.'} It stopped while ${stoppedWords(delivery.stoppedAt)}.`,
+        detail: `${sentence(delivery.error ?? 'Something went wrong.')} It stopped while ${stoppedWords(delivery.stoppedAt)}.`,
         tone: 'error',
       }
   }
 }
+
+/** Errors from the SDK and the server do not always end in a full stop. */
+const sentence = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`)
 
 function stoppedWords(stage: Delivery['stoppedAt']): string {
   switch (stage) {

@@ -58,6 +58,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   plugins: [
+    // Listed first because Xcode project mods run in reverse order: this one runs after
+    // expo-sharing and expo-widgets and gives their extension groups their own Info.plist
+    // reference, which Xcode 27.2 requires (see the plugin).
+    './plugins/own-group-file-references.js',
     'expo-router',
     [
       'expo-splash-screen',
