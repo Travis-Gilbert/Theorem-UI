@@ -1,5 +1,6 @@
 // SOURCING: dockview-react via DockShell (desktop layout), the Life field under the desktop sheet (LifeSheet) seen through the side panel's frosted glass (styles.css glass-panel; under liquid glass, glass/liquid-glass with only its conversation edge curved), Base UI Drawer (phone sidebar), Base UI useMediaQuery, the shell's ModeView (assistant-ui Thread in chat mode), AgentComposer (Base UI Popover), NotePanel (Milkdown Crepe), WorkspaceFilePanel, WorkspaceCommands (the folder dialogs and their shortcuts), the agent TerminalDrawer and the tabbed SideTerminal, the Vault (React.lazy, so cosmos.gl loads only when it opens)
 import type { SplitviewApi, SplitviewReadyEvent } from 'dockview-react'
+import { useParams } from '@tanstack/react-router'
 import { AgentComposer } from '@/components/canvas/agent-composer'
 import { ContextPanel } from './sidebar'
 import { DockShell } from './dock'
@@ -204,7 +205,10 @@ const splitComponents = {
  * keeps its width as the window resizes, can be dragged within its range and
  * closes per mode from the rail.
  */
-function SheetSplit(route: DockRoute) {
+function SheetSplit({
+  onOpenSidebar,
+  ...route
+}: DockRoute & { onOpenSidebar: () => void }) {
   // The Vault covers the split, and the rail's button drives its own side
   // panel, so the split underneath keeps Chat's panel.
   const panelMode = navigatorMode(useShellMode())
@@ -216,10 +220,6 @@ function SheetSplit(route: DockRoute) {
   )
   const preferredWidth = useShell((s) => s.panelWidth)
   const [overlay, setOverlay] = useState(false)
-  const view = `${panelMode}:${route.threadId}`
-  const [drawerView, setDrawerView] = useState<string | null>(null)
-  const drawerOpen = drawerView === view
-  const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
   useEffect(() => {
     const remember = (event: FocusEvent) => {
       if (
@@ -343,7 +343,7 @@ function SheetSplit(route: DockRoute) {
       >
         {(overlay || !panelOpen) && (
           <div className="appearance-compact-header">
-            <ChatHeader onOpenSidebar={() => setDrawerOpen(true)} />
+            <ChatHeader onOpenSidebar={onOpenSidebar} />
           </div>
         )}
         <div className="min-h-0 flex-1">
@@ -356,7 +356,6 @@ function SheetSplit(route: DockRoute) {
           />
         </div>
       </div>
-      <NavigationDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </DockRouteContext.Provider>
   )
 }
@@ -373,6 +372,12 @@ function SheetSplit(route: DockRoute) {
  */
 function DesktopShell(route: DockRoute) {
   const mode = useShellMode()
+  const { documentId } = useParams({ strict: false })
+  const view = `${mode}:${route.threadId}:${documentId}`
+  const [drawerView, setDrawerView] = useState<string | null>(null)
+  const drawerOpen = drawerView === view
+  const setDrawerOpen = (open: boolean) => setDrawerView(open ? view : null)
+  if (drawerView !== null && drawerView !== view) setDrawerView(null)
   const vault = mode === 'vault'
   const ide = mode === 'ide'
   const [vaultLoaded, setVaultLoaded] = useState(vault)
@@ -398,7 +403,10 @@ function DesktopShell(route: DockRoute) {
               {/* The field runs under the panel as well as the conversation,
                   while the conversation is the sheet's view. */}
               <LifeSheet active={mode === 'chat'}>
-                <SheetSplit {...route} />
+                <SheetSplit
+                  {...route}
+                  onOpenSidebar={() => setDrawerOpen(true)}
+                />
               </LifeSheet>
             </div>
             {ide && <IdeStatusBar />}
@@ -407,17 +415,23 @@ function DesktopShell(route: DockRoute) {
             <div
               inert={!vault}
               className={cn(
-                'absolute inset-0 isolate bg-sheet',
+                'absolute inset-0 isolate flex flex-col bg-sheet',
                 !vault && HIDDEN_LAYER,
               )}
             >
-              <Suspense>
-                <VaultWorkspace active={vault} />
-              </Suspense>
+              <div className="appearance-vault-header shrink-0">
+                <ChatHeader onOpenSidebar={() => setDrawerOpen(true)} />
+              </div>
+              <div className="min-h-0 flex-1">
+                <Suspense>
+                  <VaultWorkspace active={vault} />
+                </Suspense>
+              </div>
             </div>
           )}
         </div>
       </div>
+      <NavigationDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </div>
   )
 }

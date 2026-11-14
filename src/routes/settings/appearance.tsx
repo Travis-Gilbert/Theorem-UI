@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useTheme } from 'next-themes'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import {
   SegmentedControl,
   SegmentedControlItem,
@@ -421,10 +422,25 @@ function AppearanceImport({
   const [text, setText] = useState<string>()
   const [message, setMessage] = useState('')
   const [invalid, setInvalid] = useState(false)
+  const { isCopied, copyToClipboard } = useCopyToClipboard({
+    onError: () => {
+      setInvalid(true)
+      setMessage(
+        'Could not copy current settings. Check clipboard access and try again.',
+      )
+    },
+  })
+  const documentValue = {
+    version: APPEARANCE_VERSION,
+    ...selection,
+    mode: currentMode,
+    life: currentLife,
+  }
+  const documentText = JSON.stringify(documentValue, null, 2)
   const apply = async () => {
     let candidate: unknown
     try {
-      candidate = JSON.parse(text ?? '{}')
+      candidate = JSON.parse(text ?? documentText)
     } catch {
       setInvalid(true)
       setMessage('Enter valid JSON.')
@@ -449,19 +465,8 @@ function AppearanceImport({
       useAppearance.getState().loadSelection({ preset, overrides: calibrated })
       if (mode) onModeChange(mode)
       useLifeControls.setState({ shown: life })
-      setText(
-        JSON.stringify(
-          {
-            version: APPEARANCE_VERSION,
-            preset,
-            overrides: calibrated,
-            mode,
-            life,
-          },
-          null,
-          2,
-        ),
-      )
+      // Resume the live export, but keep edits made while calibration ran.
+      setText((current) => (current === text ? undefined : current))
     } catch (error) {
       setInvalid(true)
       setMessage(error instanceof Error ? error.message : String(error))
@@ -469,12 +474,6 @@ function AppearanceImport({
     }
     setInvalid(false)
     setMessage('Appearance settings applied.')
-  }
-  const documentValue = {
-    version: APPEARANCE_VERSION,
-    ...selection,
-    mode: currentMode,
-    life: currentLife,
   }
   return (
     <details className="appearance-import rounded-lg border border-separator p-3">
@@ -486,17 +485,28 @@ function AppearanceImport({
           Edit or paste appearance settings as JSON. Custom colors must be
           opaque sRGB and meet the readability checks. Font profiles reference
           an installed font. The app measures the reading widths when you apply
-          a profile.
+          a profile. Copy current settings exports the active appearance without
+          changing your JSON draft.
         </p>
         <textarea
           className="min-h-32 w-full min-w-0 rounded-lg border border-control p-2"
           data-appearance-recipe="code"
           aria-label="Custom appearance JSON"
-          value={text ?? JSON.stringify(documentValue, null, 2)}
+          value={text ?? documentText}
           onChange={(event) => setText(event.currentTarget.value)}
         />
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void apply()}>Apply custom appearance</Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setInvalid(false)
+              setMessage('')
+              void copyToClipboard(documentText)
+            }}
+          >
+            {isCopied ? 'Current settings copied' : 'Copy current settings'}
+          </Button>
           <Button
             variant="outline"
             onClick={() => {

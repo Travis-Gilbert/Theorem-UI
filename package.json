@@ -35,6 +35,7 @@
     "oracle:rendered": "node scripts/design-oracles/run.mjs",
     "oracle:interactions": "node scripts/design-oracles/review-interactions.mjs",
     "oracle:continuity": "node scripts/design-oracles/review-continuity.mjs",
+    "oracle:navigation-export": "node scripts/design-oracles/review-navigation-export.mjs",
     "oracle:reflow": "node scripts/design-oracles/review-reflow.mjs",
     "oracle:runtime": "node scripts/design-oracles/review-runtime.mjs",
     "oracle:composition": "node scripts/design-oracles/review-composition.mjs",

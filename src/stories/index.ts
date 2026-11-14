@@ -128,6 +128,12 @@ export const STORIES: readonly StoryMeta[] = [
     threadId: 'thread-app-gallery',
   },
   {
+    id: 'shell-navigation',
+    title: 'Phone navigation across Vault and Notes',
+    lane: 'original',
+    viewport: { width: 390, height: 844 },
+  },
+  {
     id: 'cpu-gpu-tradeoff',
     title: 'CPU or GPU: the tradeoff notebook',
     lane: 'original',

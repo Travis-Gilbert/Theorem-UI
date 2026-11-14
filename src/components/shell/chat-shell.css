@@ -15,7 +15,13 @@
   flex: none;
   height: 100%;
 }
+.appearance-vault-header {
+  display: none;
+}
 @media (max-width: 38rem) {
+  .appearance-vault-header {
+    display: block;
+  }
   .appearance-docked-rail {
     display: none;
   }

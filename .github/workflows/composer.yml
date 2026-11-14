@@ -115,6 +115,7 @@ jobs:
           done
           bun run oracle:interactions
           bun run oracle:continuity
+          bun run oracle:navigation-export
           bun run oracle:reflow
           bun run oracle:runtime
           bun run oracle:composition

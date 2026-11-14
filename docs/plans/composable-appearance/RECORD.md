@@ -100,3 +100,15 @@ At the user’s request, the implementation and review evidence are recorded in 
 ### Requested screenshot captures
 
 Five fresh Firefox captures show Calm light/dark desktop, the 390px narrow layout, the Appearance dialog, and the Expressive preset. They use the real components in the local demonstration fixture; no live backend conversation was captured. All five captures completed without browser runtime errors. See [the screenshot gallery](evidence/screenshots/README.md). Copies are also saved in the macOS Desktop screenshot folder.
+
+### PR #101 review repairs
+
+Verified origin `Travis-Gilbert/Theorem-UI`, branch `Travis-Gilbert/composable-appearance`, and local/remote/PR head `28a42064caacbbc6f5365ba752da19c43eb47d82` before editing. All three supplied findings were valid.
+
+- Drawer state now belongs to the outer shell. Vault has a phone header outside the covered, inert conversation layer, reusing the existing header and Base UI drawer. The desktop rail remains unchanged.
+- Drawer navigation identity includes the selected document and actual mode. Navigation closes the drawer and clears its previous identity, including when returning to an earlier note.
+- JSON Apply parses the displayed document when there is no draft. A successful import returns the field to the live export while preserving any newer edits made during font calibration. Copy current settings reuses the existing clipboard hook and exports active settings independently of an unfinished JSON draft.
+
+Validation: 21 shell/appearance unit tests and four story transport tests passed; TypeScript, focused ESLint and formatting checks passed. `PLAYWRIGHT_BROWSERS_PATH=/tmp/theorem-appearance-browsers bun run oracle:navigation-export` passed all seven Chromium checks with no uncaught browser errors. It checks Vault close/reopen, keyboard activation, Escape, Notes/Home navigation at 320px and 390px; note A → B → A selection and visible editors; desktop rail/header behavior; pristine JSON Apply, live export after import/control changes, draft-preserving clipboard export, and invalid JSON retention. The regression command is included in the existing browser CI step.
+
+Evidence: [browser results](evidence/review/navigation-export.json) and [390px Vault navigation screenshot](evidence/review/vault-phone-navigation.png). The fixture uses the real components, router, editors and SDK with deterministic story transport; it does not establish live backend acceptance. Earlier full-matrix evidence and its native input verification limits remain unchanged. The existing worktree is retained for this PR and the remaining acceptance checks; no new worktree was created.

@@ -2,6 +2,15 @@
 import { ReactFlow, ReactFlowProvider, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+  useLocation,
+} from '@tanstack/react-router'
 import type { ComponentType } from 'react'
 import {
   AssistantRuntimeProvider,
@@ -129,6 +138,38 @@ function ShellCompareStory() {
     <WithRuntime>
       <ChatShell projectId="project-theorem" threadId="thread-app-gallery" />
     </WithRuntime>
+  )
+}
+
+/** Real mode routes over the story transport, without leaving the fixture. */
+function ShellNavigationStory() {
+  const [router] = useState(() => {
+    const root = createRootRoute({ component: Outlet })
+    const shell = createRoute({
+      getParentRoute: () => root,
+      id: '_chat',
+      component: ShellNavigationFrame,
+    })
+    return createRouter({
+      routeTree: root.addChildren([
+        shell.addChildren(
+          ['/', 'vault', 'notes', 'notes/$documentId'].map((path) =>
+            createRoute({ getParentRoute: () => shell, path }),
+          ),
+        ),
+      ]),
+      history: createMemoryHistory({ initialEntries: ['/vault'] }),
+    })
+  })
+  return <RouterProvider router={router} />
+}
+
+function ShellNavigationFrame() {
+  const pathname = useLocation({ select: (location) => location.pathname })
+  return (
+    <div data-shell-route={pathname}>
+      <ShellCompareStory />
+    </div>
   )
 }
 
@@ -716,6 +757,7 @@ export const REGISTRY: Readonly<Record<string, ComponentType>> = {
   'compare-pane-standalone': () => <ComparePaneStory standalone />,
   'review-card': ReviewCardStory,
   'shell-compare': ShellCompareStory,
+  'shell-navigation': ShellNavigationStory,
   'glass-compare': () => (
     <WithRuntime>
       <GlassCompareStory />
