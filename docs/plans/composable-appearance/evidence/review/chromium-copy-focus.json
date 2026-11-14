@@ -1,0 +1,374 @@
+{
+  "fixture": "/story/design-oracle-draft",
+  "browser": "Chromium 156.0.8078.4",
+  "viewport": [
+    1440,
+    900
+  ],
+  "before": {
+    "standard": "pass",
+    "focusAppearance": "fail",
+    "pixelAttribution": "The measured lower bound counts pixels matching the opaque outline color. The upper bound includes other qualifying pixel changes in the outline band, including possible antialiasing.",
+    "focusedState": {
+      "label": "Copy",
+      "tag": "BUTTON",
+      "box": {
+        "x": 430,
+        "y": 100,
+        "width": 24,
+        "height": 24,
+        "top": 100,
+        "right": 454,
+        "bottom": 124,
+        "left": 430
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "keyboardFocus": true,
+      "outline": {
+        "width": 2,
+        "offset": 2,
+        "style": "solid",
+        "color": "rgb(51, 121, 179)"
+      },
+      "hits": [
+        {
+          "x": 432.4,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 437.2,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 442,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 442,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 442,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 442,
+          "y": 116.8,
+          "unobscured": false
+        },
+        {
+          "x": 442,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 446.8,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 451.6,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 121.6,
+          "unobscured": false
+        }
+      ]
+    },
+    "unfocusedState": {
+      "box": {
+        "x": 430,
+        "y": 100,
+        "width": 24,
+        "height": 24,
+        "top": 100,
+        "right": 454,
+        "bottom": 124,
+        "left": 430
+      },
+      "scrollX": 0,
+      "scrollY": 0,
+      "inactive": true
+    },
+    "referenceAreaCssPx": 192,
+    "candidateAreaCssPx": 240,
+    "visibleAreaCssPx": 103,
+    "changedAreaCssPx": 160,
+    "qualifyingAreaCssPx": 103,
+    "ambiguousQualifyingAreaCssPx": 18,
+    "minimumStateContrast": 4.639197455025658,
+    "minimumAdjacentContrast": 4.639197455025658,
+    "errors": []
+  },
+  "after": {
+    "standard": "pass",
+    "focusAppearance": "pass",
+    "pixelAttribution": "The measured lower bound counts pixels matching the opaque outline color. The upper bound includes other qualifying pixel changes in the outline band, including possible antialiasing.",
+    "focusedState": {
+      "label": "Copy",
+      "tag": "BUTTON",
+      "box": {
+        "x": 430,
+        "y": 100,
+        "width": 24,
+        "height": 24,
+        "top": 100,
+        "right": 454,
+        "bottom": 124,
+        "left": 430
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "keyboardFocus": true,
+      "outline": {
+        "width": 4,
+        "offset": 1,
+        "style": "solid",
+        "color": "rgb(51, 121, 179)"
+      },
+      "hits": [
+        {
+          "x": 432.4,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 432.4,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 437.2,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 437.2,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 442,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 442,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 442,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 442,
+          "y": 116.8,
+          "unobscured": false
+        },
+        {
+          "x": 442,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 446.8,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 446.8,
+          "y": 121.6,
+          "unobscured": false
+        },
+        {
+          "x": 451.6,
+          "y": 102.4,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 107.2,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 112,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 116.8,
+          "unobscured": true
+        },
+        {
+          "x": 451.6,
+          "y": 121.6,
+          "unobscured": false
+        }
+      ]
+    },
+    "unfocusedState": {
+      "box": {
+        "x": 430,
+        "y": 100,
+        "width": 24,
+        "height": 24,
+        "top": 100,
+        "right": 454,
+        "bottom": 124,
+        "left": 430
+      },
+      "scrollX": 0,
+      "scrollY": 0,
+      "inactive": true
+    },
+    "referenceAreaCssPx": 192,
+    "candidateAreaCssPx": 480,
+    "visibleAreaCssPx": 288,
+    "changedAreaCssPx": 383,
+    "qualifyingAreaCssPx": 288,
+    "ambiguousQualifyingAreaCssPx": 31,
+    "minimumStateContrast": 4.325131290225166,
+    "minimumAdjacentContrast": 4.639197455025658,
+    "errors": []
+  }
+}

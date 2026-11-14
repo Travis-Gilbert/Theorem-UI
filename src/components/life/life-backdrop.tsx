@@ -8,7 +8,7 @@ import { pulsesSince, signalOf } from '@/lib/life/energy'
 import type { Reading } from '@/lib/life/energy'
 import { PATTERNS, PATTERN_LABELS } from '@/lib/life/patterns'
 import type { PatternName } from '@/lib/life/patterns'
-import { useLifeControls, useLifeCounts } from '@/lib/life/store'
+import { useLifeControls, useLifeCounts, useLifeShown } from '@/lib/life/store'
 import type { Brush } from '@/lib/life/store'
 import { prefersReducedMotion } from '@/lib/motion'
 import { mountLife } from './mount-life'
@@ -120,7 +120,7 @@ function LifeField({
   space: boolean
   active: boolean
 }) {
-  const shown = useLifeControls((state) => state.shown)
+  const shown = useLifeShown()
   const [renderer] = useState(lifeRenderer)
   const [game, setGame] = useState<LifeGame>()
   const stroking = useRef(false)
@@ -231,7 +231,8 @@ function useTurnPulses(game: LifeGame | undefined) {
 }
 
 function LifeMenu({ game }: { game: LifeGame | undefined }) {
-  const { shown, playing, brush, companion } = useLifeControls()
+  const { playing, brush, companion } = useLifeControls()
+  const shown = useLifeShown()
   const { population, pace } = useLifeCounts()
   const set = useLifeControls.setState
   return (

@@ -43,7 +43,9 @@ import {
   useStartThreadFrom,
   useThreadTree,
 } from '@/lib/theorem/thread-tree'
+import { useSeenThreads } from '@/lib/theorem/seen-threads'
 import { cn } from '@/lib/utils'
+import { appearancePair } from '@/lib/appearance-policy'
 import { ThreadGlyph } from './glyphs'
 import { ThreadMenuItems } from './thread-menu'
 
@@ -96,7 +98,10 @@ function StatusMark({
   const [reason] = thread.attention.reasons
   if (hint)
     return (
-      <span className="max-w-24 shrink-0 truncate text-xs text-ink-muted group-hover/thread:invisible group-has-data-popup-open/thread:invisible">
+      <span
+        data-appearance-recipe="metadata"
+        className="max-w-24 shrink-0 truncate text-ink-muted group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
+      >
         {hint}
       </span>
     )
@@ -109,7 +114,10 @@ function StatusMark({
     )
   if (reason)
     return (
-      <Badge className="bg-attention/18 text-sm text-attention-ink group-hover/thread:invisible group-has-data-popup-open/thread:invisible">
+      <Badge
+        data-appearance-recipe="metadata"
+        className="bg-hover text-ink-muted group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
+      >
         {attentionLabel(reason)}
       </Badge>
     )
@@ -131,9 +139,10 @@ function Age({ at }: { at: number }) {
   const { readAtMs } = useTree()
   return (
     <time
+      data-appearance-recipe="metadata"
       dateTime={new Date(at).toISOString()}
       title={format(at, 'PPp')}
-      className="shrink-0 text-xs text-ink-muted tabular-nums group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
+      className="shrink-0 text-ink-muted tabular-nums group-hover/thread:invisible group-has-data-popup-open/thread:invisible"
     >
       {intlFormatDistance(at, Math.max(at, readAtMs), {
         style: 'narrow',
@@ -215,7 +224,31 @@ export function ThreadRow({
 
   const ref = useRef<HTMLLIElement>(null)
   const seen = useSeen(ref)
-  const { data: tree } = useThreadTree(thread.threadId, seen)
+  const {
+    data: tree,
+    dataUpdatedAt,
+    refetch,
+  } = useThreadTree(thread.threadId, seen)
+  const lastVisit = useSeenThreads((state) => state.at[thread.threadId])
+  const unread =
+    !isOpen &&
+    lastVisit !== undefined &&
+    tree?.lastReplyAtMs !== undefined &&
+    tree.lastReplyAtMs > lastVisit
+  // The organization index can notice a new message before this row's cached
+  // branch data expires. Refresh once per changed index timestamp, irrespective
+  // of any clock difference between the browser and server.
+  const observedLastMessageAt = useRef(thread.lastMessageAtMs)
+  useEffect(() => {
+    if (
+      !seen ||
+      dataUpdatedAt === 0 ||
+      observedLastMessageAt.current === thread.lastMessageAtMs
+    )
+      return
+    observedLastMessageAt.current = thread.lastMessageAtMs
+    void refetch()
+  }, [seen, dataUpdatedAt, thread.lastMessageAtMs, refetch])
   const forks = tree?.forks ?? []
   const onFork = tree ? tree.selectedBranchId !== tree.rootBranchId : false
   const hasChildren = forks.length > 0 || childThreads.length > 0
@@ -322,6 +355,14 @@ export function ThreadRow({
                   current ? (primary ? 'primary' : 'also') : undefined
                 }
                 aria-current={current || undefined}
+                data-appearance-part="navigation-row"
+                data-appearance-recipe="ui.label"
+                data-appearance-radius-role="control"
+                data-unread={unread || undefined}
+                {...appearancePair(
+                  'primary',
+                  current ? 'selected' : 'navigation',
+                )}
                 title={thread.summary?.text ?? title}
                 className={cn(
                   'w-full translate-x-0 pe-1 data-[organize-row=also]:bg-hover',
@@ -355,6 +396,7 @@ export function ThreadRow({
                 <span
                   className={cn(
                     'min-w-0 flex-1 truncate',
+                    unread && 'font-semibold',
                     // A reply being written shows where it is.
                     running && 'shimmer motion-reduce:animate-none',
                   )}
@@ -366,6 +408,12 @@ export function ThreadRow({
                     </span>
                   )}
                 </span>
+                {unread && (
+                  <span className="shrink-0" title="Unread reply">
+                    <Icon.Chat aria-hidden className="size-3.5" />
+                    <span className="sr-only">, unread reply</span>
+                  </span>
+                )}
                 <StatusMark thread={thread} running={running} hint={hintText} />
               </SidebarMenuSubButton>
             )}

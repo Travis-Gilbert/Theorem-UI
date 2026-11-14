@@ -1,0 +1,195 @@
+{
+  "capturedAt": "2026-11-13T22:15:28.460Z",
+  "browser": "Firefox 157.0",
+  "scope": "Rendered local shell-compare demonstration fixture; no live backend conversation.",
+  "desktop": "/Users/travisgilbert/Desktop/Theorem UI screenshots 2026-11-13T22-14-31-281Z",
+  "captures": [
+    {
+      "name": "calm-light-desktop",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000,
+      "path": "/Users/travisgilbert/Desktop/Theorem UI screenshots 2026-11-13T22-14-31-281Z/calm-light-desktop.png",
+      "evidence": "/Users/travisgilbert/.codex/worktrees/composable-appearance/Theorem ui/docs/plans/composable-appearance/evidence/screenshots/calm-light-desktop.png",
+      "errors": [],
+      "state": {
+        "mode": "light",
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "name": "calm-dark-desktop",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000,
+      "path": "/Users/travisgilbert/Desktop/Theorem UI screenshots 2026-11-13T22-14-31-281Z/calm-dark-desktop.png",
+      "evidence": "/Users/travisgilbert/.codex/worktrees/composable-appearance/Theorem ui/docs/plans/composable-appearance/evidence/screenshots/calm-dark-desktop.png",
+      "errors": [],
+      "state": {
+        "mode": "dark",
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "name": "calm-light-mobile",
+      "mode": "light",
+      "width": 390,
+      "height": 844,
+      "path": "/Users/travisgilbert/Desktop/Theorem UI screenshots 2026-11-13T22-14-31-281Z/calm-light-mobile.png",
+      "evidence": "/Users/travisgilbert/.codex/worktrees/composable-appearance/Theorem ui/docs/plans/composable-appearance/evidence/screenshots/calm-light-mobile.png",
+      "errors": [],
+      "state": {
+        "mode": "light",
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "scrollWidth": 390
+      }
+    },
+    {
+      "name": "appearance-controls",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000,
+      "settings": true,
+      "path": "/Users/travisgilbert/Desktop/Theorem UI screenshots 2026-11-13T22-14-31-281Z/appearance-controls.png",
+      "evidence": "/Users/travisgilbert/.codex/worktrees/composable-appearance/Theorem ui/docs/plans/composable-appearance/evidence/screenshots/appearance-controls.png",
+      "errors": [],
+      "state": {
+        "mode": "light",
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "name": "expressive-desktop",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000,
+      "expressive": true,
+      "path": "/Users/travisgilbert/Desktop/Theorem UI screenshots 2026-11-13T22-14-31-281Z/expressive-desktop.png",
+      "evidence": "/Users/travisgilbert/.codex/worktrees/composable-appearance/Theorem ui/docs/plans/composable-appearance/evidence/screenshots/expressive-desktop.png",
+      "errors": [],
+      "state": {
+        "mode": "light",
+        "appearance": {
+          "preset": "expressive",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "paper",
+            "navigation": "glass",
+            "composer": "paper",
+            "user-message": "paper",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": true
+        },
+        "scrollWidth": 1440
+      }
+    }
+  ]
+}

@@ -23,8 +23,9 @@ import type {
   ReactNode,
 } from 'react'
 import { Icon } from '@/components/icons'
+import { AppearanceDialog } from '@/components/settings/appearance-dialog'
 import { KitPerch } from '@/components/kit/kit-stage'
-import { PALETTES, usePalette } from '@/lib/palette'
+import { PALETTES, setPalette, usePalette } from '@/lib/palette'
 import type { Palette } from '@/lib/palette'
 import { signOut, useSignInConfigured } from '@/lib/theorem/sign-in'
 import { useWorkspaces } from '@/lib/workspace/workspaces'
@@ -63,7 +64,7 @@ const THEMES = [
 /** The signed-in tenant as an initial outlined in the accent, with the theme and color choices behind it. */
 function AccountMenu() {
   const { theme, setTheme } = useTheme()
-  const { palette, setPalette } = usePalette()
+  const palette = usePalette()
   const tenant = useTenant()
   const signIn = useSignInConfigured()
 
@@ -82,7 +83,11 @@ function AccountMenu() {
           sideOffset={8}
           className="z-50"
         >
-          <Menu.Popup className={`min-w-52 ${menuPopup}`}>
+          <Menu.Popup
+            data-appearance-part="popover"
+            data-appearance-recipe="ui.label"
+            className={`min-w-52 ${menuPopup}`}
+          >
             {tenant && (
               <>
                 <div className="truncate px-2 pt-1 pb-1.5 text-sm font-medium">
@@ -428,6 +433,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
   return (
     <div
       ref={railRef}
+      data-appearance-part="rail"
       className="relative z-10 flex h-full w-rail shrink-0 flex-col items-center pt-(--sheet-inset) pb-3"
     >
       {junction && <Junction {...junction} />}
@@ -464,6 +470,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
                     <TooltipTrigger
                       render={
                         <Destination
+                          data-appearance-radius-role="control"
                           mode={value}
                           register={register}
                           onMove={move}
@@ -494,6 +501,7 @@ export function Rail({ collapsible = false }: { collapsible?: boolean }) {
       <div className="flex-1" />
       <KitPerch name="rail" className="mb-1" />
       <TerminalToggle />
+      <AppearanceDialog />
       <AccountMenu />
     </div>
   )

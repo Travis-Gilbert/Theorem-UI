@@ -20,6 +20,7 @@ export type ThreadTree = {
   /** A run in progress on the authority, which may belong to another tab or device. */
   activeRunId: string | null
   lastRunOutcome: Theorem.RunEnding | undefined
+  lastReplyAtMs: number | undefined
 }
 
 export const threadTreeKey = (threadId: string) =>
@@ -30,7 +31,7 @@ export function useThreadTree(threadId: string | undefined, enabled: boolean) {
     queryKey: threadTreeKey(threadId ?? ''),
     enabled: enabled && threadId !== undefined,
     queryFn: async (): Promise<ThreadTree | null> => {
-      const { thread, branches } = await theorem().chat.threads.get({
+      const { thread, branches, messages } = await theorem().chat.threads.get({
         threadId: threadId!,
       })
       const root = branches.find((branch) => !branch.parentBranchId)
@@ -43,6 +44,9 @@ export function useThreadTree(threadId: string | undefined, enabled: boolean) {
         selectedBranchId: thread.selectedBranchId,
         activeRunId: thread.activeRunId,
         lastRunOutcome: thread.lastRun?.outcome,
+        lastReplyAtMs: messages.findLast(
+          (message) => message.role === 'assistant',
+        )?.createdAtMs,
       }
     },
     staleTime: 5 * 60_000,

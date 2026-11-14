@@ -2,6 +2,7 @@
 import { Menu } from '@base-ui/react/menu'
 import { useNavigate } from '@tanstack/react-router'
 import { Suspense, lazy, useState } from 'react'
+import type { ReactNode } from 'react'
 import { SpaceNotes } from '@/components/canvas/space-notes'
 import { Icon } from '@/components/icons'
 import { IndexPanel } from '@/components/index/index-panel'
@@ -35,7 +36,7 @@ const ProgramsPanel = lazy(() =>
 )
 
 export const menuItem =
-  'flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
+  'appearance-menu-item flex min-h-8 cursor-default items-center gap-2 rounded-md px-2 text-sm outline-none select-none data-highlighted:bg-hover'
 
 export const menuPopup =
   'origin-(--transform-origin) rounded-lg border border-separator bg-popover p-1 text-popover-foreground shadow-popover outline-none transition-[opacity,scale] duration-(--duration-snap) ease-snap data-ending-style:duration-(--duration-exit) data-ending-style:ease-exit data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
@@ -87,9 +88,16 @@ function ProjectSwitcher({ stay = false }: { stay?: boolean }) {
             sideOffset={4}
             className="z-50"
           >
-            <Menu.Popup className={`w-(--anchor-width) min-w-52 ${menuPopup}`}>
+            <Menu.Popup
+              data-appearance-part="popover"
+              data-appearance-recipe="ui.label"
+              className={`w-(--anchor-width) min-w-52 ${menuPopup}`}
+            >
               <Menu.Group>
-                <Menu.GroupLabel className="px-2 pt-1 pb-1.5 text-xs text-ink-faint">
+                <Menu.GroupLabel
+                  data-appearance-recipe="ui.section"
+                  className="px-2 pt-1 pb-1.5 text-xs text-ink-faint"
+                >
                   Projects
                 </Menu.GroupLabel>
                 <Menu.RadioGroup
@@ -163,12 +171,16 @@ function SpacesPanel() {
  * so its search, scroll and open branches survive a switch. The rail's Files
  * control reveals the files over the mode's list.
  */
-export function ContextPanel() {
+/** Composition slots share the existing project/thread/runtime context. */
+export function ContextPanel({ sections, footer }: { sections?: ReactNode; footer?: ReactNode } = {}) {
   const mode = useShellMode()
   const filesShown = useShell((s) => s.filesShown)
   const threads = !hasOwnView(mode) && mode !== 'ide'
   return (
-    <SidebarProvider className="on-sheet h-full min-h-0">
+    <SidebarProvider
+      data-appearance-recipe="ui.label"
+      className="appearance-navigation on-sheet h-full min-h-0"
+    >
       <Sidebar collapsible="none" className="w-full bg-transparent">
         <div hidden={filesShown || !threads} className="min-h-0 flex-1">
           <OrganizedPanel footer={<Explorer />} />
@@ -209,6 +221,8 @@ export function ContextPanel() {
         {(filesShown || filesUnderPanel(mode)) && (
           <FoldersSection fill={filesShown} />
         )}
+        {sections}
+        {footer}
       </Sidebar>
     </SidebarProvider>
   )

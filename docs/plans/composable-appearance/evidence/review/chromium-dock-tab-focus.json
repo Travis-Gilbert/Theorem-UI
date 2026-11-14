@@ -1,0 +1,374 @@
+{
+  "fixture": "/story/design-oracle-navigation",
+  "browser": "Chromium 156.0.8078.4",
+  "viewport": [
+    320,
+    720
+  ],
+  "before": {
+    "standard": "pass",
+    "focusAppearance": "fail",
+    "pixelAttribution": "The measured lower bound counts pixels matching the opaque outline color. The upper bound includes other qualifying pixel changes in the outline band, including possible antialiasing.",
+    "focusedState": {
+      "label": "App gallery layout",
+      "tag": "DIV",
+      "box": {
+        "x": 0,
+        "y": 56,
+        "width": 124.921875,
+        "height": 36,
+        "top": 56,
+        "right": 124.921875,
+        "bottom": 92,
+        "left": 0
+      },
+      "viewport": {
+        "width": 320,
+        "height": 720,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "keyboardFocus": true,
+      "outline": {
+        "width": 2,
+        "offset": 2,
+        "style": "solid",
+        "color": "rgb(51, 121, 179)"
+      },
+      "hits": [
+        {
+          "x": 12.4921875,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 37.4765625,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 62.4609375,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 87.4453125,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 112.4296875,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 88.4,
+          "unobscured": false
+        }
+      ]
+    },
+    "unfocusedState": {
+      "box": {
+        "x": 0,
+        "y": 56,
+        "width": 124.921875,
+        "height": 36,
+        "top": 56,
+        "right": 124.921875,
+        "bottom": 92,
+        "left": 0
+      },
+      "scrollX": 0,
+      "scrollY": 0,
+      "inactive": true
+    },
+    "referenceAreaCssPx": 643.6875,
+    "candidateAreaCssPx": 596,
+    "visibleAreaCssPx": 72,
+    "changedAreaCssPx": 72,
+    "qualifyingAreaCssPx": 72,
+    "ambiguousQualifyingAreaCssPx": 0,
+    "minimumStateContrast": 4.639197455025658,
+    "minimumAdjacentContrast": 4.639197455025658,
+    "errors": []
+  },
+  "after": {
+    "standard": "pass",
+    "focusAppearance": "pass",
+    "pixelAttribution": "The measured lower bound counts pixels matching the opaque outline color. The upper bound includes other qualifying pixel changes in the outline band, including possible antialiasing.",
+    "focusedState": {
+      "label": "App gallery layout",
+      "tag": "DIV",
+      "box": {
+        "x": 0,
+        "y": 56,
+        "width": 124.921875,
+        "height": 36,
+        "top": 56,
+        "right": 124.921875,
+        "bottom": 92,
+        "left": 0
+      },
+      "viewport": {
+        "width": 320,
+        "height": 720,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "keyboardFocus": true,
+      "outline": {
+        "width": 4,
+        "offset": -4,
+        "style": "solid",
+        "color": "rgb(51, 121, 179)"
+      },
+      "hits": [
+        {
+          "x": 12.4921875,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 12.4921875,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 37.4765625,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 37.4765625,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 62.4609375,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 62.4609375,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 87.4453125,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 87.4453125,
+          "y": 88.4,
+          "unobscured": false
+        },
+        {
+          "x": 112.4296875,
+          "y": 59.6,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 66.8,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 74,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 81.2,
+          "unobscured": true
+        },
+        {
+          "x": 112.4296875,
+          "y": 88.4,
+          "unobscured": false
+        }
+      ]
+    },
+    "unfocusedState": {
+      "box": {
+        "x": 0,
+        "y": 56,
+        "width": 124.921875,
+        "height": 36,
+        "top": 56,
+        "right": 124.921875,
+        "bottom": 92,
+        "left": 0
+      },
+      "scrollX": 0,
+      "scrollY": 0,
+      "inactive": true
+    },
+    "referenceAreaCssPx": 643.6875,
+    "candidateAreaCssPx": 1224,
+    "visibleAreaCssPx": 906,
+    "changedAreaCssPx": 1224,
+    "qualifyingAreaCssPx": 810,
+    "ambiguousQualifyingAreaCssPx": 0,
+    "minimumStateContrast": 4.639197455025658,
+    "minimumAdjacentContrast": 4.639197455025658,
+    "errors": []
+  }
+}

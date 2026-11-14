@@ -48,9 +48,15 @@ function useCurrentSection() {
 export function SettingsLayout({ children }: { children: ReactNode }) {
   const current = useCurrentSection()
   return (
-    <div className="flex h-dvh bg-rail text-ink">
-      <SettingsNav />
-      <div className="flex min-w-0 flex-1 flex-col pe-1.5 pb-1.5">
+    <div className="flex h-dvh flex-col bg-rail text-ink md:flex-row">
+      <div className="hidden md:contents">
+        <SettingsNav />
+      </div>
+      <details className="max-h-[40dvh] shrink-0 overflow-auto border-b border-separator px-3 py-2 md:hidden">
+        <summary className="cursor-pointer">Settings sections</summary>
+        <SettingsNav />
+      </details>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pe-1.5 pb-1.5">
         <header className="flex h-11 shrink-0 items-center gap-1.5 px-2 text-sm">
           {current && (
             <>
@@ -102,9 +108,11 @@ export function SettingsPage({
     <>
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="font-heading text-[20px] font-medium">{title}</h1>
+          <h1 data-appearance-recipe="heading.medium">{title}</h1>
           {description && (
-            <p className="text-sm text-ink-muted">{description}</p>
+            <p data-appearance-recipe="ui.label" className="text-ink-muted">
+              {description}
+            </p>
           )}
         </div>
         {action && (
@@ -132,9 +140,11 @@ export function SettingsSection({
     <section className="flex flex-col gap-3">
       <div className="flex items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-sm font-medium">{title}</h2>
+          <h2 data-appearance-recipe="ui.section">{title}</h2>
           {description && (
-            <p className="text-sm text-ink-muted">{description}</p>
+            <p data-appearance-recipe="ui.label" className="text-ink-muted">
+              {description}
+            </p>
           )}
         </div>
         {action}
@@ -184,9 +194,13 @@ export function SettingsRow({
         </IconTile>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm">{title}</span>
+        <span data-appearance-recipe="ui.label" className="wrap-break-word">
+          {title}
+        </span>
         {description && (
-          <span className="text-xs text-ink-muted">{description}</span>
+          <span data-appearance-recipe="metadata" className="text-ink-muted">
+            {description}
+          </span>
         )}
       </div>
       {children}

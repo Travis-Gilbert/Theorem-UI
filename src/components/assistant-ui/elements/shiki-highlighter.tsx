@@ -20,6 +20,10 @@ import type { HighlighterCore, LanguageInput, ThemeInput } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { bundledLanguages } from "shiki/langs";
 import { bundledThemes } from "shiki/themes";
+import { useTheme } from "next-themes";
+import { useAppearance } from "@/lib/appearance";
+import { appearancePair } from "@/lib/appearance-policy";
+import { readableCodeColor } from "@/lib/code-contrast";
 import { useCodeThemes } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 
@@ -38,10 +42,10 @@ export type SyntaxHighlighterProps = Omit<
 };
 
 const containerClassName =
-  "aui-shiki-base [&_pre]:border-separator [&_pre]:bg-raised! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
+  "aui-shiki-base [&_pre]:border-separator [&_pre]:bg-popover! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
 
 const PlainCode: FC<{ code: string }> = ({ code }) => (
-  <pre>
+  <pre data-appearance-recipe="code" {...appearancePair("code", "popover")}>
     <code>{code}</code>
   </pre>
 );
@@ -232,12 +236,88 @@ const useEngineHighlighter = (engine: Engine, props: CodeProps) => {
     : undefined;
 };
 
-const ShikiCode: FC<CodeProps> = ({ code, language, theme, options }) => {
+const codeRecipeTransformer: NonNullable<
+  ShikiHighlighterProps["transformers"]
+>[number] = {
+  name: "theorem:appearance-code",
+  pre(node) {
+    Object.assign(node.properties, {
+      "data-appearance-recipe": "code",
+      ...appearancePair("code", "popover"),
+    });
+  },
+};
+
+/** Read the same opaque semantic background used by the rendered pre. */
+function useCodeSurface() {
+  const preset = useAppearance((state) => state.appearance.preset);
+  const palette = useAppearance((state) => state.appearance.palette);
+  const customPalette = useAppearance(
+    (state) => state.appearance.customPalette,
+  );
+  const { resolvedTheme } = useTheme();
+  const source = useMemo(
+    () => ({ preset, palette, customPalette, resolvedTheme }),
+    [preset, palette, customPalette, resolvedTheme],
+  );
+  const [paint, setPaint] = useState<{
+    source: typeof source;
+    background: string;
+    dark: boolean;
+  }>();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const root = document.documentElement;
+      const background = getComputedStyle(root)
+        .getPropertyValue("--popover")
+        .trim();
+      setPaint({ source, background, dark: root.classList.contains("dark") });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [source]);
+  return paint?.source === source && paint.background ? paint : undefined;
+}
+
+const ShikiPaintedCode: FC<
+  CodeProps & { paint: NonNullable<ReturnType<typeof useCodeSurface>> }
+> = ({ code, language, theme, options, paint }) => {
+  const transformers = useMemo(() => {
+    const contrast: NonNullable<ShikiHighlighterProps["transformers"]>[number] =
+      {
+        name: "theorem:syntax-contrast",
+        tokens(tokens) {
+          const cache = new Map<string, string>();
+          const variant = paint.dark ? "dark" : "light";
+          const key = `${options.cssVariablePrefix ?? "--shiki-"}${variant}`;
+          for (const line of tokens) {
+            for (const token of line) {
+              const color = token.htmlStyle?.[key] ?? token.color;
+              if (!color || color === "inherit") continue;
+              const readable =
+                cache.get(color) ?? readableCodeColor(color, paint.background);
+              cache.set(color, readable);
+              token.htmlStyle = { ...token.htmlStyle, color: readable };
+            }
+          }
+        },
+      };
+    return [codeRecipeTransformer, contrast, ...(options.transformers ?? [])];
+  }, [paint, options.cssVariablePrefix, options.transformers]);
   const highlighted = useShikiHighlighter(code, language, theme, {
     ...options,
     defaultColor: "light-dark()",
+    transformers,
   });
   return <>{highlighted ?? <PlainCode code={code} />}</>;
+};
+
+const ShikiCode: FC<CodeProps> = (props) => {
+  const paint = useCodeSurface();
+  return paint ? (
+    <ShikiPaintedCode {...props} paint={paint} />
+  ) : (
+    <PlainCode code={props.code} />
+  );
 };
 
 const EngineCode: FC<CodeProps & { engine: Engine }> = ({

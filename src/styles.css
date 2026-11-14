@@ -6,6 +6,11 @@
 @import '@fontsource-variable/jetbrains-mono';
 @import 'dockview-react/dist/styles/dockview.css';
 @import './palettes.css';
+@import './appearance.css';
+/* Captured DOM evidence is output, not a source of application utilities. */
+@source not '../docs/plans/composable-appearance/evidence';
+@source not '../scripts/design-oracles';
+@source not '../tests/design-oracles';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));

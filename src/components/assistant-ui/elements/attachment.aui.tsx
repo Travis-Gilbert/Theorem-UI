@@ -248,6 +248,8 @@ export const UserMessageAttachments: FC = () => {
 };
 
 export const ComposerAttachments: FC = () => {
+  const empty = useAuiState((s) => s.composer.attachments.length === 0);
+  if (empty) return null;
   return (
     <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
       <ComposerPrimitive.Attachments>

@@ -1,3 +1,4 @@
+import { appearancePair } from '@/lib/appearance-policy'
 // SOURCING: coss ui Combobox over Base UI Combobox (input inside the popup, as coss's "With Input Inside Popup" example), @tanstack/react-router Link (to settings), lib/theorem/models (catalog, stars, pick)
 import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
@@ -72,10 +73,10 @@ function PickerOption({ model, defaultName }: { model: ModelOption; defaultName?
         <VendorMark vendor={model.vendor} />
         <span className="min-w-0 flex-1 truncate">{model.name}</span>
         {!model.ref && defaultName && (
-          <span className="min-w-0 truncate text-xs text-ink-faint">{defaultName}</span>
+          <span className="min-w-0 truncate text-xs text-ink-muted">{defaultName}</span>
         )}
         {model.contextLength && (
-          <span className="shrink-0 text-xs text-ink-faint tabular-nums">
+          <span className="shrink-0 text-xs text-ink-muted tabular-nums">
             {formatContext(model.contextLength)}
           </span>
         )}
@@ -123,17 +124,21 @@ export function ModelPicker() {
     >
       <ComboboxTrigger
         aria-label="Model"
+        data-appearance-recipe="ui.label"
+        {...appearancePair('secondary', 'composer')}
         className="flex h-8 max-w-48 min-w-0 items-center gap-1 rounded-md px-2 text-sm text-ink-muted transition-colors duration-100 outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover data-popup-open:text-ink"
       >
         <span className="truncate">{pickerLabel(selected, defaultName)}</span>
         <Icon.UpDown className="size-3.5 shrink-0" />
       </ComboboxTrigger>
-      <ComboboxPopup side="top" align="start" className="w-80">
+      <ComboboxPopup side="top" align="start" className="w-80 appearance-model-popup">
         <div className="border-b border-separator p-1.5">
           <ComboboxInput
             size="sm"
             showTrigger={false}
             placeholder="Find a model"
+            data-appearance-recipe="ui.label"
+            {...appearancePair('secondary', 'popover')}
             startAddon={<Icon.Search className="size-3.5" />}
           />
         </div>
@@ -144,7 +149,7 @@ export function ModelPicker() {
         <ComboboxList className="overflow-y-auto p-1">
           {(group: Group) => (
             <ComboboxGroup key={group.label} items={group.items}>
-              <ComboboxGroupLabel className="px-2 pt-1.5 pb-1 text-xs text-ink-faint">
+              <ComboboxGroupLabel data-appearance-recipe="metadata" {...appearancePair('secondary', 'popover')} className="px-2 pt-1.5 pb-1 text-xs text-ink-muted">
                 {group.label}
               </ComboboxGroupLabel>
               <ComboboxCollection>

@@ -1,0 +1,70 @@
+{
+  "observedAt": "2026-11-13",
+  "provenance": "Native iOS Simulator mirrored with serve-sim; read-only geometry through its WebKit DevTools UI. Native frames observed through computer-use screenshots; no standalone image file was exported.",
+  "device": {
+    "name": "phone-composer",
+    "model": "iPhone 17 Pro",
+    "runtime": "iOS 26.5",
+    "dpr": 3
+  },
+  "route": "http://127.0.0.1:3117/story/design-oracle-rtl",
+  "baseline": {
+    "innerWidth": 402,
+    "innerHeight": 714,
+    "visualViewport": {
+      "width": 402,
+      "height": 714,
+      "offsetTop": 0
+    },
+    "editor": {
+      "x": 21,
+      "y": 553,
+      "width": 360,
+      "height": 24,
+      "bottom": 577
+    },
+    "actions": {
+      "x": 21,
+      "y": 641,
+      "width": 44,
+      "height": 44,
+      "bottom": 685
+    }
+  },
+  "focused": {
+    "contentEditableFocused": true,
+    "innerWidth": 402,
+    "innerHeight": 712,
+    "visualViewport": {
+      "width": 402,
+      "height": 712,
+      "offsetTop": 2
+    },
+    "editor": {
+      "x": 21,
+      "y": 551,
+      "width": 360,
+      "height": 24,
+      "bottom": 575
+    },
+    "actions": {
+      "x": 21,
+      "y": 639,
+      "width": 44,
+      "height": 44,
+      "bottom": 683
+    }
+  },
+  "result": {
+    "nativeLayout": "pass",
+    "focusedEditorAndActionVisibility": "pass",
+    "softwareKeyboard": "not-measurable",
+    "physicalIME": "not-measurable"
+  },
+  "limitations": [
+    "The native keyboard accessory was visible, but the software keyboard did not open. A two-pixel viewport change is not software-keyboard coverage.",
+    "The mirror reported Device Hub from the selected Xcode was not running and used legacy HID. Available controls did not expose a software-keyboard toggle.",
+    "No deployed backend behavior was exercised."
+  ],
+  "cleanup": "Simulator restored to its initial shutdown state and scoped serve-sim helper exited."
+}
