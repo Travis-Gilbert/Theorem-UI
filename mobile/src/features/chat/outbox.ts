@@ -141,7 +141,11 @@ export class Outbox {
       await lease.send(message.text, { id: message.id, ...this.options.extras?.() })
       this.apply(threadId, { type: 'sent', id: message.id })
     } catch (error) {
-      this.apply(threadId, { type: 'refused', id: message.id, error })
+      // The SDK drops a send the authority refused outright and keeps any other failure in its journal,
+      // to replay under the same command id once the connection is back. A kept send is already the
+      // conversation's: handing its words back to the composer too would let the person send it twice.
+      const kept = lease.conversation.state.journal?.pending.some((command) => command.id === message.id)
+      this.apply(threadId, kept ? { type: 'sent', id: message.id } : { type: 'refused', id: message.id, error })
     }
   }
 }
