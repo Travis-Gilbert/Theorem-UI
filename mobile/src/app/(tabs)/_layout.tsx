@@ -22,6 +22,8 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf="desktopcomputer" />
         <NativeTabs.Trigger.Label>Computer</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      {/* The system search tab: on iOS 26.1 and later it sits apart from the others and puts its field at the bottom. */}
+      <NativeTabs.Trigger name="search" role="search" />
     </NativeTabs>
   )
 }

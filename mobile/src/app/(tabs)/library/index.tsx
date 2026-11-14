@@ -1,33 +1,27 @@
-// SOURCING: expo-router Stack.Screen headerSearchBarOptions (UISearchController); the Files API through @/features/library/files
+// SOURCING: expo-router Stack.Toolbar (native header items); the Files API through @/features/library/files
 //
-// The Library root: search at the top of the header, then Pinned, Recent and
-// the folders (where a project's files live). A type filter or a search
-// replaces the sections with one list. The filter is held in the URL
-// (`type`), so it survives a resize like the rest of the app's selection.
-import { useEffect, useMemo, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
+// The Library root: the type filter under the header, then the list built by
+// the display options (Overview is Pinned, Recent and Folders; the others are
+// one grouped list). Search is the system search tab. The filter is held in the
+// URL (`type`), so it survives a resize like the rest of the app's selection.
+import { useCallback, useMemo } from 'react'
+import { RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { useCallback } from 'react'
+import { useDisplay } from '@/features/library/display'
+import { groupItems, isDefaultDisplay, folderCounts, orderItems, type Display } from '@/features/library/display-model'
 import { FolderRow, ItemRow } from '@/features/library/item-row'
-import { loadVault, searchFiles } from '@/features/library/files'
-import {
-  byRecency,
-  countUnder,
-  FILTERS,
-  foldersIn,
-  isFilter,
-  ofFilter,
-  type Filter,
-  type LibraryItem,
-} from '@/features/library/model'
+import { loadVault } from '@/features/library/files'
+import { byRecency, FILTERS, foldersIn, isFilter, ofFilter, type Filter, type LibraryItem } from '@/features/library/model'
 import { usePins } from '@/features/library/pins'
 import { describeError } from '@/lib/theorem'
 import { useRequest } from '@/lib/use-request'
-import { radius, space } from '@/theme/tokens'
+import { space } from '@/theme/tokens'
 import { Button } from '@/ui/button'
+import { Chip } from '@/ui/chip'
+import { SettingsToolbar } from '@/ui/header'
+import { GroupHeader } from '@/ui/group-header'
 import { StatusLabel } from '@/ui/status'
 import { Text } from '@/ui/text'
-import { useTheme } from '@/ui/theme'
 
 const RECENT = 8
 
@@ -36,64 +30,46 @@ type Section =
   | { key: string; title?: string; kind: 'folders'; data: Array<{ path: string; count: number }> }
 
 export default function LibraryScreen() {
-  const { palette } = useTheme()
   const params = useLocalSearchParams<{ type?: string }>()
   const filter: Filter = isFilter(params.type) ? params.type : 'all'
-  const [query, setQuery] = useState('')
-  const [debounced, setDebounced] = useState('')
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query.trim()), 250)
-    return () => clearTimeout(timer)
-  }, [query])
+  const display = useDisplay()
 
   const vault = useRequest(loadVault, [])
   // Files change in conversations while this tab is away.
   useFocusEffect(useCallback(() => (vault.data ? vault.reload() : undefined), [])) // eslint-disable-line react-hooks/exhaustive-deps
   const pins = usePins()
-  const items = vault.data?.items
-  const hits = useRequest(
-    () => (debounced && items ? searchFiles(debounced, items) : Promise.resolve(undefined)),
-    [debounced, items],
-  )
 
-  const searching = debounced.length > 0
   const sections = useMemo<Section[]>(() => {
     if (!vault.data) return []
     const { entries, items: all } = vault.data
-    if (searching) {
-      const found = hits.data ? ofFilter(hits.data, filter) : []
-      return found.length ? [{ key: 'results', kind: 'items', data: found }] : []
+    const shown = ofFilter(all, filter)
+    if (display.grouping !== 'overview') {
+      return groupItems(shown, display.grouping, display.ordering).map((group) => ({
+        key: group.key,
+        title: group.title,
+        kind: 'items' as const,
+        data: group.items,
+      }))
     }
-    if (filter !== 'all') {
-      const filtered = ofFilter(all, filter).sort(byRecency)
-      return filtered.length ? [{ key: 'filtered', kind: 'items', data: filtered }] : []
-    }
+    if (filter !== 'all') return shown.length ? [{ key: 'filtered', kind: 'items', data: orderItems(shown, display.ordering) }] : []
     const pinned = pins.flatMap((path) => all.find((item) => item.path === path) ?? [])
-    const folders = foldersIn(entries).map((path) => ({ path, count: countUnder(all, path) }))
+    const folders = folderCounts(all, foldersIn(entries))
     const sections: Section[] = []
     if (pinned.length) sections.push({ key: 'pinned', title: 'Pinned on this device', kind: 'items', data: pinned })
     if (all.length) sections.push({ key: 'recent', title: 'Recent', kind: 'items', data: [...all].sort(byRecency).slice(0, RECENT) })
     if (folders.length) sections.push({ key: 'folders', title: 'Folders', kind: 'folders', data: folders })
     return sections
-  }, [vault.data, hits.data, searching, filter, pins])
+  }, [vault.data, filter, pins, display.grouping, display.ordering])
 
-  const loading = vault.status === 'loading' || (searching && hits.status === 'loading')
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerSearchBarOptions: {
-            placeholder: 'Search the library',
-            hideWhenScrolling: false,
-            // The system field defaults to black text and icon; in dark that is unreadable.
-            textColor: palette.ink,
-            hintTextColor: palette.inkMuted,
-            headerIconColor: palette.inkMuted,
-            onChangeText: (event) => setQuery(event.nativeEvent.text),
-            onCancelButtonPress: () => setQuery(''),
-          },
-        }}
-      />
+      <SettingsToolbar>
+        <Stack.Toolbar.Button
+          icon="slider.horizontal.3"
+          accessibilityLabel={isDefaultDisplay(display) ? 'Display options' : 'Display options, changed'}
+          onPress={() => router.push('/library/display')}
+        />
+      </SettingsToolbar>
       <SectionList<unknown, Section>
         sections={sections}
         keyExtractor={(entry) => (entry as { path: string }).path}
@@ -101,18 +77,12 @@ export default function LibraryScreen() {
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={<Filters filter={filter} />}
         refreshControl={<RefreshControl refreshing={vault.status === 'loading' && !!vault.data} onRefresh={vault.reload} />}
-        renderSectionHeader={({ section }) =>
-          section.title ? (
-            <Text variant="label" tone="muted" style={styles.sectionTitle}>
-              {section.title}
-            </Text>
-          ) : null
-        }
+        renderSectionHeader={({ section }) => (section.title ? <GroupHeader title={section.title} count={sectionCount(section, display)} /> : null)}
         renderItem={({ item, section }) =>
           section.kind === 'folders' ? (
             <FolderRow {...(item as { path: string; count: number })} />
           ) : (
-            <ItemRow item={item as LibraryItem} />
+            <ItemRow item={item as LibraryItem} show={display.show} showFolder={display.grouping !== 'folder'} />
           )
         }
         ListEmptyComponent={
@@ -122,15 +92,10 @@ export default function LibraryScreen() {
                 <Text tone="error">{describeError(vault.error)}</Text>
                 <Button label="Try again" onPress={vault.reload} />
               </>
-            ) : hits.status === 'failed' && searching ? (
-              <>
-                <Text tone="error">{describeError(hits.error)}</Text>
-                <Button label="Try again" onPress={hits.reload} />
-              </>
-            ) : loading ? (
-              <StatusLabel tone="live" label={searching ? 'Searching' : 'Loading the library'} />
+            ) : vault.status === 'loading' ? (
+              <StatusLabel tone="live" label="Loading the library" />
             ) : (
-              <Text tone="muted">{emptyText(searching ? debounced : undefined, filter)}</Text>
+              <Text tone="muted">{emptyText(filter)}</Text>
             )}
           </View>
         }
@@ -139,54 +104,30 @@ export default function LibraryScreen() {
   )
 }
 
-function emptyText(query: string | undefined, filter: Filter) {
+/** A count beside a group's name, except in the Overview sections, where it adds nothing. */
+const sectionCount = (section: Section, display: Display) => (display.grouping === 'overview' ? undefined : section.data.length)
+
+function emptyText(filter: Filter) {
   const kind = FILTERS.find((entry) => entry.id === filter)?.label.toLowerCase()
-  if (query) return `Nothing matches “${query}”${filter === 'all' ? '' : ` in ${kind}`}.`
   return filter === 'all' ? 'The library is empty.' : `No ${kind} yet.`
 }
 
 function Filters({ filter }: { filter: Filter }) {
-  const { palette } = useTheme()
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filters}
-      accessibilityRole="tablist"
-    >
-      {FILTERS.map((entry) => {
-        const active = entry.id === filter
-        return (
-          <Pressable
-            key={entry.id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            onPress={() => router.setParams({ type: entry.id === 'all' ? undefined : entry.id })}
-            style={[
-              styles.chip,
-              { borderColor: palette.lineControl },
-              active && { backgroundColor: palette.selected, borderColor: palette.selected },
-            ]}
-          >
-            <Text variant="label" tone={active ? 'ink' : 'muted'}>
-              {entry.label}
-            </Text>
-          </Pressable>
-        )
-      })}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} accessibilityRole="tablist">
+      {FILTERS.map((entry) => (
+        <Chip
+          key={entry.id}
+          label={entry.label}
+          selected={entry.id === filter}
+          onPress={() => router.setParams({ type: entry.id === 'all' ? undefined : entry.id })}
+        />
+      ))}
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   filters: { paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.sm },
-  chip: {
-    minHeight: 36,
-    paddingHorizontal: space.md,
-    justifyContent: 'center',
-    borderRadius: radius.control,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  sectionTitle: { paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xs },
   message: { padding: space.xl, gap: space.md, alignItems: 'center' },
 })

@@ -1,7 +1,7 @@
 // SOURCING: bun:test
 import { describe, expect, test } from 'bun:test'
 import type { Theorem } from '@theoremharness/sdk'
-import { mostRecentThread, threadDetails, threadState } from './thread-model'
+import { matchThreads, mostRecentThread, threadDetails, threadState } from './thread-model'
 
 const thread = (overrides: Partial<Theorem.Thread> = {}): Theorem.Thread =>
   ({
@@ -68,5 +68,22 @@ describe('threadDetails', () => {
     expect(text).toContain('Thread: thread-1')
     expect(text).toContain('Project: Chats')
     expect(text).toContain('Last message:')
+  })
+})
+
+describe('matchThreads', () => {
+  const threads = [
+    thread({ threadId: 'a', title: 'Mott proposal' }),
+    thread({ threadId: 'b', title: 'Lunch plans' }),
+    thread({ threadId: 'c', title: '  ' }),
+  ]
+  test('matches the title ignoring case, in the given order', () => {
+    expect(matchThreads(threads, 'PRO').map((entry) => entry.threadId)).toEqual(['a'])
+  })
+  test('an empty query matches nothing', () => {
+    expect(matchThreads(threads, '  ')).toEqual([])
+  })
+  test('an untitled thread matches by the title it is shown with', () => {
+    expect(matchThreads(threads, 'new conv').map((entry) => entry.threadId)).toEqual(['c'])
   })
 })

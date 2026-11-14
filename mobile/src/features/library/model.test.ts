@@ -13,6 +13,7 @@ import {
   ofFilter,
   titleFromPath,
   togglePath,
+  pushRecent,
   toItem,
 } from './model'
 
@@ -106,5 +107,15 @@ describe('pins and meta', () => {
   test('the meta line names type, folder and time', () => {
     expect(metaLine(toItem(entry('Mott/x.pdf')), '12 minutes ago')).toBe('PDF · Mott · 12 minutes ago')
     expect(metaLine(toItem(entry('x.pdf')), 'Just now')).toBe('PDF · Just now')
+  })
+})
+
+describe('pushRecent', () => {
+  test('puts the newest first and lists a path once', () => {
+    expect(pushRecent(['b', 'a'], 'a')).toEqual(['a', 'b'])
+    expect(pushRecent([], 'a')).toEqual(['a'])
+  })
+  test('keeps at most max', () => {
+    expect(pushRecent(['c', 'b', 'a'], 'd', 3)).toEqual(['d', 'c', 'b'])
   })
 })

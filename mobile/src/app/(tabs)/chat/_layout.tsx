@@ -12,6 +12,11 @@ export default function ChatLayout() {
       <Stack.Screen name="history" options={{ title: 'Conversations' }}>
         <SettingsToolbar />
       </Stack.Screen>
+      <Stack.Screen name="project" options={{ title: 'Project' }} />
+      <Stack.Screen
+        name="instructions"
+        options={{ presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [0.6, 1], sheetGrabberVisible: true }}
+      />
       <Stack.Screen name="new" options={{ title: 'New conversation' }} />
       <Stack.Screen name="agent" options={{ title: 'Conversation' }} />
       <Stack.Screen name="[threadId]" options={{ title: 'Conversation' }} />

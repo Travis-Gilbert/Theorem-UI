@@ -109,6 +109,12 @@ export default function ChatScreen() {
                   {item.title}
                 </Stack.Toolbar.MenuAction>
               ))}
+              <Stack.Toolbar.MenuAction
+                icon="folder"
+                onPress={() => router.push({ pathname: '/chat/project', params: { project: project.projectId } })}
+              >
+                Project page
+              </Stack.Toolbar.MenuAction>
               <Stack.Toolbar.MenuAction icon="square.and.pencil" onPress={() => open({ kind: 'new' })}>
                 New conversation
               </Stack.Toolbar.MenuAction>

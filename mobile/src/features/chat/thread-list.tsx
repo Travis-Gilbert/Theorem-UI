@@ -4,13 +4,14 @@
 // in a project, then Claude Code and Codex on each saved computer. One button
 // starts a new conversation; the composer there chooses who receives it.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { describeError, type Theorem } from '@/lib/theorem'
 import { useRequest } from '@/lib/use-request'
-import { fullTime, recency } from '@/lib/time'
+import { recency } from '@/lib/time'
 import { radius, space } from '@/theme/tokens'
 import { Button } from '@/ui/button'
+import { GroupHeader } from '@/ui/group-header'
 import { Row } from '@/ui/row'
 import { StatusLabel } from '@/ui/status'
 import { Text } from '@/ui/text'
@@ -19,7 +20,8 @@ import { refreshComputers, useComputers } from '../agents/computers'
 import { folderName, type AgentConversation } from '../agents/discovery'
 import { agentName } from '../agents/shell'
 import { sameSelection, type Selection } from './selection'
-import { loadProjects, loadThreads, threadActivityMs, threadDetails, threadState, threadTitle } from './threads'
+import { ThreadRow } from './thread-row'
+import { loadProjects, loadThreads } from './threads'
 
 /** Window width (points) from which the conversation sits beside the list. */
 export const SPLIT_WIDTH = 768
@@ -315,32 +317,26 @@ export function ThreadList({
         />
       }
       renderSectionHeader={({ section }) => (
-        <View style={styles.sectionHead}>
-          <Text variant="label" tone="muted" accessibilityRole="header" numberOfLines={1} style={styles.sectionTitle}>
-            {section.title.toUpperCase()}
-          </Text>
-          {section.checking ? <StatusLabel tone="live" label="Checking" /> : null}
+        <View>
+          <GroupHeader
+            title={section.title}
+            onAdd={section.key === 'theorem' ? () => onOpen({ kind: 'new' }) : undefined}
+            addLabel="New conversation"
+          />
+          {section.checking ? (
+            <View style={styles.checking}>
+              <StatusLabel tone="live" label="Checking" />
+            </View>
+          ) : null}
         </View>
       )}
       renderItem={({ item }) => {
         switch (item.kind) {
           case 'thread':
             return (
-              <Row
-                prominence="regular"
-                title={threadTitle(item.thread)}
-                detail={threadState(item.thread) ? `${threadState(item.thread)!.symbol} ${threadState(item.thread)!.label}` : undefined}
-                detailTone={threadState(item.thread)?.tone}
-                meta={recency(threadActivityMs(item.thread))}
-                accessibilityLabel={[
-                  threadTitle(item.thread),
-                  threadState(item.thread)?.label,
-                  fullTime(threadActivityMs(item.thread)),
-                ]
-                  .filter(Boolean)
-                  .join(', ')}
-                accessibilityHint="Long press for details"
-                onLongPress={() => Alert.alert(threadTitle(item.thread), threadDetails(item.thread, project?.title))}
+              <ThreadRow
+                thread={item.thread}
+                projectTitle={project?.title}
                 selected={sameSelection(selected, { kind: 'theorem', threadId: item.thread.threadId })}
                 onPress={() => onOpen({ kind: 'theorem', threadId: item.thread.threadId })}
               />
@@ -404,15 +400,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.lg,
-    paddingTop: space.lg,
-    paddingBottom: space.sm,
-  },
-  sectionTitle: { flexShrink: 1 },
+  checking: { paddingHorizontal: space.lg, paddingBottom: space.xs },
   note: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm, alignItems: 'flex-start' },
   message: { padding: space.xl, gap: space.md, alignItems: 'center' },
 })

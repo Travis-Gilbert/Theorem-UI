@@ -1,6 +1,7 @@
 // SOURCING: expo-router Link, native-stack screen options and Stack.Toolbar (native header items)
 import { Link, router, Stack } from 'expo-router'
 import { Image } from 'expo-image'
+import type { ReactNode } from 'react'
 import { Pressable } from 'react-native'
 import { Text } from './text'
 import { useTheme } from './theme'
@@ -51,11 +52,13 @@ export function SettingsButton() {
 /**
  * Settings as a native header item: the system draws the glyph and label with
  * a legible contrast in both schemes and gives it a 44pt target. Put it in a
- * screen, or inside a layout's `Stack.Screen`.
+ * screen, or inside a layout's `Stack.Screen`. Items passed as children sit
+ * before it, so a screen's own action and Settings share one toolbar.
  */
-export function SettingsToolbar() {
+export function SettingsToolbar({ children }: { children?: ReactNode }) {
   return (
     <Stack.Toolbar placement="right">
+      {children}
       <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
     </Stack.Toolbar>
   )
