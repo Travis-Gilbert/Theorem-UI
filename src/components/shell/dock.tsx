@@ -62,6 +62,7 @@ import type { ShellMode } from './modes'
 import { openBeside } from './open-beside'
 import { useShell } from './shell-state'
 import { menuItem, menuPopup } from './sidebar'
+import { adaptDock } from './responsive-dock'
 
 import { useFollow } from '@/components/ide/follow'
 import { IdeFrame } from '@/components/ide/ide-frame'
@@ -70,7 +71,10 @@ import { cn } from '@/lib/utils'
 
 import { DelegationPanel } from '@/components/chat/delegation-panel'
 import { ComparePane } from '@/components/review/compare-pane'
-import { useDelegationDock, useThreadDelegation } from '@/lib/theorem/delegations'
+import {
+  useDelegationDock,
+  useThreadDelegation,
+} from '@/lib/theorem/delegations'
 import { useReview, useReviewDock } from '@/lib/theorem/reviews'
 
 const ARTIFACT = 'artifact:'
@@ -115,11 +119,7 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
   const mode = useShellMode()
   useEffect(
     () =>
-      api.setTitle(
-        hasOwnView(mode)
-          ? modeLabel(mode)
-          : title || 'New chat',
-      ),
+      api.setTitle(hasOwnView(mode) ? modeLabel(mode) : title || 'New chat'),
     [api, mode, title],
   )
   // Chat's breadcrumb stands in for the tab while the conversation is
@@ -134,11 +134,13 @@ function ThreadPanel({ api, containerApi }: IDockviewPanelProps) {
     api.group.header.hidden = inChat && alone
   }, [api, inChat, alone])
   return (
-    <div className="flex h-full flex-col">
+    <div data-appearance-part="main" data-appearance-width-role="main" className="flex h-full min-w-0 flex-col">
       {inChat && (
         <ThreadHeader
           actions={
-            alone ? <GroupActions group={api.group} containerApi={containerApi} /> : undefined
+            alone ? (
+              <GroupActions group={api.group} containerApi={containerApi} />
+            ) : undefined
           }
         />
       )}
@@ -470,7 +472,7 @@ function PanelsMenu({ api }: { api: DockviewApi }) {
 }
 
 /** Below this the conversation's column is not laid out. */
-const THREAD_MIN_WIDTH = 360
+const THREAD_MIN_WIDTH = 0
 
 function buildDefaultLayout(api: DockviewApi) {
   api.addPanel({
@@ -675,6 +677,17 @@ export function DockShell({
   threadId: string | undefined
 }) {
   const [dock, setDock] = useState<DockviewApi>()
+  const host = useRef<HTMLDivElement>(null)
+  const adaptation = useRef<ReturnType<typeof adaptDock> | null>(null)
+  useEffect(() => {
+    if (!dock || !host.current) return
+    const adapter = adaptDock(dock, host.current)
+    adaptation.current = adapter
+    return () => {
+      adapter.dispose()
+      adaptation.current = null
+    }
+  }, [dock])
   /** Conversation the layout's artifact panels belong to. */
   const layoutThread = useRef<string | undefined>(undefined)
 
@@ -689,11 +702,16 @@ export function DockShell({
   // Connects the artifact store to this dock and saves every layout change.
   useEffect(() => {
     if (!dock) return
-    const save = () =>
-      useShell.getState().saveLayout(projectId, {
-        threadId: layoutThread.current,
-        dock: dock.toJSON(),
-      })
+    const save = () => {
+      const layout = adaptation.current
+        ? adaptation.current.layoutForSave()
+        : dock.toJSON()
+      if (layout)
+        useShell.getState().saveLayout(projectId, {
+          threadId: layoutThread.current,
+          dock: layout,
+        })
+    }
     const active = dock.activePanel && artifactIdOf(dock.activePanel.id)
     if (active) useArtifactView.getState().focused(active)
     useArtifactView.setState({
@@ -771,32 +789,39 @@ export function DockShell({
           dock.removePanel(panel)
       useArtifactView.getState().reset()
     }
-    useShell.getState().saveLayout(projectId, {
-      threadId,
-      dock: dock.toJSON(),
-    })
+    const layout = adaptation.current
+      ? adaptation.current.layoutForSave()
+      : dock.toJSON()
+    if (layout)
+      useShell.getState().saveLayout(projectId, {
+        threadId,
+        dock: layout,
+      })
   }, [dock, threadId, projectId])
 
   return (
-    <DockviewReact
-      className="h-full w-full"
-      theme={theme}
-      components={components}
-      tabComponents={tabComponents}
-      rightHeaderActionsComponent={GroupActions}
-      defaultRenderer="always"
-      getTabContextMenuItems={({ panel, api }) => {
-        // The built-in float opens at 300px, narrower than these panels' minimums.
-        const float = {
-          label: 'Float',
-          action: () =>
-            api.addFloatingGroup(panel, { width: 480, height: 560 }),
-        }
-        return panel.id === THREAD
-          ? ['maximize', float]
-          : ['maximize', float, 'separator', 'close']
-      }}
-      onReady={onReady}
-    />
+    <div ref={host} data-appearance-part="dock" className="h-full min-w-0">
+      <DockviewReact
+        className="h-full w-full"
+        theme={theme}
+        components={components}
+        tabComponents={tabComponents}
+        rightHeaderActionsComponent={GroupActions}
+        defaultRenderer="always"
+        floatingGroupBounds="boundedWithinViewport"
+        getTabContextMenuItems={({ panel, api }) => {
+          // The built-in float opens at 300px, narrower than these panels' minimums.
+          const float = {
+            label: 'Float',
+            action: () =>
+              api.addFloatingGroup(panel, { width: 480, height: 560 }),
+          }
+          return panel.id === THREAD
+            ? ['maximize', float]
+            : ['maximize', float, 'separator', 'close']
+        }}
+        onReady={onReady}
+      />
+    </div>
   )
 }

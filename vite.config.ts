@@ -60,6 +60,16 @@ const theoremVars = {
 }
 
 const config = defineConfig({
+  // Oracle harnesses and their captured DOM are not application sources.
+  // Their writes must not hot-reload another concurrent browser check.
+  server: {
+    watch: {
+      ignored: [
+        /[/\\]docs[/\\]plans[/\\]composable-appearance[/\\]evidence[/\\]/,
+        /[/\\](?:scripts|tests)[/\\]design-oracles[/\\]/,
+      ],
+    },
+  },
   // The dev server's client dependency scan follows the route tree into the
   // desktop routes, and cannot pre-bundle these for the browser: rolldown
   // cannot load a .node file, and trash's globby needs unicorn-magic's Node

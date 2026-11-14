@@ -29,7 +29,20 @@
     "check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "test:composer": "bun test src/components/chat src/components/assistant-ui src/components/notes src/lib/theorem src/stories"
+    "test:composer": "bun test src/components/chat src/components/assistant-ui src/components/notes src/lib/theorem src/stories",
+    "test:appearance": "bun test tests/design-oracles src/lib/appearance.test.ts src/lib/code-contrast.test.ts",
+    "oracle:colors": "node scripts/design-oracles/check-colors.mjs",
+    "oracle:rendered": "node scripts/design-oracles/run.mjs",
+    "oracle:interactions": "node scripts/design-oracles/review-interactions.mjs",
+    "oracle:continuity": "node scripts/design-oracles/review-continuity.mjs",
+    "oracle:navigation-export": "node scripts/design-oracles/review-navigation-export.mjs",
+    "oracle:reflow": "node scripts/design-oracles/review-reflow.mjs",
+    "oracle:runtime": "node scripts/design-oracles/review-runtime.mjs",
+    "oracle:composition": "node scripts/design-oracles/review-composition.mjs",
+    "oracle:code": "node scripts/design-oracles/review-code-contrast.mjs",
+    "oracle:states": "node scripts/design-oracles/review-color-states.mjs",
+    "oracle:touch": "node scripts/design-oracles/review-touch-rhythm.mjs",
+    "oracle:matrix": "node scripts/design-oracles/matrix.mjs"
   },
   "dependencies": {
     "@assistant-ui/core": "0.3.30",
@@ -68,6 +81,7 @@
     "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
     "@jridgewell/sourcemap-codec": "1.6.0",
     "@jridgewell/trace-mapping": "0.3.31",
+    "@lezer/highlight": "1.2.5",
     "@lezer/python": "1.1.19",
     "@luma.gl/core": "9.3.6",
     "@luma.gl/engine": "9.3.6",
@@ -236,6 +250,7 @@
     "pixelmatch": "7",
     "playwright-core": "^1.64.1",
     "pngjs": "7",
+    "postcss": "8.5.32",
     "potrace": "2.1.8",
     "prettier": "^3.8.1",
     "srvx": "1.0.6",
@@ -252,6 +267,7 @@
     "unrs-resolver"
   ],
   "patchedDependencies": {
+    "@paper-design/shaders@0.0.82": "patches/@paper-design%2Fshaders@0.0.82.patch",
     "@pierre/diffs@1.6.1": "patches/@pierre%2Fdiffs@1.6.1.patch",
     "nitro@3.0.260903-beta": "patches/nitro@3.0.260903-beta.patch",
     "@theoremharness/sdk@vendor/theoremharness-sdk-0.6.0-alpha.5.tgz": "patches/@theoremharness%2Fsdk@vendor%2Ftheoremharness-sdk-0.6.0-alpha.5.tgz.patch",

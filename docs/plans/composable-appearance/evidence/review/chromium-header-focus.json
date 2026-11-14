@@ -1,0 +1,375 @@
+{
+  "fixture": "/story/design-oracle-navigation",
+  "browser": "Chromium 156.0.8078.4",
+  "viewport": [
+    1440,
+    900
+  ],
+  "cause": "The dock splitview starts at y=3 and clips overflow. The original 2px outline, offset by 2px, extended from y=0.5 and the top edge was clipped.",
+  "before": {
+    "standard": "pass",
+    "focusAppearance": "fail",
+    "pixelAttribution": "The measured lower bound counts pixels matching the opaque outline color. The upper bound includes other qualifying pixel changes in the outline band, including possible antialiasing.",
+    "focusedState": {
+      "label": "Pin to Theorem",
+      "tag": "BUTTON",
+      "box": {
+        "x": 543.125,
+        "y": 4.5,
+        "width": 28,
+        "height": 28,
+        "top": 4.5,
+        "right": 571.125,
+        "bottom": 32.5,
+        "left": 543.125
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "keyboardFocus": true,
+      "outline": {
+        "width": 2,
+        "offset": 2,
+        "style": "solid",
+        "color": "rgb(51, 121, 179)"
+      },
+      "hits": [
+        {
+          "x": 545.925,
+          "y": 7.300000000000001,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 12.9,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 18.5,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 24.099999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 29.7,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 7.300000000000001,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 12.9,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 18.5,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 24.099999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 29.7,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 7.300000000000001,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 12.9,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 18.5,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 24.099999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 29.7,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 7.300000000000001,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 12.9,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 18.5,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 24.099999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 29.7,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 7.300000000000001,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 12.9,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 18.5,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 24.099999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 29.7,
+          "unobscured": true
+        }
+      ]
+    },
+    "unfocusedState": {
+      "box": {
+        "x": 543.125,
+        "y": 4.5,
+        "width": 28,
+        "height": 28,
+        "top": 4.5,
+        "right": 571.125,
+        "bottom": 32.5,
+        "left": 543.125
+      },
+      "scrollX": 0,
+      "scrollY": 0,
+      "inactive": true
+    },
+    "referenceAreaCssPx": 224,
+    "candidateAreaCssPx": 272,
+    "visibleAreaCssPx": 106,
+    "changedAreaCssPx": 148,
+    "qualifyingAreaCssPx": 102,
+    "ambiguousQualifyingAreaCssPx": 11,
+    "minimumStateContrast": 4.0245436678453075,
+    "minimumAdjacentContrast": 1.967536580270185,
+    "errors": []
+  },
+  "after": {
+    "standard": "pass",
+    "focusAppearance": "pass",
+    "pixelAttribution": "The measured lower bound counts pixels matching the opaque outline color. The upper bound includes other qualifying pixel changes in the outline band, including possible antialiasing.",
+    "focusedState": {
+      "label": "Pin to Theorem",
+      "tag": "BUTTON",
+      "box": {
+        "x": 543.125,
+        "y": 8,
+        "width": 28,
+        "height": 28,
+        "top": 8,
+        "right": 571.125,
+        "bottom": 36,
+        "left": 543.125
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "keyboardFocus": true,
+      "outline": {
+        "width": 4,
+        "offset": 1,
+        "style": "solid",
+        "color": "rgb(51, 121, 179)"
+      },
+      "hits": [
+        {
+          "x": 545.925,
+          "y": 10.8,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 16.4,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 22,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 27.599999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 545.925,
+          "y": 33.2,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 10.8,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 16.4,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 22,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 27.599999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 551.525,
+          "y": 33.2,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 10.8,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 16.4,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 22,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 27.599999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 557.125,
+          "y": 33.2,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 10.8,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 16.4,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 22,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 27.599999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 562.725,
+          "y": 33.2,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 10.8,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 16.4,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 22,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 27.599999999999998,
+          "unobscured": true
+        },
+        {
+          "x": 568.325,
+          "y": 33.2,
+          "unobscured": true
+        }
+      ]
+    },
+    "unfocusedState": {
+      "box": {
+        "x": 543.125,
+        "y": 8,
+        "width": 28,
+        "height": 28,
+        "top": 8,
+        "right": 571.125,
+        "bottom": 36,
+        "left": 543.125
+      },
+      "scrollX": 0,
+      "scrollY": 0,
+      "inactive": true
+    },
+    "referenceAreaCssPx": 224,
+    "candidateAreaCssPx": 544,
+    "visibleAreaCssPx": 396,
+    "changedAreaCssPx": 472,
+    "qualifyingAreaCssPx": 387,
+    "ambiguousQualifyingAreaCssPx": 28,
+    "minimumStateContrast": 1.967536580270185,
+    "minimumAdjacentContrast": 1.987903303626917,
+    "errors": []
+  }
+}

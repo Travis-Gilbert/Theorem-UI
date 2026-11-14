@@ -1,6 +1,7 @@
 // SOURCING: coss ui popover (vendored as-is from https://coss.com/ui/r/popover.json; registry imports point at this folder)
 "use client";
 
+import { appearancePair } from '@/lib/appearance-policy'
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import type React from "react";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,11 @@ export function PopoverPopup({
             className,
           )}
           data-slot="popover-popup"
+          data-appearance-part="popover"
+          data-appearance-radius-role="field"
+          data-appearance-recipe="ui.label"
+          data-surface-role="popover"
+          {...appearancePair('primary', 'popover')}
           {...props}
         >
           <PopoverPrimitive.Viewport

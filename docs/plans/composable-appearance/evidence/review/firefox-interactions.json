@@ -1,0 +1,5365 @@
+{
+  "engine": "firefox",
+  "browser": "157.0",
+  "checks": [
+    {
+      "name": "palette: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "github-sharp",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "light",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "light",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "palette: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "palette: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "palette: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "dark mode: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "light",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "dark mode: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "dark mode: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "dark mode: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "paper composer: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "paper",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "paper composer: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "paper composer: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "paper composer: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "paper composer: navigation material isolation",
+      "pass": true,
+      "observed": {
+        "before": "flat",
+        "after": "flat"
+      }
+    },
+    {
+      "name": "glass composer: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "paper",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "glass",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "glass composer: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "glass composer: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "glass composer: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "glass composer: navigation material isolation",
+      "pass": true,
+      "observed": {
+        "before": "flat",
+        "after": "flat"
+      }
+    },
+    {
+      "name": "liquid composer: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "glass",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "liquid",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "liquid composer: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "liquid composer: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "liquid composer: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "liquid composer: navigation material isolation",
+      "pass": true,
+      "observed": {
+        "before": "flat",
+        "after": "flat"
+      }
+    },
+    {
+      "name": "flat composer: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "liquid",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "flat composer: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "flat composer: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "flat composer: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "flat composer: navigation material isolation",
+      "pass": true,
+      "observed": {
+        "before": "flat",
+        "after": "flat"
+      }
+    },
+    {
+      "name": "ambience on: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "ambience on: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "ambience on: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "ambience on: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "ambience off: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "ambience off: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "ambience off: geometry isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0
+      }
+    },
+    {
+      "name": "ambience off: hit-region isolation",
+      "pass": true,
+      "observed": {
+        "residual": 0,
+        "before": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "after": [
+          {
+            "label": "Bold",
+            "x": 594.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 638.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 682.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 747.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 791.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 404.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 444.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 518.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 742.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 876.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send message",
+            "x": 944.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      }
+    },
+    {
+      "name": "compact density: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "comfortable",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 391.5,
+            "y": 883,
+            "width": 598,
+            "height": 90
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 849,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 444.5,
+              "y": 928,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 518.9666748046875,
+              "y": 928,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 742.5499877929688,
+              "y": 928,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 876.933349609375,
+              "y": 928,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 928,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 395.5,
+            "y": 893,
+            "width": 590,
+            "height": 80
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 442.5,
+              "y": 932,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 514.9666748046875,
+              "y": 932,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 746.5499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 878.933349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "compact density: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "wide reading: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "comfortable",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 395.5,
+            "y": 893,
+            "width": 590,
+            "height": 80
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 594.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 638.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 682.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 747.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 791.3499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 404.5,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 442.5,
+              "y": 932,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 514.9666748046875,
+              "y": 932,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 746.5499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 878.933349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 944.5,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 367,
+            "y": 893,
+            "width": 647,
+            "height": 80
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 565.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 609.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 653.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 718.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 762.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 376,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 414,
+              "y": 932,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 486.4666748046875,
+              "y": 932,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 775.0499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 907.433349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 973,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "wide reading: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "sidecar layout: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "conversation",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 367,
+            "y": 893,
+            "width": 647,
+            "height": 80
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 565.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 609.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 653.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 718.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 762.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 376,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 414,
+              "y": 932,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 486.4666748046875,
+              "y": 932,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 775.0499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 907.433349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 973,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "sidecar",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 367,
+            "y": 855,
+            "width": 647,
+            "height": 118
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 565.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 609.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 653.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 718.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 762.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 376,
+              "y": 864,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 414,
+              "y": 864,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 486.4666748046875,
+              "y": 864,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 775.0499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 907.433349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 973,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "sidecar layout: typography isolation",
+      "pass": true,
+      "observed": {
+        "before": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "after": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ]
+      }
+    },
+    {
+      "name": "200% text: draft and mounted editor",
+      "pass": true,
+      "observed": {
+        "before": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "sidecar",
+            "motion": "system",
+            "scales": {
+              "content": 1,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "16px",
+            "400",
+            "24px",
+            "normal"
+          ],
+          "box": {
+            "x": 367,
+            "y": 855,
+            "width": 647,
+            "height": 118
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 565.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 609.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 653.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 718.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 762.8499755859375,
+              "y": 855,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 376,
+              "y": 864,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 414,
+              "y": 864,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 486.4666748046875,
+              "y": 864,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 775.0499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 907.433349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 973,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        },
+        "after": {
+          "appearance": {
+            "preset": "calm",
+            "palette": "stone",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "sidecar",
+            "motion": "system",
+            "scales": {
+              "content": 2,
+              "ui": 1,
+              "code": 1
+            },
+            "materials": {
+              "canvas": "flat",
+              "navigation": "flat",
+              "composer": "flat",
+              "user-message": "flat",
+              "assistant-reading": "flat",
+              "popover": "flat",
+              "artifact": "flat",
+              "status": "flat"
+            },
+            "life": false
+          },
+          "mode": "dark",
+          "text": "A personal theme must preserve this draft.",
+          "sameEditor": true,
+          "type": [
+            "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+            "32px",
+            "400",
+            "48px",
+            "normal"
+          ],
+          "box": {
+            "x": 367,
+            "y": 831,
+            "width": 647,
+            "height": 142
+          },
+          "hitRegions": [
+            {
+              "label": "Bold",
+              "x": 822,
+              "y": 833,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Italic",
+              "x": 866,
+              "y": 833,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Strikethrough",
+              "x": 910,
+              "y": 833,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Inline code",
+              "x": 975,
+              "y": 833,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Link",
+              "x": 1019,
+              "y": 833,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Add Attachment",
+              "x": 376,
+              "y": 840,
+              "width": 32,
+              "height": 32
+            },
+            {
+              "label": "Web search",
+              "x": 414,
+              "y": 840,
+              "width": 66.46665954589844,
+              "height": 32
+            },
+            {
+              "label": "Plan",
+              "x": 486.4666748046875,
+              "y": 840,
+              "width": 66.25,
+              "height": 32
+            },
+            {
+              "label": "Model",
+              "x": 775.0499877929688,
+              "y": 932,
+              "width": 126.38333129882812,
+              "height": 32
+            },
+            {
+              "label": "Response length and detail",
+              "x": 907.433349609375,
+              "y": 932,
+              "width": 59.56666564941406,
+              "height": 32
+            },
+            {
+              "label": "Send message",
+              "x": 973,
+              "y": 932,
+              "width": 32,
+              "height": 32
+            }
+          ],
+          "navigation": "flat"
+        }
+      }
+    },
+    {
+      "name": "1024px: main and inspector fit viewport",
+      "pass": true,
+      "observed": [
+        {
+          "part": "inspector",
+          "rect": {
+            "x": 325,
+            "y": 58,
+            "width": 378,
+            "height": 638,
+            "top": 58,
+            "right": 703,
+            "bottom": 696,
+            "left": 325
+          }
+        },
+        {
+          "part": "main",
+          "rect": {
+            "x": 324,
+            "y": 3,
+            "width": 697,
+            "height": 994,
+            "top": 3,
+            "right": 1021,
+            "bottom": 997,
+            "left": 324
+          }
+        }
+      ]
+    },
+    {
+      "name": "1024px: editor and draft continuity",
+      "pass": true,
+      "observed": {
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "mode": "dark",
+        "text": "A personal theme must preserve this draft.",
+        "sameEditor": true,
+        "type": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "box": {
+          "x": 373.5,
+          "y": 845,
+          "width": 598,
+          "height": 128
+        },
+        "hitRegions": [
+          {
+            "label": "Stop answering App gallery",
+            "x": 609.0499877929688,
+            "y": 867,
+            "width": 16,
+            "height": 16
+          },
+          {
+            "label": "Test result or bug",
+            "x": 642.0499877929688,
+            "y": 867,
+            "width": 115.09999084472656,
+            "height": 16
+          },
+          {
+            "label": "Bold",
+            "x": 576.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 620.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 664.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 729.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 773.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 386.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 426.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 500.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 724.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 858.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send feedback",
+            "x": 926.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "navigation": "flat"
+      }
+    },
+    {
+      "name": "390px: main and inspector fit viewport",
+      "pass": true,
+      "observed": [
+        {
+          "part": "inspector",
+          "rect": {
+            "x": 1,
+            "y": 111,
+            "width": 378,
+            "height": 638,
+            "top": 111,
+            "right": 379,
+            "bottom": 749,
+            "left": 1
+          }
+        },
+        {
+          "part": "main",
+          "rect": {
+            "x": 0,
+            "y": 56,
+            "width": 390,
+            "height": 944,
+            "top": 56,
+            "right": 390,
+            "bottom": 1000,
+            "left": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "390px: editor and draft continuity",
+      "pass": true,
+      "observed": {
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "mode": "dark",
+        "text": "A personal theme must preserve this draft.",
+        "sameEditor": true,
+        "type": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "box": {
+          "x": 8,
+          "y": 794,
+          "width": 374,
+          "height": 190
+        },
+        "hitRegions": [
+          {
+            "label": "Stop answering App gallery",
+            "x": 243.5500030517578,
+            "y": 816,
+            "width": 16,
+            "height": 16
+          },
+          {
+            "label": "Test result or bug",
+            "x": 25,
+            "y": 843,
+            "width": 115.10000610351562,
+            "height": 16
+          },
+          {
+            "label": "Bold",
+            "x": 155,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 199,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 243,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 308,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 352,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 21,
+            "y": 899,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 61,
+            "y": 899,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 135.46665954589844,
+            "y": 899,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 21,
+            "y": 939,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 155.38333129882812,
+            "y": 939,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send feedback",
+            "x": 337,
+            "y": 939,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "navigation": "flat"
+      }
+    },
+    {
+      "name": "390px: navigation fits",
+      "pass": true,
+      "observed": {
+        "box": {
+          "x": 0,
+          "y": 0,
+          "width": 384,
+          "height": 1000
+        }
+      }
+    },
+    {
+      "name": "320px: main and inspector fit viewport",
+      "pass": true,
+      "observed": [
+        {
+          "part": "inspector",
+          "rect": {
+            "x": 1,
+            "y": 111,
+            "width": 318,
+            "height": 638,
+            "top": 111,
+            "right": 319,
+            "bottom": 749,
+            "left": 1
+          }
+        },
+        {
+          "part": "main",
+          "rect": {
+            "x": 0,
+            "y": 56,
+            "width": 320,
+            "height": 944,
+            "top": 56,
+            "right": 320,
+            "bottom": 1000,
+            "left": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "320px: editor and draft continuity",
+      "pass": true,
+      "observed": {
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "mode": "dark",
+        "text": "A personal theme must preserve this draft.",
+        "sameEditor": true,
+        "type": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "box": {
+          "x": 8,
+          "y": 770,
+          "width": 304,
+          "height": 214
+        },
+        "hitRegions": [
+          {
+            "label": "Stop answering App gallery",
+            "x": 243.5500030517578,
+            "y": 792,
+            "width": 16,
+            "height": 16
+          },
+          {
+            "label": "Test result or bug",
+            "x": 25,
+            "y": 819,
+            "width": 115.10000610351562,
+            "height": 16
+          },
+          {
+            "label": "Bold",
+            "x": 6,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 50,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 94,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 159,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 203,
+            "y": 820,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 21,
+            "y": 899,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 61,
+            "y": 899,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 135.46665954589844,
+            "y": 899,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 21,
+            "y": 939,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 155.38333129882812,
+            "y": 939,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send feedback",
+            "x": 267,
+            "y": 939,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "navigation": "flat"
+      }
+    },
+    {
+      "name": "320px: navigation fits",
+      "pass": true,
+      "observed": {
+        "box": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 1000
+        }
+      }
+    },
+    {
+      "name": "1920px: main and inspector fit viewport",
+      "pass": true,
+      "observed": [
+        {
+          "part": "inspector",
+          "rect": {
+            "x": 1537,
+            "y": 3,
+            "width": 380,
+            "height": 994,
+            "top": 3,
+            "right": 1917,
+            "bottom": 997,
+            "left": 1537
+          }
+        },
+        {
+          "part": "main",
+          "rect": {
+            "x": 324,
+            "y": 3,
+            "width": 1213,
+            "height": 994,
+            "top": 3,
+            "right": 1537,
+            "bottom": 997,
+            "left": 324
+          }
+        }
+      ]
+    },
+    {
+      "name": "1920px: editor and draft continuity",
+      "pass": true,
+      "observed": {
+        "appearance": {
+          "preset": "calm",
+          "palette": "github-sharp",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        },
+        "mode": "dark",
+        "text": "A personal theme must preserve this draft.",
+        "sameEditor": true,
+        "type": [
+          "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "16px",
+          "400",
+          "24px",
+          "normal"
+        ],
+        "box": {
+          "x": 631.5,
+          "y": 845,
+          "width": 598,
+          "height": 128
+        },
+        "hitRegions": [
+          {
+            "label": "Stop answering App gallery",
+            "x": 867.0499877929688,
+            "y": 867,
+            "width": 16,
+            "height": 16
+          },
+          {
+            "label": "Test result or bug",
+            "x": 900.0499877929688,
+            "y": 867,
+            "width": 115.09999084472656,
+            "height": 16
+          },
+          {
+            "label": "Bold",
+            "x": 834.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Italic",
+            "x": 878.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Strikethrough",
+            "x": 922.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Inline code",
+            "x": 987.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Link",
+            "x": 1031.3499755859375,
+            "y": 849,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Add Attachment",
+            "x": 644.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Web search",
+            "x": 684.5,
+            "y": 928,
+            "width": 66.46665954589844,
+            "height": 32
+          },
+          {
+            "label": "Plan",
+            "x": 758.9666748046875,
+            "y": 928,
+            "width": 66.25,
+            "height": 32
+          },
+          {
+            "label": "Model",
+            "x": 982.5499877929688,
+            "y": 928,
+            "width": 126.38333129882812,
+            "height": 32
+          },
+          {
+            "label": "Response length and detail",
+            "x": 1116.933349609375,
+            "y": 928,
+            "width": 59.56666564941406,
+            "height": 32
+          },
+          {
+            "label": "Send feedback",
+            "x": 1184.5,
+            "y": 928,
+            "width": 32,
+            "height": 32
+          }
+        ],
+        "navigation": "flat"
+      }
+    },
+    {
+      "name": "Hidden navigation transfers focus to responsive trigger",
+      "pass": true,
+      "observed": {
+        "label": "Open sidebar",
+        "visible": true
+      }
+    },
+    {
+      "name": "Unknown theme fields rejected",
+      "pass": true,
+      "observed": "preset — Invalid option: expected one of \"calm\"|\"expressive\" overrides — Invalid input: expected object, received undefined version — Invalid input: expected 1 Appearance — Unrecognized key: \"unknown\""
+    },
+    {
+      "name": "No runtime errors",
+      "pass": true,
+      "observed": []
+    }
+  ],
+  "errors": []
+}

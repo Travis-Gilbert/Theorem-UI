@@ -140,6 +140,7 @@ export function storyRoutes(now: number, options: StoryRouteOptions = {}): FakeR
     [`GET /api/documents/v2/documents`]: () => ({
       documents: [...notes.keys()].map((id) => snapshot(id)?.summary),
     }),
+    'GET /api/documents/v2/collections': () => ({ collections: [] }),
     [`POST /api/documents/v2/documents`]: async (_, request) => {
       const documentId = `doc-new-${notes.size}`
       notes.set(documentId, await writtenMarkdown(request))

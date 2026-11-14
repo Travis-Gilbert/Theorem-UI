@@ -1,0 +1,483 @@
+{
+  "engine": "firefox",
+  "browser": "157.0",
+  "checks": [
+    {
+      "name": "palette: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "flat",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "composer material: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "glass",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "navigation material: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "paper",
+            "composer": "glass",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "density: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "compact",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "paper",
+            "composer": "glass",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "content scale: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "compact",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1.6,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "paper",
+            "composer": "glass",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "reading width: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "compact",
+          "reading": "wide",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1.6,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "paper",
+            "composer": "glass",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "composer layout: editor, document, logical selection and focus",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "calm",
+          "palette": "stone",
+          "density": "compact",
+          "reading": "wide",
+          "layout": "sidecar",
+          "motion": "system",
+          "scales": {
+            "content": 1.6,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "paper",
+            "composer": "glass",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "preset retains deliberate overrides",
+      "pass": true,
+      "observed": {
+        "text": "Keep this draft and its selection across appearance changes.",
+        "sameEditor": true,
+        "focused": true,
+        "selection": [
+          60,
+          58
+        ],
+        "document": "<p>Keep this draft and its selection across appearance changes.</p>",
+        "state": {
+          "preset": "expressive",
+          "palette": "stone",
+          "density": "compact",
+          "reading": "wide",
+          "layout": "sidecar",
+          "motion": "system",
+          "scales": {
+            "content": 1.6,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "paper",
+            "navigation": "paper",
+            "composer": "glass",
+            "user-message": "paper",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": true
+        }
+      }
+    },
+    {
+      "name": "versioned document round trip through settings",
+      "pass": true,
+      "observed": {
+        "input": {
+          "version": 1,
+          "preset": "calm",
+          "mode": "dark",
+          "life": false,
+          "overrides": {
+            "palette": "vitesse",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "sidecar",
+            "scales": {
+              "content": 1.25,
+              "ui": 1.1,
+              "code": 1.2
+            },
+            "materials": {
+              "composer": "paper",
+              "navigation": "flat"
+            }
+          }
+        },
+        "exported": {
+          "version": 1,
+          "preset": "calm",
+          "overrides": {
+            "palette": "vitesse",
+            "density": "compact",
+            "reading": "wide",
+            "layout": "sidecar",
+            "scales": {
+              "content": 1.25,
+              "ui": 1.1,
+              "code": 1.2
+            },
+            "materials": {
+              "composer": "paper",
+              "navigation": "flat"
+            }
+          },
+          "mode": "dark",
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "reloaded renderer preserves imported settings",
+      "pass": true,
+      "observed": {
+        "appearance": {
+          "state": {
+            "preset": "calm",
+            "overrides": {
+              "palette": "vitesse",
+              "density": "compact",
+              "reading": "wide",
+              "layout": "sidecar",
+              "scales": {
+                "content": 1.25,
+                "ui": 1.1,
+                "code": 1.2
+              },
+              "materials": {
+                "composer": "paper",
+                "navigation": "flat"
+              }
+            }
+          },
+          "version": 1
+        },
+        "theme": true,
+        "life": {
+          "state": {
+            "shown": false,
+            "companion": true
+          },
+          "version": 0
+        },
+        "resolved": {
+          "preset": "calm",
+          "palette": "vitesse",
+          "density": "compact",
+          "reading": "wide",
+          "layout": "sidecar",
+          "motion": "system",
+          "scales": {
+            "content": 1.25,
+            "ui": 1.1,
+            "code": 1.2
+          },
+          "materials": {
+            "canvas": "flat",
+            "navigation": "flat",
+            "composer": "paper",
+            "user-message": "flat",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": false
+        }
+      }
+    },
+    {
+      "name": "explicit reset clears overrides",
+      "pass": true,
+      "observed": {
+        "preset": "calm",
+        "palette": "github-sharp",
+        "density": "comfortable",
+        "reading": "comfortable",
+        "layout": "conversation",
+        "motion": "system",
+        "scales": {
+          "content": 1,
+          "ui": 1,
+          "code": 1
+        },
+        "materials": {
+          "canvas": "flat",
+          "navigation": "flat",
+          "composer": "flat",
+          "user-message": "flat",
+          "assistant-reading": "flat",
+          "popover": "flat",
+          "artifact": "flat",
+          "status": "flat"
+        },
+        "life": false
+      }
+    },
+    {
+      "name": "legacy preferences migrate in the real renderer",
+      "pass": true,
+      "observed": {
+        "resolved": {
+          "preset": "expressive",
+          "palette": "vitesse",
+          "density": "comfortable",
+          "reading": "comfortable",
+          "layout": "conversation",
+          "motion": "system",
+          "scales": {
+            "content": 1,
+            "ui": 1,
+            "code": 1
+          },
+          "materials": {
+            "canvas": "paper",
+            "navigation": "liquid",
+            "composer": "liquid",
+            "user-message": "paper",
+            "assistant-reading": "flat",
+            "popover": "flat",
+            "artifact": "flat",
+            "status": "flat"
+          },
+          "life": true
+        },
+        "dark": true,
+        "life": false
+      }
+    },
+    {
+      "name": "No runtime errors",
+      "pass": true,
+      "observed": []
+    }
+  ],
+  "errors": []
+}

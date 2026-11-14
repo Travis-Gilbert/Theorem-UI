@@ -19,7 +19,7 @@ const vitesseDark = createVitesseDarkTheme({
 /** The CodeMirror theme for the current palette and mode. */
 export function useCodeMirrorTheme(): NonNullable<ReactCodeMirrorProps['theme']> {
   const { resolvedTheme } = useTheme()
-  const vitesse = usePalette((state) => state.palette === 'vitesse')
+  const vitesse = usePalette() === 'vitesse'
   const dark = resolvedTheme === 'dark'
   if (vitesse) return dark ? vitesseDark : vitesseLight
   return dark ? 'dark' : 'light'

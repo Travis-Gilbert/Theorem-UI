@@ -1,0 +1,1563 @@
+{
+  "policy": "theorem-appearance-v1",
+  "sourceBase": "f830f8198c4bf87fa432b11f33d98c509824b9e8",
+  "source": "Uncommitted appearance implementation checkout measured on 2026-11-13",
+  "environment": {
+    "os": "macOS 27.0.1 (26A434) arm64",
+    "baseUrl": "http://127.0.0.1:3117",
+    "deviceScaleFactor": 1,
+    "motion": "reduce",
+    "pageZoom": "default"
+  },
+  "fontsAndGeometry": {
+    "chromium": "156.0.8078.4",
+    "layout": [
+      {
+        "fixture": "empty",
+        "viewport": [
+          1440,
+          900
+        ],
+        "density": "comfortable",
+        "editor": {
+          "x": 434,
+          "width": 572,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        },
+        "prose": null,
+        "composer": {
+          "x": 421,
+          "width": 598,
+          "height": 90,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "toolbar": {
+          "x": 434,
+          "width": 572,
+          "height": 32,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        }
+      },
+      {
+        "fixture": "empty",
+        "viewport": [
+          1440,
+          900
+        ],
+        "density": "compact",
+        "editor": {
+          "x": 434,
+          "width": 572,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        },
+        "prose": null,
+        "composer": {
+          "x": 425,
+          "width": 590,
+          "height": 80,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "toolbar": {
+          "x": 434,
+          "width": 572,
+          "height": 32,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        }
+      },
+      {
+        "fixture": "empty",
+        "viewport": [
+          1440,
+          900
+        ],
+        "density": "touch",
+        "editor": {
+          "x": 434,
+          "width": 572,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        },
+        "prose": null,
+        "composer": {
+          "x": 421,
+          "width": 598,
+          "height": 102,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "toolbar": {
+          "x": 434,
+          "width": 572,
+          "height": 44,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        }
+      },
+      {
+        "fixture": "long",
+        "viewport": [
+          1440,
+          900
+        ],
+        "density": "compact",
+        "editor": {
+          "x": 434,
+          "width": 572,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        },
+        "prose": {
+          "x": 434,
+          "width": 572,
+          "height": 1314,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "composer": {
+          "x": 425,
+          "width": 590,
+          "height": 80,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "toolbar": {
+          "x": 434,
+          "width": 572,
+          "height": 32,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        }
+      },
+      {
+        "fixture": "long",
+        "viewport": [
+          390,
+          900
+        ],
+        "density": "compact",
+        "editor": {
+          "x": 32,
+          "width": 326,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        },
+        "prose": {
+          "x": 32,
+          "width": 326,
+          "height": 2034,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "composer": {
+          "x": 23,
+          "width": 344,
+          "height": 118,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "toolbar": {
+          "x": 32,
+          "width": 326,
+          "height": 70,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        }
+      },
+      {
+        "fixture": "long",
+        "viewport": [
+          320,
+          900
+        ],
+        "density": "compact",
+        "editor": {
+          "x": 32,
+          "width": 256,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        },
+        "prose": {
+          "x": 32,
+          "width": 256,
+          "height": 2522,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "composer": {
+          "x": 23,
+          "width": 274,
+          "height": 118,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "ltr"
+        },
+        "toolbar": {
+          "x": 32,
+          "width": 256,
+          "height": 70,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "ltr"
+        }
+      },
+      {
+        "fixture": "rtl",
+        "viewport": [
+          320,
+          900
+        ],
+        "density": "compact",
+        "editor": {
+          "x": 32,
+          "width": 256,
+          "height": 24,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "rtl"
+        },
+        "prose": {
+          "x": 32,
+          "width": 256,
+          "height": 822,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "rtl"
+        },
+        "composer": {
+          "x": 23,
+          "width": 274,
+          "height": 118,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "direction": "rtl"
+        },
+        "toolbar": {
+          "x": 32,
+          "width": 256,
+          "height": 70,
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "16px",
+          "line": "24px",
+          "tracking": "normal",
+          "color": "rgb(36, 41, 45)",
+          "background": "rgba(0, 0, 0, 0)",
+          "direction": "rtl"
+        }
+      }
+    ],
+    "scale": [
+      {
+        "selector": ".aui-md-p",
+        "x": 273.125,
+        "width": 893.75,
+        "height": 43.75,
+        "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+        "size": "25px",
+        "line": "37.5px",
+        "tracking": "normal",
+        "color": "rgb(36, 41, 45)",
+        "background": "rgba(0, 0, 0, 0)",
+        "direction": "ltr"
+      },
+      {
+        "selector": ".ProseMirror p",
+        "x": 273.125,
+        "width": 893.75,
+        "height": 37.5,
+        "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+        "size": "25px",
+        "line": "37.5px",
+        "tracking": "normal",
+        "color": "rgb(36, 41, 45)",
+        "background": "rgba(0, 0, 0, 0)",
+        "direction": "ltr"
+      },
+      {
+        "selector": "[aria-label=Model]",
+        "x": 790.40625,
+        "width": 214.6875,
+        "height": 40,
+        "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+        "size": "26.25px",
+        "line": "37.5px",
+        "tracking": "0.2625px",
+        "color": "rgb(88, 96, 105)",
+        "background": "rgba(0, 0, 0, 0)",
+        "direction": "ltr"
+      },
+      {
+        "selector": ".aui-md-inline-code",
+        "x": 727.796875,
+        "width": 199.640625,
+        "height": 42,
+        "font": "\"JetBrains Mono Variable\", \"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace",
+        "size": "28.4375px",
+        "line": "43.75px",
+        "tracking": "normal",
+        "color": "rgb(36, 41, 45)",
+        "background": "rgb(255, 255, 255)",
+        "direction": "ltr"
+      }
+    ],
+    "font": [
+      {
+        "selector": ".aui-md-p",
+        "fonts": [
+          {
+            "familyName": "IBM Plex Sans",
+            "postScriptName": "IBMPlexSans-Regular",
+            "isCustomFont": true,
+            "glyphCount": 34
+          },
+          {
+            "familyName": "JetBrains Mono",
+            "postScriptName": "JetBrainsMono-Regular",
+            "isCustomFont": true,
+            "glyphCount": 11
+          },
+          {
+            "familyName": "IBM Plex Sans",
+            "postScriptName": "IBMPlexSans-SemiBold",
+            "isCustomFont": true,
+            "glyphCount": 11
+          },
+          {
+            "familyName": "IBM Plex Sans",
+            "postScriptName": "IBMPlexSans-Italic",
+            "isCustomFont": true,
+            "glyphCount": 8
+          }
+        ]
+      },
+      {
+        "selector": ".aui-md-inline-code",
+        "fonts": [
+          {
+            "familyName": "JetBrains Mono",
+            "postScriptName": "JetBrainsMono-Regular",
+            "isCustomFont": true,
+            "glyphCount": 11
+          }
+        ]
+      },
+      {
+        "textFamily": "Unavailable Theorem Test Font 999",
+        "feedback": "The font \"Unavailable Theorem Test Font 999\" is unavailable on this device."
+      },
+      {
+        "textFamily": "Helvetica",
+        "feedback": "Appearance settings applied.",
+        "resolved": {
+          "textFamily": "Helvetica",
+          "comfortableMeasure": 35.5,
+          "wideMeasure": 44.5
+        }
+      },
+      {
+        "textFamily": "IBM Plex Sans Variable",
+        "feedback": "Appearance settings applied.",
+        "resolved": {
+          "textFamily": "IBM Plex Sans Variable",
+          "comfortableMeasure": 35.75,
+          "wideMeasure": 44.75
+        }
+      }
+    ],
+    "errors": []
+  },
+  "portals": [
+    {
+      "engine": "chromium",
+      "version": "156.0.8078.4",
+      "rows": [
+        {
+          "kind": "model",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 555,
+            "y": 620,
+            "width": 318,
+            "height": 203.125
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "menu",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 46,
+            "y": 514,
+            "width": 208,
+            "height": 373.5625
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "tooltip",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 175,
+            "y": 792,
+            "width": 115.4375,
+            "height": 32
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "12px",
+          "lineHeight": "18px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "dialog",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 384,
+            "y": 412,
+            "width": 672,
+            "height": 76
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "drawer",
+          "state": "baseline",
+          "layout": [
+            390,
+            900
+          ],
+          "target": {
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 900
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(242, 243, 245)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 13.225962882837171,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "model",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 680,
+            "y": 612,
+            "width": 318,
+            "height": 214.125
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "menu",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 46,
+            "y": 546,
+            "width": 208,
+            "height": 341.5625
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "tooltip",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 340,
+            "y": 786,
+            "width": 160.15625,
+            "height": 41
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "18px",
+          "lineHeight": "27px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "dialog",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 384,
+            "y": 407,
+            "width": 672,
+            "height": 86
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "drawer",
+          "state": "dark",
+          "layout": [
+            390,
+            900
+          ],
+          "target": {
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 900
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(28, 29, 30)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 9.833899667872068,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "engine": "firefox",
+      "version": "157.0",
+      "rows": [
+        {
+          "kind": "model",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 556,
+            "y": 620,
+            "width": 318,
+            "height": 203.13333129882812
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "menu",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 46,
+            "y": 514,
+            "width": 208,
+            "height": 373.566650390625
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "tooltip",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 175,
+            "y": 792,
+            "width": 115.41667175292969,
+            "height": 32
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "12px",
+          "lineHeight": "18px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "dialog",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 384,
+            "y": 412,
+            "width": 672,
+            "height": 76
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "drawer",
+          "state": "baseline",
+          "layout": [
+            390,
+            900
+          ],
+          "target": {
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 900
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(242, 243, 245)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 13.225962882837171,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "model",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 700,
+            "y": 612,
+            "width": 318,
+            "height": 214.13333129882812
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "menu",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 46,
+            "y": 546,
+            "width": 208,
+            "height": 341.566650390625
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "tooltip",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 360,
+            "y": 786,
+            "width": 160.1666717529297,
+            "height": 41
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "18px",
+          "lineHeight": "27px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "dialog",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 384,
+            "y": 407,
+            "width": 672,
+            "height": 86
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "drawer",
+          "state": "dark",
+          "layout": [
+            390,
+            900
+          ],
+          "target": {
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 900
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(28, 29, 30)",
+          "font": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 9.833899667872068,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "version": "27.2",
+      "rows": [
+        {
+          "kind": "model",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 555,
+            "y": 620,
+            "width": 318,
+            "height": 203.125
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "menu",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 45.599998474121094,
+            "y": 532.7000122070312,
+            "width": 197.60000610351562,
+            "height": 354.88433837890625
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "tooltip",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 175,
+            "y": 792,
+            "width": 115.4375,
+            "height": 32
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "12px",
+          "lineHeight": "18px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "dialog",
+          "state": "baseline",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 384,
+            "y": 412,
+            "width": 672,
+            "height": 76
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(255, 255, 255)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 14.684481233331656,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "drawer",
+          "state": "baseline",
+          "layout": [
+            390,
+            900
+          ],
+          "target": {
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 900
+          },
+          "foreground": "rgb(36, 41, 45)",
+          "background": "rgb(242, 243, 245)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "14px",
+          "lineHeight": "20px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "comfortable",
+          "rootPopover": "flat",
+          "rootNav": "flat",
+          "portaled": true,
+          "contrast": 13.225962882837171,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "model",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 680,
+            "y": 612,
+            "width": 318,
+            "height": 214.125
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "menu",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 46,
+            "y": 546,
+            "width": 208,
+            "height": 341.5625
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "tooltip",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 340,
+            "y": 786,
+            "width": 160.15625,
+            "height": 41
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "18px",
+          "lineHeight": "27px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "dialog",
+          "state": "dark",
+          "layout": [
+            1440,
+            900
+          ],
+          "target": {
+            "x": 384,
+            "y": 407,
+            "width": 672,
+            "height": 86
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(38, 40, 41)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "blur(8px)",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 8.626597047234613,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        },
+        {
+          "kind": "drawer",
+          "state": "dark",
+          "layout": [
+            390,
+            900
+          ],
+          "target": {
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 900
+          },
+          "foreground": "rgb(195, 198, 200)",
+          "background": "rgb(28, 29, 30)",
+          "font": "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          "size": "21px",
+          "lineHeight": "30px",
+          "weight": "400",
+          "paint": "none",
+          "rootDensity": "compact",
+          "rootPopover": "glass",
+          "rootNav": "paper",
+          "portaled": true,
+          "contrast": 9.833899667872068,
+          "checks": {
+            "theme": true,
+            "typography": true,
+            "contrast": true,
+            "portal": true,
+            "density": true,
+            "material": true
+          }
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "scrollAnchor": {
+    "browser": "156.0.8078.4",
+    "fixture": "design-oracle-long",
+    "viewport": [
+      1440,
+      500
+    ],
+    "before": {
+      "paragraphIndex": 2,
+      "offset": -84,
+      "scrollTop": 454,
+      "fontSize": 16
+    },
+    "after": {
+      "paragraphIndex": 2,
+      "offset": -83.75,
+      "scrollTop": 648,
+      "fontSize": 25.6
+    }
+  },
+  "coverageLimits": [
+    "No physical keyboard or native input method observed.",
+    "Platform font faces were confirmed in Chromium only.",
+    "The portal audit measures settled opaque surfaces and representative controls, not all interaction states or focus-pixel area."
+  ]
+}

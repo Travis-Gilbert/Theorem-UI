@@ -1,3 +1,4 @@
+import { appearancePair } from '@/lib/appearance-policy'
 import { useAui, useAuiEvent, useAuiState } from '@assistant-ui/react'
 import { useComposerSend } from '@assistant-ui/core/react'
 import type { FormEvent, KeyboardEvent } from 'react'
@@ -64,8 +65,8 @@ export function RunInputStatus() {
     <div aria-live="polite" className="flex flex-col gap-2 px-2 text-sm">
       {pending.map((item) => (
         <div key={item.id} data-slot="pending-run-input" className="flex flex-col gap-1 py-1">
-          <p className="whitespace-pre-wrap text-ink">{item.text}</p>
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
+          <p data-appearance-recipe="prose" {...appearancePair('primary', 'composer')} className="whitespace-pre-wrap text-ink">{item.text}</p>
+          <div data-appearance-recipe="metadata" {...appearancePair('secondary', 'composer')} className="flex items-center gap-2 text-ink-muted">
             <span>{item.error ?? (item.state === 'next' ? 'Queued for the next response' : item.state === 'queued' ? 'Queued for the next step' : 'Sending to this response…')}</span>
             {item.state === 'failed' && (
               <button type="button" className="underline underline-offset-2" onClick={() => retryRunInput(threadKey, item.id)}>

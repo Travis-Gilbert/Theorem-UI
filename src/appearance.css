@@ -1,0 +1,756 @@
+/* Theorem appearance v1. Role tokens are defined by appearance-policy.ts and
+   palettes.ts. These rules apply their paint and geometry to real elements. */
+:root {
+  --appearance-ink: var(--ink);
+  --appearance-ink-muted: var(--ink-muted);
+  --appearance-scale-content: 1;
+  --appearance-scale-ui: 1;
+  --appearance-scale-code: 1;
+  --appearance-prose-line-height: calc(1.5rem * var(--appearance-scale-content));
+  --recipe-prose: 400 1rem / 1.5 var(--font-sans);
+  --recipe-composer-content: var(--recipe-prose);
+  --recipe-ui-label: 400 0.875rem / 1.4285714286 var(--font-sans);
+  --recipe-ui-section: 500 0.875rem / 1.4285714286 var(--font-sans);
+  --recipe-metadata: 400 0.75rem / 1.5 var(--font-sans);
+  --recipe-code: 400 0.8125rem / 1.5384615385 var(--font-mono);
+  --recipe-heading-small: 600 1.125rem / 1.3333333333 var(--font-sans);
+  --recipe-heading-medium: 600 1.25rem / 1.4 var(--font-sans);
+  --recipe-heading-large: 600 1.5rem / 1.3333333333 var(--font-sans);
+  --appearance-gap-within: 0.25rem;
+  --appearance-gap-related: 0.5rem;
+  --appearance-gap-group: 1rem;
+  --appearance-navigation-min: 2rem;
+  --appearance-control-min: 2rem;
+  --appearance-icon-size: 1rem;
+  --appearance-composer-padding: 0.75rem;
+  --appearance-editor-toolbar-gap: 0.5rem;
+  --appearance-radius-control: 0.375rem;
+  --appearance-radius-field: 0.5rem;
+  --appearance-radius-message: 0.75rem;
+  --appearance-radius-artifact: 0.75rem;
+  --appearance-radius-composer: 0.75rem;
+  --appearance-border: 1px;
+  --appearance-expanded-measure: 67.5rem;
+  --appearance-page-padding: 1rem;
+  /* Plex Sans Variable 5.3.0 Latin upright, 16px regular. Corpus and asset
+     hashes and independently measured advances are in the appearance record. */
+  --appearance-measure-comfortable: 35.75em;
+  --appearance-measure-wide: 44.75em;
+  --appearance-prose-measure: var(--appearance-measure-comfortable);
+}
+
+:root[data-density='compact'] {
+  --appearance-gap-related: 0.375rem;
+  --appearance-gap-group: 0.75rem;
+  --appearance-navigation-min: 1.75rem;
+  --appearance-composer-padding: 0.5rem;
+  --appearance-editor-toolbar-gap: 0.375rem;
+}
+
+:root[data-density='touch'] {
+  --appearance-gap-within: 0.5rem;
+  --appearance-gap-related: 0.75rem;
+  --appearance-gap-group: 1.5rem;
+  --appearance-navigation-min: 2.75rem;
+  --appearance-control-min: 2.75rem;
+  --appearance-icon-size: 1.125rem;
+}
+
+@media (pointer: coarse) {
+  :root[data-density]:not([data-density='compact']) {
+    --appearance-gap-within: 0.5rem;
+    --appearance-gap-related: 0.75rem;
+    --appearance-gap-group: 1.5rem;
+    --appearance-navigation-min: 2.75rem;
+    --appearance-control-min: 2.75rem;
+    --appearance-icon-size: 1.125rem;
+  }
+}
+
+:root[data-reading-width='wide'] {
+  --appearance-prose-measure: var(--appearance-measure-wide);
+}
+
+[data-appearance-recipe='prose'] {
+  font: var(--recipe-prose);
+  letter-spacing: normal;
+}
+[data-appearance-recipe='composer.content'] {
+  font: var(--recipe-composer-content);
+  letter-spacing: normal;
+}
+[data-appearance-recipe='ui.label'] {
+  font: var(--recipe-ui-label);
+  letter-spacing: 0.01em;
+}
+[data-appearance-recipe='ui.section'] {
+  font: var(--recipe-ui-section);
+  letter-spacing: 0.01em;
+}
+[data-appearance-recipe='metadata'] {
+  font: var(--recipe-metadata);
+  letter-spacing: 0.01em;
+}
+[data-appearance-recipe='code'] {
+  font: var(--recipe-code);
+  letter-spacing: normal;
+}
+[data-appearance-recipe='heading.small'] {
+  font: var(--recipe-heading-small);
+  letter-spacing: normal;
+}
+[data-appearance-recipe='heading.medium'] {
+  font: var(--recipe-heading-medium);
+  letter-spacing: normal;
+}
+[data-appearance-recipe='heading.large'] {
+  font: var(--recipe-heading-large);
+  letter-spacing: normal;
+}
+
+/* A role can decorate its perimeter. Every reading plane has opaque paint,
+   including over live refraction and across all animation frames. */
+[data-surface-role='canvas'],
+[data-surface-role='assistant-reading'] {
+  --appearance-surface-fill: var(--surface-neutral);
+}
+[data-surface-role='navigation'] {
+  --appearance-surface-fill: var(--surface-sidebar);
+}
+[data-surface-role='composer'] {
+  --appearance-surface-fill: var(--surface-composer);
+}
+[data-surface-role='user-message'] {
+  --appearance-surface-fill: var(--surface-user-message);
+}
+[data-surface-role='popover'],
+[data-appearance-part='popover'],
+[data-appearance-part='tooltip'] {
+  --appearance-surface-fill: var(--popover);
+}
+[data-surface-role='artifact'],
+[data-appearance-part='artifact'] {
+  --appearance-surface-fill: var(--surface-artifact);
+}
+[data-surface-role='status'] {
+  --appearance-surface-fill: var(--error-container);
+}
+
+.appearance-surface[data-material='flat'],
+.appearance-reading-plane {
+  background: var(--appearance-surface-fill);
+}
+.appearance-reading-plane {
+  --ink: var(--appearance-ink);
+  --ink-muted: var(--appearance-ink-muted);
+  --foreground: var(--appearance-ink);
+  --muted-foreground: var(--appearance-ink-muted);
+  color: var(--appearance-ink);
+}
+
+.appearance-surface.surface-paper {
+  background-color: var(--appearance-surface-fill);
+}
+.appearance-surface[data-material='paper'] {
+  --paper-grain-opacity: 0;
+}
+.appearance-surface[data-material='paper']::before {
+  opacity: 0.1;
+  inset: 0;
+  /* Keep the grain in the perimeter where it cannot affect text. */
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 0,
+    3px 3px,
+    3px calc(100% - 3px),
+    calc(100% - 3px) calc(100% - 3px),
+    calc(100% - 3px) 3px,
+    3px 3px
+  );
+}
+
+.appearance-surface[data-surface-role='composer'],
+.appearance-surface[data-surface-role='user-message'] {
+  border-color: var(--line-control);
+}
+.appearance-surface[data-surface-role='composer']:focus-within {
+  border-color: var(--focus);
+}
+.appearance-surface[data-surface-role='user-message'] {
+  background: var(--surface-user-message);
+  border-color: var(--line-separator);
+  border-radius: var(--appearance-radius-message);
+  font: var(--recipe-prose);
+}
+
+:root:where(:not([data-appearance-preset]), [data-appearance-preset='calm']) {
+  --glow-opacity: 0;
+  --shadow-sheet: none;
+}
+
+:root[data-appearance-preset='calm'] .lift-glow {
+  display: none;
+}
+:root[data-appearance-preset='calm'] .on-sheet {
+  --surface-hover: inherit;
+}
+
+.appearance-thread-viewport {
+  scrollbar-gutter: stable both-edges;
+}
+.appearance-conversation-track {
+  --appearance-avatar-width: 2.25rem;
+  --appearance-composer-inset: calc(
+    var(--appearance-composer-padding) + var(--appearance-border)
+  );
+  --appearance-track-side: max(
+    var(--appearance-avatar-width),
+    var(--appearance-composer-inset)
+  );
+  --appearance-conversation-measure: calc(
+    var(--appearance-prose-measure) + 2 * var(--appearance-track-side)
+  );
+  font: var(--recipe-prose);
+  min-inline-size: 0;
+  inline-size: min(
+    var(--appearance-conversation-measure),
+    100% - 2 * var(--appearance-page-padding)
+  );
+}
+
+.appearance-message-grid {
+  grid-template-columns: var(--appearance-track-side) minmax(0, 1fr) var(
+      --appearance-track-side
+    );
+}
+.appearance-avatar-gutter {
+  grid-column: 1;
+}
+.appearance-message-prose {
+  grid-column: 2;
+}
+.appearance-assistant-prose {
+  display: flow-root;
+}
+.appearance-composer-track {
+  margin-inline: calc(
+    var(--appearance-track-side) - var(--appearance-composer-inset)
+  );
+}
+.appearance-flat-footer {
+  background: var(--surface-neutral);
+}
+
+@container (max-width: 35rem) {
+  .appearance-conversation-track {
+    --appearance-avatar-width: 0rem;
+    --appearance-page-padding: 0.5rem;
+  }
+  .appearance-avatar-gutter {
+    grid-column: 2;
+    margin-block-end: 0.25rem;
+  }
+}
+
+.appearance-composer-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--appearance-editor-toolbar-gap);
+  padding: var(--appearance-composer-padding);
+  border-width: var(--appearance-border);
+  border-radius: var(--appearance-radius-composer);
+  --composer-radius: var(--appearance-radius-composer);
+}
+
+.appearance-composer-context {
+  display: flex;
+  flex-direction: column;
+  gap: var(--appearance-gap-related);
+}
+.appearance-composer-context:empty {
+  display: none;
+}
+.appearance-composer-editor {
+  min-inline-size: 0;
+}
+.appearance-composer-toolbar,
+.appearance-composer-tools,
+.appearance-composer-settings,
+.appearance-composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-inline-size: 0;
+  gap: var(--appearance-gap-related);
+}
+.appearance-composer-settings {
+  flex: 1 1 8rem;
+  justify-content: end;
+}
+.appearance-composer-actions {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+}
+.appearance-composer-toolbar :is(button, [role='button']) {
+  font: var(--recipe-ui-label);
+  letter-spacing: 0.01em;
+  min-block-size: var(--appearance-control-min);
+  min-inline-size: var(--appearance-control-min);
+  block-size: auto;
+  border-radius: var(--appearance-radius-control);
+}
+.appearance-composer-toolbar :is(button, [role='button']) > svg {
+  inline-size: var(--appearance-icon-size);
+  block-size: var(--appearance-icon-size);
+}
+.appearance-composer-toolbar
+  :is(.aui-composer-send, .aui-composer-cancel, .aui-composer-resume) {
+  inline-size: var(--appearance-control-min);
+  padding: 0;
+}
+
+/* CSS grid changes placement while keeping the editor and controls mounted.
+   Only the tools move above the editor, the action row stays last. */
+[data-composer-layout='sidecar'] .appearance-composer-box {
+  grid-template-areas: 'context context' 'tools tools' 'editor editor' 'settings actions';
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+[data-composer-layout='sidecar'] .appearance-composer-context {
+  grid-area: context;
+}
+[data-composer-layout='sidecar']
+  .appearance-composer-box:has(.appearance-composer-context:empty) {
+  grid-template-areas: 'tools tools' 'editor editor' 'settings actions';
+}
+[data-composer-layout='sidecar'] .appearance-composer-editor {
+  grid-area: editor;
+}
+[data-composer-layout='sidecar'] .appearance-composer-toolbar {
+  display: contents;
+}
+[data-composer-layout='sidecar'] .appearance-composer-tools {
+  grid-area: tools;
+}
+[data-composer-layout='sidecar'] .appearance-composer-settings {
+  grid-area: settings;
+}
+[data-composer-layout='sidecar'] .appearance-composer-actions {
+  grid-area: actions;
+  align-self: end;
+}
+
+.theorem-composer.theorem-note .milkdown .ProseMirror,
+.theorem-composer.theorem-note .milkdown .ProseMirror :is(p, li),
+.theorem-composer.theorem-note .milkdown .crepe-placeholder::before {
+  font: var(--recipe-composer-content);
+  letter-spacing: normal;
+}
+.theorem-composer.theorem-note .milkdown .ProseMirror {
+  color: var(--ink);
+  min-block-size: 0;
+  max-block-size: min(24rem, 40dvh);
+  padding: 0;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+  caret-color: var(--link);
+}
+.theorem-composer.theorem-note .milkdown .ProseMirror p {
+  padding: 0;
+  margin: 0;
+}
+.theorem-composer.theorem-note .milkdown .crepe-placeholder::before {
+  color: var(--ink-muted);
+}
+.theorem-composer.theorem-note .milkdown {
+  --crepe-color-surface: var(--popover);
+  --crepe-color-inline-area: var(--popover);
+  --crepe-color-inline-code: var(--ink);
+}
+.theorem-composer.theorem-note .milkdown .ProseMirror code,
+.theorem-composer.theorem-note .milkdown .ProseMirror .cm-scroller,
+.theorem-composer.theorem-note .milkdown .ProseMirror .cm-content {
+  font: var(--recipe-code);
+  letter-spacing: normal;
+}
+.aui-edit-composer-input.theorem-composer.theorem-note .milkdown .ProseMirror {
+  max-block-size: none;
+  padding: 0.5rem 1rem;
+}
+
+.aui-md {
+  display: flow-root;
+  --appearance-paragraph-gap: calc(0.75 * var(--appearance-prose-line-height));
+  --appearance-section-gap: calc(1.5 * var(--appearance-prose-line-height));
+}
+.aui-md > .aui-md-p {
+  margin-block: 0;
+}
+.aui-md > * + .aui-md-p {
+  margin-block-start: var(--appearance-paragraph-gap);
+}
+.aui-md > :is(h1, h2, h3, h4, h5, h6) {
+  margin-block: 0;
+}
+.aui-md > * + :is(h1, h2, h3, h4, h5, h6) {
+  margin-block-start: var(--appearance-section-gap);
+}
+.aui-md > :is(h1, h2, h3, h4, h5, h6) + .aui-md-p {
+  margin-block-start: var(--appearance-paragraph-gap);
+}
+.aui-md :is(.aui-md-li, .aui-md-table) {
+  line-height: inherit;
+}
+.aui-shiki-base :is(pre, code),
+.aui-user-markdown :is(pre, code) {
+  font: var(--recipe-code);
+  letter-spacing: normal;
+}
+
+.aui-shiki-base pre {
+  color: var(--ink) !important;
+}
+.aui-shiki-base :is(pre, pre *)::selection {
+  color: var(--ink);
+  background-color: var(--surface-selected);
+}
+.aui-shiki-base .rs-highlighted-line {
+  box-shadow: inset 2px 0 var(--line-control);
+  background-color: transparent;
+}
+
+/* Wider content has a named capacity and its own horizontal scroll region. */
+.appearance-assistant-prose
+  .aui-md
+  > :is(
+    .aui-md-table-wrapper,
+    .aui-shiki-base,
+    .aui-md-pre,
+    .aui-code-header-root
+  ) {
+  --appearance-expanded-width: min(
+    var(--appearance-expanded-measure),
+    100cqi - 2rem
+  );
+  inline-size: max(100%, var(--appearance-expanded-width));
+  margin-inline-start: min(0px, (100% - var(--appearance-expanded-width)) / 2);
+}
+
+[data-appearance-part='popover'],
+[data-appearance-part='tooltip'] {
+  border-radius: var(--appearance-radius-field);
+}
+[data-appearance-part='artifact'] {
+  border-radius: var(--appearance-radius-artifact);
+}
+.appearance-shell :focus-visible,
+.appearance-composer-box :focus-visible,
+.appearance-conversation-track :focus-visible,
+[data-appearance-part='navigation'] :focus-visible,
+[data-appearance-part='popover'] :focus-visible,
+[data-appearance-part='drawer'] :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* The dock clips its content at the panel edge. Reserve space for the
+   rounded header buttons' outer focus outlines inside the panel. */
+.appearance-thread-header {
+  padding-block: 0.375rem;
+}
+.appearance-thread-header :focus-visible,
+.aui-assistant-action-bar-root :focus-visible,
+.appearance-composer-toolbar :is(button, [role='button']):focus-visible {
+  outline-width: 4px;
+  outline-offset: 1px;
+}
+.aui-assistant-action-bar-root :focus-visible,
+.appearance-composer-toolbar :is(button, [role='button']):focus-visible {
+  box-shadow: none;
+}
+/* Dockview intentionally clips the horizontal tab scroller. Keep the
+   keyboard indicator inside the tab's own painted box. */
+.appearance-shell .dv-tab:focus-visible {
+  outline-width: 4px;
+  outline-offset: -4px;
+}
+.appearance-thread-viewport:focus-visible {
+  outline: 4px solid var(--focus);
+  outline-offset: -6px;
+}
+[data-slot='aui_assistant-message-footer'] {
+  --appearance-surface-fill: var(--surface-neutral);
+}
+:is([data-appearance-part='navigation'], [data-appearance-part='popover'])
+  [data-slot='scroll-area-viewport'] {
+  mask-image: none;
+}
+
+.appearance-conversation-track :focus-visible {
+  scroll-margin-block-end: 9rem;
+}
+.appearance-composer-box :focus-visible {
+  scroll-margin-block-end: 0;
+}
+
+:root[data-appearance-motion='reduced']
+  :is(
+    .aui-thread-root,
+    [data-appearance-part='popover'],
+    [data-appearance-part='drawer']
+  )
+  *,
+:root[data-appearance-motion='reduced']
+  :is(
+    .aui-thread-root,
+    [data-appearance-part='popover'],
+    [data-appearance-part='drawer']
+  ) {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+@media (forced-colors: active) {
+  .appearance-surface,
+  .appearance-reading-plane,
+  [data-appearance-part='popover'] {
+    background: Canvas;
+    color: CanvasText;
+    border-color: ButtonText;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .appearance-surface::before,
+  .appearance-surface::after,
+  [data-liquid-canvas] {
+    display: none;
+  }
+  .appearance-shell :focus-visible,
+  .appearance-composer-box :focus-visible,
+  .appearance-conversation-track :focus-visible,
+  [data-appearance-part='navigation'] :focus-visible,
+  [data-appearance-part='popover'] :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+.appearance-select {
+  font: var(--recipe-ui-label);
+  letter-spacing: 0.01em;
+  max-inline-size: 100%;
+  min-block-size: var(--appearance-control-min);
+  border: 1px solid var(--line-control);
+  border-radius: var(--appearance-radius-field);
+  background: var(--surface-raised);
+  color: var(--ink);
+  padding-inline: 0.5rem;
+}
+.appearance-select:focus-visible,
+.appearance-import :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.appearance-composer-toolbar [data-slot='combobox-trigger'] {
+  min-inline-size: var(--appearance-control-min);
+  max-inline-size: min(12rem, 100%);
+}
+.appearance-composer-toolbar > :is(div) {
+  max-inline-size: 100%;
+}
+.appearance-composer-toolbar :is(button, [role='button']):not(:disabled) {
+  flex-shrink: 0;
+}
+.appearance-composer-toolbar [data-slot='combobox-trigger']:not(:disabled) {
+  flex-shrink: 1;
+}
+
+/* Non-composer roles have opaque paint. Texture, frost and liquid accents
+   affect their perimeter without putting text over a changing backdrop. */
+.appearance-surface:is(
+  [data-surface-role='navigation'],
+  [data-surface-role='user-message']
+),
+[data-appearance-part='popover'],
+[data-appearance-part='tooltip'],
+[data-appearance-part='artifact'],
+[data-surface-role='status'] {
+  --appearance-rim: none;
+  background-color: var(--appearance-surface-fill);
+  box-shadow: var(--appearance-rim);
+}
+.appearance-surface[data-surface-role='navigation']
+  > .appearance-reading-plane {
+  position: relative;
+  z-index: 1;
+}
+.appearance-surface:is(
+    [data-surface-role='navigation'],
+    [data-surface-role='user-message']
+  )[data-material='paper'],
+:root[data-material-popover='paper']
+  :is([data-appearance-part='popover'], [data-appearance-part='tooltip']),
+:root[data-material-artifact='paper'] [data-appearance-part='artifact'],
+:root[data-material-status='paper'] [data-surface-role='status'] {
+  --appearance-rim:
+    inset 0 1px 0 var(--paper-highlight),
+    0 2px 8px color-mix(in srgb, var(--ink) 15%, transparent);
+}
+.appearance-surface:is(
+    [data-surface-role='navigation'],
+    [data-surface-role='user-message']
+  )[data-material='glass'],
+:root[data-material-popover='glass']
+  :is([data-appearance-part='popover'], [data-appearance-part='tooltip']),
+:root[data-material-artifact='glass'] [data-appearance-part='artifact'],
+:root[data-material-status='glass'] [data-surface-role='status'] {
+  --appearance-rim:
+    inset 0 1px 0 var(--glass-rim), inset 0 -1px 0 var(--glass-shade),
+    0 4px 16px color-mix(in srgb, var(--ink) 15%, transparent);
+  backdrop-filter: blur(var(--glass-blur));
+}
+.appearance-surface:is(
+    [data-surface-role='navigation'],
+    [data-surface-role='user-message']
+  )[data-material='liquid'],
+:root[data-material-popover='liquid']
+  :is([data-appearance-part='popover'], [data-appearance-part='tooltip']),
+:root[data-material-artifact='liquid'] [data-appearance-part='artifact'],
+:root[data-material-status='liquid'] [data-surface-role='status'] {
+  --appearance-rim: inset 0 0 2px 1px var(--glass-rim), var(--liquid-elevation);
+  backdrop-filter: blur(var(--liquid-see-blur));
+}
+:root[data-material-canvas='flat'] .bg-sheet {
+  --sheet-shade: var(--surface-neutral);
+  --sheet-field: none;
+}
+:root[data-material-canvas='glass'] .bg-sheet {
+  backdrop-filter: blur(var(--glass-blur));
+}
+:root[data-material-canvas='liquid'] .bg-sheet {
+  box-shadow: var(--liquid-elevation);
+}
+:root[data-material-assistant-reading='paper'] .appearance-assistant-prose {
+  box-shadow: inset 0 -1px var(--line-separator);
+}
+:root[data-material-assistant-reading='glass'] .appearance-assistant-prose {
+  box-shadow: inset 0 -1px var(--glass-shade);
+  backdrop-filter: blur(var(--glass-blur));
+}
+:root[data-material-assistant-reading='liquid'] .appearance-assistant-prose {
+  box-shadow:
+    inset 0 -1px var(--glass-rim),
+    var(--liquid-elevation);
+}
+
+.appearance-composer-tools :is(button, [role='button']) {
+  gap: var(--appearance-gap-within);
+}
+.appearance-composer-tools
+  :is(button, [role='button']):has(> span > .rail-mark) {
+  padding-block: 0.125rem;
+}
+.appearance-composer-toolbar :is(.rail-mark, .aui-composer-send-icon) {
+  inline-size: var(--appearance-icon-size);
+  block-size: var(--appearance-icon-size);
+}
+.aui-composer-send-icon .icon-mask {
+  background-color: currentColor;
+}
+/* Keep paired action paints synchronized, including inherited SVG colors. */
+.appearance-composer-toolbar
+  :is(.aui-composer-send, .appearance-destructive-action),
+.appearance-composer-toolbar
+  :is(.aui-composer-send, .appearance-destructive-action) * {
+  transition-property: transform, scale, rotate, translate, box-shadow;
+}
+.appearance-composer-toolbar .appearance-destructive-action {
+  color: var(--on-error);
+  background: var(--error-solid);
+}
+.appearance-composer-toolbar
+  .appearance-destructive-action:is(:hover, :active) {
+  color: var(--error-ink);
+  background: var(--error-container);
+}
+.appearance-artifact-card[data-selected] {
+  background: var(--surface-selected);
+}
+.appearance-assistant-prose
+  .appearance-artifact-card[data-appearance-expanded] {
+  --appearance-expanded-width: min(
+    var(--appearance-expanded-measure),
+    100cqi - 2rem
+  );
+  inline-size: max(100%, var(--appearance-expanded-width));
+  margin-inline-start: min(0px, (100% - var(--appearance-expanded-width)) / 2);
+}
+
+.appearance-composer-toolbar
+  .appearance-composer-tools
+  :is(button, [role='button']):not([aria-pressed='true']) {
+  color: var(--ink-muted);
+}
+.appearance-composer-toolbar
+  .appearance-composer-tools
+  :is(button, [role='button'])[aria-pressed='true'] {
+  color: var(--link);
+  background: var(--surface-selected);
+}
+.appearance-composer-toolbar :is(button, [role='button']) {
+  white-space: normal;
+}
+.appearance-composer-toolbar
+  :is(button, [role='button'])
+  > :not(svg, [aria-hidden], .sr-only) {
+  overflow-wrap: anywhere;
+}
+.appearance-thread-viewport {
+  scroll-padding-block-end: min(24rem, 60%);
+}
+.appearance-composer-box :focus-visible {
+  scroll-margin-block: 0.25rem;
+}
+.aui-assistant-message-content,
+.aui-user-message-content {
+  overflow-wrap: anywhere;
+}
+
+@container (max-width: 28rem) {
+  .appearance-composer-toolbar {
+    align-items: flex-end;
+  }
+  .appearance-composer-tools {
+    flex: 1 1 100%;
+  }
+  .appearance-composer-settings {
+    justify-content: start;
+  }
+}
+
+@media (forced-colors: active) {
+  .appearance-composer-toolbar .aui-composer-send,
+  .appearance-composer-toolbar .aui-composer-cancel,
+  .appearance-composer-toolbar .aui-composer-resume {
+    border-color: ButtonText;
+  }
+  .appearance-composer-toolbar [aria-pressed='true'],
+  .appearance-artifact-card[data-selected] {
+    outline: 1px solid Highlight;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .appearance-surface,
+  [data-appearance-part='popover'],
+  [data-appearance-part='tooltip'] {
+    background-color: var(--appearance-surface-fill);
+    backdrop-filter: none !important;
+  }
+  .appearance-surface::before,
+  .appearance-surface::after {
+    display: none;
+  }
+}

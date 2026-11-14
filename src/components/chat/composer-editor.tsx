@@ -15,6 +15,10 @@ import {
   useThreadViewportStore,
 } from '@assistant-ui/react'
 import type { TriggerItem } from '@assistant-ui/react'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { Prec } from '@codemirror/state'
+import { tags } from '@lezer/highlight'
+import { EditorView as CodeMirrorView } from '@codemirror/view'
 import { Crepe } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
 import {
@@ -37,6 +41,56 @@ import type { ClipboardEvent, FocusEvent, KeyboardEvent } from 'react'
 import { serializeComposerText } from './composer-markdown'
 import { useCrepeMarkdown } from '@/components/notes/crepe-markdown'
 import { cn } from '@/lib/utils'
+
+// Crepe defaults to One Dark even on light paper. Lezer tags keep syntax
+// distinctions while the editor inherits the validated appearance colors.
+// A single extension wrapper keeps Crepe's deep defaults from merging One Dark's array into it.
+const composerCodeTheme = Prec.highest([
+  syntaxHighlighting(
+    HighlightStyle.define([
+      {
+        tag: [tags.keyword, tags.modifier, tags.operatorKeyword],
+        color: 'var(--redwood-ink)',
+        fontWeight: '600',
+      },
+      {
+        tag: [tags.name, tags.propertyName, tags.typeName, tags.number],
+        color: 'var(--ink)',
+      },
+      {
+        tag: [tags.string, tags.regexp, tags.bool, tags.null],
+        color: 'var(--redwood-ink)',
+      },
+      {
+        tag: [tags.comment, tags.meta],
+        color: 'var(--ink-muted)',
+        fontStyle: 'italic',
+      },
+      {
+        tag: tags.invalid,
+        color: 'var(--redwood-ink)',
+        textDecoration: 'underline wavy',
+      },
+    ]),
+  ),
+  CodeMirrorView.theme({
+    '&': { color: 'var(--ink)' },
+    '.cm-content': { caretColor: 'var(--redwood-ink)' },
+    '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--redwood-ink)' },
+    '.cm-activeLine': {
+      boxShadow: 'inset 2px 0 var(--line-control)',
+      backgroundColor: 'transparent',
+    },
+    '.cm-gutters, .cm-activeLineGutter': {
+      color: 'var(--ink-muted)',
+      backgroundColor: 'var(--popover)',
+    },
+    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection, .cm-searchMatch, .cm-selectionMatch, &.cm-focused .cm-matchingBracket, &.cm-focused .cm-nonmatchingBracket':
+      {
+        backgroundColor: 'var(--surface-selected)',
+      },
+  }),
+])
 
 type Popover = NonNullable<
   ReturnType<typeof unstable_useTriggerPopoverRootContextOptional>
@@ -141,6 +195,14 @@ function Editor({
         },
         featureConfigs: {
           [Crepe.Feature.Placeholder]: { text: placeholder ?? '', mode: 'doc' },
+          [Crepe.Feature.CodeMirror]: {
+            theme: composerCodeTheme,
+            extensions: [
+              CodeMirrorView.contentAttributes.of({
+                'data-appearance-recipe': 'code',
+              }),
+            ],
+          },
         },
       })
       crepe.editor
@@ -149,6 +211,14 @@ function Editor({
             ...options,
             attributes: () => ({
               role: 'textbox',
+              'data-appearance-part': 'editor-viewport',
+              'data-appearance-recipe': 'composer.content',
+              'data-placeholder-foreground-role': placeholder
+                ? 'placeholder'
+                : '',
+              'data-appearance-pair': 'primary/composer',
+              'data-foreground-role': 'primary',
+              'data-background-role': 'composer',
               'aria-multiline': 'true',
               'aria-label': label,
               ...(placeholder ? { 'aria-placeholder': placeholder } : {}),

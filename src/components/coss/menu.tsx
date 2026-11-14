@@ -1,6 +1,7 @@
 // SOURCING: coss ui menu (vendored as-is from https://coss.com/ui/r/menu.json; registry imports point at this folder)
 "use client";
 
+import { appearancePair } from '@/lib/appearance-policy'
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { ChevronRightIcon } from "lucide-react";
 import type * as React from "react";
@@ -64,6 +65,11 @@ export function MenuPopup({
             className,
           )}
           data-slot="menu-popup"
+          data-appearance-part="popover"
+          data-appearance-radius-role="field"
+          data-appearance-recipe="ui.label"
+          data-surface-role="popover"
+          {...appearancePair('primary', 'popover')}
           {...props}
         >
           <div className="max-h-(--available-height) w-full overflow-y-auto p-1">

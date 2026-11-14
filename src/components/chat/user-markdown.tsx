@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm'
 import type { Plugin } from 'unified'
 import { SKIP, visit } from 'unist-util-visit'
 import { createDirectiveText } from '@/components/assistant-ui/elements/directive-text'
+import { appearancePair } from '@/lib/appearance-policy'
 
 const ToolText = createDirectiveText(defaultDirectiveFormatter)
 
@@ -50,6 +51,10 @@ const remarkUserTools: Plugin<[], Root> = () => (tree, file) => {
 }
 
 const components: Components = {
+  p: ({ node: _node, ...props }) => <p data-appearance-recipe="prose" {...appearancePair('primary', 'user-message')} {...props} />,
+  a: ({ node: _node, ...props }) => <a {...appearancePair('link', 'user-message')} {...props} />,
+  code: ({ node: _node, ...props }) => <code data-appearance-recipe="code" {...appearancePair('code', 'popover')} {...props} />,
+
   span: ({ node, children, ...props }) => {
     const tool = node?.properties['data-user-tool']
     return typeof tool === 'string' ? (
@@ -69,7 +74,7 @@ const components: Components = {
 
 export function UserMarkdown({ text }: { text: string }) {
   return (
-    <div className="aui-user-markdown whitespace-normal [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:ps-5 [&_li]:my-1 [&_blockquote]:my-2 [&_blockquote]:border-s-2 [&_blockquote]:border-separator [&_blockquote]:ps-3 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-raised [&_pre]:p-3 [&_pre]:text-[0.9em] [&_code]:font-mono [&_pre_code]:whitespace-pre [&_a]:text-link [&_a]:underline [&_a]:underline-offset-2 [&_:is(h1,h2,h3,h4,h5,h6)]:my-2 [&_:is(h1,h2,h3,h4,h5,h6)]:font-semibold [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+    <div className="aui-user-markdown whitespace-normal [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:ps-5 [&_li]:my-1 [&_blockquote]:my-2 [&_blockquote]:border-s-2 [&_blockquote]:border-separator [&_blockquote]:ps-3 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-popover [&_pre]:p-3 [&_pre]:text-[0.9em] [&_code]:bg-popover [&_code]:text-ink [&_code]:font-mono [&_pre_code]:whitespace-pre [&_a]:text-link [&_a]:underline [&_a]:underline-offset-2 [&_:is(h1,h2,h3,h4,h5,h6)]:my-2 [&_:is(h1,h2,h3,h4,h5,h6)]:font-semibold [&>:first-child]:mt-0 [&>:last-child]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkUserTools]}
         components={components}
