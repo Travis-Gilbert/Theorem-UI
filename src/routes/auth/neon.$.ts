@@ -6,9 +6,8 @@
 // them. The proxy forwards only Neon's own cookies and rewrites the ones Neon
 // sets as this origin's.
 import { createFileRoute } from '@tanstack/react-router'
-import { handleAuthProxyRequest } from '@neon/auth/server'
 
-function proxy({
+async function proxy({
   request,
   params,
 }: {
@@ -27,6 +26,7 @@ function proxy({
       },
       { status: 503, headers: { 'content-type': 'application/problem+json' } },
     )
+  const { handleAuthProxyRequest } = await import('@neon/auth/server')
   return handleAuthProxyRequest({
     request,
     path: params._splat ?? '',
