@@ -248,9 +248,16 @@ export function HomeAbsent({
  * the rail it fills the panel and says how to get files where there are none.
  */
 export function FoldersSection({ fill = false }: { fill?: boolean }) {
-  const { available, workspaces } = useWorkspaces()
+  const { available, workspaces, vaultAbsence } = useWorkspaces()
   const openFolder = useOpenFolder()
-  if (!fill && (!available || (!workspaces.length && !openFolder))) return null
+  const vaultFailed =
+    vaultAbsence !== undefined && vaultAbsence !== 'signed-out'
+  if (
+    !fill &&
+    !vaultFailed &&
+    (!available || (!workspaces.length && !openFolder))
+  )
+    return null
 
   return (
     <SidebarGroup

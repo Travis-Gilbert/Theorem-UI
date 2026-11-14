@@ -15,14 +15,14 @@ and the shared icon module exports only the icons its callers actually use.
 
 ## Evidence
 
-- Focused H3/session/error tests pass 11/11. They cover sealed session reading,
+- Focused H3/session/error and component tests pass 14/14. They cover sealed session reading,
   sign-out/refusal, refresh with rotated Set-Cookie, binary PUT/precondition forwarding, and response
   streaming before upstream closes, plus the rendered Retry action. Upstream
   HTTP in these tests is an explicitly named stand-in.
 - The Cloudflare build passes. Terminal WASM was rebuilt from this checkout's
-  own source using a pooled Cargo target. TypeScript checking reports only the
-  pre-existing ReactNode/Element mismatch in
-  `src/components/pages/conversation-module.test.tsx:27`.
+  own source using a pooled Cargo target. TypeScript checking passes after
+  fixing the optional cookie-segment assertion and returning a React element
+  from the existing Conversation test stand-in.
 - The downloaded production worker version
   `130a1fa1-aaef-4116-8c44-8d4c58613b3e` and built candidate ran in local workerd
   with loopback bindings. After a Files GET, `Runtime.getHeapUsage` reported
@@ -60,3 +60,18 @@ storage/query repairs. Production rollout and authenticated theorem.rs
 read/write/reopen remain required. The separate integration session's backend
 upgrade rehearsal is blocked by a malformed historical chat-upload record;
 this frontend evidence does not waive that storage gate.
+
+## Compact sidebar review repair
+
+The full `FoldersSection fill={false}` component test reproduced Home still
+being hidden after vault failure. Keeping that section visible exposed a second
+bug: mounting its nested Home view retried the failed query, hid the section,
+and repeated the cycle. The vault query now keeps its failure across observer
+mounts until explicit retry or invalidation. The regression exercises the real
+query hooks with a named failing API stand-in, proves one initial request,
+visible error detail, and exactly one request from Retry. The full focused suite
+passes 14/14, and `bun run typecheck` passes. New evidence survives host restart
+under `/Volumes/SSD Samsung/codex-rebuildable-cache/pr1066-worker-evidence/`:
+`ui-final-tests.log`, `ui-final-typecheck.log`, and the original failing
+`compact-red.log`. Earlier `/tmp` logs disappeared during the host restart;
+the previous measurements remain recorded here but are not freshly remeasured.

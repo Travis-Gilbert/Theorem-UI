@@ -67,7 +67,7 @@ test('Files token refresh returns its rotated session through the H3 response', 
     .getSetCookie()
     .find((value) => value.startsWith('theorem_session='))
   expect(updated).toBeDefined()
-  const sealed = updated!.split(';')[0].slice('theorem_session='.length)
+  const sealed = updated!.split(';')[0]!.slice('theorem_session='.length)
   expect(await unsealData(sealed, { password })).toMatchObject({
     accessToken: 'refreshed-files-bearer',
     refreshToken: 'rotated-files-refresh',

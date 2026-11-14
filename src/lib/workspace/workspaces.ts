@@ -93,6 +93,9 @@ export function useWorkspaces() {
     queryFn: () => getTheoremVault(),
     staleTime: 60_000,
     retry: false,
+    // Nested Files views mount after a failure. Keep that failure visible
+    // until an explicit retry or invalidation, instead of retrying on mount.
+    retryOnMount: false,
   })
 
   // The host changes the grants when a folder is opened or withdrawn.
