@@ -1,10 +1,10 @@
-import { chromium } from 'playwright-core'
+import { launchReviewBrowser, reviewOutput } from './review-browser.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 const base = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
-const output = resolve(process.env.ORACLE_REVIEW_OUT ?? 'docs/plans/composable-appearance/evidence/review')
+const output = reviewOutput
 await mkdir(output, { recursive: true })
-const browser=await chromium.launch()
+const browser=await launchReviewBrowser()
 const results=[]
 try {
  for (const density of ['comfortable','touch']) for(const width of [1440,320]){

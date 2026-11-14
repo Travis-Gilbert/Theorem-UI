@@ -1,13 +1,13 @@
 // Human-review companion: operate the same visible settings a user operates,
 // keeping the real editor mounted. Deliberately separate from token checks.
-import { chromium, firefox, webkit } from 'playwright-core'
+import { launchReviewBrowser, reviewOutput } from './review-browser.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 const base = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
-const out = resolve('docs/plans/composable-appearance/evidence/review')
+const out = reviewOutput
 await mkdir(out, { recursive: true })
 const engine = process.env.ORACLE_BROWSER ?? 'chromium'
-const browser = await { chromium, firefox, webkit }[engine].launch()
+const browser = await launchReviewBrowser(engine)
 const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   reducedMotion: 'reduce',
@@ -393,6 +393,7 @@ try {
   await close()
   check('No runtime errors', errors.length === 0, errors)
 } catch (error) {
+  console.error(error)
   check('Review runner completed', false, String(error.stack))
 } finally {
   await writeFile(
