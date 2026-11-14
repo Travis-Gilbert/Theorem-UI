@@ -123,3 +123,17 @@ The durable evidence directory contains `ui-terminal-saved.txt`,
 The same server separately passed installed Rust/TypeScript SDK process tests
 2/2 without skips and native HTTP/gRPC Open/Bound route checks, including
 crash/reopen receipt replay. Backend PR1069 records those receipts.
+
+## Current-main integration
+
+Merged upstream `2a479ca30dcef39517b0f8fa149d3c5447bc18cf` into the Files
+branch. The only conflict was equivalent formatting in the Conversation test
+stand-in; the new appearance and shell work is preserved. Frozen dependency
+installation, the five focused Files suites (31/31), and TypeScript checking
+pass on the merged source. Receipts: `ui-main-install.log`,
+`ui-main-tests.log`, and `ui-main-typecheck.log` in the durable evidence root.
+
+The separate live integration revision `2edebeebf358a04d0fc61f08634a91e4945739d8`
+is not in that upstream main. Its Connections/IDE changes must be preserved
+when coordinating a production promotion; merging this Files PR alone must
+not be represented as including that separate live revision.

@@ -1,4 +1,5 @@
 // SOURCING: ui/button (ghost icon buttons) for header actions, useCopyToClipboard hook; bodies render through the registry (artifact-renderers' ArtifactView)
+import { appearancePair } from '@/lib/appearance-policy'
 import { useLayoutEffect, useRef } from 'react'
 import { Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -77,6 +78,10 @@ export function ArtifactPanel({
   return (
     <section
       ref={sectionRef}
+      data-appearance-part="artifact"
+      data-appearance-radius-role="artifact"
+      data-surface-role="artifact"
+      {...appearancePair('primary', 'artifact')}
       aria-label={`Artifact: ${artifact.title}`}
       // The whole of what the conversation's card shows an excerpt of: Theo
       // points here while it is open.
@@ -97,7 +102,7 @@ export function ArtifactPanel({
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-(--spacing-reading) px-6 py-6">
+        <div className="mx-auto w-full max-w-(--appearance-expanded-measure) px-6 py-6">
           {/* The newest revision stays mounted while an older one is shown,
               so a live session and an unsaved edit outlast a look back. */}
           <div hidden={!latest}>

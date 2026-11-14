@@ -1,0 +1,35 @@
+{
+  "browser": "156.0.8078.4",
+  "environment": "Local Vite, real components and router, deterministic story SDK transport",
+  "checks": [
+    {
+      "name": "320px Vault can reopen navigation and leave for Notes/Home",
+      "passed": true
+    },
+    {
+      "name": "320px selecting another note closes the drawer",
+      "passed": true
+    },
+    {
+      "name": "390px Vault can reopen navigation and leave for Notes/Home",
+      "passed": true
+    },
+    {
+      "name": "390px selecting another note closes the drawer",
+      "passed": true
+    },
+    {
+      "name": "Desktop Vault keeps the docked rail and hides the phone header",
+      "passed": true
+    },
+    {
+      "name": "JSON applies the displayed export, stays live after import and copies current settings without losing a draft",
+      "passed": true
+    },
+    {
+      "name": "No uncaught browser errors",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

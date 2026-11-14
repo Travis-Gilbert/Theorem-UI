@@ -23,6 +23,27 @@ const CODING_REF = 'coding-workspace-mockup@2026-11-08.png'
 
 export const STORIES: readonly StoryMeta[] = [
   {
+    id: 'design-oracle-empty',
+    title: 'Design oracle F01: empty conversation',
+    lane: 'original',
+    viewport: { width: 1440, height: 900 },
+  },
+  {
+    id: 'design-oracle-long',
+    title: 'Design oracle F02: fixed Latin calibration prose',
+    lane: 'original',
+    viewport: { width: 1440, height: 900 },
+  },
+  { id: 'design-oracle-preview', title: 'Design oracle F03: collapsed message preview', lane: 'original', viewport: { width: 1024, height: 768 } },
+  { id: 'design-oracle-content', title: 'Design oracle F04: code, table and long URL', lane: 'original', viewport: { width: 1024, height: 768 } },
+  { id: 'design-oracle-draft', title: 'Design oracle F05: composer draft and controls', lane: 'original', viewport: { width: 1440, height: 900 } },
+  { id: 'design-oracle-stream', title: 'Design oracle F06: active stream actions', lane: 'original', viewport: { width: 1440, height: 900 } },
+  { id: 'design-oracle-failure', title: 'Design oracle F07: failure and recovery', lane: 'original', viewport: { width: 1024, height: 768 } },
+  { id: 'design-oracle-navigation', title: 'Design oracle F08: selected navigation states', lane: 'original', viewport: { width: 1440, height: 900 }, threadId: 'thread-app-gallery' },
+  { id: 'design-oracle-reflow', title: 'Design oracle F09: scale and narrow reflow', lane: 'original', viewport: { width: 390, height: 844 } },
+  { id: 'design-oracle-rtl', title: 'Design oracle F10: RTL and CJK fallback', lane: 'original', viewport: { width: 390, height: 844 } },
+  { id: 'design-oracle-continuity', title: 'Design oracle F11: draft continuity', lane: 'original', viewport: { width: 1440, height: 900 } },
+  {
     id: 'organized-sidebar',
     title: 'Organized sidebar',
     lane: 'translation',
@@ -47,6 +68,12 @@ export const STORIES: readonly StoryMeta[] = [
     // 2026-11-05 reference shows the earlier cards, so the oracle skips this.
     lane: 'original',
     viewport: { width: 380, height: 760 },
+  },
+  {
+    id: 'compare-pane-standalone',
+    title: 'Compare pane with shared sidecar composer',
+    lane: 'original',
+    viewport: { width: 380, height: 900 },
   },
   {
     id: 'review-card',
@@ -99,6 +126,12 @@ export const STORIES: readonly StoryMeta[] = [
     reference: SIDEBAR_REF,
     viewport: { width: 1479, height: 1064 },
     threadId: 'thread-app-gallery',
+  },
+  {
+    id: 'shell-navigation',
+    title: 'Phone navigation across Vault and Notes',
+    lane: 'original',
+    viewport: { width: 390, height: 844 },
   },
   {
     id: 'cpu-gpu-tradeoff',

@@ -19,6 +19,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
 import { Icon } from "@/components/icons";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
+import { appearancePair } from "@/lib/appearance-policy";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
   components?: Parameters<typeof memoizeMarkdownComponents>[0];
@@ -82,7 +83,7 @@ export const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
 
   return (
     <div className="aui-code-header-root border-separator bg-raised mt-3 flex items-center justify-between rounded-t-lg border border-b-0 py-1 ps-3.5 pe-1 text-xs">
-      <span className="aui-code-header-language text-ink-faint font-mono lowercase">
+      <span data-appearance-recipe="metadata" {...appearancePair("secondary", "popover")} className="aui-code-header-language text-ink-muted lowercase">
         {language}
       </span>
       <TooltipIconButton tooltip="Copy" onClick={onCopy}>
@@ -101,8 +102,9 @@ const defaultComponents = memoizeMarkdownComponents({
   SyntaxHighlighter,
   h1: ({ className, ...props }) => (
     <h1
+      data-appearance-recipe="heading.large"
       className={cn(
-        "aui-md-h1 font-heading mt-6 mb-2 scroll-m-20 text-[20px] leading-[1.3] font-semibold first:mt-0 last:mb-0",
+        "aui-md-h1",
         className,
       )}
       {...props}
@@ -110,8 +112,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   h2: ({ className, ...props }) => (
     <h2
+      data-appearance-recipe="heading.medium"
       className={cn(
-        "aui-md-h2 font-heading mt-6 mb-2 scroll-m-20 text-[18px] leading-[1.35] font-semibold first:mt-0 last:mb-0",
+        "aui-md-h2",
         className,
       )}
       {...props}
@@ -119,8 +122,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   h3: ({ className, ...props }) => (
     <h3
+      data-appearance-recipe="heading.small"
       className={cn(
-        "aui-md-h3 font-heading mt-5 mb-1.5 scroll-m-20 text-[16px] leading-[1.4] font-semibold first:mt-0 last:mb-0",
+        "aui-md-h3",
         className,
       )}
       {...props}
@@ -128,8 +132,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   h4: ({ className, ...props }) => (
     <h4
+      data-appearance-recipe="heading.small"
       className={cn(
-        "aui-md-h4 mt-3.5 mb-1 scroll-m-20 text-base font-semibold first:mt-0 last:mb-0",
+        "aui-md-h4",
         className,
       )}
       {...props}
@@ -137,8 +142,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   h5: ({ className, ...props }) => (
     <h5
+      data-appearance-recipe="heading.small"
       className={cn(
-        "aui-md-h5 mt-3 mb-1 text-sm font-semibold first:mt-0 last:mb-0",
+        "aui-md-h5",
         className,
       )}
       {...props}
@@ -146,8 +152,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   h6: ({ className, ...props }) => (
     <h6
+      data-appearance-recipe="heading.small"
       className={cn(
-        "aui-md-h6 mt-3 mb-1 text-xs font-semibold first:mt-0 last:mb-0",
+        "aui-md-h6",
         className,
       )}
       {...props}
@@ -155,8 +162,11 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   p: ({ className, ...props }) => (
     <p
+      data-appearance-recipe="prose"
+      data-appearance-part="prose-block"
+      {...appearancePair("primary", "assistant-reading")}
       className={cn(
-        "aui-md-p my-3 leading-6 first:mt-0 last:mb-0",
+        "aui-md-p",
         className,
       )}
       {...props}
@@ -164,6 +174,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   a: ({ className, ...props }) => (
     <a
+      {...appearancePair("link", "assistant-reading")}
       className={cn(
         "aui-md-a text-link decoration-link/40 hover:decoration-link underline underline-offset-2",
         className,
@@ -259,8 +270,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   pre: ({ className, ...props }) => (
     <pre
+      data-appearance-recipe="code"
       className={cn(
-        "aui-md-pre border-separator bg-raised overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3.5 text-[13px] leading-relaxed",
+        "aui-md-pre border-separator bg-popover overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3.5 text-[13px] leading-relaxed",
         className,
       )}
       {...props}
@@ -270,9 +282,11 @@ const defaultComponents = memoizeMarkdownComponents({
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (
       <code
+        data-appearance-recipe="code"
+        {...appearancePair("code", "popover")}
         className={cn(
           !isCodeBlock &&
-            "aui-md-inline-code bg-raised border-separator rounded-sm border px-1 py-px font-mono text-[0.85em]",
+            "aui-md-inline-code text-ink bg-popover border-separator rounded-sm border px-1 py-px font-mono text-[0.85em]",
           className,
         )}
         {...props}

@@ -68,6 +68,7 @@ import {
 import { uploadContentPath } from '@/lib/theorem/uploads'
 import { DRAFT_PLAN } from '@/lib/theorem/plans'
 import { cn, humanize } from '@/lib/utils'
+import { appearancePair } from '@/lib/appearance-policy'
 
 type Json = Record<string, unknown>
 
@@ -820,11 +821,13 @@ export const Activity: FC<{
           })}
         </span>
       )}
-      <div className="flex min-h-6 flex-wrap items-center gap-x-2 px-2">
-        {speaker && <span className="font-medium text-ink">{speaker}</span>}
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2">
+        {speaker && <span data-appearance-recipe="ui.section" {...appearancePair("primary", "assistant-reading")} className="text-ink">{speaker}</span>}
         {notes.length > 0 && (
           <span
             data-slot="activity-line"
+            data-appearance-recipe="metadata"
+            {...appearancePair("secondary", "assistant-reading")}
             className="flex min-w-0 items-center gap-x-2 text-sm text-ink-muted"
           >
             {notes.map((note, index) => (

@@ -1,6 +1,7 @@
 // SOURCING: coss ui select (vendored as-is from https://coss.com/ui/r/select.json; registry imports point at this folder)
 "use client";
 
+import { appearancePair } from '@/lib/appearance-policy'
 import { mergeProps } from "@base-ui/react/merge-props";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { useRender } from "@base-ui/react/use-render";
@@ -141,6 +142,11 @@ export function SelectPopup({
         <SelectPrimitive.Popup
           className="origin-(--transform-origin) text-foreground outline-none"
           data-slot="select-popup"
+          data-appearance-part="popover"
+          data-appearance-radius-role="field"
+          data-appearance-recipe="ui.label"
+          data-surface-role="popover"
+          {...appearancePair('primary', 'popover')}
           {...props}
         >
           <SelectPrimitive.ScrollUpArrow

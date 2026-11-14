@@ -1,0 +1,25 @@
+diff --git a/dist/shader-mount.js b/dist/shader-mount.js
+--- a/dist/shader-mount.js
++++ b/dist/shader-mount.js
+@@ -130,2 +130,3 @@
+   resizeObserver = null;
++  resizeFrame = null;
+   setupResizeObserver = () => {
+@@ -142,3 +143,9 @@
+       }
+-      this.handleResize();
++      // Canvas dimension writes during observer delivery can cause a loop in WebKit.
++      if (this.resizeFrame === null) {
++        this.resizeFrame = requestAnimationFrame(() => {
++          this.resizeFrame = null;
++          this.handleResize();
++        });
++      }
+     });
+@@ -397,2 +404,6 @@
+     this.hasBeenDisposed = true;
++    if (this.resizeFrame !== null) {
++      cancelAnimationFrame(this.resizeFrame);
++      this.resizeFrame = null;
++    }
+     if (this.rafId !== null) {

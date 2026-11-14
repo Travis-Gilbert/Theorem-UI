@@ -1,3 +1,4 @@
+import { appearancePair } from '@/lib/appearance-policy'
 // SOURCING: coss ui combobox (vendored as-is from https://coss.com/ui/r/combobox.json; registry imports point at this folder)
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { ChevronsUpDownIcon, XIcon } from "lucide-react";
@@ -195,6 +196,11 @@ export function ComboboxPopup({
           <ComboboxPrimitive.Popup
             className="flex max-h-[min(var(--available-height),23rem)] flex-1 flex-col text-foreground"
             data-slot="combobox-popup"
+            data-appearance-part="popover"
+            data-appearance-radius-role="field"
+            data-appearance-recipe="ui.label"
+            data-surface-role="popover"
+            {...appearancePair('primary', 'popover')}
             {...props}
           >
             {children}

@@ -24,9 +24,7 @@ if (conversation?.implementation.kind !== 'builtin')
 const { Component } = conversation.implementation
 
 async function renderOnIdePage(shown: boolean) {
-  spyOn(life, 'LifeBackdrop').mockImplementation(({ children }) => (
-    <>{children}</>
-  ))
+  spyOn(life, 'LifeBackdrop').mockImplementation(({ children }) => <>{children}</>)
   spyOn(thread, 'Thread').mockImplementation(
     ({ covered }: ComponentProps<typeof thread.Thread>) => (
       <p data-slot="thread">{covered ? 'covered' : 'in sight'}</p>

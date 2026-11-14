@@ -1,0 +1,224 @@
+{
+  "generatedAt": "2026-11-13T21:28:49.257Z",
+  "engine": "156.0.8078.4",
+  "results": [
+    {
+      "density": "comfortable",
+      "width": 1440,
+      "passed": true,
+      "errors": [],
+      "minimum": 32,
+      "controls": [
+        {
+          "label": "Pin to Theorem",
+          "x": 543.125,
+          "y": 9,
+          "width": 32,
+          "height": 32,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "More",
+          "x": 579.125,
+          "y": 9,
+          "width": 32,
+          "height": 32,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "Send message",
+          "x": 944.5,
+          "y": 828,
+          "width": 32,
+          "height": 32,
+          "inside": true,
+          "hit": true
+        }
+      ],
+      "headerBottom": 48,
+      "overlayTop": null,
+      "documentScrollWidth": 1440
+    },
+    {
+      "density": "comfortable",
+      "width": 320,
+      "passed": true,
+      "errors": [],
+      "minimum": 32,
+      "controls": [
+        {
+          "label": "Pin to Theorem",
+          "x": 219.125,
+          "y": 98,
+          "width": 32,
+          "height": 32,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "More",
+          "x": 255.125,
+          "y": 98,
+          "width": 32,
+          "height": 32,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "Send message",
+          "x": 267,
+          "y": 839,
+          "width": 32,
+          "height": 32,
+          "inside": true,
+          "hit": true
+        }
+      ],
+      "headerBottom": 137,
+      "overlayTop": null,
+      "documentScrollWidth": 320
+    },
+    {
+      "density": "touch",
+      "width": 1440,
+      "passed": true,
+      "errors": [],
+      "minimum": 44,
+      "controls": [
+        {
+          "label": "Pin to Theorem",
+          "x": 543.125,
+          "y": 9,
+          "width": 44,
+          "height": 44,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "More",
+          "x": 591.125,
+          "y": 9,
+          "width": 44,
+          "height": 44,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "Send message",
+          "x": 932.5,
+          "y": 816,
+          "width": 44,
+          "height": 44,
+          "inside": true,
+          "hit": true
+        }
+      ],
+      "headerBottom": 60,
+      "overlayTop": null,
+      "documentScrollWidth": 1440
+    },
+    {
+      "density": "touch",
+      "width": 320,
+      "passed": true,
+      "errors": [],
+      "minimum": 44,
+      "controls": [
+        {
+          "label": "Pin to Theorem",
+          "x": 216,
+          "y": 98,
+          "width": 44,
+          "height": 44,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "More",
+          "x": 264,
+          "y": 98,
+          "width": 44,
+          "height": 44,
+          "inside": true,
+          "hit": true
+        },
+        {
+          "label": "Send message",
+          "x": 255,
+          "y": 827,
+          "width": 44,
+          "height": 44,
+          "inside": true,
+          "hit": true
+        }
+      ],
+      "headerBottom": 149,
+      "overlayTop": null,
+      "documentScrollWidth": 320
+    },
+    {
+      "settings": {},
+      "passed": true,
+      "errors": [],
+      "leading": 24,
+      "headings": [
+        {
+          "heading": "H1",
+          "headingLeading": 32,
+          "before": 36,
+          "after": 18
+        },
+        {
+          "heading": "H2",
+          "headingLeading": 28,
+          "before": 36,
+          "after": 18
+        },
+        {
+          "heading": "H3",
+          "headingLeading": 24,
+          "before": 36,
+          "after": 18
+        }
+      ]
+    },
+    {
+      "settings": {
+        "scales": {
+          "content": 1.25
+        },
+        "font": {
+          "textFamily": "IBM Plex Sans Variable",
+          "comfortableMeasure": 35.75,
+          "wideMeasure": 44.75,
+          "contentLineHeight": 1.75
+        }
+      },
+      "passed": true,
+      "errors": [],
+      "leading": 35,
+      "headings": [
+        {
+          "heading": "H1",
+          "headingLeading": 52.5,
+          "before": 52.5,
+          "after": 26.25
+        },
+        {
+          "heading": "H2",
+          "headingLeading": 43.75,
+          "before": 52.5,
+          "after": 26.25
+        },
+        {
+          "heading": "H3",
+          "headingLeading": 39.375,
+          "before": 52.5,
+          "after": 26.25
+        }
+      ]
+    }
+  ]
+}

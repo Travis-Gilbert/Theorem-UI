@@ -3,6 +3,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { appearancePair } from "@/lib/appearance-policy";
 import {
   Collapsible,
   CollapsiblePanel,
@@ -107,9 +108,12 @@ function ExpandableChatMessage({
       <div className="grid">
         <div
           data-slot="chat-collapsible-preview"
+          data-appearance-part="preview"
+          {...appearancePair('primary', side === 'outgoing' ? 'user-message' : 'assistant-reading')}
           aria-hidden={open || undefined}
+          inert={open || undefined}
           className={cn(
-            "mask-[linear-gradient(to_bottom,black_calc(100%-3rem),transparent)] col-start-1 row-start-1 self-start",
+            "col-start-1 row-start-1 self-start",
             open && "invisible",
           )}
         >
@@ -118,6 +122,7 @@ function ExpandableChatMessage({
         <CollapsiblePanel className="col-start-1 row-start-1 min-w-0 motion-reduce:transition-none">
           <div
             aria-hidden={!open || undefined}
+            inert={!open || undefined}
             className={open ? undefined : "invisible"}
           >
             {renderText(text)}
@@ -126,10 +131,12 @@ function ExpandableChatMessage({
       </div>
       <CollapsibleTrigger
         type="button"
+        data-appearance-recipe="ui.label"
+        {...appearancePair('secondary', side === 'outgoing' ? 'user-message' : 'assistant-reading')}
         className={cn(
-          "mt-2 flex w-fit items-center gap-1 text-start text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+          "mt-2 flex min-h-6 w-fit items-center gap-1 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
           side === "outgoing"
-            ? "text-foreground/80 hover:text-foreground"
+            ? "text-muted-foreground hover:text-foreground"
             : "text-muted-foreground hover:text-foreground",
         )}
       >

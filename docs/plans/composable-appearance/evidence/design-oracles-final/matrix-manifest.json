@@ -1,0 +1,1799 @@
+{
+  "policy": "theorem-appearance-v1",
+  "plannedRuns": [
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "empty",
+      "fixtureId": "F01",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-empty.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "preview",
+      "fixtureId": "F03",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-preview.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "stream",
+      "fixtureId": "F06",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-stream.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "failure",
+      "fixtureId": "F07",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-failure.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-reflow.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-rtl.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-light-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "empty",
+      "fixtureId": "F01",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-empty.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "preview",
+      "fixtureId": "F03",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-preview.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "stream",
+      "fixtureId": "F06",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-stream.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "failure",
+      "fixtureId": "F07",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-failure.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-reflow.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-rtl.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-light-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "empty",
+      "fixtureId": "F01",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-empty.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "preview",
+      "fixtureId": "F03",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-preview.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "stream",
+      "fixtureId": "F06",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-stream.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "failure",
+      "fixtureId": "F07",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-failure.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-reflow.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-rtl.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixtures": [
+        "empty",
+        "long",
+        "preview",
+        "content",
+        "draft",
+        "stream",
+        "failure",
+        "navigation",
+        "reflow",
+        "rtl",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-light-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "empty",
+      "fixtureId": "F01",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-dark-1440x900-design-oracle-empty.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-dark-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-dark-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-dark-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-dark-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-chromium-calm-dark-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "empty",
+      "fixtureId": "F01",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-dark-1440x900-design-oracle-empty.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-dark-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-dark-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-dark-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-dark-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-firefox-calm-dark-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "empty",
+      "fixtureId": "F01",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-dark-1440x900-design-oracle-empty.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-dark-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-dark-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-dark-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-dark-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "dark",
+      "fixtures": [
+        "empty",
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-webkit-calm-dark-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-chromium-expressive-light-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-chromium-expressive-light-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-chromium-expressive-light-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-chromium-expressive-light-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-chromium-expressive-light-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-firefox-expressive-light-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-firefox-expressive-light-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-firefox-expressive-light-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-firefox-expressive-light-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-firefox-expressive-light-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "long",
+      "fixtureId": "F02",
+      "viewport": "1440x900",
+      "report": "report-webkit-expressive-light-1440x900-design-oracle-long.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "content",
+      "fixtureId": "F04",
+      "viewport": "1440x900",
+      "report": "report-webkit-expressive-light-1440x900-design-oracle-content.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1440x900",
+      "report": "report-webkit-expressive-light-1440x900-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1440x900",
+      "report": "report-webkit-expressive-light-1440x900-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "expressive",
+      "mode": "light",
+      "fixtures": [
+        "long",
+        "content",
+        "draft",
+        "navigation",
+        "continuity"
+      ],
+      "viewports": [
+        "1440x900"
+      ],
+      "fixture": "continuity",
+      "fixtureId": "F11",
+      "viewport": "1440x900",
+      "report": "report-webkit-expressive-light-1440x900-design-oracle-continuity.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "320x720",
+      "report": "report-chromium-calm-light-320x720-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "390x844",
+      "report": "report-chromium-calm-light-390x844-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "320x720",
+      "report": "report-chromium-calm-light-320x720-design-oracle-navigation.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "390x844",
+      "report": "report-chromium-calm-light-390x844-design-oracle-navigation.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "320x720",
+      "report": "report-chromium-calm-light-320x720-design-oracle-reflow.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "390x844",
+      "report": "report-chromium-calm-light-390x844-design-oracle-reflow.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "320x720",
+      "report": "report-chromium-calm-light-320x720-design-oracle-rtl.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "390x844",
+      "report": "report-chromium-calm-light-390x844-design-oracle-rtl.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "320x720",
+      "report": "report-firefox-calm-light-320x720-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "390x844",
+      "report": "report-firefox-calm-light-390x844-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "320x720",
+      "report": "report-firefox-calm-light-320x720-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "390x844",
+      "report": "report-firefox-calm-light-390x844-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "320x720",
+      "report": "report-firefox-calm-light-320x720-design-oracle-reflow.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "390x844",
+      "report": "report-firefox-calm-light-390x844-design-oracle-reflow.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "320x720",
+      "report": "report-firefox-calm-light-320x720-design-oracle-rtl.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "390x844",
+      "report": "report-firefox-calm-light-390x844-design-oracle-rtl.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "320x720",
+      "report": "report-webkit-calm-light-320x720-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "390x844",
+      "report": "report-webkit-calm-light-390x844-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "320x720",
+      "report": "report-webkit-calm-light-320x720-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "390x844",
+      "report": "report-webkit-calm-light-390x844-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "320x720",
+      "report": "report-webkit-calm-light-320x720-design-oracle-reflow.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "reflow",
+      "fixtureId": "F09",
+      "viewport": "390x844",
+      "report": "report-webkit-calm-light-390x844-design-oracle-reflow.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "320x720",
+      "report": "report-webkit-calm-light-320x720-design-oracle-rtl.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "rtl",
+      "fixtureId": "F10",
+      "viewport": "390x844",
+      "report": "report-webkit-calm-light-390x844-design-oracle-rtl.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1024x768",
+      "report": "report-chromium-calm-light-1024x768-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1920x1080",
+      "report": "report-chromium-calm-light-1920x1080-design-oracle-draft.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1024x768",
+      "report": "report-chromium-calm-light-1024x768-design-oracle-navigation.json"
+    },
+    {
+      "engine": "chromium",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1920x1080",
+      "report": "report-chromium-calm-light-1920x1080-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1024x768",
+      "report": "report-firefox-calm-light-1024x768-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1920x1080",
+      "report": "report-firefox-calm-light-1920x1080-design-oracle-draft.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1024x768",
+      "report": "report-firefox-calm-light-1024x768-design-oracle-navigation.json"
+    },
+    {
+      "engine": "firefox",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1920x1080",
+      "report": "report-firefox-calm-light-1920x1080-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1024x768",
+      "report": "report-webkit-calm-light-1024x768-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "draft",
+      "fixtureId": "F05",
+      "viewport": "1920x1080",
+      "report": "report-webkit-calm-light-1920x1080-design-oracle-draft.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1024x768",
+      "report": "report-webkit-calm-light-1024x768-design-oracle-navigation.json"
+    },
+    {
+      "engine": "webkit",
+      "preset": "calm",
+      "mode": "light",
+      "fixture": "navigation",
+      "fixtureId": "F08",
+      "viewport": "1920x1080",
+      "report": "report-webkit-calm-light-1920x1080-design-oracle-navigation.json"
+    }
+  ]
+}

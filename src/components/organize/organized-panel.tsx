@@ -873,7 +873,8 @@ export function OrganizedPanel({ footer }: { footer?: ReactNode }) {
             <div
               ref={listRef}
               onKeyDown={onKeyDown}
-              className="flex flex-col gap-2"
+              data-appearance-spacing-role="group-controls"
+              className="flex flex-col"
             >
               <SidebarMenu>
                 <QuickView

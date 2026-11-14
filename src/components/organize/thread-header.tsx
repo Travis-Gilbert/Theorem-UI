@@ -25,7 +25,7 @@ import { ProjectGlyph } from './glyphs'
 import { ThreadMenuItems } from './thread-menu'
 
 const headerButton =
-  'flex size-7 shrink-0 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover'
+  'flex min-h-(--appearance-control-min) min-w-(--appearance-control-min) shrink-0 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus data-popup-open:bg-hover'
 
 /** Where the thread sits and what can be done to it; the dock's layout and follow buttons sit at its end. */
 export function ThreadHeader({ actions }: { actions?: ReactNode }) {
@@ -50,7 +50,7 @@ export function ThreadHeader({ actions }: { actions?: ReactNode }) {
   return (
     // The line is lighter than the sidebar's: it runs the full width over the
     // darker page, where the same colour reads harder.
-    <header className="flex h-8 shrink-0 items-center gap-1 border-b border-separator/60 ps-3 pe-1 text-sm">
+    <header className="appearance-thread-header flex shrink-0 items-center gap-1 border-b border-separator/60 px-3 text-sm">
       <Breadcrumb aria-label="Thread location" className="min-w-0">
         <BreadcrumbList className="flex-nowrap gap-1.5 text-ink-muted sm:gap-1.5">
           {project && !project.isInbox && (

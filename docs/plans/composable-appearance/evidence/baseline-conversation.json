@@ -1,0 +1,67 @@
+{
+  "revision": "f830f8198c4bf87fa432b11f33d98c509824b9e8",
+  "browser": "156.0.8078.4",
+  "fixture": "activity-finished",
+  "observed": [
+    {
+      "text": "Which of the gallery examples still build?",
+      "cls": "",
+      "style": {
+        "family": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "line": "24px"
+      },
+      "rect": {
+        "x": 944.96875,
+        "y": 25,
+        "width": 292.03125,
+        "height": 24,
+        "top": 25,
+        "right": 1237,
+        "bottom": 49,
+        "left": 944.96875
+      }
+    },
+    {
+      "text": "Eleven of the twelve build. The map example imports a tile helper that moved.",
+      "cls": "aui-md-p my-3 leading-6 first:mt-0 last:mb-0",
+      "style": {
+        "family": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "line": "24px"
+      },
+      "rect": {
+        "x": 232,
+        "y": 112,
+        "width": 1020,
+        "height": 24,
+        "top": 112,
+        "right": 1252,
+        "bottom": 136,
+        "left": 232
+      }
+    },
+    {
+      "text": "",
+      "cls": "crepe-placeholder",
+      "style": {
+        "family": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "line": "28px"
+      },
+      "rect": {
+        "x": 205,
+        "y": 879,
+        "width": 1030,
+        "height": 36,
+        "top": 879,
+        "right": 1235,
+        "bottom": 915,
+        "left": 205
+      }
+    }
+  ],
+  "editorFace": {
+    "fonts": []
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "revision": "f830f8198c4bf87fa432b11f33d98c509824b9e8",
+  "browser": "156.0.8078.4",
+  "fixture": "composer-markdown",
+  "observed": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "font": {
+      "family": "\"IBM Plex Sans Variable\", \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif",
+      "size": "16px",
+      "lineHeight": "24px",
+      "weight": "400",
+      "tracking": "normal"
+    },
+    "editor": {
+      "x": 197,
+      "y": 316.859375,
+      "width": 1046,
+      "height": 314.28125,
+      "top": 316.859375,
+      "right": 1243,
+      "bottom": 631.140625,
+      "left": 197
+    },
+    "palette": "github-sharp",
+    "mode": "light"
+  }
+}
