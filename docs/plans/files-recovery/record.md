@@ -140,3 +140,26 @@ were already identical on the Files branch. The resulting Files and IDE
 suites pass together: 80/80 across 13 files, zero failures
 (`ui-live-integrated-tests.log`). No additional product behavior was invented
 during either merge.
+
+## Rendered merged-source check and CI diagnosis
+
+The merged frontend saved a fresh Unicode edit through terminal server
+`e869a99fefcf9acfae53bbe21f7bdd0d881a68a46f608b329a6c85f03cc1c812`,
+then reloaded and read the exact text with `Saved to Home`. The durable
+receipts are `ui-integrated-saved.txt` and `ui-integrated-reloaded.txt`;
+`files-integrated-frontend-reloaded.png` records the rendered result.
+
+Current-main appearance checks introduced a separate CI failure. The local
+Mac headless-shell renderer stalled; the pinned full Chromium used by the
+existing composer e2e passed all nine review suites. Actual Linux artifacts
+then exposed a distinct Bun dev-server cold-start socket failure whose Vite
+overlay intercepted the first settings action. The workflow now uses Node,
+like the product e2e stack, and probes the static Vite client before the first
+SSR navigation. A forced cold Node run passed all 56 interactions. The
+workflow retains failures and Vite logs as CI artifacts instead of printing
+only a generic failure. Actual Linux Composer run 43564580129 passed on
+`dc691c1bfa21236f8a5e14f95bca63e067f72574`, including all nine rendered review
+suites. Durable logs are `ui-composer/linux-43564580129-full.log` and
+`ui-composer/linux-43564580129-rendered.log`. Cloudflare Worker preview and
+Greptile also passed for that revision. Production authenticated acceptance
+remains a separate release gate; local development identity is a stand-in.
