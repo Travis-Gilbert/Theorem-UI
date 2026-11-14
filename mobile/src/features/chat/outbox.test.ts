@@ -55,6 +55,20 @@ describe('Outbox', () => {
     expect(calls).toEqual([`send:${id}:hello`])
   })
 
+  test('three sends in a row each reach the conversation once, with exactly the words typed', async () => {
+    // A third send once reached the server with its text doubled while the composer showed one copy.
+    const { calls, outbox, phase } = harness()
+    const ids: string[] = []
+    for (const text of ['first', 'second', 'third']) {
+      ids.push(outbox.submit('th', text))
+      await settle()
+      phase('completed')
+      await settle()
+    }
+    expect(calls).toEqual([`send:${ids[0]}:first`, `send:${ids[1]}:second`, `send:${ids[2]}:third`])
+    expect(new Set(ids).size).toBe(3)
+  })
+
   test('a message sent during a run waits, then goes once, under its original id', async () => {
     const { calls, outbox, phase } = harness()
     phase('running')

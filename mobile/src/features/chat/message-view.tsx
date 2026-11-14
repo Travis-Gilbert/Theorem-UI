@@ -10,6 +10,7 @@ import { useTheme } from '@/ui/theme'
 import { readApproval } from './approval'
 import { ApprovalCard } from './approval-card'
 import { LinkedText } from './linked-text'
+import { partTitle, showValue } from './part-text'
 import { PROPOSE_EVENT } from '../phone-actions/calendar'
 import { EventProposalCard } from '../phone-actions/event-card'
 
@@ -123,7 +124,7 @@ function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
           ) : null}
           {part.result !== undefined ? (
             <Text variant="code" tone={part.isError ? 'error' : 'ink'} selectable numberOfLines={40}>
-              {typeof part.result === 'string' ? part.result || 'No output.' : JSON.stringify(part.result, null, 2)}
+              {typeof part.result === 'string' ? part.result || 'No output.' : showValue(part.result)}
             </Text>
           ) : null}
         </Disclosure>
@@ -147,9 +148,9 @@ function PartView({ part, runId }: { part: Part; runId: string | undefined }) {
           />
         )
       return (
-        <Disclosure title={part.name.replace(/^theorem-/, '').replace(/_/g, ' ')}>
+        <Disclosure title={partTitle(part.name)}>
           <Text variant="code" selectable numberOfLines={40}>
-            {JSON.stringify(part.data, null, 2)}
+            {showValue(part.data)}
           </Text>
         </Disclosure>
       )

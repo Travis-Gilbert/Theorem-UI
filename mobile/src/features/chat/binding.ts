@@ -45,6 +45,8 @@ class Session {
 
   /** Connects (replaying journaled commands under their original keys), then follows a live run. */
   attach(): Promise<void> {
+    // connect() ends the open stream first, so the next follow() must not wait for the old one to finish closing.
+    this.observing = undefined
     this.attaching ??= this.conversation
       .connect()
       .then(() => this.follow())
@@ -59,12 +61,14 @@ class Session {
   follow(): void {
     const { journal, projection } = this.conversation.state
     if (!journal?.runId || projection?.terminal || this.observing) return
-    this.observing = this.conversation
+    const run: Promise<void> = this.conversation
       .observe()
       .catch((error: unknown) => this.options.onError?.(this.threadId, error))
       .finally(() => {
-        this.observing = undefined
+        // A stream that closes late must not clear the one that replaced it.
+        if (this.observing === run) this.observing = undefined
       })
+    this.observing = run
   }
 
   detach(): void {

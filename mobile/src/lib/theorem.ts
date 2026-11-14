@@ -40,22 +40,4 @@ export async function mutate<T>(key: string, run: (headers: MutationHeaders) => 
   return run({ 'X-CSRF-Token': session.csrfToken, 'Idempotency-Key': key })
 }
 
-/** The HTTP status of a failed SDK request, when it got that far. */
-export function statusOf(error: unknown): number | undefined {
-  const status = (error as { statusCode?: unknown })?.statusCode
-  return typeof status === 'number' ? status : undefined
-}
-
-/** Readable failure text; raw diagnostics stay out of the interface. */
-export function describeError(error: unknown): string {
-  const status = statusOf(error)
-  const body = (error as { body?: { detail?: unknown; title?: unknown } })?.body
-  const detail =
-    typeof body?.detail === 'string' ? body.detail : typeof body?.title === 'string' ? body.title : undefined
-  if (detail) return detail
-  if (status === 401 || status === 403) return 'Theorem refused this request. Sign in again.'
-  if (status === 409 || status === 412) return 'The conversation changed on the server. It has been reloaded.'
-  if (status && status >= 500) return 'Theorem is unavailable right now. Try again shortly.'
-  if (error instanceof Error && error.message) return error.message
-  return 'Something went wrong.'
-}
+export { describeError, statusOf } from './errors'

@@ -71,6 +71,15 @@ export function failureKind(state: Pick<ConversationState, 'phase' | 'error'>): 
   return 'disconnected'
 }
 
+/**
+ * Whether to show Working and Stop. The SDK's thread view counts a send still waiting in the
+ * journal as running; once the conversation has failed, been signed out or detached, nothing is
+ * running that Stop could stop, and the notice (with Reconnect) says what is wrong instead.
+ */
+export function isWorking(state: Pick<ConversationState, 'phase'>, viewIsRunning: boolean): boolean {
+  return viewIsRunning && state.phase !== 'failed' && state.phase !== 'authentication-required' && state.phase !== 'detached'
+}
+
 /** The line shown for a conversation phase, or nothing when the phase needs no line. */
 export function connectionNotice(
   state: Pick<ConversationState, 'phase' | 'error'>,

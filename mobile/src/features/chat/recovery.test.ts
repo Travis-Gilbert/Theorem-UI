@@ -1,7 +1,7 @@
 // SOURCING: bun:test
 import { describe, expect, test } from 'bun:test'
 import { ConversationProtocolError, type ConversationState } from '@theoremharness/sdk'
-import { connectionNotice, failureKind } from './recovery'
+import { connectionNotice, failureKind, isWorking } from './recovery'
 
 const describe_ = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const http = (statusCode: number, message = `status ${statusCode}`) =>
@@ -84,5 +84,22 @@ describe('connectionNotice', () => {
   test('a running or ready conversation has no notice', () => {
     expect(connectionNotice(state('running'), describe_)).toBeUndefined()
     expect(connectionNotice(state('ready'), describe_)).toBeUndefined()
+  })
+})
+
+describe('isWorking', () => {
+  test('a send waiting in the journal after a failed start is not Working', () => {
+    // Seen live: the run could not start, the notice said so, and Working with Stop stayed up.
+    for (const phase of ['failed', 'authentication-required', 'detached'] as const)
+      expect(isWorking(state(phase), true)).toBe(false)
+  })
+
+  test('a run in progress, reconnecting or just sent is Working', () => {
+    for (const phase of ['running', 'reconnecting', 'ready', 'connecting'] as const)
+      expect(isWorking(state(phase), true)).toBe(true)
+  })
+
+  test('nothing is Working when the view says nothing runs', () => {
+    expect(isWorking(state('running'), false)).toBe(false)
   })
 })

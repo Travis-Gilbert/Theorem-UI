@@ -25,7 +25,7 @@ import { phoneTurnOptions } from '../phone-actions/calendar'
 import { ConversationBinding, type Lease } from './binding'
 import { Outbox } from './outbox'
 import type { QueuedMessage, QueueState } from './queue'
-import type { Recovery } from './recovery'
+import { isWorking, type Recovery } from './recovery'
 
 let shared: ConversationBinding | undefined
 
@@ -118,7 +118,7 @@ export function useConversation(threadId: string): ConversationView {
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     messages: view.messages,
     convertMessage: (message) => message,
-    isRunning: view.isRunning,
+    isRunning: isWorking(state, view.isRunning),
     isDisabled: !lease,
     // A run in progress does not disable Send: the message is queued and goes when the run ends.
     isSendDisabled: !ready,

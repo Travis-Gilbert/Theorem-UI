@@ -114,4 +114,66 @@ describe('ConversationBinding', () => {
     await lease.send('again')
     expect(calls).toEqual(['connect', 'send:cmd-1:hello', 'send:cmd-2:again'])
   })
+
+  describe('observation across reconnects', () => {
+    /**
+     * Like HeadlessConversation: connect() detaches first, detach aborts the observer, and
+     * observe() only returns once its stream has actually closed, a moment after the abort.
+     */
+    function streaming(calls: Call[], closeAfterMs = 5): Conversation {
+      const inner = fakeConversation(calls)
+      let generation = 0
+      let closing: Array<() => void> = []
+      return {
+        ...inner,
+        get state() {
+          return inner.state
+        },
+        async connect() {
+          this.detach()
+          await inner.connect()
+        },
+        async observe() {
+          calls.push('observe')
+          const mine = generation
+          await new Promise<void>((resolve) => {
+            const poll = () => (generation !== mine ? setTimeout(resolve, closeAfterMs) : closing.push(poll))
+            closing.push(poll)
+          })
+        },
+        detach() {
+          calls.push('detach')
+          generation += 1
+          const waiting = closing
+          closing = []
+          for (const poll of waiting) poll()
+        },
+      }
+    }
+
+    const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    test('Reconnect while a stream is open starts a new one once the old one has closed', async () => {
+      const calls: Call[] = []
+      const shared = new ConversationBinding({ create: () => streaming(calls), newId: () => 'cmd' })
+      shared.retain('th')
+      await pause(20)
+      shared.reconnect('th')
+      await pause(40)
+      expect(calls.filter((call) => call === 'observe')).toHaveLength(2)
+    })
+
+    test('an old stream closing late does not make the next send open a second one', async () => {
+      const calls: Call[] = []
+      const shared = new ConversationBinding({ create: () => streaming(calls, 30), newId: () => 'cmd' })
+      const lease = shared.retain('th')
+      await pause(20)
+      shared.suspend()
+      shared.resume()
+      await pause(50) // the new stream is open; the first one has finished closing
+      await lease.send('hello')
+      await pause(60)
+      expect(calls.filter((call) => call === 'observe')).toHaveLength(2)
+    })
+  })
 })
