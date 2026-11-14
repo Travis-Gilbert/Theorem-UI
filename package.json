@@ -38,6 +38,7 @@
     "oracle:navigation-export": "node scripts/design-oracles/review-navigation-export.mjs",
     "oracle:reflow": "node scripts/design-oracles/review-reflow.mjs",
     "oracle:runtime": "node scripts/design-oracles/review-runtime.mjs",
+    "oracle:expressive": "node scripts/design-oracles/review-expressive.mjs",
     "oracle:composition": "node scripts/design-oracles/review-composition.mjs",
     "oracle:code": "node scripts/design-oracles/review-code-contrast.mjs",
     "oracle:states": "node scripts/design-oracles/review-color-states.mjs",

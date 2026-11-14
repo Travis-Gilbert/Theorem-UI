@@ -1,3 +1,4 @@
+import { chooseOption } from './browser-controls.mjs'
 // Real browser, shell, editor, attachment adapter, Theorem runtime and SDK.
 // Only selected responses of the existing story transport are controlled.
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -396,9 +397,7 @@ try {
   const before = await assertDomIdentity()
   const dialog = page.getByRole('dialog', { name: 'Appearance settings' })
   await control('Appearance').click()
-  await dialog
-    .getByRole('combobox', { name: 'Composer material' })
-    .selectOption('glass')
+  await chooseOption(page, dialog, 'Composer material', 'Frosted glass')
   await dialog
     .getByRole('button', { name: 'Tools above editor', exact: true })
     .click()

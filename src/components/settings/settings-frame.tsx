@@ -79,10 +79,8 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-sheet shadow-sheet">
           <div
-            className={cn(
-              'mx-auto flex flex-col gap-8 px-6 py-8',
-              current?.wide ? 'max-w-[1080px]' : 'max-w-[680px]',
-            )}
+            className="mx-auto flex w-full flex-col gap-8 px-6 py-8"
+            style={{ maxWidth: current?.width ?? 680 }}
           >
             {children}
           </div>
@@ -187,13 +185,13 @@ export function SettingsRow({
   children?: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
+    <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
       {Mark && (
         <IconTile size="lg">
           <Mark className="size-4 text-ink-muted" />
         </IconTile>
       )}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 basis-56 flex-col">
         <span data-appearance-recipe="ui.label" className="wrap-break-word">
           {title}
         </span>

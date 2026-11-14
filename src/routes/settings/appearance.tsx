@@ -5,6 +5,19 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/coss/select'
+import {
+  NumberField,
+  NumberFieldGroup,
+  NumberFieldInput,
+} from '@/components/coss/number-field'
+import { Textarea } from '@/components/coss/textarea'
+import {
   SegmentedControl,
   SegmentedControlItem,
 } from '@/components/coss/segmented-control'
@@ -135,27 +148,45 @@ export function AppearanceSettings() {
             title="Colors"
             description="The palette for both display modes."
           >
-            <select
-              aria-label="Colors"
-              className="appearance-select"
+            <Select
+              items={[
+                ...PALETTES,
+                ...(appearance.customPalette
+                  ? [{ value: 'custom', label: appearance.customPalette.name }]
+                  : []),
+              ]}
               value={appearance.palette}
-              onChange={(event) => {
-                const value = event.currentTarget.value
+              onValueChange={(value) => {
                 const palette = PALETTES.find((item) => item.value === value)
                 if (palette) setOverrides({ palette: palette.value })
                 else if (value === 'custom' && appearance.customPalette)
                   setOverrides({ palette: 'custom' })
               }}
             >
-              {PALETTES.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-              {appearance.customPalette && (
-                <option value="custom">{appearance.customPalette.name}</option>
-              )}
-            </select>
+              <SelectTrigger
+                aria-label="Colors"
+                data-appearance-recipe="ui.label"
+                className="w-48 max-w-full min-h-[max(2.25rem,var(--appearance-control-min))]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {PALETTES.map(({ value, label }) => (
+                  <SelectItem
+                    key={value}
+                    value={value}
+                    data-appearance-recipe="ui.label"
+                  >
+                    {label}
+                  </SelectItem>
+                ))}
+                {appearance.customPalette && (
+                  <SelectItem value="custom" data-appearance-recipe="ui.label">
+                    {appearance.customPalette.name}
+                  </SelectItem>
+                )}
+              </SelectPopup>
+            </Select>
           </SettingsRow>
           <SettingsRow
             title="Content size"
@@ -168,21 +199,32 @@ export function AppearanceSettings() {
             />
           </SettingsRow>
           <SettingsRow title="Density" description="Spacing and control sizes.">
-            <select
-              aria-label="Density"
-              className="appearance-select"
+            <Select
+              items={DENSITY_OPTIONS}
               value={appearance.density}
-              onChange={(event) =>
-                setOverrides({
-                  density: event.currentTarget
-                    .value as AppearanceOverrides['density'],
-                })
-              }
+              onValueChange={(density) => {
+                if (density) setOverrides({ density })
+              }}
             >
-              <option value="compact">Compact</option>
-              <option value="comfortable">Comfortable</option>
-              <option value="touch">Touch</option>
-            </select>
+              <SelectTrigger
+                aria-label="Density"
+                data-appearance-recipe="ui.label"
+                className="w-48 max-w-full min-h-[max(2.25rem,var(--appearance-control-min))]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {DENSITY_OPTIONS.map(({ value, label }) => (
+                  <SelectItem
+                    key={value}
+                    value={value}
+                    data-appearance-recipe="ui.label"
+                  >
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
           </SettingsRow>
           <SettingsRow
             title="Reading width"
@@ -223,32 +265,45 @@ export function AppearanceSettings() {
       </SettingsSection>
       <SettingsSection
         title="Materials"
-        description="Choose how each surface is painted."
+        description="Replies share the background. Choose materials for the background and other surfaces."
       >
         <SettingsBox>
-          {SURFACE_ROLES.map((role) => (
-            <SettingsRow key={role} title={SURFACE_LABELS[role]}>
-              <select
-                aria-label={`${SURFACE_LABELS[role]} material`}
-                className="appearance-select"
-                value={appearance.materials[role]}
-                onChange={(event) => {
-                  const value = event.currentTarget.value
-                  const material = COMPOSER_SURFACES.find(
-                    (item) => item.value === value,
-                  )
-                  if (material)
-                    setOverrides({ materials: { [role]: material.value } })
-                }}
-              >
-                {COMPOSER_SURFACES.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </SettingsRow>
-          ))}
+          {SURFACE_ROLES.filter((role) => role !== 'assistant-reading').map(
+            (role) => (
+              <SettingsRow key={role} title={SURFACE_LABELS[role]}>
+                <Select
+                  items={COMPOSER_SURFACES}
+                  value={appearance.materials[role]}
+                  onValueChange={(value) => {
+                    const material = COMPOSER_SURFACES.find(
+                      (item) => item.value === value,
+                    )
+                    if (material)
+                      setOverrides({ materials: { [role]: material.value } })
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label={`${SURFACE_LABELS[role]} material`}
+                    data-appearance-recipe="ui.label"
+                    className="w-48 max-w-full min-h-[max(2.25rem,var(--appearance-control-min))]"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {COMPOSER_SURFACES.map(({ value, label }) => (
+                      <SelectItem
+                        key={value}
+                        value={value}
+                        data-appearance-recipe="ui.label"
+                      >
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </SettingsRow>
+            ),
+          )}
         </SettingsBox>
       </SettingsSection>
       <SettingsSection title="Advanced">
@@ -365,15 +420,20 @@ export function AppearanceSettings() {
 }
 
 const SURFACE_LABELS = {
-  canvas: 'Canvas',
+  canvas: 'Background',
   navigation: 'Navigation',
   composer: 'Composer',
   'user-message': 'Sent messages',
-  'assistant-reading': 'Replies',
   popover: 'Menus and tooltips',
   artifact: 'Artifacts',
   status: 'Status feedback',
 } as const
+
+const DENSITY_OPTIONS = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'touch', label: 'Touch' },
+] as const
 
 function ScaleControl({
   label,
@@ -385,26 +445,26 @@ function ScaleControl({
   onChange: (value: number) => void
 }) {
   return (
-    <input
-      className="appearance-select w-24"
-      type="number"
-      aria-label={label}
+    <NumberField
+      className="w-28"
       min={75}
       max={200}
       step={5}
-      key={value}
-      defaultValue={Math.round(value * 100)}
-      onBlur={(event) => {
-        const input = event.currentTarget
-        const next = input.valueAsNumber / 100
-        if (Number.isFinite(next) && next >= 0.75 && next <= 2) onChange(next)
-        else input.value = String(Math.round(value * 100))
+      value={Math.round(value * 100)}
+      format={{ maximumFractionDigits: 0 }}
+      onValueCommitted={(next) => {
+        if (next !== null) onChange(next / 100)
       }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-      }}
-      aria-description="Percentage of browser text size"
-    />
+    >
+      <NumberFieldGroup>
+        <NumberFieldInput
+          aria-label={label}
+          aria-description="Percentage of browser text size"
+          data-appearance-recipe="ui.label"
+          className="h-auto min-h-(--appearance-control-min) py-1 sm:h-auto"
+        />
+      </NumberFieldGroup>
+    </NumberField>
   )
 }
 
@@ -488,8 +548,8 @@ function AppearanceImport({
           a profile. Copy current settings exports the active appearance without
           changing your JSON draft.
         </p>
-        <textarea
-          className="min-h-32 w-full min-w-0 rounded-lg border border-control p-2"
+        <Textarea
+          className="w-full min-w-0 [&_textarea]:min-h-32"
           data-appearance-recipe="code"
           aria-label="Custom appearance JSON"
           value={text ?? documentText}

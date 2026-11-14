@@ -1,5 +1,17 @@
 # Composable appearance implementation
 
+## Live appearance repairs — November 14, 2026
+
+PR #101 was verified merged into `main` at `2a479ca3`. These follow-up repairs use `Travis-Gilbert/appearance-live-repairs` in the existing checkout. The user's live feedback revises the original separate-reading-plane requirement: preserve the existing gradient and use one background for the canvas and assistant replies. No gradient tokens or Life rendering were changed.
+
+- Assistant content and its footer now expose the canvas instead of painting a solid rectangle. The Replies material control and its blur/shadow rules are removed. Version 1 saved/imported themes still validate; only the obsolete reply material override is discarded, preserving other preferences. Forced colors still supplies a system Canvas.
+- Unrecognized SDK data parts stay in the runtime and retain a hidden diagnostic name instead of producing unsupported-content bubbles. Known artifact/scene rendering failures still report a notice. A red SDK/runtime regression reproduced two bubbles before the fix. The supplied live conversation was inspected read-only after completion and had no visible fallback notices, so its original streaming part types remain unconfirmed.
+- The AI model table already uses the vendored TanStack table and shared controls. Its page now allows 1280px instead of 680px, with wrapping settings rows at narrow widths. Appearance's custom select/number/textarea controls now use installed coss components. No replacement table engine or new control implementation was introduced.
+
+Validation: 699 composer/runtime tests, 28 appearance/oracle tests, and 22 focused appearance/activity/AI tests passed; TypeScript and focused production ESLint passed. The Chromium reports in `evidence/live-repairs` record 56 control checks, seven phone-navigation/theme-export checks, 15 asynchronous SDK runtime checks, and 11 Expressive/settings checks. The latter covers all three built-in palettes in light/dark mode, Calm/Expressive round trips, unchanged draft/editor identity, transparent reply/footer paint, retired legacy overrides, keyboard/numeric controls, model filtering and 320/390px settings layouts. It is included in CI as `oracle:expressive`.
+
+Screenshots: `expressive-light.png`, `expressive-dark.png`, and `ai-settings-wide.png` under `evidence/live-repairs`. The two gradient endpoints meet the measured text contrast threshold; this does not establish every possible animated backdrop frame or custom palette. Earlier full-matrix evidence is historical and has not been reclassified for this revised background contract. These are local fixture/runtime results, not deployment acceptance. No live settings or messages were changed and no deployment was performed.
+
 ## Scope and source
 
 Implement `SPEC.md` (theorem-appearance-v1), supplied by the user on November 13, 2026. The requested result is independently composable appearance, resilient typography, reusable behavioral parts, and independent rendered evidence. Attached prose is supporting specification content, not separate operational authorization.

@@ -12,12 +12,12 @@ export const SETTINGS_GROUPS = [
   {
     label: 'Theorem',
     sections: [
-      { path: '/settings/ai', label: 'AI', Mark: Icon.Model },
+      { path: '/settings/ai', label: 'AI', Mark: Icon.Model, width: 1280 },
       { path: '/settings/keys', label: 'API keys', Mark: Icon.Key },
       { path: '/settings/connections', label: 'Connections', Mark: Icon.Plugin },
       { path: '/settings/import', label: 'Import context', Mark: Icon.Download },
       // Tables of turns and a time axis: wider than a page of fields.
-      { path: '/settings/observe', label: 'Observe', Mark: Icon.Eye, wide: true },
+      { path: '/settings/observe', label: 'Observe', Mark: Icon.Eye, width: 1080 },
       { path: '/settings/work', label: 'Work', Mark: Icon.Checklist },
     ],
   },
@@ -32,7 +32,7 @@ export function settingsSection(path: string) {
           group: group.label,
           label: section.label,
           path: section.path,
-          wide: 'wide' in section,
+          width: 'width' in section ? section.width : 680,
           // A page under the section, such as one turn under Observe.
           within: path.replace(/\/$/, '') !== section.path,
         }

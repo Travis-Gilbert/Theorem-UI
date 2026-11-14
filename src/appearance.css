@@ -148,6 +148,14 @@
   color: var(--appearance-ink);
 }
 
+/* The transcript shares the canvas paint. A separate solid reading rectangle
+   hides Expressive's sheet gradient; Calm already supplies a flat canvas.
+   Composer, navigation and floating surfaces keep their own reading planes. */
+.appearance-reading-plane[data-surface-role='assistant-reading'],
+[data-slot='aui_assistant-message-footer'].appearance-reading-plane {
+  background: transparent;
+}
+
 .appearance-surface.surface-paper {
   background-color: var(--appearance-surface-fill);
 }
@@ -516,6 +524,8 @@
 @media (forced-colors: active) {
   .appearance-surface,
   .appearance-reading-plane,
+  .appearance-reading-plane[data-surface-role='assistant-reading'],
+  [data-slot='aui_assistant-message-footer'].appearance-reading-plane,
   [data-appearance-part='popover'] {
     background: Canvas;
     color: CanvasText;
@@ -537,18 +547,6 @@
   }
 }
 
-.appearance-select {
-  font: var(--recipe-ui-label);
-  letter-spacing: 0.01em;
-  max-inline-size: 100%;
-  min-block-size: var(--appearance-control-min);
-  border: 1px solid var(--line-control);
-  border-radius: var(--appearance-radius-field);
-  background: var(--surface-raised);
-  color: var(--ink);
-  padding-inline: 0.5rem;
-}
-.appearance-select:focus-visible,
 .appearance-import :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -631,18 +629,6 @@
 }
 :root[data-material-canvas='liquid'] .bg-sheet {
   box-shadow: var(--liquid-elevation);
-}
-:root[data-material-assistant-reading='paper'] .appearance-assistant-prose {
-  box-shadow: inset 0 -1px var(--line-separator);
-}
-:root[data-material-assistant-reading='glass'] .appearance-assistant-prose {
-  box-shadow: inset 0 -1px var(--glass-shade);
-  backdrop-filter: blur(var(--glass-blur));
-}
-:root[data-material-assistant-reading='liquid'] .appearance-assistant-prose {
-  box-shadow:
-    inset 0 -1px var(--glass-rim),
-    var(--liquid-elevation);
 }
 
 .appearance-composer-tools :is(button, [role='button']) {

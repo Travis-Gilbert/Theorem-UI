@@ -701,7 +701,6 @@ export const AssistantMessageContent: FC<{ speaker?: string }> = ({
 }) => {
   const { TaskGroup, MessageMetadata = Activity } = useContext(ThreadComponentsContext)
   const messageId = useAuiState((state) => state.message.id)
-  const material = useSurfaceMaterial('assistant-reading')
   const groupBy = TaskGroup ? taskAwareGroupBy : messageGroupBy
   const parts = useAuiState((s) => s.message.parts)
   const toolUIs = useAuiState((s) => s.tools.toolUIs)
@@ -713,7 +712,6 @@ export const AssistantMessageContent: FC<{ speaker?: string }> = ({
   return (
     <div
       data-surface-role="assistant-reading"
-      data-surface-material={material}
       className="appearance-reading-plane"
     >
       <MessageMetadata

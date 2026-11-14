@@ -28,7 +28,7 @@ export function DetailControl({
   onChange: (next: ResponseDetail | undefined) => void
 }) {
   return (
-    <SegmentedControl aria-label="Response detail" size="sm">
+    <SegmentedControl aria-label="Response detail" size="sm" className="max-w-full flex-wrap">
       {DETAIL_OPTIONS.map((option) => (
         <SegmentedControlItem
           key={option.label}

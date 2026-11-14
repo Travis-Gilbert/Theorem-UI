@@ -95,7 +95,14 @@ const appearanceOptionsSchema = z
     scales: z
       .strictObject({ content: scale, ui: scale, code: scale })
       .partial(),
-    materials: z.partialRecord(z.enum(SURFACE_ROLES), material),
+    // Accept v1 reply overrides without resetting the rest of a saved theme.
+    // Replies now share the canvas, so this obsolete override is not exported.
+    materials: z
+      .partialRecord(z.enum(SURFACE_ROLES), material)
+      .transform((materials) => {
+        delete materials['assistant-reading']
+        return materials
+      }),
   })
   .partial()
 
@@ -172,7 +179,11 @@ export function resolveAppearance({ preset, overrides }: AppearanceSelection) {
     layout: overrides.layout ?? 'conversation',
     motion: overrides.motion ?? 'system',
     scales: { content: 1, ui: 1, code: 1, ...overrides.scales },
-    materials: { ...defaults.materials, ...overrides.materials },
+    materials: {
+      ...defaults.materials,
+      ...overrides.materials,
+      'assistant-reading': 'flat' as const,
+    },
     life: defaults.life,
   }
 }

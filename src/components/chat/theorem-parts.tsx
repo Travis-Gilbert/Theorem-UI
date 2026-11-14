@@ -1064,8 +1064,11 @@ const PartNotice: FC<{ name: string }> = ({ name }) => (
   </p>
 )
 
+// New runtime metadata is not a failed piece of user content. Keep its name
+// inspectable without adding a bubble to every streaming reply. Known content
+// renderers still use PartNotice for malformed payloads and render failures.
 const FallbackPart: DataMessagePartComponent = ({ name }) => (
-  <PartNotice name={name} />
+  <span hidden data-part={name} />
 )
 
 /** Keeps a part that throws inside its own slot instead of unmounting the chat. */
