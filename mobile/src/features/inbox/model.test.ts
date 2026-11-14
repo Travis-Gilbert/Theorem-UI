@@ -1,7 +1,7 @@
 // SOURCING: bun:test
 import { describe, expect, test } from 'bun:test'
 import type { Theorem } from '@theoremharness/sdk'
-import { ageOf, rowOf, sectionsOf } from './model'
+import { rowOf, sectionsOf, shortAge, snoozeUntil } from './model'
 
 const item = (over: Partial<Theorem.ChatAttentionItem> & Pick<Theorem.ChatAttentionItem, 'kind'>) =>
   ({
@@ -24,13 +24,20 @@ describe('inbox rows', () => {
       item({
         kind: 'approval',
         detail: 'Allow write_file to run?',
-        source: { kind: 'thread', threadId: 'thread-1', projectId: 'project-1', runId: 'run-1', approvalId: 'a-1' },
+        source: {
+          kind: 'thread',
+          threadId: 'thread-1',
+          projectId: 'project-1',
+          runId: 'run-1',
+          approvalId: 'a-1',
+        },
         resolution: { via: 'approval', runId: 'run-1', approvalId: 'a-1' },
       }),
     )!
     expect(row.section).toBe('needs_you')
     expect(row.title).toBe('Allow write_file to run?')
-    expect(row.detail).toBe('Compare the two drafts')
+    expect(row.line).toBe('Theo asked for your approval · Compare the two drafts')
+    expect(row.glyph).toBe('hand.raised.fill')
     expect(row.status).toEqual({ tone: 'attention', label: 'Needs your decision' })
     expect(row.destination).toEqual({ pathname: '/chat/[threadId]', params: { threadId: 'thread-1' } })
     // A decision is made on the approval card in the conversation, never from the list.
@@ -42,6 +49,9 @@ describe('inbox rows', () => {
     expect(row.section).toBe('needs_you')
     expect(row.title).toBe('Choose which version to keep')
     expect(row.status.label).toBe('Needs your answer')
+    expect(row.line).toBe('Theo asked a question · Compare the two drafts')
+    // Theorem's Later never holds back a question, so there is nothing to snooze.
+    expect(row.snoozeThreadId).toBeUndefined()
   })
 
   test('an update names how the run ended and clears when its conversation is opened', () => {
@@ -57,17 +67,18 @@ describe('inbox rows', () => {
       expect(row.status).toEqual({ tone, label })
       expect(row.title).toBe('Compare the two drafts')
       expect(row.seenThreadId).toBe('thread-1')
+      expect(row.snoozeThreadId).toBe('thread-1')
     }
   })
 
-  test('an update carries the server reason, else the thread summary, never a sentence of its own', () => {
-    expect(rowOf(item({ kind: 'interrupted', detail: 'The run was interrupted.', summary: 's' }))!.detail).toBe(
-      'The run was interrupted.',
+  test('an update line carries the server reason, else the thread summary, never a sentence of its own', () => {
+    expect(rowOf(item({ kind: 'interrupted', detail: 'The run was interrupted.', summary: 's' }))!.line).toBe(
+      'Theo was interrupted · The run was interrupted.',
     )
-    expect(rowOf(item({ kind: 'completed', summary: 'The comparison is ready' }))!.detail).toBe(
-      'The comparison is ready',
+    expect(rowOf(item({ kind: 'completed', summary: 'The comparison is ready' }))!.line).toBe(
+      'Theo finished · The comparison is ready',
     )
-    expect(rowOf(item({ kind: 'completed' }))!.detail).toBeUndefined()
+    expect(rowOf(item({ kind: 'completed' }))!.line).toBe('Theo finished')
   })
 
   test('an empty thread title reads as a new conversation', () => {
@@ -101,13 +112,27 @@ describe('inbox sections', () => {
   })
 })
 
-describe('ageOf', () => {
+describe('shortAge', () => {
   const now = Date.UTC(2026, 10, 12, 12, 0, 0)
-  test('reads minutes, hours and days', () => {
-    expect(ageOf(now - 20_000, now)).toBe('Just now')
-    expect(ageOf(now - 5 * 60_000, now)).toBe('5 min ago')
-    expect(ageOf(now - 3 * 3_600_000, now)).toBe('3 h ago')
-    expect(ageOf(now - 30 * 3_600_000, now)).toBe('Yesterday')
-    expect(ageOf(now - 4 * 86_400_000, now)).toBe('4 days ago')
+  test('reads now, minutes, hours and days in one short token', () => {
+    expect(shortAge(now - 20_000, now)).toBe('now')
+    expect(shortAge(now - 5 * 60_000, now)).toBe('5m')
+    expect(shortAge(now - 3 * 3_600_000, now)).toBe('3h')
+    expect(shortAge(now - 30 * 3_600_000, now)).toBe('1d')
+    expect(shortAge(now - 4 * 86_400_000, now)).toBe('4d')
+  })
+})
+
+describe('snoozeUntil', () => {
+  const afternoon = new Date(2026, 10, 14, 15, 30)
+  test('an hour is an hour from now', () => {
+    expect(snoozeUntil('hour', afternoon)).toBe(afternoon.getTime() + 3_600_000)
+  })
+  test('tomorrow is 8:00 the next morning, even from late at night or after midnight', () => {
+    for (const now of [afternoon, new Date(2026, 10, 14, 23, 59), new Date(2026, 10, 15, 0, 5)]) {
+      const at = new Date(snoozeUntil('tomorrow', now))
+      expect([at.getHours(), at.getMinutes()]).toEqual([8, 0])
+      expect(at.getDate()).toBe(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getDate())
+    }
   })
 })
