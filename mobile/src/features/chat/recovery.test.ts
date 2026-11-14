@@ -38,6 +38,11 @@ describe('failureKind', () => {
     )
   })
 
+  test("a TypeError from the app's own code is not blamed on the server", () => {
+    // Seen live: the journal could not write a bigint, and the notice said the server needed updating.
+    expect(failureKind(state('failed', new TypeError('Do not know how to serialize a BigInt')))).toBe('disconnected')
+  })
+
   test('phases that are not connection problems have no failure kind', () => {
     for (const phase of ['ready', 'running', 'completed', 'cancelled', 'connecting'] as const)
       expect(failureKind(state(phase))).toBeUndefined()

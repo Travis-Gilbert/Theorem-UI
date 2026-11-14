@@ -41,9 +41,15 @@ const protocolError = (error: unknown) =>
   error instanceof ConversationProtocolError ||
   (error instanceof Error && PROTOCOL_MESSAGE.test(error.message))
 
-/** A reply the app could not read because a field it needs was not there. */
+/**
+ * A reply the app could not read because a field it needs was not there. A
+ * TypeError counts only when it is a read of something missing; any other
+ * TypeError (a value this app cannot serialize, say) is the app's own fault and
+ * must not tell the person to update the server.
+ */
+const MISSING_READ = /\b(undefined|null) is not an object\b|cannot read propert|is (undefined|null)\b/i
 const unreadableReply = (error: unknown) =>
-  error instanceof TypeError ||
+  (error instanceof TypeError && MISSING_READ.test(error.message)) ||
   (error instanceof Error &&
     /\b(missing|required|undefined|unexpected|schema|invalid)\b.*\b(field|property|token|response|reply|bootstrap)\b|\bbootstrap\b.*\b(missing|required)\b/i.test(
       error.message,
