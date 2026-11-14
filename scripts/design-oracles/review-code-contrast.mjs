@@ -2,16 +2,14 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { blend, wcagContrast } from 'culori'
-import { chromium, firefox, webkit } from 'playwright-core'
+import { launchReviewBrowser, reviewOutput } from './review-browser.mjs'
 
 const origin = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
 const engine = process.env.ORACLE_ENGINE ?? 'chromium'
-const driver = { chromium, firefox, webkit }[engine]
-if (!driver) throw new Error(`Unknown browser: ${engine}`)
 const out =
   process.env.ORACLE_CODE_OUT ??
-  `docs/plans/composable-appearance/evidence/review/${engine}-code-contrast.json`
-const browser = await driver.launch()
+  `${reviewOutput}/${engine}-code-contrast.json`
+const browser = await launchReviewBrowser(engine)
 const results = []
 const minimum = 4.5
 

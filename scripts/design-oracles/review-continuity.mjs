@@ -1,14 +1,14 @@
 // Observe the real Milkdown DOM, browser composition events, settings form and
 // persisted document. Store actions are the existing commands, not a test runtime.
-import { chromium, firefox, webkit } from 'playwright-core'
+import { launchReviewBrowser, reviewOutput } from './review-browser.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 
 const engine = process.env.ORACLE_BROWSER ?? 'chromium'
 const base = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
-const output = resolve('docs/plans/composable-appearance/evidence/review')
-const browser = await { chromium, firefox, webkit }[engine].launch()
+const output = reviewOutput
+const browser = await launchReviewBrowser(engine)
 const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
   reducedMotion: 'reduce',

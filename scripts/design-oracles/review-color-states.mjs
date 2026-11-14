@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { blend, converter, parse, wcagContrast } from 'culori'
-import { chromium, firefox, webkit } from 'playwright-core'
+import { launchReviewBrowser, reviewOutput } from './review-browser.mjs'
 import {
   engines,
   modes,
@@ -9,11 +9,10 @@ import {
   validateColorStateEvidence,
 } from './color-states.mjs'
 
-const drivers = { chromium, firefox, webkit }
 const origin = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
 const out =
   process.env.ORACLE_COLOR_STATES_OUT ??
-  'docs/plans/composable-appearance/evidence/review/color-states.json'
+  `${reviewOutput}/color-states.json`
 const viewport = { width: 1440, height: 900 }
 const cases = []
 const rgb = converter('rgb')
@@ -220,7 +219,7 @@ async function buttonStates(page, button, prefix, icon, includeFocus) {
 for (const engine of engines.filter(
   (name) => !process.env.ORACLE_ENGINE || name === process.env.ORACLE_ENGINE,
 )) {
-  const browser = await drivers[engine].launch()
+  const browser = await launchReviewBrowser(engine)
   try {
     for (const mode of modes) {
       const context = await browser.newContext({

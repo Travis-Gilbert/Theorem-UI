@@ -115,3 +115,12 @@ test('tenant memory admission failure explains the data budget and retains its r
   expect(message).toBe('The chat store reached its configured memory budget. The server operator must restore capacity before this request can succeed. Reference: chatreq-capacity')
   expect(message).not.toMatch(/model|upstream|disk|message was (?:not )?saved/)
 })
+
+test('Files failures name their own service and payload', () => {
+  expect(describeError(new TheoremError({ statusCode: 503 }), 'Files')).toBe(
+    'The Files service is unavailable. Try again shortly.',
+  )
+  expect(describeError(new TheoremError({ statusCode: 413 }), 'Files')).toBe(
+    'The file is too large.',
+  )
+})

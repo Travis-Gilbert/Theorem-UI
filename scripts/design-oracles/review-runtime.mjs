@@ -2,17 +2,17 @@
 // Only selected responses of the existing story transport are controlled.
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { chromium } from 'playwright-core'
+import { launchReviewBrowser, reviewOutput } from './review-browser.mjs'
 
 const origin = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
 const out =
   process.env.ORACLE_RUNTIME_OUT ??
-  'docs/plans/composable-appearance/evidence/review/runtime.json'
+  `${reviewOutput}/runtime.json`
 const codeFamily =
   process.env.ORACLE_RUNTIME_CODE_FAMILY ??
   (process.platform === 'darwin' ? 'Menlo' : 'JetBrains Mono Variable')
 await mkdir(dirname(out), { recursive: true })
-const browser = await chromium.launch()
+const browser = await launchReviewBrowser()
 const page = await browser.newPage({
   viewport: { width: 1440, height: 900 },
   reducedMotion: 'reduce',

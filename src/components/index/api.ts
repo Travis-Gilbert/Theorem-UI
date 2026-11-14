@@ -2,6 +2,7 @@
 import { TheoremError } from '@theoremharness/sdk'
 import { mutate, theorem } from '@/lib/theorem/client'
 import type { MutationHeaders } from '@/lib/theorem/client'
+import { readTheoremJson } from '@/lib/theorem/passthrough'
 import { DOCUMENT_SCHEMA, scopeParams } from './contract'
 import type {
   Binding,
@@ -26,22 +27,6 @@ import type {
 const WORKSPACE = '/api/index/v1'
 const DOCUMENTS = '/api/documents/v2'
 
-/**
- * Errors keep the SDK's shape, so describeError and isSignedOut read the
- * problem body the same way for these routes as for the SDK's own.
- */
-export async function read<T>(response: Response): Promise<T> {
-  const text = await response.text()
-  const body = text ? (JSON.parse(text) as unknown) : undefined
-  if (!response.ok)
-    throw new TheoremError({
-      message: `${response.status} ${response.statusText}`,
-      statusCode: response.status,
-      body,
-    })
-  return body as T
-}
-
 function url(path: string, params?: Record<string, string | undefined>) {
   const target = new URL(path, window.location.origin)
   for (const [key, value] of Object.entries(params ?? {}))
@@ -53,7 +38,9 @@ export async function get<T>(
   path: string,
   params?: Record<string, string | undefined>,
 ): Promise<T> {
-  return read<T>(await fetch(url(path, params), { credentials: 'same-origin' }))
+  return readTheoremJson<T>(
+    await fetch(url(path, params), { credentials: 'same-origin' }),
+  )
 }
 
 /** A write with CSRF and an idempotency key; the filing routes also want the key in the body. */
@@ -65,7 +52,7 @@ async function send<T>(
   keepalive = false,
 ): Promise<T> {
   return mutate(async (headers) =>
-    read<T>(
+    readTheoremJson<T>(
       await fetch(url(path), {
         method,
         credentials: 'same-origin',

@@ -35,6 +35,33 @@ describe('recoveringSend', () => {
         expect(steps.reopen).toHaveBeenCalledTimes(1);
     });
 
+    test('reopens after the store rejects an expired CSRF token and reuses the request key', async () => {
+        const steps = recovery();
+        const headers = { 'Idempotency-Key': 'same-operation' };
+        const seenKeys: Array<string | null> = [];
+        const send: Send = async (_input, init) => {
+            seenKeys.push(new Headers(init?.headers).get('Idempotency-Key'));
+            return steps.reopen.mock.calls.length === 0
+                ? refusal(403, { code: 'csrf_token_refused' })
+                : Response.json({ ok: true });
+        };
+        const response = await recoveringSend(send, steps)('/operations/workspace.files.stat', { method: 'POST', headers });
+        expect(response.status).toBe(200);
+        expect(steps.reopen).toHaveBeenCalledTimes(1);
+        expect(seenKeys).toEqual(['same-operation', 'same-operation']);
+    });
+
+    test('keeps a repeated CSRF refusal and an unrelated access refusal', async () => {
+        const steps = recovery();
+        const stale = () => refusal(403, { code: 'csrf_token_refused' });
+        const send = answering(stale(), stale(), refusal(403, { code: 'environment_execution_not_granted' }));
+        const recover = recoveringSend(send, steps);
+        expect((await recover('/operation')).status).toBe(403);
+        expect((await recover('/operation')).status).toBe(403);
+        expect(send.calls).toBe(3);
+        expect(steps.reopen).toHaveBeenCalledTimes(1);
+    });
+
     test('seats a document whose authority is behind, and repeats the edit', async () => {
         const send = answering(behind());
         const steps = recovery();

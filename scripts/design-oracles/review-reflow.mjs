@@ -1,13 +1,14 @@
 // chrome.tabs.setZoom drives actual browser page zoom, including CSS viewport
 // and DPR changes. A pinch-scale emulation would not establish this requirement.
 import { chromium } from 'playwright-core'
+import { reviewOutput } from './review-browser.mjs'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { contrastRatio } from './colors.mjs'
 
 const base = process.env.ORACLE_BASE ?? 'http://127.0.0.1:3117'
-const output = resolve('docs/plans/composable-appearance/evidence/review')
+const output = reviewOutput
 const extension = await mkdtemp(join(tmpdir(), 'theorem-appearance-zoom-'))
 await writeFile(
   join(extension, 'manifest.json'),
@@ -25,7 +26,7 @@ await writeFile(
 )
 const context = await chromium.launchPersistentContext('', {
   headless: true,
-  executablePath: chromium.executablePath(),
+  channel: 'chromium',
   args: [
     `--disable-extensions-except=${extension}`,
     `--load-extension=${extension}`,

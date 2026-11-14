@@ -105,14 +105,15 @@ jobs:
           bun test src/components/shell/responsive-dock.test.ts
       - name: Check appearance changes through the real controls
         if: ${{ !cancelled() && steps.browser.outcome == 'success' }}
+        env:
+          ORACLE_REVIEW_OUT: ${{ runner.temp }}/appearance-review
         run: |
-          bun --bun vite dev --host 127.0.0.1 --port 3117 > /tmp/appearance-vite.log 2>&1 &
+          mkdir -p "$ORACLE_REVIEW_OUT"
+          node node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port 3117 --strictPort > "$ORACLE_REVIEW_OUT/vite.log" 2>&1 &
           appearance_server=$!
-          trap 'kill "$appearance_server"' EXIT
-          for attempt in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:3117/story/shell-compare > /dev/null; then break; fi
-            sleep 1
-          done
+          trap 'kill "$appearance_server" 2>/dev/null || true' EXIT
+          curl --retry 60 --retry-all-errors --retry-delay 1 --retry-max-time 90 \
+            --max-time 20 -fsS http://127.0.0.1:3117/@vite/client > /dev/null
           bun run oracle:interactions
           bun run oracle:continuity
           bun run oracle:navigation-export
@@ -122,3 +123,10 @@ jobs:
           bun run oracle:code
           ORACLE_ENGINE=chromium bun run oracle:states
           bun run oracle:touch
+      - name: Upload appearance review evidence on failure
+        if: ${{ failure() && steps.browser.outcome == 'success' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: appearance-review
+          path: ${{ runner.temp }}/appearance-review
+          if-no-files-found: ignore

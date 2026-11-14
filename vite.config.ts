@@ -109,6 +109,14 @@ const config = defineConfig({
     // served beside the app so it shares this origin, its proxy and its session.
     nitro({
       preset: cloudflare ? 'cloudflare_module' : 'bun',
+      minify: cloudflare,
+      // Keep dependencies of the lazy Neon Auth routes out of eagerly loaded
+      // library chunks. The browser adapter generates a UUID on module load.
+      ...(cloudflare && {
+        rolldownConfig: {
+          output: { codeSplitting: { includeDependenciesRecursively: false } },
+        },
+      }),
       cloudflare: {
         deployConfig: true,
         nodeCompat: true,
@@ -125,6 +133,14 @@ const config = defineConfig({
           previews: { vars: theoremVars },
         },
       },
+      ...(cloudflare && {
+        routes: {
+          '/api/files/v1/**': { handler: './src/server/files-proxy.ts' },
+          '/api/project-files/v1/**': {
+            handler: './src/server/files-proxy.ts',
+          },
+        },
+      }),
       publicAssets: [
         // The page a webview (the markdown preview) runs in, which Theia's
         // build puts beside the frontend for a backend to serve at /webview.

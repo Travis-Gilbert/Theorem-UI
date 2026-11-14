@@ -41,6 +41,9 @@ const AUTH_CHOICES: { value: McpAuthType; label: string }[] = [
   { value: 'oauth', label: 'Sign in' },
 ]
 
+// GitHub's hosted server accepts a PAT as a bearer credential for MCP clients.
+const GITHUB_MCP_URL = 'https://api.githubcopilot.com/mcp/'
+
 /** Adds a server, or with `server` edits its name and how it signs in. */
 export function ServerDialog({
   open,
@@ -128,6 +131,25 @@ function ServerEditor({
         disabled={pending}
         className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0"
       >
+        {!server && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={() => {
+              setDraft({
+                ...emptyDraft,
+                label: 'GitHub MCP',
+                url: GITHUB_MCP_URL,
+                auth: 'bearer',
+              })
+              setErrors({})
+            }}
+          >
+            Use GitHub MCP
+          </Button>
+        )}
         <Field invalid={Boolean(errors.label)}>
           <FieldLabel>Name</FieldLabel>
           <Input
@@ -187,7 +209,12 @@ function ServerEditor({
                   spellCheck={false}
                   placeholder="https://mcp.example.com/mcp"
                   value={draft.url}
-                  onChange={(event) => change({ url: event.target.value })}
+                  onChange={(event) =>
+                    change({
+                      url: event.target.value,
+                      ...(draft.url === GITHUB_MCP_URL && { token: '' }),
+                    })
+                  }
                   className="font-mono"
                 />
                 <FieldError match={Boolean(errors.url)}>{errors.url}</FieldError>
@@ -256,8 +283,9 @@ function ServerEditor({
               className="font-mono"
             />
             <FieldDescription>
-              It goes to your Theorem, which sends it only to this server. It is
-              never shown again.
+              {draft.transport === 'http' && draft.url === GITHUB_MCP_URL
+                ? 'Enter a GitHub personal access token with access to the repositories you want to use.'
+                : 'Theorem keeps this token and sends it only to this server.'}
             </FieldDescription>
             <FieldError match={Boolean(errors.token)}>{errors.token}</FieldError>
           </Field>

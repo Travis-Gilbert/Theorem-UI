@@ -18,18 +18,20 @@ export function EmailConsent() {
 
   const client = useQuery({
     queryKey: ['neon-auth', 'client', clientId],
-    queryFn: async () =>
-      (
-        await neonAuth().oauth2.publicClient({
-          query: { client_id: clientId! },
-        })
-      ).data ?? null,
+    queryFn: async () => {
+      const auth = await neonAuth()
+      const { data } = await auth.oauth2.publicClient({
+        query: { client_id: clientId! },
+      })
+      return data ?? null
+    },
     enabled: authorizing,
     retry: false,
   })
   const answer = useMutation({
     mutationFn: async (accept: boolean) => {
-      const { error } = await neonAuth().oauth2.consent({ accept })
+      const auth = await neonAuth()
+      const { error } = await auth.oauth2.consent({ accept })
       if (error) throw new Error(error.message ?? 'consent failed')
     },
   })
