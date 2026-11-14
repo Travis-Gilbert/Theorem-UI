@@ -29,8 +29,9 @@ Xcode 27.1, and locally with Xcode 27.2), and compiled and linked unsigned for
 the device SDK. The ScreenCaptureKit route is only in the device build: the
 simulator SDK has no ScreenCaptureKit. The app has run in the iOS Simulator,
 signed out and then signed in as the local end-to-end test account against
-the repository's local stack; the simulator-observed results are under
-"Native build". Nothing is signed for a device, and nothing has run on a
+the repository's local stack, where a send, a run and the reply complete and
+recover from backgrounding and a dropped stream; the simulator-observed
+results are under "Native build". Nothing is signed for a device, and nothing has run on a
 phone.
 
 ## Where this sits
@@ -477,6 +478,90 @@ Not done: no signed device build (the owner's iPhone is paired with this Mac;
 running on it needs the device registered and a development profile, which
 the owner approves), and no conversation send against a server that sends
 `principalId`.
+
+### Send, run and recovery against the local stack
+
+Done on 2026-11-13 in a second simulator (iPhone 17 Pro, iOS 26.5, same
+development build), against `scripts/e2e/stack.mjs` started with
+`E2E_UI=off` from Theorem `7ff9734558` (2026-11-12), which sends
+`principalId` (Theorem on 8592, the local issuer on 8598), as `claude-e2e`.
+Metro pointed `THEOREM_AUTHORITY` at the logging proxy on 8393. All results
+are simulator-observed; none is observed on a device.
+
+A real send, run and reply now complete: the conversation opens, the message
+posts once (`POST .../messages` 201), the run streams, and the reply settles.
+Then each recovery check, in thread `chatthread_sha256:b8ec7f38e30ec1194ced39e2b`:
+
+1. **Keyboard: passes.** In a new conversation and in a thread the composer
+   stays above the keyboard as it opens and closes. With the keyboard down
+   the last message is visible. With a long transcript the list scrolls the
+   last reply above the composer once the keyboard settles; one frame during
+   the animation showed it covered.
+2. **Background and return during a run: passes.** Sent (201), the stream
+   opened, and the app went to the Home Screen a second later. The server
+   finished the run while the app was in the background; nothing was
+   cancelled and no stop was requested. On return the reply was shown.
+   Not right: about three seconds after return, the stream was replayed
+   (18 ms), the reply disappeared, and Working and Stop showed again for
+   about 20 seconds, until the next thread read settled it. Routed to the
+   composer's runtime (`runtime.ts`, `binding.ts`) or the SDK.
+3. **Draft: passes in each case.** A new-conversation draft survived a kill
+   and relaunch. A thread draft survived background and return, and a kill
+   and relaunch.
+4. **Disconnected stream: passes, twice.** The proxy was stopped six seconds
+   into a stream (once mid-reply, once before any text arrived) and restarted
+   about 20 seconds later. The conversation said "Reconnecting. The run
+   continues on Theorem." After the restore one thread read brought the
+   transcript up to date (1.7 s and 15 s after the restore). No `POST` was
+   made after either restore. The proxy logged four message `POST`s for four
+   sends, and the server's message list holds four user and four assistant
+   messages, one per send; the transcript shows one bubble per send.
+
+Fixed from what this walk showed, test-first where it is logic:
+
+13. **A conversation never settled after a run.** The SDK parses wire
+    integers past 2^53 as `bigint` (a run's `seed`), and the journal store's
+    `JSON.stringify` threw on them, so the journal never saved. The store now
+    uses the SDK's `stringifyJson` and `parseJson`; a test saves and loads a
+    journal holding one. The credential check is unchanged.
+14. **A new conversation went to a project this account does not have.** The
+    remembered destination is kept on the device, not per account, so after
+    signing in as another account the create answered 404.
+    `resolveDestination` keeps a remembered project only while the account
+    lists it, and otherwise uses the first project (5 tests).
+15. **The development token field sat under the keyboard.** The sign-in
+    screen is now in a keyboard avoider and a scroll view; the return key
+    submits the token. Observed: the field and Use token above the keyboard,
+    and Go sends the sign-in.
+
+Also changed: `scripts/e2e/stack.mjs` accepts `E2E_UI=off` to start Theorem
+and the issuer without the web UI.
+
+Seen and routed, not fixed here (files owned by other sessions):
+
+- The background-return replay above.
+- The third send reached the server with its text doubled while the
+  composer showed one copy. Two text injections into the simulator are the
+  likely cause; a composer state and `TextInput` mismatch is not ruled out.
+- `message-view.tsx` shows raw part names ("response style", "progress",
+  "usage"), and its `JSON.stringify` of a part would throw on a `bigint`.
+- After a failed run start the failure note prints the raw problem JSON, and
+  Working and Stop stayed up.
+- On reconnect, earlier event streams are not closed.
+- The header's Settings and Add labels sit under the development client's
+  floating button (development builds only).
+
+Seen and not explained:
+
+- Long text injected into the secure token field arrives mangled or not at
+  all, so signing back in after a sign-out failed with a 401; this simulator
+  was left signed out. It looks like the injection, as before.
+- Starting the stack on the same data directory with different identity
+  ports gives a personal tenant instead of `claude-e2e`; a fresh data
+  directory fixed it.
+
+Still open: a signed development build on the owner's iPhone, which waits on
+the owner's go-ahead to register the device.
 
 ## What to try on a real phone
 
