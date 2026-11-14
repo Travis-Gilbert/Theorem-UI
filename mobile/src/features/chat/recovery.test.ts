@@ -1,7 +1,7 @@
 // SOURCING: bun:test
 import { describe, expect, test } from 'bun:test'
 import { ConversationProtocolError, type ConversationState } from '@theoremharness/sdk'
-import { connectionNotice, failureKind, isWorking } from './recovery'
+import { connectionNotice, failureKind, isWorking, waitingSend } from './recovery'
 
 const describe_ = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const http = (statusCode: number, message = `status ${statusCode}`) =>
@@ -101,5 +101,42 @@ describe('isWorking', () => {
 
   test('nothing is Working when the view says nothing runs', () => {
     expect(isWorking(state('running'), false)).toBe(false)
+  })
+})
+
+describe('waitingSend', () => {
+  const pending = (...commands: { id: string; kind: 'send' | 'edit' | 'retry' | 'command'; cancelRequested?: boolean }[]) =>
+    ({
+      phase: 'failed',
+      journal: { pending: commands.map((command) => ({ cancelRequested: false, ...command })) },
+    }) as unknown as Pick<ConversationState, 'phase' | 'journal'>
+
+  test('a send that has not reached Theorem can be stopped, though nothing is Working', () => {
+    // Seen by the re-walk: the start failed, Working was hidden, and with it the only way to stop the send.
+    const state = pending({ id: 'a', kind: 'send' })
+    expect(isWorking(state, true)).toBe(false)
+    expect(waitingSend(state)).toBe(true)
+  })
+
+  test('an edit or retry that is waiting counts as well', () => {
+    expect(waitingSend(pending({ id: 'a', kind: 'edit' }))).toBe(true)
+    expect(waitingSend(pending({ id: 'a', kind: 'retry' }))).toBe(true)
+  })
+
+  test('a send already stopped is not offered Stop again', () => {
+    expect(waitingSend(pending({ id: 'a', kind: 'send', cancelRequested: true }))).toBe(false)
+  })
+
+  test('a waiting run command alone is not a send to stop', () => {
+    expect(waitingSend(pending({ id: 'a:cancel', kind: 'command' }))).toBe(false)
+  })
+
+  test('nothing waiting, or no journal yet, offers nothing', () => {
+    expect(waitingSend(pending())).toBe(false)
+    expect(waitingSend({ phase: 'detached' })).toBe(false)
+  })
+
+  test('a send that is on its way is Working, so Stop is the usual one', () => {
+    expect(waitingSend({ ...pending({ id: 'a', kind: 'send' }), phase: 'running' })).toBe(false)
   })
 })

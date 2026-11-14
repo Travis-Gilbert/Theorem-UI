@@ -197,6 +197,7 @@ export function ConversationSurface({
   header,
   controls,
   stopLabel = 'Stop',
+  stopWaiting,
   sendBlocked,
 }: {
   runtime: AssistantRuntime
@@ -215,10 +216,20 @@ export function ConversationSurface({
   /** Extra controls between the recipient and Send, such as the terminal. */
   controls?: ReactNode
   stopLabel?: string
+  /** Stop for a send still waiting for the connection, when nothing is Working so the usual Stop is not shown. */
+  stopWaiting?: { label: string; onPress: () => void }
   /** Sending is off for a reason a note explains (the runtime may not know it yet). */
   sendBlocked?: boolean
 }) {
   const { palette, scheme } = useTheme()
+  const stopStyle = ({ pressed }: { pressed: boolean }) => [
+    styles.round,
+    {
+      backgroundColor: pressed ? palette.hover : palette.neutral,
+      borderColor: palette.lineControl,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+  ]
   const headerHeight = useHeaderHeight()
   const list = useRef<FlatList>(null)
   const root = useRef<HostInstance>(null)
@@ -373,18 +384,23 @@ export function ConversationSurface({
                         accessibilityRole="button"
                         accessibilityLabel={stopLabel}
                         hitSlop={(touchTarget - ROUND) / 2}
-                        style={({ pressed }) => [
-                          styles.round,
-                          {
-                            backgroundColor: pressed ? palette.hover : palette.neutral,
-                            borderColor: palette.lineControl,
-                            borderWidth: StyleSheet.hairlineWidth,
-                          },
-                        ]}
+                        style={stopStyle}
                       >
                         <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
                       </ComposerPrimitive.Cancel>
                     </AuiIf>
+                    {stopWaiting ? (
+                      // Nothing is Working (the connection is down), so assistant-ui offers no Cancel; the send waiting in the journal still can be stopped.
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={stopWaiting.label}
+                        hitSlop={(touchTarget - ROUND) / 2}
+                        onPress={stopWaiting.onPress}
+                        style={stopStyle}
+                      >
+                        <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
+                      </Pressable>
+                    ) : null}
                     <SendButton name={recipient.name} blocked={sendBlocked} />
                   </View>
                 </View>

@@ -71,13 +71,29 @@ export function failureKind(state: Pick<ConversationState, 'phase' | 'error'>): 
   return 'disconnected'
 }
 
+const NOT_LIVE: ConversationState['phase'][] = ['failed', 'authentication-required', 'detached']
+
 /**
- * Whether to show Working and Stop. The SDK's thread view counts a send still waiting in the
- * journal as running; once the conversation has failed, been signed out or detached, nothing is
- * running that Stop could stop, and the notice (with Reconnect) says what is wrong instead.
+ * Whether to show Working. The SDK's thread view counts a send still waiting in the journal as
+ * running; once the conversation has failed, been signed out or detached, nothing is running, and
+ * the notice (with Reconnect) says what is wrong instead.
  */
 export function isWorking(state: Pick<ConversationState, 'phase'>, viewIsRunning: boolean): boolean {
-  return viewIsRunning && state.phase !== 'failed' && state.phase !== 'authentication-required' && state.phase !== 'detached'
+  return viewIsRunning && !NOT_LIVE.includes(state.phase)
+}
+
+/**
+ * A send that has not reached Theorem because the conversation is not live, and that the person
+ * has not stopped. Stop is still theirs to press: the SDK records it in the journal with no
+ * network call. The message still reaches Theorem once the connection is back (the SDK has no
+ * way to withdraw it), and its run is cancelled the moment it is admitted. While the
+ * conversation is live that send is Working and Stop is the usual one.
+ */
+export function waitingSend(state: Pick<ConversationState, 'phase' | 'journal'>): boolean {
+  return (
+    NOT_LIVE.includes(state.phase) &&
+    !!state.journal?.pending.some((command) => command.kind !== 'command' && !command.cancelRequested)
+  )
 }
 
 /** The line shown for a conversation phase, or nothing when the phase needs no line. */
