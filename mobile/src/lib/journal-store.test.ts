@@ -45,6 +45,14 @@ describe('journal store', () => {
     expect(db.rows()).toBe(1)
   })
 
+  test('a wire integer above 2^53 is a bigint and survives a save and a load', async () => {
+    const store = createJournalStore(database())
+    const big = 18446744073709551615n
+    await store.save(journal({ events: [{ position: big }] as unknown as ConversationJournal['events'] }))
+    const loaded = await store.load(identity)
+    expect((loaded?.events[0] as unknown as { position: bigint }).position).toBe(big)
+  })
+
   test('another principal, tenant or authority never loads this journal', async () => {
     const store = createJournalStore(database())
     await store.save(journal({ runId: 'run-1' }))
