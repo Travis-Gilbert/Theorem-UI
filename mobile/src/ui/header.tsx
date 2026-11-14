@@ -10,8 +10,9 @@ import { useTheme } from './theme'
 export function useHeaderColors() {
   const { palette } = useTheme()
   return {
-    // iOS 26 draws a large title as an empty band (react-native-screens#3100,
-    // reproducible in UIKit), so headers are compact until that is fixed.
+    // Pushed screens stay compact; a list screen turns its large title on in
+    // its layout. No header background is set anywhere: with one, iOS 26 draws
+    // the large title as an empty band (react-native-screens#3100).
     headerLargeTitle: false,
     headerTintColor: palette.accent,
     headerTitleStyle: { color: palette.ink },
@@ -56,11 +57,10 @@ export function SettingsButton() {
  * before it, so a screen's own action and Settings share one toolbar.
  */
 export function SettingsToolbar({ children }: { children?: ReactNode }) {
-  const { palette } = useTheme()
   return (
     <Stack.Toolbar placement="right">
       {children}
-      <Stack.Toolbar.Button icon="gearshape" tintColor={palette.ink} accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
+      <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
     </Stack.Toolbar>
   )
 }

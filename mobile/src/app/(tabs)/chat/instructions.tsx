@@ -3,8 +3,8 @@
 // What the agent is told in a project. Save writes the text and closes the
 // sheet; a failure stays on screen with the text kept. Nothing is retried on
 // its own beyond the one re-read a stale revision needs.
-import { useRef, useState } from 'react'
-import { ScrollView, StyleSheet, TextInput } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Keyboard, ScrollView, StyleSheet, TextInput } from 'react-native'
 import * as Crypto from 'expo-crypto'
 import { router, useLocalSearchParams } from 'expo-router'
 import { loadProject, saveInstructions } from '@/features/chat/threads'
@@ -16,8 +16,27 @@ import { StatusLabel } from '@/ui/status'
 import { Text } from '@/ui/text'
 import { useTheme } from '@/ui/theme'
 
+// The header's Settings item floats over the top of the screen, and the
+// keyboard pushes a formSheet to full height, up under it. While the keyboard is
+// up the content starts below that item (its bottom edge is 52pt under the
+// status bar, the sheet's top edge is at the status bar).
+const SETTINGS_ITEM_BOTTOM = 52
+
+function useClearOfSettings() {
+  const [lift, setLift] = useState(0)
+  useEffect(() => {
+    const subscriptions = [
+      Keyboard.addListener('keyboardWillShow', () => setLift(SETTINGS_ITEM_BOTTOM)),
+      Keyboard.addListener('keyboardWillHide', () => setLift(0)),
+    ]
+    return () => subscriptions.forEach((subscription) => subscription.remove())
+  }, [])
+  return lift
+}
+
 export default function InstructionsSheet() {
   const { palette } = useTheme()
+  const lift = useClearOfSettings()
   const { project: projectId } = useLocalSearchParams<{ project?: string }>()
   const project = useRequest(() => (projectId ? loadProject(projectId) : Promise.resolve(undefined)), [projectId])
   const [draft, setDraft] = useState<string>()
@@ -44,7 +63,7 @@ export default function InstructionsSheet() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: space.lg + lift }]} keyboardShouldPersistTaps="handled">
       <Text variant="strong" accessibilityRole="header">
         {project.data ? `${project.data.title} instructions` : 'Instructions'}
       </Text>
