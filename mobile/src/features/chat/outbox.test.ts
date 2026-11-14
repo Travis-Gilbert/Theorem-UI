@@ -6,7 +6,7 @@ import { Outbox } from './outbox'
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-function harness(options: { refuse?: string[] } = {}) {
+function harness(options: { refuse?: string[]; unreachable?: string[] } = {}) {
   const calls: string[] = []
   const detaches: string[] = []
   const listeners = new Set<(state: ConversationState) => void>()
@@ -17,6 +17,8 @@ function harness(options: { refuse?: string[] } = {}) {
     },
     subscribe(listener) {
       listeners.add(listener)
+      // Like the SDK's HeadlessConversation.subscribe: the listener hears the current state at once.
+      listener(state)
       return () => listeners.delete(listener)
     },
     async connect() {},
@@ -27,6 +29,12 @@ function harness(options: { refuse?: string[] } = {}) {
     async send(id, request) {
       calls.push(`send:${id}:${request.text}`)
       if (options.refuse?.includes(request.text)) throw new Error('refused')
+      if (options.unreachable?.includes(request.text)) {
+        // The SDK keeps an undeliverable send in its journal and replays it under the same id on reconnect.
+        state = { phase: 'failed', error: new Error('Network request failed'), journal: { pending: [{ id }] } } as never
+        for (const listener of listeners) listener(state)
+        throw new Error('Network request failed')
+      }
       // An admitted message starts a run, as the real conversation does.
       state = { phase: 'running' }
       for (const listener of listeners) listener(state)
@@ -51,6 +59,20 @@ describe('Outbox', () => {
     const id = outbox.submit('th', 'hello')
     await settle()
     expect(calls).toEqual([`send:${id}:hello`])
+  })
+
+  test('three sends in a row each reach the conversation once, with exactly the words typed', async () => {
+    // A third send once reached the server with its text doubled while the composer showed one copy.
+    const { calls, outbox, phase } = harness()
+    const ids: string[] = []
+    for (const text of ['first', 'second', 'third']) {
+      ids.push(outbox.submit('th', text))
+      await settle()
+      phase('completed')
+      await settle()
+    }
+    expect(calls).toEqual([`send:${ids[0]}:first`, `send:${ids[1]}:second`, `send:${ids[2]}:third`])
+    expect(new Set(ids).size).toBe(3)
   })
 
   test('a message sent during a run waits, then goes once, under its original id', async () => {
@@ -97,6 +119,17 @@ describe('Outbox', () => {
     phase('completed')
     await settle()
     expect(calls).toEqual([])
+  })
+
+  test('a send the conversation keeps for later stays in the transcript and is not handed back to the composer', async () => {
+    // Seen live: the words were back in the box while the SDK replayed the same message after a reconnect,
+    // so pressing Send again would have sent it twice under a fresh command id.
+    const { calls, outbox } = harness({ unreachable: ['offline'] })
+    const id = outbox.submit('th', 'offline')
+    await settle()
+    expect(calls).toEqual([`send:${id}:offline`])
+    expect(outbox.snapshot('th').refused).toEqual([])
+    expect(outbox.snapshot('th').inflight).toBeUndefined()
   })
 
   test('a refusal comes back with its words and is not retried', async () => {

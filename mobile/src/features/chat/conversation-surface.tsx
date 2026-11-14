@@ -5,7 +5,7 @@
 // over its end as a card (DESIGN.md: composer radius 16), with the recipient
 // named in a chip beside Send. A reader scrolled up stays where they are when
 // replies arrive, and gets a button back to the latest one.
-import { useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +13,7 @@ import {
   StyleSheet,
   View,
   type FlatList,
+  type HostInstance,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
@@ -91,11 +92,7 @@ export function RecipientChip({ recipient }: { recipient: Recipient }) {
   const label = [recipient.name, recipient.detail].filter(Boolean).join(', ')
   if (!recipient.onPress)
     return (
-      <View
-        accessible
-        accessibilityLabel={`To ${label}`}
-        style={[styles.chip, { backgroundColor: palette.neutral }]}
-      >
+      <View accessible accessibilityLabel={`To ${label}`} style={[styles.chip, { backgroundColor: palette.neutral }]}>
         {content}
       </View>
     )
@@ -200,6 +197,7 @@ export function ConversationSurface({
   header,
   controls,
   stopLabel = 'Stop',
+  stopWaiting,
   sendBlocked,
 }: {
   runtime: AssistantRuntime
@@ -218,17 +216,44 @@ export function ConversationSurface({
   /** Extra controls between the recipient and Send, such as the terminal. */
   controls?: ReactNode
   stopLabel?: string
+  /** Stop for a send still waiting for the connection, when nothing is Working so the usual Stop is not shown. */
+  stopWaiting?: { label: string; onPress: () => void }
   /** Sending is off for a reason a note explains (the runtime may not know it yet). */
   sendBlocked?: boolean
 }) {
   const { palette, scheme } = useTheme()
+  const stopStyle = ({ pressed }: { pressed: boolean }) => [
+    styles.round,
+    {
+      backgroundColor: pressed ? palette.hover : palette.neutral,
+      borderColor: palette.lineControl,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+  ]
   const headerHeight = useHeaderHeight()
   const list = useRef<FlatList>(null)
+  const root = useRef<HostInstance>(null)
+  // How much of this screen's top edge the navigation header covers. A header that is not
+  // transparent leaves the screen below it (nothing covered); a transparent one lets the first
+  // message start under the status bar, so the list is padded by exactly what is covered.
+  const [covered, setCovered] = useState(0)
+  const measureCovered = useCallback(() => {
+    root.current?.measureInWindow((_x, y) => setCovered(Math.max(0, Math.round(headerHeight - y))))
+  }, [headerHeight])
+  useEffect(measureCovered, [measureCovered])
+  // The floating status (presence and notices) takes room above the composer, so the end of the transcript is never behind it.
+  const [overlayHeight, setOverlayHeight] = useState(0)
   // The transcript mounts once the composer is measured, so its first scroll to
   // the latest message already has the space under it. Growing that space after
   // the scroll can race the scroll's echo and leave the list short of the end.
   const [composerHeight, setComposerHeight] = useState<number>()
   const [farFromEnd, setFarFromEnd] = useState(false)
+
+  useEffect(() => {
+    if (!farFromEnd && overlayHeight > 0) requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }))
+    // Only a change in what the status takes should move the end into view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayHeight])
 
   const onScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = nativeEvent
@@ -242,130 +267,147 @@ export function ConversationSurface({
       {/* Native tabs float the tab bar over the screen, so the composer would sit under it. The keyboard
           avoider measures itself inside this inset, so with the keyboard up the inset is not added twice. */}
       <SafeAreaView edges={{ bottom: true }} style={[styles.fill, { backgroundColor: palette.neutral }]}>
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={headerHeight}
-        >
-          <ThreadPrimitive.Root style={[styles.fill, { backgroundColor: palette.neutral }]}>
-            {composerHeight === undefined ? (
-              <View style={styles.fill} />
-            ) : (
-              <ThreadPrimitive.MessagesFlatList
-                ref={list}
-                style={styles.fill}
-                contentContainerStyle={[styles.list, { paddingBottom: composerHeight + space.sm }]}
-                keyboardDismissMode="interactive"
-                keyboardShouldPersistTaps="handled"
-                onScroll={onScroll}
-                ListEmptyComponent={<View style={styles.empty}>{empty}</View>}
-                ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : undefined}
-              >
-                {({ message }) => <MessageView message={message} />}
-              </ThreadPrimitive.MessagesFlatList>
-            )}
+        <View ref={root} onLayout={measureCovered} style={styles.fill}>
+          <KeyboardAvoidingView
+            style={styles.fill}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={headerHeight}
+          >
+            <ThreadPrimitive.Root style={[styles.fill, { backgroundColor: palette.neutral }]}>
+              {composerHeight === undefined ? (
+                <View style={styles.fill} />
+              ) : (
+                <ThreadPrimitive.MessagesFlatList
+                  ref={list}
+                  style={styles.fill}
+                  contentContainerStyle={[
+                    styles.list,
+                    {
+                      paddingTop: space.md + covered,
+                      paddingBottom: composerHeight + overlayHeight + space.sm,
+                    },
+                  ]}
+                  keyboardDismissMode="interactive"
+                  keyboardShouldPersistTaps="handled"
+                  onScroll={onScroll}
+                  ListEmptyComponent={<View style={styles.empty}>{empty}</View>}
+                  ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : undefined}
+                >
+                  {({ message }) => <MessageView message={message} />}
+                </ThreadPrimitive.MessagesFlatList>
+              )}
 
-            {farFromEnd && composerHeight !== undefined ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Jump to the latest message"
-                onPress={() => list.current?.scrollToEnd({ animated: true })}
-                hitSlop={4}
-                style={({ pressed }) => [
-                  styles.round,
-                  styles.jump,
-                  styles.lifted,
-                  {
-                    bottom: composerHeight + space.xs,
-                    backgroundColor: pressed ? palette.hover : palette.raised,
-                    borderColor: palette.lineControl,
-                    shadowOpacity: scheme === 'dark' ? 0 : 0.08,
-                  },
-                ]}
-              >
-                <Text variant="strong">↓</Text>
-              </Pressable>
-            ) : null}
+              {farFromEnd && composerHeight !== undefined ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Jump to the latest message"
+                  onPress={() => list.current?.scrollToEnd({ animated: true })}
+                  hitSlop={4}
+                  style={({ pressed }) => [
+                    styles.round,
+                    styles.jump,
+                    styles.lifted,
+                    {
+                      bottom: composerHeight + space.xs,
+                      backgroundColor: pressed ? palette.hover : palette.raised,
+                      borderColor: palette.lineControl,
+                      shadowOpacity: scheme === 'dark' ? 0 : 0.08,
+                    },
+                  ]}
+                >
+                  <Text variant="strong">↓</Text>
+                </Pressable>
+              ) : null}
 
-            {/* Status floats above the composer without taking part in its layout: the card and its input never move for it. */}
-            {(notes.length > 0 || theo) && composerHeight !== undefined ? (
-              <View pointerEvents="box-none" style={[styles.notes, { bottom: composerHeight + space.xs }]}>
-                {theo ? <PresenceLine signals={theo} /> : null}
-                {notes.map((note, index) => (
-                  <NoteStrip key={`${note.text}-${index}`} note={note} floating />
-                ))}
-              </View>
-            ) : null}
-
-            {/* The card sits on the page colour, so the transcript ends at the card instead of showing around it. */}
-            <View
-              onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
-              style={[styles.dock, { backgroundColor: palette.neutral }]}
-            >
-              {queue?.items.length ? (
-                <View style={styles.queue}>
-                  {queue.items.map((item) => (
-                    <QueuedChip
-                      key={item.id}
-                      item={item}
-                      onRemove={() => queue.onRemove(item.id)}
-                      onEdit={() => queue.onEdit(item.id)}
-                    />
+              {/* Status floats above the composer without taking part in its layout: the card and its input never move for it. */}
+              {composerHeight !== undefined ? (
+                <View
+                  pointerEvents="box-none"
+                  onLayout={(event) => setOverlayHeight(Math.ceil(event.nativeEvent.layout.height))}
+                  style={[styles.notes, { bottom: composerHeight + space.xs }]}
+                >
+                  {theo ? <PresenceLine signals={theo} /> : null}
+                  {notes.map((note, index) => (
+                    <NoteStrip key={`${note.text}-${index}`} note={note} floating />
                   ))}
-                  {queue.paused ? (
-                    <Text variant="label" tone="muted" style={styles.queuePaused}>
-                      Paused after Stop. Send a message to carry on.
-                    </Text>
-                  ) : null}
                 </View>
               ) : null}
+
+              {/* The card sits on the page colour, so the transcript ends at the card instead of showing around it. */}
               <View
-                style={[
-                  styles.card,
-                  styles.lifted,
-                  {
-                    backgroundColor: palette.composer,
-                    borderColor: palette.lineControl,
-                    shadowOpacity: scheme === 'dark' ? 0 : 0.06,
-                  },
-                ]}
+                onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
+                style={[styles.dock, { backgroundColor: palette.neutral }]}
               >
-                <ComposerPrimitive.Input
-                  accessibilityLabel={placeholder}
-                  placeholder={placeholder}
-                  placeholderTextColor={palette.inkFaint}
-                  multiline
-                  submitMode="none"
-                  style={[styles.input, { color: palette.ink }]}
-                />
-                <View style={styles.controls}>
-                  <RecipientChip recipient={recipient} />
-                  <View style={styles.spacer} />
-                  {controls}
-                  <AuiIf condition={(s) => s.thread.isRunning}>
-                    {/* Stop is the only control that interrupts; leaving this screen does not. It is never the Send button. */}
-                    <ComposerPrimitive.Cancel
-                      accessibilityRole="button"
-                      accessibilityLabel={stopLabel}
-                      hitSlop={(touchTarget - ROUND) / 2}
-                      style={({ pressed }) => [
-                        styles.round,
-                        {
-                          backgroundColor: pressed ? palette.hover : palette.neutral,
-                          borderColor: palette.lineControl,
-                          borderWidth: StyleSheet.hairlineWidth,
-                        },
-                      ]}
-                    >
-                      <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
-                    </ComposerPrimitive.Cancel>
-                  </AuiIf>
-                  <SendButton name={recipient.name} blocked={sendBlocked} />
+                {queue?.items.length ? (
+                  <View style={styles.queue}>
+                    {queue.items.map((item) => (
+                      <QueuedChip
+                        key={item.id}
+                        item={item}
+                        onRemove={() => queue.onRemove(item.id)}
+                        onEdit={() => queue.onEdit(item.id)}
+                      />
+                    ))}
+                    {queue.paused ? (
+                      <Text variant="label" tone="muted" style={styles.queuePaused}>
+                        Paused after Stop. Send a message to carry on.
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+                <View
+                  style={[
+                    styles.card,
+                    styles.lifted,
+                    {
+                      backgroundColor: palette.composer,
+                      borderColor: palette.lineControl,
+                      shadowOpacity: scheme === 'dark' ? 0 : 0.06,
+                    },
+                  ]}
+                >
+                  <ComposerPrimitive.Input
+                    accessibilityLabel={placeholder}
+                    placeholder={placeholder}
+                    placeholderTextColor={palette.inkFaint}
+                    multiline
+                    submitMode="none"
+                    style={[styles.input, { color: palette.ink }]}
+                  />
+                  <View style={styles.controls}>
+                    <RecipientChip recipient={recipient} />
+                    <View style={styles.spacer} />
+                    {controls}
+                    <AuiIf condition={(s) => s.thread.isRunning}>
+                      {/* Stop is the only control that interrupts; leaving this screen does not. It is never the Send button. */}
+                      <ComposerPrimitive.Cancel
+                        accessibilityRole="button"
+                        accessibilityLabel={stopLabel}
+                        hitSlop={(touchTarget - ROUND) / 2}
+                        style={stopStyle}
+                      >
+                        <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
+                      </ComposerPrimitive.Cancel>
+                    </AuiIf>
+                    {stopWaiting ? (
+                      // Nothing is Working (the connection is down), so assistant-ui offers no Cancel; the send waiting in the journal still can be stopped.
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={stopWaiting.label}
+                        hitSlop={(touchTarget - ROUND) / 2}
+                        onPress={stopWaiting.onPress}
+                        style={stopStyle}
+                      >
+                        <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
+                      </Pressable>
+                    ) : null}
+                    <SendButton name={recipient.name} blocked={sendBlocked} />
+                  </View>
                 </View>
               </View>
-            </View>
-          </ThreadPrimitive.Root>
-        </KeyboardAvoidingView>
+            </ThreadPrimitive.Root>
+          </KeyboardAvoidingView>
+        </View>
       </SafeAreaView>
     </AssistantRuntimeProvider>
   )
@@ -375,11 +417,8 @@ export function ConversationSurface({
 function PresenceLine({ signals }: { signals: Omit<TheoSignals, 'composing'> }) {
   const composing = useAuiState((s) => !!s.composer.text.trim())
   const state = theoStateOf({ ...signals, composing })
-  return state ? (
-    <View style={styles.presence}>
-      <TheoPresence state={state} />
-    </View>
-  ) : null
+  // The row keeps its height with nothing to say, so a state coming and going never moves the transcript.
+  return <View style={styles.presence}>{state ? <TheoPresence state={state} /> : null}</View>
 }
 
 function SendButton({ name, blocked }: { name: string; blocked?: boolean }) {
@@ -479,7 +518,7 @@ const styles = StyleSheet.create({
   },
   jump: { position: 'absolute', alignSelf: 'center', borderWidth: StyleSheet.hairlineWidth },
   stopGlyph: { width: 12, height: 12, borderRadius: 2 },
-  presence: { paddingHorizontal: space.sm },
+  presence: { paddingHorizontal: space.sm, minHeight: 20, justifyContent: 'center' },
   notes: { position: 'absolute', left: 0, right: 0, paddingHorizontal: space.sm, gap: space.xs },
   note: {
     gap: space.xs,

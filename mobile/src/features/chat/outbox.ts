@@ -99,10 +99,14 @@ export class Outbox {
     if (entry.lease) return
     const lease = this.options.binding.retain(threadId)
     entry.lease = lease
-    entry.unsubscribe = lease.conversation.subscribe((state) =>
-      this.apply(threadId, { type: 'availability', availability: availability(state.phase) }),
-    )
-    // Not through apply(): an empty outbox would hand the lease straight back.
+    // subscribe() reports the current state at once. Through apply() that would let an empty
+    // outbox hand the lease straight back before the message that asked for it is admitted.
+    let attached = false
+    entry.unsubscribe = lease.conversation.subscribe((state) => {
+      if (attached) this.apply(threadId, { type: 'availability', availability: availability(state.phase) })
+    })
+    attached = true
+    // Not through apply(): the same reason.
     entry.state = reduce(entry.state, {
       type: 'availability',
       availability: availability(lease.conversation.state.phase),
@@ -137,7 +141,11 @@ export class Outbox {
       await lease.send(message.text, { id: message.id, ...this.options.extras?.() })
       this.apply(threadId, { type: 'sent', id: message.id })
     } catch (error) {
-      this.apply(threadId, { type: 'refused', id: message.id, error })
+      // The SDK drops a send the authority refused outright and keeps any other failure in its journal,
+      // to replay under the same command id once the connection is back. A kept send is already the
+      // conversation's: handing its words back to the composer too would let the person send it twice.
+      const kept = lease.conversation.state.journal?.pending.some((command) => command.id === message.id)
+      this.apply(threadId, kept ? { type: 'sent', id: message.id } : { type: 'refused', id: message.id, error })
     }
   }
 }

@@ -1,7 +1,7 @@
 // SOURCING: bun:test
 import { describe, expect, test } from 'bun:test'
 import { ConversationProtocolError, type ConversationState } from '@theoremharness/sdk'
-import { connectionNotice, failureKind } from './recovery'
+import { connectionNotice, failureKind, isWorking, waitingSend } from './recovery'
 
 const describe_ = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const http = (statusCode: number, message = `status ${statusCode}`) =>
@@ -36,6 +36,11 @@ describe('failureKind', () => {
     expect(failureKind(state('failed', new Error('bootstrap response is missing required field csrfToken')))).toBe(
       'incompatible',
     )
+  })
+
+  test("a TypeError from the app's own code is not blamed on the server", () => {
+    // Seen live: the journal could not write a bigint, and the notice said the server needed updating.
+    expect(failureKind(state('failed', new TypeError('Do not know how to serialize a BigInt')))).toBe('disconnected')
   })
 
   test('phases that are not connection problems have no failure kind', () => {
@@ -79,5 +84,59 @@ describe('connectionNotice', () => {
   test('a running or ready conversation has no notice', () => {
     expect(connectionNotice(state('running'), describe_)).toBeUndefined()
     expect(connectionNotice(state('ready'), describe_)).toBeUndefined()
+  })
+})
+
+describe('isWorking', () => {
+  test('a send waiting in the journal after a failed start is not Working', () => {
+    // Seen live: the run could not start, the notice said so, and Working with Stop stayed up.
+    for (const phase of ['failed', 'authentication-required', 'detached'] as const)
+      expect(isWorking(state(phase), true)).toBe(false)
+  })
+
+  test('a run in progress, reconnecting or just sent is Working', () => {
+    for (const phase of ['running', 'reconnecting', 'ready', 'connecting'] as const)
+      expect(isWorking(state(phase), true)).toBe(true)
+  })
+
+  test('nothing is Working when the view says nothing runs', () => {
+    expect(isWorking(state('running'), false)).toBe(false)
+  })
+})
+
+describe('waitingSend', () => {
+  const pending = (...commands: { id: string; kind: 'send' | 'edit' | 'retry' | 'command'; cancelRequested?: boolean }[]) =>
+    ({
+      phase: 'failed',
+      journal: { pending: commands.map((command) => ({ cancelRequested: false, ...command })) },
+    }) as unknown as Pick<ConversationState, 'phase' | 'journal'>
+
+  test('a send that has not reached Theorem can be stopped, though nothing is Working', () => {
+    // Seen by the re-walk: the start failed, Working was hidden, and with it the only way to stop the send.
+    const state = pending({ id: 'a', kind: 'send' })
+    expect(isWorking(state, true)).toBe(false)
+    expect(waitingSend(state)).toBe(true)
+  })
+
+  test('an edit or retry that is waiting counts as well', () => {
+    expect(waitingSend(pending({ id: 'a', kind: 'edit' }))).toBe(true)
+    expect(waitingSend(pending({ id: 'a', kind: 'retry' }))).toBe(true)
+  })
+
+  test('a send already stopped is not offered Stop again', () => {
+    expect(waitingSend(pending({ id: 'a', kind: 'send', cancelRequested: true }))).toBe(false)
+  })
+
+  test('a waiting run command alone is not a send to stop', () => {
+    expect(waitingSend(pending({ id: 'a:cancel', kind: 'command' }))).toBe(false)
+  })
+
+  test('nothing waiting, or no journal yet, offers nothing', () => {
+    expect(waitingSend(pending())).toBe(false)
+    expect(waitingSend({ phase: 'detached' })).toBe(false)
+  })
+
+  test('a send that is on its way is Working, so Stop is the usual one', () => {
+    expect(waitingSend({ ...pending({ id: 'a', kind: 'send' }), phase: 'running' })).toBe(false)
   })
 })

@@ -62,6 +62,16 @@ describe('journal store', () => {
     expect(db.rows()).toBe(0)
   })
 
+  // The SDK parses wire integers past 2^53 as bigint (a run's "seed" is one);
+  // the journal must keep them exactly, as the SDK's own file store does.
+  test('saves and loads a journal holding an unsafe wire integer', async () => {
+    const store = createJournalStore(database())
+    const events = [{ seq: 1, payload: { seed: 10873825030357999663n } }] as unknown as ConversationJournal['events']
+    await store.save(journal({ runId: 'run-1', events }))
+    const loaded = await store.load(identity)
+    expect((loaded?.events[0] as unknown as { payload: { seed: bigint } }).payload.seed).toBe(10873825030357999663n)
+  })
+
   test('the key covers every identity field', () => {
     expect(JSON.parse(journalKey(identity))).toEqual([
       'https://theorem.example',

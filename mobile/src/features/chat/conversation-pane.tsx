@@ -31,7 +31,7 @@ export function ConversationPane({
   onLeave: () => void
 }) {
   const { palette } = useTheme()
-  const { runtime, state, sendError, queued, paused, removeQueued, editQueued, recover, recoveryError } =
+  const { runtime, state, sendError, queued, paused, sendWaiting, stop, removeQueued, editQueued, recover, recoveryError } =
     useConversation(threadId)
   useTaskPresence(threadId, state)
   // The newest delivery the person made to this conversation: Theo says what became of it.
@@ -91,6 +91,9 @@ export function ConversationPane({
         queue={{ items: queued, paused, onRemove: removeQueued, onEdit: editQueued }}
         empty={<EmptyConversation title="Theorem" detail="Ask anything about this project." />}
         stopLabel="Stop the run"
+        stopWaiting={
+          sendWaiting ? { label: 'Stop the message waiting to send', onPress: () => void stop() } : undefined
+        }
         controls={titled ? undefined : <ShareButton threadId={threadId} />}
       />
     </>

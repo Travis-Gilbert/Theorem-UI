@@ -41,9 +41,15 @@ const protocolError = (error: unknown) =>
   error instanceof ConversationProtocolError ||
   (error instanceof Error && PROTOCOL_MESSAGE.test(error.message))
 
-/** A reply the app could not read because a field it needs was not there. */
+/**
+ * A reply the app could not read because a field it needs was not there. A
+ * TypeError counts only when it is a read of something missing; any other
+ * TypeError (a value this app cannot serialize, say) is the app's own fault and
+ * must not tell the person to update the server.
+ */
+const MISSING_READ = /\b(undefined|null) is not an object\b|cannot read propert|is (undefined|null)\b/i
 const unreadableReply = (error: unknown) =>
-  error instanceof TypeError ||
+  (error instanceof TypeError && MISSING_READ.test(error.message)) ||
   (error instanceof Error &&
     /\b(missing|required|undefined|unexpected|schema|invalid)\b.*\b(field|property|token|response|reply|bootstrap)\b|\bbootstrap\b.*\b(missing|required)\b/i.test(
       error.message,
@@ -63,6 +69,31 @@ export function failureKind(state: Pick<ConversationState, 'phase' | 'error'>): 
   if (status !== undefined && INCOMPATIBLE_STATUS.has(status)) return 'incompatible'
   if (status === undefined && error && unreadableReply(error)) return 'incompatible'
   return 'disconnected'
+}
+
+const NOT_LIVE: ConversationState['phase'][] = ['failed', 'authentication-required', 'detached']
+
+/**
+ * Whether to show Working. The SDK's thread view counts a send still waiting in the journal as
+ * running; once the conversation has failed, been signed out or detached, nothing is running, and
+ * the notice (with Reconnect) says what is wrong instead.
+ */
+export function isWorking(state: Pick<ConversationState, 'phase'>, viewIsRunning: boolean): boolean {
+  return viewIsRunning && !NOT_LIVE.includes(state.phase)
+}
+
+/**
+ * A send that has not reached Theorem because the conversation is not live, and that the person
+ * has not stopped. Stop is still theirs to press: the SDK records it in the journal with no
+ * network call. The message still reaches Theorem once the connection is back (the SDK has no
+ * way to withdraw it), and its run is cancelled the moment it is admitted. While the
+ * conversation is live that send is Working and Stop is the usual one.
+ */
+export function waitingSend(state: Pick<ConversationState, 'phase' | 'journal'>): boolean {
+  return (
+    NOT_LIVE.includes(state.phase) &&
+    !!state.journal?.pending.some((command) => command.kind !== 'command' && !command.cancelRequested)
+  )
 }
 
 /** The line shown for a conversation phase, or nothing when the phase needs no line. */

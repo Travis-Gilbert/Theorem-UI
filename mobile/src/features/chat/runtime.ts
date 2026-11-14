@@ -25,7 +25,7 @@ import { phoneTurnOptions } from '../phone-actions/calendar'
 import { ConversationBinding, type Lease } from './binding'
 import { Outbox } from './outbox'
 import type { QueuedMessage, QueueState } from './queue'
-import type { Recovery } from './recovery'
+import { isWorking, waitingSend, type Recovery } from './recovery'
 
 let shared: ConversationBinding | undefined
 
@@ -84,6 +84,10 @@ export type ConversationView = {
   removeQueued: (id: string) => void
   /** Takes a queued message back into the composer to change it. */
   editQueued: (id: string) => void
+  /** A send is waiting for the connection and has not been stopped: Stop is offered though nothing is Working. */
+  sendWaiting: boolean
+  /** Stops the run, or a send still waiting; the only path to cancellation. */
+  stop: () => Promise<void>
   /** The one action a notice offered. Resolves; a failed sign-in is reported in `recoveryError`. */
   recover: (recovery: Recovery) => Promise<void>
   recoveryError: unknown
@@ -112,13 +116,14 @@ export function useConversation(threadId: string): ConversationView {
   )
 
   const view = useMemo(() => projectThreadView(state), [state])
+  const stop = useCallback(() => outbox().stop(threadId), [threadId])
   const runtimeRef = useRef<AssistantRuntime>(undefined)
   const ready = !['detached', 'connecting', 'failed', 'authentication-required'].includes(state.phase)
 
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     messages: view.messages,
     convertMessage: (message) => message,
-    isRunning: view.isRunning,
+    isRunning: isWorking(state, view.isRunning),
     isDisabled: !lease,
     // A run in progress does not disable Send: the message is queued and goes when the run ends.
     isSendDisabled: !ready,
@@ -131,9 +136,7 @@ export function useConversation(threadId: string): ConversationView {
       outbox().submit(threadId, text)
     },
     // The only path to cancellation: the person pressed Stop.
-    onCancel: async () => {
-      await outbox().stop(threadId)
-    },
+    onCancel: stop,
   })
   runtimeRef.current = runtime
 
@@ -201,6 +204,8 @@ export function useConversation(threadId: string): ConversationView {
     sendError,
     queued: queue.items,
     paused: queue.paused,
+    sendWaiting: waitingSend(state),
+    stop,
     removeQueued,
     editQueued,
     recover,
