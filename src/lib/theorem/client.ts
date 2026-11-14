@@ -226,7 +226,7 @@ function explainStorageCapacity(
 
 export function describeError(
   error: unknown,
-  service: 'chat' | 'document' = 'chat',
+  service: 'chat' | 'document' | 'Files' = 'chat',
 ): string {
   if (error instanceof TheoremError) {
     const body =
@@ -262,7 +262,9 @@ export function describeError(
           message =
             service === 'document'
               ? 'The document is too large.'
-              : 'The message or attachment is too large.'
+              : service === 'Files'
+                ? 'The file is too large.'
+                : 'The message or attachment is too large.'
           break
         case 429:
           message = 'Too many requests. Try again shortly.'

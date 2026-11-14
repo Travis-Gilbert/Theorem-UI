@@ -75,3 +75,31 @@ under `/Volumes/SSD Samsung/codex-rebuildable-cache/pr1066-worker-evidence/`:
 `ui-final-tests.log`, `ui-final-typecheck.log`, and the original failing
 `compact-red.log`. Earlier `/tmp` logs disappeared during the host restart;
 the previous measurements remain recorded here but are not freshly remeasured.
+
+
+## Fresh rendered acceptance after restart
+
+Against shipping server SHA
+`ebdd4b3c4bcc61de2e19ecade81c6a3b6115bb67c8f684a289df3dce4b23e9b6`,
+the browser reopened the earlier note, saved a fresh Unicode edit, created
+`Recovery checks`, and dragged the note into that folder. The open editor
+followed the stable entry identity. After SIGKILL of that local server and a
+fresh stack startup against the same journal, the moved note and exact edited
+text reopened with `Saved to Home`. A transient properties request to the old
+path returned 404 during the move; the view subsequently loaded the new path
+and retained its saved state.
+
+A simulated vault 503 on the Index compact sidebar kept Home and Retry visible;
+removing interception and clicking Retry restored the real vault and note.
+Interception was removed. Rendering also identified a generic error fallback
+calling Files the chat service; Files now supplies its own service name to the
+existing error formatter. The five relevant suites pass 31/31 and TypeScript
+checking passes (`ui-final-tests2.log`, `ui-final-typecheck2.log` in the durable
+evidence directory). Cloudflare preview and Composer CI passed at dd77075.
+
+Screenshots are retained in the local review artifacts, including
+`files-reopened.png`, `files-compact-failure.png`, and
+`files-final-reopened.png`. Other local Index/artifact APIs still report
+unrelated errors; this receipt proves the Files flow only. The server artifact
+includes the current Files owners, but later Cypher analyzer changes still
+require the final integrated backend gate.

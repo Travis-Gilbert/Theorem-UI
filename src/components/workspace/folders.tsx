@@ -231,7 +231,7 @@ export function HomeAbsent({
         {message}
       </p>
       {error instanceof Error && (
-        <p className="text-xs text-ink-muted">{describeError(error)}</p>
+        <p className="text-xs text-ink-muted">{describeError(error, 'Files')}</p>
       )}
       <Button size="sm" variant="ghost" disabled={retrying} onClick={retry}>
         {retrying ? 'Retrying…' : 'Retry'}
