@@ -134,6 +134,9 @@ pass on the merged source. Receipts: `ui-main-install.log`,
 `ui-main-tests.log`, and `ui-main-typecheck.log` in the durable evidence root.
 
 The separate live integration revision `2edebeebf358a04d0fc61f08634a91e4945739d8`
-is not in that upstream main. Its Connections/IDE changes must be preserved
-when coordinating a production promotion; merging this Files PR alone must
-not be represented as including that separate live revision.
+was not in upstream main, so it was also merged to preserve the already-deployed
+IDE restart recovery. Its overlapping Connections and passthrough changes
+were already identical on the Files branch. The resulting Files and IDE
+suites pass together: 80/80 across 13 files, zero failures
+(`ui-live-integrated-tests.log`). No additional product behavior was invented
+during either merge.

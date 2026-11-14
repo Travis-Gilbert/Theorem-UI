@@ -9,13 +9,16 @@
 
 export type Send = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-/** The host's refusal of a request for a workspace it has not opened since it started. */
-async function isNotOpen(response: Response): Promise<boolean> {
-    if (response.status !== 404) {
+/** A closed workspace or a CSRF token the store discarded during restart. */
+async function needsReopen(response: Response): Promise<boolean> {
+    const expectedCode = response.status === 404 ? 'workspace_not_open'
+        : response.status === 403 ? 'csrf_token_refused'
+        : undefined;
+    if (!expectedCode) {
         return false;
     }
     try {
-        return (await response.clone().json() as { code?: unknown }).code === 'workspace_not_open';
+        return (await response.clone().json() as { code?: unknown }).code === expectedCode;
     } catch {
         return false;
     }
@@ -54,15 +57,15 @@ export interface WorkspaceRecovery {
 }
 
 /**
- * Sends a request, recovering once from a restarted host: reopen the workspace when it says it is
- * not open, and seat a document again when its authority is behind. SDK requests carry an
- * `Idempotency-Key`, so repeating one is safe. An authority still behind afterwards is answered
+ * Sends a request, recovering once from a restarted host or store. Reopen the workspace when it
+ * is closed or the store discarded its CSRF token. Seat a document again when its authority is
+ * behind. SDK requests carry an `Idempotency-Key`, so repeating one is safe. An authority still behind is answered
  * under a code the SDK does not take as "catch up", so the session drops the edit and says so.
  */
 export function recoveringSend(send: Send, recovery: WorkspaceRecovery): Send {
     return async (input, init) => {
         let response = await send(input, init);
-        if (await isNotOpen(response)) {
+        if (await needsReopen(response)) {
             await recovery.reopen();
             response = await send(input, init);
         }

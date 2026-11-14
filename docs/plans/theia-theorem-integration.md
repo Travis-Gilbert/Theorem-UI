@@ -180,6 +180,23 @@ download:plugins` in `ide/`), so the editor has no grammars yet. Files then
   fails at `tests/common/mod.rs:126`; the other host tests pass. Not yet
   diagnosed.
 
+## Live workspace session recovery, 2026-11-13
+
+The signed-in IDE received `403 csrf_token_refused` for
+`workspace.files.stat` during a production store restart. The store holds
+CSRF tokens in memory. The editor had recovered its workspace stream but
+could continue sending the token from before the restart.
+
+The IDE transport now reuses the existing workspace reopen path for this
+specific refusal. Reopening bootstraps a fresh token and reattaches documents.
+The transport then retries the original operation with its original
+idempotency key. A repeated CSRF refusal or any other permission refusal is
+returned to the caller.
+
+Both regression cases failed against the previous transport. All 49 browser
+extension tests and the Theia extension build passed after the repair.
+Hosted validation of this UI revision is pending.
+
 ## Conversational-send repair, 2026-10-29
 
 The deployed personal backend reproduces the known `{text}` versus `{parts}`
