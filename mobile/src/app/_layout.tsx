@@ -23,6 +23,7 @@ import { restore, useAuth } from '@/lib/auth'
 import { clearAccountData } from '@/lib/local-db'
 import { rememberDestination, takeDestination } from '@/lib/pending-destination'
 import { assertRuntime } from '@/lib/polyfills'
+import { useHeaderColors } from '@/ui/header'
 import { Text } from '@/ui/text'
 import { ThemeProvider, useTheme } from '@/ui/theme'
 
@@ -30,7 +31,8 @@ assertRuntime()
 
 function Navigation() {
   const auth = useAuth()
-  const { palette, scheme } = useTheme()
+  const { scheme } = useTheme()
+  const header = useHeaderColors()
   const signedIn = auth.status === 'signed-in'
   const [wasSignedIn, setWasSignedIn] = useState<boolean>()
 
@@ -74,10 +76,7 @@ function Navigation() {
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: palette.neutral },
-        }}
+        screenOptions={{ ...header, headerShown: false }}
       >
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />

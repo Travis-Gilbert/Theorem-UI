@@ -19,6 +19,7 @@ import { useRequest } from '@/lib/use-request'
 import { refreshComputers } from '../agents/computers'
 import { runnerFor } from '../agents/remote'
 import { afterMark, agentName, findStartedLogScript, startScript } from '../agents/shell'
+import { AttachButton } from './attach'
 import { ConversationSurface, EmptyConversation, type SurfaceNote } from './conversation-surface'
 import {
   destinationDetail,
@@ -231,6 +232,7 @@ export function NewConversation({ onOpen }: { onOpen: (opened: Opened) => void }
         placeholder={chosen ? `Message ${destinationName(chosen)}` : 'Message'}
         notes={notes}
         sendBlocked={!chosen || !!busy || !!waiting}
+        controls={<AttachButton />}
         empty={
           <EmptyConversation
             title={chosen ? destinationName(chosen) : 'New conversation'}
