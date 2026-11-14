@@ -22,6 +22,7 @@ import { SettingsToolbar } from '@/ui/header'
 import { GroupHeader } from '@/ui/group-header'
 import { StatusLabel } from '@/ui/status'
 import { Text } from '@/ui/text'
+import { useTheme } from '@/ui/theme'
 
 const RECENT = 8
 
@@ -38,6 +39,7 @@ export default function LibraryScreen() {
   // Files change in conversations while this tab is away.
   useFocusEffect(useCallback(() => (vault.data ? vault.reload() : undefined), [])) // eslint-disable-line react-hooks/exhaustive-deps
   const pins = usePins()
+  const { palette } = useTheme()
 
   const sections = useMemo<Section[]>(() => {
     if (!vault.data) return []
@@ -66,6 +68,7 @@ export default function LibraryScreen() {
       <SettingsToolbar>
         <Stack.Toolbar.Button
           icon="slider.horizontal.3"
+          tintColor={palette.ink}
           accessibilityLabel={isDefaultDisplay(display) ? 'Display options' : 'Display options, changed'}
           onPress={() => router.push('/library/display')}
         />

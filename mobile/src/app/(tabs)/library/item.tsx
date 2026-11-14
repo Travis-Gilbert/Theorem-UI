@@ -5,13 +5,13 @@
 // the identifiers and full time that stay out of the lists.
 import { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { router, Stack, useLocalSearchParams, useSegments } from 'expo-router'
 import { File, Paths } from 'expo-file-system'
 import { WebView } from 'react-native-webview'
 import { LinkedText } from '@/features/chat/linked-text'
 import { threadTitle } from '@/features/chat/threads'
 import { loadProvenance, loadRelated, loadVault, readFile } from '@/features/library/files'
-import { openItem } from '@/features/library/item-row'
+import { openItem, openItemFromSearch } from '@/features/library/item-row'
 import { metaLine, type LibraryItem } from '@/features/library/model'
 import { togglePin, usePins } from '@/features/library/pins'
 import type { Related } from '@/features/library/related'
@@ -27,6 +27,8 @@ import { Unavailable } from '@/ui/unavailable'
 
 export default function ItemScreen() {
   const { path } = useLocalSearchParams<{ path: string }>()
+  // Reached from Search, a related item opens in that stack too.
+  const open = (useSegments() as string[]).includes('search') ? openItemFromSearch : openItem
   const vault = useRequest(loadVault, [])
   const pinned = usePins().includes(path)
   const item = vault.data?.items.find((candidate) => candidate.path === path)
@@ -199,7 +201,7 @@ function Group({ title, entries, empty }: { title: string; entries: Related[]; e
             prominence="regular"
             title={entry.title}
             detail={entry.how}
-            onPress={() => openItem(entry.path)}
+            onPress={() => open(entry.path)}
           />
         ))
       ) : (

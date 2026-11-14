@@ -56,10 +56,11 @@ export function SettingsButton() {
  * before it, so a screen's own action and Settings share one toolbar.
  */
 export function SettingsToolbar({ children }: { children?: ReactNode }) {
+  const { palette } = useTheme()
   return (
     <Stack.Toolbar placement="right">
       {children}
-      <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
+      <Stack.Toolbar.Button icon="gearshape" tintColor={palette.ink} accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
     </Stack.Toolbar>
   )
 }

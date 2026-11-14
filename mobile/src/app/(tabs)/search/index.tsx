@@ -4,15 +4,15 @@
 // conversations whose title matches and the library items whose text does.
 // Conversation search is by title over each project's latest page: Theorem
 // has no conversation search route yet, and the screen says what it covered.
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SectionList, StyleSheet, View } from 'react-native'
-import { router, Stack } from 'expo-router'
+import { router, Stack, useFocusEffect } from 'expo-router'
 import { paramsOf } from '@/features/chat/selection'
 import { ThreadRow } from '@/features/chat/thread-row'
 import { matchThreads } from '@/features/chat/thread-model'
 import { loadSearchableThreads } from '@/features/chat/threads'
 import { loadVault, searchFiles } from '@/features/library/files'
-import { ItemRow } from '@/features/library/item-row'
+import { ItemRow, openItemFromSearch } from '@/features/library/item-row'
 import { byRecency, type LibraryItem } from '@/features/library/model'
 import { useRecents } from '@/features/library/recents'
 import { describeError, type Theorem } from '@/lib/theorem'
@@ -42,6 +42,20 @@ export default function SearchScreen() {
 
   const vault = useRequest(loadVault, [])
   const threads = useRequest(loadSearchableThreads, [])
+  // The tab stays mounted, so conversations and files made since it opened are read again each time it is shown.
+  const reloadVault = vault.reload
+  const reloadThreads = threads.reload
+  const shown = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (shown.current) {
+        reloadVault()
+        reloadThreads()
+      }
+      shown.current = true
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  )
   const recents = useRecents()
   const items = vault.data?.items
   const hits = useRequest(
@@ -119,7 +133,7 @@ export default function SearchScreen() {
               onPress={() => router.navigate({ pathname: '/chat', params: paramsOf({ kind: 'theorem', threadId: row.thread.threadId }) })}
             />
           ) : (
-            <ItemRow item={row.item} />
+            <ItemRow item={row.item} open={openItemFromSearch} />
           )
         }
         ListFooterComponent={

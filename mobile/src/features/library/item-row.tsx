@@ -39,17 +39,25 @@ export const openItem = (path: string) => {
   markViewed(path)
   router.push({ pathname: '/library/item', params: { path } })
 }
+/** Opens an item inside the Search tab's own stack, so Back returns to the results. */
+export const openItemFromSearch = (path: string) => {
+  markViewed(path)
+  router.push({ pathname: '/search/item', params: { path } })
+}
 export const openFolder = (path: string) => router.push({ pathname: '/library/folder', params: { path } })
 
 export function ItemRow({
   item,
   showFolder = true,
   show = DEFAULT_DISPLAY.show,
+  open = openItem,
 }: {
   item: LibraryItem
   showFolder?: boolean
   /** Which properties the row shows; the title always does. */
   show?: Display['show']
+  /** How the row opens its item; the Library's own screen by default. */
+  open?: (path: string) => void
 }) {
   const when = recency(item.modifiedMs)
   return (
@@ -60,7 +68,7 @@ export function ItemRow({
       detail={show.excerpt ? item.excerpt : undefined}
       meta={metaFor(item, when, show, showFolder)}
       accessibilityLabel={[item.title, item.label, showFolder ? item.folder : undefined, when].filter(Boolean).join(', ')}
-      onPress={() => openItem(item.path)}
+      onPress={() => open(item.path)}
     />
   )
 }

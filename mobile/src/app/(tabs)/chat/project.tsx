@@ -7,6 +7,7 @@ import { useCallback, useRef } from 'react'
 import { FlatList, Pressable, StyleSheet, View } from 'react-native'
 import { Image } from 'expo-image'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { paramsOf } from '@/features/chat/selection'
 import { rememberDestination } from '@/features/chat/recipient-picker'
 import { ThreadRow } from '@/features/chat/thread-row'
@@ -23,6 +24,8 @@ import { useTheme } from '@/ui/theme'
 
 export default function ProjectScreen() {
   const { palette } = useTheme()
+  // The tab bar floats over the screen; its height is part of the bottom inset.
+  const { bottom } = useSafeAreaInsets()
   const { project: projectId } = useLocalSearchParams<{ project?: string }>()
   const project = useRequest(() => (projectId ? loadProject(projectId) : Promise.resolve(undefined)), [projectId])
   const threads = useRequest(
@@ -103,7 +106,7 @@ export default function ProjectScreen() {
           accessibilityRole="button"
           accessibilityLabel="New chat in this project"
           onPress={startChat}
-          style={({ pressed }) => [styles.pill, { backgroundColor: palette.accent, opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.pill, { bottom: bottom + space.md, backgroundColor: palette.accent, opacity: pressed ? 0.85 : 1 }]}
         >
           <Image source="sf:square.and.pencil" tintColor={palette.onAccent} style={styles.pillIcon} contentFit="contain" />
           <Text variant="strong" tone="onAccent">
@@ -122,7 +125,6 @@ const styles = StyleSheet.create({
   pill: {
     position: 'absolute',
     right: space.lg,
-    bottom: space.xl,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
