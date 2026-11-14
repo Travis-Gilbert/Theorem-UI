@@ -18,10 +18,7 @@ import { Text } from '@/ui/text'
 import { useTheme } from '@/ui/theme'
 import { useComputers, type ComputerEntry } from '../agents/computers'
 import { agentName, type Agent } from '../agents/shell'
-
-export type Destination =
-  | { kind: 'theorem'; projectId: string; projectTitle: string }
-  | { kind: 'agent'; agent: Agent; computerId: string; computerName: string; folder: string }
+import type { Destination } from './destination'
 
 const LAST = 'chat.last-destination'
 

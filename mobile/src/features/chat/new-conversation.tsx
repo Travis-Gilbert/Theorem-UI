@@ -26,8 +26,8 @@ import {
   lastDestination,
   RecipientPicker,
   rememberDestination,
-  type Destination,
 } from './recipient-picker'
+import { resolveDestination, type Destination } from './destination'
 import { conversations } from './runtime'
 import type { Selection } from './selection'
 import { createThread, loadProjects } from './threads'
@@ -81,9 +81,7 @@ export function NewConversation({ onOpen }: { onOpen: (opened: Opened) => void }
   const createKey = useRef<string>(undefined)
 
   // Until the person chooses, a new conversation goes to Theorem in the first project.
-  const first = projects.data?.[0]
-  const chosen: Destination | undefined =
-    destination ?? (first ? { kind: 'theorem', projectId: first.projectId, projectTitle: first.title } : undefined)
+  const chosen = resolveDestination(destination, projects.data)
 
   /**
    * Looks for the session's log until it turns up or this look's time runs out.
