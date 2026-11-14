@@ -110,6 +110,13 @@ const config = defineConfig({
     nitro({
       preset: cloudflare ? 'cloudflare_module' : 'bun',
       minify: cloudflare,
+      // Keep dependencies of the lazy Neon Auth routes out of eagerly loaded
+      // library chunks. The browser adapter generates a UUID on module load.
+      ...(cloudflare && {
+        rolldownConfig: {
+          output: { codeSplitting: { includeDependenciesRecursively: false } },
+        },
+      }),
       cloudflare: {
         deployConfig: true,
         nodeCompat: true,

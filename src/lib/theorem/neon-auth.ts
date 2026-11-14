@@ -13,10 +13,10 @@
 // The adapter must never reach the server bundle. Its module calls
 // crypto.randomUUID() at the top level, which the Workers runtime refuses in
 // global scope, and the server bundle loads its library chunk at startup, so
-// the whole Worker would fail to start. createClientOnlyFn strips this body
-// from the server build, which drops the import with it.
+// the whole Worker would fail to start. Keep the runtime import inside the
+// client-only function so the lazy boundary also survives server bundling.
 import { createClientOnlyFn } from '@tanstack/react-start'
-import { BetterAuthVanillaAdapter } from '@neon/auth/vanilla'
+import type { BetterAuthVanillaAdapter } from '@neon/auth/vanilla'
 
 let client:
   | ReturnType<
@@ -27,10 +27,13 @@ let client:
   | undefined
 
 /** Browser only: the client is bound to this page's origin. */
-export const neonAuth = createClientOnlyFn(() => {
-  client ??= BetterAuthVanillaAdapter()(
-    `${window.location.origin}/auth/neon`,
-  ).getBetterAuthInstance()
+export const neonAuth = createClientOnlyFn(async () => {
+  if (!client) {
+    const { BetterAuthVanillaAdapter } = await import('@neon/auth/vanilla')
+    client ??= BetterAuthVanillaAdapter()(
+      `${window.location.origin}/auth/neon`,
+    ).getBetterAuthInstance()
+  }
   return client
 })
 

@@ -30,14 +30,18 @@ export function EmailSignIn() {
   // Someone already signed in to Neon in this browser only needs to continue.
   const session = useQuery({
     queryKey: ['neon-auth', 'session'],
-    queryFn: async () => (await neonAuth().getSession()).data ?? null,
+    queryFn: async () => {
+      const auth = await neonAuth()
+      return (await auth.getSession()).data ?? null
+    },
     enabled: authorizing,
     retry: false,
   })
   const signedIn = Boolean(session.data?.session)
   const resume = useMutation({
     mutationFn: async (): Promise<Failure | undefined> => {
-      const { error } = await neonAuth().oauth2.continue({ selected: true })
+      const auth = await neonAuth()
+      const { error } = await auth.oauth2.continue({ selected: true })
       // Without an error, Neon's response navigates on to Theorem.
       if (!error) return undefined
       return error.status && error.status < 500 ? 'expired' : 'unavailable'
@@ -53,7 +57,8 @@ export function EmailSignIn() {
   const signIn = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
       setFailure(undefined)
-      const { error } = await neonAuth().signIn.email(credentials)
+      const auth = await neonAuth()
+      const { error } = await auth.signIn.email(credentials)
       if (!error) return // Neon's response navigates on to Theorem.
       setFailure(
         error.status === 401 || error.status === 403
