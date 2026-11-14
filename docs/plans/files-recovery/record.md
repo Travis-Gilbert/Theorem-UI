@@ -55,11 +55,10 @@ retained under the SSD's `codex-rebuildable-cache/pr1066-worker-evidence`.
 
 ## Remaining release gates
 
-Recheck the real UI against the final backend artifact after the PR's remaining
-storage/query repairs. Production rollout and authenticated theorem.rs
-read/write/reopen remain required. The separate integration session's backend
-upgrade rehearsal is blocked by a malformed historical chat-upload record;
-this frontend evidence does not waive that storage gate.
+The real local UI has passed against the final backend artifact (receipt below).
+Production rollout and authenticated theorem.rs read/write/reopen remain
+required. The actual restored production-journal rehearsal is still running;
+local frontend acceptance does not waive that storage gate.
 
 ## Compact sidebar review repair
 
@@ -103,3 +102,24 @@ Screenshots are retained in the local review artifacts, including
 unrelated errors; this receipt proves the Files flow only. The server artifact
 includes the current Files owners, but later Cypher analyzer changes still
 require the final integrated backend gate.
+
+## Final integrated server receipt
+
+The final native server SHA-256
+`e869a99fefcf9acfae53bbe21f7bdd0d881a68a46f608b329a6c85f03cc1c812`
+reopened the moved note from the same journal. In the rendered editor, a fresh
+edit saved this exact text:
+
+> Files acceptance: café, 日本語, and durable save. Verified after restart with the native Files API. Final integrated server verified.
+
+After SIGKILL and a fresh startup of that same artifact, the browser showed the
+exact text, `Saved to Home`, and the note beneath `Recovery checks`. The normal
+Files API and disk journal were used throughout; the development OAuth provider
+remains a named stand-in for identity. No production data was changed.
+
+The durable evidence directory contains `ui-terminal-saved.txt`,
+`ui-terminal-reopened.txt`, `ui-terminal-stack.log`, and
+`ui-terminal-reopen-stack.log`. Screenshot: `files-terminal-reopened.png`.
+The same server separately passed installed Rust/TypeScript SDK process tests
+2/2 without skips and native HTTP/gRPC Open/Bound route checks, including
+crash/reopen receipt replay. Backend PR1069 records those receipts.
