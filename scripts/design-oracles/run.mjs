@@ -13,6 +13,7 @@ import { measureReading } from './measure-reading.mjs'
 import { invariantCheckResult } from './metamorphic.mjs'
 import { measureKeyboardFocus } from './focus.mjs'
 import { validatePortalEvidence } from './portals.mjs'
+import { reviewOutput } from './review-browser.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const argv = process.argv.slice(2)
@@ -650,18 +651,18 @@ if (!engine) {
 
 const paletteResults = [...resultById.values()]
 let interactionEvidence = null
-const interactionPaths=[`docs/plans/composable-appearance/evidence/review/${browserName}-interactions.json`,'docs/plans/composable-appearance/evidence/review/interactions.json']
+const interactionPaths=[resolve(reviewOutput, `${browserName}-interactions.json`),resolve(reviewOutput, 'interactions.json')]
 for(const interactionPath of interactionPaths)try{interactionEvidence=JSON.parse(await readFile(resolve(ROOT,interactionPath),'utf8'));measurements.interactionSource=interactionPath;break}catch{}
 if(!interactionEvidence)limitations.push('The real-settings interaction report is absent; ARC metamorphic evidence is therefore incomplete.')
 const readEvidence = async (paths) => {
   for (const path of paths) try { return { path, data: JSON.parse(await readFile(resolve(ROOT, path), 'utf8')) } } catch {}
   return null
 }
-const continuityEvidence = await readEvidence([`docs/plans/composable-appearance/evidence/review/${browserName}-continuity.json`])
-const reflowEvidence = await readEvidence([`docs/plans/composable-appearance/evidence/review/${browserName}-reflow.json`])
+const continuityEvidence = await readEvidence([resolve(reviewOutput, `${browserName}-continuity.json`)])
+const reflowEvidence = await readEvidence([resolve(reviewOutput, `${browserName}-reflow.json`)])
 const portalEvidence = await readEvidence(['docs/plans/composable-appearance/evidence/sol-review.json'])
-const runtimeEvidence = await readEvidence(['docs/plans/composable-appearance/evidence/review/runtime.json'])
-const compositionEvidence = await readEvidence([`docs/plans/composable-appearance/evidence/review/${browserName}-composition.json`])
+const runtimeEvidence = await readEvidence([resolve(reviewOutput, 'runtime.json')])
+const compositionEvidence = await readEvidence([resolve(reviewOutput, `${browserName}-composition.json`)])
 measurements.externalEvidence = {
   interactions: interactionEvidence ? measurements.interactionSource : null,
   continuity: continuityEvidence?.path ?? null,

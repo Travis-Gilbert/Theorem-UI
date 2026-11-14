@@ -163,3 +163,11 @@ suites. Durable logs are `ui-composer/linux-43564580129-full.log` and
 `ui-composer/linux-43564580129-rendered.log`. Cloudflare Worker preview and
 Greptile also passed for that revision. Production authenticated acceptance
 remains a separate release gate; local development identity is a stand-in.
+
+A follow-up review found that the aggregate rendered runner still read fixed
+review paths after producers gained `ORACLE_REVIEW_OUT`. It now shares the
+producer's directory for interactions, continuity, reflow, runtime and
+composition. A report-reader check loaded all five existing receipts from the
+external evidence directory, including the second-consumer composition result.
+The check deliberately had no browser installed and retained the browser
+failure; it verifies report routing only and is not a new rendered pass.
