@@ -69,7 +69,7 @@ import {
 import type { ProjectEntry, ThreadEntry } from '@/lib/theorem/organization'
 import { useStartThreadFrom } from '@/lib/theorem/thread-tree'
 import { cn } from '@/lib/utils'
-import { ProjectGlyph, ThreadGlyph } from './glyphs'
+import { ProjectGlyph, SessionGlyph } from './glyphs'
 import { NewProjectDialog } from './new-project-dialog'
 import { ThreadMenuItems } from './thread-menu'
 import { RenameField } from './thread-row'
@@ -216,8 +216,8 @@ function SessionRow({ thread, place }: { thread: ThreadEntry; place: string }) {
               }
               className="relative z-[1] flex w-full min-w-0 items-start gap-2.5 rounded-lg px-2 py-1.5 pe-8 text-start outline-none hover:bg-hover focus-visible:outline-2 focus-visible:outline-focus data-[session-row=also]:bg-hover"
             >
-              <ThreadGlyph
-                glyph={thread.glyph}
+              <SessionGlyph
+                threadId={thread.threadId}
                 aria-hidden
                 className="mt-0.5 size-4 shrink-0 text-ink-muted"
               />
@@ -959,7 +959,6 @@ export function SessionsPanel({ switcher }: { switcher: ReactNode }) {
                           title={project.title}
                           glyph={
                             <ProjectGlyph
-                              glyph={project.glyph}
                               aria-hidden
                               className="size-3.5 shrink-0"
                             />

@@ -67,6 +67,16 @@ export const TEXT_RECIPES = {
     tracking: '0.01em',
     scale: 'ui',
   },
+  // A navigation group's name (Pinned, Projects, Chats): a step above the
+  // rows it heads in size and weight, so the groups read apart without rules.
+  'ui.group': {
+    family: 'text',
+    size: 0.9375,
+    lineHeight: 20 / 15,
+    weight: 600,
+    tracking: 'normal',
+    scale: 'ui',
+  },
   metadata: {
     family: 'text',
     size: 0.75,

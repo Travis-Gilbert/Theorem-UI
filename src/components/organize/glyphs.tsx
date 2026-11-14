@@ -1,37 +1,70 @@
-// SOURCING: components/icons (the owned Streamline and Noun marks the rest of Theorem draws with; Lucide only where the owned set has no mark), the set's Streamline List Edit for a to-do list. A thread's or project's icon is the Librarian's word on what the work is about; rows fall back when it has not chosen: a thread to the chat bubble, a project to the folder the notes tree draws.
-import { Bug } from 'lucide-react'
+// SOURCING: lucide-react file marks (FileText, FileTerminal, FileCheck2, FileCode, FileCog) for session types, components/icons for the folder and the rest of the owned set. A row's icon says what kind of thing it is, and the person decides that: a project is a folder; a session wears its chosen type (lib/theorem/sidebar-prefs), a Conversation until one is chosen. The Librarian's topic glyph is no longer drawn as the icon; it stays in the organization record as metadata.
+import {
+  FileCheck2,
+  FileCode,
+  FileCog,
+  FileTerminal,
+  FileText,
+} from 'lucide-react'
 import type { ComponentProps, ComponentType } from 'react'
 import { Icon } from '@/components/icons'
-import type { Glyph } from '@/lib/theorem/organization'
+import { useSessionType } from '@/lib/theorem/sidebar-prefs'
+import type { TypeMark } from '@/lib/theorem/sidebar-prefs'
+import { cn } from '@/lib/utils'
 
 type Mark = ComponentType<ComponentProps<'svg'>>
 
-const GLYPHS: Readonly<Record<Glyph, Mark>> = {
-  layout: Icon.Layout,
-  code: Icon.Code,
-  stack: Icon.Notes,
-  graph: Icon.Graph,
-  doc: Icon.Article,
-  data: Icon.Project,
-  image: Icon.NewGraph,
-  terminal: Icon.Ide,
-  // The owned set has no bug yet.
-  bug: Bug,
-  research: Icon.Skill,
-  map: Icon.Route,
+export const TYPE_MARK: Readonly<Record<TypeMark, Mark>> = {
+  document: FileText,
+  'terminal-file': FileTerminal,
+  'checklist-file': FileCheck2,
+  'code-file': FileCode,
+  'cog-file': FileCog,
   chat: Icon.Thread,
-  todo: Icon.Todo,
+  graph: Icon.Graph,
+  research: Icon.Skill,
 }
 
-type GlyphProps = ComponentProps<'svg'> & { glyph?: Glyph }
-
-export function ThreadGlyph({ glyph, ...props }: GlyphProps) {
-  const Mark = glyph ? GLYPHS[glyph] : Icon.Thread
-  return <Mark {...props} />
+export const TYPE_MARK_LABEL: Readonly<Record<TypeMark, string>> = {
+  document: 'Document',
+  'terminal-file': 'File with terminal',
+  'checklist-file': 'File with checklist',
+  'code-file': 'Code file',
+  'cog-file': 'File with gear',
+  chat: 'Chat bubble',
+  graph: 'Graph',
+  research: 'Research',
 }
 
-/** A project's mark: the folder files are listed with, until the Librarian gives it one. */
-export function ProjectGlyph({ glyph, ...props }: GlyphProps) {
-  const Mark = glyph ? GLYPHS[glyph] : Icon.Folder
-  return <Mark {...props} />
+type MarkProps = ComponentProps<'svg'>
+
+/** A mark by name, for type pickers and graph nodes. */
+export function TypeMarkIcon({
+  mark,
+  className,
+  ...props
+}: MarkProps & { mark: TypeMark }) {
+  const Mark = TYPE_MARK[mark]
+  return (
+    <Mark
+      aria-hidden
+      strokeWidth={1.75}
+      {...props}
+      className={cn('size-4 shrink-0', className)}
+    />
+  )
+}
+
+/** A session's mark: its chosen type's, a document until one is chosen. */
+export function SessionGlyph({
+  threadId,
+  ...props
+}: MarkProps & { threadId: string }) {
+  const type = useSessionType(threadId)
+  return <TypeMarkIcon mark={type.mark} {...props} />
+}
+
+/** A project's mark: always the folder files are listed with. */
+export function ProjectGlyph(props: MarkProps) {
+  return <Icon.Folder {...props} />
 }

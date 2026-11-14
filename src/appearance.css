@@ -11,6 +11,7 @@
   --recipe-composer-content: var(--recipe-prose);
   --recipe-ui-label: 400 0.875rem / 1.4285714286 var(--font-sans);
   --recipe-ui-section: 500 0.875rem / 1.4285714286 var(--font-sans);
+  --recipe-ui-group: 600 0.9375rem / 1.3333333333 var(--font-sans);
   --recipe-metadata: 400 0.75rem / 1.5 var(--font-sans);
   --recipe-code: 400 0.8125rem / 1.5384615385 var(--font-mono);
   --recipe-heading-small: 600 1.125rem / 1.3333333333 var(--font-sans);
@@ -86,6 +87,10 @@
 [data-appearance-recipe='ui.section'] {
   font: var(--recipe-ui-section);
   letter-spacing: 0.01em;
+}
+[data-appearance-recipe='ui.group'] {
+  font: var(--recipe-ui-group);
+  letter-spacing: normal;
 }
 [data-appearance-recipe='metadata'] {
   font: var(--recipe-metadata);

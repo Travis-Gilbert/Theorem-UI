@@ -42,6 +42,7 @@ import { Route as TheiaSplatRouteImport } from './routes/theia/$'
 import { Route as ChatCThreadIdRouteImport } from './routes/_chat/c.$threadId'
 import { Route as ChatNotesDocumentIdRouteImport } from './routes/_chat/notes.$documentId'
 import { Route as ChatPagesPageIdRouteImport } from './routes/_chat/pages.$pageId'
+import { Route as ChatProjectsProjectIdRouteImport } from './routes/_chat/projects.$projectId'
 import { Route as ApiArtifactsSplatRouteImport } from './routes/api/artifacts/$'
 import { Route as ApiConnectionsSplatRouteImport } from './routes/api/connections/$'
 import { Route as ApiIndexSplatRouteImport } from './routes/api/index/$'
@@ -247,6 +248,11 @@ const ChatPagesPageIdRoute = ChatPagesPageIdRouteImport.update({
   id: '/$pageId',
   path: '/$pageId',
   getParentRoute: () => ChatPagesRoute,
+} as any)
+const ChatProjectsProjectIdRoute = ChatProjectsProjectIdRouteImport.update({
+  id: '/projects/$projectId',
+  path: '/projects/$projectId',
+  getParentRoute: () => ChatRoute,
 } as any)
 const ApiArtifactsSplatRoute = ApiArtifactsSplatRouteImport.update({
   id: '/api/artifacts/$',
@@ -503,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/projects/$projectId': typeof ChatProjectsProjectIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/connections/$': typeof ApiConnectionsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
@@ -576,6 +583,7 @@ export interface FileRoutesByTo {
   '/c/$threadId': typeof ChatCThreadIdRoute
   '/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/projects/$projectId': typeof ChatProjectsProjectIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/connections/$': typeof ApiConnectionsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
@@ -652,6 +660,7 @@ export interface FileRoutesById {
   '/_chat/c/$threadId': typeof ChatCThreadIdRoute
   '/_chat/notes/$documentId': typeof ChatNotesDocumentIdRoute
   '/_chat/pages/$pageId': typeof ChatPagesPageIdRoute
+  '/_chat/projects/$projectId': typeof ChatProjectsProjectIdRoute
   '/api/artifacts/$': typeof ApiArtifactsSplatRoute
   '/api/connections/$': typeof ApiConnectionsSplatRoute
   '/api/index/$': typeof ApiIndexSplatRoute
@@ -728,6 +737,7 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/notes/$documentId'
     | '/pages/$pageId'
+    | '/projects/$projectId'
     | '/api/artifacts/$'
     | '/api/connections/$'
     | '/api/index/$'
@@ -801,6 +811,7 @@ export interface FileRouteTypes {
     | '/c/$threadId'
     | '/notes/$documentId'
     | '/pages/$pageId'
+    | '/projects/$projectId'
     | '/api/artifacts/$'
     | '/api/connections/$'
     | '/api/index/$'
@@ -876,6 +887,7 @@ export interface FileRouteTypes {
     | '/_chat/c/$threadId'
     | '/_chat/notes/$documentId'
     | '/_chat/pages/$pageId'
+    | '/_chat/projects/$projectId'
     | '/api/artifacts/$'
     | '/api/connections/$'
     | '/api/index/$'
@@ -1207,6 +1219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatPagesPageIdRouteImport
       parentRoute: typeof ChatPagesRoute
     }
+    '/_chat/projects/$projectId': {
+      id: '/_chat/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ChatProjectsProjectIdRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/api/artifacts/$': {
       id: '/api/artifacts/$'
       path: '/api/artifacts/$'
@@ -1524,6 +1543,7 @@ interface ChatRouteChildren {
   ChatVaultRoute: typeof ChatVaultRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatCThreadIdRoute: typeof ChatCThreadIdRoute
+  ChatProjectsProjectIdRoute: typeof ChatProjectsProjectIdRoute
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
@@ -1536,6 +1556,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatVaultRoute: ChatVaultRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatCThreadIdRoute: ChatCThreadIdRoute,
+  ChatProjectsProjectIdRoute: ChatProjectsProjectIdRoute,
 }
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
