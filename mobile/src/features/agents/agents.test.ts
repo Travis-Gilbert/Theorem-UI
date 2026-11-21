@@ -387,7 +387,7 @@ describe('tmux scripts against a private tmux server', () => {
     sh(`tmux new-session -d -s shelled -x 200 -y 50 "sh -i"`, env())
     const pane = paneOf('shelled')
     // An interactive shell runs the "agent" as its own foreground job.
-    sh(`tmux send-keys -t ${pane.id} 'sh -c "echo \\$\\$ > ${pidFile}; exec cat > /dev/null"' Enter`, env())
+    sh(`tmux send-keys -t ${pane.id} 'sh -c "echo \\$\\$ > \\"${pidFile}\\"; exec cat > /dev/null"' Enter`, env())
     for (let i = 0; i < 40 && !readFileSync(pidFile, { flag: 'a+' }).toString().trim(); i++) await Bun.sleep(50)
     const agentPid = Number(readFileSync(pidFile, 'utf8').trim())
     expect(afterMark(sh(sendScript(pane.id, agentPid, 'for the agent', 'tok4'), env()))).toEqual(['sent'])
