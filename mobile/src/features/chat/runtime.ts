@@ -24,6 +24,7 @@ import { theorem } from '@/lib/theorem'
 import { phoneTurnOptions } from '../phone-actions/calendar'
 import { ConversationBinding, type Lease } from './binding'
 import { Outbox } from './outbox'
+import { createOutboxStore } from './outbox-store'
 import type { QueuedMessage, QueueState } from './queue'
 import type { Recovery } from './recovery'
 
@@ -55,6 +56,7 @@ export function outbox(): Outbox {
     binding: conversations(),
     newId: () => Crypto.randomUUID(),
     extras: phoneTurnOptions,
+    store: createOutboxStore(db()),
   })
   return outgoing
 }
@@ -126,9 +128,11 @@ export function useConversation(threadId: string): ConversationView {
       const text = textOf(message)
       if (!text) return
       setSendError(undefined)
-      writeDraft(threadId, '')
-      // The queued message owns the words from here; a refusal gives them back (see below).
+      // The queued message owns the words from here. submit() saves them durably
+      // before it returns, so the draft is cleared only once they are kept; a
+      // definite refusal gives them back (see below).
       outbox().submit(threadId, text)
+      writeDraft(threadId, '')
     },
     // The only path to cancellation: the person pressed Stop.
     onCancel: async () => {
@@ -136,6 +140,24 @@ export function useConversation(threadId: string): ConversationView {
     },
   })
   runtimeRef.current = runtime
+
+  // Restore and keep the draft for this thread. Declared before the refusal
+  // effect below so it runs first on mount: a refusal that arrived while the
+  // screen was closed prepends to the saved draft instead of overwriting it.
+  useEffect(() => {
+    const composer = runtime.thread.composer
+    const saved = readDraft(threadId)
+    if (saved && !composer.getState().text) composer.setText(saved)
+    setCurrentThread(threadId)
+    const unsubscribe = composer.subscribe(() => writeDraft(threadId, composer.getState().text))
+    const unlisten = onDraftChanged((key) => {
+      if (key === threadId) composer.setText(readDraft(threadId))
+    })
+    return () => {
+      unsubscribe()
+      unlisten()
+    }
+  }, [runtime, threadId])
 
   // A refused send is dropped from the journal; give the words back.
   useEffect(() => {
@@ -154,8 +176,11 @@ export function useConversation(threadId: string): ConversationView {
   const editQueued = useCallback(
     (id: string) => {
       const item = outbox().snapshot(threadId).items.find((entry) => entry.id === id)
-      // Only a message that was still waiting can come back; one that already went is a real message.
-      if (!item || !outbox().remove(threadId, id)) return
+      // Only a message that was still waiting can come back; one that already went
+      // is a real message. An uncertain send keeps its command id: editing it into
+      // the composer would let it go again under a fresh id, which could duplicate
+      // a message the authority already admitted.
+      if (!item || item.uncertain || !outbox().remove(threadId, id)) return
       const composer = runtimeRef.current?.thread.composer
       const current = composer?.getState().text ?? ''
       composer?.setText(current ? `${item.text}\n\n${current}` : item.text)
@@ -177,22 +202,6 @@ export function useConversation(threadId: string): ConversationView {
     },
     [threadId],
   )
-
-  // Restore and keep the draft for this thread.
-  useEffect(() => {
-    const composer = runtime.thread.composer
-    const saved = readDraft(threadId)
-    if (saved && !composer.getState().text) composer.setText(saved)
-    setCurrentThread(threadId)
-    const unsubscribe = composer.subscribe(() => writeDraft(threadId, composer.getState().text))
-    const unlisten = onDraftChanged((key) => {
-      if (key === threadId) composer.setText(readDraft(threadId))
-    })
-    return () => {
-      unsubscribe()
-      unlisten()
-    }
-  }, [runtime, threadId])
 
   return {
     runtime,

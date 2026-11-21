@@ -33,19 +33,30 @@ export default function ChatScreen() {
 
   const projects = useRequest(loadProjects, [])
   const project = projects.data?.find((item) => item.projectId === params.project) ?? projects.data?.[0]
+  // The result carries its project, so a resume can tell whether it belongs to
+  // the project now chosen (useRequest keeps the old result for one render).
   const latest = useRequest(
-    () => (project ? loadThreads(project.projectId) : Promise.resolve(undefined)),
+    () =>
+      project
+        ? loadThreads(project.projectId).then((page) => ({ projectId: project.projectId, page }))
+        : Promise.resolve(undefined),
     [project?.projectId],
   )
-  const resumed = latest.data ? mostRecentThread(latest.data.items) : undefined
+  const resumed = latest.data ? mostRecentThread(latest.data.page.items) : undefined
 
   // Nothing chosen yet: resume. The choice goes into the URL, so a conversation
   // that starts elsewhere later does not replace this one under the person.
   useEffect(() => {
-    if (selected || !project || latest.status !== 'ready') return
+    // Act only on a result known to belong to the current project. On the render
+    // where the project changes, `latest` still holds the previous project's
+    // ready page (or no project's at all); resuming from it would open or start
+    // a conversation in the wrong project, and the `selected` guard would then
+    // block the correction.
+    if (selected || !project || latest.status !== 'ready' || latest.data?.projectId !== project.projectId)
+      return
     router.setParams(paramsOf(resumed ? { kind: 'theorem', threadId: resumed.threadId } : { kind: 'new' }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!selected, project?.projectId, latest.status, resumed?.threadId])
+  }, [!!selected, project?.projectId, latest.status, latest.data?.projectId, resumed?.threadId])
 
   const open = (selection: Selection) => router.setParams(paramsOf(selection))
   const close = () => router.setParams(paramsOf(undefined))
@@ -66,7 +77,7 @@ export default function ChatScreen() {
     ) : (
       <>
         {wide ? null : <Stack.Screen options={{ title: 'New conversation' }} />}
-        <NewConversation onOpen={open} />
+        <NewConversation onOpen={open} project={project} />
       </>
     )
   ) : failure ? (

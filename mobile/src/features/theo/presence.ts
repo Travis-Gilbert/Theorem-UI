@@ -28,9 +28,14 @@ export type Accent = 'identity' | 'gold' | 'success' | 'error' | 'quiet'
 export type Motion = 'still' | 'breathe' | 'pulse'
 
 export type TheoSignals = {
-  conversation: Pick<ConversationState, 'phase' | 'projection'>
+  conversation: Pick<ConversationState, 'phase' | 'projection'> & {
+    /** The run the conversation is currently on, if any. */
+    runId?: string
+    /** When a message last arrived: orders a turn against a delivery. */
+    lastActivityMs?: number
+  }
   /** The person's newest delivery to this conversation, if one is in flight or just ended. */
-  delivery?: Pick<Delivery, 'stage'>
+  delivery?: Pick<Delivery, 'stage'> & { runId?: string; updatedAtMs?: number }
   /** True while the composer has focus or a draft: the person is speaking to Theo. */
   composing?: boolean
   /** From the computer screen once it reports one: the host a task runs on, and whether it answers. */
@@ -75,16 +80,23 @@ const approvalsPending = (conversation: TheoSignals['conversation']) =>
  */
 export function theoStateOf(signals: TheoSignals): TheoState | undefined {
   const { conversation, delivery, composing, host, decisionsPending = 0 } = signals
-  const { phase } = conversation
+  const { phase, runId, lastActivityMs } = conversation
   if (phase === 'detached') return undefined
 
+  // A failed delivery speaks for the conversation unless a newer turn replaced
+  // it: a run different from the delivery's own, or a message newer than the
+  // failure. Phase alone is not enough — a reply can finish and a new attachment
+  // fail during upload without starting another run, leaving the phase completed.
+  const deliveryFailed = delivery?.stage === 'refused' || delivery?.stage === 'failed'
+  const newerTurn =
+    (!!delivery?.runId && !!runId && delivery.runId !== runId) ||
+    (!!lastActivityMs && !!delivery?.updatedAtMs && lastActivityMs > delivery.updatedAtMs)
   if (
     phase === 'failed' ||
     phase === 'authentication-required' ||
     phase === 'cancelled' ||
     phase === 'interrupted' ||
-    delivery?.stage === 'refused' ||
-    delivery?.stage === 'failed'
+    (deliveryFailed && !newerTurn)
   )
     return 'cannot-continue'
   if (phase === 'requires-action' || approvalsPending(conversation) || decisionsPending > 0)

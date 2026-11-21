@@ -57,16 +57,32 @@ describe('queue reducer', () => {
     ])
     expect(sent).toEqual(['a'])
     expect(state.items.map((item) => item.id)).toEqual(['b'])
-    // a's send returns but its run has not shown yet: b still waits for the run.
+    // a's send returns, but the run it started has not settled: b must not go,
+    // even though the published phase reads idle for a beat before the run shows.
+    const afterSent = reduce(state, { type: 'sent', id: 'a' })
+    expect(afterSent.dispatch).toBeUndefined()
+    expect(afterSent.state.settling).toBe(true)
     const next = run(
       [
-        { type: 'sent', id: 'a' },
         { type: 'availability', availability: 'busy' },
         { type: 'availability', availability: 'idle' },
+        { type: 'run-settled' },
       ],
-      state,
+      afterSent.state,
     )
     expect(next.sent).toEqual(['b'])
+  })
+
+  test('a settled run frees the queue; a ready phase alone does not', () => {
+    const { state } = run([{ type: 'submit', message: msg('a') }, { type: 'submit', message: msg('b') }])
+    const sent = reduce(state, { type: 'sent', id: 'a' })
+    // The ambiguous ready right after a send is not the all-clear.
+    const ready = reduce(sent.state, { type: 'availability', availability: 'idle' })
+    expect(ready.dispatch).toBeUndefined()
+    // The run settling is.
+    const settled = reduce(ready.state, { type: 'run-settled' })
+    expect(settled.dispatch?.id).toBe('b')
+    expect(settled.state.settling).toBe(false)
   })
 
   test('two quick sends while free do not overlap: the second waits for the first to settle', () => {
@@ -141,9 +157,54 @@ describe('queue reducer', () => {
     expect(acknowledged.dispatch).toBeUndefined()
   })
 
+  test('an uncertain send keeps its id, pauses, and never hands the words back', () => {
+    const { state, sent } = run([
+      { type: 'submit', message: msg('a', 'words') },
+      { type: 'submit', message: msg('b') },
+      { type: 'uncertain', id: 'a', error: new Error('lost response') },
+    ])
+    expect(sent).toEqual(['a'])
+    expect(state.paused).toBe(true)
+    expect(state.refused).toEqual([])
+    expect(state.settling).toBe(false)
+    // The words wait at the front under their original id, marked uncertain.
+    expect(state.items.map((item) => item.id)).toEqual(['a', 'b'])
+    expect(state.items[0]?.uncertain).toBe(true)
+    // A later send re-arms and retries the uncertain message first, same id.
+    const resumed = run([{ type: 'submit', message: msg('c') }], state)
+    expect(resumed.sent).toEqual(['a'])
+    expect(resumed.state.items.map((item) => item.id)).toEqual(['b', 'c'])
+  })
+
+  test('restored messages wait in order and go when the conversation is free', () => {
+    const blocked = run([
+      { type: 'availability', availability: 'busy' },
+      { type: 'restore', items: [msg('a'), msg('b')], paused: false },
+    ])
+    expect(blocked.sent).toEqual([])
+    expect(blocked.state.items.map((item) => item.id)).toEqual(['a', 'b'])
+    const freed = run([{ type: 'availability', availability: 'idle' }], blocked.state)
+    expect(freed.sent).toEqual(['a'])
+    expect(freed.state.items.map((item) => item.id)).toEqual(['b'])
+  })
+
+  test('a restored pause holds the queue until an explicit send', () => {
+    const restored = run([
+      { type: 'availability', availability: 'idle' },
+      { type: 'restore', items: [msg('a')], paused: true },
+    ])
+    expect(restored.sent).toEqual([])
+    expect(restored.state.paused).toBe(true)
+    const resumed = run([{ type: 'submit', message: msg('b') }], restored.state)
+    expect(resumed.sent).toEqual(['a'])
+    expect(resumed.state.paused).toBe(false)
+  })
+
   test('an unrelated settle changes nothing', () => {
     const before: QueueState = { ...emptyQueue, availability: 'idle' }
     expect(reduce(before, { type: 'sent', id: 'ghost' }).state).toBe(before)
+    expect(reduce(before, { type: 'run-settled' }).state).toBe(before)
+    expect(reduce(before, { type: 'uncertain', id: 'ghost', error: null }).state).toBe(before)
     expect(reduce(before, { type: 'availability', availability: 'idle' }).state).toBe(before)
   })
 })

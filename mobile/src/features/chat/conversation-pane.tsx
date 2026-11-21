@@ -39,6 +39,9 @@ export function ConversationPane({
   const delivery = useDeliveries()
     .filter((entry) => entry.receiver.threadId === threadId)
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]
+  // When a message last arrived, so presence can order a turn against a delivery.
+  const lastActivityMs =
+    state.snapshot?.messages.reduce((latest, message) => Math.max(latest, message.createdAtMs), 0) || undefined
   // "Continue the conversation" from a Shortcut or the Action button opens this one.
   useEffect(() => rememberLastThread(threadId), [threadId])
   const title = state.snapshot ? threadTitle(state.snapshot.thread) : 'Conversation'
@@ -88,7 +91,10 @@ export function ConversationPane({
         recipient={{ name: 'Theo', detail: state.snapshot?.project.title }}
         placeholder="Reply to Theo"
         notes={notes}
-        theo={{ conversation: state, delivery }}
+        theo={{
+          conversation: { phase: state.phase, projection: state.projection, runId: state.journal?.runId, lastActivityMs },
+          delivery,
+        }}
         queue={{ items: queued, paused, onRemove: removeQueued, onEdit: editQueued }}
         empty={<EmptyConversation title="Theorem" detail="Ask anything about this project." />}
         stopLabel="Stop the run"

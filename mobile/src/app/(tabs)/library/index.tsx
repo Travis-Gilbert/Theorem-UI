@@ -4,7 +4,7 @@
 // the folders (where a project's files live). A type filter or a search
 // replaces the sections with one list. The filter is held in the URL
 // (`type`), so it survives a resize like the rest of the app's selection.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback } from 'react'
@@ -47,8 +47,12 @@ export default function LibraryScreen() {
   }, [query])
 
   const vault = useRequest(loadVault, [])
-  // Files change in conversations while this tab is away.
-  useFocusEffect(useCallback(() => (vault.data ? vault.reload() : undefined), [])) // eslint-disable-line react-hooks/exhaustive-deps
+  // Files change in conversations while this tab is away. Read the latest data
+  // at focus time: a closure over the first render would always see undefined
+  // and never refresh on return. reload is stable, so this never loops.
+  const vaultData = useRef(vault.data)
+  vaultData.current = vault.data
+  useFocusEffect(useCallback(() => (vaultData.current ? vault.reload() : undefined), [vault.reload]))
   const pins = usePins()
   const items = vault.data?.items
   const hits = useRequest(

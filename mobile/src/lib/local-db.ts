@@ -33,5 +33,5 @@ export const kv = {
 
 /** Removes everything this account left on the device, for sign-out. */
 export function clearAccountData(): void {
-  db().execSync('DELETE FROM conversation_journal; DELETE FROM draft; DELETE FROM intake_delivery;')
+  db().execSync('DELETE FROM conversation_journal; DELETE FROM draft; DELETE FROM intake_delivery; DELETE FROM outbox_message; DELETE FROM outbox_state;')
 }
