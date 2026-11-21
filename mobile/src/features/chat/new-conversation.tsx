@@ -232,7 +232,7 @@ export function NewConversation({ onOpen }: { onOpen: (opened: Opened) => void }
         placeholder={chosen ? `Message ${destinationName(chosen)}` : 'Message'}
         notes={notes}
         sendBlocked={!chosen || !!busy || !!waiting}
-        controls={<AttachButton />}
+        leadingControls={<AttachButton />}
         empty={
           <EmptyConversation
             title={chosen ? destinationName(chosen) : 'New conversation'}

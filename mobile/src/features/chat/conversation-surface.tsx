@@ -1,10 +1,10 @@
 // SOURCING: @assistant-ui/react-native ThreadPrimitive (Root, MessagesFlatList with its forwarded FlatList ref and composed onScroll), ComposerPrimitive (Input, Send, Cancel), AuiIf, AssistantRuntimeProvider; react-native KeyboardAvoidingView; react-native-screens SafeAreaView (the bottom inset native tabs documents)
 //
 // One conversation screen for every recipient: Theorem's agent, Claude Code or
-// Codex on a computer. The transcript fills the screen; the composer floats
-// over its end as a card (DESIGN.md: composer radius 16), with the recipient
-// named in a chip beside Send. A reader scrolled up stays where they are when
-// replies arrive, and gets a button back to the latest one.
+// Codex on a computer. The screen owns a measured, keyboard-aware composer above
+// the native tabs. Native glass is decoration: accessibility/material changes do
+// not remount the input. The current runtime owns drafts, queued sends and Stop;
+// presence and recovery stay outside the writing area.
 import { useRef, useState, type ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
@@ -28,6 +28,7 @@ import {
 } from '@assistant-ui/react-native'
 import { fonts, radius, space, touchTarget, type as typeScale } from '@/theme/tokens'
 import { Button } from '@/ui/button'
+import { ControlMaterial } from '@/ui/control-material'
 import { Text } from '@/ui/text'
 import { useTheme } from '@/ui/theme'
 import { TheoPresence } from '../theo/theo-presence'
@@ -38,12 +39,15 @@ import { AppChecks } from '../apps/app-checks'
 /** Distance from the end, in points, past which the jump-to-latest button shows. */
 const JUMP_THRESHOLD = 240
 const ROUND = 36
+const INPUT_MAX_HEIGHT = 180
 
 export type Recipient = {
   /** Who the message goes to: "Theorem", "Claude Code", "Codex". */
   name: string
   /** Where: a project, or a computer and folder. */
   detail?: string
+  /** Omit repeated context only when a persistent navigation header already shows it. */
+  hideDetail?: boolean
   /** Opens the recipient picker or details; without it the chip only names the recipient. */
   onPress?: () => void
 }
@@ -69,17 +73,18 @@ export type QueueView = {
 
 export function RecipientChip({ recipient }: { recipient: Recipient }) {
   const { palette } = useTheme()
+  // Split panes and remote recipients retain their context unless the caller
+  // explicitly confirms it is already visible in a persistent header.
+  const detail = recipient.hideDetail ? undefined : recipient.detail
+  const name = recipient.name === 'Theorem' ? 'Theo' : recipient.name
   const content = (
     <>
-      <Text variant="label" tone="faint" style={styles.chipName}>
-        To
+      <Text variant="label" tone="muted" numberOfLines={1} style={styles.chipName}>
+        To {name}
       </Text>
-      <Text variant="label" numberOfLines={1} style={styles.chipName}>
-        {recipient.name}
-      </Text>
-      {recipient.detail ? (
+      {detail ? (
         <Text variant="label" tone="faint" numberOfLines={1} style={styles.chipDetail}>
-          {recipient.detail}
+          {detail}
         </Text>
       ) : null}
       {recipient.onPress ? (
@@ -95,7 +100,7 @@ export function RecipientChip({ recipient }: { recipient: Recipient }) {
       <View
         accessible
         accessibilityLabel={`To ${label}`}
-        style={[styles.chip, { backgroundColor: palette.neutral }]}
+        style={styles.chip}
       >
         {content}
       </View>
@@ -107,7 +112,7 @@ export function RecipientChip({ recipient }: { recipient: Recipient }) {
       accessibilityHint="Choose who receives the message"
       onPress={recipient.onPress}
       hitSlop={{ top: 6, bottom: 6 }}
-      style={({ pressed }) => [styles.chip, { backgroundColor: pressed ? palette.hover : palette.neutral }]}
+      style={({ pressed }) => [styles.chip, { backgroundColor: pressed ? palette.hover : 'transparent' }]}
     >
       {content}
     </Pressable>
@@ -217,6 +222,7 @@ export function ConversationSurface({
   queue,
   empty,
   header,
+  leadingControls,
   controls,
   stopLabel = 'Stop',
   sendBlocked,
@@ -234,13 +240,15 @@ export function ConversationSurface({
   empty: ReactNode
   /** Above the first message, such as a note that earlier messages are not shown. */
   header?: ReactNode
+  /** Primary controls before the recipient, such as the attachment picker. */
+  leadingControls?: ReactNode
   /** Extra controls between the recipient and Send, such as the terminal. */
   controls?: ReactNode
   stopLabel?: string
   /** Sending is off for a reason a note explains (the runtime may not know it yet). */
   sendBlocked?: boolean
 }) {
-  const { palette, scheme } = useTheme()
+  const { palette, scheme, reduceMotion } = useTheme()
   const headerHeight = useHeaderHeight()
   const list = useRef<FlatList>(null)
   // The transcript mounts once the composer is measured, so its first scroll to
@@ -248,6 +256,7 @@ export function ConversationSurface({
   // the scroll can race the scroll's echo and leave the list short of the end.
   const [composerHeight, setComposerHeight] = useState<number>()
   const [farFromEnd, setFarFromEnd] = useState(false)
+  const [inputHeight, setInputHeight] = useState<number>(touchTarget)
 
   const onScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = nativeEvent
@@ -281,7 +290,7 @@ export function ConversationSurface({
                   ListEmptyComponent={<View style={styles.empty}>{empty}</View>}
                   ListHeaderComponent={header ? <View style={styles.header}>{header}</View> : undefined}
                 >
-                  {({ message }) => <MessageView message={message} />}
+                  {({ message }) => <MessageView message={message} liveStatusInPresence={Boolean(theo)} />}
                 </ThreadPrimitive.MessagesFlatList>
               )}
 
@@ -289,7 +298,7 @@ export function ConversationSurface({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Jump to the latest message"
-                  onPress={() => list.current?.scrollToEnd({ animated: true })}
+                  onPress={() => list.current?.scrollToEnd({ animated: !reduceMotion })}
                   hitSlop={4}
                   style={({ pressed }) => [
                     styles.round,
@@ -317,10 +326,11 @@ export function ConversationSurface({
                 </View>
               ) : null}
 
-              {/* The card sits on the page colour, so the transcript ends at the card instead of showing around it. */}
+              {/* The transparent dock preserves the native material's backdrop. Its full measured height still clears the transcript. */}
               <View
                 onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
-                style={[styles.dock, { backgroundColor: palette.neutral }]}
+                pointerEvents="box-none"
+                style={styles.dock}
               >
                 {queue?.items.length ? (
                   <View style={styles.queue}>
@@ -339,26 +349,22 @@ export function ConversationSurface({
                     ) : null}
                   </View>
                 ) : null}
-                <View
-                  style={[
-                    styles.card,
-                    styles.lifted,
-                    {
-                      backgroundColor: palette.composer,
-                      borderColor: palette.lineControl,
-                      shadowOpacity: scheme === 'dark' ? 0 : 0.06,
-                    },
-                  ]}
-                >
+                <ControlMaterial style={styles.card} cornerRadius={radius.composer}>
                   <ComposerPrimitive.Input
                     accessibilityLabel={placeholder}
                     placeholder={placeholder}
                     placeholderTextColor={palette.inkFaint}
                     multiline
                     submitMode="none"
-                    style={[styles.input, { color: palette.ink }]}
+                    scrollEnabled={inputHeight >= INPUT_MAX_HEIGHT}
+                    onContentSizeChange={(event) => {
+                      const height = Math.ceil(event.nativeEvent.contentSize.height)
+                      setInputHeight(Math.max(touchTarget, Math.min(INPUT_MAX_HEIGHT, height)))
+                    }}
+                    style={[styles.input, { color: palette.ink, height: inputHeight }]}
                   />
                   <View style={styles.controls}>
+                    {leadingControls}
                     <RecipientChip recipient={recipient} />
                     <View style={styles.spacer} />
                     {controls}
@@ -380,9 +386,13 @@ export function ConversationSurface({
                         <View style={[styles.stopGlyph, { backgroundColor: palette.ink }]} />
                       </ComposerPrimitive.Cancel>
                     </AuiIf>
-                    <SendButton name={recipient.name} blocked={sendBlocked} />
+                    <SendButton
+                      name={recipient.name}
+                      blocked={sendBlocked}
+                      onQueue={queue ? () => runtime.thread.composer.send({ startRun: false }) : undefined}
+                    />
                   </View>
-                </View>
+                </ControlMaterial>
               </View>
             </ThreadPrimitive.Root>
           </KeyboardAvoidingView>
@@ -403,25 +413,60 @@ function PresenceLine({ signals }: { signals: Omit<TheoSignals, 'composing'> }) 
   ) : null
 }
 
-function SendButton({ name, blocked }: { name: string; blocked?: boolean }) {
+function SendButton({
+  name,
+  blocked,
+  onQueue,
+}: {
+  name: string
+  blocked?: boolean
+  onQueue?: () => void
+}) {
   const { palette } = useTheme()
-  const empty = useAuiState((s) => !s.composer.text.trim())
   const running = useAuiState((s) => s.thread.isRunning)
-  const inactive = empty || !!blocked
+  const queueDisabled = useAuiState((s) => s.thread.isDisabled || !s.composer.canSend)
+  // Normal Send mirrors the primitive's actual gating. Theorem's outbox
+  // is a separate owner, so it gets an explicit action while a run is live.
+  const sendDisabled = useAuiState((s) =>
+    s.thread.isDisabled ||
+    !s.composer.canSend ||
+    (s.thread.isRunning && !s.thread.capabilities.queue && s.thread.voice === undefined),
+  )
+  const queueing = running && onQueue !== undefined
+  const inactive = !!blocked || (queueing ? queueDisabled : sendDisabled)
+  const shared = {
+    accessibilityRole: 'button' as const,
+    accessibilityState: { disabled: inactive },
+    hitSlop: (touchTarget - ROUND) / 2,
+    style: ({ pressed }: { pressed: boolean }) => [
+      styles.round,
+      { backgroundColor: inactive ? palette.lineControl : pressed ? palette.accentPressed : palette.accent },
+    ],
+  }
+  const glyph = (
+    <Text variant="strong" tone={inactive ? 'muted' : 'onAccent'}>
+      ↑
+    </Text>
+  )
+  if (queueing)
+    return (
+      <Pressable
+        {...shared}
+        accessibilityLabel={`Queue for ${name} until the run ends`}
+        accessibilityHint="Adds your message after the current run without interrupting it"
+        disabled={inactive}
+        onPress={onQueue}
+      >
+        {glyph}
+      </Pressable>
+    )
   return (
     <ComposerPrimitive.Send
-      accessibilityRole="button"
-      accessibilityLabel={running ? `Queue for ${name} until the run ends` : `Send to ${name}`}
+      {...shared}
+      accessibilityLabel={`Send to ${name}`}
       disabled={blocked || undefined}
-      hitSlop={(touchTarget - ROUND) / 2}
-      style={({ pressed }) => [
-        styles.round,
-        { backgroundColor: inactive ? palette.lineControl : palette.accent, opacity: pressed ? 0.8 : 1 },
-      ]}
     >
-      <Text variant="strong" tone={inactive ? 'muted' : 'onAccent'}>
-        ↑
-      </Text>
+      {glyph}
     </ComposerPrimitive.Send>
   )
 }
@@ -459,7 +504,6 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: radius.composer,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: space.sm,
     gap: space.xs,
   },
@@ -471,14 +515,15 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: touchTarget,
-    maxHeight: 180,
+    maxHeight: INPUT_MAX_HEIGHT,
     paddingHorizontal: space.sm,
     paddingTop: space.sm,
     paddingBottom: space.xs,
+    textAlignVertical: 'top',
     fontFamily: fonts.ui,
     ...typeScale.prose,
   },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: touchTarget },
   spacer: { flex: 1 },
   chip: {
     flexDirection: 'row',
@@ -486,10 +531,12 @@ const styles = StyleSheet.create({
     gap: space.xs,
     minHeight: ROUND,
     maxWidth: 240,
-    paddingHorizontal: space.md,
+    minWidth: 0,
+    flexShrink: 1,
+    paddingHorizontal: space.sm,
     borderRadius: radius.pill,
   },
-  chipName: { flexShrink: 0 },
+  chipName: { flexShrink: 1 },
   chipDetail: { flexShrink: 1 },
   round: {
     width: ROUND,

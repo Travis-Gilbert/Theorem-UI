@@ -92,12 +92,8 @@ export function ConversationPane({
         queue={{ items: queued, paused, onRemove: removeQueued, onEdit: editQueued }}
         empty={<EmptyConversation title="Theorem" detail="Ask anything about this project." />}
         stopLabel="Stop the run"
-        controls={
-          <>
-            <AttachButton threadId={threadId} />
-            {titled ? null : <ShareButton threadId={threadId} />}
-          </>
-        }
+        leadingControls={<AttachButton threadId={threadId} />}
+        controls={titled ? undefined : <ShareButton threadId={threadId} />}
       />
     </>
   )

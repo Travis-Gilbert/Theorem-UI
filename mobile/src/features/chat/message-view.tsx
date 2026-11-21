@@ -1,340 +1,151 @@
-// SOURCING: @assistant-ui/react-native MessageState (each row of ThreadPrimitive.MessagesFlatList); parts as @theoremharness/sdk projects them, drawn or silenced by the web's rules (./parts), printed with its stringifyJson (bigint-safe)
-import { memo, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+// SOURCING: native assistant-ui MessageState; alpha10 projection; native App/approval/calendar renderers.
+import { memo, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
+import { findNodeHandle, Pressable, Share, StyleSheet, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import type { MessageState } from '@assistant-ui/react-native'
-import { stringifyJson } from '@theoremharness/sdk'
-import { openInBrowser } from '@/features/browser/store'
-import { radius, space } from '@/theme/tokens'
-import { StatusLabel, type Tone } from '@/ui/status'
+import { radius, space, touchTarget } from '@/theme/tokens'
+import { StatusLabel } from '@/ui/status'
 import { Text } from '@/ui/text'
 import { useTheme } from '@/ui/theme'
-import { readApproval } from './approval'
-import { ApprovalCard } from './approval-card'
-import { LinkedText } from './linked-text'
-import { MarkdownText } from './markdown-text'
-import { citationOf, SILENT_PARTS, type Citation } from './parts'
-import { AppCheckRow } from '../apps/app-checks'
-import { AppFrame } from '../apps/app-frame'
-import { appRevisionOf, ARTIFACT_PART } from '../apps/operations'
-import { PROPOSE_EVENT } from '../phone-actions/calendar'
-import { EventProposalCard } from '../phone-actions/event-card'
+import { additionalAttachments, object, planReply, string } from './message-presentation'
+import { OutputPart } from './output-part'
+import { PartBoundary, ReplyActivity } from './reply-details'
+import { SourcesSheet } from './sources-sheet'
 
-type Part = MessageState['content'][number]
-type Json = Record<string, unknown>
-const object = (value: unknown): Json =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {}
-
-function statusOf(message: MessageState): { tone: Tone; label: string } | undefined {
-  const custom = object(message.metadata?.custom)
-  if (message.role === 'user') {
-    if (custom.theoremStopRequested) return { tone: 'attention', label: 'Stop requested' }
-    if (custom.theoremPendingCommandId) return { tone: 'live', label: 'Sending' }
-    return undefined
+function useMessageActions(text: string, messageId: string) {
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string>()
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const shareControl = useRef<ComponentRef<typeof Pressable>>(null)
+  const generation = useRef(0)
+  useEffect(() => {
+    generation.current++
+    setCopied(false)
+    setError(undefined)
+    return () => {
+      generation.current++
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = undefined
+    }
+  }, [text, messageId])
+  const copy = async () => {
+    if (!text.trim()) return
+    const requestGeneration = ++generation.current
+    if (timer.current) clearTimeout(timer.current)
+    setCopied(false)
+    setError(undefined)
+    try {
+      const success = await Clipboard.setStringAsync(text)
+      if (generation.current !== requestGeneration) return
+      if (!success) {
+        setError('The message could not be copied. Select its text to copy it.')
+        return
+      }
+      setCopied(true)
+      timer.current = setTimeout(() => {
+        if (generation.current === requestGeneration) setCopied(false)
+      }, 1800)
+    } catch {
+      if (generation.current === requestGeneration)
+        setError('The message could not be copied. Select its text to copy it.')
+    }
   }
-  const status = message.status
-  if (!status) return undefined
-  switch (status.type) {
-    case 'running':
-      return { tone: 'live', label: 'Working' }
-    case 'requires-action':
-      return { tone: 'attention', label: 'Needs you' }
-    case 'incomplete':
-      return status.reason === 'cancelled'
-        ? { tone: 'neutral', label: 'Stopped' }
-        : { tone: 'error', label: 'Did not finish' }
-    default:
-      return undefined
+  const share = async () => {
+    if (!text.trim()) return
+    const requestGeneration = generation.current
+    try {
+      setError(undefined)
+      const anchor = findNodeHandle(shareControl.current)
+      await Share.share({ message: text }, anchor ? { anchor } : undefined)
+    } catch {
+      if (generation.current === requestGeneration) setError('The share sheet could not be opened. Try again.')
+    }
   }
+  return { copied, error, copy, share, shareControl }
 }
 
-const plainText = (message: MessageState) =>
-  message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n\n')
-
-/** A compact activity row (DESIGN.md): one line that opens to show what is behind it. */
-function Disclosure({
-  title,
-  state,
-  children,
-}: {
-  title: string
-  state?: { tone: Tone; label: string }
-  children: React.ReactNode
-}) {
+function MessageActions({ actions, user }: { actions: ReturnType<typeof useMessageActions>; user: boolean }) {
   const { palette } = useTheme()
-  const [open, setOpen] = useState(false)
   return (
     <View>
-      <Pressable
-        onPress={() => setOpen(!open)}
-        accessibilityRole="button"
-        accessibilityLabel={[title, state?.label].filter(Boolean).join(', ')}
-        accessibilityState={{ expanded: open }}
-        style={({ pressed }) => [styles.step, pressed ? { backgroundColor: palette.hover } : null]}
-        hitSlop={4}
-      >
-        <Text variant="label" tone="muted" numberOfLines={1} style={styles.stepTitle}>
-          {title}
-        </Text>
-        {state ? <StatusLabel {...state} /> : null}
-        <Text variant="label" tone="faint" style={styles.chevron}>
-          {open ? '⌃' : '›'}
-        </Text>
-      </Pressable>
-      {open ? (
-        <View
-          style={[styles.stepBody, { backgroundColor: palette.raised, borderColor: palette.lineSeparator }]}
-        >
-          {children}
-        </View>
-      ) : null}
+      <View style={[styles.actions, user && styles.userActions]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={actions.copied ? 'Copied' : `Copy ${user ? 'message' : 'reply'}`}
+          onPress={() => void actions.copy()} style={({ pressed }) => [styles.action, pressed && { backgroundColor: palette.hover }]}>
+          <Text variant="label" tone="muted">{actions.copied ? 'Copied' : 'Copy'}</Text>
+        </Pressable>
+        <Pressable ref={actions.shareControl} accessibilityRole="button" accessibilityLabel={`Share ${user ? 'message' : 'reply'}`}
+          onPress={() => void actions.share()} style={({ pressed }) => [styles.action, pressed && { backgroundColor: palette.hover }]}>
+          <Text variant="label" tone="muted">Share</Text>
+        </Pressable>
+      </View>
+      {actions.error ? <Text variant="label" tone="error" accessibilityRole="alert">{actions.error}</Text> : null}
     </View>
   )
 }
 
-const stepState = (part: Extract<Part, { type: 'tool-call' }>): { tone: Tone; label: string } | undefined =>
-  part.result === undefined
-    ? { tone: 'live', label: 'Running' }
-    : part.isError
-      ? { tone: 'error', label: 'Failed' }
-      : undefined
-
-/** The title ./agents gives a step, or the tool's name made readable. */
-function stepTitleOf(part: Extract<Part, { type: 'tool-call' }>): string {
-  const title = object(object(part.artifact).theoremStep).title
-  if (typeof title === 'string' && title) return title
-  return part.toolName
-    .replace(/^mcp__/, '')
-    .replace(/__/g, ' · ')
-    .replace(/_/g, ' ')
-}
-
-function PartView({ part, runId, running }: { part: Part; runId: string | undefined; running: boolean }) {
-  switch (part.type) {
-    case 'text':
-      return <MarkdownText text={part.text} />
-    case 'reasoning':
-      // Only reasoning the provider supplied; nothing is inferred from prose.
-      return (
-        <Disclosure title="Reasoning summary">
-          <Text variant="body" tone="muted" selectable>
-            {part.text}
-          </Text>
-        </Disclosure>
-      )
-    case 'tool-call': {
-      const approval = readApproval(part.artifact)
-      if (approval && part.result === undefined)
-        return <ApprovalCard approval={approval} runId={runId} argsText={part.argsText} />
-      return (
-        <Disclosure title={stepTitleOf(part)} state={stepState(part)}>
-          {part.argsText ? (
-            <Text variant="code" selectable numberOfLines={24}>
-              {part.argsText}
-            </Text>
-          ) : null}
-          {part.result !== undefined ? (
-            <Text variant="code" tone={part.isError ? 'error' : 'ink'} selectable numberOfLines={40}>
-              {typeof part.result === 'string'
-                ? part.result || 'No output.'
-                : stringifyJson(part.result, null, 2)}
-            </Text>
-          ) : null}
-        </Disclosure>
-      )
-    }
-    case 'data': {
-      const data = object(part.data)
-      if (
-        part.name === 'theorem-client_operation' &&
-        data.operation === PROPOSE_EVENT &&
-        typeof data.requestRef === 'string'
-      )
-        return (
-          <EventProposalCard
-            runId={runId}
-            request={{
-              requestRef: data.requestRef,
-              state: typeof data.state === 'string' ? data.state : 'pending',
-              args: data.args,
-            }}
-          />
-        )
-      if (
-        part.name === 'theorem-client_operation' &&
-        typeof data.operation === 'string' &&
-        data.operation.startsWith('app.') &&
-        typeof data.requestRef === 'string'
-      )
-        return (
-          <AppCheckRow
-            runId={runId}
-            running={running}
-            data={part.data}
-            request={{
-              requestRef: data.requestRef,
-              operation: data.operation,
-              state: typeof data.state === 'string' ? data.state : 'pending',
-              args: object(data.args),
-              expectedRevision: typeof data.expectedRevision === 'number' ? data.expectedRevision : 0,
-            }}
-          />
-        )
-      if (part.name === ARTIFACT_PART) {
-        const app = appRevisionOf(part.data)
-        if (app) return <AppFrame app={app} />
-      }
-      return (
-        <Disclosure title={part.name.replace(/^theorem-/, '').replace(/_/g, ' ')}>
-          <Text variant="code" selectable numberOfLines={40}>
-            {stringifyJson(part.data, null, 2)}
-          </Text>
-        </Disclosure>
-      )
-    }
-    default:
-      return (
-        <Text variant="label" tone="muted">
-          This {part.type} part is not shown on iPhone yet.
-        </Text>
-      )
-  }
-}
-
-/** A source tag, as the web draws one; a web URL opens in the app's browser. */
-function CitationChip({ citation }: { citation: Citation }) {
+/** A reply's content stays mounted; activity and sources have one disclosure each. */
+export const MessageView = memo(function MessageView({
+  message,
+  liveStatusInPresence = false,
+}: {
+  message: MessageState
+  /** Hosted TheoPresence already supplies the generic live caption. Remote agents keep theirs here. */
+  liveStatusInPresence?: boolean
+}) {
   const { palette } = useTheme()
-  const { url } = citation
-  return (
-    <Pressable
-      disabled={!url}
-      onPress={url ? () => openInBrowser(url) : undefined}
-      accessibilityRole={url ? 'link' : 'text'}
-      accessibilityLabel={`Source: ${citation.label}`}
-      style={({ pressed }) => [
-        styles.chip,
-        { backgroundColor: pressed ? palette.hover : palette.raised, borderColor: palette.lineSeparator },
-      ]}
-    >
-      <Text variant="label" tone="muted" numberOfLines={1}>
-        {citation.label}
-      </Text>
-    </Pressable>
-  )
-}
-
-/** A reply's parts as they draw: silent parts dropped, neighbouring source tags gathered into one row. */
-function replyItems(content: readonly Part[]): (Part | Citation[])[] {
-  const items: (Part | Citation[])[] = []
-  for (const part of content) {
-    if (part.type === 'data' && SILENT_PARTS.has(part.name)) continue
-    if (part.type === 'data' && part.name === 'theorem-citation') {
-      const citation = citationOf(part.data)
-      if (!citation) continue
-      const last = items.at(-1)
-      if (Array.isArray(last)) last.push(citation)
-      else items.push([citation])
-      continue
-    }
-    items.push(part)
-  }
-  return items
-}
-
-/** The files a stored message carries, by the name Theorem kept or, without one, as a plain count. */
-function attachmentNames(message: MessageState): string[] {
-  let unnamed = 0
-  return message.content.flatMap((part) => {
-    if (part.type !== 'data' || part.name !== 'theorem-attachment') return []
-    const payload = object(part.data)
-    const name = [payload.fileName, payload.name, payload.filename].find((value) => typeof value === 'string')
-    return [typeof name === 'string' && name ? name : `file ${++unnamed}`]
-  })
-}
-
-export const MessageView = memo(function MessageView({ message }: { message: MessageState }) {
-  const { palette } = useTheme()
-  const status = statusOf(message)
-  const runId = object(message.metadata?.custom).theoremRunId as string | undefined
+  const user = message.role === 'user'
+  const attachments = user ? message.attachments : undefined
+  const presentation = useMemo(() => planReply<MessageState['content'][number]>([
+    ...message.content, ...additionalAttachments(message.content, attachments),
+  ], user ? 'user' : 'assistant'), [message.content, attachments, user])
+  const custom = object(message.metadata?.custom)
+  const runId = string(custom.theoremRunId)
   const running = message.status?.type === 'running' || message.status?.type === 'requires-action'
-  const copy = () => void Clipboard.setStringAsync(plainText(message))
-  if (message.role === 'user')
-    return (
-      <View style={[styles.row, styles.userRow]}>
-        <Pressable
-          onLongPress={copy}
-          accessibilityHint="Long press to copy"
-          accessibilityActions={[{ name: 'copy', label: 'Copy message' }]}
-          onAccessibilityAction={copy}
-          style={[styles.bubble, { backgroundColor: palette.selected }]}
-        >
-          {message.content.map((part, index) =>
-            part.type === 'text' ? <LinkedText key={index} text={part.text} variant="body" /> : null,
-          )}
-          {attachmentNames(message).map((name, index) => (
-            // The message Theorem stored carries this file. The picture itself is not drawn here yet.
-            <Text key={`file-${index}`} variant="label" tone="muted">
-              Attached: {name}
-            </Text>
-          ))}
-        </Pressable>
-        {status ? <StatusLabel {...status} /> : null}
-      </View>
-    )
+  const text = message.content.flatMap((part) => part.type === 'text' ? [part.text] : []).join('\n\n')
+  const actions = useMessageActions(text, message.id)
+  const hasText = Boolean(text.trim())
+  const content = presentation.body.map(({ part, key }) => (
+    <PartBoundary key={key} resetKey={part}>
+      <OutputPart part={part} runId={runId} running={running} user={user} />
+    </PartBoundary>
+  ))
   return (
     <View
-      style={styles.row}
-      accessibilityActions={[{ name: 'copy', label: 'Copy reply' }]}
-      onAccessibilityAction={copy}
+      style={[styles.row, user && styles.userRow]}
+      accessibilityActions={hasText ? [{ name: 'copy', label: `Copy ${user ? 'message' : 'reply'}` }] : undefined}
+      onAccessibilityAction={({ nativeEvent }) => { if (nativeEvent.actionName === 'copy') void actions.copy() }}
     >
-      {replyItems(message.content).map((item, index) =>
-        Array.isArray(item) ? (
-          <View key={index} style={styles.chips}>
-            {item.map((citation, at) => (
-              <CitationChip key={at} citation={citation} />
-            ))}
-          </View>
-        ) : (
-          <PartView key={index} part={item} runId={runId} running={running} />
-        ),
+      {user ? (
+        <Pressable
+          onLongPress={hasText ? () => void actions.copy() : undefined}
+          accessibilityHint={hasText ? 'Long press to copy' : undefined}
+          style={[styles.bubble, { backgroundColor: palette.raised, borderColor: palette.lineSeparator }]}
+        >{content}</Pressable>
+      ) : (
+        <>
+          <ReplyActivity
+            parts={message.content}
+            entries={presentation.activity}
+            status={message.status}
+            liveStatusInPresence={liveStatusInPresence}
+          />
+          <View style={styles.answer}>{content}</View>
+        </>
       )}
-      {status ? <StatusLabel {...status} /> : null}
+      <SourcesSheet sources={presentation.sources} />
+      {user && custom.theoremStopRequested ? <StatusLabel tone="attention" label="Stop requested" />
+        : user && custom.theoremPendingCommandId ? <StatusLabel tone="live" label="Sending" /> : null}
+      {hasText ? <MessageActions actions={actions} user={user} /> : null}
     </View>
   )
 })
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.xs },
+  row: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
   userRow: { alignItems: 'flex-end' },
-  bubble: {
-    maxWidth: '85%',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.composer,
-  },
-  step: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    minHeight: 32,
-    marginHorizontal: -space.sm,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.control,
-  },
-  stepTitle: { flex: 1 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
-  chip: {
-    maxWidth: 256,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.control,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  chevron: { width: 12, textAlign: 'center' },
-  stepBody: {
-    padding: space.sm,
-    gap: space.sm,
-    borderRadius: radius.control,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  bubble: { maxWidth: '94%', paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.composer, borderWidth: StyleSheet.hairlineWidth, gap: space.sm },
+  answer: { gap: space.sm },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  userActions: { justifyContent: 'flex-end' },
+  action: { minHeight: touchTarget, minWidth: touchTarget, justifyContent: 'center', alignItems: 'center', paddingHorizontal: space.sm, borderRadius: radius.control },
 })

@@ -1,6 +1,6 @@
-// SOURCING: react-native useColorScheme and AccessibilityInfo (reduced motion); preference kept in the device kv table
+// SOURCING: react-native useColorScheme, Appearance and AccessibilityInfo (reduced motion/transparency); preference kept in the device kv table
 import { createContext, use, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AccessibilityInfo, Appearance, useColorScheme } from 'react-native'
+import { AccessibilityInfo, Appearance, Platform, useColorScheme } from 'react-native'
 import { kv } from '@/lib/local-db'
 import { palettes, type Palette, type Scheme } from '@/theme/tokens'
 
@@ -12,6 +12,7 @@ type Theme = {
   preference: Preference
   setPreference: (preference: Preference) => void
   reduceMotion: boolean
+  reduceTransparency: boolean
 }
 
 const ThemeContext = createContext<Theme | undefined>(undefined)
@@ -23,10 +24,40 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => (kv.get(KEY) as Preference | undefined) ?? 'system',
   )
   const [reduceMotion, setReduceMotion] = useState(false)
+  // Keep controls readable until the native transparency preference is known.
+  const [reduceTransparency, setReduceTransparency] = useState(Platform.OS === 'ios')
   useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
-    return () => subscription.remove()
+    let mounted = true
+    let changed = false
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (next) => {
+      changed = true
+      setReduceMotion(next)
+    })
+    void AccessibilityInfo.isReduceMotionEnabled().then((next) => {
+      if (mounted && !changed) setReduceMotion(next)
+    }).catch(() => {})
+    return () => {
+      mounted = false
+      subscription.remove()
+    }
+  }, [])
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    let mounted = true
+    let changed = false
+    const subscription = AccessibilityInfo.addEventListener('reduceTransparencyChanged', (next) => {
+      changed = true
+      setReduceTransparency(next)
+    })
+    void AccessibilityInfo.isReduceTransparencyEnabled().then((next) => {
+      if (mounted && !changed) setReduceTransparency(next)
+    }).catch(() => {
+      // Keep the solid fallback if the initial preference cannot be read.
+    })
+    return () => {
+      mounted = false
+      subscription.remove()
+    }
   }, [])
   // Native chrome (navigation bars, sheets, system glass) takes its light or dark from the window,
   // not from our palette. Pin the window to the chosen scheme; 'unspecified' hands it back to the system.
@@ -44,8 +75,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setPreferenceState(next)
       },
       reduceMotion,
+      reduceTransparency,
     }),
-    [scheme, preference, reduceMotion],
+    [scheme, preference, reduceMotion, reduceTransparency],
   )
   return <ThemeContext value={value}>{children}</ThemeContext>
 }

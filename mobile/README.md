@@ -7,7 +7,7 @@ The Theorem app for iPhone and iPad. It is built with Expo and React Native, ren
 - Phase 0 decisions and evidence are in `docs/phase-0.md`.
 - Theo on iPhone (sharing into a conversation, the Live Activity, Shortcuts, the calendar card, the screen-sharing prototype) is planned in `../docs/plans/theo-iphone.md`, with its evidence in `../docs/plans/theo-iphone.checklist.json`.
 
-This is an early slice. Hosted Theorem conversations are implemented. Areas Theorem cannot serve yet show a plain "not available" state instead of guessed content: Inbox, Artifacts, pairing, Platinum, note editing and providers. Nothing here has been built natively or run on a device yet.
+This is an early slice. Hosted Theorem conversations are implemented. Areas Theorem cannot serve yet show a plain "not available" state instead of guessed content: Inbox, Artifacts, pairing, Platinum, note editing and providers. The rich-reply and clear-glass composer implementation, verification evidence, and remaining device checks are recorded in [Mobile chat: rich replies and clear glass](../docs/plans/mobile-chat-first-implementation.md).
 
 ## Stack
 
@@ -15,7 +15,7 @@ This is an early slice. Hosted Theorem conversations are implemented. Areas Theo
 | --------------- | -------------------------------------------------------------------------------------------------------------------- |
 | App, navigation | Expo SDK 58, Expo Router (`src/app`), native tabs with the adaptable iPad sidebar                                    |
 | Conversation    | `@assistant-ui/react-native` over `@theoremharness/sdk` `HeadlessConversation` (external store, `projectThreadView`) |
-| Theorem API     | `@theoremharness/sdk` 0.6.0-alpha.1, packed from Theorem `claude/theorem-ios-app-knkszc` into `vendor/`              |
+| Theorem API     | `@theoremharness/sdk` 0.6.0-alpha.10, pinned to `vendor/theoremharness-sdk-0.6.0-alpha.10.tgz`                        |
 | Sign-in         | `expo-web-browser` (ASWebAuthenticationSession), `expo-crypto`, `expo-secure-store` (Keychain)                       |
 | Local data      | `expo-sqlite`: conversation journal, drafts, small preferences                                                       |
 | Browser         | `react-native-webview` (WKWebView)                                                                                   |
@@ -74,7 +74,7 @@ docs/                     sign-in setup, Phase 0 record
 
 ## Theo on iPhone
 
-`../docs/plans/theo-iphone.md` says what each of these is, what was checked, and what to try on a phone. None of it has been built natively or run on a device.
+`../docs/plans/theo-iphone.md` says what each of these is, what was checked, and what to try on a phone. Physical-device acceptance for these features remains tracked in its checklist; simulator build evidence is in the mobile chat implementation record linked above.
 
 | Feature                                                           | Where                                                                           | Depends on                                                                                                      |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
