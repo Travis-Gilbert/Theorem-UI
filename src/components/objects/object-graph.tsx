@@ -20,14 +20,21 @@ import { Button } from '@/components/ui/button'
 import { layout } from '@/lib/graph-layout'
 import type { ObjectClass } from '@/lib/objects/classes'
 import { useCollections } from '@/lib/objects/collections'
-import { connectionsOf, useAllObjects } from '@/lib/objects/connections'
 import type { Connection } from '@/lib/objects/connections'
+import { useObjectEntry, useObjectGraph } from '@/lib/objects/graph'
 import type { ObjectEntry, ObjectRef } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
+import { useCollectionObjects, useEveryObject } from '@/lib/objects/scoped'
+import { describeError } from '@/lib/theorem/client'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
 import { openPane, useOpenObject } from './object-actions'
-import { KIND_LABEL, KIND_TONE, useLoadedMarkdown } from './object-inspector'
+import {
+  KIND_LABEL,
+  KIND_TONE,
+  useLoadedMarkdown,
+  useLocalSeeds,
+} from './object-inspector'
 
 const KINDS: Connection['kind'][] = ['explicit', 'provenance', 'inferred']
 /** Past this many objects the global graph draws the most connected ones. */
@@ -160,7 +167,6 @@ const edgeTypes = { kind: KindEdgeView }
 export function ObjectGraph({ scope: key }: { scope: string }) {
   const scope = scopeOf(key)
   const { registry } = useClassRegistry()
-  const all = useAllObjects(registry)
   const collections = useCollections(registry)
   const markdown = useLoadedMarkdown()
   const open = useOpenObject()
@@ -173,20 +179,42 @@ export function ObjectGraph({ scope: key }: { scope: string }) {
   ])
   const [selected, setSelected] = useState<ObjectRef>()
 
-  const connections = useMemo(
-    () =>
-      connectionsOf({
-        entries: all.entries,
-        registry,
-        collections: collections.collections,
-        markdown,
-      }),
-    [all.entries, registry, collections.collections, markdown],
-  )
   const collection =
     scope.kind === 'collection'
       ? collections.collections.find((c) => c.id === scope.id)
       : undefined
+
+  // Where the graph starts: one object and the collections holding it, a
+  // collection's members, or a page of everything, which the graph read
+  // then walks out from on the server.
+  const local = useObjectEntry(
+    registry,
+    scope.kind === 'local' ? scope.ref : undefined,
+  )
+  const localSeeds = useLocalSeeds(local.entry, collections, registry)
+  const members = useCollectionObjects(registry, collection)
+  const every = useEveryObject(registry, '', 'updated', scope.kind === 'global')
+  const seeds =
+    scope.kind === 'local'
+      ? localSeeds
+      : scope.kind === 'collection'
+        ? members.entries
+        : every.entries
+  const seeding =
+    scope.kind === 'local'
+      ? local
+      : scope.kind === 'collection'
+        ? members
+        : every
+  const graph = useObjectGraph({
+    registry,
+    seeds,
+    depth: scope.kind === 'local' ? Number(depth) : 0,
+    collections: collections.collections,
+    markdown,
+    local: scope.kind === 'local',
+  })
+  const connections = graph.connections
 
   // The objects in scope, before the class filter.
   const inScope = useMemo(() => {
@@ -205,18 +233,18 @@ export function ObjectGraph({ scope: key }: { scope: string }) {
         ),
       }
     }
-    return { refs: new Set(all.entries.map((e) => e.ref)), typed }
-  }, [scope, connections, kinds, depth, collection, all.entries])
+    return { refs: new Set(graph.entries.map((e) => e.ref)), typed }
+  }, [scope, connections, kinds, depth, collection, graph.entries])
 
   const classesInScope = useMemo(() => {
     const seen = new Map<string, ObjectClass>()
-    for (const entry of all.entries)
+    for (const entry of graph.entries)
       if (inScope.refs.has(entry.ref)) seen.set(entry.cls.id, entry.cls)
     return [...seen.values()].sort((a, b) => a.plural.localeCompare(b.plural))
-  }, [all.entries, inScope.refs])
+  }, [graph.entries, inScope.refs])
 
   const { entries, edges, total } = useMemo(() => {
-    const byRef = new Map(all.entries.map((e) => [e.ref, e]))
+    const byRef = new Map(graph.entries.map((e) => [e.ref, e]))
     let shown = [...inScope.refs]
       .map((ref) => byRef.get(ref))
       .filter(
@@ -247,12 +275,12 @@ export function ObjectGraph({ scope: key }: { scope: string }) {
       ),
       total: count,
     }
-  }, [all.entries, inScope, hiddenClasses, scope])
+  }, [graph.entries, inScope, hiddenClasses, scope])
 
   const centre = scope.kind === 'local' ? scope.ref : undefined
   const title =
     scope.kind === 'local'
-      ? `${all.entries.find((e) => e.ref === scope.ref)?.title ?? 'Object'} graph`
+      ? `${graph.entries.find((e) => e.ref === scope.ref)?.title ?? 'Object'} graph`
       : scope.kind === 'collection'
         ? `${collection?.name ?? 'Collection'} graph`
         : 'Graph'
@@ -347,16 +375,35 @@ export function ObjectGraph({ scope: key }: { scope: string }) {
             </button>
           )
         })}
-        {total > entries.length && (
+        {(total > entries.length || graph.truncated) && (
           <span role="status" className="ms-auto text-xs text-ink-faint">
-            {entries.length} of {total}, most connected first
+            {total > entries.length
+              ? `${entries.length} of ${total}, most connected first`
+              : `${entries.length} nearest`}
           </span>
+        )}
+        {scope.kind === 'global' && every.hasMore && (
+          <Button
+            variant="ghost"
+            size="xs"
+            className={
+              total > entries.length || graph.truncated ? undefined : 'ms-auto'
+            }
+            disabled={every.isFetchingMore}
+            onClick={every.loadMore}
+          >
+            More
+          </Button>
         )}
       </div>
       <div className="relative flex min-h-0 flex-1">
-        {all.isPending && !all.entries.length ? (
+        {(seeding.isPending || graph.isPending) && !graph.entries.length ? (
           <p role="status" className="m-auto text-sm text-ink-muted">
             Loading…
+          </p>
+        ) : seeding.error != null || graph.error != null ? (
+          <p role="alert" className="m-auto truncate text-sm text-error-ink">
+            {describeError(seeding.error ?? graph.error)}
           </p>
         ) : !entries.length ? (
           <p role="status" className="m-auto text-sm text-ink-muted">

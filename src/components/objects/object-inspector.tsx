@@ -22,14 +22,10 @@ import { describeError } from '@/lib/theorem/client'
 import type { Note } from '@/lib/theorem/notes'
 import { useCollections } from '@/lib/objects/collections'
 import type { Collections } from '@/lib/objects/collections'
-import {
-  connectionsAt,
-  connectionsOf,
-  linkKind,
-  useAllObjects,
-  useGraphLinks,
-} from '@/lib/objects/connections'
+import { connectionsAt } from '@/lib/objects/connections'
 import type { Connection } from '@/lib/objects/connections'
+import { useObjectEntry, useObjectGraph } from '@/lib/objects/graph'
+import { recordEntry } from '@/lib/objects/scoped'
 import type { ObjectEntry } from '@/lib/objects/library'
 import { ORIGIN_LONG } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
@@ -66,26 +62,31 @@ export function useLoadedMarkdown() {
 /** Everything known about one object, beside its page. */
 export function ObjectInspector({ objectRef }: { objectRef: string }) {
   const { registry, model } = useClassRegistry()
-  const all = useAllObjects(registry)
   const collections = useCollections(registry)
   const markdown = useLoadedMarkdown()
-  const entry = all.entries.find((e) => e.ref === objectRef)
-  const connections = useMemo(
-    () =>
-      connectionsOf({
-        entries: all.entries,
-        registry,
-        collections: collections.collections,
-        markdown,
-      }),
-    [all.entries, registry, collections.collections, markdown],
-  )
+  const one = useObjectEntry(registry, objectRef)
+  const entry = one.entry
+  const seeds = useLocalSeeds(entry, collections, registry)
+  const graph = useObjectGraph({
+    registry,
+    seeds,
+    depth: 1,
+    collections: collections.collections,
+    markdown,
+    local: true,
+  })
   if (!entry)
     return (
       <InspectorFrame>
-        <p role="status" className="px-4 py-3 text-sm text-ink-faint">
-          {all.isPending ? 'Loading…' : 'Not in the library.'}
-        </p>
+        {one.error ? (
+          <p role="alert" className="truncate px-4 py-3 text-sm text-error-ink">
+            {describeError(one.error, 'document')}
+          </p>
+        ) : (
+          <p role="status" className="px-4 py-3 text-sm text-ink-faint">
+            {one.isPending ? 'Loading…' : 'Not found.'}
+          </p>
+        )}
       </InspectorFrame>
     )
   return (
@@ -122,8 +123,9 @@ export function ObjectInspector({ objectRef }: { objectRef: string }) {
         >
           <Connections
             entry={entry}
-            entries={all.entries}
-            connections={connections}
+            entries={graph.entries}
+            connections={graph.connections}
+            error={graph.error}
           />
         </TabsPanel>
         <TabsPanel
@@ -134,6 +136,32 @@ export function ObjectInspector({ objectRef }: { objectRef: string }) {
         </TabsPanel>
       </Tabs>
     </InspectorFrame>
+  )
+}
+
+/**
+ * What a local graph starts from: the object, and the collections that hold
+ * it, so membership is drawn without reading every object.
+ */
+export function useLocalSeeds(
+  entry: ObjectEntry | undefined,
+  collections: Collections,
+  registry: ReturnType<typeof useClassRegistry>['registry'],
+) {
+  const holders = entry ? collections.of(entry.ref) : []
+  const key = holders.map((c) => c.id).join('|')
+  return useMemo(
+    () => {
+      if (!entry) return []
+      const cls = registry.collection
+      return [
+        entry,
+        ...(cls ? holders.map((c) => recordEntry(cls, c.row)) : []),
+      ]
+    },
+    // The holders are named by `key`; the array itself is new each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entry, key, registry],
   )
 }
 
@@ -428,41 +456,21 @@ function Connections({
   entry,
   entries,
   connections,
+  error,
 }: {
   entry: ObjectEntry
   entries: ObjectEntry[]
   connections: Connection[]
+  error: unknown
 }) {
   const open = useOpenObject()
   const byRef = useMemo(
     () => new Map(entries.map((e) => [e.ref, e])),
     [entries],
   )
-  const graphId = entry.record?.id
-  const links = useGraphLinks(graphId)
+  // An end no class declares stays a plain row: the graph holds it, but
+  // there is no object page to open.
   const derived = connectionsAt(connections, entry.ref)
-  // The graph's own edges that no field or membership already accounts for.
-  const known = new Set(
-    connections.map((c) => (c.from === entry.ref ? c.to : c.from)),
-  )
-  const extra = (links.data ?? []).flatMap((link) => {
-    const other = link.direction === 'out' ? link.to : link.from
-    const ref = [...byRef.values()].find(
-      (e) => e.record?.id === other || e.documentId === other,
-    )?.ref
-    if (ref && known.has(ref)) return []
-    // An end no class declares stays a plain row: the graph holds it, but
-    // there is no object page to open.
-    return [
-      {
-        ref: ref ?? other,
-        label: link.type,
-        kind: linkKind(link),
-        confidence: link.confidence,
-        direction: link.direction,
-      },
-    ]
-  })
   const rows = [
     ...derived.outgoing.map((c) => ({
       ref: c.to,
@@ -478,7 +486,6 @@ function Connections({
       confidence: c.confidence,
       direction: 'in' as const,
     })),
-    ...extra,
   ]
   const groups = (['out', 'in'] as const).map((direction) => ({
     direction,
@@ -559,9 +566,9 @@ function Connections({
           )}
         </Section>
       ))}
-      {links.error && (
-        <p role="alert" className="px-2 text-xs wrap-anywhere text-error-ink">
-          {describeError(links.error)}
+      {error != null && (
+        <p role="alert" className="truncate px-2 text-xs text-error-ink">
+          {describeError(error)}
         </p>
       )}
     </>

@@ -1,14 +1,8 @@
-// SOURCING: @tanstack/react-query over the register's own reads (components/records/api readRecords for every class's records; lib/theorem/graphql for `dataLinks`, the graph's edges on one record with their confidence and provenance); the edges themselves are pure derivations over what the register, Documents and collections already hold, so nothing here stores a relationship
-import { useQueries, useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import { readRecords } from '@/components/records/api'
-import { recordItemId, recordTitle } from '@/components/records/model'
-import type { RecordPage } from '@/components/records/contract'
-import { graphql } from '@/lib/theorem/graphql'
+// SOURCING: none — pure derivations over what the register, Documents and collections already hold (relation fields, membership, links written in pages, shared runs), and the reading of a graph link's confidence and provenance as a connection kind; the graph's own links are read by graph.ts, so nothing here stores or fetches a relationship
+import { recordItemId } from '@/components/records/model'
 import { classOfRef } from './classes'
 import type { ClassRegistry } from './classes'
 import type { CollectionEntry } from './collections'
-import { byUpdated, useDocumentObjects } from './library'
 import type { ObjectEntry, ObjectRef } from './library'
 
 /**
@@ -26,47 +20,6 @@ export type Connection = {
   confidence?: number
 }
 
-const rowsOf = (results: { data?: RecordPage; isPending: boolean }[]) => ({
-  pages: results.map((result) => result.data),
-  pending: results.some((result) => result.isPending),
-})
-
-/** Every object of every browsable class: documents and register records, newest first. */
-export function useAllObjects(registry: ClassRegistry) {
-  const documents = useDocumentObjects(registry)
-  const recordClasses = useMemo(
-    () => registry.workspace.filter((cls) => !cls.native),
-    [registry],
-  )
-  const records = useQueries({
-    queries: recordClasses.map((cls) => ({
-      queryKey: ['theorem', 'records', 'all', cls.type.node_label],
-      queryFn: () => readRecords(cls.type.node_label),
-      staleTime: 15_000,
-    })),
-    combine: rowsOf,
-  })
-  const entries = useMemo(() => {
-    const out: ObjectEntry[] = [...documents.entries]
-    recordClasses.forEach((cls, index) => {
-      for (const row of records.pages[index]?.rows ?? [])
-        out.push({
-          ref: recordItemId(cls.type, row.id),
-          cls,
-          title: recordTitle(cls.type, row),
-          record: row,
-          origin: 'unknown',
-        })
-    })
-    return out.sort(byUpdated)
-  }, [documents.entries, recordClasses, records.pages])
-  return {
-    entries,
-    isPending: documents.isPending || records.pending,
-    error: documents.error,
-  }
-}
-
 // Edges
 
 const NOTE_LINK = /\/notes\/([A-Za-z0-9_-]{6,})/g
@@ -81,12 +34,15 @@ export function connectionsOf({
   registry,
   collections,
   markdown = new Map(),
+  fields = true,
 }: {
   entries: ObjectEntry[]
   registry: ClassRegistry
   collections: CollectionEntry[]
   /** Page text by document id, for the pages already read. */
   markdown?: ReadonlyMap<string, string>
+  /** Derive relation fields from records' values; off where the graph's own links are read. */
+  fields?: boolean
 }): Connection[] {
   const present = new Set(entries.map((entry) => entry.ref))
   const out = new Map<string, Connection>()
@@ -99,7 +55,7 @@ export function connectionsOf({
 
   // Declared relation fields, typed and directed by the class that declares them.
   for (const entry of entries) {
-    if (!entry.record) continue
+    if (!entry.record || !fields) continue
     for (const field of entry.cls.type.fields) {
       if (field.field_type.kind !== 'relation') continue
       const target = classOfRef(
@@ -199,49 +155,6 @@ export type GraphLink = {
   direction: 'in' | 'out'
   confidence?: number
   provenance: unknown[]
-}
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-/** Edges the graph holds on a record, including ones no field declares. */
-export function useGraphLinks(recordId: string | undefined) {
-  return useQuery({
-    queryKey: ['theorem', 'objects', 'links', recordId],
-    enabled: !!recordId,
-    queryFn: async () => {
-      const data = await graphql<{ dataLinks: unknown }>(
-        `
-          query Links($id: String!, $limit: Int) {
-            dataLinks(id: $id, direction: "both", limit: $limit)
-          }
-        `,
-        { id: recordId, limit: 100 },
-      )
-      const links = isObject(data.dataLinks) ? data.dataLinks.links : []
-      return (Array.isArray(links) ? links : []).flatMap((raw): GraphLink[] =>
-        isObject(raw) &&
-        typeof raw.from_id === 'string' &&
-        typeof raw.to_id === 'string'
-          ? [
-              {
-                id: String(raw.id),
-                from: raw.from_id,
-                to: raw.to_id,
-                type: typeof raw.type === 'string' ? raw.type : 'related',
-                direction: raw.direction === 'in' ? 'in' : 'out',
-                confidence:
-                  typeof raw.confidence === 'number'
-                    ? raw.confidence
-                    : undefined,
-                provenance: Array.isArray(raw.provenance) ? raw.provenance : [],
-              },
-            ]
-          : [],
-      )
-    },
-    staleTime: 15_000,
-  })
 }
 
 /** A graph link read as a connection: below full confidence, or derived, it is inferred. */

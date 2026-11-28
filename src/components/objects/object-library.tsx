@@ -1,6 +1,7 @@
 // SOURCING: after Craft web's All Docs (Mobbin f707841e-dcd8-4c1d-82cb-e69a6d232e48: a large title with a round + before it, the gallery, compact and list toggle at the top right, page-thumbnail cards with the title and where the page lives under it) and its list view (174b04f5-d5cc-4d0a-97a1-6bf8417c3407: name with thumbnail and excerpt, then columns); coss Menu for sort and views; field-form's Segmented (coss segmented control) for the layout toggle; NoteExcerpt for a page's thumbnail and FieldDisplay (records/fields) for a record's; the saved views are Theorem's DataViews (lib/objects/views)
-import { useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { RefObject, ReactNode } from 'react'
 import {
   Menu,
   MenuGroup,
@@ -24,10 +25,15 @@ import { useNote } from '@/lib/theorem/notes'
 import type { ObjectClass } from '@/lib/objects/classes'
 import { notesExtension } from '@/lib/objects/classes'
 import { useCollections } from '@/lib/objects/collections'
-import { useAllObjects } from '@/lib/objects/connections'
 import type { ObjectEntry } from '@/lib/objects/library'
 import { ORIGIN_SHORT } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
+import {
+  useClassObjects,
+  useCollectionObjects,
+  useEveryObject,
+} from '@/lib/objects/scoped'
+import type { Scoped } from '@/lib/objects/scoped'
 import {
   defaultLibraryQuery,
   useSaveView,
@@ -72,7 +78,6 @@ export function cardFields(cls: ObjectClass, every = false) {
  */
 export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
   const { registry, model } = useClassRegistry()
-  const all = useAllObjects(registry)
   const collections = useCollections(registry)
   const views = useSavedViews()
   const save = useSaveView()
@@ -90,15 +95,20 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
       ? collections.collections.find((c) => c.id === id)
       : undefined
   const make = useNewObject(cls ?? registry.native.page)
+  const scroller = useRef<HTMLElement>(null)
 
-  const scoped = useMemo(() => {
-    if (cls) return all.entries.filter((entry) => entry.cls.id === cls.id)
-    if (collection) {
-      const at = new Map(all.entries.map((entry) => [entry.ref, entry]))
-      return collection.members.flatMap((ref) => at.get(ref) ?? [])
-    }
-    return all.entries
-  }, [all.entries, cls, collection])
+  // Each scope asks its owner, a page at a time.
+  const byClass = useClassObjects(registry, cls, query.search, query.sort)
+  const every = useEveryObject(
+    registry,
+    query.search,
+    query.sort,
+    kind === 'all',
+  )
+  const inCollection = useCollectionObjects(registry, collection)
+  const source: Scoped =
+    kind === 'class' ? byClass : kind === 'collection' ? inCollection : every
+  const scoped = source.entries
 
   const present = useMemo(() => {
     const seen = new Map<string, ObjectClass>()
@@ -107,7 +117,10 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
   }, [scoped])
 
   const shown = useMemo(() => {
-    const needle = query.search.trim().toLowerCase()
+    // Owners search their own objects; a collection's members are already at hand.
+    const needle = collection ? query.search.trim().toLowerCase() : ''
+    // A class's records arrive in the order Theorem sorted them.
+    const ordered = cls && !cls.native
     return scoped
       .filter(
         (entry) =>
@@ -115,15 +128,18 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
       )
       .filter((entry) => !needle || entry.title.toLowerCase().includes(needle))
       .sort(
-        collection && query.sort === 'updated' ? () => 0 : compare[query.sort],
+        ordered || (collection && query.sort === 'updated')
+          ? () => 0
+          : compare[query.sort],
       )
-  }, [scoped, query, collection])
+  }, [scoped, query, collection, cls])
 
   const title = cls?.plural ?? collection?.name ?? 'All objects'
   const mark = cls ?? (collection && registry.collection) ?? undefined
 
   return (
     <section
+      ref={scroller}
       aria-label={title}
       className="flex h-full min-h-0 flex-col overflow-y-auto"
     >
@@ -139,8 +155,13 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
             <Icon.Add className="size-4" />
           </button>
           {mark && <ClassIcon cls={mark} size="lg" />}
-          <h1 className="min-w-0 flex-1 truncate font-heading text-3xl font-semibold tracking-tight">
-            {title}
+          <h1 className="flex min-w-0 flex-1 items-baseline gap-3 font-heading text-3xl font-semibold tracking-tight">
+            <span className="truncate">{title}</span>
+            {source.total !== undefined && (
+              <span className="font-sans text-sm font-normal tracking-normal text-ink-faint tabular-nums">
+                {source.total}
+              </span>
+            )}
           </h1>
           <Button
             size="sm"
@@ -224,11 +245,11 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
             {describeError(save.error ?? views.error ?? make.error)}
           </p>
         )}
-        {all.error ? (
+        {source.error != null && !shown.length ? (
           <p role="alert" className="text-sm wrap-anywhere text-error-ink">
-            {describeError(all.error, 'document')}
+            {describeError(source.error, 'document')}
           </p>
-        ) : all.isPending && !shown.length ? (
+        ) : source.isPending && !shown.length ? (
           <p role="status" className="text-sm text-ink-faint">
             Loading…
           </p>
@@ -241,24 +262,27 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
                 : `No ${title.toLowerCase()} yet.`}
           </p>
         ) : query.layout === 'gallery' ? (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-x-5 gap-y-7">
-            {shown.map((entry) => (
-              <li key={entry.ref}>
-                <ObjectCard
-                  entry={entry}
-                  model={model.data}
-                  onOpen={(beside) => open(entry, beside)}
-                />
-              </li>
-            ))}
-          </ul>
+          <ObjectGallery
+            entries={shown}
+            source={source}
+            scroller={scroller}
+            model={model.data}
+            onOpen={(entry, beside) => open(entry, beside)}
+          />
         ) : (
           <ObjectTable
             entries={shown}
+            source={source}
+            scroller={scroller}
             single={cls}
             model={model.data}
             onOpen={(entry, beside) => open(entry, beside)}
           />
+        )}
+        {source.error != null && shown.length > 0 && (
+          <p role="alert" className="text-sm wrap-anywhere text-error-ink">
+            {describeError(source.error, 'document')}
+          </p>
         )}
       </div>
     </section>
@@ -387,21 +411,149 @@ function PageThumbnail({ documentId }: { documentId: string }) {
   ) : null
 }
 
+/** The width of `ref`'s box and where it starts in the scroller, kept as either changes. */
+function useBox(
+  ref: RefObject<HTMLElement | null>,
+  scroller: RefObject<HTMLElement | null>,
+) {
+  const [box, setBox] = useState({ width: 0, top: 0 })
+  useEffect(() => {
+    const node = ref.current
+    const outer = scroller.current
+    if (!node || !outer) return
+    const measure = () =>
+      setBox({
+        width: node.clientWidth,
+        top:
+          node.getBoundingClientRect().top -
+          outer.getBoundingClientRect().top +
+          outer.scrollTop,
+      })
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    if (node.parentElement) observer.observe(node.parentElement)
+    return () => observer.disconnect()
+  }, [ref, scroller])
+  return box
+}
+
+/** Ask the owner for the next page as the end comes into view. */
+function useLoadAtEnd(lastIndex: number, count: number, source: Scoped) {
+  const { hasMore, isFetchingMore, loadMore } = source
+  useEffect(() => {
+    if (count && lastIndex >= count - 3 && hasMore && !isFetchingMore)
+      loadMore()
+  }, [lastIndex, count, hasMore, isFetchingMore, loadMore])
+}
+
+const CARD_MIN = 208
+const CARD_GAP_X = 20
+const CARD_ROW = 248
+
+function ObjectGallery({
+  entries,
+  source,
+  scroller,
+  model,
+  onOpen,
+}: {
+  entries: ObjectEntry[]
+  source: Scoped
+  scroller: RefObject<HTMLElement | null>
+  model: Parameters<typeof FieldDisplay>[0]['model']
+  onOpen: (entry: ObjectEntry, beside: boolean) => void
+}) {
+  const grid = useRef<HTMLDivElement>(null)
+  const box = useBox(grid, scroller)
+  const columns = Math.max(
+    1,
+    Math.floor((box.width + CARD_GAP_X) / (CARD_MIN + CARD_GAP_X)),
+  )
+  const rows = Math.ceil(entries.length / columns)
+  const virtualizer = useVirtualizer({
+    count: rows,
+    getScrollElement: () => scroller.current,
+    estimateSize: () => CARD_ROW,
+    scrollMargin: box.top,
+    overscan: 3,
+  })
+  const items = virtualizer.getVirtualItems()
+  useLoadAtEnd(items.at(-1)?.index ?? 0, rows, source)
+  return (
+    <div
+      ref={grid}
+      role="list"
+      aria-label="Objects"
+      className="relative w-full"
+      style={{ height: virtualizer.getTotalSize() }}
+    >
+      {items.map((row) => (
+        <div
+          key={row.key}
+          data-index={row.index}
+          ref={virtualizer.measureElement}
+          className="absolute inset-x-0 top-0 grid gap-x-5 pb-7"
+          style={{
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)`,
+          }}
+        >
+          {entries
+            .slice(row.index * columns, row.index * columns + columns)
+            .map((entry) => (
+              <div role="listitem" key={entry.ref}>
+                <ObjectCard
+                  entry={entry}
+                  model={model}
+                  onOpen={(beside) => onOpen(entry, beside)}
+                />
+              </div>
+            ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const TABLE_ROW = 37
+
 function ObjectTable({
   entries,
+  source,
+  scroller,
   single,
   model,
   onOpen,
 }: {
   entries: ObjectEntry[]
+  source: Scoped
+  scroller: RefObject<HTMLElement | null>
   /** The class every row belongs to, when the library is one class: its fields become columns. */
   single?: ObjectClass
   model: Parameters<typeof FieldDisplay>[0]['model']
   onOpen: (entry: ObjectEntry, beside: boolean) => void
 }) {
   const columns = single && !single.native ? cardFields(single) : []
+  const body = useRef<HTMLTableElement>(null)
+  const box = useBox(body, scroller)
+  const virtualizer = useVirtualizer({
+    count: entries.length,
+    getScrollElement: () => scroller.current,
+    estimateSize: () => TABLE_ROW,
+    scrollMargin: box.top,
+    overscan: 12,
+  })
+  const items = virtualizer.getVirtualItems()
+  useLoadAtEnd(items.at(-1)?.index ?? 0, entries.length, source)
+  const before = (items[0]?.start ?? box.top) - box.top
+  const after =
+    virtualizer.getTotalSize() - ((items.at(-1)?.end ?? box.top) - box.top)
+  const span = columns.length + (single ? 2 : 3)
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
+    <table
+      ref={body}
+      className="w-full table-fixed border-separate border-spacing-0 text-sm"
+    >
       <thead>
         <tr className="text-start text-xs text-ink-faint">
           <Th className="w-[45%]">Name</Th>
@@ -413,41 +565,56 @@ function ObjectTable({
         </tr>
       </thead>
       <tbody>
-        {entries.map((entry) => (
-          <tr
-            key={entry.ref}
-            tabIndex={0}
-            onClick={(event) => onOpen(entry, event.metaKey || event.ctrlKey)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter')
-                onOpen(entry, event.metaKey || event.ctrlKey)
-            }}
-            className="cursor-default outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-          >
-            <Td>
-              <span className="flex min-w-0 items-center gap-2">
-                <ClassIcon cls={entry.cls} />
-                <span className="truncate font-medium">{entry.title}</span>
-              </span>
-            </Td>
-            {single ? null : (
-              <Td className="text-ink-muted">{entry.cls.label}</Td>
-            )}
-            {columns.map((field) => (
-              <Td key={field.key}>
-                {entry.record && (
-                  <FieldDisplay
-                    row={entry.record}
-                    field={field}
-                    hint={displayHint(single!.type, field.key)}
-                    model={model}
-                  />
-                )}
-              </Td>
-            ))}
-            <Td className="text-ink-muted">{ORIGIN_SHORT[entry.origin]}</Td>
+        {before > 0 && (
+          <tr aria-hidden="true">
+            <td colSpan={span} style={{ height: before }} />
           </tr>
-        ))}
+        )}
+        {items.map((item) => {
+          const entry = entries[item.index]!
+          return (
+            <tr
+              key={entry.ref}
+              data-index={item.index}
+              ref={virtualizer.measureElement}
+              tabIndex={0}
+              onClick={(event) => onOpen(entry, event.metaKey || event.ctrlKey)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter')
+                  onOpen(entry, event.metaKey || event.ctrlKey)
+              }}
+              className="cursor-default outline-none hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+            >
+              <Td>
+                <span className="flex min-w-0 items-center gap-2">
+                  <ClassIcon cls={entry.cls} />
+                  <span className="truncate font-medium">{entry.title}</span>
+                </span>
+              </Td>
+              {single ? null : (
+                <Td className="text-ink-muted">{entry.cls.label}</Td>
+              )}
+              {columns.map((field) => (
+                <Td key={field.key}>
+                  {entry.record && (
+                    <FieldDisplay
+                      row={entry.record}
+                      field={field}
+                      hint={displayHint(single!.type, field.key)}
+                      model={model}
+                    />
+                  )}
+                </Td>
+              ))}
+              <Td className="text-ink-muted">{ORIGIN_SHORT[entry.origin]}</Td>
+            </tr>
+          )
+        })}
+        {after > 0 && (
+          <tr aria-hidden="true">
+            <td colSpan={span} style={{ height: after }} />
+          </tr>
+        )}
       </tbody>
     </table>
   )

@@ -13,7 +13,6 @@ import type { PaneSpec } from '@/components/notes/notes-workspace-state'
 import { describeError } from '@/lib/theorem/client'
 import type { ObjectClass } from '@/lib/objects/classes'
 import { useCollections } from '@/lib/objects/collections'
-import { useDocumentObjects } from '@/lib/objects/library'
 import {
   orderedClasses,
   pinnedClasses,
@@ -138,16 +137,14 @@ function PaneRow({
 export function ObjectNav() {
   const { registry, model } = useClassRegistry()
   const prefs = useClassPrefs()
-  const documents = useDocumentObjects(registry)
   const collections = useCollections(registry)
   const active = useNotesWorkspace((s) => s.active)
   const [naming, setNaming] = useState(false)
 
-  const documentCount = new Map<string, number>()
-  for (const entry of documents.entries)
-    documentCount.set(entry.cls.id, (documentCount.get(entry.cls.id) ?? 0) + 1)
+  // The register counts a class's records. Documents keeps no count by
+  // kind, so a document class shows none rather than reading every page.
   const countOf = (cls: ObjectClass) =>
-    (cls.native ? documentCount.get(cls.id) : cls.type.record_count) ?? 0
+    cls.native ? undefined : cls.type.record_count
   const classes = orderedClasses(registry, prefs.order).filter(
     (cls) => !prefs.hidden.includes(cls.id),
   )

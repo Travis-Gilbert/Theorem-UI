@@ -213,3 +213,45 @@ export async function updateRecord(
 export async function deleteRecord(objectTypeId: string, id: string) {
   await invokeRecordVerb(objectTypeId, 'delete_one', { id })
 }
+
+/** One server-side condition on a record verb that reads (`find_many`). */
+export type RecordFilter = {
+  field_key: string
+  operator:
+    'eq' | 'contains' | 'icontains' | 'starts_with' | 'in' | 'is_not_empty'
+  value?: unknown
+}
+export type RecordSort = { field_key: string; direction: 'asc' | 'desc' }
+
+/**
+ * A page of one class's records, filtered and sorted by Theorem, with the
+ * number that match. Offset paging, as the verb serves it.
+ */
+export async function findRecords(
+  objectTypeId: string,
+  {
+    filters = [],
+    sorts = [],
+    offset = 0,
+    limit = 60,
+  }: {
+    filters?: RecordFilter[]
+    sorts?: RecordSort[]
+    offset?: number
+    limit?: number
+  } = {},
+) {
+  const result = await invokeRecordVerb(objectTypeId, 'find_many', {
+    ...(filters.length ? { filters } : {}),
+    ...(sorts.length ? { sorts } : {}),
+    offset,
+    limit,
+  })
+  const envelope = isObject(result) ? result : {}
+  const rows = (Array.isArray(envelope.records) ? envelope.records : [])
+    .map(decodeRecord)
+    .filter((row): row is RecordRow => row !== undefined)
+  const count =
+    typeof envelope.count === 'number' ? envelope.count : offset + rows.length
+  return { rows, count, offset }
+}

@@ -1,27 +1,16 @@
-// SOURCING: @tanstack/react-query (the document index and each App's form, read through the note cache notes.ts already keeps), the Documents v2 client for listing, the records register's hooks (components/records/queries) for declared classes, note-canonical for a saved artifact's form
+// SOURCING: @tanstack/react-query's useQueries (each App's form, read through the note cache notes.ts already keeps), note-canonical for a saved artifact's form; the paged reads themselves live in scoped.ts
 //
 // Every object Notes shows, whatever owns it: a Documents v2 document for the
 // standard library's Page, App and Notebook, a register record for any other
 // class. One entry shape, so Library, the inspector and the graph treat a
 // person's own class exactly as they treat Pages.
-import { useInfiniteQuery, useQueries } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
-import { flattenRows, useRecords } from '@/components/records/queries'
-import { recordItemId, recordTitle } from '@/components/records/model'
+import { useQueries } from '@tanstack/react-query'
 import type { RecordRow } from '@/components/records/contract'
-import { theorem } from '@/lib/theorem/client'
 import type { Theorem } from '@/lib/theorem/client'
 import { noteAttribute } from '@/lib/theorem/note-canonical'
-import { nextPageParams } from '@/lib/theorem/note-library'
-import {
-  APP_KIND,
-  fetchNote,
-  isRetired,
-  noteKey,
-  noteLibraryKey,
-} from '@/lib/theorem/notes'
+import { APP_KIND, fetchNote, noteKey } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
-import type { ClassRegistry, ObjectClass } from './classes'
+import type { ObjectClass } from './classes'
 
 /**
  * How an object is named wherever Notes keeps a reference to it: a document
@@ -71,38 +60,7 @@ export const artifactForm = (note: Pick<Note, 'canonical'>) =>
   (note.canonical && noteAttribute(note.canonical, 'artifactForm')) ||
   'html-app'
 
-const SCHEMA = 'theorem-document/2'
-
-export const documentIndexKey = [...noteLibraryKey, 'objects'] as const
-
-/**
- * Every live document the person can open, all pages read. Documents v2 has
- * no kind filter, so the standard classes are sorted from this one list.
- */
-export function useDocumentIndex() {
-  const query = useInfiniteQuery({
-    queryKey: documentIndexKey,
-    initialPageParam: undefined as ReturnType<typeof nextPageParams>,
-    queryFn: ({ pageParam }) =>
-      theorem().documents.list({
-        schema: SCHEMA,
-        limit: 100,
-        includeAgentEncoded: false,
-        ...pageParam,
-      }),
-    getNextPageParam: nextPageParams,
-    select: (data) =>
-      data.pages
-        .flatMap((page) => page.documents)
-        .filter((summary) => !isRetired(summary)),
-    staleTime: 10_000,
-  })
-  const { hasNextPage, isFetchingNextPage, isError, fetchNextPage } = query
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && !isError) void fetchNextPage()
-  }, [hasNextPage, isFetchingNextPage, isError, fetchNextPage])
-  return query
-}
+export const SCHEMA = 'theorem-document/2'
 
 // Module level, so TanStack keeps the combined result while the notes stay the same.
 const formsOf = (results: { data?: Note; isPending: boolean }[]) => ({
@@ -117,7 +75,7 @@ const formsOf = (results: { data?: Note; isPending: boolean }[]) => ({
 })
 
 /** The form of each saved App, read through the note cache a pane shares. */
-function useArtifactForms(summaries: Theorem.DocumentSummary[]) {
+export function useArtifactForms(summaries: Theorem.DocumentSummary[]) {
   const apps = summaries.filter((s) => s.documentKind === APP_KIND)
   return useQueries({
     queries: apps.map((summary) => ({
@@ -129,7 +87,7 @@ function useArtifactForms(summaries: Theorem.DocumentSummary[]) {
   })
 }
 
-const documentEntry = (
+export const documentEntry = (
   summary: Theorem.DocumentSummary,
   cls: ObjectClass,
 ): ObjectEntry => ({
@@ -153,49 +111,6 @@ const documentEntry = (
       }
     : {}),
 })
-
-/** The standard library's objects, each document under the class that owns it. */
-export function useDocumentObjects(registry: ClassRegistry) {
-  const index = useDocumentIndex()
-  const summaries = useMemo(() => index.data ?? [], [index.data])
-  const { forms, pending: formsPending } = useArtifactForms(summaries)
-  const entries = useMemo(() => {
-    const out: ObjectEntry[] = []
-    for (const summary of summaries) {
-      const cls =
-        summary.documentKind === APP_KIND
-          ? registry.formClass(forms.get(summary.documentId) ?? 'html-app')
-          : registry.native.page
-      if (cls) out.push(documentEntry(summary, cls))
-    }
-    return out
-  }, [summaries, forms, registry])
-  return {
-    entries,
-    isPending: index.isPending,
-    formsPending,
-    error: index.error,
-  }
-}
-
-/** A declared class's records as entries. */
-export function useRecordObjects(cls: ObjectClass | undefined) {
-  const records = useRecords(cls && !cls.native ? cls.type : undefined)
-  const entries = useMemo<ObjectEntry[]>(
-    () =>
-      cls && !cls.native
-        ? flattenRows(records.data).map((row) => ({
-            ref: recordItemId(cls.type, row.id),
-            cls,
-            title: recordTitle(cls.type, row),
-            record: row,
-            origin: 'unknown',
-          }))
-        : [],
-    [cls, records.data],
-  )
-  return { entries, query: records }
-}
 
 /** Newest change first; objects without a history position keep their order. */
 export const byUpdated = (a: ObjectEntry, b: ObjectEntry) =>
