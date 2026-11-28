@@ -21,6 +21,7 @@ import {
   FIXTURE_TYPE,
 } from '@/components/crm/fixture'
 import { mountAt } from '@/components/crm/test-harness'
+import { ClassEditor } from './class-editor'
 import { ObjectInspector } from './object-inspector'
 import { ObjectLibrary } from './object-library'
 
@@ -144,5 +145,63 @@ describe('the inspector', () => {
     await waitFor(() => view.container.textContent.includes('Glaze workshop'))
     // Read through the neighbourhood, not by listing every class.
     expect(finds()).toHaveLength(0)
+  })
+})
+
+const dialog = () => document.querySelector('[role="dialog"]') ?? undefined
+const field = (label: string) =>
+  [...(dialog()?.querySelectorAll('label') ?? [])]
+    .find((l) => l.textContent.trim().startsWith(label))
+    ?.querySelector<HTMLInputElement>('input')
+// A button's text may follow its glyph ("AaText").
+const pressed = (text: string, root: ParentNode = document) =>
+  [...root.querySelectorAll<HTMLElement>('button, [role^="menuitem"]')].find(
+    (b) => b.textContent.trim().endsWith(text),
+  )
+
+describe('a new class', () => {
+  test('is declared once, with a property and a relation to itself', async () => {
+    const view = await mountAt('/', () => <ClassEditor classKey="new" />)
+    await waitFor(() => view.container.textContent.includes('New object class'))
+    await type(
+      view.container.querySelector<HTMLInputElement>(
+        'input[placeholder="Book"]',
+      )!,
+      'Reading note',
+    )
+
+    // A text property, written into the draft, not declared yet.
+    await click(await waitFor(() => pressed('Add property')))
+    await click(await waitFor(() => dialog() && pressed('Text', dialog())))
+    await type((await waitFor(() => field('Name'))), 'Author')
+    await click(pressed('Add field', dialog())!)
+    await waitFor(() => view.container.textContent.includes('Author'))
+
+    // A relation whose destination is the class being made.
+    await click(pressed('Add property')!)
+    await click(await waitFor(() => dialog() && pressed('Relation', dialog())))
+    await type((await waitFor(() => field('Name'))), 'Related notes')
+    await click(
+      await waitFor(() => dialog() && pressed('Choose an object', dialog())),
+    )
+    await click(await waitFor(() => pressed('Reading notes')))
+    await click(pressed('Add field', dialog())!)
+    await waitFor(() => view.container.textContent.includes('Related notes'))
+    expect(server.state.declares).toHaveLength(0)
+
+    await click(pressed('Create class')!)
+    await waitFor(() => server.state.declares.length === 1)
+    const input = server.state.declares[0] as {
+      name_singular: string
+      fields: { key: string; field_type: Record<string, unknown> }[]
+    }
+    expect(input.name_singular).toBe('readingNote')
+    const keys = input.fields.map((f) => f.key)
+    expect(keys).toContain('author')
+    const related = input.fields.find((f) => f.field_type.kind === 'relation')!
+    expect(related.field_type.target_object_type_id).toBe(
+      'schema:object-type:demo:reading_note',
+    )
+    expect(JSON.stringify(input)).not.toContain('theorem.notes:self')
   })
 })

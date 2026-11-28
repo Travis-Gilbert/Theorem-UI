@@ -382,6 +382,8 @@ export function createFixtureServer(options: FixtureOptions = {}) {
     }[],
     created: 0,
     clock: FIXTURE_NOW,
+    /** Every declareSchema input, in order. */
+    declares: [] as Record<string, unknown>[],
   }
   const readOnly = new Set(options.readOnly ?? [])
   const unreadable = new Set(options.unreadable ?? [])
@@ -685,8 +687,36 @@ export function createFixtureServer(options: FixtureOptions = {}) {
     }
     if (query.includes('declareSchema')) {
       const input = (variables.input ?? {}) as Record<string, unknown>
+      state.declares.push(input)
       const type = types.find((t) => t.name_singular === input.name_singular)
-      if (!type) return refuse('schema_object_type_missing')
+      if (!type && input.expected_content_anchor)
+        return refuse('schema_object_type_missing')
+      if (!type) {
+        // A new type takes the id the server gives it:
+        // schema:object-type:{tenant}:{snake_case(name_singular)}.
+        const snake = String(input.name_singular)
+          .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+          .replace(/[\s-]+/g, '_')
+          .toLowerCase()
+        const created = {
+          ...(input as unknown as ObjectType),
+          object_type_id: `schema:object-type:${WORKSPACE}:${snake}`,
+          tenant_id: WORKSPACE,
+          content_anchor: `anchor:${snake}:1`,
+          record_count: 0,
+        }
+        types.push(created)
+        return {
+          data: {
+            declareSchema: {
+              status: 'declared',
+              idempotent_replay: false,
+              object_type: created,
+              graph_version_after: 1,
+            },
+          },
+        }
+      }
       const stale = input.expected_content_anchor !== type.content_anchor
       if (!stale) {
         type.extensions = input.extensions as Record<string, unknown>
