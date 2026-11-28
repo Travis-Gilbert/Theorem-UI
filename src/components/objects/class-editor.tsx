@@ -28,10 +28,9 @@ import {
   classOfRef,
   notesExtension,
   objectClass,
-  withNotesExtension,
+  withNotesExtension, boardFields 
 } from '@/lib/objects/classes'
 import type { ClassTone, NotesExtension } from '@/lib/objects/classes'
-import { boardFields } from '@/lib/objects/classes'
 import { incompatibilities, refuses } from '@/lib/objects/evolution'
 import { operationsOf, withOperations } from '@/lib/objects/operations'
 import type { OperationBinding } from '@/lib/objects/operations'

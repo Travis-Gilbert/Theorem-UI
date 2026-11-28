@@ -10,6 +10,7 @@ import {
   objectTypeByName,
   recordTitle,
 } from '@/components/records/model'
+import type { ObjectType } from '@/components/records/contract'
 import { useRecord } from '@/components/records/queries'
 import { APP_KIND } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
@@ -26,6 +27,7 @@ import { ObjectGraph } from './object-graph'
 import { useInspector } from './object-inspector'
 import { ObjectLibrary } from './object-library'
 import { ObjectPage } from './object-page'
+import { RecordMenu } from './record-menu'
 
 /** The standard class a note belongs to: a Page, or the App or Notebook its saved form names. */
 export function noteClass(
@@ -41,6 +43,7 @@ type Label = {
   title: string
   cls?: Pick<ObjectClass, 'icon' | 'tone'>
   glyph?: 'graph' | 'settings'
+  record?: { type: ObjectType; id: string }
 }
 
 const splitKey = (key: string): [string, string] => {
@@ -82,6 +85,10 @@ function usePaneLabel(spec: PaneSpec): Label {
     case 'record':
       return {
         title: recordName ?? recordType?.label_singular ?? 'Object',
+        record:
+          recordType && record.data
+            ? { type: recordType, id: record.data.id }
+            : undefined,
         cls: recordType
           ? registry.byId.get(recordType.object_type_id)
           : undefined,
@@ -166,7 +173,9 @@ function ObjectTab({
   const kind = api.id.slice(0, api.id.indexOf(':')) as PaneSpec['kind']
   const label = usePaneLabel(specOf(kind, params.key))
   return (
-    <div className="flex h-full min-w-0 items-center gap-1.5 ps-1.5 pe-2.5">
+    <div
+      className={`flex h-full min-w-0 items-center gap-1.5 ps-1.5 ${label.record ? 'pe-1' : 'pe-2.5'}`}
+    >
       {label.cls ? (
         <ClassIcon cls={label.cls} />
       ) : label.glyph === 'graph' ? (
@@ -177,6 +186,14 @@ function ObjectTab({
       <span className="max-w-[16rem] min-w-0 truncate text-[13px] font-medium">
         {label.title}
       </span>
+      {label.record && (
+        <RecordMenu
+          type={label.record.type}
+          recordId={label.record.id}
+          title={label.title}
+          onClose={() => api.close()}
+        />
+      )}
     </div>
   )
 }
