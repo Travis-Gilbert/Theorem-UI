@@ -1,7 +1,7 @@
-// SOURCING: none — the conversion of existing values when a class's property changes type, over the register's own verbs (records/api readRecords, declareObjectType with its expected_content_anchor, updateRecord); evolution.ts names what a change breaks, this converts what it can and refuses the rest by record. Hand-rolled because the register has no migration verb: it validates each write, so a migration is a declaration and one write per object, undone the same way when one fails.
+// SOURCING: none — the conversion of existing values when a class's property changes type, over the register's own verbs (records/api findRecords, the find_many verb that owns a class's records, declareObjectType with its expected_content_anchor, updateRecord); evolution.ts names what a change breaks, this converts what it can and refuses the rest by record. Hand-rolled because the register has no migration verb: it validates each write, so a migration is a declaration and one write per object, undone the same way when one fails.
 import {
   declareObjectType,
-  readRecords,
+  findRecords,
   updateRecord,
 } from '@/components/records/api'
 import type {
@@ -148,17 +148,29 @@ export const needsMigration = (before: ObjectType, after: ObjectTypeInput) =>
   incompatibilities(before, after).some((f) => f.reason !== 'removed')
 
 /** Every record under `nodeLabel`, page by page. */
+/** One page of a class's records from `offset`, with how many there are. */
+export type ReadPage = (
+  objectTypeId: string,
+  offset: number,
+) => Promise<{ rows: RecordRow[]; count?: number }>
+
+const findPage: ReadPage = (objectTypeId, offset) =>
+  findRecords(objectTypeId, { offset, limit: 200 })
+
+/**
+ * Every record of a class, through the record verbs that wrote them. The
+ * graph's label scan filters on a tenant marker these records do not carry.
+ */
 export const everyRecord = async (
-  nodeLabel: string,
-  read: typeof readRecords = readRecords,
+  objectTypeId: string,
+  read: ReadPage = findPage,
 ): Promise<RecordRow[]> => {
   const rows: RecordRow[] = []
-  let cursor: string | undefined
-  do {
-    const page = await read(nodeLabel, cursor)
+  for (;;) {
+    const page = await read(objectTypeId, rows.length)
     rows.push(...page.rows)
-    cursor = page.cursor && page.rows.length ? page.cursor : undefined
-  } while (cursor)
+    if (!page.rows.length || rows.length >= (page.count ?? rows.length)) break
+  }
   return rows
 }
 
@@ -171,7 +183,7 @@ export async function planMigration(
   before: ObjectType,
   after: ObjectTypeInput,
   fills: Record<string, unknown> = {},
-  read: typeof readRecords = readRecords,
+  read: ReadPage = findPage,
 ): Promise<MigrationPlan> {
   const was = new Map(before.fields.map((f) => [f.key, f]))
   const touched = new Set(
@@ -180,7 +192,7 @@ export async function planMigration(
       .map((f) => f.field),
   )
   const fields = after.fields.filter((f) => touched.has(f.key))
-  const records = await everyRecord(before.node_label, read)
+  const records = await everyRecord(before.object_type_id, read)
   const snapshot = new Map(
     records.map((row) => [row.id, JSON.stringify(row.values)] as const),
   )
@@ -234,13 +246,13 @@ export class MigrationError extends Error {
 }
 
 export type MigrationCalls = {
-  read: typeof readRecords
+  read: ReadPage
   declare: typeof declareObjectType
   update: typeof updateRecord
 }
 
 const REAL: MigrationCalls = {
-  read: readRecords,
+  read: findPage,
   declare: declareObjectType,
   update: updateRecord,
 }
@@ -260,7 +272,7 @@ export async function applyMigration(
       'Some objects cannot take the change; nothing was written.',
       true,
     )
-  const now = await everyRecord(plan.before.node_label, calls.read)
+  const now = await everyRecord(plan.before.object_type_id, calls.read)
   const moved =
     now.length !== plan.snapshot.size ||
     now.some((row) => plan.snapshot.get(row.id) !== JSON.stringify(row.values))

@@ -12,11 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/coss/alert-dialog'
 import { Icon } from '@/components/icons'
-import {
-  deleteRecord,
-  readRecords,
-  retireObjectType,
-} from '@/components/records/api'
+import { deleteRecord, retireObjectType } from '@/components/records/api'
 import type { DataModel, ObjectType } from '@/components/records/contract'
 import { Segmented } from '@/components/records/field-form'
 import { useDataModel, useRetireObjectType } from '@/components/records/queries'
@@ -362,13 +358,8 @@ function DeleteClass({
       // Checked again as it starts: something may have linked in meanwhile.
       if ((await classUsage(model.data, type)).length)
         throw new Error(`${cls.plural} are in use, so they were not deleted.`)
-      let cursor: string | undefined
-      do {
-        const page = await readRecords(type.node_label, cursor)
-        for (const row of page.rows)
-          await deleteRecord(type.object_type_id, row.id)
-        cursor = page.cursor && page.rows.length ? page.cursor : undefined
-      } while (cursor)
+      for (const row of await everyRecord(type.object_type_id))
+        await deleteRecord(type.object_type_id, row.id)
       await retireObjectType(type.object_type_id)
     },
     onSettled: () =>
@@ -480,7 +471,7 @@ function ExportChooser({
         if (withObjects.has(cls.id))
           objects.push({
             type: cls.type,
-            rows: await everyRecord(cls.type.node_label),
+            rows: await everyRecord(cls.type.object_type_id),
           })
       download(
         `theorem-classes-${new Date().toISOString().slice(0, 10)}.json`,

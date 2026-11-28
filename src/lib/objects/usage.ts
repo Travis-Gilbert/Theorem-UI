@@ -1,5 +1,5 @@
-// SOURCING: none — a pure read over the register's data model (components/records/contract) and Theorem's own links (graph.ts fetchNeighborhood, GraphQL `dataNeighborhood`), paging the class's instances through readRecords (records/api). It decides only whether deleting a class would leave something pointing at nothing; retiring is never refused here.
-import { readRecords } from '@/components/records/api'
+// SOURCING: none — a pure read over the register's data model (components/records/contract) and Theorem's own links (graph.ts fetchNeighborhood, GraphQL `dataNeighborhood`), reading the class's instances through the record verbs (lib/objects/migration everyRecord). It decides only whether deleting a class would leave something pointing at nothing; retiring is never refused here.
+import { everyRecord } from './migration'
 import type {
   DataModel,
   FieldSpec,
@@ -44,23 +44,19 @@ export async function classUsage(
 ): Promise<ClassUse[]> {
   const uses: ClassUse[] = relationsTo(model, type)
   let links = 0
-  let cursor: string | undefined
-  do {
-    const page = await readRecords(type.node_label, cursor)
-    const ids = new Set(page.rows.map((row) => row.id))
-    if (ids.size) {
-      const hood = await fetchNeighborhood([...ids], 1, 2000)
-      const ownNodes = new Set(
-        hood.nodes
-          .filter((node) => node.labels.includes(type.node_label))
-          .map((node) => node.id),
-      )
-      for (const link of hood.links)
-        if (ids.has(link.to) && !ids.has(link.from) && !ownNodes.has(link.from))
-          links += 1
-    }
-    cursor = page.cursor && page.rows.length ? page.cursor : undefined
-  } while (cursor)
+  const rows = await everyRecord(type.object_type_id)
+  for (let at = 0; at < rows.length; at += 500) {
+    const ids = new Set(rows.slice(at, at + 500).map((row) => row.id))
+    const hood = await fetchNeighborhood([...ids], 1, 2000)
+    const ownNodes = new Set(
+      hood.nodes
+        .filter((node) => node.labels.includes(type.node_label))
+        .map((node) => node.id),
+    )
+    for (const link of hood.links)
+      if (ids.has(link.to) && !ids.has(link.from) && !ownNodes.has(link.from))
+        links += 1
+  }
   if (links) uses.push({ kind: 'links', count: links })
   return uses
 }

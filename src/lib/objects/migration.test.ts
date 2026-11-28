@@ -6,6 +6,7 @@ import type {
 } from '@/components/records/contract'
 import { newObjectType, toInput } from '@/components/records/schema-edit'
 import {
+  everyRecord,
   MigrationError,
   applyMigration,
   convertValue,
@@ -193,5 +194,29 @@ describe('a migration', () => {
     expect(state.rows.get('soup')?.values.minutes).toBe('30')
     expect(state.rows.get('stew')?.values.minutes).toBe('90')
     expect(state.rows.get('tea')?.values.minutes).toBe('4')
+  })
+})
+
+describe('reading every object of a class', () => {
+  test('pages through the record verb by offset until the count is read', async () => {
+    const all = Array.from({ length: 450 }, (_, i) => ({
+      id: `r${i}`,
+      values: {},
+      relations: {},
+    }))
+    const asked: [string, number][] = []
+    const rows = await everyRecord(
+      'schema:object-type:t:book',
+      async (id, offset) => {
+        asked.push([id, offset])
+        return { rows: all.slice(offset, offset + 200), count: all.length }
+      },
+    )
+    expect(rows).toHaveLength(450)
+    expect(asked).toEqual([
+      ['schema:object-type:t:book', 0],
+      ['schema:object-type:t:book', 200],
+      ['schema:object-type:t:book', 400],
+    ])
   })
 })
