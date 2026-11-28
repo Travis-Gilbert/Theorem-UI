@@ -319,7 +319,14 @@ export function FieldDialog({
     .map((f) => f.key)
     .filter((k) => k !== field?.key)
   const effectiveKey = keyEdited ? key : fieldKeyFor(label, taken)
-  const targets = activeObjectTypes(model)
+  // A type still being drafted can be its own relation's destination.
+  const targets = model.objectTypes.some(
+    (t) => t.object_type_id === objectType.object_type_id,
+  )
+    ? activeObjectTypes(model)
+    : objectType.tenant_id
+      ? [...activeObjectTypes(model), objectType]
+      : activeObjectTypes(model)
 
   const reset = () => {
     declare.reset()
@@ -512,8 +519,10 @@ export function FieldDialog({
                         />
                       }
                     >
-                      {resolveObjectType(model, type.target_object_type_id)
-                        ?.label_plural ?? 'Choose an object'}
+                      {(type.target_object_type_id === objectType.object_type_id
+                        ? objectType
+                        : resolveObjectType(model, type.target_object_type_id)
+                      )?.label_plural ?? 'Choose an object'}
                       <Icon.ChevronDown />
                     </MenuTrigger>
                     <MenuPopup align="start">

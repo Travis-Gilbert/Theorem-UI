@@ -108,6 +108,22 @@ export const pascalCase = (label: string) => {
   return camel ? camel[0]!.toUpperCase() + camel.slice(1) : ''
 }
 
+/**
+ * The id the register gives a type when it is declared: the tenant and the
+ * type's name, as rustyred-thg-schema's `object_type_id` and `snake_case`
+ * write them. A draft uses it to relate a new type to itself.
+ */
+export const declaredTypeId = (tenant: string, nameSingular: string) => {
+  let snake = ''
+  for (const [index, char] of [...nameSingular].entries()) {
+    if (char !== char.toLowerCase() && char === char.toUpperCase()) {
+      if (index > 0) snake += '_'
+      snake += char.toLowerCase()
+    } else snake += char === '-' || char === ' ' ? '_' : char
+  }
+  return `schema:object-type:${tenant}:${snake.toLowerCase()}`
+}
+
 /** A key for a new field from its label, numbered past any taken. */
 export function fieldKeyFor(label: string, taken: Iterable<string>) {
   const base = camelCase(label) || 'field'

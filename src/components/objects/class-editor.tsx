@@ -14,13 +14,18 @@ import { FieldTypeIcon, KIND } from '@/components/records/fields'
 import { useDeclareObjectType } from '@/components/records/queries'
 import { displayHint, withDisplayHint } from '@/components/records/model'
 import type { DisplayHint } from '@/components/records/model'
-import { newObjectType, toInput } from '@/components/records/schema-edit'
+import {
+  declaredTypeId,
+  newObjectType,
+  toInput,
+} from '@/components/records/schema-edit'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { describeError } from '@/lib/theorem/client'
 import {
   CLASS_TONES,
+  classOfRef,
   notesExtension,
   objectClass,
   withNotesExtension,
@@ -75,8 +80,27 @@ const draftOf = (type: ObjectType | undefined): Draft => {
   }
 }
 
+/**
+ * A relation from a class not yet declared to itself. The draft keeps this
+ * until it declares, when it becomes the id the register will give the class
+ * under whatever name it then has.
+ */
+const SELF = 'theorem.notes:self'
+
+const toSelf = (fields: FieldSpec[], from: string, to: string) =>
+  fields.map((f) =>
+    f.field_type.kind === 'relation' &&
+    f.field_type.target_object_type_id === from
+      ? { ...f, field_type: { ...f.field_type, target_object_type_id: to } }
+      : f,
+  )
+
 /** The one declaration the draft makes: of `base`, or of a new class. */
-function inputOf(base: ObjectType | undefined, draft: Draft): ObjectTypeInput {
+function inputOf(
+  base: ObjectType | undefined,
+  draft: Draft,
+  tenant: string | undefined,
+): ObjectTypeInput {
   const singular = draft.singular.trim()
   const start = base
     ? toInput(base)
@@ -103,7 +127,14 @@ function inputOf(base: ObjectType | undefined, draft: Draft): ObjectTypeInput {
     description: draft.description.trim() || undefined,
     enforcement: draft.enforcement,
     label_identifier_field: draft.identifier,
-    fields: draft.fields,
+    fields:
+      base || !tenant
+        ? draft.fields
+        : toSelf(
+            draft.fields,
+            SELF,
+            declaredTypeId(tenant, start.name_singular),
+          ),
     extensions: withNotesExtension(
       { extensions },
       {
@@ -125,6 +156,7 @@ export function ClassEditor({
   onCreated?: (id: string) => void
 }) {
   const { registry, model } = useClassRegistry()
+  const tenant = model.data?.objectTypes[0]?.tenant_id
   const type =
     classKey === 'new' ? undefined : registry.byId.get(classKey)?.type
   // The declaration the draft was started from; a save names its anchor.
@@ -154,11 +186,11 @@ export function ClassEditor({
 
   const built = useMemo(() => {
     try {
-      return { input: inputOf(base, draft) }
+      return { input: inputOf(base, draft, tenant) }
     } catch (problem) {
       return { problem }
     }
-  }, [base, draft])
+  }, [base, draft, tenant])
   const input = built.input
   const found = useMemo(
     () => (base && input ? incompatibilities(base, input) : []),
@@ -206,18 +238,22 @@ export function ClassEditor({
   const preview = { icon: draft.icon, tone: draft.tone }
   const fields = draft.fields
   // The draft as a type, for the property form to edit against.
+  const workingId =
+    base?.object_type_id ??
+    (tenant && input ? declaredTypeId(tenant, input.name_singular) : 'new')
   const working: ObjectType | undefined = input && {
-    object_type_id: base?.object_type_id ?? 'new',
-    tenant_id: base?.tenant_id ?? '',
+    object_type_id: workingId,
+    tenant_id: base?.tenant_id ?? tenant ?? '',
     content_anchor: base?.content_anchor ?? '',
     record_count: base?.record_count ?? 0,
     ...input,
   }
   const editField = (
-    spec: FieldSpec,
+    field: FieldSpec,
     hint: DisplayHint | undefined,
     previous?: string,
-  ) =>
+  ) => {
+    const spec = base ? field : toSelf([field], workingId, SELF)[0]!
     setDraft((d) => ({
       ...d,
       fields: previous
@@ -231,6 +267,7 @@ export function ClassEditor({
           ? d.cardFields?.map((k) => (k === previous ? spec.key : k))
           : d.cardFields,
     }))
+  }
   const removeField = (key: string) =>
     setDraft((d) => ({
       ...d,
@@ -387,12 +424,25 @@ export function ClassEditor({
                         <button
                           type="button"
                           disabled={!!native || locked}
-                          onClick={() => setField(f)}
+                          onClick={() =>
+                            setField(
+                              base ? f : toSelf([f], SELF, workingId)[0]!,
+                            )
+                          }
                           className="min-w-0 flex-1 truncate text-start text-sm outline-none focus-visible:underline"
                         >
                           {f.label}
                           <span className="ms-2 text-xs text-ink-faint">
                             {KIND[f.field_type.kind].label}
+                            {f.field_type.kind === 'relation' &&
+                              ` to ${
+                                f.field_type.target_object_type_id === SELF
+                                  ? draft.plural.trim() || 'this class'
+                                  : (classOfRef(
+                                      registry,
+                                      f.field_type.target_object_type_id,
+                                    )?.plural ?? 'a missing class')
+                              }`}
                           </span>
                         </button>
                         {!identifier && !native && (

@@ -13,6 +13,8 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from '@/components/coss/menu'
+import { ArtifactView } from '@/components/artifacts/artifact-renderers'
+import { useDocumentArtifact } from '@/components/artifacts/saved-artifact'
 import { Icon } from '@/components/icons'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
 import { FieldDisplay } from '@/components/records/fields'
@@ -315,13 +317,14 @@ function ObjectCard({
   model: Parameters<typeof FieldDisplay>[0]['model']
   onOpen: (beside: boolean) => void
 }) {
+  // The thumbnail can hold a live artifact with controls of its own, so the
+  // open control lies over the whole card rather than around it.
   return (
-    <button
-      type="button"
-      onClick={openClick(onOpen)}
-      className="group flex w-full flex-col gap-2 rounded-lg text-start outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
-    >
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-separator bg-(--notes-pane) shadow-sm transition-shadow duration-150 group-hover:shadow-md">
+    <div className="group relative flex w-full flex-col gap-2 rounded-lg text-start has-focus-visible:outline-2 has-focus-visible:outline-offset-4 has-focus-visible:outline-focus">
+      <div
+        inert
+        className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-separator bg-(--notes-pane) shadow-sm transition-shadow duration-150 group-hover:shadow-md"
+      >
         <Thumbnail entry={entry} model={model} />
       </div>
       <span className="flex min-w-0 flex-col gap-0.5 px-0.5">
@@ -334,7 +337,13 @@ function ObjectCard({
           </span>
         </span>
       </span>
-    </button>
+      <button
+        type="button"
+        aria-label={entry.title}
+        onClick={openClick(onOpen)}
+        className="absolute inset-0 rounded-lg outline-none"
+      />
+    </div>
   )
 }
 
@@ -347,6 +356,8 @@ function Thumbnail({
 }) {
   if (entry.documentId && entry.cls.native === 'page')
     return <PageThumbnail documentId={entry.documentId} />
+  if (entry.documentId)
+    return <ArtifactThumbnail documentId={entry.documentId} />
   if (entry.record) {
     const values = entry.record.values
     const chosen = notesExtension(entry.cls.type).cardFields
@@ -394,6 +405,19 @@ function Thumbnail({
   return (
     <div className="flex h-full items-center justify-center">
       <ClassIcon cls={entry.cls} size="lg" />
+    </div>
+  )
+}
+
+/** A saved artifact as its own renderer previews it, as a reply does. */
+function ArtifactThumbnail({ documentId }: { documentId: string }) {
+  const { artifact, error } = useDocumentArtifact(documentId)
+  if (error)
+    return <p className="truncate p-3 text-xs text-error-ink">{error}</p>
+  if (!artifact) return null
+  return (
+    <div className="pointer-events-none h-full origin-top-left scale-[0.5] [width:200%]">
+      <ArtifactView artifact={artifact} distance="preview" latest />
     </div>
   )
 }
