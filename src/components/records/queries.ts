@@ -62,7 +62,7 @@ export const useRecords = (objectType: ObjectType | undefined) =>
   useInfiniteQuery({
     queryKey: recordKeys.rows(objectType?.node_label ?? ''),
     queryFn: ({ pageParam }) =>
-      api.readRecords(objectType!.node_label, pageParam),
+      api.readClassPage(objectType!.object_type_id, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.cursor,
     enabled: !!objectType,
@@ -105,7 +105,7 @@ export function useRelationTitleOf(
       void client.prefetchInfiniteQuery({
         queryKey: recordKeys.rows(target.node_label),
         queryFn: ({ pageParam }) =>
-          api.readRecords(target.node_label, pageParam),
+          api.readClassPage(target.object_type_id, pageParam),
         initialPageParam: undefined as string | undefined,
         staleTime: 15_000,
       })

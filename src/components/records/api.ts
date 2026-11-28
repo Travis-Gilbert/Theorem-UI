@@ -147,28 +147,6 @@ export function decodeRecord(raw: unknown): RecordRow | undefined {
   return { id: raw.id, values, relations }
 }
 
-export async function readRecords(
-  nodeLabel: string,
-  cursor?: string,
-  limit = 500,
-): Promise<RecordPage> {
-  const data = await query<{ dataRecords: unknown }>(
-    `query Records($label: String!, $limit: Int, $cursor: String) {
-      dataRecords(label: $label, limit: $limit, cursor: $cursor, hydrateLinks: true)
-    }`,
-    { label: nodeLabel, limit, cursor },
-  )
-  const envelope = isObject(data.dataRecords) ? data.dataRecords : {}
-  const rows = (Array.isArray(envelope.records) ? envelope.records : [])
-    .map(decodeRecord)
-    .filter((row): row is RecordRow => row !== undefined)
-  const next = envelope.next_cursor ?? envelope.cursor
-  return {
-    rows,
-    cursor: typeof next === 'string' && next !== cursor ? next : undefined,
-  }
-}
-
 export async function readRecord(id: string) {
   const data = await query<{ dataRecord: unknown }>(
     `query Record($id: String!) { dataRecord(id: $id, hydrateLinks: true) }`,
@@ -246,6 +224,25 @@ export type RecordSort = { field_key: string; direction: 'asc' | 'desc' }
  * A page of one class's records, filtered and sorted by Theorem, with the
  * number that match. Offset paging, as the verb serves it.
  */
+/**
+ * One page of a class's records through its find_many verb, which scopes by
+ * the record's workspace however it was written; the cursor is the offset
+ * of the next page.
+ */
+export async function readClassPage(
+  objectTypeId: string,
+  cursor?: string,
+  limit = 500,
+): Promise<RecordPage> {
+  const offset = Number(cursor ?? 0) || 0
+  const page = await findRecords(objectTypeId, { offset, limit })
+  const next = offset + page.rows.length
+  return {
+    rows: page.rows,
+    ...(page.rows.length && next < page.count ? { cursor: String(next) } : {}),
+  }
+}
+
 export async function findRecords(
   objectTypeId: string,
   {
