@@ -37,6 +37,7 @@ import type { OperationBinding } from '@/lib/objects/operations'
 import { useClassRegistry } from '@/lib/objects/register'
 import { cn } from '@/lib/utils'
 import { CLASS_ICONS, ClassGlyph, ClassIcon, TONE_TILE } from './class-icon'
+import { ClassMigration } from './class-migration'
 import { OperationsEditor } from './class-operations-editor'
 import { openPane } from './object-actions'
 
@@ -613,6 +614,9 @@ export function ClassEditor({
                   </label>
                 )}
               </div>
+            )}
+            {base && input && refused && (
+              <ClassMigration base={base} input={input} onApplied={settle} />
             )}
             {error != null && (
               <p role="alert" className="text-sm wrap-anywhere text-error-ink">

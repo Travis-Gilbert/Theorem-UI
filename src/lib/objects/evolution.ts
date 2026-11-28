@@ -64,7 +64,7 @@ export function incompatibilities(
         found.push({
           field: field.key,
           reason: 'required-added',
-          message: `${field.label} is required, and the existing ${before.label_plural.toLowerCase()} have no value for it. Add it as optional, then require it once every one has a value.`,
+          message: `${field.label} is required, and the existing ${before.label_plural.toLowerCase()} have no value for it. A migration can fill it, or add it as optional and require it once every one has a value.`,
         })
       continue
     }
@@ -84,7 +84,7 @@ export function incompatibilities(
         message:
           old.field_type.kind === field.field_type.kind
             ? `${field.label} would drop choices existing values may use.`
-            : `${field.label} would change from ${old.field_type.kind} to ${field.field_type.kind}; existing values are not converted.`,
+            : `${field.label} would change from ${old.field_type.kind} to ${field.field_type.kind}; existing values are converted by a migration.`,
       })
   }
   const kept = new Set(after.fields.map((f) => f.key))
