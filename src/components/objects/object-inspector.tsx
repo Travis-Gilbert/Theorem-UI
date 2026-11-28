@@ -1,5 +1,6 @@
 // SOURCING: after Craft web's right-hand document panel (Mobbin fe902442-73f0-4633-bbd6-84b521fe9b9d: tabbed Insert, Format, Style and Info beside the page) with Capacities' object properties and backlinks as its content; coss Tabs; zustand persist (whether the inspector is open on this device); records/fields FieldDisplay and FieldEditorPopover with useUpdateRecord for a record's properties; crm/api readRecordChanges and crm/model actorName for a record's history; lib/objects collections and connections for membership and relationships
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { create } from 'zustand'
@@ -7,6 +8,7 @@ import { persist } from 'zustand/middleware'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/coss/tabs'
 import { readRecordChanges } from '@/components/crm/api'
 import { actorName } from '@/components/crm/model'
+import { originText } from '@/components/crm/proposal'
 import { Icon } from '@/components/icons'
 import {
   FieldDisplay,
@@ -626,6 +628,18 @@ function History({ entry }: { entry: ObjectEntry }) {
                   .join(', ')}`
               : ''}
           </span>
+          {change.origin && (
+            <span className="text-xs text-ink-muted">
+              {originText(change.origin)}{' '}
+              <Link
+                to="/c/$threadId"
+                params={{ threadId: change.origin.threadId }}
+                className="rounded-sm font-medium text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus"
+              >
+                See the conversation
+              </Link>
+            </span>
+          )}
           <time
             className="text-xs text-ink-faint"
             dateTime={new Date(change.atMs).toISOString()}
