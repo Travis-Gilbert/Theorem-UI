@@ -197,6 +197,7 @@ describe('a new class', () => {
       fields: { key: string; field_type: Record<string, unknown> }[]
     }
     expect(input.name_singular).toBe('readingNote')
+    expect((input as { enforcement?: string }).enforcement).toBe('reject')
     const keys = input.fields.map((f) => f.key)
     expect(keys).toContain('author')
     const related = input.fields.find((f) => f.field_type.kind === 'relation')!

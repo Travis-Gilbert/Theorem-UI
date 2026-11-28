@@ -70,7 +70,9 @@ const draftOf = (type: ObjectType | undefined): Draft => {
     icon: cls?.icon ?? 'box',
     tone: cls?.tone ?? 'teal',
     layout: ext.layout ?? 'prose',
-    enforcement: type?.enforcement ?? 'warn',
+    // A new class holds its objects to its fields from the start, for every
+    // caller; a person can loosen it.
+    enforcement: type?.enforcement ?? 'reject',
     fields,
     hints: Object.fromEntries(
       fields.map((f) => [f.key, type ? displayHint(type, f.key) : undefined]),
