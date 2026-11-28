@@ -252,4 +252,36 @@ describe('carrying objects to another workspace', () => {
     })
     expect(report.links).toBe(1)
   })
+
+  test('an object never carries the id or workspace it had', async () => {
+    const exported = exportClasses(
+      [person],
+      [
+        {
+          type: person,
+          rows: [row('p1', { id: 'p1', tenant_id: 'a', name: 'Ursula' })],
+        },
+      ],
+    )
+    expect(exported.objects?.[0]?.values).toEqual({ name: 'Ursula' })
+    // A file written before this keeps working.
+    const old = {
+      ...exported,
+      objects: [
+        {
+          ...exported.objects![0]!,
+          values: { id: 'p1', tenant_id: 'a', name: 'Ursula' },
+        },
+      ],
+    }
+    const { state, calls } = workspace('b')
+    await applyImport(
+      planImport(JSON.stringify(old), model([])),
+      model([]),
+      'b',
+      {},
+      calls,
+    )
+    expect([...state.rows.values()][0]!.values).toEqual({ name: 'Ursula' })
+  })
 })

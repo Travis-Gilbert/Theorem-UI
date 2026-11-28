@@ -41,6 +41,20 @@ export type ClassExport = {
 
 const isRelation = (f: FieldSpec) => f.field_type.kind === 'relation'
 
+/** Properties the register writes on every record: its id and workspace. */
+const RECORD_KEYS = new Set(['id', 'tenant_id'])
+
+/** A record's own values, without what the register keeps on every record. */
+const ownValues = (
+  values: Record<string, unknown>,
+  leave = new Set<string>(),
+) =>
+  Object.fromEntries(
+    Object.entries(values).filter(
+      ([key]) => !RECORD_KEYS.has(key) && !leave.has(key),
+    ),
+  )
+
 /**
  * The definitions of `types`, ready to save as a file. Objects travel only
  * as `objects` names them: each class's rows the person chose.
@@ -57,9 +71,7 @@ export function exportClasses(
         class: type.name_singular,
         id: row.id,
         title: recordTitle(type, row),
-        values: Object.fromEntries(
-          Object.entries(row.values).filter(([key]) => !keys.has(key)),
-        ),
+        values: ownValues(row.values, keys),
         links: Object.fromEntries(
           relations
             .map((f) => [f.key, relationIds(row, f)] as const)
@@ -320,7 +332,7 @@ export async function applyImport(
         .map((f) => [f.key, object.links[f.key]!.join(', ')]),
     )
     const row = await calls.create(type.object_type_id, {
-      ...object.values,
+      ...ownValues(object.values),
       ...asText,
     })
     ids.set(object.id, row.id)
