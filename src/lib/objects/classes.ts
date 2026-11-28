@@ -1,10 +1,5 @@
 // SOURCING: none — the effective class registry Notes reads, as pure lookups over the schema register's declared types (components/records/contract `ObjectType`). Presentation lives in the type's own `extensions`, the slot the register keeps for it, so nothing here is a second store of class definitions.
-import type {
-  DataModel,
-  FieldSpec,
-  ObjectType,
-  ObjectTypeInput,
-} from '@/components/records/contract'
+import type { DataModel, ObjectType } from '@/components/records/contract'
 
 /**
  * The extension key Notes keeps on a declared type: how it looks and, for
@@ -16,8 +11,12 @@ import type { Presentation } from '@/components/records/model'
 
 export const NOTES_EXTENSION = 'theorem.notes'
 
-/** The document owners a standard-library class can name. */
-export type NativeOwner = 'page' | 'app' | 'notebook'
+/**
+ * The document kind a native class holds. Open: Page, App and Notebook ship
+ * with Theorem, and any class may name its own kind with the artifact forms
+ * whose saved documents it holds (`NotesExtension.forms`).
+ */
+export type NativeOwner = string
 
 /** A class with a special job in Notes, rather than an ordinary type. */
 export type ClassRole = 'collection'
@@ -36,6 +35,10 @@ export type NotesExtension = {
   icon?: string
   tone?: ClassTone
   native?: NativeOwner
+  /** For a native class over saved artifacts: the forms whose documents it holds. */
+  forms?: string[]
+  /** Installed by Theorem's distribution (notes_classes.rs). */
+  standard?: boolean
   role?: ClassRole
   /** `prose` keeps a reading column; `wide` gives the body the pane. */
   layout?: 'prose' | 'wide'
@@ -74,10 +77,12 @@ export type ObjectClass = {
   role?: ClassRole
   /** Shipped with Theorem's distribution (the standard library). */
   standard: boolean
+  /** The register's own type (Claim, MemoryDocument, ...): read-only here. */
+  system: boolean
   retired: boolean
 }
 
-const DEFAULT_ICON: Record<NativeOwner, string> = {
+const DEFAULT_ICON: Record<string, string | undefined> = {
   page: 'file-text',
   app: 'code',
   notebook: 'notebook',
@@ -103,7 +108,8 @@ export function objectClass(type: ObjectType): ObjectClass {
     tone: ext.tone ?? toneOf(type.object_type_id),
     native: ext.native,
     role: ext.role,
-    standard: Boolean(ext.native || ext.role),
+    standard: Boolean(ext.standard || ext.native || ext.role),
+    system: type.system,
     retired: Boolean(type.retired),
   }
 }
@@ -112,28 +118,49 @@ export type ClassRegistry = {
   /** Every declared class, retired ones included for reading history. */
   all: ObjectClass[]
   byId: ReadonlyMap<string, ObjectClass>
-  /** Classes with instances to browse: not retired, not a role. */
-  browsable: ObjectClass[]
-  native: Partial<Record<NativeOwner, ObjectClass>>
+  /**
+   * The workspace's classes, the ones Notes navigates: declared by a person
+   * or installed for Notes, not retired, not a role.
+   */
+  workspace: ObjectClass[]
+  /** The register's system types, kept out of everyday navigation. */
+  substrate: ObjectClass[]
+  native: Readonly<Record<NativeOwner, ObjectClass | undefined>>
+  /** The native class holding a saved artifact of `form`, by declared forms. */
+  formClass: (form: string) => ObjectClass | undefined
   collection?: ObjectClass
+}
+
+/** Forms a shipped class holds when its declaration names none. */
+const SHIPPED_FORMS: Record<string, readonly string[] | undefined> = {
+  notebook: ['observable', 'marimo'],
 }
 
 export function classRegistry(model: DataModel | undefined): ClassRegistry {
   const all = (model?.objectTypes ?? []).map(objectClass)
-  const native: ClassRegistry['native'] = {}
+  const native: Record<NativeOwner, ObjectClass | undefined> = {}
+  const byForm = new Map<string, ObjectClass>()
   let collection: ObjectClass | undefined
   for (const cls of all) {
     if (cls.retired) continue
-    if (cls.native) native[cls.native] ??= cls
+    if (cls.native) {
+      native[cls.native] ??= cls
+      const forms = notesExtension(cls.type).forms ?? SHIPPED_FORMS[cls.native]
+      for (const form of forms ?? [])
+        if (!byForm.has(form)) byForm.set(form, cls)
+    }
     if (cls.role === 'collection') collection ??= cls
   }
+  const live = all
+    .filter((cls) => !cls.retired && !cls.role)
+    .sort((a, b) => a.plural.localeCompare(b.plural))
   return {
     all,
     byId: new Map(all.map((cls) => [cls.id, cls])),
-    browsable: all
-      .filter((cls) => !cls.retired && !cls.role)
-      .sort((a, b) => a.plural.localeCompare(b.plural)),
+    workspace: live.filter((cls) => !cls.system),
+    substrate: live.filter((cls) => cls.system),
     native,
+    formClass: (form) => byForm.get(form) ?? native.app,
     collection,
   }
 }
@@ -146,174 +173,3 @@ export const classOfRef = (registry: ClassRegistry, ref: string) =>
       cls.type.node_label === ref ||
       cls.type.name_singular === ref,
   )
-
-// The standard library
-
-const nameField: FieldSpec = {
-  key: 'name',
-  label: 'Name',
-  field_type: { kind: 'text' },
-  required: true,
-  system: false,
-}
-
-/**
- * The classes Theorem's distribution ships: the document kinds Notes already
- * holds, and Collection for curated membership. They are declared through the
- * same `declareSchema` a person's own class goes through; only the extension
- * says a Documents owner holds the instances of the first three.
- */
-export const STANDARD_LIBRARY: {
-  key: NativeOwner | ClassRole
-  input: ObjectTypeInput
-}[] = [
-  {
-    key: 'page',
-    input: {
-      name_singular: 'page',
-      name_plural: 'pages',
-      label_singular: 'Page',
-      label_plural: 'Pages',
-      description: 'A written note, held by Theorem Documents.',
-      node_label: 'TheoremPage',
-      label_identifier_field: 'name',
-      fields: [nameField],
-      enforcement: 'observe',
-      system: false,
-      provider: { kind: 'connector', connector_id: 'theorem.documents' },
-      extensions: {
-        [NOTES_EXTENSION]: {
-          native: 'page',
-          icon: 'file-text',
-          tone: 'neutral',
-          layout: 'prose',
-        },
-      },
-    },
-  },
-  {
-    key: 'app',
-    input: {
-      name_singular: 'app',
-      name_plural: 'apps',
-      label_singular: 'App',
-      label_plural: 'Apps',
-      description: 'A saved working artifact, held by Theorem Documents.',
-      node_label: 'TheoremApp',
-      label_identifier_field: 'name',
-      fields: [nameField],
-      enforcement: 'observe',
-      system: false,
-      provider: { kind: 'connector', connector_id: 'theorem.documents' },
-      extensions: {
-        [NOTES_EXTENSION]: {
-          native: 'app',
-          icon: 'code',
-          tone: 'action',
-          layout: 'wide',
-        },
-      },
-    },
-  },
-  {
-    key: 'notebook',
-    input: {
-      name_singular: 'notebook',
-      name_plural: 'notebooks',
-      label_singular: 'Notebook',
-      label_plural: 'Notebooks',
-      description:
-        'A saved Observable or marimo notebook, held by Theorem Documents.',
-      node_label: 'TheoremNotebook',
-      label_identifier_field: 'name',
-      fields: [nameField],
-      enforcement: 'observe',
-      system: false,
-      provider: { kind: 'connector', connector_id: 'theorem.documents' },
-      extensions: {
-        [NOTES_EXTENSION]: {
-          native: 'notebook',
-          icon: 'notebook',
-          tone: 'teal',
-          layout: 'wide',
-        },
-      },
-    },
-  },
-  {
-    key: 'collection',
-    input: {
-      name_singular: 'collection',
-      name_plural: 'collections',
-      label_singular: 'Collection',
-      label_plural: 'Collections',
-      description:
-        'A named, curated set of objects of any class. Membership references each object; it never moves or copies it.',
-      node_label: 'TheoremCollection',
-      label_identifier_field: 'name',
-      fields: [
-        nameField,
-        {
-          key: 'description',
-          label: 'Description',
-          field_type: { kind: 'long_text' },
-          required: false,
-          system: false,
-        },
-        {
-          key: 'members',
-          label: 'Members',
-          description:
-            'Object references: a document id, or record:<class>/<id>.',
-          field_type: { kind: 'json' },
-          required: false,
-          system: false,
-        },
-        {
-          key: 'purpose',
-          label: 'Purpose',
-          description:
-            'favorites marks the collection the sidebar shows as Favorites.',
-          field_type: { kind: 'enum', variants: ['favorites'] },
-          required: false,
-          system: false,
-        },
-      ],
-      enforcement: 'warn',
-      system: false,
-      extensions: {
-        [NOTES_EXTENSION]: {
-          role: 'collection',
-          icon: 'library',
-          tone: 'ochre',
-        },
-      },
-    },
-  },
-]
-
-/**
- * The standard-library declarations this register still lacks. A class is
- * recognised by its extension, not its name, so a person's own `page` type
- * is never mistaken for it; a taken name gets a prefixed one instead.
- */
-export function missingStandardClasses(model: DataModel): ObjectTypeInput[] {
-  const registry = classRegistry(model)
-  const names = new Set(model.objectTypes.map((type) => type.name_singular))
-  const labels = new Set(model.objectTypes.map((type) => type.node_label))
-  return STANDARD_LIBRARY.filter(({ key }) =>
-    key === 'collection' ? !registry.collection : !registry.native[key],
-  ).map(({ input }) => {
-    if (!names.has(input.name_singular) && !labels.has(input.node_label))
-      return input
-    const prefixed = `theorem${input.name_singular.charAt(0).toUpperCase()}${input.name_singular.slice(1)}`
-    return {
-      ...input,
-      name_singular: prefixed,
-      name_plural: `${prefixed}s`,
-      node_label: labels.has(input.node_label)
-        ? `${input.node_label}Class`
-        : input.node_label,
-    }
-  })
-}

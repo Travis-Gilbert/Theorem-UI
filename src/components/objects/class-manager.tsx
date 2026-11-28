@@ -74,7 +74,7 @@ export function ClassManager() {
       JSON.stringify(
         exportClasses(
           registry.all
-            .filter((cls) => !cls.retired && !cls.standard)
+            .filter((cls) => !cls.retired && !cls.standard && !cls.system)
             .map((cls) => cls.type),
         ),
         null,
@@ -216,28 +216,53 @@ export function ClassManager() {
                       <Icon.Hide className="size-3.5" />
                     )}
                   </Tool>
-                  {!cls.standard && !cls.type.system && (
-                    <>
-                      <Tool
-                        label={`Retire ${cls.plural}`}
-                        disabled={retire.isPending}
-                        onClick={() => retire.mutate(cls.id)}
-                      >
-                        <Icon.Archive className="size-3.5" />
-                      </Tool>
-                      <Tool
-                        label={`Delete ${cls.plural}`}
-                        onClick={() => setDeleting(cls)}
-                      >
-                        <Icon.Delete className="size-3.5" />
-                      </Tool>
-                    </>
+                  {!cls.system && (
+                    <Tool
+                      label={`Retire ${cls.plural}`}
+                      disabled={retire.isPending}
+                      onClick={() => retire.mutate(cls.id)}
+                    >
+                      <Icon.Archive className="size-3.5" />
+                    </Tool>
+                  )}
+                  {!cls.standard && !cls.system && (
+                    <Tool
+                      label={`Delete ${cls.plural}`}
+                      onClick={() => setDeleting(cls)}
+                    >
+                      <Icon.Delete className="size-3.5" />
+                    </Tool>
                   )}
                 </Row>
               </li>
             )
           })}
         </ol>
+
+        {registry.substrate.length > 0 && (
+          <section aria-label="System types" className="flex flex-col gap-2">
+            <h2 className="text-sm font-medium text-ink-muted">System</h2>
+            <ul className="flex flex-col">
+              {registry.substrate.map((cls) => (
+                <li key={cls.id}>
+                  <button
+                    type="button"
+                    onClick={() => openPane({ kind: 'class', key: cls.id })}
+                    className="flex h-9 w-full items-center gap-3 rounded-lg px-2 text-start text-sm text-ink-muted outline-none hover:bg-hover focus-visible:underline"
+                  >
+                    <ClassIcon cls={cls} className="opacity-60" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {cls.plural}
+                    </span>
+                    <span className="text-xs text-ink-faint">
+                      {cls.type.record_count ?? 0}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {retired.length > 0 && (
           <section className="flex flex-col gap-2">

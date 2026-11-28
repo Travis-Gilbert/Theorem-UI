@@ -35,7 +35,7 @@ const rowsOf = (results: { data?: RecordPage; isPending: boolean }[]) => ({
 export function useAllObjects(registry: ClassRegistry) {
   const documents = useDocumentObjects(registry)
   const recordClasses = useMemo(
-    () => registry.browsable.filter((cls) => !cls.native),
+    () => registry.workspace.filter((cls) => !cls.native),
     [registry],
   )
   const records = useQueries({

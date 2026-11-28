@@ -40,7 +40,7 @@ export function orderedClasses(
   order: readonly string[],
 ): ObjectClass[] {
   const rank = new Map(order.map((id, index) => [id, index]))
-  return [...registry.browsable].sort((a, b) => {
+  return [...registry.workspace].sort((a, b) => {
     const ra = rank.get(a.id) ?? Number.POSITIVE_INFINITY
     const rb = rank.get(b.id) ?? Number.POSITIVE_INFINITY
     return ra === rb ? a.plural.localeCompare(b.plural) : ra - rb

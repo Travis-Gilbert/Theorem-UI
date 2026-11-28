@@ -15,7 +15,7 @@ import { APP_KIND } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
 import type { ClassRegistry, ObjectClass } from '@/lib/objects/classes'
 import { useCollections } from '@/lib/objects/collections'
-import { artifactForm, artifactOwner } from '@/lib/objects/library'
+import { artifactForm } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
 import { useNotesWorkspace } from '@/components/notes/notes-workspace-state'
 import type { PaneSpec } from '@/components/notes/notes-workspace-state'
@@ -33,7 +33,7 @@ export function noteClass(
   note: Pick<Note, 'documentKind' | 'canonical'> | undefined,
 ) {
   if (note?.documentKind === APP_KIND)
-    return registry.native[artifactOwner(artifactForm(note))]
+    return registry.formClass(artifactForm(note))
   return registry.native.page
 }
 

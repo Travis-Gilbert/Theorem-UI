@@ -19,7 +19,7 @@ import {
   pinnedClasses,
   useClassPrefs,
 } from '@/lib/objects/prefs'
-import { useStandardLibrary } from '@/lib/objects/register'
+import { useClassRegistry } from '@/lib/objects/register'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
 import { openPane } from './object-actions'
@@ -136,7 +136,7 @@ function PaneRow({
  * Folders and notes follow it, as they were.
  */
 export function ObjectNav() {
-  const { registry, declare } = useStandardLibrary()
+  const { registry, model } = useClassRegistry()
   const prefs = useClassPrefs()
   const documents = useDocumentObjects(registry)
   const collections = useCollections(registry)
@@ -181,12 +181,9 @@ export function ObjectNav() {
         label="Graph"
         active={active}
       />
-      {declare.error && (
-        <p
-          role="alert"
-          className="px-2 py-1 text-xs wrap-anywhere text-error-ink"
-        >
-          {describeError(declare.error)}
+      {model.error != null && (
+        <p role="alert" className="truncate px-2 py-1 text-xs text-error-ink">
+          {describeError(model.error)}
         </p>
       )}
 

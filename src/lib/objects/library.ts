@@ -21,7 +21,7 @@ import {
   noteLibraryKey,
 } from '@/lib/theorem/notes'
 import type { Note } from '@/lib/theorem/notes'
-import type { ClassRegistry, NativeOwner, ObjectClass } from './classes'
+import type { ClassRegistry, ObjectClass } from './classes'
 
 /**
  * How an object is named wherever Notes keeps a reference to it: a document
@@ -65,13 +65,6 @@ export type ObjectEntry = {
   /** The document an encoded object was promoted into. */
   promotedTo?: string
 }
-
-/** The forms a saved artifact's source block names that read as a notebook. */
-const NOTEBOOK_FORMS = new Set(['observable', 'marimo'])
-
-/** Which standard class a saved App's form belongs to. */
-export const artifactOwner = (form: string): NativeOwner =>
-  NOTEBOOK_FORMS.has(form) ? 'notebook' : 'app'
 
 /** A saved artifact's form, read from the source block (apps.ts FORM_ATTR). */
 export const artifactForm = (note: Pick<Note, 'canonical'>) =>
@@ -169,11 +162,10 @@ export function useDocumentObjects(registry: ClassRegistry) {
   const entries = useMemo(() => {
     const out: ObjectEntry[] = []
     for (const summary of summaries) {
-      const owner: NativeOwner =
+      const cls =
         summary.documentKind === APP_KIND
-          ? artifactOwner(forms.get(summary.documentId) ?? 'html-app')
-          : 'page'
-      const cls = registry.native[owner]
+          ? registry.formClass(forms.get(summary.documentId) ?? 'html-app')
+          : registry.native.page
       if (cls) out.push(documentEntry(summary, cls))
     }
     return out
