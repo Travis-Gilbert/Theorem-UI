@@ -23,6 +23,38 @@ export const defaultLibraryQuery = (scope: string): LibraryQuery => ({
   layout: 'gallery',
 })
 
+/** Where this browser keeps how each scope was last laid out and sorted. */
+const shapeKey = (scope: string) => `theorem.notes.shape.${scope}`
+const LAYOUTS = new Set(['gallery', 'list', 'board'])
+const SORTS = new Set(['updated', 'created', 'title'])
+
+/**
+ * A scope as this person last left it: its layout and sort come back after
+ * a reload. Only a convenience for this browser; a saved view is the record.
+ */
+export function rememberedLibraryQuery(scope: string): LibraryQuery {
+  const query = defaultLibraryQuery(scope)
+  try {
+    const kept = JSON.parse(localStorage.getItem(shapeKey(scope)) ?? '{}')
+    if (LAYOUTS.has(kept?.layout)) query.layout = kept.layout
+    if (SORTS.has(kept?.sort)) query.sort = kept.sort
+  } catch {
+    // Storage can be blocked or empty; the defaults stand.
+  }
+  return query
+}
+
+export function rememberLibraryShape(query: LibraryQuery) {
+  try {
+    localStorage.setItem(
+      shapeKey(query.scope),
+      JSON.stringify({ layout: query.layout, sort: query.sort }),
+    )
+  } catch {
+    // Nothing to keep it in; the pane still works.
+  }
+}
+
 /** The key a Notes view keeps its query under, beside anything else a view holds. */
 const NOTES_QUERY = 'theorem.notes.library'
 

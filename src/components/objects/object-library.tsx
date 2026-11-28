@@ -41,7 +41,8 @@ import {
 } from '@/lib/objects/scoped'
 import type { Scoped } from '@/lib/objects/scoped'
 import {
-  defaultLibraryQuery,
+  rememberLibraryShape,
+  rememberedLibraryQuery,
   useSaveView,
   useSavedViews,
 } from '@/lib/objects/views'
@@ -89,10 +90,11 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
   const views = useSavedViews()
   const save = useSaveView()
   const [query, setQuery] = useState<LibraryQuery>(() =>
-    defaultLibraryQuery(initialScope),
+    rememberedLibraryQuery(initialScope),
   )
   const set = (patch: Partial<LibraryQuery>) =>
     setQuery((q) => ({ ...q, ...patch }))
+  useEffect(() => rememberLibraryShape(query), [query])
   const open = useOpenObject()
 
   const [kind, id] = splitScope(query.scope)
