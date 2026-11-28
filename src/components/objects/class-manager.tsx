@@ -216,7 +216,7 @@ export function ClassManager() {
                       <Icon.Hide className="size-3.5" />
                     )}
                   </Tool>
-                  {!cls.standard && (
+                  {!cls.standard && !cls.type.system && (
                     <>
                       <Tool
                         label={`Retire ${cls.plural}`}

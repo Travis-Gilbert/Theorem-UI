@@ -55,7 +55,7 @@ export function useAllObjects(registry: ClassRegistry) {
           cls,
           title: recordTitle(cls.type, row),
           record: row,
-          origin: 'authored',
+          origin: 'unknown',
         })
     })
     return out.sort(byUpdated)

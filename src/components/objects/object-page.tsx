@@ -57,7 +57,7 @@ export function ObjectPage({ objectRef }: { objectRef: string }) {
     cls,
     title: recordTitle(type, record.data),
     record: record.data,
-    origin: 'authored',
+    origin: 'unknown',
   } satisfies ObjectEntry
   // A system class's fields are the register's own; they show when they hold
   // a value and stay read-only.

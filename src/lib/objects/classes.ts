@@ -12,6 +12,8 @@ import type {
  * instances. It travels with the declaration, so export, import and every
  * other reader of the register see the same presentation.
  */
+import type { Presentation } from '@/components/records/model'
+
 export const NOTES_EXTENSION = 'theorem.notes'
 
 /** The document owners a standard-library class can name. */
@@ -39,6 +41,8 @@ export type NotesExtension = {
   layout?: 'prose' | 'wide'
   /** Field keys a card or table row shows, in order. */
   cardFields?: string[]
+  /** Which fields hold the title, summary and body (records/model.ts). */
+  presentation?: Presentation
 }
 
 export function notesExtension(

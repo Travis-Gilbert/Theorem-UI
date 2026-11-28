@@ -26,6 +26,7 @@ import { notesExtension } from '@/lib/objects/classes'
 import { useCollections } from '@/lib/objects/collections'
 import { useAllObjects } from '@/lib/objects/connections'
 import type { ObjectEntry } from '@/lib/objects/library'
+import { ORIGIN_SHORT } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
 import {
   defaultLibraryQuery,
@@ -444,9 +445,7 @@ function ObjectTable({
                 )}
               </Td>
             ))}
-            <Td className="text-ink-muted">
-              {entry.origin === 'encoded' ? 'Agent' : 'You'}
-            </Td>
+            <Td className="text-ink-muted">{ORIGIN_SHORT[entry.origin]}</Td>
           </tr>
         ))}
       </tbody>

@@ -31,6 +31,7 @@ import {
 } from '@/lib/objects/connections'
 import type { Connection } from '@/lib/objects/connections'
 import type { ObjectEntry } from '@/lib/objects/library'
+import { ORIGIN_LONG } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
@@ -393,9 +394,7 @@ function CollectionsList({
 function Origin({ entry }: { entry: ObjectEntry }) {
   return (
     <dl className="flex flex-col">
-      <Prop label="Made by">
-        {entry.origin === 'encoded' ? 'An agent, from memory' : 'You'}
-      </Prop>
+      <Prop label="Made by">{ORIGIN_LONG[entry.origin]}</Prop>
       {entry.encodedFrom && <Prop label="From">{entry.encodedFrom}</Prop>}
       {entry.cls.type.provider?.kind === 'connector' && (
         <Prop label="Held by">{entry.cls.type.provider.connector_id}</Prop>

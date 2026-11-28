@@ -29,6 +29,18 @@ import type { ClassRegistry, NativeOwner, ObjectClass } from './classes'
  */
 export type ObjectRef = string
 
+/** Who made an object, as a table cell and as the inspector says it. */
+export const ORIGIN_SHORT = {
+  authored: 'You',
+  encoded: 'Agent',
+  unknown: 'Unknown',
+} as const
+export const ORIGIN_LONG = {
+  authored: 'You',
+  encoded: 'An agent, from memory',
+  unknown: 'Not recorded',
+} as const
+
 export type ObjectEntry = {
   ref: ObjectRef
   cls: ObjectClass
@@ -39,8 +51,11 @@ export type ObjectEntry = {
   /** Theorem's history position of the last change, for sorting. */
   updated?: number
   created?: number
-  /** Who made it: a person, or an agent encoding from memory. */
-  origin: 'authored' | 'encoded'
+  /**
+   * Who made it: a person, an agent encoding from memory, or not recorded.
+   * A register record carries no author, so it says unknown.
+   */
+  origin: 'authored' | 'encoded' | 'unknown'
   /** Who touched it, from where, and in which run. */
   actors?: Theorem.ActorProvenance[]
   /** Runs that wrote it, for provenance between objects made together. */
@@ -182,7 +197,7 @@ export function useRecordObjects(cls: ObjectClass | undefined) {
             cls,
             title: recordTitle(cls.type, row),
             record: row,
-            origin: 'authored',
+            origin: 'unknown',
           }))
         : [],
     [cls, records.data],
