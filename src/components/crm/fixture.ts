@@ -497,17 +497,32 @@ export function createFixtureServer(options: FixtureOptions = {}) {
               value: unknown
             }[])
           : []
+        // `icontains` is the same test ignoring case.
         const all = ofType().filter((candidate) =>
           filters.every((filter) => {
-            if (filter.operator !== 'contains') return true
-            const actual = candidate.properties[filter.field_key]
-            return (
-              typeof actual === 'string' &&
-              typeof filter.value === 'string' &&
-              actual.includes(filter.value)
+            if (
+              filter.operator !== 'contains' &&
+              filter.operator !== 'icontains'
             )
+              return true
+            const actual = candidate.properties[filter.field_key]
+            if (typeof actual !== 'string' || typeof filter.value !== 'string')
+              return false
+            return filter.operator === 'contains'
+              ? actual.includes(filter.value)
+              : actual.toLowerCase().includes(filter.value.toLowerCase())
           }),
         )
+        const sorts = Array.isArray(input.sorts)
+          ? (input.sorts as { field_key: string; direction: string }[])
+          : []
+        for (const sort of [...sorts].reverse())
+          all.sort(
+            (a, b) =>
+              String(a.properties[sort.field_key] ?? '').localeCompare(
+                String(b.properties[sort.field_key] ?? ''),
+              ) * (sort.direction === 'desc' ? -1 : 1),
+          )
         const offset = Number(input.offset ?? 0)
         const limit = Number(input.limit ?? 200)
         return result({
@@ -565,6 +580,66 @@ export function createFixtureServer(options: FixtureOptions = {}) {
       }
       default:
         return refuse(`unknown verb \`${name}\``)
+    }
+  }
+
+  /**
+   * A record's links, as the graph holds them: every property naming another
+   * record is an edge of that property's name, read from either end.
+   */
+  const linksOf = (id: string) =>
+    state.nodes.flatMap((from) =>
+      Object.entries(from.properties).flatMap(([key, value]) =>
+        (Array.isArray(value) ? value : [value])
+          .filter(
+            (to): to is string =>
+              typeof to === 'string' &&
+              (from.id === id || to === id) &&
+              state.nodes.some((n) => n.id === to),
+          )
+          .map((to) => ({
+            id: `edge:${from.id}:${key}:${to}`,
+            from_id: from.id,
+            to_id: to,
+            type: key,
+            direction: from.id === id ? 'out' : 'in',
+            confidence: 1,
+            provenance: [],
+          })),
+      ),
+    )
+
+  /** Theorem's dataNeighborhood: `depth` hops from `ids`, and the links among them. */
+  function neighborhood(ids: string[], depth: number, limit: number) {
+    const seen = new Set(
+      ids.filter((id) => state.nodes.some((n) => n.id === id)),
+    )
+    let frontier = [...seen]
+    let truncated = false
+    for (let hop = 0; hop < depth; hop++) {
+      const next: string[] = []
+      for (const id of frontier)
+        for (const link of linksOf(id)) {
+          const other = link.from_id === id ? link.to_id : link.from_id
+          if (seen.has(other)) continue
+          if (seen.size >= limit) truncated = true
+          else {
+            seen.add(other)
+            next.push(other)
+          }
+        }
+      frontier = next
+    }
+    const links = new Map<string, ReturnType<typeof linksOf>[number]>()
+    for (const id of seen)
+      for (const link of linksOf(id))
+        if (seen.has(link.from_id) && seen.has(link.to_id))
+          links.set(link.id, { ...link, direction: 'out' })
+    return {
+      records: state.nodes.filter((n) => seen.has(n.id)),
+      links: [...links.values()],
+      missing: ids.filter((id) => !seen.has(id)),
+      truncated,
     }
   }
 
@@ -629,6 +704,33 @@ export function createFixtureServer(options: FixtureOptions = {}) {
       }
     }
     if (query.includes('dataModel')) return { data: { dataModel: model() } }
+    // No saved views until a test saves one.
+    if (query.includes('dataViews('))
+      return { data: { dataViews: { records: [] } } }
+    if (query.includes('dataNeighborhood'))
+      return {
+        data: {
+          dataNeighborhood: neighborhood(
+            (variables.ids ?? []) as string[],
+            Number(variables.depth ?? 1),
+            Number(variables.limit ?? 200),
+          ),
+        },
+      }
+    if (query.includes('dataRecords(')) {
+      const label = String(variables.label)
+      return {
+        data: {
+          dataRecords: {
+            records: state.nodes.filter((n) => n.labels.includes(label)),
+          },
+        },
+      }
+    }
+    if (query.includes('dataRecord(')) {
+      const record = state.nodes.find((n) => n.id === variables.id)
+      return { data: { dataRecord: { records: record ? [record] : [] } } }
+    }
     return refuse(`the fixture does not answer this operation`)
   }
 

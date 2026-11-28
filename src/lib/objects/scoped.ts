@@ -5,6 +5,7 @@
 // owner for one page and more on demand; a collection resolves only its
 // members.
 import { useInfiniteQuery, useQueries } from '@tanstack/react-query'
+import type { QueryKey } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { findRecords, readRecord } from '@/components/records/api'
 import type { RecordFilter, RecordSort } from '@/components/records/api'
@@ -81,8 +82,9 @@ export type Scoped = {
 
 /** Documents, a page at a time, searched by Theorem. */
 function useDocumentPages(search: string, enabled: boolean) {
+  const queryKey = [...noteLibraryKey, 'objects', 'paged', search.trim()]
   return useInfiniteQuery({
-    queryKey: [...noteLibraryKey, 'objects', 'paged', search.trim()],
+    queryKey,
     enabled,
     initialPageParam: undefined as ReturnType<typeof nextPageParams>,
     queryFn: ({ pageParam }) =>
@@ -94,6 +96,8 @@ function useDocumentPages(search: string, enabled: boolean) {
         ...pageParam,
       }),
     getNextPageParam: nextPageParams,
+    // A new search keeps the last results in view until its own arrive.
+    placeholderData: sameScope(queryKey, queryKey.length - 1),
     select: (data) =>
       data.pages
         .flatMap((page) => page.documents)
@@ -133,13 +137,14 @@ function useRecordPages(
   sort: Sort,
 ) {
   const enabled = !!cls && !cls.native
+  const queryKey = [
+    ...recordKeys.rows(cls?.type.node_label ?? ''),
+    'find',
+    search.trim(),
+    sort,
+  ]
   return useInfiniteQuery({
-    queryKey: [
-      ...recordKeys.rows(cls?.type.node_label ?? ''),
-      'find',
-      search.trim(),
-      sort,
-    ],
+    queryKey,
     enabled,
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
@@ -152,6 +157,7 @@ function useRecordPages(
       const next = last.offset + last.rows.length
       return last.rows.length && next < last.count ? next : undefined
     },
+    placeholderData: sameScope(queryKey, queryKey.length - 2),
     staleTime: 15_000,
   })
 }
@@ -294,6 +300,24 @@ const settledMixed = (
 ) => settled(results)
 
 const keepPrevious = <T>(previous: T | undefined) => previous
+
+/**
+ * The last results while a new search or sort of the same scope loads: the
+ * keys agree on the first `length` parts, so another class's objects never
+ * stand in for this one's.
+ */
+const sameScope =
+  (key: QueryKey, length: number) =>
+  <T>(previous: T | undefined, query?: { queryKey: QueryKey }) =>
+    query &&
+    key
+      .slice(0, length)
+      .every(
+        (part, index) =>
+          JSON.stringify(part) === JSON.stringify(query.queryKey[index]),
+      )
+      ? previous
+      : undefined
 
 /** A collection's members, each read from its owner. */
 export function useCollectionObjects(

@@ -436,6 +436,8 @@ function PageThumbnail({ documentId }: { documentId: string }) {
 }
 
 /** The width of `ref`'s box and where it starts in the scroller, kept as either changes. */
+const FIRST_RECT = { width: 0, height: 900 }
+
 function useBox(
   ref: RefObject<HTMLElement | null>,
   scroller: RefObject<HTMLElement | null>,
@@ -498,6 +500,8 @@ function ObjectGallery({
     count: rows,
     getScrollElement: () => scroller.current,
     estimateSize: () => CARD_ROW,
+    // A screen's worth before the scroller is measured, so the first frame is not empty.
+    initialRect: FIRST_RECT,
     scrollMargin: box.top,
     overscan: 3,
   })
@@ -564,6 +568,8 @@ function ObjectTable({
     count: entries.length,
     getScrollElement: () => scroller.current,
     estimateSize: () => TABLE_ROW,
+    // A screen's worth before the scroller is measured, so the first frame is not empty.
+    initialRect: FIRST_RECT,
     scrollMargin: box.top,
     overscan: 12,
   })
