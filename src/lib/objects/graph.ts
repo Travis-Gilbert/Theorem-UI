@@ -40,44 +40,68 @@ export const decodeLink = (raw: unknown): GraphLink | undefined =>
 export type GraphNode = { id: string; labels: string[]; raw: unknown }
 
 /** The graph around `ids`, as Theorem walks it: depth 0 is the links among them. */
+export async function fetchNeighborhood(
+  ids: string[],
+  depth: number,
+  limit = 300,
+) {
+  const data = await graphql<{ dataNeighborhood: unknown }>(
+    `
+      query Neighborhood($ids: [String!]!, $depth: Int, $limit: Int) {
+        dataNeighborhood(ids: $ids, depth: $depth, limit: $limit)
+      }
+    `,
+    { ids, depth, limit },
+  )
+  const hood = isObject(data.dataNeighborhood) ? data.dataNeighborhood : {}
+  const nodes = (Array.isArray(hood.records) ? hood.records : []).flatMap(
+    (raw): GraphNode[] =>
+      isObject(raw) && typeof raw.id === 'string'
+        ? [
+            {
+              id: raw.id,
+              labels: Array.isArray(raw.labels)
+                ? raw.labels.filter((l): l is string => typeof l === 'string')
+                : [],
+              raw,
+            },
+          ]
+        : [],
+  )
+  const links = (Array.isArray(hood.links) ? hood.links : [])
+    .map(decodeLink)
+    .filter((link): link is GraphLink => !!link)
+  return { nodes, links, truncated: hood.truncated === true }
+}
+
 export function useNeighborhood(ids: string[], depth: number, limit = 300) {
   const sorted = useMemo(() => [...new Set(ids)].sort(), [ids])
   return useQuery({
     queryKey: ['theorem', 'objects', 'neighborhood', sorted, depth, limit],
     enabled: sorted.length > 0,
-    queryFn: async () => {
-      const data = await graphql<{ dataNeighborhood: unknown }>(
-        `
-          query Neighborhood($ids: [String!]!, $depth: Int, $limit: Int) {
-            dataNeighborhood(ids: $ids, depth: $depth, limit: $limit)
-          }
-        `,
-        { ids: sorted, depth, limit },
-      )
-      const hood = isObject(data.dataNeighborhood) ? data.dataNeighborhood : {}
-      const nodes = (Array.isArray(hood.records) ? hood.records : []).flatMap(
-        (raw): GraphNode[] =>
-          isObject(raw) && typeof raw.id === 'string'
-            ? [
-                {
-                  id: raw.id,
-                  labels: Array.isArray(raw.labels)
-                    ? raw.labels.filter(
-                        (l): l is string => typeof l === 'string',
-                      )
-                    : [],
-                  raw,
-                },
-              ]
-            : [],
-      )
-      const links = (Array.isArray(hood.links) ? hood.links : [])
-        .map(decodeLink)
-        .filter((link): link is GraphLink => !!link)
-      return { nodes, links, truncated: hood.truncated === true }
-    },
+    queryFn: () => fetchNeighborhood(sorted, depth, limit),
     staleTime: 15_000,
   })
+}
+
+/**
+ * The graph node Documents keeps for a saved document (`doc:{tenant}:{id}`,
+ * theorem-doc-store's scoped node id), and back.
+ */
+export const documentNodeId = (tenant: string, documentId: string) =>
+  `doc:${tenant}:${documentId.replace(/^doc:/u, '')}`
+
+const documentIdOfNode = (node: GraphNode, tenant: string | undefined) => {
+  if (!node.labels.includes('Document')) return undefined
+  const props =
+    isObject(node.raw) && isObject(node.raw.properties)
+      ? node.raw.properties
+      : undefined
+  if (typeof props?.id === 'string') return props.id
+  const prefix = tenant ? `doc:${tenant}:` : undefined
+  return prefix && node.id.startsWith(prefix)
+    ? node.id.slice(prefix.length)
+    : undefined
 }
 
 /** The class a graph node belongs to, by its label. */
@@ -155,24 +179,38 @@ export function useObjectGraph({
   /** Walk out from the seeds' pages too, as a local graph does. */
   local?: boolean
 }) {
+  const tenant = registry.all[0]?.type.tenant_id
+  // A saved document is a graph node too: records that name it link to it.
   const recordIds = useMemo(
-    () => seeds.flatMap((entry) => (entry.record ? [entry.record.id] : [])),
-    [seeds],
+    () =>
+      seeds.flatMap((entry) =>
+        entry.record
+          ? [entry.record.id]
+          : entry.documentId && tenant
+            ? [documentNodeId(tenant, entry.documentId)]
+            : [],
+      ),
+    [seeds, tenant],
   )
   const hood = useNeighborhood(recordIds, depth)
 
   // The pages a local graph's pages link to, read so they can be drawn.
   const linked = useMemo(() => {
-    if (!local) return []
     const known = new Set(seeds.map((e) => e.ref))
     const out = new Set<string>()
+    // The documents Theorem's links reach, read so they can be drawn.
+    for (const node of hood.data?.nodes ?? []) {
+      const id = documentIdOfNode(node, tenant)
+      if (id && !known.has(id)) out.add(id)
+    }
+    if (!local) return [...out].slice(0, 100)
     for (const entry of seeds) {
       const text = entry.documentId ? markdown.get(entry.documentId) : undefined
       for (const match of text?.matchAll(NOTE_LINK) ?? [])
         if (!known.has(match[1]!)) out.add(match[1]!)
     }
     return [...out].slice(0, 100)
-  }, [local, seeds, markdown])
+  }, [local, seeds, markdown, hood.data, tenant])
   const pages = useQueries({
     queries: linked.map((id) => ({
       queryKey: noteKey(id),
@@ -190,6 +228,11 @@ export function useObjectGraph({
       if (entry.record) refOfNode.set(entry.record.id, entry.ref)
     for (const node of hood.data?.nodes ?? []) {
       if (refOfNode.has(node.id)) continue
+      const documentId = documentIdOfNode(node, tenant)
+      if (documentId) {
+        refOfNode.set(node.id, documentId)
+        continue
+      }
       const cls: ObjectClass | undefined = classOfNode(registry, node)
       const row = cls ? decodeRecord(node.raw) : undefined
       if (!cls || !row) continue
@@ -244,6 +287,7 @@ export function useObjectGraph({
     collections,
     markdown,
     recordIds.length,
+    tenant,
   ])
 }
 

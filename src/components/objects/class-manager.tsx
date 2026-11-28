@@ -1,5 +1,5 @@
 // SOURCING: after Capacities' Object Types settings (the sidebar list of types with pin, hide and order) and Craft web's Hide and Order Fields list (Mobbin ebf78810-7a01-4f15-a3af-3051010ed5cd); coss AlertDialog for the one irreversible step (delete); prefs.ts for pin/hide/order, the register's unpinDeclared (useRetireObjectType) for retire, deleteRecord plus retire for delete, portability.ts for the export file and the import plan, declareSchema (useDeclareObjectType) for every imported class
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
@@ -19,7 +19,7 @@ import {
   retireObjectType,
 } from '@/components/records/api'
 import type { ObjectType } from '@/components/records/contract'
-import { useRetireObjectType } from '@/components/records/queries'
+import { useDataModel, useRetireObjectType } from '@/components/records/queries'
 import { Button } from '@/components/ui/button'
 import { describeError } from '@/lib/theorem/client'
 import type { ObjectClass } from '@/lib/objects/classes'
@@ -32,6 +32,7 @@ import {
   useClassPrefs,
 } from '@/lib/objects/prefs'
 import { useClassRegistry } from '@/lib/objects/register'
+import { classUsage } from '@/lib/objects/usage'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
 import { openPane } from './object-actions'
@@ -331,8 +332,27 @@ function DeleteClass({
   onClose: () => void
 }) {
   const client = useQueryClient()
+  const model = useDataModel()
+  // Deleting a class something else points at would leave it pointing at
+  // nothing; such a class can be retired instead.
+  const usage = useQuery({
+    queryKey: [
+      'theorem',
+      'objects',
+      'class-usage',
+      cls.id,
+      cls.type.content_anchor,
+    ],
+    queryFn: () => classUsage(model.data, cls.type),
+    enabled: !!model.data,
+    staleTime: 0,
+  })
+  const inUse = (usage.data?.length ?? 0) > 0
   const remove = useMutation({
     mutationFn: async (type: ObjectType) => {
+      // Checked again as it starts: something may have linked in meanwhile.
+      if ((await classUsage(model.data, type)).length)
+        throw new Error(`${cls.plural} are in use, so they were not deleted.`)
       let cursor: string | undefined
       do {
         const page = await readRecords(type.node_label, cursor)
@@ -346,24 +366,61 @@ function DeleteClass({
       void client.invalidateQueries({ queryKey: ['theorem', 'records'] }),
     onSuccess: onClose,
   })
+  const retire = useMutation({
+    mutationFn: () => retireObjectType(cls.id),
+    onSettled: () =>
+      void client.invalidateQueries({ queryKey: ['theorem', 'records'] }),
+    onSuccess: onClose,
+  })
   const count = cls.type.record_count ?? 0
+  const busy = remove.isPending || retire.isPending
   return (
-    <AlertDialog
-      open
-      onOpenChange={(open) => !open && !remove.isPending && onClose()}
-    >
+    <AlertDialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <AlertDialogPopup>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {cls.plural}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {count === 1
-              ? `The 1 ${cls.label.toLowerCase()}`
-              : `All ${count} ${cls.plural.toLowerCase()}`}{' '}
-            will be deleted and the class retired. This cannot be undone.
-          </AlertDialogDescription>
-          {remove.error && (
+          {usage.isPending ? (
+            <AlertDialogDescription>
+              Checking what uses them…
+            </AlertDialogDescription>
+          ) : inUse ? (
+            <div
+              role="alert"
+              className="flex flex-col gap-1 text-sm text-ink-muted"
+            >
+              <p>
+                {cls.plural} are in use, so they cannot be deleted. Retiring
+                keeps them and their objects, and hides the class.
+              </p>
+              <ul className="flex flex-col gap-0.5">
+                {usage.data!.map((use) => (
+                  <li
+                    key={
+                      use.kind === 'relation'
+                        ? `${use.from.object_type_id}:${use.field.key}`
+                        : 'links'
+                    }
+                  >
+                    {use.kind === 'relation'
+                      ? `${use.from.label_plural} · ${use.field.label}`
+                      : use.count === 1
+                        ? '1 link from another class'
+                        : `${use.count} links from other classes`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <AlertDialogDescription>
+              {count === 1
+                ? `The 1 ${cls.label.toLowerCase()}`
+                : `All ${count} ${cls.plural.toLowerCase()}`}{' '}
+              will be deleted and the class retired. This cannot be undone.
+            </AlertDialogDescription>
+          )}
+          {(remove.error ?? retire.error ?? usage.error) && (
             <p role="alert" className="text-sm wrap-anywhere text-error-ink">
-              {describeError(remove.error)}
+              {describeError(remove.error ?? retire.error ?? usage.error)}
             </p>
           )}
         </AlertDialogHeader>
@@ -371,13 +428,19 @@ function DeleteClass({
           <AlertDialogClose render={<Button variant="ghost" />}>
             Cancel
           </AlertDialogClose>
-          <Button
-            variant="destructive"
-            disabled={remove.isPending}
-            onClick={() => remove.mutate(cls.type)}
-          >
-            {remove.isPending ? 'Deleting…' : `Delete ${cls.plural}`}
-          </Button>
+          {inUse ? (
+            <Button disabled={busy} onClick={() => retire.mutate()}>
+              {retire.isPending ? 'Retiring…' : `Retire ${cls.plural}`}
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              disabled={busy || usage.isPending || !!usage.error}
+              onClick={() => remove.mutate(cls.type)}
+            >
+              {remove.isPending ? 'Deleting…' : `Delete ${cls.plural}`}
+            </Button>
+          )}
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>

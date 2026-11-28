@@ -32,9 +32,12 @@ import {
 } from '@/lib/objects/classes'
 import type { ClassTone, NotesExtension } from '@/lib/objects/classes'
 import { incompatibilities, refuses } from '@/lib/objects/evolution'
+import { operationsOf, withOperations } from '@/lib/objects/operations'
+import type { OperationBinding } from '@/lib/objects/operations'
 import { useClassRegistry } from '@/lib/objects/register'
 import { cn } from '@/lib/utils'
 import { CLASS_ICONS, ClassGlyph, ClassIcon, TONE_TILE } from './class-icon'
+import { OperationsEditor } from './class-operations-editor'
 import { openPane } from './object-actions'
 
 type Draft = {
@@ -52,6 +55,8 @@ type Draft = {
   /** The property records are named by. */
   identifier: string
   cardFields: string[] | undefined
+  /** The actions its objects offer (`theorem.operations`). */
+  operations: OperationBinding[]
 }
 
 const NEW_FIELDS = newObjectType({
@@ -79,6 +84,7 @@ const draftOf = (type: ObjectType | undefined): Draft => {
     ),
     identifier: type?.label_identifier_field ?? 'name',
     cardFields: ext.cardFields,
+    operations: type ? operationsOf(type) : [],
   }
 }
 
@@ -111,7 +117,10 @@ function inputOf(
         labelPlural: draft.plural.trim() || `${singular || 'Object'}s`,
         description: draft.description,
       })
-  let extensions: Record<string, unknown> = { ...start.extensions }
+  let extensions: Record<string, unknown> = withOperations(
+    start,
+    draft.operations,
+  )
   const keys = new Set([
     ...(base?.fields ?? []).map((f) => f.key),
     ...draft.fields.map((f) => f.key),
@@ -529,6 +538,14 @@ export function ClassEditor({
                 )}
               </Group>
             )}
+
+            <Group title="Actions">
+              <OperationsEditor
+                value={draft.operations}
+                onChange={(operations) => set({ operations })}
+                fields={draft.fields}
+              />
+            </Group>
 
             <Group title="Advanced">
               <Labeled label="When an object does not match">

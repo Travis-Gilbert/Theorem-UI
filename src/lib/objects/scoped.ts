@@ -127,6 +127,25 @@ function useDocumentEntries(
   return { pages, entries }
 }
 
+/**
+ * The saved documents a native class holds, found by title: what a relation
+ * to a Page, App or Notebook may name. The register checks the choice again
+ * when the record is written.
+ */
+export function useDocumentChoices(
+  registry: ClassRegistry,
+  cls: ObjectClass | undefined,
+  search: string,
+) {
+  const { pages, entries } = useDocumentEntries(
+    registry,
+    search,
+    !!cls?.native,
+    cls,
+  )
+  return { entries, isPending: pages.isPending, error: pages.error }
+}
+
 /** One record class, a page at a time, filtered, sorted and counted by Theorem. */
 function useRecordPages(
   cls: ObjectClass | undefined,

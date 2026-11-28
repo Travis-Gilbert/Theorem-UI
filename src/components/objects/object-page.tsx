@@ -21,6 +21,8 @@ import type { ObjectEntry } from '@/lib/objects/library'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
 import { openPane } from './object-actions'
+import { ObjectActions } from './object-operations'
+import { operationsOf } from '@/lib/objects/operations'
 import {
   ObjectInspector,
   RecordProperties,
@@ -109,6 +111,12 @@ export function ObjectPage({ objectRef }: { objectRef: string }) {
             model={model.data}
             fields={fields.filter((f) => !isBody(f))}
           />
+          {operationsOf(type).length > 0 && (
+            <section className="flex flex-col gap-1.5">
+              <h2 className="text-sm font-medium text-ink-muted">Actions</h2>
+              <ObjectActions entry={entry} className="-mx-2 max-w-md" />
+            </section>
+          )}
           {fields.filter(isBody).map((field) => (
             <BodyField
               key={`${field.key}:${String(entry.record.values[field.key] ?? '')}`}

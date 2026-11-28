@@ -32,9 +32,11 @@ import { recordEntry } from '@/lib/objects/scoped'
 import type { ObjectEntry } from '@/lib/objects/library'
 import { ORIGIN_LONG } from '@/lib/objects/library'
 import { useClassRegistry } from '@/lib/objects/register'
+import { operationsOf } from '@/lib/objects/operations'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
 import { openPane, useOpenObject } from './object-actions'
+import { ObjectActions, OperationReceipts } from './object-operations'
 
 export const useInspector = create<{ open: boolean; toggle: () => void }>()(
   persist(
@@ -113,6 +115,11 @@ export function ObjectInspector({ objectRef }: { objectRef: string }) {
           className="flex min-h-0 flex-col gap-5 overflow-y-auto px-2 py-3"
         >
           <Properties entry={entry} model={model.data} />
+          {operationsOf(entry.cls.type).length > 0 && (
+            <Section title="Actions">
+              <ObjectActions entry={entry} />
+            </Section>
+          )}
           <Section title="Collections">
             <CollectionsList entry={entry} collections={collections} />
           </Section>
@@ -133,8 +140,9 @@ export function ObjectInspector({ objectRef }: { objectRef: string }) {
         </TabsPanel>
         <TabsPanel
           value="history"
-          className="min-h-0 overflow-y-auto px-2 py-3"
+          className="flex min-h-0 flex-col gap-4 overflow-y-auto px-2 py-3"
         >
+          <OperationReceipts entry={entry} />
           <History entry={entry} />
         </TabsPanel>
       </Tabs>
