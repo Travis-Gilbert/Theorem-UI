@@ -200,4 +200,56 @@ describe('carrying objects to another workspace', () => {
     expect(plan.objects).toEqual([])
     expect(plan.rejected[0]?.reason).toContain('does not define')
   })
+
+  test('classes named in camel case meet relation targets written in snake case', async () => {
+    const note = {
+      ...declared('a', 'Reading note'),
+      name_singular: 'readingNote',
+      object_type_id: 'schema:object-type:a:reading_note',
+    }
+    const list = {
+      ...declared('a', 'Reading list', [
+        relation('books', 'schema:object-type:a:reading_note', true),
+      ]),
+      name_singular: 'readingList',
+    }
+    const text = JSON.stringify(
+      exportClasses(
+        [list, note],
+        [
+          { type: note, rows: [row('n1', { name: 'Chapter 1' })] },
+          { type: list, rows: [row('l1', { name: 'Shelf', books: ['n1'] })] },
+        ],
+      ),
+    )
+    const here = model([
+      {
+        ...note,
+        tenant_id: 'b',
+        object_type_id: 'schema:object-type:b:reading_note',
+      },
+    ])
+    const plan = planImport(text, here)
+    expect(plan.replace.map((r) => r.input.name_singular)).toEqual([
+      'readingNote',
+    ])
+    const { state, calls } = workspace('b')
+    const report = await applyImport(
+      plan,
+      here,
+      'b',
+      { readingNote: 'copy' },
+      calls,
+    )
+    expect(report.missing).toEqual([])
+    const listInput = state.declared.find(
+      (d) => d.input.name_singular === 'readingList',
+    )!.input
+    expect(
+      listInput.fields.find((f) => f.key === 'books')!.field_type,
+    ).toMatchObject({
+      target_object_type_id: 'schema:object-type:b:reading_note_imported',
+    })
+    expect(report.links).toBe(1)
+  })
 })

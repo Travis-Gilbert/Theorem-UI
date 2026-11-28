@@ -126,7 +126,7 @@ export function planImport(text: string, model: DataModel): ImportPlan {
   if (file.format !== EXPORT_FORMAT || !Array.isArray(file.classes))
     throw new Error(`The file is not a ${EXPORT_FORMAT} class export.`)
   const byName = new Map(
-    model.objectTypes.map((type) => [type.name_singular, type]),
+    model.objectTypes.map((type) => [idName(type.name_singular), type]),
   )
   const plan: ImportPlan = {
     create: [],
@@ -144,7 +144,7 @@ export function planImport(text: string, model: DataModel): ImportPlan {
       return
     }
     defined.add(entry.name_singular)
-    const current = byName.get(entry.name_singular)
+    const current = byName.get(idName(entry.name_singular))
     if (current) plan.replace.push({ input: entry, current })
     else plan.create.push(entry)
   })
@@ -193,6 +193,13 @@ const REAL: ImportCalls = {
 /** The class name a type id names, under whichever tenant it was declared. */
 const nameOf = (typeId: string) => typeId.slice(typeId.lastIndexOf(':') + 1)
 
+/**
+ * A class name as its type id spells it. Names are kept as written
+ * (`readingNote`) while ids snake-case them (`reading_note`), so classes and
+ * relation targets are matched in this form.
+ */
+const idName = (name: string) => nameOf(declaredTypeId('', name))
+
 const free = (taken: Set<string>, wanted: string, joiner: string) => {
   if (!taken.has(wanted)) return wanted
   let n = 2
@@ -212,7 +219,9 @@ export function importDefinitions(
   tenant: string,
   collisions: Record<string, Collision> = {},
 ) {
-  const takenNames = new Set(model.objectTypes.map((t) => t.name_singular))
+  const takenNames = new Set(
+    model.objectTypes.map((t) => idName(t.name_singular)),
+  )
   const takenLabels = new Set(model.objectTypes.map((t) => t.node_label))
   const renamed = new Map<string, ObjectTypeInput>()
   const entries = [
@@ -221,11 +230,15 @@ export function importDefinitions(
   ]
   for (const { input, current } of entries) {
     if (current && (collisions[input.name_singular] ?? 'replace') === 'copy') {
-      const name = free(takenNames, `${input.name_singular}_imported`, '_')
+      const name = free(
+        takenNames,
+        `${idName(input.name_singular)}_imported`,
+        '_',
+      )
       const label = free(takenLabels, `${input.node_label}Imported`, '')
       takenNames.add(name)
       takenLabels.add(label)
-      renamed.set(input.name_singular, {
+      renamed.set(idName(input.name_singular), {
         ...input,
         name_singular: name,
         name_plural: `${input.name_plural}_imported`,
@@ -233,9 +246,11 @@ export function importDefinitions(
         label_plural: `${input.label_plural} (imported)`,
         node_label: label,
       })
-    } else renamed.set(input.name_singular, input)
+    } else renamed.set(idName(input.name_singular), input)
   }
-  const here = new Map(model.objectTypes.map((t) => [t.name_singular, t]))
+  const here = new Map(
+    model.objectTypes.map((t) => [idName(t.name_singular), t]),
+  )
   const missing: MissingTarget[] = []
   const targetOf = (typeId: string): string | undefined => {
     const name = nameOf(typeId)
@@ -244,7 +259,7 @@ export function importDefinitions(
     return here.get(name)?.object_type_id
   }
   const declarations = entries.map(({ input, current }) => {
-    const next = renamed.get(input.name_singular)!
+    const next = renamed.get(idName(input.name_singular))!
     const fields = next.fields.map((field): FieldSpec => {
       if (field.field_type.kind !== 'relation') return field
       const target = targetOf(field.field_type.target_object_type_id)
