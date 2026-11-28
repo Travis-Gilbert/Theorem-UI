@@ -30,7 +30,7 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
   return tokenResponse()
 }) as typeof fetch
 
-const { personBearer } = await import('./theorem-auth')
+const { hasActivePersonSession, personBearer } = await import('./theorem-auth')
 const { safeReturnTo } = await import('../lib/theorem/auth-navigation')
 
 const GRANTED =
@@ -91,6 +91,34 @@ test('a refused refresh token signs out and leaves the cookie alone', async () =
     Response.json({ error: 'invalid_grant' }, { status: 400 })
   expect(await personBearer()).toBeUndefined()
   expect(jar.get('theorem_session')).toBe(cookie)
+})
+
+test('asset sign-in checks the sealed session without refreshing or changing it', async () => {
+  tokenResponse = () => {
+    throw new Error('The asset route must not refresh an OAuth token')
+  }
+  const read = (name: string) => jar.get(name)
+  const expired = jar.get('theorem_session')
+  expect(await hasActivePersonSession(read)).toBe(false)
+  expect(jar.get('theorem_session')).toBe(expired)
+  for (const [scope, allowed] of [
+    [GRANTED, true],
+    ['run:read', false],
+  ] as const) {
+    const cookie = await sealData(
+      {
+        accessToken: 'test-bearer',
+        scope,
+        expiresAt: Math.floor(Date.now() / 1000) + 120,
+      },
+      { password: PASSWORD },
+    )
+    jar.set('theorem_session', cookie)
+    expect(await hasActivePersonSession(read)).toBe(allowed)
+    expect(jar.get('theorem_session')).toBe(cookie)
+  }
+  jar.set('theorem_session', 'not-a-valid-seal')
+  expect(await hasActivePersonSession(read)).toBe(false)
 })
 
 test('sign-in returns only to paths on this origin', () => {

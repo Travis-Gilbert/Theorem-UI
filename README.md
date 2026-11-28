@@ -58,6 +58,8 @@ openssl rand -hex 32 | bunx wrangler secret put THEOREM_SESSION_SECRET --name th
 
 The issuer does not have to be Theorem. `THEOREM_OAUTH_ISSUER`, `THEOREM_OAUTH_SCOPE` and `THEOREM_OAUTH_RESOURCE` point sign-in at another OAuth 2.1 issuer, such as WorkOS AuthKit; `.env.example` says what each is. Unset, sign-in is as above.
 
+Browser Q8 model downloads use an optional [private R2 binding](docs/semantic-q8-assets.md#provision-and-seed-r2). Configure `THEOREM_SEMANTIC_Q8_R2_BUCKET` in the Worker build environment after seeding the bucket; the weights do not ship in the Worker bundle.
+
 `bunfig.toml` holds back package versions published less than three days ago. Exemptions are listed there with the reason.
 
 ## Model request inspection

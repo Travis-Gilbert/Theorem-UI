@@ -33,6 +33,8 @@
     "build": "sh scripts/build.sh",
     "build:cloudflare": "sh scripts/build-cloudflare.sh",
     "build:terminal": "sh terminal/build.sh",
+    "semantic-q8:stage": "bun scripts/semantic-q8/stage.mjs && bun scripts/semantic-q8/stage.mjs --code-only",
+    "semantic-q8:verify": "bun scripts/semantic-q8/stage.mjs --verify && bun scripts/semantic-q8/stage.mjs --verify --code-only",
     "start": "bun run .output/server/index.mjs",
     "deploy:cloudflare": "bun run build:cloudflare && wrangler deploy",
     "lint": "eslint",

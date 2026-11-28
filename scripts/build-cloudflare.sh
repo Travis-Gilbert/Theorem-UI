@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the theorem-ui Worker: the agent terminal's WebAssembly, the
-# browser-only Theia IDE served under /theia, then the app with Nitro's
-# cloudflare_module preset.
+# browser-only Theia IDE served under /theia, the browser Q8 producer's code
+# assets, then the app with Nitro's cloudflare_module preset.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -32,4 +32,8 @@ bun install --cwd ide --frozen-lockfile
 sh terminal/build.sh
 bun run --cwd ide build:extensions
 bun run --cwd ide/applications/browser build:prod
+# The browser Q8 producer's pinned code assets ship as Worker static assets;
+# its weights exceed the 25 MiB asset limit and are streamed by the Worker.
+bun scripts/semantic-q8/stage.mjs --code-only
 NITRO_PRESET=cloudflare_module bun --bun vite build
+bun scripts/semantic-q8/check-output.mjs .output/public

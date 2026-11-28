@@ -23,5 +23,8 @@ src/assets/icons/.theorem
 src/terminal-wasm
 terminal/target
 
+# The browser Q8 producer's staged same-origin assets (scripts/semantic-q8).
+.semantic-q8
+
 # Versioned build outputs
 release-assets/

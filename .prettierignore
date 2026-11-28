@@ -30,3 +30,7 @@ src/lib/workbench/wire
 
 # Theorem builds: the SceneOS frame page and scene packages the scene stories draw
 src/stories/fixtures/scene
+
+# Browser Q8 producer: byte-identical to Theorem, pinned by vendor/semantic-q8/lock.json
+vendor/semantic-q8/semantic.js
+.semantic-q8

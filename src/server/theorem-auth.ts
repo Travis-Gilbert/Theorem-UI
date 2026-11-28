@@ -514,6 +514,11 @@ function refresh(settings: Config, refreshToken: string) {
  * The signed-in person's access token, refreshed when it is about to expire;
  * undefined when nobody is signed in or the session can no longer refresh.
  */
+function hasRequiredScopes(current: Session, settings: Config): boolean {
+  const granted = current.scope?.split(' ') ?? []
+  return settings.scope.split(' ').every((scope) => granted.includes(scope))
+}
+
 export async function personBearer(
   cookies?: SessionCookies,
 ): Promise<string | undefined> {
@@ -523,8 +528,7 @@ export async function personBearer(
   if (!current.accessToken) return undefined
   // A session from before a scope was added cannot gain it by refreshing; a
   // sign-in grants the whole set.
-  const granted = current.scope?.split(' ') ?? []
-  if (!settings.scope.split(' ').every((scope) => granted.includes(scope))) {
+  if (!hasRequiredScopes(current, settings)) {
     current.destroy()
     return undefined
   }
@@ -549,4 +553,21 @@ export async function personBearer(
   }
   await current.save()
   return current.accessToken
+}
+
+/** Authenticate static product downloads without refreshing OAuth tokens.
+ * A single model load can open several concurrent requests; the API request
+ * that precedes inference already handles refresh and rotated cookies. */
+export async function hasActivePersonSession(
+  read: SessionCookies['read'],
+): Promise<boolean> {
+  const settings = config()
+  if (typeof settings === 'string') return false
+  const current = await session(settings, { read, write: () => {} })
+  return Boolean(
+    current.accessToken &&
+    hasRequiredScopes(current, settings) &&
+    (current.expiresAt === undefined ||
+      current.expiresAt > Math.floor(Date.now() / 1000)),
+  )
 }

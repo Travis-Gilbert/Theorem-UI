@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
@@ -11,6 +12,9 @@ import svgr from 'vite-plugin-svgr'
 
 // `bun run deploy:cloudflare` builds for Workers; every other build is the Bun server.
 const cloudflare = process.env.NITRO_PRESET === 'cloudflare_module'
+// Provisioning is opt-in so a preview or a Worker account without R2 can
+// still deploy. The local test uses the same binding, backed by Miniflare.
+const q8Bucket = process.env.THEOREM_SEMANTIC_Q8_R2_BUCKET?.trim()
 
 // The Worker's routes leave out src/routes/desktop (D4: the web deployment
 // never serves workspace or bridge routes, and their native addons cannot load
@@ -87,6 +91,21 @@ const theoremVars = {
   // The iOS app's sign-in callback on theorem.rs (mobile/docs/sign-in.md).
   THEOREM_IOS_APP_IDS: 'K5CTABMVHN.rs.theorem.app',
 }
+
+// The browser Q8 producer's code assets (scripts/semantic-q8/stage.mjs) are
+// small, pinned, and ship with the build as public assets. Its model weights
+// are not: they exceed a Worker asset's 25 MiB, so src/server/semantic-q8.ts
+// streams them. This directory is the code-only stage and never holds a model
+// (stage.mjs refuses to write one there), so no ignore glob keeps a weight out
+// of the build. Without it the build carries no Q8 assets and the browser's
+// producer refuses with runtime_unavailable. The assets mount one directory at
+// a time, never /semantic/q8/v1 itself: Nitro answers 404 for any path under a
+// public asset's baseURL that is not one of its files, which would shadow the
+// model route.
+const semanticQ8Dir = fileURLToPath(
+  new URL('./.semantic-q8/public', import.meta.url),
+)
+const semanticQ8Staged = existsSync(`${semanticQ8Dir}/manifest.json`)
 
 const config = defineConfig({
   // Oracle harnesses and their captured DOM are not application sources.
@@ -166,12 +185,24 @@ const config = defineConfig({
           // Also reachable at theorem-ui.<account>.workers.dev.
           workers_dev: true,
           vars: theoremVars,
+          ...(q8Bucket && {
+            r2_buckets: [{ binding: 'THEOREM_Q8_MODELS', bucket_name: q8Bucket }],
+          }),
           // Workers Builds deploys other branches with `wrangler preview`,
           // which takes its vars from here; Previews talk to the same Theorem.
           previews: { vars: theoremVars },
         },
       },
       publicAssets: [
+        ...(semanticQ8Staged
+          ? [
+              ...['producer', 'transformers', 'runtime'].map((name) => ({
+                baseURL: `/semantic/q8/v1/${name}`,
+                dir: `${semanticQ8Dir}/${name}`,
+                maxAge: 31536000,
+              })),
+            ]
+          : []),
         // The page a webview (the markdown preview) runs in, which Theia's
         // build puts beside the frontend for a backend to serve at /webview.
         // It comes before /theia, which dev otherwise answers with a 404.
@@ -200,6 +231,11 @@ const config = defineConfig({
       // route answer only when the desktop host started the server, so the Bun
       // build for the web carries them inert.
       routes: {
+        // Q8 weights stream from the staged directory on Bun, or private R2
+        // behind the signed-in session on Cloudflare.
+        '/semantic/q8/v1/models/**': {
+          handler: './src/server/semantic-q8.ts',
+        },
         ...(cloudflare && {
           '/api/files/v1/**': { handler: './src/server/files-proxy.ts' },
           '/api/project-files/v1/**': {

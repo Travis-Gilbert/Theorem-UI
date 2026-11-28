@@ -93,7 +93,7 @@ const SourceSlot: FC<{ source: CitationSource }> = ({ source }) => {
  * one place the app asks the server what a historical handle can still do,
  * so "missing"/"gone" answers come from authority, not from the citation
  * metadata on screen. */
-const OpenPassage: FC<{
+export const OpenPassage: FC<{
   source: CitationSource
   passageNumber: number
   threadId: string

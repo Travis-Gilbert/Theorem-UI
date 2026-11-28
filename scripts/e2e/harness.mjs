@@ -29,13 +29,14 @@ const config = {
 }
 
 /** Serves `scripts/e2e/<name>/index.html`. Returns its address and how to stop. */
-export async function servePage(name) {
+export async function servePage(name, plugins = []) {
   const path = `scripts/e2e/${name}/index.html`
   const built = process.argv.includes('--built')
   if (!built) {
     const cacheDir = mkdtempSync(join(tmpdir(), `theorem-e2e-${name}-cache-`))
     const server = await createServer({
       ...config,
+      plugins,
       cacheDir,
       optimizeDeps: { entries: [path] },
       server: { host: '127.0.0.1', port: 0 },
@@ -54,6 +55,7 @@ export async function servePage(name) {
   const outDir = mkdtempSync(join(tmpdir(), `theorem-e2e-${name}-`))
   await build({
     ...config,
+    plugins,
     build: {
       outDir,
       emptyOutDir: true,
@@ -63,6 +65,7 @@ export async function servePage(name) {
   })
   const server = await preview({
     ...config,
+    plugins,
     build: { outDir },
     preview: { host: '127.0.0.1', port: 0 },
   })

@@ -1,0 +1,68 @@
+{
+  "schema": "theorem-ui.semantic-q8-lock/1",
+  "version": "v1",
+  "producer": {
+    "file": "vendor/semantic-q8/semantic.js",
+    "serve": "producer/semantic.js",
+    "sha256": "5b61a5d235348672425ceff763170a652e6a3dbd10ed6918b0984e7f4c9be305",
+    "bytes": 29563,
+    "source": {
+      "repository": "https://github.com/Travis-Gilbert/Theorem",
+      "commit": "080b88ff64f824566d6ed09865bc359646a5d303",
+      "path": "rustyredcore_THG/crates/rustyred-membrane-wasm/browser/semantic.js"
+    }
+  },
+  "npm": [
+    {
+      "name": "@huggingface/transformers",
+      "version": "4.3.2",
+      "tarball": "https://registry.npmjs.org/@huggingface/transformers/-/transformers-4.3.2.tgz",
+      "integrity": "sha512-V3+dqf3iWlRYJ9I9GreM3zGQd0lAXnnoPeddmkOQYWAEE4l/+Fi6p7tx/qVUJlKQgLXGim2W76rTOzz+eC0i7g==",
+      "files": [
+        {
+          "from": "package/dist/transformers.js",
+          "serve": "transformers/transformers.js",
+          "sha256": "f9e04d8c2f7839e32b0b6cf8f63ae1d0e13b06b453fddffdb9a1f595a4c733b1",
+          "bytes": 1352822
+        }
+      ]
+    },
+    {
+      "name": "onnxruntime-web",
+      "version": "1.31.0-dev.20260914-8d85527a0",
+      "tarball": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.31.0-dev.20260914-8d85527a0.tgz",
+      "integrity": "sha512-Iy7rtadoBgxS/LLvDr3QW38DB1PNXRnr0GJMcL0TAt7c9qjgVQl83UlGCVyeAnK2InpmW8Uc3PL8XIuqtDeF6g==",
+      "files": [
+        {
+          "from": "package/dist/ort-wasm-simd-threaded.mjs",
+          "serve": "runtime/ort-wasm-simd-threaded.mjs",
+          "sha256": "c57ca56328877353a575e51bbca6f18450027d6c9bf2307a2cb2c41363b4de9f",
+          "bytes": 24381
+        },
+        {
+          "from": "package/dist/ort-wasm-simd-threaded.wasm",
+          "serve": "runtime/ort-wasm-simd-threaded.wasm",
+          "sha256": "06ba057753da3847e4c24f02d91ab133455b0817c69a44993a9a53a2146df9e3",
+          "bytes": 14264838
+        }
+      ]
+    }
+  ],
+  "model": {
+    "repository": "onnx-community/embeddinggemma-2-ONNX",
+    "revision": "daa72c51243991dfcaf9f9137d2c573d8f7790c0",
+    "upstream": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/",
+    "files": [
+      { "name": "config.json", "sha256": "8d011bfe08b5e345bbe0b81e5c6fd02c381920b345b986047bc2a33ce7b90d1d", "bytes": 5031 },
+      { "name": "preprocessor_config.json", "sha256": "9344893f8d0573a46ebb2ca54c03f56d044cea194c8dcfb1f4d652240ac21daa", "bytes": 560 },
+      { "name": "processor_config.json", "sha256": "168f6a08522f3ce5dea596d94d003af2fd691742d4f41fe1f9d8cce76bfbf69c", "bytes": 1788 },
+      { "name": "tokenizer.json", "sha256": "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", "bytes": 32170510 },
+      { "name": "tokenizer_config.json", "sha256": "17bd5d6e9364ca49a534e1502076593317c298d4a663623091ed45388f004874", "bytes": 1599 },
+      { "name": "chat_template.jinja", "sha256": "4b852efc0b9960283e735363331e6f325b33bc74bdbaa076f595bc4e9b94d85e", "bytes": 1016 },
+      { "name": "onnx/model_quantized.onnx", "sha256": "d06edd601f851c633a2519304cbeb8dc6170d7ceb61b436625c17fb9b6e74953", "bytes": 495165 },
+      { "name": "onnx/model_quantized.onnx_data", "sha256": "278a7ff1248c3618e4bd11a607fc54f7bdc7778854230f3956d3f86bd9db4f3b", "bytes": 313724928 },
+      { "name": "onnx/vision_encoder_quantized.onnx", "sha256": "bb0de2df53a2448a32dc7908a187c168c8afd514d4d6f674f7f46024875fa4e3", "bytes": 162495 },
+      { "name": "onnx/vision_encoder_quantized.onnx_data", "sha256": "3dabd69c0a36e9a8771ad82030dde74daa5a0e02b7047a5d3f3382b1137bab89", "bytes": 195228672 }
+    ]
+  }
+}
