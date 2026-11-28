@@ -1,4 +1,4 @@
-// SOURCING: after Capacities' Object Types settings (the sidebar list of types with pin, hide and order) and Craft web's Hide and Order Fields list (Mobbin ebf78810-7a01-4f15-a3af-3051010ed5cd); coss AlertDialog for the one irreversible step (delete); prefs.ts for pin/hide/order, the register's unpinDeclared (useRetireObjectType) for retire, deleteRecord plus retire for delete, portability.ts for the export file and the import plan, declareSchema (useDeclareObjectType) for every imported class
+// SOURCING: after Capacities' Object Types settings (the sidebar list of types with pin, hide and order) and Craft web's Hide and Order Fields list (Mobbin ebf78810-7a01-4f15-a3af-3051010ed5cd); coss AlertDialog for the one irreversible step (delete); prefs.ts for pin/hide/order, the register's unpinDeclared (useRetireObjectType) for retire, deleteRecord plus retire for delete, portability.ts for the export file, the import plan and applying it (declareSchema per class, create_one per carried object, then their links); coss segmented control for a collision choice
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -13,18 +13,24 @@ import {
 } from '@/components/coss/alert-dialog'
 import { Icon } from '@/components/icons'
 import {
-  declareObjectType,
   deleteRecord,
   readRecords,
   retireObjectType,
 } from '@/components/records/api'
-import type { ObjectType } from '@/components/records/contract'
+import type { DataModel, ObjectType } from '@/components/records/contract'
+import { Segmented } from '@/components/records/field-form'
 import { useDataModel, useRetireObjectType } from '@/components/records/queries'
 import { Button } from '@/components/ui/button'
 import { describeError } from '@/lib/theorem/client'
 import type { ObjectClass } from '@/lib/objects/classes'
-import { exportClasses, planImport } from '@/lib/objects/portability'
-import type { ImportPlan } from '@/lib/objects/portability'
+import {
+  applyImport,
+  exportClasses,
+  importDefinitions,
+  planImport,
+} from '@/lib/objects/portability'
+import type { Collision, ImportPlan } from '@/lib/objects/portability'
+import { everyRecord } from '@/lib/objects/migration'
 import {
   nudged,
   orderedClasses,
@@ -69,19 +75,10 @@ export function ClassManager() {
         : [...pinned.map((c) => c.id), id],
     )
 
-  const exportAll = () =>
-    download(
-      `theorem-classes-${new Date().toISOString().slice(0, 10)}.json`,
-      JSON.stringify(
-        exportClasses(
-          registry.all
-            .filter((cls) => !cls.retired && !cls.standard && !cls.system)
-            .map((cls) => cls.type),
-        ),
-        null,
-        2,
-      ),
-    )
+  const exportable = registry.all.filter(
+    (cls) => !cls.retired && !cls.standard && !cls.system,
+  )
+  const [exporting, setExporting] = useState(false)
 
   return (
     <div className="flex h-full min-h-0 overflow-y-auto">
@@ -98,7 +95,12 @@ export function ClassManager() {
             <Icon.Attachment aria-hidden className="size-4" />
             Import
           </Button>
-          <Button size="sm" variant="ghost" onClick={exportAll}>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-expanded={exporting}
+            onClick={() => setExporting(!exporting)}
+          >
             <Icon.Download aria-hidden className="size-4" />
             Export
           </Button>
@@ -137,10 +139,17 @@ export function ClassManager() {
             {describeError(importError)}
           </p>
         )}
-        {plan && (
+        {exporting && (
+          <ExportChooser
+            classes={exportable}
+            onDone={() => setExporting(false)}
+          />
+        )}
+        {plan && model.data && (
           <ImportReview
             plan={plan.plan}
             name={plan.name}
+            model={model.data}
             onDone={() => setPlan(undefined)}
           />
         )}
@@ -447,45 +456,170 @@ function DeleteClass({
   )
 }
 
-/** What an import file would declare, applied only when the person says so. */
+/** Which classes go in the file, and which of them carry their objects. */
+function ExportChooser({
+  classes,
+  onDone,
+}: {
+  classes: ObjectClass[]
+  onDone: () => void
+}) {
+  const [chosen, setChosen] = useState(() => new Set(classes.map((c) => c.id)))
+  const [withObjects, setWithObjects] = useState(() => new Set<string>())
+  const toggle = (set: Set<string>, id: string, on: boolean) => {
+    const next = new Set(set)
+    if (on) next.add(id)
+    else next.delete(id)
+    return next
+  }
+  const run = useMutation({
+    mutationFn: async () => {
+      const picked = classes.filter((c) => chosen.has(c.id))
+      const objects = []
+      for (const cls of picked)
+        if (withObjects.has(cls.id))
+          objects.push({
+            type: cls.type,
+            rows: await everyRecord(cls.type.node_label),
+          })
+      download(
+        `theorem-classes-${new Date().toISOString().slice(0, 10)}.json`,
+        JSON.stringify(
+          exportClasses(
+            picked.map((c) => c.type),
+            objects,
+          ),
+          null,
+          2,
+        ),
+      )
+    },
+    onSuccess: onDone,
+  })
+  return (
+    <section
+      aria-label="Export"
+      className="flex flex-col gap-3 rounded-xl border border-separator p-4"
+    >
+      <ul className="flex flex-col gap-1 text-sm">
+        {classes.map((cls) => (
+          <li key={cls.id} className="flex flex-wrap items-center gap-3">
+            <label className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                type="checkbox"
+                checked={chosen.has(cls.id)}
+                onChange={(event) =>
+                  setChosen(toggle(chosen, cls.id, event.target.checked))
+                }
+              />
+              <ClassIcon cls={cls} />
+              <span className="truncate">{cls.plural}</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-ink-muted">
+              <input
+                type="checkbox"
+                disabled={!chosen.has(cls.id)}
+                checked={chosen.has(cls.id) && withObjects.has(cls.id)}
+                onChange={(event) =>
+                  setWithObjects(
+                    toggle(withObjects, cls.id, event.target.checked),
+                  )
+                }
+              />
+              With its {cls.type.record_count}{' '}
+              {cls.type.record_count === 1 ? 'object' : 'objects'}
+            </label>
+          </li>
+        ))}
+      </ul>
+      {run.error && (
+        <p role="alert" className="text-sm wrap-anywhere text-error-ink">
+          {describeError(run.error)}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          disabled={run.isPending || !chosen.size}
+          onClick={() => run.mutate()}
+        >
+          {run.isPending ? 'Reading…' : 'Download'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </section>
+  )
+}
+
+/** What an import file would declare and create, applied only when the person says so. */
 function ImportReview({
   plan,
   name,
+  model,
   onDone,
 }: {
   plan: ImportPlan
   name: string
+  model: DataModel
   onDone: () => void
 }) {
   const client = useQueryClient()
+  const tenant = model.objectTypes[0]?.tenant_id ?? ''
+  const [collisions, setCollisions] = useState<Record<string, Collision>>({})
+  const { missing } = importDefinitions(plan, model, tenant, collisions)
   const apply = useMutation({
-    mutationFn: async () => {
-      for (const input of plan.create) await declareObjectType(input)
-      for (const { input, current } of plan.replace)
-        await declareObjectType(input, current.content_anchor)
-    },
+    mutationFn: () => applyImport(plan, model, tenant, collisions),
     onSettled: () =>
-      void client.invalidateQueries({
-        queryKey: ['theorem', 'records', 'model'],
-      }),
-    onSuccess: onDone,
+      void client.invalidateQueries({ queryKey: ['theorem', 'records'] }),
   })
+  const counts = new Map<string, number>()
+  for (const object of plan.objects)
+    counts.set(object.class, (counts.get(object.class) ?? 0) + 1)
+  const carried = (input: { name_singular: string }) => {
+    const n = counts.get(input.name_singular)
+    return n ? ` with ${n} ${n === 1 ? 'object' : 'objects'}` : ''
+  }
+  const report = apply.data
   return (
     <section
       aria-label={`Import ${name}`}
       className="flex flex-col gap-3 rounded-xl border border-separator p-4"
     >
-      <h2 className="text-sm font-medium">{name}</h2>
-      <ul className="flex flex-col gap-1 text-sm">
+      <h2 className="text-sm font-medium wrap-anywhere">{name}</h2>
+      <ul className="flex flex-col gap-1.5 text-sm">
         {plan.create.map((input) => (
           <li key={input.name_singular}>
             <span className="text-teal-ink">New</span> {input.label_plural}
+            {carried(input)}
           </li>
         ))}
         {plan.replace.map(({ input }) => (
-          <li key={input.name_singular}>
-            <span className="text-ochre-ink">Replaces</span>{' '}
-            {input.label_plural}
+          <li
+            key={input.name_singular}
+            className="flex flex-wrap items-center gap-2"
+          >
+            <span className="min-w-0 flex-1">
+              {input.label_plural} is already here{carried(input)}
+            </span>
+            <Segmented
+              label={`${input.label_plural} is already here`}
+              value={collisions[input.name_singular] ?? 'replace'}
+              onChange={(choice) =>
+                setCollisions({ ...collisions, [input.name_singular]: choice })
+              }
+              options={[
+                { value: 'replace', label: 'Replace it' },
+                { value: 'copy', label: 'Import a copy' },
+              ]}
+            />
+          </li>
+        ))}
+        {missing.map((m) => (
+          <li key={`${m.class}:${m.field}`} className="text-ochre-ink">
+            {m.class}: {m.field} points at {m.target}, which is not here; it
+            comes in as text.
           </li>
         ))}
         {plan.rejected.map((entry) => (
@@ -499,24 +633,54 @@ function ImportReview({
           {describeError(apply.error)}
         </p>
       )}
+      {report && (
+        <div role="status" className="flex flex-col gap-1 text-sm">
+          <p>
+            Imported {report.declared.join(', ')}
+            {report.objects
+              ? `, ${report.objects} ${report.objects === 1 ? 'object' : 'objects'} and ${report.links} ${report.links === 1 ? 'link' : 'links'}`
+              : ''}
+            .
+          </p>
+          {report.unresolved.length > 0 && (
+            <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto text-ink-muted">
+              {report.unresolved.map((u, at) => (
+                <li key={at} className="wrap-anywhere">
+                  {u.object}: {u.field} named {u.target}, which the file does
+                  not carry
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <div className="flex gap-2">
-        <Button
-          size="sm"
-          disabled={
-            apply.isPending || plan.create.length + plan.replace.length === 0
-          }
-          onClick={() => apply.mutate()}
-        >
-          {apply.isPending ? 'Importing…' : 'Import'}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={apply.isPending}
-          onClick={onDone}
-        >
-          Cancel
-        </Button>
+        {report ? (
+          <Button size="sm" onClick={onDone}>
+            Done
+          </Button>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              disabled={
+                apply.isPending ||
+                plan.create.length + plan.replace.length === 0
+              }
+              onClick={() => apply.mutate()}
+            >
+              {apply.isPending ? 'Importing…' : 'Import'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={apply.isPending}
+              onClick={onDone}
+            >
+              Cancel
+            </Button>
+          </>
+        )}
       </div>
     </section>
   )

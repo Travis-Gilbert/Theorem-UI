@@ -147,9 +147,10 @@ export type MigrationPlan = {
 export const needsMigration = (before: ObjectType, after: ObjectTypeInput) =>
   incompatibilities(before, after).some((f) => f.reason !== 'removed')
 
-const everyRecord = async (
+/** Every record under `nodeLabel`, page by page. */
+export const everyRecord = async (
   nodeLabel: string,
-  read: typeof readRecords,
+  read: typeof readRecords = readRecords,
 ): Promise<RecordRow[]> => {
   const rows: RecordRow[] = []
   let cursor: string | undefined
