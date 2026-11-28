@@ -13,7 +13,10 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from '@/components/coss/menu'
+import { previewKey } from '@/components/artifacts/app-revision-frame'
+import type { TheoremArtifact } from '@/components/artifacts/artifact-model'
 import { ArtifactView } from '@/components/artifacts/artifact-renderers'
+import { SnapshotFrame } from '@/components/blocks/block-frame'
 import { useDocumentArtifact } from '@/components/artifacts/saved-artifact'
 import { Icon } from '@/components/icons'
 import { NoteExcerpt } from '@/components/notes/note-excerpt'
@@ -22,10 +25,11 @@ import { Segmented } from '@/components/records/field-form'
 import { displayHint, isEmptyValue } from '@/components/records/model'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useSnapshot } from '@/lib/blocks/snapshots'
 import { describeError } from '@/lib/theorem/client'
 import { useNote } from '@/lib/theorem/notes'
 import type { ObjectClass } from '@/lib/objects/classes'
-import { notesExtension } from '@/lib/objects/classes'
+import { boardField, notesExtension } from '@/lib/objects/classes'
 import { useCollections } from '@/lib/objects/collections'
 import type { ObjectEntry } from '@/lib/objects/library'
 import { ORIGIN_SHORT } from '@/lib/objects/library'
@@ -44,6 +48,7 @@ import {
 import type { LibraryQuery } from '@/lib/objects/views'
 import { cn } from '@/lib/utils'
 import { ClassIcon } from './class-icon'
+import { ObjectBoard } from './object-board'
 import { openPane, useNewObject, useOpenObject } from './object-actions'
 
 const SORTS: { value: LibraryQuery['sort']; label: string }[] = [
@@ -92,6 +97,9 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
 
   const [kind, id] = splitScope(query.scope)
   const cls = kind === 'class' ? registry.byId.get(id) : undefined
+  // A board is the class's own optional view; without it the layout falls back.
+  const board = cls && !cls.native ? boardField(cls.type) : undefined
+  const layout = query.layout === 'board' && !board ? 'gallery' : query.layout
   const collection =
     kind === 'collection'
       ? collections.collections.find((c) => c.id === id)
@@ -187,11 +195,12 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
           <SortMenu value={query.sort} onChange={(sort) => set({ sort })} />
           <Segmented
             label="Layout"
-            value={query.layout}
-            onChange={(layout) => set({ layout })}
+            value={layout}
+            onChange={(next) => set({ layout: next })}
             options={[
               { value: 'gallery', label: 'Gallery' },
               { value: 'list', label: 'List' },
+              ...(board ? [{ value: 'board' as const, label: 'Board' }] : []),
             ]}
           />
         </header>
@@ -263,7 +272,16 @@ export function ObjectLibrary({ scope: initialScope }: { scope: string }) {
                 ? 'Nothing in this collection yet.'
                 : `No ${title.toLowerCase()} yet.`}
           </p>
-        ) : query.layout === 'gallery' ? (
+        ) : layout === 'board' && cls && board ? (
+          <ObjectBoard
+            cls={cls}
+            field={board}
+            entries={shown}
+            source={source}
+            model={model.data}
+            onOpen={(entry, beside) => open(entry, beside)}
+          />
+        ) : layout === 'gallery' ? (
           <ObjectGallery
             entries={shown}
             source={source}
@@ -415,9 +433,27 @@ function ArtifactThumbnail({ documentId }: { documentId: string }) {
   if (error)
     return <p className="truncate p-3 text-xs text-error-ink">{error}</p>
   if (!artifact) return null
+  // A card never starts what it shows: an App is drawn from its last poster
+  // or its markup with scripts off, a notebook or scene by its source.
+  if (artifact.kind === 'app') return <AppPoster artifact={artifact} />
+  if (artifact.notebook || artifact.kind === 'scene')
+    return (
+      <pre className="pointer-events-none h-full overflow-hidden p-3 font-mono text-[10px] leading-4 whitespace-pre-wrap text-ink-muted">
+        {artifact.content.slice(0, 1200)}
+      </pre>
+    )
   return (
     <div className="pointer-events-none h-full origin-top-left scale-[0.5] [width:200%]">
       <ArtifactView artifact={artifact} distance="preview" latest />
+    </div>
+  )
+}
+
+function AppPoster({ artifact }: { artifact: TheoremArtifact }) {
+  const poster = useSnapshot(previewKey(artifact))
+  return (
+    <div className="pointer-events-none h-full origin-top-left scale-[0.5] [width:200%] [height:200%]">
+      <SnapshotFrame html={poster ?? artifact.content} title={artifact.title} />
     </div>
   )
 }

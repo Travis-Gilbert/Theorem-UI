@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { DataModel, ObjectType } from '@/components/records/contract'
 import { newObjectType } from '@/components/records/schema-edit'
-import { NOTES_EXTENSION, classRegistry } from './classes'
+import { NOTES_EXTENSION, boardField, classRegistry } from './classes'
 
 const declared = (
   label: string,
@@ -64,5 +64,36 @@ describe('class registry', () => {
     expect(registry.collection?.label).toBe('Collection')
     expect(registry.workspace.some((c) => c.retired || c.role)).toBe(false)
     expect(registry.all).toHaveLength(types.length)
+  })
+})
+
+describe('a class board', () => {
+  const status = {
+    key: 'status',
+    label: 'Status',
+    field_type: { kind: 'enum' as const, variants: ['Open', 'Done'] },
+    required: false,
+    system: false,
+  }
+  const task = (board?: { field: string; enabled: boolean }) => {
+    const base = declared('Task', {}, board ? { board } : undefined)
+    return { ...base, fields: [...base.fields, status] }
+  }
+
+  test('groups by its choice property only while it is on', () => {
+    expect(boardField(task({ field: 'status', enabled: true }))?.key).toBe(
+      'status',
+    )
+    expect(
+      boardField(task({ field: 'status', enabled: false })),
+    ).toBeUndefined()
+    expect(boardField(task())).toBeUndefined()
+  })
+
+  test('falls back when its property is gone or no longer a choice', () => {
+    expect(boardField(task({ field: 'name', enabled: true }))).toBeUndefined()
+    expect(
+      boardField(task({ field: 'missing', enabled: true })),
+    ).toBeUndefined()
   })
 })

@@ -11,7 +11,8 @@ export type LibraryQuery = {
   classes: string[]
   search: string
   sort: 'updated' | 'created' | 'title'
-  layout: 'gallery' | 'list'
+  /** `board` only where the class has one on (classes.ts boardField). */
+  layout: 'gallery' | 'list' | 'board'
 }
 
 export const defaultLibraryQuery = (scope: string): LibraryQuery => ({

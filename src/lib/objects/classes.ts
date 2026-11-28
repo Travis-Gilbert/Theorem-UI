@@ -46,6 +46,25 @@ export type NotesExtension = {
   cardFields?: string[]
   /** Which fields hold the title, summary and body (records/model.ts). */
   presentation?: Presentation
+  /**
+   * A board of its objects grouped by one choice property: an optional view
+   * beside the gallery and list, never needed to read or edit an object.
+   */
+  board?: { field: string; enabled: boolean }
+}
+
+/** The choice properties a board can group `type`'s objects by. */
+export const boardFields = (type: Pick<ObjectType, 'fields'>) =>
+  type.fields.filter((f) => f.field_type.kind === 'enum')
+
+/**
+ * The property `type`'s board groups by, when its board is on and the
+ * property is still a choice; otherwise none, and the generic views stand.
+ */
+export function boardField(type: Pick<ObjectType, 'fields' | 'extensions'>) {
+  const board = notesExtension(type).board
+  if (!board?.enabled) return undefined
+  return boardFields(type).find((f) => f.key === board.field)
 }
 
 export function notesExtension(

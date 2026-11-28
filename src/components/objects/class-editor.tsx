@@ -31,6 +31,7 @@ import {
   withNotesExtension,
 } from '@/lib/objects/classes'
 import type { ClassTone, NotesExtension } from '@/lib/objects/classes'
+import { boardFields } from '@/lib/objects/classes'
 import { incompatibilities, refuses } from '@/lib/objects/evolution'
 import { operationsOf, withOperations } from '@/lib/objects/operations'
 import type { OperationBinding } from '@/lib/objects/operations'
@@ -58,6 +59,7 @@ type Draft = {
   cardFields: string[] | undefined
   /** The actions its objects offer (`theorem.operations`). */
   operations: OperationBinding[]
+  board: NotesExtension['board']
 }
 
 const NEW_FIELDS = newObjectType({
@@ -86,6 +88,7 @@ const draftOf = (type: ObjectType | undefined): Draft => {
     identifier: type?.label_identifier_field ?? 'name',
     cardFields: ext.cardFields,
     operations: type ? operationsOf(type) : [],
+    board: ext.board,
   }
 }
 
@@ -154,6 +157,7 @@ function inputOf(
         tone: draft.tone,
         layout: draft.layout,
         cardFields: draft.cardFields,
+        board: draft.board,
       },
     ),
   }
@@ -540,6 +544,14 @@ export function ClassEditor({
               </Group>
             )}
 
+            <Group title="Views">
+              <BoardSetting
+                fields={boardFields(draft)}
+                value={draft.board}
+                onChange={(board) => set({ board })}
+              />
+            </Group>
+
             <Group title="Actions">
               <OperationsEditor
                 value={draft.operations}
@@ -751,6 +763,51 @@ const Group = ({
     {children}
   </section>
 )
+
+/** The class's board: which choice property it groups by, and whether it is on. */
+function BoardSetting({
+  fields,
+  value,
+  onChange,
+}: {
+  fields: FieldSpec[]
+  value: NotesExtension['board']
+  onChange: (next: NotesExtension['board']) => void
+}) {
+  const field = fields.find((f) => f.key === value?.field) ?? fields[0]
+  if (!field)
+    return (
+      <p className="text-sm text-ink-faint">No choice property to group by.</p>
+    )
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={!!value?.enabled}
+          onChange={(event) =>
+            onChange({ field: field.key, enabled: event.target.checked })
+          }
+        />
+        Board by
+      </label>
+      <select
+        aria-label="Board by"
+        value={field.key}
+        onChange={(event) =>
+          onChange({ field: event.target.value, enabled: !!value?.enabled })
+        }
+        className="h-8 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:outline-2 focus-visible:outline-focus"
+      >
+        {fields.map((f) => (
+          <option key={f.key} value={f.key}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
 
 const Labeled = ({
   label,
