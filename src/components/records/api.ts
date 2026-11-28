@@ -34,11 +34,30 @@ const DATA_MODEL = `query DataModel($includeObserved: Boolean!) {
   }
 }`
 
+const WITH_RETIRED = `query DataModelWithRetired {
+  dataModel(includeObserved: false, includeRetired: true) {
+    objectTypes
+    observedShapes
+    divergences { objectTypeId nodeLabel field kind count }
+    relations { fromLabel edgeLabel toLabel declared }
+  }
+}`
+
 export async function readDataModel(includeObserved = true) {
   const data = await query<{ dataModel: DataModel }>(DATA_MODEL, {
     includeObserved,
   })
   return data.dataModel
+}
+
+/**
+ * Every declared class, retired ones included and marked `retired`: a retired
+ * class still holds its name and label, so whatever names a new class reads
+ * this.
+ */
+export async function readEveryClass() {
+  const data = await query<{ dataModel: DataModel }>(WITH_RETIRED, {})
+  return data.dataModel.objectTypes
 }
 
 export type DeclareResult = {

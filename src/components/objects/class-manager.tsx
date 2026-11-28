@@ -12,7 +12,11 @@ import {
   AlertDialogTitle,
 } from '@/components/coss/alert-dialog'
 import { Icon } from '@/components/icons'
-import { deleteRecord, retireObjectType } from '@/components/records/api'
+import {
+  deleteRecord,
+  readEveryClass,
+  retireObjectType,
+} from '@/components/records/api'
 import type { DataModel, ObjectType } from '@/components/records/contract'
 import { Segmented } from '@/components/records/field-form'
 import { useDataModel, useRetireObjectType } from '@/components/records/queries'
@@ -56,7 +60,11 @@ export function ClassManager() {
   const prefs = useClassPrefs()
   const retire = useRetireObjectType()
   const [deleting, setDeleting] = useState<ObjectClass>()
-  const [plan, setPlan] = useState<{ plan: ImportPlan; name: string }>()
+  const [plan, setPlan] = useState<{
+    plan: ImportPlan
+    name: string
+    model: DataModel
+  }>()
   const [importError, setImportError] = useState<unknown>()
   const file = useRef<HTMLInputElement>(null)
 
@@ -119,9 +127,15 @@ export function ClassManager() {
               if (!chosen || !model.data) return
               setImportError(undefined)
               try {
+                // Retired classes come too: their names stay taken.
+                const every = {
+                  ...model.data,
+                  objectTypes: await readEveryClass(),
+                }
                 setPlan({
-                  plan: planImport(await chosen.text(), model.data),
+                  plan: planImport(await chosen.text(), every),
                   name: chosen.name,
+                  model: every,
                 })
               } catch (error) {
                 setImportError(error)
@@ -141,11 +155,11 @@ export function ClassManager() {
             onDone={() => setExporting(false)}
           />
         )}
-        {plan && model.data && (
+        {plan && (
           <ImportReview
             plan={plan.plan}
             name={plan.name}
-            model={model.data}
+            model={plan.model}
             onDone={() => setPlan(undefined)}
           />
         )}
@@ -598,7 +612,10 @@ function ImportReview({
               label={`${input.label_plural} is already here`}
               value={collisions[input.name_singular] ?? 'replace'}
               onChange={(choice) =>
-                setCollisions({ ...collisions, [input.name_singular]: choice })
+                setCollisions((now) => ({
+                  ...now,
+                  [input.name_singular]: choice,
+                }))
               }
               options={[
                 { value: 'replace', label: 'Replace it' },

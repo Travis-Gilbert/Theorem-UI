@@ -138,7 +138,9 @@ export function planImport(text: string, model: DataModel): ImportPlan {
   if (file.format !== EXPORT_FORMAT || !Array.isArray(file.classes))
     throw new Error(`The file is not a ${EXPORT_FORMAT} class export.`)
   const byName = new Map(
-    model.objectTypes.map((type) => [idName(type.name_singular), type]),
+    model.objectTypes
+      .filter((type) => !type.retired)
+      .map((type) => [idName(type.name_singular), type]),
   )
   const plan: ImportPlan = {
     create: [],
@@ -223,7 +225,9 @@ const free = (taken: Set<string>, wanted: string, joiner: string) => {
  * The declarations an import makes in `tenant`: each class under its own
  * name, or a fresh one where the person chose a copy, with every relation
  * pointed at the class it names in this workspace. A relation to a class in
- * neither the file nor here becomes text, and is reported.
+ * neither the file nor here becomes text, and is reported. `model` may carry
+ * retired classes: their names and labels stay taken, so a new class whose
+ * name a retired one holds comes in as a copy, and nothing points at them.
  */
 export function importDefinitions(
   plan: ImportPlan,
@@ -241,7 +245,10 @@ export function importDefinitions(
     ...plan.replace,
   ]
   for (const { input, current } of entries) {
-    if (current && (collisions[input.name_singular] ?? 'replace') === 'copy') {
+    const copy = current
+      ? (collisions[input.name_singular] ?? 'replace') === 'copy'
+      : takenNames.has(idName(input.name_singular))
+    if (copy) {
       const name = free(
         takenNames,
         `${idName(input.name_singular)}_imported`,
@@ -261,7 +268,9 @@ export function importDefinitions(
     } else renamed.set(idName(input.name_singular), input)
   }
   const here = new Map(
-    model.objectTypes.map((t) => [idName(t.name_singular), t]),
+    model.objectTypes
+      .filter((t) => !t.retired)
+      .map((t) => [idName(t.name_singular), t]),
   )
   const missing: MissingTarget[] = []
   const targetOf = (typeId: string): string | undefined => {
@@ -319,6 +328,10 @@ export async function applyImport(
   const types = new Map<string, ObjectType>()
   for (const { from, input, anchor } of declarations) {
     const declared = await calls.declare(input, anchor)
+    if (declared.object_type.retired)
+      throw new Error(
+        `${input.label_plural} is the name of a retired class here; nothing after it was imported.`,
+      )
     types.set(from, declared.object_type)
   }
   const ids = new Map<string, string>()

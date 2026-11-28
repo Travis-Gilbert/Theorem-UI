@@ -284,4 +284,30 @@ describe('carrying objects to another workspace', () => {
     )
     expect([...state.rows.values()][0]!.values).toEqual({ name: 'Ursula' })
   })
+
+  test('a retired class keeps its name, so a copy or a new class takes the next one', async () => {
+    const theirs = declared('b', 'Book')
+    const retiredCopy = {
+      ...declared('b', 'Book imported'),
+      name_singular: 'book_imported',
+      node_label: 'BookImported',
+      retired: true,
+    }
+    const retiredPerson = { ...declared('b', 'Person'), retired: true }
+    const here = model([theirs, retiredCopy, retiredPerson])
+    const plan = planImport(JSON.stringify(file), here)
+    // Person is retired here, so the file's Person is new, not a replacement.
+    expect(plan.create.map((c) => c.name_singular)).toEqual(['person'])
+    const { state, calls } = workspace('b')
+    await applyImport(plan, here, 'b', { book: 'copy' }, calls)
+    const names = state.declared.map((d) => d.input.name_singular)
+    expect(names).toEqual(['person_imported', 'book_imported_2'])
+    const bookInput = state.declared[1]!.input
+    expect(bookInput.node_label).toBe('BookImported2')
+    expect(
+      bookInput.fields.find((f) => f.key === 'author')!.field_type,
+    ).toMatchObject({
+      target_object_type_id: 'schema:object-type:b:person_imported',
+    })
+  })
 })
