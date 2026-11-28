@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/coss/tabs'
 import { readRecordChanges } from '@/components/crm/api'
 import { actorName } from '@/components/crm/model'
 import { originText } from '@/components/crm/proposal'
+import { useLifeContext } from '@/components/crm/queries'
 import { Icon } from '@/components/icons'
 import {
   FieldDisplay,
@@ -422,9 +423,19 @@ function CollectionsList({
 }
 
 function Origin({ entry }: { entry: ObjectEntry }) {
+  // A record says who made it in its first change; a page in its origin.
+  const { changes, me } = useRecordHistory(entry)
+  const created = changes.data?.find((change) => change.kind === 'created')
+  const madeBy = created
+    ? created.origin?.kind === 'conversation'
+      ? 'Theorem, in your conversation'
+      : created.origin?.kind === 'proposal'
+        ? 'Theorem, approved by you'
+        : actorName(created.actor, me)
+    : ORIGIN_LONG[entry.origin]
   return (
     <dl className="flex flex-col">
-      <Prop label="Made by">{ORIGIN_LONG[entry.origin]}</Prop>
+      <Prop label="Made by">{madeBy}</Prop>
       {entry.encodedFrom && <Prop label="From">{entry.encodedFrom}</Prop>}
       {entry.cls.type.provider?.kind === 'connector' && (
         <Prop label="Held by">{entry.cls.type.provider.connector_id}</Prop>
@@ -577,7 +588,8 @@ function Connections({
   )
 }
 
-function History({ entry }: { entry: ObjectEntry }) {
+/** A record's saved changes, newest first, and who the signed-in person is. */
+function useRecordHistory(entry: ObjectEntry) {
   const recordId = entry.record
     ? parseRecordItemId(entry.ref)?.recordId
     : undefined
@@ -586,6 +598,12 @@ function History({ entry }: { entry: ObjectEntry }) {
     queryFn: () => readRecordChanges(recordId!),
     enabled: !!recordId,
   })
+  const me = useLifeContext().data?.actor
+  return { recordId, changes, me }
+}
+
+function History({ entry }: { entry: ObjectEntry }) {
+  const { recordId, changes, me } = useRecordHistory(entry)
   if (!recordId)
     return (
       <dl className="flex flex-col">
@@ -617,7 +635,7 @@ function History({ entry }: { entry: ObjectEntry }) {
       {changes.data.map((change) => (
         <li key={change.id} className="flex flex-col text-sm">
           <span>
-            {actorName(change.actor)} {change.kind}
+            {actorName(change.actor, me)} {change.kind}
             {Object.keys(change.changed).length
               ? ` ${Object.keys(change.changed)
                   .map(
