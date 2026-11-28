@@ -84,6 +84,7 @@ import {
 import type { DropStep } from './note-drop'
 import { useNote, useNoteStatus } from '@/lib/theorem/notes'
 import { cn } from '@/lib/utils'
+import { ObjectNav } from '@/components/objects/object-nav'
 import { useNotesWorkspace } from './notes-workspace-state'
 
 const row =
@@ -94,8 +95,8 @@ const Hint = ({ children }: { children: ReactNode }) => (
 )
 
 /**
- * The navigator in Notes mode: the open note's name, the tools, the person's
- * folders and notes, the ones agents wrote, and the Trash.
+ * The navigator in Notes mode: the open note's name, the tools, the object
+ * classes and collections, the person's folders and notes, the ones agents wrote, and the Trash.
  */
 export function NotesPanel() {
   const navigate = useNavigate()
@@ -187,45 +188,55 @@ export function NotesPanel() {
         </p>
       )}
       {shelf === 'notes' ? (
-        <ContextMenu.Root>
-          <ContextMenu.Trigger
-            render={<nav aria-label="Notes" className={navClass} />}
-            // The section and folder the click was in name themselves as the event goes by.
-            onContextMenuCapture={(event) => {
-              const at = (key: 'sectionId' | 'folderId' | 'noteId', selector: string) =>
-                (event.target instanceof Element &&
-                  event.target.closest<HTMLElement>(selector)?.dataset[key]) ||
-                null
-              setTarget(at('sectionId', '[data-section-id]'))
-              setFolderTarget(at('folderId', '[data-folder-id]'))
-              setNoteTarget(at('noteId', '[data-note-id]'))
-            }}
-          >
-            <NoteSections
-              query={query}
-              order={order}
-              naming={naming}
-              onNamed={() => setNaming(null)}
-              renaming={renaming}
+        <div className={navClass}>
+          <nav aria-label="Objects">
+            <ObjectNav />
+          </nav>
+          <ContextMenu.Root>
+            <ContextMenu.Trigger
+              render={<nav aria-label="Notes" />}
+              // The section and folder the click was in name themselves as the event goes by.
+              onContextMenuCapture={(event) => {
+                const at = (
+                  key: 'sectionId' | 'folderId' | 'noteId',
+                  selector: string,
+                ) =>
+                  (event.target instanceof Element &&
+                    event.target.closest<HTMLElement>(selector)?.dataset[
+                      key
+                    ]) ||
+                  null
+                setTarget(at('sectionId', '[data-section-id]'))
+                setFolderTarget(at('folderId', '[data-folder-id]'))
+                setNoteTarget(at('noteId', '[data-note-id]'))
+              }}
+            >
+              <NoteSections
+                query={query}
+                order={order}
+                naming={naming}
+                onNamed={() => setNaming(null)}
+                renaming={renaming}
+                onRename={setRenaming}
+                namingIn={namingIn}
+                onNamedIn={() => setNamingIn(null)}
+                renamingFolder={renamingFolder}
+                onRenamedFolder={() => setRenamingFolder(null)}
+              />
+            </ContextMenu.Trigger>
+            <SectionsMenu
+              target={target}
+              folder={folderTarget}
+              note={noteTarget}
+              onNewNote={newNote}
+              onNewFolder={newFolder}
+              onNewFolderIn={setNamingIn}
               onRename={setRenaming}
-              namingIn={namingIn}
-              onNamedIn={() => setNamingIn(null)}
-              renamingFolder={renamingFolder}
-              onRenamedFolder={() => setRenamingFolder(null)}
+              onRenameFolder={setRenamingFolder}
+              onDeleteFolder={(id) => removeFolder.mutate(id)}
             />
-          </ContextMenu.Trigger>
-          <SectionsMenu
-            target={target}
-            folder={folderTarget}
-            note={noteTarget}
-            onNewNote={newNote}
-            onNewFolder={newFolder}
-            onNewFolderIn={setNamingIn}
-            onRename={setRenaming}
-            onRenameFolder={setRenamingFolder}
-            onDeleteFolder={(id) => removeFolder.mutate(id)}
-          />
-        </ContextMenu.Root>
+          </ContextMenu.Root>
+        </div>
       ) : (
         <nav aria-label="Trash" className={navClass}>
           <NoteList query={query} shelf="trash" order={order} />

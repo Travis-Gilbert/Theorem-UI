@@ -383,6 +383,19 @@
 .notes-dock .dv-render-overlay:has(.milkdown-slash-menu[data-show='true']) {
   z-index: 3;
 }
+/* A page column can be narrower than the menu. The column scrolls, so it
+   would cut the menu off; instead the menu fits the column (its scroller is
+   the size container), the tabs scroll and the rows give up their width. */
+.notes-dock .milkdown .milkdown-slash-menu {
+  max-width: calc(100cqi - 2rem);
+}
+.notes-dock .milkdown .milkdown-slash-menu .tab-group ul {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.notes-dock .milkdown .milkdown-slash-menu .menu-groups .menu-group li {
+  min-width: 0;
+}
 .notes-dock .dv-groupview.dv-active-group {
   border-color: color-mix(in oklab, var(--ink) 18%, var(--line-separator));
 }

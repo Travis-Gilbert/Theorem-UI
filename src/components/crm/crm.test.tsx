@@ -204,7 +204,7 @@ test('a change keeps what moved, who moved it and the revision it was made again
   ).toBeUndefined()
 })
 
-test('a change made from a proposal keeps where it came from; an unknown origin is dropped', () => {
+test('a change made from a proposal or a conversation keeps where it came from; an unknown origin is dropped', () => {
   const base = { id: 'c2', record_id: 'r', kind: 'updated' }
   const origin = {
     kind: 'proposal',
@@ -225,6 +225,26 @@ test('a change made from a proposal keeps where it came from; an unknown origin 
     evidence: ['record:Interaction/interaction:planning@12'],
   })
   expect(decodeRecordChange(base)).not.toHaveProperty('origin')
+  // A write Theorem made in the person's own conversation.
+  expect(
+    decodeRecordChange({
+      ...base,
+      origin: {
+        kind: 'conversation',
+        run_id: 'run:3',
+        thread_id: 'thread:9',
+        proposed_by: 'theorem',
+      },
+    })?.origin,
+  ).toEqual({
+    kind: 'conversation',
+    threadId: 'thread:9',
+    runId: 'run:3',
+    proposedBy: 'theorem',
+  })
+  expect(
+    decodeRecordChange({ ...base, origin: { kind: 'conversation' } }),
+  ).not.toHaveProperty('origin')
   expect(
     decodeRecordChange({ ...base, origin: { kind: 'something_new' } }),
   ).not.toHaveProperty('origin')

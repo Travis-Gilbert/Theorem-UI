@@ -262,6 +262,16 @@ function hintFor(
 
 export type FieldDraft = { label?: string; type?: SchemaFieldType }
 
+/** Where a field edited in draft mode goes. */
+export type FieldDraftTarget = {
+  save: (
+    field: FieldSpec,
+    hint: DisplayHint | undefined,
+    previousKey?: string,
+  ) => void
+  remove: (key: string) => void
+}
+
 /**
  * Add a field (type first, then its settings) or edit one. A relation's type
  * and target are fixed once declared, as in Twenty.
@@ -273,6 +283,7 @@ export function FieldDialog({
   initial,
   open,
   onOpenChange,
+  draft,
 }: {
   objectType: ObjectType
   model: DataModel
@@ -282,6 +293,11 @@ export function FieldDialog({
   initial?: FieldDraft
   open: boolean
   onOpenChange: (open: boolean) => void
+  /**
+   * Draft mode: the field goes back to a draft the caller declares whole
+   * (a class editor's), instead of being declared here.
+   */
+  draft?: FieldDraftTarget
 }) {
   const declare = useDeclareObjectType()
   const editing = !!field
@@ -303,7 +319,14 @@ export function FieldDialog({
     .map((f) => f.key)
     .filter((k) => k !== field?.key)
   const effectiveKey = keyEdited ? key : fieldKeyFor(label, taken)
-  const targets = activeObjectTypes(model)
+  // A type still being drafted can be its own relation's destination.
+  const targets = model.objectTypes.some(
+    (t) => t.object_type_id === objectType.object_type_id,
+  )
+    ? activeObjectTypes(model)
+    : objectType.tenant_id
+      ? [...activeObjectTypes(model), objectType]
+      : activeObjectTypes(model)
 
   const reset = () => {
     declare.reset()
@@ -326,6 +349,11 @@ export function FieldDialog({
       const base = editing
         ? withFieldChanged(objectType, field.key, spec)
         : withField(objectType, spec)
+      if (draft) {
+        draft.save(spec, hint, field?.key)
+        onOpenChange(false)
+        return
+      }
       const extensions = withDisplayHint(
         field && field.key !== spec.key
           ? { extensions: withDisplayHint(objectType, field.key, undefined) }
@@ -346,6 +374,11 @@ export function FieldDialog({
 
   const remove = () => {
     if (!field) return
+    if (draft) {
+      draft.remove(field.key)
+      onOpenChange(false)
+      return
+    }
     try {
       const input = withoutField(objectType, field.key)
       declare.mutate(
@@ -486,8 +519,10 @@ export function FieldDialog({
                         />
                       }
                     >
-                      {resolveObjectType(model, type.target_object_type_id)
-                        ?.label_plural ?? 'Choose an object'}
+                      {(type.target_object_type_id === objectType.object_type_id
+                        ? objectType
+                        : resolveObjectType(model, type.target_object_type_id)
+                      )?.label_plural ?? 'Choose an object'}
                       <Icon.ChevronDown />
                     </MenuTrigger>
                     <MenuPopup align="start">

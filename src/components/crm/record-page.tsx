@@ -18,6 +18,7 @@ import {
 } from './model'
 import { DocumentsAbout } from './documents-about'
 import { OftenOpenedWith } from './often-opened-with'
+import { originText } from './proposal'
 import { useCrmNavigate } from './navigation'
 import { useCrmRecord, useCrmWrites, useRecordChanges } from './queries'
 import {
@@ -299,8 +300,7 @@ function Timeline({ type, record }: { type: ObjectType; record: CrmRecord }) {
               )}
               {change.origin && (
                 <p className="text-xs leading-5 text-ink-muted">
-                  Proposed by Theorem, approved by you
-                  {change.origin.reason && `: ${change.origin.reason}`}{' '}
+                  {originText(change.origin)}{' '}
                   <Link
                     to="/c/$threadId"
                     params={{ threadId: change.origin.threadId }}

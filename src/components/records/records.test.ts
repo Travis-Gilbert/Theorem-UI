@@ -12,10 +12,12 @@ import {
   inboundRelations,
   parseRecordItemId,
   recordItemId,
+  recordSummary,
   recordTitle,
   withDisplayHint,
 } from './model'
 import {
+  declaredTypeId,
   fieldKeyFor,
   newObjectType,
   toInput,
@@ -115,9 +117,25 @@ describe('model lookups', () => {
     expect(
       recordTitle(company, { id: '1', values: { title: 'T' }, relations: {} }),
     ).toBe('T')
+    // Nothing name-like: the class and the id's tail, never a paragraph.
     expect(recordTitle(company, { id: '1', values: {}, relations: {} })).toBe(
-      'Untitled',
+      'Company 1',
     )
+    const claim = 'A long claim. '.repeat(20)
+    expect(
+      recordTitle(company, {
+        id: 'claim:sha256:abcdef123456',
+        values: { name: claim, text: claim },
+        relations: {},
+      }),
+    ).toBe('Company 123456')
+    expect(
+      recordSummary(company, {
+        id: '1',
+        values: { name: 'Acme', text: claim },
+        relations: {},
+      }),
+    ).toBe(claim)
   })
 
   test('inbound relations find the fields that point at a type', () => {
@@ -316,5 +334,22 @@ describe('decoding records', () => {
       relations: {},
     })
     expect(decodeRecord('nope')).toBeUndefined()
+  })
+})
+
+describe('declared type ids', () => {
+  test('match the register: tenant, then the name in snake case', () => {
+    // rustyred-thg-schema declared.rs object_type_id(tenant, name_singular)
+    expect(declaredTypeId('t1', 'readingNote')).toBe(
+      'schema:object-type:t1:reading_note',
+    )
+    expect(declaredTypeId('t1', 'Person')).toBe('schema:object-type:t1:person')
+    expect(
+      declaredTypeId(
+        't1',
+        newObjectType({ labelSingular: 'Field trip', labelPlural: '' })
+          .name_singular,
+      ),
+    ).toBe('schema:object-type:t1:field_trip')
   })
 })

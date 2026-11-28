@@ -329,29 +329,44 @@ export function outcomeWords(proposal: RecordProposal): string | undefined {
   }
 }
 
-/** The `origin` a record's saved change carries when a proposal made it. */
-export type ChangeOrigin = {
-  kind: 'proposal'
-  proposalId: string
-  threadId: string
-  runId: string
-  proposedBy: 'theorem'
-  reason: string | undefined
-  evidence: string[]
-}
+/**
+ * The `origin` a record's saved change carries: a proposal the person
+ * approved, or a write Theorem made in the person's conversation.
+ */
+export type ChangeOrigin =
+  | {
+      kind: 'proposal'
+      proposalId: string
+      threadId: string
+      runId: string
+      proposedBy: 'theorem'
+      reason: string | undefined
+      evidence: string[]
+    }
+  | {
+      kind: 'conversation'
+      threadId: string
+      runId: string
+      proposedBy: 'theorem'
+    }
 
-/** Anything that is not a proposal's origin is `undefined`, never an error. */
+/** An origin of a kind not listed here is `undefined`, never an error. */
 export function decodeOrigin(raw: unknown): ChangeOrigin | undefined {
-  if (!isObject(raw) || raw.kind !== 'proposal') return undefined
-  const proposalId = text(either(raw, 'proposalId', 'proposal_id'))
+  if (!isObject(raw)) return undefined
   const threadId = text(either(raw, 'threadId', 'thread_id'))
-  if (!proposalId || !threadId) return undefined
+  const runId = text(either(raw, 'runId', 'run_id')) ?? ''
+  if (!threadId) return undefined
+  if (raw.kind === 'conversation')
+    return { kind: 'conversation', threadId, runId, proposedBy: 'theorem' }
+  if (raw.kind !== 'proposal') return undefined
+  const proposalId = text(either(raw, 'proposalId', 'proposal_id'))
+  if (!proposalId) return undefined
   const evidence = raw.evidence
   return {
     kind: 'proposal',
     proposalId,
     threadId,
-    runId: text(either(raw, 'runId', 'run_id')) ?? '',
+    runId,
     proposedBy: 'theorem',
     reason: text(raw.reason),
     evidence: Array.isArray(evidence)
@@ -359,3 +374,9 @@ export function decodeOrigin(raw: unknown): ChangeOrigin | undefined {
       : [],
   }
 }
+
+/** How a change's origin reads beside it. */
+export const originText = (origin: ChangeOrigin) =>
+  origin.kind === 'proposal'
+    ? `Proposed by Theorem, approved by you${origin.reason ? `: ${origin.reason}` : ''}`
+    : 'Made by Theorem in your conversation'

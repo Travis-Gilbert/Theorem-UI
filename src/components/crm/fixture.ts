@@ -382,6 +382,8 @@ export function createFixtureServer(options: FixtureOptions = {}) {
     }[],
     created: 0,
     clock: FIXTURE_NOW,
+    /** Every declareSchema input, in order. */
+    declares: [] as Record<string, unknown>[],
   }
   const readOnly = new Set(options.readOnly ?? [])
   const unreadable = new Set(options.unreadable ?? [])
@@ -497,17 +499,57 @@ export function createFixtureServer(options: FixtureOptions = {}) {
               value: unknown
             }[])
           : []
+        // A person's `search` reaches every text, long text or enum field,
+        // ignoring case; relations hold ids and never match.
+        const needle =
+          typeof input.search === 'string'
+            ? input.search.trim().toLowerCase()
+            : ''
+        const searchable = type.fields
+          .filter((spec) =>
+            ['text', 'long_text', 'enum', 'enum_many'].includes(
+              spec.field_type.kind,
+            ),
+          )
+          .map((spec) => spec.key)
+        const found = (candidate: Node) =>
+          !needle ||
+          searchable.some((key) =>
+            [candidate.properties[key]]
+              .flat()
+              .some(
+                (value) =>
+                  typeof value === 'string' &&
+                  value.toLowerCase().includes(needle),
+              ),
+          )
+        // `icontains` is the same test ignoring case.
         const all = ofType().filter((candidate) =>
+          found(candidate) &&
           filters.every((filter) => {
-            if (filter.operator !== 'contains') return true
-            const actual = candidate.properties[filter.field_key]
-            return (
-              typeof actual === 'string' &&
-              typeof filter.value === 'string' &&
-              actual.includes(filter.value)
+            if (
+              filter.operator !== 'contains' &&
+              filter.operator !== 'icontains'
             )
+              return true
+            const actual = candidate.properties[filter.field_key]
+            if (typeof actual !== 'string' || typeof filter.value !== 'string')
+              return false
+            return filter.operator === 'contains'
+              ? actual.includes(filter.value)
+              : actual.toLowerCase().includes(filter.value.toLowerCase())
           }),
         )
+        const sorts = Array.isArray(input.sorts)
+          ? (input.sorts as { field_key: string; direction: string }[])
+          : []
+        for (const sort of [...sorts].reverse())
+          all.sort(
+            (a, b) =>
+              String(a.properties[sort.field_key] ?? '').localeCompare(
+                String(b.properties[sort.field_key] ?? ''),
+              ) * (sort.direction === 'desc' ? -1 : 1),
+          )
         const offset = Number(input.offset ?? 0)
         const limit = Number(input.limit ?? 200)
         return result({
@@ -568,6 +610,66 @@ export function createFixtureServer(options: FixtureOptions = {}) {
     }
   }
 
+  /**
+   * A record's links, as the graph holds them: every property naming another
+   * record is an edge of that property's name, read from either end.
+   */
+  const linksOf = (id: string) =>
+    state.nodes.flatMap((from) =>
+      Object.entries(from.properties).flatMap(([key, value]) =>
+        (Array.isArray(value) ? value : [value])
+          .filter(
+            (to): to is string =>
+              typeof to === 'string' &&
+              (from.id === id || to === id) &&
+              state.nodes.some((n) => n.id === to),
+          )
+          .map((to) => ({
+            id: `edge:${from.id}:${key}:${to}`,
+            from_id: from.id,
+            to_id: to,
+            type: key,
+            direction: from.id === id ? 'out' : 'in',
+            confidence: 1,
+            provenance: [],
+          })),
+      ),
+    )
+
+  /** Theorem's dataNeighborhood: `depth` hops from `ids`, and the links among them. */
+  function neighborhood(ids: string[], depth: number, limit: number) {
+    const seen = new Set(
+      ids.filter((id) => state.nodes.some((n) => n.id === id)),
+    )
+    let frontier = [...seen]
+    let truncated = false
+    for (let hop = 0; hop < depth; hop++) {
+      const next: string[] = []
+      for (const id of frontier)
+        for (const link of linksOf(id)) {
+          const other = link.from_id === id ? link.to_id : link.from_id
+          if (seen.has(other)) continue
+          if (seen.size >= limit) truncated = true
+          else {
+            seen.add(other)
+            next.push(other)
+          }
+        }
+      frontier = next
+    }
+    const links = new Map<string, ReturnType<typeof linksOf>[number]>()
+    for (const id of seen)
+      for (const link of linksOf(id))
+        if (seen.has(link.from_id) && seen.has(link.to_id))
+          links.set(link.id, { ...link, direction: 'out' })
+    return {
+      records: state.nodes.filter((n) => seen.has(n.id)),
+      links: [...links.values()],
+      missing: ids.filter((id) => !seen.has(id)),
+      truncated,
+    }
+  }
+
   function handle(body: Body): Answer {
     const query = body.query ?? ''
     const variables = body.variables ?? {}
@@ -610,8 +712,36 @@ export function createFixtureServer(options: FixtureOptions = {}) {
     }
     if (query.includes('declareSchema')) {
       const input = (variables.input ?? {}) as Record<string, unknown>
+      state.declares.push(input)
       const type = types.find((t) => t.name_singular === input.name_singular)
-      if (!type) return refuse('schema_object_type_missing')
+      if (!type && input.expected_content_anchor)
+        return refuse('schema_object_type_missing')
+      if (!type) {
+        // A new type takes the id the server gives it:
+        // schema:object-type:{tenant}:{snake_case(name_singular)}.
+        const snake = String(input.name_singular)
+          .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+          .replace(/[\s-]+/g, '_')
+          .toLowerCase()
+        const created = {
+          ...(input as unknown as ObjectType),
+          object_type_id: `schema:object-type:${WORKSPACE}:${snake}`,
+          tenant_id: WORKSPACE,
+          content_anchor: `anchor:${snake}:1`,
+          record_count: 0,
+        }
+        types.push(created)
+        return {
+          data: {
+            declareSchema: {
+              status: 'declared',
+              idempotent_replay: false,
+              object_type: created,
+              graph_version_after: 1,
+            },
+          },
+        }
+      }
       const stale = input.expected_content_anchor !== type.content_anchor
       if (!stale) {
         type.extensions = input.extensions as Record<string, unknown>
@@ -629,6 +759,33 @@ export function createFixtureServer(options: FixtureOptions = {}) {
       }
     }
     if (query.includes('dataModel')) return { data: { dataModel: model() } }
+    // No saved views until a test saves one.
+    if (query.includes('dataViews('))
+      return { data: { dataViews: { records: [] } } }
+    if (query.includes('dataNeighborhood'))
+      return {
+        data: {
+          dataNeighborhood: neighborhood(
+            (variables.ids ?? []) as string[],
+            Number(variables.depth ?? 1),
+            Number(variables.limit ?? 200),
+          ),
+        },
+      }
+    if (query.includes('dataRecords(')) {
+      const label = String(variables.label)
+      return {
+        data: {
+          dataRecords: {
+            records: state.nodes.filter((n) => n.labels.includes(label)),
+          },
+        },
+      }
+    }
+    if (query.includes('dataRecord(')) {
+      const record = state.nodes.find((n) => n.id === variables.id)
+      return { data: { dataRecord: { records: record ? [record] : [] } } }
+    }
     return refuse(`the fixture does not answer this operation`)
   }
 

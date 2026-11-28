@@ -52,15 +52,91 @@ export function isEmptyValue(value: unknown) {
   return false
 }
 
-/** What a record is called: its label identifier, else the usual suspects. */
+/**
+ * How a class presents its records, declared on the type under
+ * `extensions["theorem.notes"].presentation`: the field keys that hold the
+ * title, the summary a card shows, and the body a page reads.
+ */
+export type Presentation = { title?: string; summary?: string; body?: string }
+
+export function presentationOf(type: Pick<ObjectType, 'extensions'>) {
+  const ext = type.extensions?.['theorem.notes']
+  const value =
+    ext && typeof ext === 'object'
+      ? (ext as { presentation?: unknown }).presentation
+      : undefined
+  return (value && typeof value === 'object' ? value : {}) as Presentation
+}
+
+/** The field a class's records are named by, which search and title sort read. */
+export const titleField = (type: ObjectType) =>
+  presentationOf(type).title ??
+  (type.label_identifier_field === 'id' ? 'name' : type.label_identifier_field)
+
+const TITLE_MAX = 120
+
+/** A value short enough to name something: one line, not a paragraph. */
+const nameLike = (value: unknown) =>
+  typeof value === 'number' ||
+  (typeof value === 'string' &&
+    value.trim() !== '' &&
+    value.length <= TITLE_MAX &&
+    !value.includes('\n'))
+
+/**
+ * The key a record's title is read from. The declared presentation first,
+ * then the label identifier, the names records commonly carry, and short
+ * text fields. Long text (a claim, a body) is never a title.
+ */
+export function titleKey(type: ObjectType, row: RecordRow | undefined) {
+  if (!row) return undefined
+  const identifier =
+    type.label_identifier_field === 'id'
+      ? undefined
+      : type.label_identifier_field
+  return [
+    presentationOf(type).title,
+    identifier,
+    'name',
+    'title',
+    'label',
+    ...type.fields
+      .filter((field) => field.field_type.kind === 'text')
+      .map((field) => field.key),
+  ].find((key) => key !== undefined && nameLike(row.values[key]))
+}
+
+/** The record's id as a reader can tell records apart by: its last characters. */
+export const shortId = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').slice(-6)
+
 export function recordTitle(type: ObjectType, row: RecordRow | undefined) {
-  if (!row) return 'Untitled'
-  for (const key of [type.label_identifier_field, 'name', 'title', 'label']) {
-    const value = row.values[key]
-    if (typeof value === 'string' && value.trim()) return value
-    if (typeof value === 'number') return String(value)
-  }
-  return 'Untitled'
+  const key = titleKey(type, row)
+  if (key && row) return String(row.values[key])
+  return row ? `${type.label_singular} ${shortId(row.id)}` : 'Untitled'
+}
+
+/** The text a card shows under the title: the declared summary, else the first prose. */
+export function recordSummary(type: ObjectType, row: RecordRow | undefined) {
+  if (!row) return undefined
+  const title = titleKey(type, row)
+  const declared = presentationOf(type)
+  const key = [
+    declared.summary,
+    declared.body,
+    ...type.fields
+      .filter((f) => ['text', 'long_text'].includes(f.field_type.kind))
+      .map((f) => f.key),
+    'text',
+    'summary',
+    'content',
+  ].find(
+    (k) =>
+      k !== undefined &&
+      k !== title &&
+      typeof row.values[k] === 'string' &&
+      row.values[k].trim() !== '',
+  )
+  return key ? String(row.values[key]) : undefined
 }
 
 /** The field the first column shows: the label identifier when it is a field. */

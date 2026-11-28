@@ -34,11 +34,30 @@ const DATA_MODEL = `query DataModel($includeObserved: Boolean!) {
   }
 }`
 
+const WITH_RETIRED = `query DataModelWithRetired {
+  dataModel(includeObserved: false, includeRetired: true) {
+    objectTypes
+    observedShapes
+    divergences { objectTypeId nodeLabel field kind count }
+    relations { fromLabel edgeLabel toLabel declared }
+  }
+}`
+
 export async function readDataModel(includeObserved = true) {
   const data = await query<{ dataModel: DataModel }>(DATA_MODEL, {
     includeObserved,
   })
   return data.dataModel
+}
+
+/**
+ * Every declared class, retired ones included and marked `retired`: a retired
+ * class still holds its name and label, so whatever names a new class reads
+ * this.
+ */
+export async function readEveryClass() {
+  const data = await query<{ dataModel: DataModel }>(WITH_RETIRED, {})
+  return data.dataModel.objectTypes
 }
 
 export type DeclareResult = {
@@ -118,33 +137,14 @@ export function decodeRecord(raw: unknown): RecordRow | undefined {
     if (typeof type === 'string' && typeof to === 'string')
       (relations[type] ??= []).push(to)
   }
-  return {
-    id: raw.id,
-    values: isObject(raw.fields) ? raw.fields : {},
-    relations,
-  }
-}
-
-export async function readRecords(
-  nodeLabel: string,
-  cursor?: string,
-  limit = 500,
-): Promise<RecordPage> {
-  const data = await query<{ dataRecords: unknown }>(
-    `query Records($label: String!, $limit: Int, $cursor: String) {
-      dataRecords(label: $label, limit: $limit, cursor: $cursor, hydrateLinks: true)
-    }`,
-    { label: nodeLabel, limit, cursor },
-  )
-  const envelope = isObject(data.dataRecords) ? data.dataRecords : {}
-  const rows = (Array.isArray(envelope.records) ? envelope.records : [])
-    .map(decodeRecord)
-    .filter((row): row is RecordRow => row !== undefined)
-  const next = envelope.next_cursor ?? envelope.cursor
-  return {
-    rows,
-    cursor: typeof next === 'string' && next !== cursor ? next : undefined,
-  }
+  // The Data API names a record's values `fields`; a record verb's result
+  // (create_one, update_one) returns the graph node, whose values are `properties`.
+  const values = isObject(raw.fields)
+    ? raw.fields
+    : isObject(raw.properties)
+      ? raw.properties
+      : {}
+  return { id: raw.id, values, relations }
 }
 
 export async function readRecord(id: string) {
@@ -152,7 +152,9 @@ export async function readRecord(id: string) {
     `query Record($id: String!) { dataRecord(id: $id, hydrateLinks: true) }`,
     { id },
   )
-  const records = isObject(data.dataRecord) ? data.dataRecord.records : undefined
+  const records = isObject(data.dataRecord)
+    ? data.dataRecord.records
+    : undefined
   return decodeRecord(Array.isArray(records) ? records[0] : undefined)
 }
 
@@ -207,4 +209,69 @@ export async function updateRecord(
 
 export async function deleteRecord(objectTypeId: string, id: string) {
   await invokeRecordVerb(objectTypeId, 'delete_one', { id })
+}
+
+/** One server-side condition on a record verb that reads (`find_many`). */
+export type RecordFilter = {
+  field_key: string
+  operator:
+    'eq' | 'contains' | 'icontains' | 'starts_with' | 'in' | 'is_not_empty'
+  value?: unknown
+}
+export type RecordSort = { field_key: string; direction: 'asc' | 'desc' }
+
+/**
+ * A page of one class's records, filtered and sorted by Theorem, with the
+ * number that match. Offset paging, as the verb serves it.
+ */
+/**
+ * One page of a class's records through its find_many verb, which scopes by
+ * the record's workspace however it was written; the cursor is the offset
+ * of the next page.
+ */
+export async function readClassPage(
+  objectTypeId: string,
+  cursor?: string,
+  limit = 500,
+): Promise<RecordPage> {
+  const offset = Number(cursor ?? 0) || 0
+  const page = await findRecords(objectTypeId, { offset, limit })
+  const next = offset + page.rows.length
+  return {
+    rows: page.rows,
+    ...(page.rows.length && next < page.count ? { cursor: String(next) } : {}),
+  }
+}
+
+export async function findRecords(
+  objectTypeId: string,
+  {
+    search = '',
+    filters = [],
+    sorts = [],
+    offset = 0,
+    limit = 60,
+  }: {
+    /** A person's search, which Theorem matches against every text field. */
+    search?: string
+    filters?: RecordFilter[]
+    sorts?: RecordSort[]
+    offset?: number
+    limit?: number
+  } = {},
+) {
+  const result = await invokeRecordVerb(objectTypeId, 'find_many', {
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(filters.length ? { filters } : {}),
+    ...(sorts.length ? { sorts } : {}),
+    offset,
+    limit,
+  })
+  const envelope = isObject(result) ? result : {}
+  const rows = (Array.isArray(envelope.records) ? envelope.records : [])
+    .map(decodeRecord)
+    .filter((row): row is RecordRow => row !== undefined)
+  const count =
+    typeof envelope.count === 'number' ? envelope.count : offset + rows.length
+  return { rows, count, offset }
 }

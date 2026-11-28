@@ -19,15 +19,29 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import { Icon } from '@/components/icons'
+import { ClassIcon } from '@/components/objects/class-icon'
+import {
+  ObjectInspector,
+  useInspector,
+} from '@/components/objects/object-inspector'
+import { ObjectLibrary } from '@/components/objects/object-library'
+import {
+  InspectorToggle,
+  noteClass,
+  objectPanes,
+  objectTabs,
+} from '@/components/objects/object-panes'
+import { useClassRegistry } from '@/lib/objects/register'
 import { useNote } from '@/lib/theorem/notes'
 import { NoteMenu } from './note-actions'
 import { NoteStatus } from './note-panel'
 import { NoteToolbox } from './note-toolbox'
-import { NoNoteOpen, OpenNote } from './open-note'
+import { OpenNote } from './open-note'
 import {
   documentOfPane,
   LAYOUT_KEY,
   openInFocus,
+  specOfPane,
   useNotesWorkspace,
 } from './notes-workspace-state'
 
@@ -41,7 +55,9 @@ const theme: DockviewTheme = {
 const readLayout = () => {
   try {
     const saved = localStorage.getItem(LAYOUT_KEY)
-    return saved ? (JSON.parse(saved) as Parameters<DockviewApi['fromJSON']>[0]) : undefined
+    return saved
+      ? (JSON.parse(saved) as Parameters<DockviewApi['fromJSON']>[0])
+      : undefined
   } catch {
     return undefined
   }
@@ -66,13 +82,26 @@ const subscribe =
 /** The shell's panel controls, shown in the top-right pane's pill. */
 const ShellActions = createContext<ReactNode>(null)
 
-function NotePane({ api, params }: IDockviewPanelProps<{ documentId: string }>) {
+function NotePane({
+  api,
+  params,
+}: IDockviewPanelProps<{ documentId: string }>) {
   const title = useNote(params.documentId).data?.title
   useEffect(() => {
     if (title) api.setTitle(title)
   }, [api, title])
+  const inspector = useInspector((s) => s.open)
   return (
-    <OpenNote documentId={params.documentId} chrome="page" toolsKey={api.id} />
+    <div className="flex h-full min-h-0">
+      <div className="min-w-0 flex-1">
+        <OpenNote
+          documentId={params.documentId}
+          chrome="page"
+          toolsKey={api.id}
+        />
+      </div>
+      {inspector && <ObjectInspector objectRef={params.documentId} />}
+    </div>
   )
 }
 
@@ -81,16 +110,31 @@ function NotePane({ api, params }: IDockviewPanelProps<{ documentId: string }>) 
  * title and the chevron of its menu. Dragging it moves the note to another
  * pane or splits one; several notes in one pane are several pills.
  */
-function NoteTab({ api, params }: IDockviewPanelHeaderProps<{ documentId: string }>) {
+function NoteTab({
+  api,
+  params,
+}: IDockviewPanelHeaderProps<{ documentId: string }>) {
   const note = useNote(params.documentId).data
+  const cls = noteClass(useClassRegistry().registry, note)
   return (
-    <div className="flex h-full min-w-0 items-center gap-1.5 ps-2.5 pe-1">
-      <Icon.Article aria-hidden="true" className="size-4 shrink-0 text-ink-faint" />
+    <div className="flex h-full min-w-0 items-center gap-1.5 ps-1.5 pe-1">
+      {cls ? (
+        <ClassIcon cls={cls} />
+      ) : (
+        <Icon.Article
+          aria-hidden="true"
+          className="size-4 shrink-0 text-ink-faint"
+        />
+      )}
       <span className="max-w-[16rem] min-w-0 truncate text-[13px] font-medium">
         {note?.title || 'Note'}
       </span>
       {note ? (
-        <NoteMenu note={note} onClose={() => api.close()} onTrashed={() => api.close()} />
+        <NoteMenu
+          note={note}
+          onClose={() => api.close()}
+          onTrashed={() => api.close()}
+        />
       ) : (
         <span className="size-1" />
       )}
@@ -99,15 +143,22 @@ function NoteTab({ api, params }: IDockviewPanelHeaderProps<{ documentId: string
 }
 
 /** Whether `group` is the pane at the workspace's top right, which holds the shell's controls. */
-function useTopRight(group: IDockviewHeaderActionsProps['group'], api: DockviewApi) {
+function useTopRight(
+  group: IDockviewHeaderActionsProps['group'],
+  api: DockviewApi,
+) {
   return useSyncExternalStore(subscribe(api.onDidLayoutChange), () => {
-    const corner = api.groups.reduce<typeof group | undefined>((best, candidate) => {
-      if (!best) return candidate
-      const a = best.element.getBoundingClientRect()
-      const b = candidate.element.getBoundingClientRect()
-      if (Math.round(b.top) !== Math.round(a.top)) return b.top < a.top ? candidate : best
-      return b.right > a.right ? candidate : best
-    }, undefined)
+    const corner = api.groups.reduce<typeof group | undefined>(
+      (best, candidate) => {
+        if (!best) return candidate
+        const a = best.element.getBoundingClientRect()
+        const b = candidate.element.getBoundingClientRect()
+        if (Math.round(b.top) !== Math.round(a.top))
+          return b.top < a.top ? candidate : best
+        return b.right > a.right ? candidate : best
+      },
+      undefined,
+    )
     return corner === group
   })
 }
@@ -136,11 +187,12 @@ function PaneActions({ group, containerApi }: IDockviewHeaderActionsProps) {
   const shell = useContext(ShellActions)
   const corner = useTopRight(group, containerApi)
   const { active, documentId } = useShownNote(group)
+  const kind = active && specOfPane(active.id)?.kind
   return (
     <div className="flex h-full items-center gap-1.5 pe-2.5">
-      {active && documentId && (
-        <div className="notes-pill flex h-8 items-center gap-1 ps-3 pe-1">
-          <NoteStatus documentId={documentId} />
+      {active && kind && kind !== 'note' && (
+        <div className="notes-pill flex h-8 items-center gap-1 px-1">
+          {kind === 'record' && <InspectorToggle />}
           <button
             type="button"
             aria-label="Close pane"
@@ -151,13 +203,29 @@ function PaneActions({ group, containerApi }: IDockviewHeaderActionsProps) {
           </button>
         </div>
       )}
-      {corner && shell && <div className="notes-pill flex h-8 items-center px-0.5">{shell}</div>}
+      {active && documentId && (
+        <div className="notes-pill flex h-8 items-center gap-1 ps-3 pe-1">
+          <NoteStatus documentId={documentId} />
+          <InspectorToggle />
+          <button
+            type="button"
+            aria-label="Close pane"
+            onClick={() => active.api.close()}
+            className="flex size-6 items-center justify-center rounded-full text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <Icon.Close className="size-3.5" />
+          </button>
+        </div>
+      )}
+      {corner && shell && (
+        <div className="notes-pill flex h-8 items-center px-0.5">{shell}</div>
+      )}
     </div>
   )
 }
 
-const components = { note: NotePane }
-const tabComponents = { note: NoteTab }
+const components = { note: NotePane, ...objectPanes }
+const tabComponents = { note: NoteTab, ...objectTabs }
 
 /**
  * Notes mode on the desktop: open notes as panes, side by side or stacked,
@@ -206,9 +274,17 @@ export function NotesWorkspace({ actions }: { actions?: ReactNode }) {
     if (!api) return
     const sync = () => {
       setEmpty(api.panels.length === 0)
+      useNotesWorkspace.setState({ active: api.activePanel?.id })
       const active = api.activePanel && documentOfPane(api.activePanel.id)
       if (active && active !== routed.current)
-        void navigate({ to: '/notes/$documentId', params: { documentId: active }, replace: true })
+        void navigate({
+          to: '/notes/$documentId',
+          params: { documentId: active },
+          replace: true,
+        })
+      // A focused pane that is not a note leaves the route without one, so opening that note again opens it.
+      else if (!active && api.activePanel && routed.current)
+        void navigate({ to: '/notes', replace: true })
       else if (!api.panels.length && routed.current)
         void navigate({ to: '/notes', replace: true })
     }
@@ -246,7 +322,10 @@ export function NotesWorkspace({ actions }: { actions?: ReactNode }) {
                     label: 'Move to a pane on the right',
                     action: () =>
                       panel.api.moveTo({
-                        group: dock.addGroup({ referenceGroup: panel.group, direction: 'right' }),
+                        group: dock.addGroup({
+                          referenceGroup: panel.group,
+                          direction: 'right',
+                        }),
                       }),
                   },
                   'separator',
@@ -262,7 +341,7 @@ export function NotesWorkspace({ actions }: { actions?: ReactNode }) {
                 {actions}
               </div>
             )}
-            <NoNoteOpen />
+            <ObjectLibrary scope="all" />
           </div>
         )}
       </div>

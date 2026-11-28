@@ -181,4 +181,5 @@ export type RecordRow = {
 export type RecordPage = { rows: RecordRow[]; cursor?: string }
 
 /** The register's record verbs (SR6), as the write mutation names them. */
-export type RecordVerb = 'create_one' | 'update_one' | 'delete_one'
+export type RecordVerb =
+  'create_one' | 'update_one' | 'delete_one' | 'find_many'
