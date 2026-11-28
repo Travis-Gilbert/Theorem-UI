@@ -1,4 +1,4 @@
-// SOURCING: bun:test mounting the Notes object views (library, inspector, class editor) in the CRM's router harness (components/crm/test-harness) with React into happy-dom. window.fetch is the in-memory register fixture (components/crm/fixture: data model, find_many with server filters and sorts, dataRecord, dataNeighborhood, declareSchema), as no Theorem is running. Synthetic records only
+// SOURCING: bun:test mounting the Notes object views (library, inspector, class editor, a record's page) in the CRM's router harness (components/crm/test-harness) with React into happy-dom. window.fetch is the in-memory register fixture (components/crm/fixture: data model, find_many with server filters and sorts, dataRecord, dataNeighborhood, declareSchema), as no Theorem is running. Synthetic records only
 import {
   afterAll,
   afterEach,
@@ -24,6 +24,7 @@ import { mountAt } from '@/components/crm/test-harness'
 import { ClassEditor } from './class-editor'
 import { ObjectInspector } from './object-inspector'
 import { ObjectLibrary } from './object-library'
+import { ObjectPage } from './object-page'
 
 const page = (
   window as unknown as { happyDOM: { setURL: (url: string) => void } }
@@ -173,14 +174,14 @@ describe('a new class', () => {
     // A text property, written into the draft, not declared yet.
     await click(await waitFor(() => pressed('Add property')))
     await click(await waitFor(() => dialog() && pressed('Text', dialog())))
-    await type((await waitFor(() => field('Name'))), 'Author')
+    await type(await waitFor(() => field('Name')), 'Author')
     await click(pressed('Add field', dialog())!)
     await waitFor(() => view.container.textContent.includes('Author'))
 
     // A relation whose destination is the class being made.
     await click(pressed('Add property')!)
     await click(await waitFor(() => dialog() && pressed('Relation', dialog())))
-    await type((await waitFor(() => field('Name'))), 'Related notes')
+    await type(await waitFor(() => field('Name')), 'Related notes')
     await click(
       await waitFor(() => dialog() && pressed('Choose an object', dialog())),
     )
@@ -203,5 +204,38 @@ describe('a new class', () => {
       'schema:object-type:demo:reading_note',
     )
     expect(JSON.stringify(input)).not.toContain('theorem.notes:self')
+  })
+})
+
+describe('a relation on a page', () => {
+  test('offers the target class by title, found and searched by the register', async () => {
+    const view = await mountAt('/', () => (
+      <ObjectPage objectRef="record:Activity/activity:workshop" />
+    ))
+    const edit = await waitFor(() =>
+      view.container.querySelector<HTMLElement>('[aria-label="Edit People"]'),
+    )
+    await click(edit)
+    const listed = () =>
+      [...document.querySelectorAll('[role="option"]')].map((o) =>
+        o.textContent.trim(),
+      )
+    await waitFor(() => listed().includes('Avery Quinn'))
+    expect(listed()).toContain('Noor')
+    const picks = () =>
+      finds().filter((v) => v.objectTypeId === FIXTURE_TYPE.person)
+    expect(picks().at(-1)!.input.limit).toBe(50)
+
+    const search = await waitFor(() =>
+      document.querySelector<HTMLInputElement>(
+        'input[placeholder="Search people"]',
+      ),
+    )
+    await type(search, 'aver')
+    await waitFor(() => !listed().includes('Noor'))
+    expect(picks().at(-1)!.input.filters).toEqual([
+      { field_key: 'name', operator: 'icontains', value: 'aver' },
+    ])
+    expect(listed()).toEqual(['Avery Quinn'])
   })
 })

@@ -68,6 +68,11 @@ export function presentationOf(type: Pick<ObjectType, 'extensions'>) {
   return (value && typeof value === 'object' ? value : {}) as Presentation
 }
 
+/** The field a class's records are named by, which search and title sort read. */
+export const titleField = (type: ObjectType) =>
+  presentationOf(type).title ??
+  (type.label_identifier_field === 'id' ? 'name' : type.label_identifier_field)
+
 const TITLE_MAX = 120
 
 /** A value short enough to name something: one line, not a paragraph. */

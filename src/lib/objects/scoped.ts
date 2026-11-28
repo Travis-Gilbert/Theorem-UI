@@ -12,9 +12,9 @@ import type { RecordFilter, RecordSort } from '@/components/records/api'
 import type { ObjectType, RecordRow } from '@/components/records/contract'
 import {
   parseRecordItemId,
-  presentationOf,
   recordItemId,
   recordTitle,
+  titleField,
 } from '@/components/records/model'
 import { recordKeys } from '@/components/records/queries'
 import { theorem } from '@/lib/theorem/client'
@@ -41,10 +41,7 @@ export const PAGE = 60
 
 export type Sort = 'updated' | 'created' | 'title'
 
-/** The field a class's records are named by, which search and title sort read. */
-export const titleField = (type: ObjectType) =>
-  presentationOf(type).title ??
-  (type.label_identifier_field === 'id' ? 'name' : type.label_identifier_field)
+export { titleField }
 
 export const recordQuery = (
   type: ObjectType,

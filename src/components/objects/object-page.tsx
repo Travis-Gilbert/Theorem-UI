@@ -161,8 +161,12 @@ function TitleField({
   fieldKey: string
 }) {
   const saved = String(entry.record.values[fieldKey] ?? '')
-  const [value, setValue] = useState(saved)
+  // A new object is made under this name; it reads as the placeholder, so
+  // what the person types names it rather than following it.
+  const untitled = `Untitled ${entry.cls.label.toLowerCase()}`
+  const [value, setValue] = useState(saved === untitled ? '' : saved)
   const { save, error } = useFieldSave(entry)
+  const named = value.trim()
   return (
     <div className="flex flex-col gap-1">
       <input
@@ -170,9 +174,10 @@ function TitleField({
           entry.cls.type.fields.find((f) => f.key === fieldKey)?.label ?? 'Name'
         }
         value={value}
-        placeholder={`Untitled ${entry.cls.label.toLowerCase()}`}
+        placeholder={untitled}
+        autoFocus={saved === untitled}
         onChange={(event) => setValue(event.target.value)}
-        onBlur={() => value !== saved && save(fieldKey, value)}
+        onBlur={() => named && named !== saved && save(fieldKey, named)}
         onKeyDown={(event) =>
           event.key === 'Enter' && event.currentTarget.blur()
         }

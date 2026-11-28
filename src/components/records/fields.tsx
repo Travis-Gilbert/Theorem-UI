@@ -1,5 +1,6 @@
 // SOURCING: none for the registry itself — Twenty's per-type cell display and input behaviour (twenty-front record-field meta-types: Enter saves and moves down, Tab across; Escape cancels here, where Twenty saves; invalid JSON is not saved, booleans and ratings toggle in the cell) mapped onto the schema register's field kinds; coss ui Command for searchable option and record pickers; the app's Icon set and Stone tokens
-import { useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { useImperativeHandle, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode, Ref } from 'react'
 import {
   Command,
@@ -19,9 +20,15 @@ import type {
   RecordRow,
   SchemaFieldType,
 } from './contract'
-import { isEmptyValue, recordTitle, resolveObjectType } from './model'
+import {
+  isEmptyValue,
+  recordTitle,
+  resolveObjectType,
+  titleField,
+} from './model'
 import type { DisplayHint } from './model'
-import { flattenRows, useRecords } from './queries'
+import { findRecords, readRecord } from './api'
+import { recordKeys } from './queries'
 
 // Kinds
 
@@ -444,26 +451,37 @@ export function Rating({
   )
 }
 
-/** Titles for a relation field's targets, from the target type's loaded rows. */
-export function useRelationTitles(
+/**
+ * Titles for the records a value names, each read by its id (and shared with
+ * every other reader of that record), never by listing the target class.
+ */
+function useLinkedTitles(
   model: DataModel | undefined,
   field: FieldSpec,
+  ids: string[],
 ) {
   const target =
     field.field_type.kind === 'relation'
       ? resolveObjectType(model, field.field_type.target_object_type_id)
       : undefined
-  const records = useRecords(target)
-  return useMemo(() => {
-    const rows = flattenRows(records.data)
-    const byId = new Map(rows.map((row) => [row.id, row]))
-    return {
-      target,
-      rows,
-      title: (id: string) =>
-        target && byId.has(id) ? recordTitle(target, byId.get(id)) : id,
-    }
-  }, [records.data, target])
+  const reads = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: recordKeys.record(id),
+      queryFn: async () => (await readRecord(id)) ?? null,
+      enabled: !!target,
+      staleTime: 15_000,
+    })),
+  })
+  const byId = new Map(
+    ids.map((id, index) => [id, reads[index]?.data ?? undefined] as const),
+  )
+  return {
+    target,
+    title: (id: string) => {
+      const found = byId.get(id)
+      return target && found ? recordTitle(target, found) : id
+    },
+  }
 }
 
 function RelationValue({
@@ -477,8 +495,8 @@ function RelationValue({
   model?: DataModel
   onOpen?: (nameSingular: string, id: string) => void
 }) {
-  const { target, title } = useRelationTitles(model, field)
   const ids = relationIds(row, field)
+  const { target, title } = useLinkedTitles(model, field, ids)
   return (
     <span className="flex min-w-0 items-center gap-1 overflow-hidden">
       {ids.map((id) => (
@@ -909,6 +927,7 @@ export function OptionList({
   onCancel,
   render,
   clearable = true,
+  onSearch,
 }: {
   label: string
   options: { value: string; label: string }[]
@@ -921,10 +940,13 @@ export function OptionList({
   render?: (value: string) => ReactNode
   /** Off, the list offers no Clear and never picks null. */
   clearable?: boolean
+  /** What the person types, for options found by the server. */
+  onSearch?: (query: string) => void
 }) {
   return (
     <Command
       items={options}
+      onValueChange={onSearch ? (value: string) => onSearch(value) : undefined}
       itemToStringValue={(item: unknown) => (item as { label: string }).label}
     >
       <div
@@ -1047,10 +1069,39 @@ function RelationEditor({
 }: EditorProps) {
   const type = field.field_type
   const multiple = type.kind === 'relation' && type.cardinality === 'many'
-  const { target, rows, title } = useRelationTitles(model, field)
   const [picked, setPicked] = useState<string[]>(
     row ? relationIds(row, field) : [],
   )
+  const [search, setSearch] = useState('')
+  const target =
+    type.kind === 'relation'
+      ? resolveObjectType(model, type.target_object_type_id)
+      : undefined
+  const found = useQuery({
+    queryKey: [
+      ...recordKeys.rows(target?.node_label ?? ''),
+      'pick',
+      search.trim(),
+    ],
+    enabled: !!target,
+    queryFn: () =>
+      findRecords(target!.object_type_id, {
+        filters: search.trim()
+          ? [
+              {
+                field_key: titleField(target!),
+                operator: 'icontains',
+                value: search.trim(),
+              },
+            ]
+          : [],
+        sorts: [{ field_key: titleField(target!), direction: 'asc' }],
+        limit: 50,
+      }),
+    placeholderData: (previous) => previous,
+    staleTime: 15_000,
+  })
+  const rows = found.data?.rows ?? []
   const commit = (move?: Move) => {
     if (!clearable && picked.length === 0) return onDiscard()
     onCommit(multiple ? picked : (picked[0] ?? null), move)
@@ -1072,8 +1123,12 @@ function RelationEditor({
       selected={picked}
       multiple={multiple}
       clearable={clearable}
-      emptyText={`No ${target.label_plural.toLowerCase()} match`}
-      render={(id) => title(id)}
+      emptyText={
+        found.isPending
+          ? 'Loading…'
+          : `No ${target.label_plural.toLowerCase()} match`
+      }
+      onSearch={setSearch}
       onPick={(id) => {
         if (!multiple) return onCommit(id)
         if (id === null) return setPicked([])
