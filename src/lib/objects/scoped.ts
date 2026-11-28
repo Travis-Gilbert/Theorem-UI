@@ -8,7 +8,7 @@ import { useInfiniteQuery, useQueries } from '@tanstack/react-query'
 import type { QueryKey } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { findRecords, readRecord } from '@/components/records/api'
-import type { RecordFilter, RecordSort } from '@/components/records/api'
+import type { RecordSort } from '@/components/records/api'
 import type { ObjectType, RecordRow } from '@/components/records/contract'
 import {
   parseRecordItemId,
@@ -47,16 +47,12 @@ export const recordQuery = (
   type: ObjectType,
   search: string,
   sort: Sort,
-): { filters: RecordFilter[]; sorts: RecordSort[] } => {
-  const key = titleField(type)
-  const needle = search.trim()
-  return {
-    filters: needle
-      ? [{ field_key: key, operator: 'icontains', value: needle }]
-      : [],
-    sorts: sort === 'title' ? [{ field_key: key, direction: 'asc' }] : [],
-  }
-}
+): { search: string; sorts: RecordSort[] } => ({
+  // Theorem matches the search against every text field, not only the title.
+  search: search.trim(),
+  sorts:
+    sort === 'title' ? [{ field_key: titleField(type), direction: 'asc' }] : [],
+})
 
 export const recordEntry = (cls: ObjectClass, row: RecordRow): ObjectEntry => ({
   ref: recordItemId(cls.type, row.id),

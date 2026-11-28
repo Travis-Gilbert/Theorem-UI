@@ -499,8 +499,33 @@ export function createFixtureServer(options: FixtureOptions = {}) {
               value: unknown
             }[])
           : []
+        // A person's `search` reaches every text, long text or enum field,
+        // ignoring case; relations hold ids and never match.
+        const needle =
+          typeof input.search === 'string'
+            ? input.search.trim().toLowerCase()
+            : ''
+        const searchable = type.fields
+          .filter((spec) =>
+            ['text', 'long_text', 'enum', 'enum_many'].includes(
+              spec.field_type.kind,
+            ),
+          )
+          .map((spec) => spec.key)
+        const found = (candidate: Node) =>
+          !needle ||
+          searchable.some((key) =>
+            [candidate.properties[key]]
+              .flat()
+              .some(
+                (value) =>
+                  typeof value === 'string' &&
+                  value.toLowerCase().includes(needle),
+              ),
+          )
         // `icontains` is the same test ignoring case.
         const all = ofType().filter((candidate) =>
+          found(candidate) &&
           filters.every((filter) => {
             if (
               filter.operator !== 'contains' &&

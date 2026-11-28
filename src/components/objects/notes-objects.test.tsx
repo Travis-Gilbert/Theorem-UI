@@ -124,10 +124,15 @@ describe('a class library', () => {
     expect(search).toBeTruthy()
     await type(search, 'noo')
     await waitFor(() => !view.container.textContent.includes('Avery Quinn'))
-    expect(finds().at(-1)!.input.filters).toEqual([
-      { field_key: 'name', operator: 'icontains', value: 'noo' },
-    ])
+    expect(finds().at(-1)!.input.search).toBe('noo')
+    expect(finds().at(-1)!.input.filters).toBeUndefined()
     expect(view.container.textContent).toContain('Noor')
+
+    // The search reaches a property, not only the title.
+    await type(search, 'glaze')
+    await waitFor(() => finds().at(-1)!.input.search === 'glaze')
+    await waitFor(() => view.container.textContent.includes('Noor'))
+    expect(view.container.textContent).not.toContain('Avery Quinn')
   })
 })
 

@@ -246,11 +246,14 @@ export async function readClassPage(
 export async function findRecords(
   objectTypeId: string,
   {
+    search = '',
     filters = [],
     sorts = [],
     offset = 0,
     limit = 60,
   }: {
+    /** A person's search, which Theorem matches against every text field. */
+    search?: string
     filters?: RecordFilter[]
     sorts?: RecordSort[]
     offset?: number
@@ -258,6 +261,7 @@ export async function findRecords(
   } = {},
 ) {
   const result = await invokeRecordVerb(objectTypeId, 'find_many', {
+    ...(search.trim() ? { search: search.trim() } : {}),
     ...(filters.length ? { filters } : {}),
     ...(sorts.length ? { sorts } : {}),
     offset,
